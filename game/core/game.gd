@@ -54,7 +54,18 @@ func start_practice() -> void:
 func host_online() -> Error:
 	mode = Mode.ONLINE
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
-	return Net.host_direct(local_name(), port)
+	var err := Net.host_direct(local_name(), port)
+	if err == OK and DevArgs.rules != "":
+		var s := Net.match_settings.duplicate()
+		var kind := DevArgs.rules.get_slice(":", 0)
+		var amount := float(DevArgs.rules.get_slice(":", 1))
+		s.mode = "time" if kind == "time" else "kills"
+		if kind == "time":
+			s.minutes = amount
+		else:
+			s.kills = int(amount)
+		Net.set_match_settings(s)
+	return err
 
 
 func join_online(address: String) -> Error:

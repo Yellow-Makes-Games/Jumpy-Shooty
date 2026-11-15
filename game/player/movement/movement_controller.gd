@@ -37,17 +37,24 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var wish := _wish_dir(input)
 	var wish_speed: float = (t.sprint_speed if input.sprint else t.run_speed) * min(input.move.length(), 1.0)
 
-	if grounded:
+	var jumping := _jump_buffer > 0.0 and _since_ground <= t.coyote_time
+
+	if grounded and not jumping:
 		state = State.GROUND
 		vel = _apply_friction(vel, wish_speed, delta)
 		vel = _accelerate(vel, wish, wish_speed, t.ground_accel, delta)
 		vel.y = min(vel.y, 0.0)
 	else:
+		# In the air, and also on the exact frame a well-timed jump leaves the ground:
+		# no friction that frame, so a jump pressed just before landing keeps all
+		# your speed (bunny-hopping). Air steering can add speed when you strafe
+		# and turn together (air-strafing), but never takes speed away.
 		state = State.AIR
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.air_accel, delta)
-		vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+		if not grounded:
+			vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
 
-	if _jump_buffer > 0.0 and _since_ground <= t.coyote_time:
+	if jumping:
 		vel.y = t.jump_velocity
 		_jump_buffer = 0.0
 		_since_ground = t.coyote_time + 1.0  # spend the coyote window

@@ -88,7 +88,7 @@ func _ready() -> void:
 	ammo_box.add_child(_weapon)
 
 	_help = _label(Control.PRESET_CENTER_BOTTOM, HORIZONTAL_ALIGNMENT_CENTER, 15)
-	_help.text = "WASD move · Shift sprint · Space jump · Mouse shoot · R reload · V camera · Tab scores · Esc menu"
+	_help.text = "WASD move · Shift sprint · Space jump · Click shoot · R reload · V camera · Tab scores · Esc menu"
 	_help.modulate = Color(1, 1, 1, 0.55)
 
 	_death = _label(Control.PRESET_CENTER, HORIZONTAL_ALIGNMENT_CENTER, 30)
@@ -138,17 +138,19 @@ func update_local(p: Player) -> void:
 	_health_bar.value = hp
 	_health_label.text = "%d" % ceil(hp)
 	if p.weapon:
-		_weapon.text = p.weapon.data.display_name + " (placeholder)"
+		_weapon.text = p.weapon.data.display_name
 		if p.weapon.is_reloading():
 			_ammo.text = "Reloading %d%%" % int(p.weapon.reload_progress() * 100)
 		else:
 			_ammo.text = "%d / %d" % [p.weapon.ammo, p.weapon.data.magazine]
 
-	if Match.time_left > 1e8:
-		_match_info.text = "Practice"
-	else:
+	var parts := PackedStringArray()
+	if Match.time_left < 1e8:
 		var t := int(ceil(Match.time_left))
-		_match_info.text = "%d:%02d    First to %d kills" % [t / 60, t % 60, Match.kill_target]
+		parts.append("%d:%02d" % [t / 60, t % 60])
+	if Match.kill_target > 0:
+		parts.append("First to %d kills" % Match.kill_target)
+	_match_info.text = "    ".join(parts) if not parts.is_empty() else "Practice"
 
 	var speed := Vector2(p.velocity.x, p.velocity.z).length()
 	var state: String = MovementController.State.keys()[p.motor.state]

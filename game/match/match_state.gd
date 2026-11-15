@@ -21,12 +21,9 @@ const MAX_HEALTH := 100.0
 const RESPAWN_DELAY := 3.0
 const MAX_REWIND := 0.6           ## seconds; older views are clamped (anti-abuse)
 const HIT_FORGIVENESS := 0.08     ## metres added to player radius when checking hits
-## Placeholder match rules until Austin chooses them (kill target and time limit).
-const DEFAULT_KILL_TARGET := 15
-const DEFAULT_TIME_LIMIT := 480.0
-
-var kill_target := DEFAULT_KILL_TARGET
-var time_left := DEFAULT_TIME_LIMIT
+## kill_target 0 means "no kill target" (time-limit matches).
+var kill_target := 15
+var time_left := 480.0
 var running := false
 ## id -> {"kills": int, "deaths": int}
 var scores: Dictionary = {}
@@ -65,9 +62,20 @@ func _on_match_started() -> void:
 	running = true
 	last_results = []
 	if Net.is_host():
-		kill_target = DevArgs.kill_target if DevArgs.kill_target > 0 else DEFAULT_KILL_TARGET
-		time_left = DevArgs.time_limit if DevArgs.time_limit > 0.0 else DEFAULT_TIME_LIMIT
+		# The host's lobby settings decide the win condition (dev options override them).
+		var s: Dictionary = Net.match_settings
+		if s.mode == "time":
+			kill_target = 0
+			time_left = float(s.minutes) * 60.0
+		else:
+			kill_target = int(s.kills)
+			time_left = INF
+		if DevArgs.kill_target > 0:
+			kill_target = DevArgs.kill_target
+		if DevArgs.time_limit > 0.0:
+			time_left = DevArgs.time_limit
 		if Game.mode == Game.Mode.PRACTICE:
+			kill_target = 0
 			time_left = INF
 		scores.clear()
 		health.clear()
@@ -262,7 +270,7 @@ func _host_kill(victim: int, killer: int) -> void:
 		scores[killer].kills += 1
 	respawn_timers[victim] = RESPAWN_DELAY
 	_died.rpc(victim, killer, scores)
-	if killer != 0 and kills(killer) >= kill_target:
+	if killer != 0 and kill_target > 0 and kills(killer) >= kill_target:
 		host_end_match()
 
 

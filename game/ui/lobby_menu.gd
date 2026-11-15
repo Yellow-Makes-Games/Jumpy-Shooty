@@ -6,6 +6,12 @@ var _col: VBoxContainer
 var _list: VBoxContainer
 var _start: Button
 var _info: Label
+var _rules_label: Label
+var _host_rules: HBoxContainer
+var _mode_pick: OptionButton
+var _amount: SpinBox
+var _amount_unit: Label
+var _updating := false   # true while we fill the controls from settings (ignore their signals)
 
 
 func _ready() -> void:
@@ -18,6 +24,8 @@ func _ready() -> void:
 	_list.add_theme_constant_override("separation", 6)
 	_col.add_child(_list)
 	UiKit.spacer(_col, 8)
+	_build_rules()
+	UiKit.spacer(_col, 4)
 	_start = UiKit.button(_col, "Start match", Net.host_start_match)
 	UiKit.button(_col, "Leave lobby", Game.leave_to_menu)
 	Net.players_changed.connect(_refresh)
@@ -56,6 +64,64 @@ func _refresh() -> void:
 	else:
 		where = "Waiting for the host to start the match."
 	_info.text = "%d / %d players. %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
+	_refresh_rules()
+
+
+# Win condition: the host picks; everyone else sees it.
+func _build_rules() -> void:
+	UiKit.label(_col, "Win condition", true, 16)
+	_rules_label = UiKit.label(_col, "")
+	_host_rules = HBoxContainer.new()
+	_host_rules.add_theme_constant_override("separation", 10)
+	_col.add_child(_host_rules)
+	_mode_pick = OptionButton.new()
+	_mode_pick.add_item("First to", 0)
+	_mode_pick.add_item("Time limit", 1)
+	_mode_pick.custom_minimum_size = Vector2(170, 44)
+	_host_rules.add_child(_mode_pick)
+	_amount = SpinBox.new()
+	_amount.custom_minimum_size = Vector2(110, 44)
+	_host_rules.add_child(_amount)
+	_amount_unit = UiKit.label(_host_rules, "kills")
+	_amount_unit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_amount_unit.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_mode_pick.item_selected.connect(func(i: int):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s.mode = "kills" if i == 0 else "time"
+		Net.set_match_settings(s))
+	_amount.value_changed.connect(func(v: float):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		if s.mode == "kills":
+			s.kills = int(v)
+		else:
+			s.minutes = int(v)
+		if s != Net.match_settings:
+			Net.set_match_settings(s))
+
+
+func _refresh_rules() -> void:
+	var s: Dictionary = Net.match_settings
+	var kills_mode: bool = s.mode == "kills"
+	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
+	_rules_label.visible = not Net.is_host()
+	_host_rules.visible = Net.is_host()
+	_updating = true
+	_mode_pick.select(0 if kills_mode else 1)
+	if kills_mode:
+		_amount.min_value = 1
+		_amount.max_value = 100
+		_amount.set_value_no_signal(s.kills)
+		_amount_unit.text = "kills"
+	else:
+		_amount.min_value = 1
+		_amount.max_value = 60
+		_amount.set_value_no_signal(s.minutes)
+		_amount_unit.text = "minutes"
+	_updating = false
 
 
 func _local_ip() -> String:

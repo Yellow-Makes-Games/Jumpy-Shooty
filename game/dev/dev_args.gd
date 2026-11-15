@@ -15,8 +15,9 @@ extends Node
 ## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
 ##                      P percent of movement packets lost (incoming, this copy only).
 ## --scripted-fire     With --scripted-input: aim at the nearest opponent and shoot.
-## --kill-target=N      Host only: kills needed to win (default 15).
-## --time-limit=SECONDS Host only: match length (default 480).
+## --rules=kills:N | time:MINUTES  Host only: set the lobby's win condition.
+## --kill-target=N      Host only: override the kill target for this match.
+## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen for the lobby after 2 seconds.
 ## --third-person      Start in third-person view (not saved to settings).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
@@ -33,6 +34,7 @@ var sync_log := false
 var scripted_fire := false
 var auto_return := false
 var kill_target := 0
+var rules := ""
 var time_limit := 0.0
 var quit_after := 0.0
 var window_rect := Rect2i()
@@ -64,6 +66,7 @@ func _ready() -> void:
 			"--scripted-fire": scripted_fire = true
 			"--auto-return": auto_return = true
 			"--kill-target": kill_target = int(value)
+			"--rules": rules = value
 			"--time-limit": time_limit = float(value)
 			"--third-person": Settings.third_person = true
 			"--quit-after": quit_after = float(value)

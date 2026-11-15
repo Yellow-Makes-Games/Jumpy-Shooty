@@ -20,7 +20,7 @@ if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
 COMMON=(--scripted-input --scripted-fire --sync-log --auto-return --quit-after=150)
 
 "$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --autostart="$PLAYERS" \
-  --kill-target=4 --time-limit=60 "${COMMON[@]}" "${EXTRA[@]}" > "$OUT/match_1.log" 2>&1 &
+  --rules=kills:4 --time-limit=60 "${COMMON[@]}" "${EXTRA[@]}" > "$OUT/match_1.log" 2>&1 &
 HOST=$!
 sleep 1
 for i in $(seq 2 "$PLAYERS"); do

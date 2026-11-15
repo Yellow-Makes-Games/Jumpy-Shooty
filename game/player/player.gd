@@ -31,6 +31,7 @@ var _awaiting_respawn := false    # remote: hidden until the first post-respawn 
 var _body_gun: Node3D
 var _view_gun: Node3D
 var _fell_reported := false
+var _fire_buffer := 0.0           # a click slightly too early still fires when the gun is ready
 
 
 func _init() -> void:
@@ -63,7 +64,7 @@ func setup(id: int, local: bool) -> void:
 
 	if is_local:
 		motor = MovementController.new()
-		weapon = WeaponState.new(WeaponData.test_gun())
+		weapon = WeaponState.new(WeaponData.pistol())
 		rig = CameraRig.new()
 		add_child(rig)
 		rig.setup(self)
@@ -150,7 +151,9 @@ func read_local_input() -> void:
 	input.sprint = Input.is_action_pressed("sprint")
 	input.crouch = Input.is_action_pressed("crouch")
 	input.jump_held = Input.is_action_pressed("jump")
-	input.fire = Input.is_action_pressed("fire") if weapon.data.automatic else Input.is_action_just_pressed("fire")
+	input.fire = Input.is_action_pressed("fire")
+	if Input.is_action_just_pressed("fire"):
+		input.fire_pressed = true
 	if Input.is_action_just_pressed("jump"):
 		input.jump_pressed = true
 	if Input.is_action_just_pressed("dive"):
@@ -162,10 +165,16 @@ func read_local_input() -> void:
 
 func _update_weapon(delta: float) -> void:
 	weapon.update(delta)
-	if not input.fire or not Match.running:
+	if input.fire_pressed:
+		_fire_buffer = 0.1
+	else:
+		_fire_buffer = max(_fire_buffer - delta, 0.0)
+	var wants: bool = input.fire if weapon.data.automatic else _fire_buffer > 0.0
+	if not wants or not Match.running:
 		return
 	if not weapon.fire():
 		return
+	_fire_buffer = 0.0
 	var eye := eye_position()
 	var dir := _aim_direction(eye)
 	var spread := deg_to_rad(weapon.data.spread_degrees)
@@ -322,6 +331,8 @@ func _scripted_input(delta: float) -> void:
 			input.pitch = atan2(to.y, Vector2(to.x, to.z).length())
 			input.move = Vector2(1.0 if fmod(t, 3.0) < 1.5 else -1.0, 0.3)  # strafe while shooting
 			input.fire = true
+			if fmod(t, 0.2) < delta:
+				input.fire_pressed = true  # click about 5 times a second
 
 
 func _nearest_visible_opponent() -> Player:

@@ -71,6 +71,33 @@ func _initialize() -> void:
 		["air steering turns without slowing much", 0.5,
 			func(): input.move = Vector2(1, 0),
 			func(): _expect_true("still fast (>18 m/s)", motor.horizontal_speed(body) > 18.0)],
+		["land and stop", 3.0,
+			func(): input.move = Vector2.ZERO,
+			func(): _expect_true("on the floor", body.is_on_floor())],
+		["bunny hop keeps speed", 3.0,
+			func():
+				body.velocity = Vector3(0, 0, -14)
+				input.move = Vector2(0, 1)
+				input.jump_pressed = true
+				_data["bhop"] = true,
+			func():
+				_data.erase("bhop")
+				_expect_true("still above 13.5 m/s after 3 s of timed jumps (%.2f)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > 13.5)],
+		["no bunny hop without jumping", 1.0,
+			func(): pass,
+			func(): _expect_below("speed after 1 s on the ground without jumping", motor.horizontal_speed(body), 9.0)],
+		["air strafing gains speed", 2.5,
+			func():
+				body.global_position = Vector3(0, 80, 0)
+				body.velocity = Vector3.ZERO
+				body.move_and_slide()
+				body.velocity = Vector3(0, 0, -9)
+				input.yaw = 0.0
+				input.move = Vector2(1, 0)
+				_data["strafe"] = true,
+			func():
+				_data.erase("strafe")
+				_expect_true("faster than the 9 m/s it started with (%.2f)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > 10.5)],
 	]
 	print("Movement checks")
 
@@ -87,6 +114,10 @@ func _tick() -> void:
 			quit(1 if failures else 0)
 			return
 		_steps[_scenario][2].call()
+	if _data.has("bhop") and body.is_on_floor() == false and body.velocity.y < 0.0 and body.global_position.y < 0.15:
+		input.jump_pressed = true  # press jump just before touching down
+	if _data.has("strafe"):
+		input.yaw -= 1.6 * dt  # turn smoothly toward the strafe direction
 	motor.step(body, input, dt)
 	input.clear_edges()
 	if _data.has("peak"):

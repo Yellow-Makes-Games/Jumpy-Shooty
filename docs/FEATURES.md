@@ -3,7 +3,7 @@
 Status: **not started** · **rough** (exists, placeholder or partial) · **working** (done,
 tested by me) · **verified** (also checked by Austin on a real PC / with a friend).
 
-Last updated: phase 1, part 1 (match loop).
+Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN.md](DESIGN.md).
 
 ## Menus and flow
 
@@ -12,6 +12,7 @@ Last updated: phase 1, part 1 (match loop).
 | Main menu (Play, Multiplayer, Settings, Exit) | working | Placeholder styling |
 | Mode select (1v1 Bot, Multiplayer FFA) | rough | Bot button disabled until phase 1; Practice mode added |
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
+| Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
 | Settings menu (mouse, camera, audio, graphics) | working | Audio sliders have no sounds to affect yet |
 | Pause menu in match | working | Resume, settings, leave; host can end the match early |
 | Match results screen | working | Rankings, kills, deaths; return to lobby or main menu |
@@ -23,7 +24,7 @@ Last updated: phase 1, part 1 (match loop).
 | --- | --- | --- |
 | Host and join over direct IP | working | Tested with up to 5 copies on one machine |
 | Steam lobbies, invites, relay | not started | Next step; needs the GodotSteam plugin |
-| Movement sync with smoothing | working | Sync test passes at 100 ms latency, 60 ms jitter, 10% loss |
+| Movement sync with smoothing | working | Sync test passes at 100 ms latency, 60 ms jitter, 10% loss. ENet throttling switched off so movement updates are not dropped |
 | Player leaves mid-match | working | Their character disappears for everyone |
 | Host leaves: match ends, everyone back to menu | working | Covered by the sync test |
 | Rejoin a match in progress | rough | Joining mid-match drops you into the arena; a rejoining player starts at 0 kills |
@@ -37,6 +38,8 @@ Last updated: phase 1, part 1 (match loop).
 | Walk, sprint, acceleration, friction | working | Numbers in movement_tuning.gd |
 | Jump, coyote time, jump buffering | working | |
 | Air control, momentum preservation | working | Air steering never slows you down |
+| Bunny-hopping and air-strafing | working | A jump timed on landing keeps all speed; strafe+turn in the air gains speed |
+| No fall damage | working | By design |
 | Slide | not started | Phase 1 (basic), phase 2 (full) |
 | Grapple (momentum-based) | not started | Phase 2 |
 | Wall-run, wall-jump | not started | Phase 2 |
@@ -55,9 +58,9 @@ Last updated: phase 1, part 1 (match loop).
 | --- | --- | --- |
 | Health, damage, death, respawn (3 s), kills | working | Host decides; falling out of the arena counts as a death |
 | Kill feed, hit marker, damage flash, death screen | working | Placeholder look |
-| Match timer and kill target | working | Placeholder rules: first to 15 kills or 8 minutes, until you choose |
-| Weapons | rough | One placeholder test gun (hitscan, 20 damage, 20 rounds, reload). Real weapons wait on your design answers |
-| Weapon switching | not started | Needs a second weapon |
+| Match timer and kill target | working | Set per lobby by the host |
+| Weapons | working | Semi-automatic pistol: 25 damage, 12 rounds, 1.3 s reload. Numbers to tune by playtesting |
+| Weapon switching | not started | Only one weapon for now, by choice |
 | Muzzle flash, tracers, impacts | rough | Simple glowing shapes |
 | Weapon sounds | not started | |
 | Bot | not started | Phase 1 (simple), phase 3 (uses movement) |

@@ -5,23 +5,23 @@ extends Resource
 
 enum Kind { HITSCAN }
 
-@export var id := "test_gun"
-@export var display_name := "Test Gun"
+@export var id := "pistol"
+@export var display_name := "Pistol"
 @export var kind: Kind = Kind.HITSCAN
-@export var damage := 20.0
-@export var fire_interval := 0.12   ## seconds between shots (0.12 = ~8 shots per second)
-@export var automatic := true        ## hold to keep firing
-@export var magazine := 20
-@export var reload_time := 1.5
+@export var damage := 25.0           ## 4 hits to take a full-health player down
+@export var fire_interval := 0.17    ## fastest possible rate: about 6 shots per second
+@export var automatic := false       ## false = one shot per click
+@export var magazine := 12
+@export var reload_time := 1.3
 @export var max_range := 200.0
-@export var spread_degrees := 0.6    ## random aim wobble per shot
+@export var spread_degrees := 0.25   ## small random aim wobble per shot
 
 
-## The placeholder weapon used until the real weapons are designed.
-static func test_gun() -> WeaponData:
+## Semi-automatic pistol: the only weapon for now. Numbers are first guesses for playtesting.
+static func pistol() -> WeaponData:
 	return WeaponData.new()
 
 
 static func by_id(weapon_id: String) -> WeaponData:
 	match weapon_id:
-		_: return test_gun()
+		_: return pistol()

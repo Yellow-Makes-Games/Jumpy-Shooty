@@ -13,9 +13,11 @@ var sprint := false
 var crouch := false
 var dive_pressed := false
 var grapple := false
-var fire := false
+var fire := false          ## trigger held (automatic weapons)
+var fire_pressed := false  ## trigger pulled this frame (semi-automatic weapons)
 
 
 func clear_edges() -> void:
 	jump_pressed = false
 	dive_pressed = false
+	fire_pressed = false
