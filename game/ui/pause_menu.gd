@@ -22,7 +22,7 @@ func _show_main() -> void:
 	UiKit.button(_col, "Resume", func(): visible = false)
 	UiKit.button(_col, "Settings", _show_settings)
 	if Net.is_online and Net.is_host():
-		UiKit.button(_col, "End match (everyone returns to the lobby)", Net.host_end_match)
+		UiKit.button(_col, "End match now (show results)", Match.host_end_match)
 	var leave_text := "Leave match"
 	if Net.is_online and Net.is_host():
 		leave_text = "Close lobby (ends the match for everyone)"

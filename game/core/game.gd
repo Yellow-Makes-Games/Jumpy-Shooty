@@ -5,6 +5,7 @@ extends Node
 const MAIN_MENU := "res://game/ui/main_menu.tscn"
 const LOBBY := "res://game/ui/lobby_menu.tscn"
 const ARENA := "res://game/arena/arena.tscn"
+const RESULTS := "res://game/ui/results_menu.tscn"
 
 enum Mode { NONE, PRACTICE, BOT, ONLINE }
 
@@ -15,7 +16,7 @@ var pending_notice := ""
 
 func _ready() -> void:
 	Net.match_started.connect(_on_match_started)
-	Net.match_ended.connect(_on_match_ended)
+	Match.match_over.connect(_on_match_over)
 	Net.session_ended.connect(_on_session_ended)
 	Net.joined_lobby.connect(_on_joined_lobby)
 	Net.join_failed.connect(_on_join_failed)
@@ -47,14 +48,24 @@ func goto_lobby() -> void:
 func start_practice() -> void:
 	mode = Mode.PRACTICE
 	Net.start_offline(local_name())
-	Net.in_match = true
-	get_tree().change_scene_to_file.call_deferred(ARENA)
+	Net.host_start_match()
 
 
 func host_online() -> Error:
 	mode = Mode.ONLINE
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
-	return Net.host_direct(local_name(), port)
+	var err := Net.host_direct(local_name(), port)
+	if err == OK and DevArgs.rules != "":
+		var s := Net.match_settings.duplicate()
+		var kind := DevArgs.rules.get_slice(":", 0)
+		var amount := float(DevArgs.rules.get_slice(":", 1))
+		s.mode = "time" if kind == "time" else "kills"
+		if kind == "time":
+			s.minutes = amount
+		else:
+			s.kills = int(amount)
+		Net.set_match_settings(s)
+	return err
 
 
 func join_online(address: String) -> Error:
@@ -91,11 +102,10 @@ func _on_match_started() -> void:
 	get_tree().change_scene_to_file.call_deferred(ARENA)
 
 
-func _on_match_ended() -> void:
-	if mode == Mode.ONLINE:
-		goto_lobby()
-	else:
-		goto_main_menu()
+func _on_match_over(_results: Array) -> void:
+	Net.in_match = false
+	_release_mouse()
+	get_tree().change_scene_to_file.call_deferred(RESULTS)
 
 
 func _on_players_changed() -> void:

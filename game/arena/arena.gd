@@ -33,6 +33,9 @@ func _ready() -> void:
 	pause_menu.visibility_changed.connect(_on_pause_toggled)
 	Net.arena = self
 	Net.players_changed.connect(_sync_players)
+	Match.player_died.connect(_on_player_died)
+	Match.player_respawned.connect(_on_player_respawned)
+	Match.shot_fired.connect(_on_shot_fired)
 	_sync_players()
 	_capture_mouse(true)
 
@@ -53,7 +56,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(_delta: float) -> void:
 	if local_player and local_player.global_position.y < -25.0:
-		_respawn(local_player)
+		local_player.report_fell_once()
 
 
 func _process(_delta: float) -> void:
@@ -61,11 +64,54 @@ func _process(_delta: float) -> void:
 		hud.update_local(local_player)
 
 
+func get_player(id: int) -> Player:
+	return players_root.get_node_or_null("Player_%d" % id) as Player
+
+
 ## Called by Net for every movement snapshot from another player.
 func on_snapshot(sender: int, remote_time: float, data: PackedFloat32Array) -> void:
-	var p := players_root.get_node_or_null("Player_%d" % sender) as Player
+	var p := get_player(sender)
 	if p and not p.is_local:
 		p.apply_snapshot(remote_time, data)
+
+
+func _on_player_died(victim: int, _killer: int) -> void:
+	var p := get_player(victim)
+	if p:
+		p.set_dead()
+
+
+func _on_player_respawned(id: int, _spawn_index: int) -> void:
+	var p := get_player(id)
+	if p == null:
+		return
+	if p.is_local:
+		var s: Array = _safest_spawn()
+		p.respawn_at(s[0], s[1])
+	else:
+		p.expect_respawn()
+
+
+func _on_shot_fired(shooter: int, muzzle: Vector3, end: Vector3, hit_player: bool) -> void:
+	if shooter == Net.my_id():
+		return  # we already drew our own shot the moment we fired
+	var p := get_player(shooter)
+	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, end, hit_player)
+
+
+## The spawn point furthest from every living opponent.
+func _safest_spawn() -> Array:
+	var best: Array = layout.spawns[0]
+	var best_score := -1.0
+	for s in layout.spawns:
+		var nearest := INF
+		for p in players_root.get_children():
+			if p != local_player and (p as Player).alive:
+				nearest = min(nearest, (s[0] as Vector3).distance_to(p.global_position))
+		if nearest > best_score:
+			best_score = nearest
+			best = s
+	return best
 
 
 func _sync_players() -> void:
@@ -75,6 +121,8 @@ func _sync_players() -> void:
 	for p in players_root.get_children():
 		if not Net.players.has((p as Player).peer_id):
 			p.queue_free()
+		elif not Match.is_alive((p as Player).peer_id) and (p as Player).alive:
+			(p as Player).set_dead()  # joined while they were dead
 	hud.set_players(Net.players)
 
 

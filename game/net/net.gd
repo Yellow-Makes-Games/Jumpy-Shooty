@@ -15,7 +15,6 @@ signal joined_lobby                     # we are connected and registered
 signal join_failed(reason: String)
 signal session_ended(reason: String)    # host left, or we were refused
 signal match_started
-signal match_ended
 
 const DEFAULT_PORT := 24680
 const MAX_PLAYERS := 5
@@ -29,6 +28,10 @@ var players: Dictionary = {}
 var in_match := false
 var is_online := false
 var port := DEFAULT_PORT  ## the port we are hosting on
+
+## Win condition chosen by the host in the lobby.
+## mode: "kills" (first to `kills`) or "time" (most kills after `minutes`).
+var match_settings := {"mode": "kills", "kills": 15, "minutes": 8}
 
 ## The arena currently running, if any. It registers itself here.
 var arena: Node = null
@@ -122,6 +125,7 @@ func leave() -> void:
 # Connection events
 
 func _on_connected_to_server() -> void:
+	_tune_link(1)
 	_register.rpc_id(1, _local_name)
 
 
@@ -136,8 +140,21 @@ func _on_server_disconnected() -> void:
 	session_ended.emit("The host left, so the match ended.")
 
 
-func _on_peer_connected(_id: int) -> void:
-	pass  # The new peer registers itself; see _register.
+func _on_peer_connected(id: int) -> void:
+	# The new peer registers itself; see _register. Here the host only tunes the link.
+	if is_host():
+		_tune_link(id)
+
+
+## ENet normally starts dropping unreliable packets when ping wobbles ("throttling").
+## For a 5-player game that bandwidth saving isn't needed, and the dropped movement
+## updates make players stutter, so we switch throttling off.
+func _tune_link(id: int) -> void:
+	var peer := multiplayer.multiplayer_peer
+	if peer is ENetMultiplayerPeer:
+		var link: ENetPacketPeer = peer.get_peer(id)
+		if link:
+			link.throttle_configure(5000, ENetPacketPeer.PACKET_THROTTLE_SCALE, 0)
 
 
 func _on_peer_disconnected(id: int) -> void:
@@ -166,6 +183,7 @@ func _register(player_name: String) -> void:
 		return
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color()}
 	print("[net] %d joined as %s" % [id, players[id].name])
+	_sync_settings.rpc_id(id, match_settings)
 	_sync_players.rpc(players)
 	if in_match:
 		_late_join.rpc_id(id)
@@ -178,6 +196,19 @@ func _sync_players(new_players: Dictionary) -> void:
 	players_changed.emit()
 	if not was_registered and players.has(my_id()) and not is_host():
 		joined_lobby.emit()
+
+
+## Host only: change the win condition and tell everyone.
+func set_match_settings(settings: Dictionary) -> void:
+	if not is_host():
+		return
+	_sync_settings.rpc(settings)
+
+
+@rpc("authority", "call_local", "reliable")
+func _sync_settings(settings: Dictionary) -> void:
+	match_settings = settings
+	players_changed.emit()  # lobby screens refresh on this
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -237,18 +268,6 @@ func _start_match() -> void:
 func _late_join() -> void:
 	in_match = true
 	match_started.emit()
-
-
-func host_end_match() -> void:
-	if not is_host():
-		return
-	_end_match.rpc()
-
-
-@rpc("authority", "call_local", "reliable")
-func _end_match() -> void:
-	in_match = false
-	match_ended.emit()
 
 
 # ---------------------------------------------------------------------------
