@@ -30,6 +30,7 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Rejoin a match in progress | rough | Joining mid-match drops you into the arena; a rejoining player starts at 0 kills |
 | Internet play between two PCs | not started | Needs Steam, or router port forwarding for direct IP |
 | Hit detection (host decides with rewind) | working | Laggy-network test: 90% of aimed shots hit with rewind vs 37% without |
+| Headshots | working | 1.5x damage above the shoulders (lower when crouched). Yellow hit marker |
 
 ## Movement
 
@@ -40,10 +41,12 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Air control, momentum preservation | working | Air steering never slows you down |
 | Bunny-hopping and air-strafing | working | A jump timed on landing keeps all speed; strafe+turn in the air gains speed |
 | No fall damage | working | By design |
-| Slide | not started | Phase 1 (basic), phase 2 (full) |
-| Grapple (momentum-based) | not started | Phase 2 |
-| Wall-run, wall-jump | not started | Phase 2 |
-| Dive, roll, flips, vault, ledges | not started | Phase 2 |
+| Crouch | working | Ctrl or C. Lower and slower, fits under 1.4 m gaps, smaller hitbox. In the air it tucks your legs up |
+| Slide | working | Crouch while moving fast: speed boost (once per 1.2 s), keeps momentum, speeds up downhill, jump out of it |
+| Grapple (momentum-based) | working | Right mouse. Rope swing, not a pull: swing, pump with WASD, let go to launch, jump to let go with a kick. 45 m range, 0.6 s cooldown, any surface |
+| Wall-run, wall-jump | working | Hold forward along a wall in the air. Low gravity for 1.6 s, camera leans. Jump to kick off. Same wall can't be reused until you land |
+| Vault, ledge climb | working | Run into anything 0.45 to 1.25 m high and you vault it, keeping speed. Jump at a ledge up to 2.3 m and you climb up |
+| Dive, roll, flips | not started | Next |
 
 ## Camera
 

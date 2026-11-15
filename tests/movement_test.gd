@@ -48,6 +48,14 @@ func _initialize() -> void:
 	hang.position = ANCHOR + Vector3(0, 1, 0)
 	root.add_child(hang)
 
+	# Obstacles for crouch, slide, wall-run, vault and ledge checks.
+	_box(Vector3(-100, 1.9, -10), Vector3(4, 1, 10))      # low ceiling: 1.4 m gap underneath, z -15..-5
+	_box(Vector3(-150, 4, 0), Vector3(1, 8, 60))          # long wall, face at x = -149.5
+	_box(Vector3(100, 0.5, -20), Vector3(2, 1.0, 1.2))    # 1 m crate (vault)
+	_box(Vector3(100, 1.0, -60), Vector3(3, 2.0, 3))      # 2 m block (ledge climb)
+	var ramp := _box(Vector3(-60, 7, -20), Vector3(10, 1, 40))  # 20 degree slope, downhill toward +z
+	ramp.rotation.x = deg_to_rad(20.0)
+
 	motor = MovementController.new()
 	input = PlayerInput.new()
 
@@ -178,6 +186,122 @@ func _initialize() -> void:
 				_data.erase("jump_off_after")
 				_expect_true("let go", not motor.grapple.attached)
 				_expect_true("moving upward after the jump (%.2f m/s)" % body.velocity.y, body.velocity.y > t.grapple_jump_boost * 0.8)],
+		["crouch is slow", 1.5,
+			func():
+				motor.grapple.reset()
+				_teleport(Vector3(-100, 0.05, 0))
+				_clear_input()
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.crouch = true,
+			func():
+				_expect_near("crouched speed", motor.horizontal_speed(body), t.crouch_speed, 0.3)
+				_expect_true("state is Crouch", motor.state == MovementController.State.CROUCH)],
+		["crouching fits under a 1.4 m gap", 1.5,
+			func(): pass,
+			func(): _expect_true("got under it (z = %.1f)" % body.global_position.z, body.global_position.z < -8.0)],
+		["can't stand up under the low ceiling", 0.3,
+			func(): input.crouch = false,
+			func(): _expect_true("still crouched", motor.crouched)],
+		["standing up you can't get under it", 1.5,
+			func():
+				motor.reset()
+				_teleport(Vector3(-100, 0.05, 0))
+				input.crouch = false,
+			func(): _expect_true("blocked at the edge (z = %.1f)" % body.global_position.z, body.global_position.z > -5.0)],
+		["slide from a sprint boosts and keeps speed", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 0.05, 50))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -t.sprint_speed)
+				input.move = Vector2(0, 1)
+				input.sprint = true
+				input.crouch = true
+				input.crouch_pressed = true
+				_data["states"] = {},
+			func():
+				var expected: float = t.sprint_speed + t.slide_boost - t.slide_decel * 1.0
+				_expect_near("speed after 1 s of sliding", motor.horizontal_speed(body), expected, 0.4)
+				_expect_true("state is Slide", motor.state == MovementController.State.SLIDE)],
+		["slide ends when slow, back to crouching", 3.0,
+			func(): pass,
+			func(): _expect_true("state is Crouch", motor.state == MovementController.State.CROUCH)],
+		["sliding downhill speeds you up", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(-60, 13.2, -33.5))
+				_clear_input()
+				body.velocity = Vector3(0, 0, 8)
+				input.yaw = PI
+				input.move = Vector2(0, 1)
+				input.crouch = true
+				_data["slope_speed"] = 0.0,
+			func():
+				_expect_true("faster than you started (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > 11.5)
+				_expect_true("still sliding", motor.state == MovementController.State.SLIDE)],
+		["wall run along a wall", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(-148.9, 2.0, 25))
+				_clear_input()
+				body.velocity = Vector3(0, 3, -11)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1),
+			func():
+				_expect_true("state is Wall Run", motor.state == MovementController.State.WALL_RUN)
+				_expect_true("barely dropped (height %.2f)" % body.global_position.y, body.global_position.y > 2.5)
+				_expect_true("kept speed (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) >= 10.9)],
+		["wall jump kicks you off the wall", 0.05,
+			func(): input.jump_pressed = true,
+			func():
+				_expect_true("state is Air", motor.state == MovementController.State.AIR)
+				_expect_true("pushed away from the wall (%.1f m/s)" % body.velocity.x, body.velocity.x > t.wall_jump_push * 0.8)
+				_expect_true("going up (%.1f m/s)" % body.velocity.y, body.velocity.y > t.wall_jump_up - t.gravity * 0.05 - 0.2)],
+		["wall run times out", t.wall_run_max_time + 0.3,
+			func():
+				motor.reset()
+				_teleport(Vector3(-148.9, 6.0, 25))
+				_clear_input()
+				body.velocity = Vector3(0, 3, -11)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				_data["states"] = {},
+			func():
+				_expect_true("wall ran", _data["states"].has(MovementController.State.WALL_RUN))
+				_expect_true("then dropped off", motor.state != MovementController.State.WALL_RUN)],
+		["no wall run of the same wall twice without landing", 0.5,
+			func(): pass,
+			func(): _expect_true("did not start again", motor.state != MovementController.State.WALL_RUN)],
+		["running into a 1 m crate vaults over it, keeping speed", 1.6,
+			func():
+				motor.reset()
+				_teleport(Vector3(100, 0.05, -12))
+				_clear_input()
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.sprint = true
+				_data["states"] = {},
+			func():
+				_expect_true("vaulted", _data["states"].has(MovementController.State.MANTLE))
+				_expect_true("ended up past the crate (z = %.1f)" % body.global_position.z, body.global_position.z < -21.5)
+				_expect_true("still fast (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed)],
+		["running into a 2 m block stops you", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(100, 0.05, -55))
+				input.sprint = false,
+			func():
+				_expect_true("stopped at the block (z = %.1f)" % body.global_position.z, body.global_position.z > -58.7)
+				_expect_true("still on the ground", body.global_position.y < 0.1)],
+		["jumping at it grabs the ledge and climbs up", 1.2,
+			func():
+				input.jump_pressed = true
+				_data["climb"] = true,
+			func():
+				_data.erase("climb")
+				_expect_near("standing on top", body.global_position.y, 2.0, 0.08)
+				_expect_true("on the floor", body.is_on_floor())],
 	]
 	print("Movement checks")
 
@@ -221,6 +345,10 @@ func _tick() -> void:
 			_steps[_scenario][1] = 0.0  # check straight after this step
 	motor.step(body, input, dt)
 	input.clear_edges()
+	if _data.has("states"):
+		_data["states"][motor.state] = true
+	if _data.has("climb") and motor.state == MovementController.State.MANTLE:
+		input.move = Vector2.ZERO  # stop once up, so we stay on top
 	if _data.has("swing"):
 		var d: Dictionary = _data["swing"]
 		d["max_speed"] = max(d["max_speed"], body.velocity.length())
@@ -244,6 +372,26 @@ func _start_swing() -> void:
 	input.sprint = false
 	input.grapple = true
 	input.grapple_pressed = true
+
+
+func _box(pos: Vector3, size: Vector3) -> StaticBody3D:
+	var b := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	cs.shape = shape
+	b.add_child(cs)
+	b.position = pos
+	root.add_child(b)
+	return b
+
+
+func _clear_input() -> void:
+	input.move = Vector2.ZERO
+	input.sprint = false
+	input.crouch = false
+	input.grapple = false
+	input.clear_edges()
 
 
 func _teleport(pos: Vector3) -> void:

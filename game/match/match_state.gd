@@ -195,10 +195,12 @@ func _host_shot(shooter: int, origin: Vector3, direction: Vector3, view_times: D
 		var target: Player = Net.arena.get_player(id)
 		if target == null:
 			continue
-		var feet := target.position_at(_clamped_view_time(target, view_times.get(id, -1.0)))
+		var when := _clamped_view_time(target, view_times.get(id, -1.0))
+		var feet := target.position_at(when)
+		var height := Player.height_for_pose(target.pose_at(when))  # shorter when crouched
 		var r := Player.CAPSULE_RADIUS + HIT_FORGIVENESS
 		var a := feet + Vector3(0, Player.CAPSULE_RADIUS, 0)
-		var b := feet + Vector3(0, Player.CAPSULE_HEIGHT - Player.CAPSULE_RADIUS, 0)
+		var b := feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0)
 		var pts := Geometry3D.get_closest_points_between_segments(origin, end, a, b)
 		if pts[0].distance_to(pts[1]) <= r:
 			var d := origin.distance_to(pts[0])
@@ -207,7 +209,7 @@ func _host_shot(shooter: int, origin: Vector3, direction: Vector3, view_times: D
 				best_target = id
 				best_point = pts[0]
 				best_height = pts[0].y - feet.y
-				best_head = best_height >= HEAD_HEIGHT
+				best_head = best_height >= height - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
 	if best_target != 0:
 		end = best_point
 	_shot_effect.rpc(shooter, origin, end, best_target != 0)

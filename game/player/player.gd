@@ -9,6 +9,8 @@ const SEND_RATE := 30.0  ## snapshots per second
 const CAPSULE_RADIUS := 0.4
 const CAPSULE_HEIGHT := 1.8
 const VIEWMODEL_LAYER := 3   ## render layer for the first-person gun
+const CROUCH_HEIGHT := 1.1
+const TUCK_LIFT := CAPSULE_HEIGHT - CROUCH_HEIGHT
 
 var peer_id := 1
 var is_local := false
@@ -37,6 +39,9 @@ var _hook: MeshInstance3D         # the hook at the anchor
 var _rope_events: Array = []      # remote: [time, attached, anchor] waiting to be shown
 var _rope_on := false             # remote: is the rope shown
 var _rope_anchor := Vector3.ZERO  # remote: where it is hooked
+var _roll := 0.0                  # local: camera tilt while wall-running
+var _shape: CollisionShape3D
+var _low := false                 # drawn crouched
 
 
 func _init() -> void:
@@ -60,6 +65,7 @@ func setup(id: int, local: bool) -> void:
 	shape.shape = capsule
 	shape.position.y = CAPSULE_HEIGHT * 0.5
 	add_child(shape)
+	_shape = shape
 
 	visual = _build_placeholder_body(Net.player_color(id))
 	add_child(visual)
@@ -110,14 +116,17 @@ func _physics_process(delta: float) -> void:
 		_send_timer += 1.0 / SEND_RATE
 		var now := Net.now()
 		Net.send_snapshot(now, make_snapshot())
-		buffer.push(now, now, global_position, velocity, input.yaw, input.pitch, motor.state)
+		buffer.push(now, now, _sent_position(), velocity, input.yaw, input.pitch, _my_pose())
 	if DevArgs.sync_log:
-		print("SYNC SELF %d %.4f %.4f %.4f %.4f" % [peer_id, Net.now(), global_position.x, global_position.y, global_position.z])
+		var sp := _sent_position()  # without the leg tuck, which is a pose, not movement
+		print("SYNC SELF %d %.4f %.4f %.4f %.4f %d %.2f %.2f %.2f" % [peer_id, Net.now(), sp.x, sp.y, sp.z, _my_pose(), velocity.x, velocity.y, velocity.z])
 
 
 func _process(delta: float) -> void:
 	if is_local:
-		rig.set_view(input.yaw, input.pitch)
+		_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
+		rig.set_view(input.yaw, input.pitch, motor.eye_height, _roll)
+		_update_pose(motor.state, motor.crouched)
 		var g := motor.grapple
 		_draw_rope(g.attached and alive, g.anchor)
 		return
@@ -126,10 +135,11 @@ func _process(delta: float) -> void:
 	var rt := buffer.render_time(Net.now(), delta)
 	last_render_time = rt
 	var s := buffer.sample(rt)
-	global_position = s[0]
+	global_position = s[0] + Vector3(0, tuck_offset(s[4]), 0)
 	velocity = s[1]
 	visual.rotation.y = s[2]
 	_remote_state = s[4]
+	_update_pose(pose_state(_remote_state), pose_crouched(_remote_state))
 	while not _rope_events.is_empty() and _rope_events[0][0] <= rt:
 		var ev: Array = _rope_events.pop_front()
 		_rope_on = ev[1]
@@ -138,7 +148,8 @@ func _process(delta: float) -> void:
 			print("ROPE SEEN %d %d %s" % [Net.my_id(), peer_id, "on" if _rope_on else "off"])
 	_draw_rope(_rope_on and alive and not _awaiting_respawn, _rope_anchor)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
-		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, global_position.x, global_position.y, global_position.z, delta])
+		var sp: Vector3 = s[0]
+		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, sp.x, sp.y, sp.z, delta])
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -170,6 +181,8 @@ func read_local_input() -> void:
 		Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"))
 	input.sprint = Input.is_action_pressed("sprint")
 	input.crouch = Input.is_action_pressed("crouch")
+	if Input.is_action_just_pressed("crouch"):
+		input.crouch_pressed = true
 	input.jump_held = Input.is_action_pressed("jump")
 	input.fire = Input.is_action_pressed("fire")
 	if Input.is_action_just_pressed("fire"):
@@ -231,7 +244,7 @@ func _update_weapon(delta: float) -> void:
 
 
 func eye_position() -> Vector3:
-	return global_position + Vector3(0, CameraRig.EYE_HEIGHT, 0)
+	return global_position + Vector3(0, motor.eye_height if motor else CameraRig.EYE_HEIGHT, 0)
 
 
 func aim_forward() -> Vector3:
@@ -266,7 +279,7 @@ func muzzle_position() -> Vector3:
 func set_dead() -> void:
 	alive = false
 	if motor:
-		motor.grapple.reset()
+		motor.reset()
 	_rope_on = false
 	visual.visible = false
 	collision_layer = 0
@@ -307,12 +320,12 @@ func report_fell_once() -> void:
 ## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state,
 ## respawn count, grapple attached (0/1), grapple anchor (3).
 func make_snapshot() -> PackedFloat32Array:
-	var p := global_position
+	var p := _sent_position()
 	var v := velocity
 	var g := motor.grapple
 	var a := g.anchor
 	return PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch,
-		float(motor.state), float(_teleport_count), 1.0 if g.attached else 0.0, a.x, a.y, a.z])
+		float(_my_pose()), float(_teleport_count), 1.0 if g.attached else 0.0, a.x, a.y, a.z])
 
 
 func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
@@ -340,21 +353,84 @@ func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 
 
 func latest_position() -> Vector3:
-	return buffer.snaps[-1].pos if buffer.has_data() else global_position
+	if not buffer.has_data():
+		return global_position
+	var last = buffer.snaps[-1]
+	return last.pos + Vector3(0, tuck_offset(last.state), 0)
 
 
 func latest_time() -> float:
 	return buffer.snaps[-1].t if buffer.has_data() else Net.now()
 
 
+## Movement state, crouch and leg tuck packed into one number for snapshots.
+static func make_pose(state: int, crouched: bool, tucked: bool = false) -> int:
+	return state + (100 if crouched else 0) + (200 if tucked else 0)
+
+
+static func pose_state(pose: int) -> int:
+	return pose % 100
+
+
+static func pose_crouched(pose: int) -> bool:
+	return (pose / 100) % 2 == 1
+
+
+## Tucking the legs in the air lifts the feet without moving the head. Snapshots
+## carry the feet as if not tucked (so the position never jumps) plus this offset.
+static func tuck_offset(pose: int) -> float:
+	return TUCK_LIFT if pose >= 200 else 0.0
+
+
+func _my_pose() -> int:
+	return make_pose(motor.state, motor.crouched, motor.tucked)
+
+
+func _sent_position() -> Vector3:
+	return global_position - Vector3(0, TUCK_LIFT if motor.tucked else 0.0, 0)
+
+
+## Body height for a pose (shorter when crouched): used for the hitbox.
+static func height_for_pose(pose: int) -> float:
+	return CROUCH_HEIGHT if pose_crouched(pose) else CAPSULE_HEIGHT
+
+
+## Was this player crouched at time t (on this player's clock)?
+func pose_at(t: float) -> int:
+	return buffer.sample(t)[4] if buffer.has_data() else (_my_pose() if motor else 0)
+
+
+## Shrinks the drawn body and (for remote players) the collision shape when crouched.
+func _update_pose(_state: int, low: bool) -> void:
+	if low == _low:
+		return
+	_low = low
+	var h := height_for_pose(make_pose(0, low))
+	visual.scale.y = h / CAPSULE_HEIGHT
+	if not is_local:
+		(_shape.shape as CapsuleShape3D).height = h
+		_shape.position.y = h * 0.5
+
+
+## Lean the camera away from the wall while wall-running.
+func _target_roll() -> float:
+	if motor.state != MovementController.State.WALL_RUN:
+		return 0.0
+	var right := Vector3.RIGHT.rotated(Vector3.UP, input.yaw)
+	return -motor.wall_normal.dot(right) * deg_to_rad(7.0)
+
+
 ## Where this player's feet were at time t (on this player's clock).
 func position_at(t: float) -> Vector3:
-	return buffer.sample(t)[0] if buffer.has_data() else global_position
+	if not buffer.has_data():
+		return global_position
+	var s := buffer.sample(t)
+	return s[0] + Vector3(0, tuck_offset(s[4]), 0)
 
 
 func teleport(pos: Vector3, yaw: float) -> void:
 	if motor:
-		motor.grapple.reset()
+		motor.reset()
 	global_position = pos
 	velocity = Vector3.ZERO
 	input.yaw = yaw
@@ -372,6 +448,10 @@ func _scripted_input(delta: float) -> void:
 	input.sprint = fmod(t, 4.0) < 2.0
 	if fmod(t, 1.7) < delta:
 		input.jump_pressed = true
+	# Crouch (or slide, when fast) for a moment every 7 s.
+	var was_crouching := input.crouch
+	input.crouch = fmod(t, 7.0) > 5.8
+	input.crouch_pressed = input.crouch and not was_crouching
 	input.fire = false
 	# Every 5 s, swing from the central tower for a moment (tests the grapple online).
 	var swing_phase := fmod(t + float(peer_id % 7), 5.0)

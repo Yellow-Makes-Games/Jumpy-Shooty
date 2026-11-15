@@ -48,8 +48,11 @@ func setup(body: CollisionObject3D) -> void:
 	_on_settings_changed()
 
 
-func set_view(yaw: float, pitch: float) -> void:
-	pivot.global_rotation = Vector3(pitch, yaw, 0.0)
+## eye: eye height above the feet (lower when crouched). roll: head tilt in radians
+## (leaning away from a wall while wall-running).
+func set_view(yaw: float, pitch: float, eye: float = EYE_HEIGHT, roll: float = 0.0) -> void:
+	pivot.position.y = eye
+	pivot.global_rotation = Vector3(pitch, yaw, roll)
 
 
 func is_third_person() -> bool:
