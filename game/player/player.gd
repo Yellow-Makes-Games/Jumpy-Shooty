@@ -32,6 +32,11 @@ var _body_gun: Node3D
 var _view_gun: Node3D
 var _fell_reported := false
 var _fire_buffer := 0.0           # a click slightly too early still fires when the gun is ready
+var _rope: MeshInstance3D         # the grapple line, drawn from the gun to the anchor
+var _hook: MeshInstance3D         # the hook at the anchor
+var _rope_events: Array = []      # remote: [time, attached, anchor] waiting to be shown
+var _rope_on := false             # remote: is the rope shown
+var _rope_anchor := Vector3.ZERO  # remote: where it is hooked
 
 
 func _init() -> void:
@@ -76,6 +81,7 @@ func setup(id: int, local: bool) -> void:
 		_set_layer_recursive(_view_gun, VIEWMODEL_LAYER)
 	else:
 		_add_name_tag(Net.player_name(id))
+	_build_rope()
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +95,11 @@ func _physics_process(delta: float) -> void:
 	else:
 		read_local_input()
 	if alive:
+		_set_crosshair_ray()
+		var was_on := motor.grapple.attached
 		motor.step(self, input, delta)
+		if DevArgs.sync_log and motor.grapple.attached != was_on:
+			print("ROPE SELF %d %s" % [peer_id, "on" if motor.grapple.attached else "off"])
 		visual.rotation.y = input.yaw
 		_update_weapon(delta)
 	else:
@@ -108,6 +118,8 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	if is_local:
 		rig.set_view(input.yaw, input.pitch)
+		var g := motor.grapple
+		_draw_rope(g.attached and alive, g.anchor)
 		return
 	if not buffer.has_data():
 		return
@@ -118,6 +130,13 @@ func _process(delta: float) -> void:
 	velocity = s[1]
 	visual.rotation.y = s[2]
 	_remote_state = s[4]
+	while not _rope_events.is_empty() and _rope_events[0][0] <= rt:
+		var ev: Array = _rope_events.pop_front()
+		_rope_on = ev[1]
+		_rope_anchor = ev[2]
+		if DevArgs.sync_log:
+			print("ROPE SEEN %d %d %s" % [Net.my_id(), peer_id, "on" if _rope_on else "off"])
+	_draw_rope(_rope_on and alive and not _awaiting_respawn, _rope_anchor)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
 		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, global_position.x, global_position.y, global_position.z, delta])
 
@@ -144,6 +163,7 @@ func read_local_input() -> void:
 		input.sprint = false
 		input.jump_held = false
 		input.fire = false
+		input.grapple = false
 		return
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
@@ -158,6 +178,20 @@ func read_local_input() -> void:
 		input.jump_pressed = true
 	if Input.is_action_just_pressed("dive"):
 		input.dive_pressed = true
+	input.grapple = Input.is_action_pressed("grapple")
+	if Input.is_action_just_pressed("grapple"):
+		input.grapple_pressed = true
+
+
+## In third person, the grapple aims along the crosshair from the camera.
+func _set_crosshair_ray() -> void:
+	if rig and rig.is_third_person():
+		var cam := rig.camera.global_transform
+		input.aim_origin = cam.origin
+		input.aim_dir = -cam.basis.z
+	else:
+		input.aim_origin = Vector3.ZERO
+		input.aim_dir = Vector3.ZERO
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +265,9 @@ func muzzle_position() -> Vector3:
 
 func set_dead() -> void:
 	alive = false
+	if motor:
+		motor.grapple.reset()
+	_rope_on = false
 	visual.visible = false
 	collision_layer = 0
 	if _view_gun:
@@ -267,11 +304,15 @@ func report_fell_once() -> void:
 # ---------------------------------------------------------------------------
 # Network state
 
-## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state, respawn count.
+## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state,
+## respawn count, grapple attached (0/1), grapple anchor (3).
 func make_snapshot() -> PackedFloat32Array:
 	var p := global_position
 	var v := velocity
-	return PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch, float(motor.state), float(_teleport_count)])
+	var g := motor.grapple
+	var a := g.anchor
+	return PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch,
+		float(motor.state), float(_teleport_count), 1.0 if g.attached else 0.0, a.x, a.y, a.z])
 
 
 func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
@@ -289,6 +330,13 @@ func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 	buffer.push(remote_time, Net.now(),
 		Vector3(data[0], data[1], data[2]), Vector3(data[3], data[4], data[5]),
 		data[6], data[7], int(data[8]))
+	if data.size() >= 14:
+		var on := data[10] > 0.5
+		var anchor := Vector3(data[11], data[12], data[13])
+		var last_on: bool = _rope_events[-1][1] if not _rope_events.is_empty() else _rope_on
+		var last_anchor: Vector3 = _rope_events[-1][2] if not _rope_events.is_empty() else _rope_anchor
+		if on != last_on or (on and anchor.distance_squared_to(last_anchor) > 0.01):
+			_rope_events.append([remote_time, on, anchor])
 
 
 func latest_position() -> Vector3:
@@ -305,6 +353,8 @@ func position_at(t: float) -> Vector3:
 
 
 func teleport(pos: Vector3, yaw: float) -> void:
+	if motor:
+		motor.grapple.reset()
 	global_position = pos
 	velocity = Vector3.ZERO
 	input.yaw = yaw
@@ -323,10 +373,19 @@ func _scripted_input(delta: float) -> void:
 	if fmod(t, 1.7) < delta:
 		input.jump_pressed = true
 	input.fire = false
+	# Every 5 s, swing from the central tower for a moment (tests the grapple online).
+	var swing_phase := fmod(t + float(peer_id % 7), 5.0)
+	input.grapple = swing_phase < 1.3
+	if swing_phase < delta:
+		var to_tower := Vector3(0, 5.5, 0) - eye_position()
+		input.yaw = atan2(-to_tower.x, -to_tower.z)
+		input.pitch = atan2(to_tower.y, Vector2(to_tower.x, to_tower.z).length())
+		input.grapple_pressed = true
 	if DevArgs.scripted_fire:
 		var target := _nearest_visible_opponent()
 		if target:
-			var to: Vector3 = target.global_position + Vector3(0, 1.0, 0) - eye_position()
+			var aim_height := 1.65 if fmod(t, 4.0) < 2.0 else 1.0  # alternate head and body
+			var to: Vector3 = target.global_position + Vector3(0, aim_height, 0) - eye_position()
 			input.yaw = atan2(-to.x, -to.z)
 			input.pitch = atan2(to.y, Vector2(to.x, to.z).length())
 			input.move = Vector2(1.0 if fmod(t, 3.0) < 1.5 else -1.0, 0.3)  # strafe while shooting
@@ -402,6 +461,58 @@ func _build_placeholder_gun() -> Node3D:
 	muzzle.position = Vector3(0, 0.02, -0.28)
 	gun.add_child(muzzle)
 	return gun
+
+
+func _build_rope() -> void:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.12, 0.12, 0.13)
+	mat.metallic = 0.6
+	mat.roughness = 0.4
+	_rope = MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.018
+	cyl.bottom_radius = 0.018
+	cyl.height = 1.0
+	cyl.radial_segments = 6
+	cyl.rings = 1
+	cyl.material = mat
+	_rope.mesh = cyl
+	_rope.top_level = true
+	_rope.visible = false
+	_rope.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_rope)
+	_hook = MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.14, 0.14, 0.14)
+	var hook_mat := StandardMaterial3D.new()
+	hook_mat.albedo_color = Color(0.95, 0.7, 0.15)
+	box.material = hook_mat
+	_hook.mesh = box
+	_hook.top_level = true
+	_hook.visible = false
+	add_child(_hook)
+
+
+## Stretches the rope from the gun to the anchor.
+func _draw_rope(on: bool, anchor: Vector3) -> void:
+	_rope.visible = on
+	_hook.visible = on
+	if not on:
+		return
+	var from := muzzle_position()
+	var span := anchor - from
+	var dist := span.length()
+	if dist < 0.05:
+		_rope.visible = false
+		return
+	var y := span / dist
+	var x := y.cross(Vector3.UP)
+	if x.length_squared() < 0.001:
+		x = y.cross(Vector3.RIGHT)
+	x = x.normalized()
+	var z := x.cross(y).normalized()
+	_rope.global_transform = Transform3D(Basis(x, y * dist, z), from + span * 0.5)
+	_hook.global_position = anchor
 
 
 func _add_name_tag(text: String) -> void:

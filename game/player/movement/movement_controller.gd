@@ -3,13 +3,14 @@ extends RefCounted
 ## The player's movement rules. One controller with a small set of states that all
 ## share one velocity, so speed carries from one move into the next by design.
 ##
-## Phase 0 has GROUND and AIR. Phase 2 adds SLIDE, WALL_RUN, GRAPPLE, DIVE, ROLL and
-## VAULT as further states in this same controller, each in its own file.
+## States so far: GROUND, AIR, GRAPPLE (see grapple.gd). SLIDE, WALL_RUN, DIVE, ROLL
+## and VAULT arrive as further states in this same controller, each in its own file.
 
-enum State { GROUND, AIR }
+enum State { GROUND, AIR, GRAPPLE }
 
 var tuning: MovementTuning
 var state: State = State.AIR
+var grapple: Grapple
 
 var _since_ground := 0.0   # seconds since we last stood on the floor
 var _jump_buffer := 0.0    # seconds left on a buffered jump press
@@ -17,6 +18,7 @@ var _jump_buffer := 0.0    # seconds left on a buffered jump press
 
 func _init(t: MovementTuning = null) -> void:
 	tuning = t if t else MovementTuning.new()
+	grapple = Grapple.new(tuning)
 
 
 ## Advance the body by one physics step.
@@ -37,9 +39,28 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var wish := _wish_dir(input)
 	var wish_speed: float = (t.sprint_speed if input.sprint else t.run_speed) * min(input.move.length(), 1.0)
 
+	# Grapple: hold to stay on the rope, let go to fly off with your momentum,
+	# or jump to let go with an upward kick.
+	grapple.update(delta)
+	if input.grapple_pressed and not grapple.attached:
+		grapple.try_attach(body, input)
+	if grapple.attached and not input.grapple:
+		grapple.release()
+	var rope_jump := false
+	if grapple.attached and _jump_buffer > 0.0 and not grounded:
+		grapple.release()
+		_jump_buffer = 0.0
+		rope_jump = true
+
 	var jumping := _jump_buffer > 0.0 and _since_ground <= t.coyote_time
 
-	if grounded and not jumping:
+	if grapple.attached and not grounded:
+		# Swinging: gravity plus stronger air steering (to pump the swing), then
+		# the rope removes any motion that would stretch it.
+		state = State.GRAPPLE
+		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.grapple_air_accel, delta)
+		vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+	elif grounded and not jumping:
 		state = State.GROUND
 		vel = _apply_friction(vel, wish_speed, delta)
 		vel = _accelerate(vel, wish, wish_speed, t.ground_accel, delta)
@@ -59,9 +80,19 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_jump_buffer = 0.0
 		_since_ground = t.coyote_time + 1.0  # spend the coyote window
 		state = State.AIR
+	if rope_jump:
+		vel.y = max(vel.y, 0.0) + t.grapple_jump_boost
+		state = State.AIR
+
+	if grapple.attached:
+		vel = grapple.constrain_velocity(body, vel, delta)
+		if grounded:
+			state = State.GRAPPLE if vel.y > 0.1 else State.GROUND
 
 	body.velocity = vel
 	body.move_and_slide()
+	if grapple.attached:
+		grapple.correct_position(body)
 
 
 func horizontal_speed(body: CharacterBody3D) -> float:

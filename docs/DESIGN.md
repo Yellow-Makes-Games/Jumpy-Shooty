@@ -14,11 +14,17 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - Art style: clean, stylized low-poly.
 - Characters: robots.
 - UI: minimal and clean.
-- Music: none for now. (Sound effects style not decided yet.)
+- Music: none for now.
+- Sound effects: heavier and realistic.
 
 ## Weapons
 
 - For now: one semi-automatic pistol (one shot per click).
+- Headshots do 1.5x damage.
+
+## Health
+
+- No health regeneration and no health pickups.
 
 ## Movement
 
@@ -30,7 +36,8 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 ## Arena
 
 - Size: about the size of the current test map (80 x 80 m).
-- Themes: different arenas can use different themes. Theme of the first arena: not decided.
+- Themes: different arenas can use different themes.
+- First arena: a construction site.
 
 ## Match rules
 
@@ -38,8 +45,5 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 
 ## Still open
 
-- Health: regeneration, pickups, or neither? Respawn delay (3 s for now)?
-- Headshots: extra damage or not?
-- Sound effects: punchy and arcade-like, or heavier and realistic?
-- Theme of the first arena.
+- Respawn delay (3 s for now).
 - The end of the cut-off sentence in the original brief ("Networking tradeoffs that affect the...").

@@ -11,7 +11,7 @@ extends Node
 ## hit what you aimed at on your screen, but the host has the final say.
 
 signal state_changed               ## scores, health or timer changed
-signal player_hit(shooter: int, target: int, damage: float)
+signal player_hit(shooter: int, target: int, damage: float, headshot: bool)
 signal player_died(victim: int, killer: int)
 signal player_respawned(id: int, spawn_index: int)
 signal shot_fired(shooter: int, muzzle: Vector3, end: Vector3, hit_player: bool)
@@ -21,6 +21,8 @@ const MAX_HEALTH := 100.0
 const RESPAWN_DELAY := 3.0
 const MAX_REWIND := 0.6           ## seconds; older views are clamped (anti-abuse)
 const HIT_FORGIVENESS := 0.08     ## metres added to player radius when checking hits
+const HEAD_HEIGHT := 1.45         ## a hit above this height (from the feet) is a headshot
+const HEADSHOT_MULTIPLIER := 1.5
 ## kill_target 0 means "no kill target" (time-limit matches).
 var kill_target := 15
 var time_left := 480.0
@@ -185,6 +187,8 @@ func _host_shot(shooter: int, origin: Vector3, direction: Vector3, view_times: D
 	var best_target := 0
 	var best_dist := INF
 	var best_point := end
+	var best_head := false
+	var best_height := 0.0
 	for id in Net.players:
 		if id == shooter or not is_alive(id):
 			continue
@@ -202,13 +206,16 @@ func _host_shot(shooter: int, origin: Vector3, direction: Vector3, view_times: D
 				best_dist = d
 				best_target = id
 				best_point = pts[0]
+				best_height = pts[0].y - feet.y
+				best_head = best_height >= HEAD_HEIGHT
 	if best_target != 0:
 		end = best_point
 	_shot_effect.rpc(shooter, origin, end, best_target != 0)
 	if best_target != 0:
-		_host_damage(shooter, best_target, weapon.damage)
+		var dmg := weapon.damage * (HEADSHOT_MULTIPLIER if best_head else 1.0)
+		_host_damage(shooter, best_target, dmg, best_head)
 	if DevArgs.sync_log:
-		print("SHOT %d %s" % [shooter, "hit %d" % best_target if best_target else "miss"])
+		print("SHOT %d %s" % [shooter, ("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss"])
 
 
 ## Keeps the rewind within limits so a slow or dishonest client cannot shoot far into the past.
@@ -227,19 +234,19 @@ func _shot_effect(shooter: int, muzzle: Vector3, end: Vector3, hit_player: bool)
 # ---------------------------------------------------------------------------
 # Damage, death, respawn (host decides, everyone is told)
 
-func _host_damage(shooter: int, target: int, amount: float) -> void:
+func _host_damage(shooter: int, target: int, amount: float, headshot: bool = false) -> void:
 	if not is_alive(target):
 		return
 	health[target] = max(health[target] - amount, 0.0)
-	_hit.rpc(shooter, target, amount, health[target])
+	_hit.rpc(shooter, target, amount, health[target], headshot)
 	if health[target] <= 0.0:
 		_host_kill(target, shooter)
 
 
 @rpc("authority", "call_local", "reliable")
-func _hit(shooter: int, target: int, amount: float, new_health: float) -> void:
+func _hit(shooter: int, target: int, amount: float, new_health: float, headshot: bool) -> void:
 	health[target] = new_health
-	player_hit.emit(shooter, target, amount)
+	player_hit.emit(shooter, target, amount, headshot)
 	state_changed.emit()
 
 

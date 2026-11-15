@@ -4,7 +4,7 @@ extends Node3D
 ## same pivot with the same aim, so gameplay is identical; only the viewpoint moves.
 ## The third-person view uses a spring arm that shortens when a wall gets in the way.
 
-const EYE_HEIGHT := 1.6
+const EYE_HEIGHT := MovementTuning.EYE_HEIGHT
 const TP_DISTANCE := 3.4
 const TP_SHOULDER := 0.55
 const BLEND_TIME := 0.18
