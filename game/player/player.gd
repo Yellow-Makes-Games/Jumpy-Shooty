@@ -1,26 +1,36 @@
 class_name Player
 extends CharacterBody3D
 ## A player in the arena. The same scene is used for:
-##  - the local player: reads input, runs movement, sends snapshots;
+##  - the local player: reads input, runs movement, fires, sends snapshots;
 ##  - remote players: shown from snapshots, smoothed by SnapshotBuffer.
-## Bots (phase 1) will be local players whose input comes from the AI.
+## Bots will be local players whose input comes from the AI.
 
 const SEND_RATE := 30.0  ## snapshots per second
 const CAPSULE_RADIUS := 0.4
 const CAPSULE_HEIGHT := 1.8
+const VIEWMODEL_LAYER := 3   ## render layer for the first-person gun
 
 var peer_id := 1
 var is_local := false
+var alive := true
 
 var input := PlayerInput.new()
 var motor: MovementController
 var rig: CameraRig
 var visual: Node3D
-var buffer := SnapshotBuffer.new()
+var buffer := SnapshotBuffer.new()   ## remote: received states; local: own recent states (for the host's rewind)
+var weapon: WeaponState
+## Time (on this player's clock) at which we are currently drawing them. Sent with shots.
+var last_render_time := -1.0
 
 var _send_timer := 0.0
 var _scripted_time := 0.0
 var _remote_state := 0
+var _teleport_count := 0          # local: bumped on every respawn; remote: last seen value
+var _awaiting_respawn := false    # remote: hidden until the first post-respawn snapshot
+var _body_gun: Node3D
+var _view_gun: Node3D
+var _fell_reported := false
 
 
 func _init() -> void:
@@ -47,16 +57,28 @@ func setup(id: int, local: bool) -> void:
 
 	visual = _build_placeholder_body(Net.player_color(id))
 	add_child(visual)
+	_body_gun = _build_placeholder_gun()
+	_body_gun.position = Vector3(0.32, 1.25, -0.35)
+	visual.add_child(_body_gun)
 
 	if is_local:
 		motor = MovementController.new()
+		weapon = WeaponState.new(WeaponData.test_gun())
 		rig = CameraRig.new()
 		add_child(rig)
 		rig.setup(self)
 		_set_layer_recursive(visual, CameraRig.BODY_LAYER)
+		_view_gun = _build_placeholder_gun()
+		_view_gun.position = Vector3(0.2, -0.17, -0.62)
+		_view_gun.scale = Vector3(0.7, 0.7, 0.7)
+		rig.camera.add_child(_view_gun)
+		_set_layer_recursive(_view_gun, VIEWMODEL_LAYER)
 	else:
 		_add_name_tag(Net.player_name(id))
 
+
+# ---------------------------------------------------------------------------
+# Per-frame
 
 func _physics_process(delta: float) -> void:
 	if not is_local:
@@ -65,13 +87,19 @@ func _physics_process(delta: float) -> void:
 		_scripted_input(delta)
 	else:
 		read_local_input()
-	motor.step(self, input, delta)
+	if alive:
+		motor.step(self, input, delta)
+		visual.rotation.y = input.yaw
+		_update_weapon(delta)
+	else:
+		velocity = Vector3.ZERO
 	input.clear_edges()
-	visual.rotation.y = input.yaw
 	_send_timer -= delta
 	if _send_timer <= 0.0:
 		_send_timer += 1.0 / SEND_RATE
-		Net.send_snapshot(Net.now(), make_snapshot())
+		var now := Net.now()
+		Net.send_snapshot(now, make_snapshot())
+		buffer.push(now, now, global_position, velocity, input.yaw, input.pitch, motor.state)
 	if DevArgs.sync_log:
 		print("SYNC SELF %d %.4f %.4f %.4f %.4f" % [peer_id, Net.now(), global_position.x, global_position.y, global_position.z])
 
@@ -83,13 +111,14 @@ func _process(delta: float) -> void:
 	if not buffer.has_data():
 		return
 	var rt := buffer.render_time(Net.now(), delta)
+	last_render_time = rt
 	var s := buffer.sample(rt)
 	global_position = s[0]
 	velocity = s[1]
 	visual.rotation.y = s[2]
 	_remote_state = s[4]
-	if DevArgs.sync_log:
-		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, global_position.x, global_position.y, global_position.z])
+	if DevArgs.sync_log and alive and not _awaiting_respawn:
+		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, global_position.x, global_position.y, global_position.z, delta])
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -102,6 +131,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		input.pitch = clamp(input.pitch - dy, deg_to_rad(-89.0), deg_to_rad(89.0))
 	elif event.is_action_pressed("toggle_camera"):
 		Settings.set_third_person(not Settings.third_person)
+	elif event.is_action_pressed("reload") and weapon:
+		weapon.start_reload()
 
 
 ## Reads keyboard and mouse into `input`. Mouse look arrives in _unhandled_input.
@@ -111,6 +142,7 @@ func read_local_input() -> void:
 		input.move = Vector2.ZERO
 		input.sprint = false
 		input.jump_held = false
+		input.fire = false
 		return
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
@@ -118,25 +150,149 @@ func read_local_input() -> void:
 	input.sprint = Input.is_action_pressed("sprint")
 	input.crouch = Input.is_action_pressed("crouch")
 	input.jump_held = Input.is_action_pressed("jump")
+	input.fire = Input.is_action_pressed("fire") if weapon.data.automatic else Input.is_action_just_pressed("fire")
 	if Input.is_action_just_pressed("jump"):
 		input.jump_pressed = true
 	if Input.is_action_just_pressed("dive"):
 		input.dive_pressed = true
 
 
-## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state.
+# ---------------------------------------------------------------------------
+# Shooting
+
+func _update_weapon(delta: float) -> void:
+	weapon.update(delta)
+	if not input.fire or not Match.running:
+		return
+	if not weapon.fire():
+		return
+	var eye := eye_position()
+	var dir := _aim_direction(eye)
+	var spread := deg_to_rad(weapon.data.spread_degrees)
+	var side := dir.cross(Vector3.UP)
+	if side.length_squared() > 0.0001:
+		dir = dir.rotated(side.normalized(), randf_range(-spread, spread))
+	dir = dir.rotated(Vector3.UP, randf_range(-spread, spread)).normalized()
+	# Show the shot straight away; the host decides whether it hit.
+	var end := eye + dir * weapon.data.max_range
+	var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(ray)
+	if hit:
+		end = hit.position
+	ShotFx.spawn(get_parent(), muzzle_position(), end, hit and hit.collider is Player)
+	var view_times := {}
+	for p in get_parent().get_children():
+		if p != self and p is Player and p.last_render_time >= 0.0:
+			view_times[p.peer_id] = p.last_render_time
+	Match.request_shot(eye, dir, view_times, weapon.data.id)
+
+
+func eye_position() -> Vector3:
+	return global_position + Vector3(0, CameraRig.EYE_HEIGHT, 0)
+
+
+func aim_forward() -> Vector3:
+	return Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0)) * Vector3.FORWARD
+
+
+## In third person the camera sits behind the shoulder, so we find what the crosshair
+## points at from the camera, then shoot at that point from the eyes.
+func _aim_direction(eye: Vector3) -> Vector3:
+	var forward := aim_forward()
+	if rig == null or not rig.is_third_person():
+		return forward
+	var cam := rig.camera.global_transform
+	var from := cam.origin
+	var to := from - cam.basis.z * weapon.data.max_range
+	var ray := PhysicsRayQueryParameters3D.create(from, to, 1 | (1 << 1), [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(ray)
+	var target: Vector3 = hit.position if hit else to
+	var dir := (target - eye).normalized()
+	return dir if dir.dot(forward) > 0.2 else forward
+
+
+func muzzle_position() -> Vector3:
+	if is_local and _view_gun and not rig.is_third_person():
+		return _view_gun.get_node("Muzzle").global_position
+	return _body_gun.get_node("Muzzle").global_position
+
+
+# ---------------------------------------------------------------------------
+# Life and death
+
+func set_dead() -> void:
+	alive = false
+	visual.visible = false
+	collision_layer = 0
+	if _view_gun:
+		_view_gun.visible = false
+
+
+## Local player: come back at a spawn point.
+func respawn_at(pos: Vector3, yaw: float) -> void:
+	teleport(pos, yaw)
+	_teleport_count += 1
+	_fell_reported = false
+	alive = true
+	visual.visible = true
+	collision_layer = 1 << 1
+	if _view_gun:
+		_view_gun.visible = true
+	if weapon:
+		weapon.reset()
+	_send_timer = 0.0  # tell everyone at once
+
+
+## Remote player: alive again, but stay hidden until their new position arrives.
+func expect_respawn() -> void:
+	alive = true
+	_awaiting_respawn = true
+
+
+func report_fell_once() -> void:
+	if not _fell_reported and alive:
+		_fell_reported = true
+		Match.request_fell()
+
+
+# ---------------------------------------------------------------------------
+# Network state
+
+## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state, respawn count.
 func make_snapshot() -> PackedFloat32Array:
 	var p := global_position
 	var v := velocity
-	return PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch, float(motor.state)])
+	return PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch, float(motor.state), float(_teleport_count)])
 
 
 func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
-	if data.size() < 9:
+	if data.size() < 10:
 		return
+	var count := int(data[9])
+	if count != _teleport_count:
+		_teleport_count = count
+		buffer.clear_history()  # never blend across a respawn
+		if _awaiting_respawn:
+			_awaiting_respawn = false
+			if alive:
+				visual.visible = true
+				collision_layer = 1 << 1
 	buffer.push(remote_time, Net.now(),
 		Vector3(data[0], data[1], data[2]), Vector3(data[3], data[4], data[5]),
 		data[6], data[7], int(data[8]))
+
+
+func latest_position() -> Vector3:
+	return buffer.snaps[-1].pos if buffer.has_data() else global_position
+
+
+func latest_time() -> float:
+	return buffer.snaps[-1].t if buffer.has_data() else Net.now()
+
+
+## Where this player's feet were at time t (on this player's clock).
+func position_at(t: float) -> Vector3:
+	return buffer.sample(t)[0] if buffer.has_data() else global_position
 
 
 func teleport(pos: Vector3, yaw: float) -> void:
@@ -146,7 +302,9 @@ func teleport(pos: Vector3, yaw: float) -> void:
 	input.pitch = 0.0
 
 
-# Moves in a repeating pattern of runs, turns, sprints and jumps, for sync tests.
+# ---------------------------------------------------------------------------
+# Scripted input for automated tests
+
 func _scripted_input(delta: float) -> void:
 	_scripted_time += delta
 	var t := _scripted_time
@@ -155,10 +313,37 @@ func _scripted_input(delta: float) -> void:
 	input.sprint = fmod(t, 4.0) < 2.0
 	if fmod(t, 1.7) < delta:
 		input.jump_pressed = true
+	input.fire = false
+	if DevArgs.scripted_fire:
+		var target := _nearest_visible_opponent()
+		if target:
+			var to: Vector3 = target.global_position + Vector3(0, 1.0, 0) - eye_position()
+			input.yaw = atan2(-to.x, -to.z)
+			input.pitch = atan2(to.y, Vector2(to.x, to.z).length())
+			input.move = Vector2(1.0 if fmod(t, 3.0) < 1.5 else -1.0, 0.3)  # strafe while shooting
+			input.fire = true
+
+
+func _nearest_visible_opponent() -> Player:
+	var best: Player = null
+	var best_d := INF
+	var space := get_world_3d().direct_space_state
+	for p in get_parent().get_children():
+		if p == self or not p is Player or not p.alive or not p.visual.visible:
+			continue
+		var target: Vector3 = p.global_position + Vector3(0, 1.0, 0)
+		var ray := PhysicsRayQueryParameters3D.create(eye_position(), target, 1)
+		if space.intersect_ray(ray):
+			continue  # behind a wall
+		var d := global_position.distance_to(p.global_position)
+		if d < best_d:
+			best_d = d
+			best = p
+	return best
 
 
 # ---------------------------------------------------------------------------
-# Placeholder body. Replaced by a real character model in the art phase.
+# Placeholder body and gun. Replaced by real models in the art phase.
 
 func _build_placeholder_body(color: Color) -> Node3D:
 	var root := Node3D.new()
@@ -188,6 +373,26 @@ func _build_placeholder_body(color: Color) -> Node3D:
 	return root
 
 
+func _build_placeholder_gun() -> Node3D:
+	var gun := Node3D.new()
+	gun.name = "Gun"
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.15, 0.16, 0.18)
+	mat.metallic = 0.5
+	mat.roughness = 0.4
+	var body := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(0.08, 0.12, 0.5)
+	body.mesh = box
+	body.material_override = mat
+	gun.add_child(body)
+	var muzzle := Node3D.new()
+	muzzle.name = "Muzzle"
+	muzzle.position = Vector3(0, 0.02, -0.28)
+	gun.add_child(muzzle)
+	return gun
+
+
 func _add_name_tag(text: String) -> void:
 	var tag := Label3D.new()
 	tag.text = text
@@ -198,7 +403,7 @@ func _add_name_tag(text: String) -> void:
 	tag.font_size = 28
 	tag.outline_size = 8
 	tag.position.y = CAPSULE_HEIGHT + 0.35
-	add_child(tag)
+	visual.add_child(tag)
 
 
 func _set_layer_recursive(node: Node, layer: int) -> void:

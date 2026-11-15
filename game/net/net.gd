@@ -15,7 +15,6 @@ signal joined_lobby                     # we are connected and registered
 signal join_failed(reason: String)
 signal session_ended(reason: String)    # host left, or we were refused
 signal match_started
-signal match_ended
 
 const DEFAULT_PORT := 24680
 const MAX_PLAYERS := 5
@@ -237,18 +236,6 @@ func _start_match() -> void:
 func _late_join() -> void:
 	in_match = true
 	match_started.emit()
-
-
-func host_end_match() -> void:
-	if not is_host():
-		return
-	_end_match.rpc()
-
-
-@rpc("authority", "call_local", "reliable")
-func _end_match() -> void:
-	in_match = false
-	match_ended.emit()
 
 
 # ---------------------------------------------------------------------------

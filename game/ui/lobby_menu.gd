@@ -22,6 +22,11 @@ func _ready() -> void:
 	UiKit.button(_col, "Leave lobby", Game.leave_to_menu)
 	Net.players_changed.connect(_refresh)
 	_refresh()
+	# Dev/test: the host starts the next match on its own.
+	if DevArgs.autostart > 0 and Net.is_host() and Net.players.size() >= DevArgs.autostart:
+		get_tree().create_timer(3.0).timeout.connect(func():
+			if is_inside_tree() and not Net.in_match:
+				Net.host_start_match())
 
 
 func _refresh() -> void:

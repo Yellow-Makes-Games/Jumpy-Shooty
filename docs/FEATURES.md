@@ -3,7 +3,7 @@
 Status: **not started** · **rough** (exists, placeholder or partial) · **working** (done,
 tested by me) · **verified** (also checked by Austin on a real PC / with a friend).
 
-Last updated: phase 0.
+Last updated: phase 1, part 1 (match loop).
 
 ## Menus and flow
 
@@ -13,9 +13,9 @@ Last updated: phase 0.
 | Mode select (1v1 Bot, Multiplayer FFA) | rough | Bot button disabled until phase 1; Practice mode added |
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
 | Settings menu (mouse, camera, audio, graphics) | working | Audio sliders have no sounds to affect yet |
-| Pause menu in match | working | Resume, settings, leave, host can end match |
-| Match results screen | not started | Phase 1 |
-| Return to lobby and play again | rough | Host can end the match; results come in phase 1 |
+| Pause menu in match | working | Resume, settings, leave; host can end the match early |
+| Match results screen | working | Rankings, kills, deaths; return to lobby or main menu |
+| Return to lobby and play again | working | Tested: two matches back to back |
 
 ## Multiplayer
 
@@ -26,9 +26,9 @@ Last updated: phase 0.
 | Movement sync with smoothing | working | Sync test passes at 100 ms latency, 60 ms jitter, 10% loss |
 | Player leaves mid-match | working | Their character disappears for everyone |
 | Host leaves: match ends, everyone back to menu | working | Covered by the sync test |
-| Rejoin a match in progress | rough | Joining mid-match drops you into the arena; scores not kept yet |
+| Rejoin a match in progress | rough | Joining mid-match drops you into the arena; a rejoining player starts at 0 kills |
 | Internet play between two PCs | not started | Needs Steam, or router port forwarding for direct IP |
-| Hit detection (host decides with rewind) | not started | Phase 1 |
+| Hit detection (host decides with rewind) | working | Laggy-network test: 90% of aimed shots hit with rewind vs 37% without |
 
 ## Movement
 
@@ -53,7 +53,13 @@ Last updated: phase 0.
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Weapons, health, death, respawn, kills | not started | Phase 1 |
+| Health, damage, death, respawn (3 s), kills | working | Host decides; falling out of the arena counts as a death |
+| Kill feed, hit marker, damage flash, death screen | working | Placeholder look |
+| Match timer and kill target | working | Placeholder rules: first to 15 kills or 8 minutes, until you choose |
+| Weapons | rough | One placeholder test gun (hitscan, 20 damage, 20 rounds, reload). Real weapons wait on your design answers |
+| Weapon switching | not started | Needs a second weapon |
+| Muzzle flash, tracers, impacts | rough | Simple glowing shapes |
+| Weapon sounds | not started | |
 | Bot | not started | Phase 1 (simple), phase 3 (uses movement) |
 | Arena | rough | Greybox test layout; real arena designed in phase 2 |
 | Character models and animation | not started | Capsule placeholders; phase 4 |
@@ -61,6 +67,7 @@ Last updated: phase 0.
 
 ## Known issues
 
+- The first-person gun can poke into walls when you stand right against them.
 - Name tags show through walls (handy while testing; will be limited to line of sight).
 - No LAN address detection on some networks: the lobby may show 127.0.0.1. Use `ipconfig`
   to find your address if so.

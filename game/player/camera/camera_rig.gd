@@ -67,6 +67,7 @@ func _process(delta: float) -> void:
 	camera.global_transform = fp.interpolate_with(tp, s)
 	# Hide our own body while the camera is inside or near it.
 	camera.set_cull_mask_value(BODY_LAYER, _blend > 0.35)
+	camera.set_cull_mask_value(Player.VIEWMODEL_LAYER, _blend <= 0.35)
 
 
 func _on_settings_changed() -> void:

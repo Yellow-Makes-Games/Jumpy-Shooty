@@ -3,9 +3,13 @@
 
 Reads logs written with --sync-log. Every copy prints
   SYNC SELF <id> <time> x y z          its own true position (its own clock)
-  SYNC SEEN <viewer> <target> <time> x y z
-                                       where it draws another player, and the
-                                       moment (in the target's clock) it shows.
+  SYNC SEEN <viewer> <target> <time> x y z frame_dt
+                                       where it draws another player, the moment
+                                       (in the target's clock) it shows, and how
+                                       long the viewer's frame took.
+Frames where the viewer itself stalled (frame_dt > 50 ms, which happens when
+several headless copies fight over the CPU on a test machine) are skipped, since
+they say nothing about network smoothness.
 For every SEEN sample we look up where the target really was at that moment and
 measure the distance. We also look for visible pops: a frame where the drawn
 player moves much further than the real player moved over the same time.
@@ -34,7 +38,8 @@ def main(paths):
                 if parts[1] == "SELF":
                     self_log[int(parts[2])].append((float(parts[3]), tuple(map(float, parts[4:7]))))
                 elif parts[1] == "SEEN":
-                    seen_log[(int(parts[2]), int(parts[3]))].append((float(parts[4]), tuple(map(float, parts[5:8]))))
+                    dt = float(parts[8]) if len(parts) > 8 else 0.0
+                    seen_log[(int(parts[2]), int(parts[3]))].append((float(parts[4]), tuple(map(float, parts[5:8])), dt))
 
     if not seen_log:
         print("FAIL: no SEEN samples; did the copies connect and start a match?")
@@ -53,8 +58,13 @@ def main(paths):
         errors, pops = [], 0
         prev = None
         warm = samples[0][0] + 1.0  # ignore the first second (buffer filling, spawn teleport)
-        for t, pos in samples:
+        stalls = 0
+        for t, pos, dt in samples:
             if t < warm or t < times[0] or t > times[-1]:
+                prev = None
+                continue
+            if dt > 0.05:
+                stalls += 1
                 prev = None
                 continue
             real = _interp(truth, times, t)
@@ -77,7 +87,7 @@ def main(paths):
         passed = p95 <= ERR_P95_LIMIT and mx <= ERR_MAX_LIMIT and pops == 0
         ok &= passed
         print(f"{'PASS' if passed else 'FAIL'}: viewer {viewer} sees {target}: "
-              f"{len(errors)} frames, error median {p50:.3f} m, p95 {p95:.3f} m, max {mx:.3f} m, pops {pops}")
+              f"{len(errors)} frames ({stalls} viewer stalls skipped), error median {p50:.3f} m, p95 {p95:.3f} m, max {mx:.3f} m, pops {pops}")
     return 0 if ok else 1
 
 

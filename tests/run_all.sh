@@ -15,4 +15,6 @@ echo "== Sync: 2 players, clean network"
 tests/run_sync_test.sh 2
 echo "== Sync: 5 players, bad network (100 ms latency, 60 ms jitter, 10% loss)"
 tests/run_sync_test.sh 5 "100,60,10"
+echo "== Match: 3 players, laggy network, two matches back to back"
+tests/run_match_test.sh 3 "100,40,5"
 echo "ALL TESTS PASSED"

@@ -55,6 +55,11 @@ func push(remote_time: float, local_time: float, pos: Vector3, vel: Vector3, yaw
 		snaps.pop_front()
 
 
+## Forget past positions (after a respawn) but keep the clock estimate.
+func clear_history() -> void:
+	snaps.clear()
+
+
 func has_data() -> bool:
 	return not snaps.is_empty()
 

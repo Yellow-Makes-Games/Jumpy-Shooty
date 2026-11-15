@@ -53,6 +53,9 @@ or WSL; I run these on every change anyway):
 
 - movement checks (speeds, stopping, jump height, momentum in the air);
 - the game boots into practice mode without script errors;
+- a match test: 3 copies on a laggy network play two matches back to back, aiming
+  and shooting on their own; checks that hits land, the match ends at the kill target,
+  every copy agrees on the results, and "return to lobby, play again" works;
 - a sync test: 2 copies on a clean network, then 5 copies on a simulated bad network
   (100 ms latency, 60 ms jitter, 10% packet loss). Each copy moves on its own, and the test
   checks that every copy draws every other player within 15 cm of where they really were
@@ -71,6 +74,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--autostart=N` | Host starts the match when N players are in the lobby |
 | `--net-sim=L,J,P` | Pretend the connection is bad: L ms latency, J ms jitter, P% loss |
 | `--third-person` | Start in third person |
+| `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 
 ## Tuning movement
 

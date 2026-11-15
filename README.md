@@ -7,7 +7,7 @@ Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player ho
 up to 4 friends connect to them. Today that works over direct IP; Steam invites and
 relays are next.
 
-**Status:** Phase 0 of the Milestone 1 roadmap. See [docs/FEATURES.md](docs/FEATURES.md)
+**Status:** Phase 1 of the Milestone 1 roadmap (match loop done; weapons, bot and more movement next). See [docs/FEATURES.md](docs/FEATURES.md)
 for what works and what does not yet.
 
 ## Quick start
@@ -26,11 +26,13 @@ More detail, including how to play with a friend and run several copies on one P
 | Move | W A S D |
 | Sprint | Shift |
 | Jump | Space |
+| Shoot | Left mouse |
+| Reload | R |
 | Switch first / third person | V |
+| Scoreboard | Tab (hold) |
 | Menu | Esc |
 
-Grapple (right mouse), slide (Ctrl or C), dive (Alt or Q), shooting and weapons arrive in
-later phases.
+Grapple (right mouse), slide (Ctrl or C) and dive (Alt or Q) arrive in later phases.
 
 ## Project layout
 
@@ -39,6 +41,8 @@ game/
   core/      settings, screen changes
   net/       multiplayer: hosting, joining, lobby, movement smoothing
   player/    player, movement (movement/), camera (camera/)
+  match/     match rules run by the host: health, hits, kills, respawns, timer
+  combat/    weapons and shot effects
   arena/     the arena and its layout
   ui/        menus, lobby, HUD, pause menu
   dev/       developer command-line options
