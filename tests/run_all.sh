@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Runs every automated test. Needs Godot ("godot" on PATH, or set GODOT) and python3.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+GODOT="${GODOT:-godot}"
+echo "== Importing project"
+"$GODOT" --headless --path . --import > /dev/null 2>&1 || true
+echo "== Movement checks"
+"$GODOT" --headless --path . --script tests/movement_test.gd
+echo "== Practice mode boots without errors"
+out=$("$GODOT" --headless --path . -- --practice --quit-after=3 2>&1)
+if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi
+echo "PASS"
+echo "== Sync: 2 players, clean network"
+tests/run_sync_test.sh 2
+echo "== Sync: 5 players, bad network (100 ms latency, 60 ms jitter, 10% loss)"
+tests/run_sync_test.sh 5 "100,60,10"
+echo "ALL TESTS PASSED"

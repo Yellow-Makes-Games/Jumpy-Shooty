@@ -1,0 +1,97 @@
+extends Node
+## Developer command-line options, used by tools/run_local and the automated tests.
+## Pass them after a "--" on the Godot command line, for example:
+##   godot --path . -- --host --name=Austin --autostart=2
+##
+## --host               Host a direct-IP lobby straight away.
+## --join=ADDRESS       Join a direct-IP lobby straight away (ADDRESS may include :PORT).
+## --port=PORT         Host only: port to listen on (default 24680).
+## --name=NAME          Player name for this copy of the game.
+## --autostart=N        Host only: start the match once N players are in the lobby.
+## --practice           Skip the menus and drop into the arena alone.
+## --scripted-input     The local player moves on its own (for sync tests).
+## --sync-log           Print position samples used by tests/check_sync.py.
+## --quit-after=SECONDS Quit automatically after this many seconds.
+## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
+##                      P percent of movement packets lost (incoming, this copy only).
+## --third-person      Start in third-person view (not saved to settings).
+## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
+## --window=X,Y,W,H     Window position and size, so several copies can sit side by side.
+
+var host := false
+var join_address := ""
+var player_name := ""
+var port := 0
+var autostart := 0
+var practice := false
+var scripted_input := false
+var sync_log := false
+var quit_after := 0.0
+var window_rect := Rect2i()
+var net_sim_latency := 0.0
+var net_sim_jitter := 0.0
+var net_sim_loss := 0.0
+var screenshots: Array = []  # [seconds, path]
+
+var _start_ticks := 0
+
+
+func _ready() -> void:
+	_start_ticks = Time.get_ticks_msec()
+	for arg in OS.get_cmdline_user_args():
+		var key: String = arg
+		var value := ""
+		if "=" in arg:
+			key = arg.get_slice("=", 0)
+			value = arg.substr(key.length() + 1)
+		match key:
+			"--host": host = true
+			"--join": join_address = value
+			"--name": player_name = value
+			"--port": port = int(value)
+			"--autostart": autostart = int(value)
+			"--practice": practice = true
+			"--scripted-input": scripted_input = true
+			"--sync-log": sync_log = true
+			"--third-person": Settings.third_person = true
+			"--quit-after": quit_after = float(value)
+			"--net-sim":
+				var q := value.split(",")
+				net_sim_latency = float(q[0]) if q.size() > 0 else 0.0
+				net_sim_jitter = float(q[1]) if q.size() > 1 else 0.0
+				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
+			"--screenshot":
+				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
+			"--window":
+				var p := value.split(",")
+				if p.size() == 4:
+					window_rect = Rect2i(int(p[0]), int(p[1]), int(p[2]), int(p[3]))
+			_: push_warning("Unknown dev argument: %s" % arg)
+	if DisplayServer.get_name() == "headless":
+		Engine.max_fps = 60  # several headless copies share the CPU in tests
+	if window_rect.size != Vector2i.ZERO and DisplayServer.get_name() != "headless":
+		DisplayServer.window_set_size(window_rect.size)
+		DisplayServer.window_set_position(window_rect.position)
+
+
+func net_sim_enabled() -> bool:
+	return net_sim_latency > 0.0 or net_sim_jitter > 0.0 or net_sim_loss > 0.0
+
+
+func any() -> bool:
+	return host or join_address != "" or practice
+
+
+func _process(_delta: float) -> void:
+	var elapsed := (Time.get_ticks_msec() - _start_ticks) / 1000.0
+	for shot in screenshots.duplicate():
+		if elapsed >= shot[0]:
+			screenshots.erase(shot)
+			var img := get_viewport().get_texture().get_image()
+			img.save_png(shot[1])
+			print("[dev] screenshot saved: %s" % shot[1])
+	if quit_after > 0.0 and (Time.get_ticks_msec() - _start_ticks) / 1000.0 >= quit_after:
+		print("[dev] quit-after reached")
+		quit_after = 0.0
+		Net.leave()
+		get_tree().quit()
