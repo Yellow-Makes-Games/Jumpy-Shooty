@@ -3,6 +3,12 @@ extends RefCounted
 ## Turns a map's pieces into meshes: one mesh per kind (material), with every piece
 ## of that kind merged into it, so a map of a few thousand pieces draws in a handful
 ## of calls. Faces are flat-shaded; a piece's tint goes into the vertex colours.
+##
+## `shade` darkens faces by the way they point, baked into the vertex colours:
+## (faces looking along x, faces looking along z, faces looking down); tops stay
+## at 1. It gives plain boxes some form even in flat light. Vector3.ONE = off.
+
+static var _shade := Vector3.ONE
 
 const BOX_FACES := [   # normal, then the two in-plane axes (u, v) with u x v = normal
 	[Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0)],
@@ -15,7 +21,8 @@ const BOX_FACES := [   # normal, then the two in-plane axes (u, v) with u x v = 
 
 
 ## kind -> ArrayMesh
-static func build(pieces: Array) -> Dictionary:
+static func build(pieces: Array, shade: Vector3 = Vector3.ONE) -> Dictionary:
+	_shade = shade
 	var by_kind := {}
 	for piece in pieces:
 		if piece.get("hidden", false):
@@ -46,6 +53,7 @@ static func _quad(buf: Array, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n:
 	var verts: PackedVector3Array = buf[0]
 	var normals: PackedVector3Array = buf[1]
 	var colors: PackedColorArray = buf[2]
+	color = _shaded(color, n)
 	for v in [a, c, b, a, d, c]:   # Godot's front faces are clockwise
 		verts.append(v)
 		normals.append(n)
@@ -97,7 +105,17 @@ static func _tri(buf: Array, a: Vector3, b: Vector3, c: Vector3, n: Vector3, col
 	var verts: PackedVector3Array = buf[0]
 	var normals: PackedVector3Array = buf[1]
 	var colors: PackedColorArray = buf[2]
+	color = _shaded(color, n)
 	for v in [a, c, b]:
 		verts.append(v)
 		normals.append(n)
 		colors.append(color)
+
+
+static func _shaded(color: Color, n: Vector3) -> Color:
+	if _shade == Vector3.ONE:
+		return color
+	var flat := n.x * n.x + n.z * n.z
+	var side: float = lerpf(_shade.x, _shade.y, n.z * n.z / flat) if flat > 0.0001 else 1.0
+	var k: float = lerpf(side, 1.0, n.y) if n.y >= 0.0 else lerpf(side, _shade.z, -n.y)
+	return Color(color.r * k, color.g * k, color.b * k, color.a)

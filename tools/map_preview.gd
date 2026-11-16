@@ -3,7 +3,7 @@ extends SceneTree
 ## corner and a top-down plan. Used by tools/map_preview.sh.
 ##
 ##   godot --path . --script tools/map_preview.gd -- --map=res://path/to/map.gd --out=DIR
-##       [--shots=sw;ne;top] [--size=1600x900] [--no-signs]
+##       [--shots=sw;ne;top] [--size=1600x900] [--no-signs] [--look=NAME]
 ##
 ## Shots (separated by ";"): a corner or side to look from (sw, se, nw, ne, s, n, e,
 ## w), "top" (a plan), "cutY" (a plan with everything above height Y sliced off, to
@@ -29,6 +29,7 @@ func _initialize() -> void:
 	var shots := "sw;ne;top"
 	var size := Vector2i(1600, 900)
 	var show_signs := true
+	var look_name := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--map="):
 			map_path = arg.substr(6)
@@ -40,6 +41,8 @@ func _initialize() -> void:
 			size = Vector2i(int(arg.substr(7).get_slice("x", 0)), int(arg.substr(7).get_slice("x", 1)))
 		elif arg == "--no-signs":
 			show_signs = false
+		elif arg.begins_with("--look="):
+			look_name = arg.substr(7)
 	var script: GDScript = load(map_path) if map_path != "" else null
 	if script == null:
 		push_error("map_preview: give --map=res://... (a MapLayout script)")
@@ -47,6 +50,9 @@ func _initialize() -> void:
 		return
 	_prefix = map_path.get_file().get_basename()
 	_layout = script.new().build()
+	if look_name != "":
+		_layout.set("look_name", look_name)
+		_prefix += "_" + look_name
 	if not show_signs:
 		_layout.signs.clear()
 	root.size = size

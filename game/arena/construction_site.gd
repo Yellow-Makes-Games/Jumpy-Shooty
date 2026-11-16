@@ -87,6 +87,7 @@ func build() -> MapLayout:
 	_yard()
 	hoarding(HALF, FENCE_HEIGHT)
 	_spawns()
+	surroundings(HALF + 6.0)
 	return self
 
 
@@ -235,6 +236,12 @@ func _tower_cover() -> void:
 	barrier(Vector3(-12.5, 12, 5.9), Vector3(-1.6, 12, 5.9))
 	barrier(Vector3(1.6, 12, 5.9), Vector3(4, 12, 5.9))
 
+	# Work lights under the ceilings (lit when the look has lamps on)
+	work_light(Vector3(8, 7.4, 10))
+	work_light(Vector3(-8, 11.4, -4))
+	work_light(Vector3(-7, 15.4, -10))
+	work_light(Vector3(-9, 19.4, -9))
+
 	# 16 m floor
 	pallet(Vector3(3, 16, -7), 0.4, "bags")
 	barrier(Vector3(-15, 16, -5.1), Vector3(-12, 16, -5.1))
@@ -380,7 +387,7 @@ func _yard() -> void:
 	# Floodlight masts in the corners: 15 m up, something to swing from
 	for sx in [-1, 1]:
 		for sz in [-1, 1]:
-			light_mast(Vector3(sx * 37.5, 0, sz * 37.5), 15.0)
+			light_mast(Vector3(sx * 37.5, 0, sz * 37.5), 18.0)
 
 
 func _spawns() -> void:

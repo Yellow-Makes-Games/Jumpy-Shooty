@@ -11,8 +11,8 @@ const CONTAINER_W := 2.4
 const CONTAINER_H := 2.6
 
 const COLORS := {
-	"dirt": Color(0.76, 0.63, 0.46),
-	"dirt_dark": Color(0.62, 0.50, 0.37),
+	"dirt": Color(0.72, 0.58, 0.41),
+	"dirt_dark": Color(0.58, 0.46, 0.33),
 	"gravel": Color(0.66, 0.64, 0.60),
 	"concrete": Color(0.80, 0.80, 0.78),
 	"concrete_dark": Color(0.60, 0.62, 0.64),
@@ -44,8 +44,108 @@ const COLORS := {
 	"cable": Color(0.12, 0.13, 0.15),
 	"weight": Color(0.46, 0.48, 0.52),
 	"lamp": Color(1.0, 0.97, 0.85),
-	"backdrop": Color(0.66, 0.72, 0.80),
+	"backdrop": Color(0.62, 0.70, 0.80),
+	"street": Color(0.50, 0.50, 0.50),
 }
+
+## Time of day and palette. "look" holds MapScenery look keys; "colors" replaces
+## entries of COLORS.
+const LOOKS := {
+	"midday": {
+		"label": "Clear midday",
+		"look": {
+			"sky_top": Color(0.22, 0.48, 0.86),
+			"sky_horizon": Color(0.78, 0.88, 0.96),
+			"ground_horizon": Color(0.80, 0.80, 0.78),
+			"ground_bottom": Color(0.74, 0.74, 0.72),
+			"ambient_color": Color(0.70, 0.77, 0.92),
+			"ambient_energy": 0.55,
+			"sun_angles": Vector3(-58, -150, 0),
+			"sun_energy": 0.9,
+			"tonemap": "filmic",
+			"white": 2.6,
+			"sun_color": Color(1.0, 0.96, 0.88),
+			"shadow_distance": 220.0,
+		},
+	},
+	"golden": {
+		"label": "Golden hour",
+		"look": {
+			"sky_top": Color(0.24, 0.36, 0.66),
+			"sky_horizon": Color(1.0, 0.74, 0.50),
+			"ground_horizon": Color(0.92, 0.68, 0.50),
+			"ground_bottom": Color(0.62, 0.47, 0.40),
+			"ambient_color": Color(0.52, 0.52, 0.76),
+			"ambient_energy": 0.75,
+			"sun_angles": Vector3(-17, -128, 0),
+			"sun_energy": 1.7,
+			"sun_color": Color(1.0, 0.68, 0.40),
+			"shadow_distance": 260.0,
+			"fog_color": Color(1.0, 0.76, 0.56),
+			"fog_density": 0.0012,
+			"tonemap": "filmic",
+			"white": 2.4,
+		},
+	},
+	"dusk": {
+		"label": "Dusk under floodlights",
+		"look": {
+			"sky_top": Color(0.05, 0.07, 0.20),
+			"sky_horizon": Color(0.86, 0.45, 0.42),
+			"ground_horizon": Color(0.36, 0.26, 0.36),
+			"ground_bottom": Color(0.10, 0.10, 0.16),
+			"ambient_color": Color(0.30, 0.32, 0.52),
+			"ambient_energy": 0.7,
+			"sun_angles": Vector3(-34, -150, 0),   # the "sun" is the floodlights' glare
+			"sun_energy": 0.8,
+			"sun_color": Color(1.0, 0.90, 0.74),
+			"tonemap": "filmic",
+			"white": 1.6,
+			"shadow_distance": 220.0,
+			"fog_color": Color(0.20, 0.20, 0.36),
+			"fog_density": 0.002,
+			"lamps": true,
+			"glow": {"lamp": 4.0},
+		},
+		"colors": {
+			"backdrop": Color(0.20, 0.21, 0.30),
+			"street": Color(0.36, 0.36, 0.42),
+			"hoarding": Color(0.22, 0.36, 0.56),
+			"hoarding_base": Color(0.16, 0.27, 0.44),
+		},
+	},
+	"mist": {
+		"label": "Misty morning, muted palette",
+		"look": {
+			"sky_top": Color(0.62, 0.70, 0.80),
+			"sky_horizon": Color(0.90, 0.90, 0.88),
+			"ground_horizon": Color(0.86, 0.86, 0.84),
+			"ground_bottom": Color(0.72, 0.72, 0.72),
+			"ambient_color": Color(0.88, 0.90, 0.94),
+			"ambient_energy": 0.95,
+			"sun_angles": Vector3(-48, -150, 0),
+			"sun_energy": 0.8,
+			"sun_color": Color(1.0, 0.97, 0.92),
+			"shadow_opacity": 0.55,
+			"shadow_distance": 220.0,
+			"fog_color": Color(0.88, 0.90, 0.92),
+			"fog_density": 0.0045,
+		},
+		"colors": {
+			"hoarding": Color(0.27, 0.50, 0.43),
+			"hoarding_base": Color(0.19, 0.38, 0.33),
+			"steel": Color(0.36, 0.50, 0.58),
+			"crane": Color(0.92, 0.50, 0.20),
+			"stair_side": Color(0.92, 0.50, 0.20),
+			"machine": Color(0.90, 0.70, 0.24),
+			"barrier": Color(0.90, 0.36, 0.22),
+			"dirt": Color(0.70, 0.62, 0.52),
+			"backdrop": Color(0.80, 0.83, 0.86),
+		},
+	},
+}
+
+var look_name := "midday"
 
 var _rng := RandomNumberGenerator.new()
 var _plates: Array = []   # [top, Rect2] of every floor plate, for floor_at()
@@ -56,21 +156,17 @@ func _init() -> void:
 
 
 func kind_colors() -> Dictionary:
-	return COLORS
+	var colors := COLORS.duplicate()
+	colors.merge(LOOKS[look_name].get("colors", {}), true)
+	return colors
 
 
 func look() -> Dictionary:
-	return {
-		"sky_top": Color(0.24, 0.50, 0.86),
-		"sky_horizon": Color(0.76, 0.86, 0.95),
-		"ground_horizon": Color(0.80, 0.80, 0.78),
-		"ground_bottom": Color(0.74, 0.74, 0.72),
-		"ambient_energy": 1.0,
-		"sun_angles": Vector3(-58, -150, 0),
-		"sun_energy": 1.25,
-		"sun_color": Color(1.0, 0.96, 0.88),
-		"shadow_distance": 220.0,
-	}
+	return LOOKS[look_name].look
+
+
+func face_shade() -> Vector3:
+	return Vector3(0.93, 0.84, 0.66)
 
 
 # ---------------------------------------------------------------------------
@@ -455,6 +551,32 @@ func light_mast(base: Vector3, height: float = 15.0, toward: Vector3 = Vector3.Z
 	_part(base + Vector3(0, height, 0), yaw, Vector3(0, 0.5, 0), Vector3(3.0, 1.0, 0.5), "scaffold")
 	for i in 4:
 		_part(base + Vector3(0, height, 0), yaw, Vector3(-1.05 + i * 0.7, 0.5, -0.27), Vector3(0.55, 0.7, 0.06), "lamp", false)
+
+
+## The world outside the fence: flat ground to the horizon and a ring of plain
+## blocks for a skyline, taller the further off they are. Drawn only. `half` is
+## where the site's own ground ends.
+func surroundings(half: float, reach: float = 420.0) -> void:
+	_span(-reach, reach, -1, -0.03, -reach, -half, "street", false)
+	_span(-reach, reach, -1, -0.03, half, reach, "street", false)
+	_span(-reach, -half, -1, -0.03, -half, half, "street", false)
+	_span(half, reach, -1, -0.03, -half, half, "street", false)
+	var count := 72
+	for i in count:
+		var ang := TAU * i / count + _rng.randf_range(-0.03, 0.03)
+		var far := _rng.randf()
+		var dist := half + 70.0 + far * 190.0
+		var h := _rng.randf_range(8.0, 20.0) * (1.0 + far * 2.2)
+		var block := _obox(Vector3(cos(ang) * dist, h * 0.5, sin(ang) * dist),
+			Vector3(_rng.randf_range(12, 26), h, _rng.randf_range(12, 26)), _rng.randf_range(0.0, PI), "backdrop", false)
+		_shade(block, _rng.randf_range(0.80, 1.05))
+
+
+## A work light hanging under a ceiling at `pos`.
+func work_light(pos: Vector3, reach: float = 14.0) -> void:
+	_box(pos + Vector3(0, 0.25, 0), Vector3(0.04, 0.5, 0.04), "cable", false)
+	_box(pos, Vector3(0.5, 0.12, 0.5), "lamp", false)
+	_light(pos - Vector3(0, 0.3, 0), reach, 3.5, Color(1.0, 0.82, 0.56))
 
 
 ## A cement silo on legs.

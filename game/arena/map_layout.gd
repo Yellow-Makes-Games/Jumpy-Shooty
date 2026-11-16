@@ -12,6 +12,7 @@ extends RefCounted
 var pieces: Array = []
 var spawns: Array = []   ## Array of [Vector3 position, float yaw]
 var signs: Array = []    ## Array of {"pos", "text", "yaw", "size"}; yaw NAN = always faces the camera
+var lights: Array = []   ## Lamps, lit only if the look says "lamps": {"pos", "range", "energy", "color", "toward" (a spot's target, or null), "angle"}
 
 
 ## The name players see.
@@ -34,6 +35,11 @@ func grid_texture() -> bool:
 	return false
 
 
+## Darkens faces by the way they point (see MapMesher). Vector3.ONE = off.
+func face_shade() -> Vector3:
+	return Vector3.ONE
+
+
 ## Falling below this height counts as falling out of the map.
 func kill_height() -> float:
 	return -25.0
@@ -49,7 +55,7 @@ func swing_point() -> Vector3:
 	return Vector3(0, 5.5, 0)
 
 
-## Sky, sun and fog. See Arena._build_environment for the keys.
+## Sky, sun, fog and lamps. See MapScenery.DEFAULT_LOOK for the keys.
 func look() -> Dictionary:
 	return {}
 
@@ -125,6 +131,11 @@ func _add(xf: Transform3D, size: Vector3, kind: String, solid: bool, shape: Stri
 	return piece
 
 
+## A lamp. With `toward` it is a floodlight aimed there; without, it shines all round.
+func _light(pos: Vector3, reach: float, energy: float, color: Color, toward: Variant = null, angle: float = 40.0) -> void:
+	lights.append({"pos": pos, "range": reach, "energy": energy, "color": color, "toward": toward, "angle": angle})
+
+
 func _spawn(pos: Vector3, look_at: Vector3) -> void:
 	var to := look_at - pos
 	spawns.append([pos + Vector3(0, 0.2, 0), atan2(-to.x, -to.z)])
@@ -148,7 +159,7 @@ func instantiate(parent: Node3D, materials: Dictionary = {}) -> void:
 		body.add_child(shape)
 	if materials.is_empty():
 		return
-	var meshes := MapMesher.build(pieces)
+	var meshes := MapMesher.build(pieces, face_shade())
 	for kind in meshes:
 		var mesh := MeshInstance3D.new()
 		mesh.name = "Mesh_%s" % kind

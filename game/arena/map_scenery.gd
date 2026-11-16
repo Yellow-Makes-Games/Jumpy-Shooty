@@ -14,6 +14,13 @@ const DEFAULT_LOOK := {
 	"sun_color": Color(1, 1, 1),
 	"shadow_distance": 120.0,
 	"roughness": 0.85,
+	# Optional extras (leave out for none):
+	#   "ambient_color": Color   fill light of this colour instead of the sky's
+	#   "shadow_opacity": float  below 1 softens the sun's shadows
+	#   "fog_color": Color, "fog_density": float   haze that thickens with distance
+	#   "tonemap": "filmic", "white": float   punchier colours than the default (AgX)
+	#   "lamps": true            switch on the map's lamps (MapLayout.lights)
+	#   "glow": {kind: energy}   kinds that shine (lamp faces, signs)
 }
 
 
@@ -32,7 +39,16 @@ static func build_environment(parent: Node, layout: MapLayout) -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = look.ambient_energy
-	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	if look.has("ambient_color"):
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		env.ambient_light_color = look.ambient_color
+	if look.get("fog_density", 0.0) > 0.0:
+		env.fog_enabled = true
+		env.fog_light_color = look.fog_color
+		env.fog_density = look.fog_density
+		env.fog_sky_affect = 0.0
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC if look.get("tonemap", "") == "filmic" else Environment.TONE_MAPPER_AGX
+	env.tonemap_white = look.get("white", 1.0)
 	env.ssao_enabled = true
 	env.glow_enabled = true
 	var we := WorldEnvironment.new()
@@ -43,6 +59,7 @@ static func build_environment(parent: Node, layout: MapLayout) -> void:
 	sun.light_energy = look.sun_energy
 	sun.light_color = look.sun_color
 	sun.shadow_enabled = true
+	sun.shadow_opacity = look.get("shadow_opacity", 1.0)
 	sun.directional_shadow_max_distance = look.shadow_distance
 	parent.add_child(sun)
 
@@ -53,6 +70,26 @@ static func build_level(parent: Node, layout: MapLayout) -> Node3D:
 	level.name = "Level"
 	parent.add_child(level)
 	layout.instantiate(level, materials(layout))
+	if layout.look().get("lamps", false):
+		for l in layout.lights:
+			var lamp: Light3D
+			if l.toward == null:
+				var omni := OmniLight3D.new()
+				omni.omni_range = l.range
+				omni.omni_attenuation = 0.7
+				lamp = omni
+			else:
+				var spot := SpotLight3D.new()
+				spot.spot_range = l.range
+				spot.spot_angle = l.angle
+				spot.spot_attenuation = 0.5
+				lamp = spot
+			lamp.light_color = l.color
+			lamp.light_energy = l.energy
+			level.add_child(lamp)
+			lamp.position = l.pos
+			if l.toward != null:
+				lamp.look_at(l.toward)
 	return level
 
 
@@ -96,6 +133,11 @@ static func materials(layout: MapLayout) -> Dictionary:
 			m.uv1_scale = Vector3(0.25, 0.25, 0.25)  # one grid square per 4 m (sub-lines every 1 m)
 		m.roughness = look.roughness
 		m.vertex_color_use_as_albedo = true
+		var shine: float = look.get("glow", {}).get(kind, 0.0)
+		if shine > 0.0:
+			m.emission_enabled = true
+			m.emission = colors[kind]
+			m.emission_energy_multiplier = shine
 		result[kind] = m
 	return result
 
