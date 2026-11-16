@@ -20,6 +20,7 @@ mkdir -p "$OUT"
 rm -f "$OUT"/sync_*.log
 EXTRA=()
 if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
+if [[ -n "${MAP:-}" ]]; then EXTRA+=("--map=$MAP"); fi   # MAP=testing_grounds picks the map (default: the game's default)
 
 # The host quits first, so this also checks that clients handle "host left".
 "$GODOT" --headless --path . -- --host --name=P1 --autostart="$PLAYERS" --scripted-input --sync-log \

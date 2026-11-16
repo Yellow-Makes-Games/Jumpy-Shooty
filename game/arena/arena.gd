@@ -143,8 +143,8 @@ func _respawn(p: Player) -> void:
 	var ids := Net.players.keys()
 	ids.sort()
 	var index: int = max(ids.find(p.peer_id), 0)
-	var s: Array = layout.spawns[(index + randi() % 2 * 4) % layout.spawns.size()]
-	if not DevArgs.spawn.is_empty():
+	var s: Array = layout.spawns[(index + randi() % 2 * (layout.spawns.size() / 2)) % layout.spawns.size()]
+	if not DevArgs.spawn.is_empty() and not p.is_bot:
 		s = DevArgs.spawn
 	p.teleport(s[0], s[1])
 	if s.size() > 2:

@@ -145,5 +145,10 @@ func _did(state: MovementController.State) -> bool:
 
 
 ## Yaw that faces along `dir` (flat).
+## Distance between two points ignoring height.
+func _flat(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
 func _yaw_to(dir: Vector3) -> float:
 	return atan2(-dir.x, -dir.z)

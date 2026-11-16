@@ -58,6 +58,7 @@ const STEP_UPS := [
 	Vector3(-2.15, 16, -10),   # by the 20 m floor's east edge
 	Vector3(0, 20, -5.85),     # by the crow's nest's north edge
 ]
+const CONVEYOR_W := 2.2
 const SCAFFOLD_X0 := 16.0
 const NORTH_STACK_Z := -19.7      ## centre line of the containers north of the tower
 const SCAFFOLD_X1 := 18.4
@@ -144,7 +145,7 @@ func _tower() -> void:
 	stair(Vector3(14, 8, -10), Vector3(6, 12, -10))
 	stair(Vector3(-10, 12, 3), Vector3(-10, 16, -5))
 	stair(Vector3(4.5, 16, -13), Vector3(-3, 20, -13))
-	stair(Vector3(-12, 20, -4.5), Vector3(-5, NEST, -4.5), 2.4)
+	stair(Vector3(-12, 20, -4.5), Vector3(-5, NEST, -4.5), 2.4, 1)   # guard panel on the open south side
 
 	# Columns: concrete up to the highest floor above each one...
 	var steel_top := {}
@@ -231,12 +232,13 @@ func _tower_cover() -> void:
 	crate(Vector3(-13, 12, 4), Vector3(1.6, 1.2, 1.6), 0.3)
 	barrier(Vector3(5.9, 12, -4), Vector3(5.9, 12, 2))
 	# The gap in the middle is the launch spot for grapple swings off the girders above
-	barrier(Vector3(-6, 12, 5.9), Vector3(-1.6, 12, 5.9))
+	barrier(Vector3(-12.5, 12, 5.9), Vector3(-1.6, 12, 5.9))
 	barrier(Vector3(1.6, 12, 5.9), Vector3(4, 12, 5.9))
 
 	# 16 m floor
 	pallet(Vector3(3, 16, -7), 0.4, "bags")
 	barrier(Vector3(-15, 16, -5.1), Vector3(-12, 16, -5.1))
+	barrier(Vector3(5.9, 16, -15.5), Vector3(5.9, 16, -9.5))   # the turn onto the stairs is right at the edge
 
 	# 20 m floor
 	pallet(Vector3(-12, 20, -12), 0.6, "bags")
@@ -297,15 +299,20 @@ func _hoist_tower() -> void:
 func _conveyor() -> void:
 	var low := Vector3(-34, 0, 4)
 	var high := Vector3(-TOWER, 8, 4)
-	_slab(low, high, 1.8, 0.3, "rubber")
+	_slab(low, high, CONVEYOR_W, 0.3, "rubber")
+	ramp_base(low, high, CONVEYOR_W + 0.5, "machine")   # the drive housing at the low end
+	var dir := (high - low).normalized()
 	for s in [-1, 1]:
-		var off := Vector3(0, -0.1, s * 1.0)
+		var off := Vector3(0, -0.1, s * (CONVEYOR_W * 0.5 + 0.1))
 		_strut(low + off, high + off, 0.5, 0.2, "machine", false)
+		# Side boards at the loading end: you get on at the end, not over the side
+		var board := Vector3(0, 0.3, s * (CONVEYOR_W * 0.5 + 0.17))
+		_strut(low + board - dir * 0.1, low + board + dir * 2.6, 0.14, 0.9, "machine")
 	for t in [0.3, 0.55, 0.8]:
 		var p := low.lerp(high, t)
 		for s in [-1, 1]:
-			_box(Vector3(p.x, (p.y - 0.4) * 0.5, p.z + s * 1.0), Vector3(0.16, p.y - 0.4, 0.16), "machine_dark", false)
-		_box(Vector3(p.x, (p.y - 0.4) * 0.6, p.z), Vector3(0.1, 0.1, 2.0), "machine_dark", false)
+			_box(Vector3(p.x, (p.y - 0.4) * 0.5, p.z + s * (CONVEYOR_W * 0.5 + 0.1)), Vector3(0.16, p.y - 0.4, 0.16), "machine_dark", false)
+		_box(Vector3(p.x, (p.y - 0.4) * 0.6, p.z), Vector3(0.1, 0.1, CONVEYOR_W + 0.2), "machine_dark", false)
 
 
 # ---------------------------------------------------------------------------

@@ -68,7 +68,7 @@ static func bake_navigation(level: Node3D) -> NavigationRegion3D:
 	nav.cell_height = 0.25
 	nav.agent_radius = 0.5
 	nav.agent_height = 1.75
-	nav.agent_max_climb = 0.5
+	nav.agent_max_climb = 0.25   # the body cannot walk up a kerb, so paths must not cross one
 	nav.agent_max_slope = 46.0
 	var source := NavigationMeshSourceGeometryData3D.new()
 	NavigationServer3D.parse_source_geometry_data(nav, source, level)

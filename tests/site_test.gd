@@ -185,13 +185,28 @@ func _hoist_run() -> Dictionary:
 		"drive": func(_dt):
 			var p := body.global_position
 			var on: int = clampi(int(round(p.y / 2.0)), 0, 10)   # how many decks up we are
-			var target: Vector3 = centres[on % 4]                  # the next deck
-			var to := Vector3(target.x - p.x, 0, target.z - p.z)
+			var next: Vector3 = centres[on % 4]                    # the deck above this one
+			var here: Vector3 = centres[(on + 3) % 4]              # the deck we are on (or landing on)
+			var speed := Vector2(body.velocity.x, body.velocity.z).length()
+			var goal := next
+			if on == 0:
+				# From the yard: walk up to the first deck and jump for it
+				if body.is_on_floor() and _flat(p, next) < h + 0.6:
+					input.jump_pressed = true
+			elif on == 10:
+				goal = here
+			elif _mem.get("leaving", -1) == on:
+				# Run at the next deck and jump once moving; the grab and climb do the rest
+				if body.is_on_floor() and (_flat(p, here) > 0.3 or speed > 4.0):
+					input.jump_pressed = true
+			else:
+				# Just arrived on this deck: walk to its middle and stop before the next jump
+				goal = here
+				if body.is_on_floor() and _flat(p, here) < 0.4 and speed < 1.0:
+					_mem["leaving"] = on
+			var to := Vector3(goal.x - p.x, 0, goal.z - p.z)
 			input.yaw = _yaw_to(to)
-			# Push toward the next deck only while we still have to get up onto it.
-			input.move = Vector2(0, 1) if to.length() > 0.5 else Vector2.ZERO
-			if on < 10 and body.is_on_floor() and to.length() < h + 0.6:
-				input.jump_pressed = true,
+			input.move = Vector2(0, 1) if to.length() > 0.3 else Vector2.ZERO,
 		"done": func(): return body.global_position.y > S.HOIST_TOP - 0.1 and body.is_on_floor(),
 		"check": func():
 			var y := body.global_position.y

@@ -21,6 +21,8 @@ const FAR := 18.0          ## further than this it closes in
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
 const HUNT_AFTER := 3.0    ## seconds without seeing you before it goes to where you really are
+const GRAPPLE_HEADROOM := 6.0  ## it only swings with this much open air above its head
+const LEVEL_GAP := 2.5     ## you are this much higher or lower: it comes to your floor instead of fighting from where it is
 
 var me: Player
 var d: BotDifficulty
@@ -36,6 +38,7 @@ var _path := PackedVector3Array()
 var _path_index := 0
 var _path_goal := Vector3.INF
 var _repath := 0.0
+var _corner_ahead := false       # the path turns sharply within the next few metres
 var _strafe_dir := 1.0
 var _strafe_timer := 0.0
 var _error := Vector3.ZERO       # aim wobble, a slow random walk
@@ -194,10 +197,19 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 				_strafe_dir = -_strafe_dir
 		var approach := 1.0 if dist > FAR else (-0.6 if dist < NEAR else 0.0)
 		dir = f.cross(Vector3.UP) * _strafe_dir * d.strafe + f * approach
-		if _blocked(dir):
+		if _blocked(dir) or not _ground_ahead(dir, 1.5):
 			_strafe_dir = -_strafe_dir
 			dir = f.cross(Vector3.UP) * _strafe_dir * d.strafe + f * approach
-		input.sprint = d.sprint and dist > FAR
+			if not _ground_ahead(dir, 1.5):
+				# A drop on both sides (it is on stairs or a walkway): keep to the path
+				dir = _follow_path(_target.global_position, delta)
+		# You are on another floor: no strafing about underneath, take the stairs to
+		# your level (still shooting on the way).
+		if absf(_target.global_position.y - pos.y) > LEVEL_GAP:
+			var route := _follow_path(_target.global_position, delta)
+			if route != Vector3.ZERO:
+				dir = route
+		input.sprint = d.sprint and dist > FAR and not _corner_ahead
 		if grounded and _rng.randf() < d.jumpiness * delta * 2.5:
 			input.jump_pressed = true
 		# At the top of a jump, flip sideways to throw off your aim.
@@ -206,18 +218,20 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 			_dodge_side = _strafe_dir
 			_dodge_time = 0.3
 		# Close the gap fast with a dive (it dives where it looks: at you).
-		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5:
+		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5 and _ground_ahead(f, 8.0):
 			input.dive_pressed = true
 	else:
 		# Chase: to where it last saw you, or to where you really are after a while.
 		var hunting := _time - _last_seen_time > HUNT_AFTER
 		var goal := _target.global_position if hunting else _last_seen_pos
 		dir = _follow_path(goal, delta)
-		input.sprint = d.sprint
+		input.sprint = d.sprint and not _corner_ahead   # sprinting round a sharp corner overshoots it
 		_chase_tricks(delta, dir, grounded, speed)
 	if _hop_time > 0.0:
 		_hop_time -= delta
-		if grounded:
+		if not _ground_ahead(dir, 6.0):
+			_hop_time = 0.0             # a drop is coming up: stop hopping
+		elif grounded:
 			input.jump_pressed = true   # bunny-hop: jump again the moment it lands
 	if _slide_time > 0.0:
 		_slide_time -= delta
@@ -232,6 +246,8 @@ func _chase_tricks(delta: float, dir: Vector3, grounded: bool, speed: float) -> 
 	if not d.slides or not grounded or speed < 9.0 or _trick_wait > 0.0 or dir.length() < 0.1:
 		return
 	_trick_wait = _rng.randf_range(0.6, 1.6)
+	if not _ground_ahead(dir, 9.0):
+		return   # up on a floor or a stair with an edge ahead: no tricks that carry it over
 	var facing := Vector3(me.aim_forward().x, 0.0, me.aim_forward().z).normalized()
 	var straight := facing.angle_to(dir) < deg_to_rad(15.0) and _straight_ahead(dir) > 8.0
 	var roll := _rng.randf()
@@ -258,14 +274,68 @@ func _follow_path(goal: Vector3, delta: float) -> Vector3:
 	if _repath <= 0.0 or _path_goal.distance_to(goal) > 2.5 or _path_index >= _path.size():
 		_repath = 0.6
 		_path_goal = goal
-		_path = NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, pos, goal, true)
+		var found := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, pos, goal, true)
+		_path = PackedVector3Array()
+		for point in found:   # the server repeats points where the path changes height
+			if _path.is_empty() or _path[_path.size() - 1].distance_to(point) > 0.05:
+				_path.append(point)
 		_path_index = 1 if _path.size() > 1 else 0
-	while _path_index < _path.size() and _flat(pos, _path[_path_index]) < 0.9:
+	while _path_index < _path.size() and _reached(pos, _path_index):
 		_path_index += 1
 	var next := goal if _path_index >= _path.size() else _path[_path_index]
+	_corner_ahead = _path_index < _path.size() and _flat(pos, next) < 4.0 and _is_corner(_path_index)
 	var to := next - pos
 	to.y = 0.0
 	return to.normalized() if to.length() > 0.3 else Vector3.ZERO
+
+
+## Has it got to this point of the path? Close is enough on a straight stretch, but
+## it has to go right round a sharp corner (the foot of a staircase, a doorway)
+## or it cuts the corner and runs into what the path was going around. A point on
+## the floor above or below does not count.
+func _reached(pos: Vector3, index: int) -> bool:
+	var point := _path[index]
+	if absf(point.y - pos.y) > 1.5:
+		return false
+	var away := _flat(pos, point)
+	if not _is_corner(index):
+		return away < 0.9
+	# Right on it, or level with it and past it (so a fast runner does not circle it)
+	var along := point - _path[index - 1]
+	var past := pos - point
+	along.y = 0.0
+	past.y = 0.0
+	return away < 0.35 or (away < 1.2 and past.dot(along) > 0.0)
+
+
+## Does the path turn sharply at this point?
+func _is_corner(index: int) -> bool:
+	if index < 1 or index + 1 >= _path.size():
+		return false
+	var before := _path[index] - _path[index - 1]
+	var after := _path[index + 1] - _path[index]
+	before.y = 0.0
+	after.y = 0.0
+	return before.length() > 0.05 and after.length() > 0.05 and before.angle_to(after) > deg_to_rad(50.0)
+
+
+## Is there floor to run on for the next `reach` metres this way: no drop, and not a
+## staircase either (tricks and stairs do not mix)?
+func _ground_ahead(dir: Vector3, reach: float) -> bool:
+	var flat := Vector3(dir.x, 0.0, dir.z)
+	if flat.length() < 0.1:
+		return true
+	flat = flat.normalized()
+	var space := me.get_world_3d().direct_space_state
+	var step := 1.0
+	while step <= reach:
+		var from := me.global_position + flat * step + Vector3(0, 0.6, 0)
+		var drop := minf(1.0 + 0.45 * step, 3.6)   # a slope down is fine, the floor below is not
+		var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 0.6 + drop, 0), 1, [me.get_rid()])
+		if space.intersect_ray(q).is_empty():
+			return false
+		step += 1.0
+	return true
 
 
 ## Is there a wall right in the way in this direction?
@@ -346,14 +416,19 @@ func _grapple(delta: float, visible: bool) -> void:
 	var higher := _target.global_position.y - me.global_position.y > 2.5
 	if not (higher or (dist > 25.0 and not visible)) or _rng.randf() > delta * 1.5:
 		return
-	# Aim up and ahead, toward the target, and hook whatever is there.
+	# Aim up and ahead, toward the target, and hook whatever is there. Not indoors,
+	# though: under a ceiling a swing only throws it off the stairs it is climbing.
 	var eye := me.eye_position()
+	var space := me.get_world_3d().direct_space_state
+	var up := PhysicsRayQueryParameters3D.create(eye, eye + Vector3(0, GRAPPLE_HEADROOM, 0), 1, [me.get_rid()])
+	if not space.intersect_ray(up).is_empty():
+		return
 	var to := _target.global_position - me.global_position
 	to.y = 0.0
 	var point := me.global_position + to.normalized() * minf(dist, 18.0) + Vector3(0, 9.0, 0)
 	var dir := (point - eye).normalized()
 	var q := PhysicsRayQueryParameters3D.create(eye, eye + dir * g.tuning.grapple_range, 1, [me.get_rid()])
-	var hit := me.get_world_3d().direct_space_state.intersect_ray(q)
+	var hit := space.intersect_ray(q)
 	if hit.is_empty() or hit.position.y < me.global_position.y + 3.0:
 		return
 	input.yaw = atan2(-dir.x, -dir.z)

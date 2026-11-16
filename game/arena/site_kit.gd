@@ -216,7 +216,28 @@ func girder(a: Vector3, b: Vector3, width: float = 0.6, depth: float = 0.8, kind
 
 ## Stairs from `low` to `high` (centres of the walking surface at each end). You walk
 ## on a smooth ramp; the steps are only drawn.
-func stair(low: Vector3, high: Vector3, width: float = 3.0) -> void:
+const RAMP_BASE := 2.3   ## stairs and ramps are closed in underneath until they are this high
+
+## Closes in the low end of a ramp from `low` to `high` underneath, up to where
+## you can stand under it, so nobody gets wedged in the gap (bots included).
+func ramp_base(low: Vector3, high: Vector3, width: float, kind: String) -> void:
+	var flat := Vector3(high.x - low.x, 0, high.z - low.z)
+	var run := flat.length()
+	var dir := flat / run
+	var rise := high.y - low.y
+	var yaw := atan2(-dir.x, -dir.z)
+	var base_run := minf(RAMP_BASE / rise, 1.0) * run
+	var blocks: int = max(int(ceil(base_run / 0.5)), 1)
+	for i in blocks:
+		var from := base_run * i / blocks
+		var to := base_run * (i + 1) / blocks
+		var top := rise * from / run - 0.02
+		if top < 0.1:
+			continue
+		_obox(low + dir * (from + to) * 0.5 + Vector3(0, top * 0.5, 0), Vector3(width, top, to - from), yaw, kind)
+
+
+func stair(low: Vector3, high: Vector3, width: float = 3.0, rail_side: int = 0) -> void:
 	_hide(_slab(low, high, width, 0.3, "stair"))
 	var flat := Vector3(high.x - low.x, 0, high.z - low.z)
 	var run := flat.length()
@@ -225,6 +246,7 @@ func stair(low: Vector3, high: Vector3, width: float = 3.0) -> void:
 	var rise := high.y - low.y
 	var count: int = max(int(round(rise / 0.2)), 1)
 	var yaw := atan2(-dir.x, -dir.z)
+	ramp_base(low, high, width - 0.02, "concrete_dark")
 	for i in count:
 		var along := (i + 0.5) / count
 		var pos := low + dir * run * along + Vector3(0, rise * (i + 1) / count - 0.04, 0)
@@ -232,6 +254,11 @@ func stair(low: Vector3, high: Vector3, width: float = 3.0) -> void:
 	for s in [-1, 1]:
 		var off: Vector3 = side * s * (width * 0.5 - 0.06)
 		_strut(low + off + Vector3(0, -0.12, 0), high + off + Vector3(0, -0.12, 0), 0.12, 0.34, "stair_side", false)
+	# A guard panel along one side (-1 left, 1 right, looking up the stairs) where the
+	# stairs run along an open edge
+	if rail_side != 0:
+		var off: Vector3 = side * rail_side * (width * 0.5 - 0.06) + Vector3(0, 0.5, 0)
+		_strut(low + off, high + off, 0.1, 1.0, "barrier")
 
 
 ## A lattice truss (crane mast, jib, light mast) between two points on its centre
