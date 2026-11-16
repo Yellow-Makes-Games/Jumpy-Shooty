@@ -213,7 +213,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Reads keyboard and mouse into `input`. Mouse look arrives in _unhandled_input.
 func read_local_input() -> void:
-	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or DevArgs.drives_keys
 	if not captured:
 		input.move = Vector2.ZERO
 		input.sprint = false
