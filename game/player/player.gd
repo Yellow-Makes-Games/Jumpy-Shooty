@@ -6,7 +6,7 @@ extends CharacterBody3D
 ##  - bots: simulated on the host like a local player, but input comes from a
 ##    BotBrain instead of the keyboard, and there is no camera.
 
-const SEND_RATE := 30.0  ## snapshots per second
+const SEND_RATE := 40.0  ## snapshots per second (40 rather than 30 keeps fast grapple swings accurate on lossy networks)
 const CAPSULE_RADIUS := 0.4
 const CAPSULE_HEIGHT := 1.8
 const VIEWMODEL_LAYER := 3   ## render layer for the first-person gun

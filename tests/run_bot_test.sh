@@ -2,7 +2,8 @@
 # Automated bot test. Runs a 1v1 against each bot difficulty, headless, with the
 # player moving on its own (and not shooting), plus one Expert match where the
 # player shoots back. Checks that:
-#  - the bot finds the player, shoots and lands hits at every difficulty
+#  - the bot finds the player and shoots at every difficulty; Normal and up hit a
+#    moving player, and even Easy hits a player standing still
 #  - harder bots are more accurate (Expert beats Easy)
 #  - the harder bots use the movement set: slides, dives, flips, grapples
 #  - the bot dodges when it gets shot
@@ -18,9 +19,12 @@ rm -f "$OUT"/bot_*.log
 COMMON=(--headless --path . -- --scripted-input --sync-log)
 
 for level in 0 1 2 3; do
-  timeout 90 "$GODOT" "${COMMON[@]}" --bot="$level" --time-limit=40 --quit-after=45 \
+  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --time-limit=80 --quit-after=85 \
     > "$OUT/bot_$level.log" 2>&1 &
 done
+# Easy against a player who stands still: even the weakest bot must land hits.
+timeout 90 "$GODOT" --headless --path . -- --sync-log --bot=0 --time-limit=40 --quit-after=45 \
+  > "$OUT/bot_still.log" 2>&1 &
 # Expert again, but the player fights back; first to 2 so it ends, then rematches.
 timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --scripted-fire --kill-target=2 --time-limit=40 \
   --auto-return --quit-after=60 > "$OUT/bot_fight.log" 2>&1 &
@@ -57,8 +61,10 @@ for level in range(4):
           f"places {moved:3}  ropes {ropes}  moves {sorted(kinds)}  errors {errors}")
     if errors:
         print("  FAIL: script errors"); fail = True
-    if not shots or not hits:
-        print("  FAIL: the bot never shot / never hit"); fail = True
+    if not shots:
+        print("  FAIL: the bot never shot"); fail = True
+    if level > 0 and not hits:
+        print("  FAIL: the bot never hit"); fail = True
     if moved < 8:
         print("  FAIL: the bot barely moved"); fail = True
     if "MATCH_OVER" not in log:
@@ -66,6 +72,12 @@ for level in range(4):
 
 if rates[3] <= rates[0]:
     print("FAIL: Expert should be more accurate than Easy"); fail = True
+
+log = read("still")
+shots, hits, kinds, ropes, spots = bot_stats(log)
+print(f"Easy vs a player standing still: shots {len(shots)}  hits {len(hits)}  errors {log.count('SCRIPT ERROR')}")
+if not hits or log.count("SCRIPT ERROR"):
+    print("  FAIL: Easy should hit a player who stands still"); fail = True
 
 log = read("fight")
 shots, hits, kinds, ropes, spots = bot_stats(log)

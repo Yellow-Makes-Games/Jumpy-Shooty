@@ -53,7 +53,7 @@ or WSL; I run these on every change anyway):
 
 - movement checks (speeds, stopping, jump height, momentum in the air);
 - the game boots into practice mode without script errors;
-- a bot of every difficulty finds you, shoots and hits, harder bots hit more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match (`tests/run_bot_test.sh`);
+- a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match (`tests/run_bot_test.sh`);
 - a match test: 3 copies on a laggy network play two matches back to back, aiming
   and shooting on their own; checks that hits land, the match ends at the kill target,
   every copy agrees on the results, and "return to lobby, play again" works;

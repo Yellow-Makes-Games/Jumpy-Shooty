@@ -23,7 +23,7 @@ static func make(level: int) -> BotDifficulty:
 	var d := BotDifficulty.new()
 	match level:
 		EASY:
-			d._fill(0.55, 4.0, 180.0, 0.7, 0.4, 0.0, 0.3, 0.05, false, 0.0, false, false)
+			d._fill(0.5, 3.5, 200.0, 0.7, 0.6, 0.0, 0.3, 0.05, false, 0.0, false, false)
 		NORMAL:
 			d._fill(0.35, 3.2, 320.0, 0.36, 0.65, 0.15, 0.6, 0.15, true, 0.15, false, true)
 		HARD:
