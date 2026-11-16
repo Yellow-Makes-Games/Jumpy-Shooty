@@ -396,6 +396,17 @@ func _slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, delta: float) ->
 # ---------------------------------------------------------------------------
 # Walls
 
+## In the air, touching (or just off) a wall that a jump would kick off now. For bots.
+func can_wall_jump() -> bool:
+	return _since_wall <= tuning.wall_jump_grace * 0.7 and _recent_wall != Vector3.ZERO and _wall_is_fresh(_recent_wall) \
+		and state != State.GROUND
+
+
+## The wall last touched in the air (its normal), for bots.
+func last_wall() -> Vector3:
+	return _recent_wall
+
+
 func _wall_is_fresh(n: Vector3) -> bool:
 	return _used_wall == Vector3.ZERO or n.dot(_used_wall) < 0.9
 

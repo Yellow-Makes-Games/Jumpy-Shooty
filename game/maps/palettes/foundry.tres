@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_pal"]
+
+[resource]
+script = ExtResource("1_pal")
+colors = Dictionary[String, Color]({
+"beam": Color(0.95, 0.72, 0.12, 1),
+"chute": Color(0.55, 0.52, 0.48, 1),
+"conveyor": Color(0.18, 0.18, 0.2, 1),
+"conveyor_belt": Color(0.1, 0.1, 0.11, 1),
+"crate": Color(0.58, 0.44, 0.3, 1),
+"furnace": Color(0.3, 0.27, 0.26, 1),
+"furnace_mouth": Color(1, 0.45, 0.1, 1),
+"grating": Color(0.42, 0.44, 0.46, 1),
+"hall": Color(0.26, 0.24, 0.24, 1),
+"hall_band": Color(0.36, 0.3, 0.27, 1),
+"hazard_stripe": Color(0.95, 0.75, 0.1, 1),
+"lamp": Color(1, 0.86, 0.6, 1),
+"molten": Color(1, 0.42, 0.08, 1),
+"pipe": Color(0.5, 0.36, 0.26, 1),
+"plate": Color(0.5, 0.48, 0.44, 1),
+"press": Color(0.36, 0.38, 0.42, 1),
+"rail": Color(0.95, 0.72, 0.12, 1),
+"steel": Color(0.32, 0.34, 0.37, 1),
+"steel_dark": Color(0.22, 0.23, 0.25, 1),
+"tank": Color(0.46, 0.5, 0.52, 1),
+"tank_band": Color(0.72, 0.3, 0.18, 1),
+"truss": Color(0.3, 0.3, 0.32, 1)
+})
+glow = Dictionary[String, float]({
+"furnace_mouth": 3,
+"hazard_stripe": 0.25,
+"lamp": 2.5,
+"molten": 3.2
+})
+roughness = 0.85

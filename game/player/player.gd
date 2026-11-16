@@ -17,8 +17,9 @@ const TUCK_LIFT := CAPSULE_HEIGHT - CROUCH_HEIGHT
 var peer_id := 1
 var is_local := false   ## simulated on this machine (you, or a bot when hosting)
 var is_bot := false
-var brain: BotBrain
+var brain: RefCounted   ## BotBrain in a fight, RaceBrain in a race (and for --autopilot)
 var alive := true
+var racing := false     ## this match is a race: no gun, no bumping into each other
 
 var input := PlayerInput.new()
 var motor: MovementController
@@ -90,23 +91,31 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 			print("CHAR SELF %d %s" % [id, character])
 		else:
 			print("CHAR SEEN %d %d %s" % [Net.my_id(), id, character])
-	var gun := Net.player_weapon(id)
+	racing = Race.active
+	if racing:
+		collision_mask = 1   # racers pass through each other (a tunnel is never blocked)
+	var gun := Net.player_weapon(id) if not racing else "none"
 	if DevArgs.sync_log:   # which gun each copy shows each player holding
 		print("GUN %s %d %d %s" % ["SELF" if local else "SEEN", Net.my_id(), id, gun])
 	robot = RobotModel.new().setup(Characters.body(character), Net.player_color(id), false, gun)
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 	sounds = PlayerSounds.new(self, local and not bot, gun)
-	if sounds.own:
+	if sounds.own and not racing:
 		Sound.play("equip_" + gun)   # bringing your gun up as the match starts
 
 	if is_bot:
 		motor = MovementController.new()
-		weapon = WeaponState.new(WeaponData.by_id(gun))
-		brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
+		weapon = WeaponState.new(WeaponData.by_id(Net.player_weapon(id)))
+		if racing:
+			brain = RaceBrain.new(self, Net.players[id].get("difficulty", 1))
+		else:
+			brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
 	elif is_local:
 		motor = MovementController.new()
-		weapon = WeaponState.new(WeaponData.by_id(gun))
+		weapon = WeaponState.new(WeaponData.by_id(Net.player_weapon(id)))
+		if racing and DevArgs.autopilot:
+			brain = RaceBrain.new(self, DevArgs.bot_level)
 		rig = CameraRig.new()
 		add_child(rig)
 		rig.setup(self)
@@ -115,6 +124,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		view = ViewModel.new()
 		rig.camera.add_child(view)
 		view.setup(self, Net.player_color(id))
+		view.visible = not racing   # no gun to hold in a race: you see your body, not arms
 	_build_rope()
 
 
@@ -129,10 +139,15 @@ func _physics_process(delta: float) -> void:
 			_hold_still()
 		else:
 			brain.update(delta)
+	elif brain:
+		brain.update(delta)   # --autopilot
 	elif DevArgs.scripted_input:
 		_scripted_input(delta)
 	else:
 		read_local_input()
+	if racing and Race.frozen():
+		_hold_still()   # on the start line: you can look round, not move
+		input.clear_edges()
 	if alive:
 		_set_crosshair_ray()
 		var was_on := motor.grapple.attached
@@ -153,7 +168,8 @@ func _physics_process(delta: float) -> void:
 		if DevArgs.sync_log and motor.grapple.attached != was_on:
 			print("ROPE SELF %d %s" % [peer_id, "on" if motor.grapple.attached else "off"])
 		_visual_yaw = input.yaw
-		_update_weapon(delta)
+		if not racing:
+			_update_weapon(delta)
 	else:
 		velocity = Vector3.ZERO
 	input.clear_edges()
@@ -230,6 +246,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		input.pitch = clamp(input.pitch - dy, deg_to_rad(-89.0), deg_to_rad(89.0))
 	elif event.is_action_pressed("toggle_camera"):
 		Settings.set_third_person(not Settings.third_person)
+	elif event.is_action_pressed("reload") and racing:
+		Race.send_back(self, "reset")   # stuck? back to your last checkpoint
 	elif event.is_action_pressed("reload") and weapon:
 		weapon.start_reload()
 
@@ -438,6 +456,9 @@ func expect_respawn() -> void:
 
 
 func report_fell_once() -> void:
+	if racing:
+		Race.send_back(self, "fell")
+		return
 	if not _fell_reported and alive:
 		_fell_reported = true
 		Match.request_fell(peer_id)
