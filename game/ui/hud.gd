@@ -88,7 +88,7 @@ func _ready() -> void:
 	ammo_box.add_child(_weapon)
 
 	_help = _label(Control.PRESET_CENTER_BOTTOM, HORIZONTAL_ALIGNMENT_CENTER, 15)
-	_help.text = "WASD move · Shift sprint · Space jump · Ctrl crouch/slide · Click shoot · Right-click grapple · R reload · V camera · Tab scores · Esc menu"
+	_help.text = "WASD move · Shift sprint · Space jump (again in mid-air: flip) · Ctrl crouch/slide · Q dive · Right-click grapple\nClick shoot · R reload · V camera · Tab scores · Esc menu"
 	_help.modulate = Color(1, 1, 1, 0.55)
 
 	_death = _label(Control.PRESET_CENTER, HORIZONTAL_ALIGNMENT_CENTER, 30)

@@ -42,6 +42,8 @@ func _initialize() -> void:
 	_runs = [
 		_vault_run(), _ledge_run(1.6, true), _ledge_run(2.4, true), _ledge_run(3.2, true), _ledge_run(3.8, false),
 		_slide_run(), _grapple_run(), _wall_run(), _chimney_run(),
+		_gap_run(1, []), _gap_run(2, ["dive"]), _gap_run(3, ["flip", "dive"]),
+		_gap_run(2, [], false), _gap_run(3, ["dive"], false),
 	]
 	print("Testing Grounds course checks")
 
@@ -250,6 +252,47 @@ func _chimney_run() -> Dictionary:
 		"check": func():
 			var y := body.global_position.y
 			_expect(y > TestingGrounds.CHIMNEY_TOP - 1.6 and body.is_on_floor(), "standing on the platform at the top (feet at %.1f m)" % y),
+	}
+
+
+## Sprint off one gap platform and try to land on the next, doing the listed
+## tricks in order from the top of the jump. `should_make_it` false checks that
+## the gap really needs those tricks.
+func _gap_run(index: int, tricks: Array, should_make_it: bool = true) -> Dictionary:
+	var from: Array = TestingGrounds.GAP_PLATFORMS[index - 1]
+	var to: Array = TestingGrounds.GAP_PLATFORMS[index]
+	var top := TestingGrounds.GAP_HEIGHT
+	var label := "jump" if tricks.is_empty() else "jump + " + " + ".join(tricks)
+	return {
+		"name": "gap %d m with %s: %s" % [int(to[0] - from[1]), label, "makes it" if should_make_it else "falls short"],
+		"start": Vector3(max(from[1] - 8.0, from[0] + 0.5), top + 0.05, TestingGrounds.GAP_Z), "max_time": 3.0,
+		"drive": func(_dt):
+			var p := body.global_position
+			input.move = Vector2(0, 1)
+			input.sprint = true
+			input.yaw = EAST
+			input.pitch = 0.0
+			if body.is_on_floor() and p.x > from[1] - 0.5 and not _mem.has("jumped"):
+				input.jump_pressed = true
+				_mem["jumped"] = true
+			var step: int = _mem.get("trick", 0)
+			if _mem.has("jumped") and not body.is_on_floor() and step < tricks.size() and body.velocity.y < 1.0:
+				if tricks[step] == "dive":
+					input.dive_pressed = true
+				else:
+					input.jump_pressed = true   # mid-air jump = flip
+				_mem["trick"] = step + 1,
+		"done": func():
+			var p := body.global_position
+			return body.is_on_floor() and (p.x > to[0] or p.y < top - 0.5) and _mem.has("jumped") and _time > 0.3,
+		"check": func():
+			var p := body.global_position
+			var climbed: bool = _mem.states.has(MovementController.State.MANTLE)
+			var made: bool = p.x > to[0] and p.y > top - 0.1 and not climbed
+			if should_make_it:
+				_expect(made, "landed on the next platform without grabbing the ledge (x %.1f, height %.1f)" % [p.x, p.y])
+			else:
+				_expect(not made, "fell short%s (x %.1f, height %.1f)" % [" and had to climb the ledge" if climbed else "", p.x, p.y]),
 	}
 
 

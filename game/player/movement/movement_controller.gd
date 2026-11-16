@@ -10,11 +10,17 @@ extends RefCounted
 ##   SLIDE     crouch while moving fast: keeps momentum, speeds up downhill
 ##   WALL_RUN  run along a wall with little gravity; jump to kick off it
 ##   MANTLE    vaulting a low obstacle or climbing up a ledge
+##   DIVE      a forward lunge toward where you look (from the ground or once per jump)
+##   ROLL      landing from a dive: a short roll that keeps your speed
+##   FLIP      press jump again in mid-air: a flip toward your WASD direction with a
+##             small burst, once per jump (a dodge)
 ##
 ## Crouching in the air tucks your legs up (head stays put), which helps you clear
 ## edges. Wall jumps work from a wall run or any wall you are touching in the air.
 
-enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE }
+const TUCK_SETTLE_SPEED := 3.0   ## metres per second
+
+enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP }
 
 var tuning: MovementTuning
 var state: State = State.AIR
@@ -22,9 +28,13 @@ var grapple: Grapple
 var crouched := false
 var eye_height := MovementTuning.EYE_HEIGHT  ## eyes above the feet right now (eases when crouching)
 var wall_normal := Vector3.ZERO              ## the wall being run on
-## Legs tucked up in the air: the feet were lifted (stand_height - crouch_height)
-## so the head stayed put. Sent to others so they can draw it without a jump.
-var tucked := false
+## How far the feet are lifted by tucking the legs up in the air (0 or up to
+## stand_height - crouch_height). The head stays put when you tuck. Others are sent
+## your feet minus this, which never jumps; on the ground it settles back to 0
+## smoothly. See Player._sent_position().
+var tuck := 0.0
+## Direction of the current flip, relative to where you face (x = right, y = forward).
+var flip_dir := Vector2.ZERO
 
 var _since_ground := 0.0   # seconds since we last stood on the floor
 var _jump_buffer := 0.0    # seconds left on a buffered jump press
@@ -35,6 +45,11 @@ var _recent_wall := Vector3.ZERO # last wall touched in the air (for late wall j
 var _since_wall := 99.0
 var _mantle := {}          # the vault or climb in progress
 var _shape: CollisionShape3D
+var _since_dive := 99.0
+var _air_dive_used := false   # one dive per jump
+var _flip_used := false       # one flip per jump
+var _roll_left := 0.0
+var _flip_left := 0.0
 
 
 func _init(t: MovementTuning = null) -> void:
@@ -52,6 +67,9 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	if grounded:
 		_since_ground = 0.0
 		_used_wall = Vector3.ZERO
+		_air_dive_used = false
+		_flip_used = false
+		_flip_left = 0.0
 	else:
 		_since_ground += delta
 	if input.jump_pressed:
@@ -60,6 +78,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_jump_buffer = max(_jump_buffer - delta, 0.0)
 	_since_slide_boost += delta
 	_since_wall += delta
+	_since_dive += delta
+	_flip_left = max(_flip_left - delta, 0.0)
 	grapple.update(delta)
 
 	if state == State.MANTLE:
@@ -83,11 +103,32 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_jump_buffer = 0.0
 		rope_jump = true
 
-	# --- Crouch (or tuck your legs in the air)
-	_update_crouch(body, input.crouch, grounded)
+	if grapple.attached or state == State.WALL_RUN:
+		_flip_used = false   # swinging or wall-running gives your flip back
+
+	# --- Dive (and the roll when you land from one)
+	var diving_now := false
+	if input.dive_pressed and _can_dive(grounded):
+		vel = _start_dive(vel, input, grounded)
+		diving_now = true
+	if state == State.DIVE and grounded and not diving_now:
+		state = State.ROLL
+		_roll_left = tuning.roll_time
+	if state == State.ROLL:
+		_roll_left -= delta
+		if not grounded:
+			state = State.AIR   # rolled off an edge
+		elif _roll_left <= 0.0:
+			state = State.GROUND
+			if input.crouch and Vector2(vel.x, vel.z).length() >= t.slide_start_speed:
+				vel = _start_slide(vel)   # roll straight into a slide
+	var low_move := state in [State.DIVE, State.ROLL]
+
+	# --- Crouch (or tuck your legs in the air). Diving and rolling are low too.
+	_update_crouch(body, input.crouch or low_move, grounded, delta)
 
 	# --- Vault over low obstacles; grab and climb higher ledges while in the air
-	if forward and not grapple.attached and not rope_jump and vel.y < t.jump_velocity:
+	if forward and not low_move and not grapple.attached and not rope_jump and vel.y < t.jump_velocity:
 		var ledge := SurfaceProbe.find_ledge(body, _facing(input), t, t.crouch_height)
 		if not ledge.is_empty() and _start_mantle(ledge, grounded, vel):
 			_step_mantle(body, delta)
@@ -117,12 +158,29 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_start_wall_run(wall)
 		vel.y = clamp(vel.y, -1.0, t.wall_run_max_rise)
 
+	# A mid-air jump that isn't a wall jump is a flip: a small burst toward your
+	# WASD direction, once per jump. Pressed close above the floor, it is kept
+	# as a buffered jump for when you land instead (so bunny-hops still work).
+	var flipping := false
+	if input.jump_pressed and not jumping and not wall_jump and not rope_jump and not grounded \
+			and not grapple.attached and not _flip_used and state != State.MANTLE \
+			and not SurfaceProbe.floor_within(body, max(1.0, -vel.y * t.jump_buffer + 0.3)):
+		flipping = true
+		_flip_used = true
+		_jump_buffer = 0.0
+
 	var hspeed := Vector2(vel.x, vel.z).length()
 	if wall_jump:
 		state = State.AIR
 		vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
 	elif state == State.WALL_RUN:
 		vel = _wall_run(vel, delta)
+	elif state == State.DIVE:
+		if not diving_now:
+			vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.dive_air_accel, delta)
+			vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+	elif state == State.ROLL:
+		vel = _roll(vel, wish, delta)
 	elif grapple.attached and not grounded:
 		# Swinging: gravity plus stronger air steering (to pump the swing), then
 		# the rope removes any motion that would stretch it.
@@ -148,7 +206,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# no friction that frame, so a jump pressed just before landing keeps all
 		# your speed (bunny-hopping). Air steering can add speed when you strafe
 		# and turn together (air-strafing), but never takes speed away.
-		state = State.AIR
+		state = State.FLIP if _flip_left > 0.0 else State.AIR
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.air_accel, delta)
 		if not grounded:
 			vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
@@ -161,6 +219,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	if rope_jump:
 		vel.y = max(vel.y, 0.0) + t.grapple_jump_boost
 		state = State.AIR
+	if flipping:
+		vel = _flip(vel, wish, input)
 
 	if grapple.attached:
 		vel = grapple.constrain_velocity(body, vel, delta)
@@ -191,10 +251,15 @@ func reset() -> void:
 	_used_wall = Vector3.ZERO
 	_mantle = {}
 	_jump_buffer = 0.0
+	_since_dive = 99.0
+	_air_dive_used = false
+	_flip_used = false
+	_roll_left = 0.0
+	_flip_left = 0.0
 	if crouched and _shape:
 		_set_height(tuning.stand_height)
 	crouched = false
-	tucked = false
+	tuck = 0.0
 	eye_height = MovementTuning.EYE_HEIGHT
 
 
@@ -215,9 +280,11 @@ func _set_height(h: float) -> void:
 	_shape.position.y = h * 0.5
 
 
-func _update_crouch(body: CharacterBody3D, want: bool, grounded: bool) -> void:
+func _update_crouch(body: CharacterBody3D, want: bool, grounded: bool, delta: float) -> void:
 	var t := tuning
 	var diff := t.stand_height - t.crouch_height
+	if grounded:
+		tuck = move_toward(tuck, 0.0, TUCK_SETTLE_SPEED * delta)
 	if want and not crouched:
 		_set_height(t.crouch_height)
 		crouched = true
@@ -225,14 +292,13 @@ func _update_crouch(body: CharacterBody3D, want: bool, grounded: bool) -> void:
 			# Tuck the legs up: the head stays where it was.
 			body.global_position.y += diff
 			eye_height -= diff
-			tucked = true
+			tuck = diff
 	elif not want and crouched:
 		if grounded:
 			if not body.test_move(body.global_transform, Vector3(0, diff, 0)):
 				_set_height(t.stand_height)
 				crouched = false
-				tucked = false
-		elif not tucked and not body.test_move(body.global_transform, Vector3(0, diff, 0)):
+		elif tuck < diff * 0.5 and not body.test_move(body.global_transform, Vector3(0, diff, 0)):
 			# Crouched since the ground (not a tuck): stand up, feet stay where they are.
 			_set_height(t.stand_height)
 			crouched = false
@@ -242,11 +308,10 @@ func _update_crouch(body: CharacterBody3D, want: bool, grounded: bool) -> void:
 			eye_height += diff
 			_set_height(t.stand_height)
 			crouched = false
-			tucked = false
+			tuck = 0.0
 		elif not body.test_move(body.global_transform, Vector3(0, diff, 0)):
 			_set_height(t.stand_height)
 			crouched = false
-			tucked = false
 
 
 func _ease_eye(delta: float) -> void:
@@ -358,6 +423,57 @@ func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 		h -= n * into
 	h += n * t.wall_jump_push
 	return Vector3(h.x, max(vel.y, t.wall_jump_up), h.z)
+
+
+# ---------------------------------------------------------------------------
+# Dive, roll and flip
+
+func _can_dive(grounded: bool) -> bool:
+	if _since_dive < tuning.dive_cooldown or grapple.attached:
+		return false
+	if state in [State.MANTLE, State.DIVE, State.ROLL]:
+		return false
+	return grounded or not _air_dive_used
+
+
+func _start_dive(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
+	var t := tuning
+	if state == State.WALL_RUN:
+		_end_wall_run()
+	var dir := _facing(input)
+	var h := Vector3(vel.x, 0, vel.z)
+	var along := h.dot(dir)
+	if along < t.dive_max_speed:
+		h += dir * min(t.dive_boost, t.dive_max_speed - max(along, 0.0))
+	if h.dot(dir) < t.run_speed:
+		h += dir * (t.run_speed - h.dot(dir))   # a dive always carries you forward
+	state = State.DIVE
+	_since_dive = 0.0
+	if not grounded:
+		_air_dive_used = true
+	var y: float = t.dive_hop if grounded else max(vel.y, t.dive_air_up)
+	return Vector3(h.x, y, h.z)
+
+
+## Rolling: keeps your speed, with a little steering.
+func _roll(vel: Vector3, wish: Vector3, delta: float) -> Vector3:
+	var h := Vector3(vel.x, 0, vel.z)
+	var speed := h.length()
+	if speed > 0.01 and wish != Vector3.ZERO:
+		var dir := h / speed
+		var angle := dir.signed_angle_to(wish, Vector3.UP)
+		var turn := tuning.roll_turn_rate * delta
+		h = dir.rotated(Vector3.UP, clamp(angle, -turn, turn)) * speed
+	return Vector3(h.x, min(vel.y, 0.0), h.z)
+
+
+func _flip(vel: Vector3, wish: Vector3, input: PlayerInput) -> Vector3:
+	var t := tuning
+	state = State.FLIP
+	_flip_left = t.flip_time
+	flip_dir = input.move.limit_length(1.0).normalized() if wish != Vector3.ZERO else Vector2(0, -1)  # no direction: backflip
+	var h := Vector3(vel.x, 0, vel.z) + wish * t.flip_burst
+	return Vector3(h.x, max(vel.y, t.flip_up), h.z)
 
 
 # ---------------------------------------------------------------------------

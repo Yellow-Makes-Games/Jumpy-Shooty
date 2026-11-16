@@ -12,6 +12,8 @@ extends RefCounted
 ##              WALL RUN     zigzag wall panels across the pit, plus a long wall
 ##              SLIDE        a hill to slide down, bars to slide under, a kicker
 ##       south  VAULT/CLIMB  obstacles of marked heights, and a wall-jump chimney
+##              GAP JUMPS    platforms with wider and wider gaps: jump, then
+##                           jump + dive, then jump + flip + dive
 ##
 ## Not player-facing; the first real arena will be the construction site.
 
@@ -41,6 +43,7 @@ func build() -> TestingGrounds:
 	_wall_lane()
 	_slide_lane()
 	_vault_lane()
+	_gap_lane()
 	_spawns()
 	return self
 
@@ -194,6 +197,33 @@ func _vault_lane() -> void:
 		_box(Vector3(98, CHIMNEY_TOP * 0.5, cz + side * 2.0), Vector3(8, CHIMNEY_TOP, 1.0), "wallrun")
 	_box(Vector3(106, (CHIMNEY_TOP - 1.5) * 0.5, cz), Vector3(8, CHIMNEY_TOP - 1.5, 6), "pad")   # platform 10.5 m up
 	_sign(Vector3(102.2, CHIMNEY_TOP + 1.0, cz), "TOP", FACE_WEST, 96)
+
+
+# ---------------------------------------------------------------------------
+# GAP JUMPS: platforms 2 m up with gaps of 6, 10 and 13 m. The first needs a
+# sprinting jump, the second a jump then a dive, the third a jump, a flip and a dive.
+
+const GAP_Z := 35.0
+const GAP_HEIGHT := 2.0
+const GAP_PLATFORMS := [   ## [x from, x to]
+	[46.0, 52.0],
+	[58.0, 61.0],   # 6 m gap: jump
+	[71.0, 74.0],   # 10 m gap: jump + dive
+	[87.0, 90.0],   # 13 m gap: jump + flip + dive
+]
+const GAP_HINTS := ["", "JUMP", "JUMP + DIVE", "JUMP + FLIP + DIVE"]
+
+func _gap_lane() -> void:
+	var z := GAP_Z
+	_sign(Vector3(44.5, 8.5, z), "GAP JUMPS", FACE_WEST, 110, "Q dives toward where you look.\nJump again in mid-air to flip toward your WASD direction.")
+	_ramp(Vector3(42, 0, z), Vector3(46, GAP_HEIGHT, z), 4)
+	_decal(Vector3(71.5, 0.01, z), Vector3(35, 0.02, 4), "pit")
+	for i in GAP_PLATFORMS.size():
+		var p: Array = GAP_PLATFORMS[i]
+		_box(Vector3((p[0] + p[1]) * 0.5, GAP_HEIGHT * 0.5, z), Vector3(p[1] - p[0], GAP_HEIGHT, 4), "pad")
+		if GAP_HINTS[i] != "":
+			var gap: float = p[0] - GAP_PLATFORMS[i - 1][1]
+			_sign(Vector3(p[0] - gap * 0.5, GAP_HEIGHT + 3.0, z), "%s\n%d m" % [GAP_HINTS[i], int(gap)], FACE_WEST, 56)
 
 
 # ---------------------------------------------------------------------------

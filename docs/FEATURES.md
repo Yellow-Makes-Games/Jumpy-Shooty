@@ -46,7 +46,8 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Grapple (momentum-based) | working | Right mouse. Rope swing, not a pull: swing, pump with WASD, let go to launch, jump to let go with a kick. 45 m range, 0.6 s cooldown, any surface |
 | Wall-run, wall-jump | working | Hold forward along a wall in the air. Low gravity for 1.6 s, camera leans. Jump to kick off. Same wall can't be reused until you land |
 | Vault, ledge climb | working | Run into anything 0.45 to 1.25 m high and you vault it, keeping speed. Jump at a ledge up to 2.3 m and you climb up |
-| Dive, roll, flips | not started | Next |
+| Dive and roll | working | Q (or Alt): lunge toward where you look (+4 m/s, low hitbox), from the ground or once per jump, 1 s cooldown. Landing from a dive rolls you forward keeping your speed; hold crouch to roll into a slide |
+| Flips (air flip dodge) | working | Press jump again in mid-air: flip toward your WASD direction with a small burst, once per jump (refreshed by wall runs and the grapple). A jump pressed just above the floor still counts as a bunny-hop |
 
 ## Camera
 
@@ -67,7 +68,7 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Muzzle flash, tracers, impacts | rough | Simple glowing shapes |
 | Weapon sounds | not started | |
 | Bot | not started | Phase 1 (simple), phase 3 (uses movement) |
-| Testing Grounds (test map) | working | Greybox combat arena plus a training yard with practice lanes: grapple beams, wall-run zigzag and wall-jump chimney, slide hill and bars, vault blocks and ledges at marked heights. An automated test runs each course |
+| Testing Grounds (test map) | working | Greybox combat arena plus a training yard with practice lanes: grapple beams, wall-run zigzag and wall-jump chimney, slide hill and bars, vault blocks and ledges at marked heights, gap jumps of 6, 10 and 13 m (jump / jump + dive / jump + flip + dive). An automated test runs each course |
 | Construction site (first real arena) | not started | |
 | Character models and animation | not started | Capsule placeholders; phase 4 |
 | Sound | not started | |

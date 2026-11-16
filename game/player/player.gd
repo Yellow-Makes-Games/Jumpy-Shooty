@@ -42,6 +42,11 @@ var _rope_anchor := Vector3.ZERO  # remote: where it is hooked
 var _roll := 0.0                  # local: camera tilt while wall-running
 var _shape: CollisionShape3D
 var _low := false                 # drawn crouched
+var _visual_yaw := 0.0
+var _visual_height := 1.0         # body drawn this tall (fraction of standing height)
+var _anim_state := -1             # movement state the body animation is showing
+var _anim_time := 0.0
+var _anim_flip := Vector2.ZERO    # flip direction relative to facing (x right, y forward)
 
 
 func _init() -> void:
@@ -106,7 +111,7 @@ func _physics_process(delta: float) -> void:
 		motor.step(self, input, delta)
 		if DevArgs.sync_log and motor.grapple.attached != was_on:
 			print("ROPE SELF %d %s" % [peer_id, "on" if motor.grapple.attached else "off"])
-		visual.rotation.y = input.yaw
+		_visual_yaw = input.yaw
 		_update_weapon(delta)
 	else:
 		velocity = Vector3.ZERO
@@ -127,6 +132,7 @@ func _process(delta: float) -> void:
 		_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
 		rig.set_view(input.yaw, input.pitch, motor.eye_height, _roll)
 		_update_pose(motor.state, motor.crouched)
+		_animate_body(motor.state, _visual_yaw, velocity, delta)
 		var g := motor.grapple
 		_draw_rope(g.attached and alive, g.anchor)
 		return
@@ -137,9 +143,10 @@ func _process(delta: float) -> void:
 	var s := buffer.sample(rt)
 	global_position = s[0] + Vector3(0, tuck_offset(s[4]), 0)
 	velocity = s[1]
-	visual.rotation.y = s[2]
+	_visual_yaw = s[2]
 	_remote_state = s[4]
 	_update_pose(pose_state(_remote_state), pose_crouched(_remote_state))
+	_animate_body(pose_state(_remote_state), _visual_yaw, velocity, delta)
 	while not _rope_events.is_empty() and _rope_events[0][0] <= rt:
 		var ev: Array = _rope_events.pop_front()
 		_rope_on = ev[1]
@@ -363,9 +370,10 @@ func latest_time() -> float:
 	return buffer.snaps[-1].t if buffer.has_data() else Net.now()
 
 
-## Movement state, crouch and leg tuck packed into one number for snapshots.
-static func make_pose(state: int, crouched: bool, tucked: bool = false) -> int:
-	return state + (100 if crouched else 0) + (200 if tucked else 0)
+## Movement state, crouch and leg tuck packed into one number for snapshots:
+## state + 100 if crouched + 1000 x the tuck in centimetres.
+static func make_pose(state: int, crouched: bool, tuck: float = 0.0) -> int:
+	return state + (100 if crouched else 0) + 1000 * int(round(tuck * 100.0))
 
 
 static func pose_state(pose: int) -> int:
@@ -373,21 +381,21 @@ static func pose_state(pose: int) -> int:
 
 
 static func pose_crouched(pose: int) -> bool:
-	return (pose / 100) % 2 == 1
+	return (pose / 100) % 10 == 1
 
 
 ## Tucking the legs in the air lifts the feet without moving the head. Snapshots
 ## carry the feet as if not tucked (so the position never jumps) plus this offset.
 static func tuck_offset(pose: int) -> float:
-	return TUCK_LIFT if pose >= 200 else 0.0
+	return (pose / 1000) / 100.0
 
 
 func _my_pose() -> int:
-	return make_pose(motor.state, motor.crouched, motor.tucked)
+	return make_pose(motor.state, motor.crouched, motor.tuck)
 
 
 func _sent_position() -> Vector3:
-	return global_position - Vector3(0, TUCK_LIFT if motor.tucked else 0.0, 0)
+	return global_position - Vector3(0, motor.tuck, 0)
 
 
 ## Body height for a pose (shorter when crouched): used for the hitbox.
@@ -406,10 +414,41 @@ func _update_pose(_state: int, low: bool) -> void:
 		return
 	_low = low
 	var h := height_for_pose(make_pose(0, low))
-	visual.scale.y = h / CAPSULE_HEIGHT
+	_visual_height = h / CAPSULE_HEIGHT
 	if not is_local:
 		(_shape.shape as CapsuleShape3D).height = h
 		_shape.position.y = h * 0.5
+
+
+## Placeholder body animation for dives, rolls and flips: tips and spins the body
+## around its middle. Replaced by real animation when the robot models arrive.
+func _animate_body(state: int, yaw: float, vel: Vector3, delta: float) -> void:
+	const S := MovementController.State
+	if state != _anim_state:
+		_anim_state = state
+		_anim_time = 0.0
+		if state == S.FLIP:
+			if motor:
+				_anim_flip = motor.flip_dir
+			else:  # remote: work it out from which way they are moving
+				var local := Vector3(vel.x, 0, vel.z).rotated(Vector3.UP, -yaw)
+				_anim_flip = Vector2(local.x, -local.z).normalized() if local.length() > 1.0 else Vector2(0, -1)
+	_anim_time += delta
+	var tilt := Basis()
+	match state:
+		S.DIVE:
+			tilt = Basis(Vector3.RIGHT, deg_to_rad(-70.0))
+		S.ROLL:
+			tilt = Basis(Vector3.RIGHT, -TAU * clamp(_anim_time / 0.45, 0.0, 1.0))
+		S.FLIP:
+			var turn: float = TAU * clamp(_anim_time / 0.45, 0.0, 1.0)
+			if abs(_anim_flip.x) > abs(_anim_flip.y):
+				tilt = Basis(Vector3.BACK, -turn * signf(_anim_flip.x))   # side flip
+			else:
+				tilt = Basis(Vector3.RIGHT, -turn * signf(_anim_flip.y))  # front or back flip
+	var spin := Basis(Vector3.UP, yaw) * tilt
+	var centre := Vector3(0, CAPSULE_HEIGHT * _visual_height * 0.5, 0)
+	visual.transform = Transform3D(spin * Basis.from_scale(Vector3(1, _visual_height, 1)), centre - spin * centre)
 
 
 ## Lean the camera away from the wall while wall-running.
@@ -448,6 +487,10 @@ func _scripted_input(delta: float) -> void:
 	input.sprint = fmod(t, 4.0) < 2.0
 	if fmod(t, 1.7) < delta:
 		input.jump_pressed = true
+	if fmod(t + 1.3, 3.4) < delta:
+		input.jump_pressed = true   # mid-air: flip
+	if fmod(t + 2.5, 5.3) < delta:
+		input.dive_pressed = true
 	# Crouch (or slide, when fast) for a moment every 7 s.
 	var was_crouching := input.crouch
 	input.crouch = fmod(t, 7.0) > 5.8

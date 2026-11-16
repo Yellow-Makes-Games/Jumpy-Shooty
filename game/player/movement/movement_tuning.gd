@@ -71,3 +71,18 @@ const BODY_RADIUS := 0.4
 @export var vault_up_speed := 7.5
 @export var ledge_up_speed := 4.5
 @export var ledge_exit_speed := 5.0       ## speed you leave a ledge climb with
+
+@export_group("Dive and roll")
+@export var dive_boost := 4.0             ## forward speed added by a dive (toward where you look)
+@export var dive_max_speed := 17.0        ## a dive never pushes you past this speed
+@export var dive_hop := 3.5               ## upward speed of a dive from the ground
+@export var dive_air_up := 2.0            ## a dive in the air sets your upward speed to at least this
+@export var dive_air_accel := 1.0         ## steering while diving (weak)
+@export var dive_cooldown := 1.0          ## seconds between dives (and only one dive per jump)
+@export var roll_time := 0.45             ## landing from a dive rolls you forward this long, keeping speed
+@export var roll_turn_rate := 1.5         ## steering while rolling (radians per second)
+
+@export_group("Flip")
+@export var flip_burst := 4.5             ## press jump in mid-air: this much speed toward your WASD direction
+@export var flip_up := 4.5                ## and at least this much upward speed
+@export var flip_time := 0.45             ## how long the flip lasts (for the animation)

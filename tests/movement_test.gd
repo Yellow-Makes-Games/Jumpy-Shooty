@@ -302,6 +302,67 @@ func _initialize() -> void:
 				_data.erase("climb")
 				_expect_near("standing on top", body.global_position.y, 2.0, 0.08)
 				_expect_true("on the floor", body.is_on_floor())],
+		["dive from a run lunges forward", 0.15,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 0.05, 120))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -t.run_speed)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.dive_pressed = true
+				_data["states"] = {},
+			func():
+				_expect_true("state is Dive", motor.state == MovementController.State.DIVE)
+				_expect_true("faster (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed + t.dive_boost - 0.6)
+				_expect_true("low hitbox while diving", motor.crouched)
+				_expect_true("off the ground", not body.is_on_floor())],
+		["landing from a dive rolls, keeping speed", 0.7,
+			func(): pass,
+			func():
+				_expect_true("rolled", _data["states"].has(MovementController.State.ROLL))
+				_expect_true("still fast after the roll (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed + t.dive_boost - 1.5)],
+		["only one dive per jump, and a cooldown", 0.8,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 40, 120))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -8)
+				input.dive_pressed = true
+				_data["dive_again"] = 0,
+			func():
+				_data.erase("dive_again")
+				_expect_true("second dive did nothing (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) < 8.0 + t.dive_boost + 0.5)],
+		["jump in mid-air flips toward your direction", 0.05,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 40, 140))
+				_clear_input()
+				body.velocity = Vector3(0, -2, -8)
+				input.yaw = 0.0
+				input.move = Vector2(1, 0)
+				input.jump_pressed = true,
+			func():
+				_expect_true("state is Flip", motor.state == MovementController.State.FLIP)
+				_expect_true("pushed right (%.1f m/s)" % body.velocity.x, body.velocity.x > t.flip_burst * 0.9)
+				_expect_true("pushed up (%.1f m/s)" % body.velocity.y, body.velocity.y > t.flip_up - 1.5)],
+		["only one flip per jump", 0.2,
+			func():
+				_data["vy"] = body.velocity.y
+				input.move = Vector2.ZERO
+				input.jump_pressed = true,
+			func(): _expect_true("second flip did nothing (still falling: %.1f m/s)" % body.velocity.y, body.velocity.y < _data["vy"] - 3.0)],
+		["a jump pressed just above the floor is kept for landing, not a flip", 1.6,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 3.0, 160))
+				_clear_input()
+				_data["flip_watch"] = true
+				_data["states"] = {},
+			func():
+				_data.erase("flip_watch")
+				_expect_true("no flip", not _data["states"].has(MovementController.State.FLIP))
+				_expect_true("jumped on landing", _data.get("rebounded", false))],
 	]
 	print("Movement checks")
 
@@ -343,6 +404,15 @@ func _tick() -> void:
 		if _data["jump_off_after"] <= 0.0:
 			input.jump_pressed = true
 			_steps[_scenario][1] = 0.0  # check straight after this step
+	if _data.has("dive_again"):
+		_data["dive_again"] += 1
+		if _data["dive_again"] == 30:
+			input.dive_pressed = true   # try again in the same jump
+	if _data.has("flip_watch") and not body.is_on_floor() and body.velocity.y < 0.0 and body.global_position.y < 0.6 and not _data.has("pressed"):
+		input.jump_pressed = true   # just above the floor
+		_data["pressed"] = true
+	if _data.has("flip_watch") and _data.has("pressed") and body.velocity.y > 5.0:
+		_data["rebounded"] = true
 	motor.step(body, input, dt)
 	input.clear_edges()
 	if _data.has("states"):
