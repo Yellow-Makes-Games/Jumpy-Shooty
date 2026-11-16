@@ -1,0 +1,68 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_b3o55"]
+
+[resource]
+script = ExtResource("1_b3o55")
+colors = Dictionary[String, Color]({
+"backdrop": Color(0.62, 0.7, 0.8, 1),
+"backdrop_dark": Color(0.5, 0.6, 0.74, 1),
+"backdrop_light": Color(0.74, 0.8, 0.86, 1),
+"beam": Color(0.3, 0.33, 0.38, 1),
+"binder_blue": Color(0.2, 0.46, 0.72, 1),
+"binder_green": Color(0.27, 0.58, 0.44, 1),
+"binder_red": Color(0.76, 0.27, 0.22, 1),
+"board": Color(0.95, 0.95, 0.93, 1),
+"box": Color(0.83, 0.68, 0.48, 1),
+"cabinet": Color(0.66, 0.69, 0.72, 1),
+"cable": Color(0.12, 0.13, 0.15, 1),
+"carpet": Color(0.56, 0.61, 0.68, 1),
+"carpet_warm": Color(0.66, 0.62, 0.58, 1),
+"ceiling": Color(0.9, 0.9, 0.88, 1),
+"chair": Color(0.16, 0.17, 0.2, 1),
+"column": Color(0.9, 0.9, 0.88, 1),
+"concrete_dark": Color(0.6, 0.62, 0.64, 1),
+"desk": Color(0.94, 0.94, 0.92, 1),
+"desk_wood": Color(0.8, 0.62, 0.38, 1),
+"floor_tile": Color(0.86, 0.85, 0.82, 1),
+"floor_tile_dark": Color(0.72, 0.72, 0.7, 1),
+"floor_tile_edge": Color(0.38, 0.42, 0.48, 1),
+"frame": Color(0.38, 0.42, 0.48, 1),
+"fridge": Color(0.85, 0.87, 0.89, 1),
+"frost": Color(0.86, 0.92, 0.95, 1),
+"glass": Color(0.7, 0.84, 0.9, 1),
+"glass_rail": Color(0.62, 0.8, 0.88, 1),
+"hazard": Color(0.96, 0.78, 0.14, 1),
+"kitchen": Color(0.92, 0.92, 0.9, 1),
+"lamp": Color(1, 0.97, 0.88, 1),
+"lift_door": Color(0.72, 0.74, 0.76, 1),
+"partition": Color(0.42, 0.55, 0.68, 1),
+"pavement": Color(0.74, 0.74, 0.72, 1),
+"plant": Color(0.36, 0.62, 0.32, 1),
+"plant_light": Color(0.48, 0.72, 0.38, 1),
+"planter": Color(0.6, 0.62, 0.64, 1),
+"roof": Color(0.66, 0.67, 0.68, 1),
+"rug": Color(0.24, 0.47, 0.72, 1),
+"server": Color(0.2, 0.22, 0.27, 1),
+"server_floor": Color(0.5, 0.53, 0.57, 1),
+"server_light": Color(0.35, 0.8, 1, 1),
+"shaft": Color(0.6, 0.62, 0.64, 1),
+"shutter": Color(0.66, 0.68, 0.7, 1),
+"soil": Color(0.4, 0.3, 0.22, 1),
+"sofa": Color(0.9, 0.52, 0.18, 1),
+"sofa_teal": Color(0.27, 0.58, 0.54, 1),
+"stair": Color(0.38, 0.42, 0.48, 1),
+"stair_side": Color(0.97, 0.76, 0.16, 1),
+"screen": Color(0.12, 0.13, 0.15, 1),
+"street": Color(0.5, 0.5, 0.5, 1),
+"trunk": Color(0.5, 0.38, 0.27, 1),
+"wall": Color(0.93, 0.92, 0.89, 1),
+"wall_accent": Color(0.24, 0.47, 0.72, 1),
+"wall_dark": Color(0.36, 0.4, 0.47, 1),
+"wall_outer": Color(0.86, 0.87, 0.88, 1),
+"window_dark": Color(0.36, 0.46, 0.58, 1)
+})
+glow = Dictionary[String, float]({
+"lamp": 1.2,
+"server_light": 2.0
+})
