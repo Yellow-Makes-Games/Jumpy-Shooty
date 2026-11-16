@@ -74,7 +74,14 @@ or WSL; I run these on every change anyway):
   ammo, adding and removing bots, changing robot and gun, game speed, and that no cheat
   works online (`tests/debug_test.gd`);
 - map scenes: every map loads and builds, every block has a colour, and the resize
-  handles move the right face (`tests/map_scene_test.gd`);
+  handles move the right face; race maps have gates numbered in order ending in one
+  finish, a bot route, hazards and moving parts that move, and the map lists keep race
+  maps and arena maps apart (`tests/map_scene_test.gd`);
+- races (`tests/run_race_test.sh`, in game time so it plays out the same on a slow
+  machine): on every race map you (on autopilot) and 4 Normal bots all finish, in time
+  order, and "Race again" starts another; Easy bots finish every map too; a hazard, a
+  fall and R each send you back; an online race between a host and a client finishes
+  for both and both see the same finishers;
 - the game boots into practice mode on every map without script errors;
 - bots climb the Construction Site tower to a player standing on a high floor
   (`tests/run_bot_climb_test.sh`);
@@ -120,7 +127,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
-| `--map=ID` | Which map: `construction_site` (the default), `office`, `testing_grounds`, or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `construction_site` (the default), `office`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -139,6 +146,9 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--look=SEC:YAW,PITCH` | Turn your view by YAW and to PITCH (degrees) after SEC seconds, e.g. `--look=3:0,-60` to look down |
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
+| `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
+| `--autopilot` | Your own racer runs the course the way a bot does (race tests and screenshots) |
+| `--bot-level=LEVEL` | With `--autopilot`: at this bot difficulty (default 3, Expert) |
 
 ## Maps
 
@@ -157,7 +167,7 @@ Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`
   3D view selects the whole object. To change one part, pick the part in the Scene
   tree, or select the object and press Ungroup in the 3D toolbar (next to the lock).
 - **MapSpawn** nodes (under `Spawns`): where players appear. The green figure shows
-  which way they face. Keep at least 8.
+  which way they face. Keep at least 8 (5 on a race map: they are the start line).
 - **MapDummy** nodes (under `TargetRange` in the Testing Grounds): target dummies. The
   orange figure shows which way the dummy faces; the inspector picks its robot, its gun
   and the caption over its head (the Testing Grounds ones give the distance).
@@ -213,6 +223,39 @@ tools/map_preview.sh construction_site OUT_DIR --shots="sw;top;cut7.5;-24,1.7,35
 Shots are corners (`sw`, `ne`, ...), `top` (a plan), `cutY` (a plan with everything above
 height Y sliced off, to see one floor) or a camera `x,y,z:look-x,y,z:fov`. The map can
 also be a scene path (`res://game/maps/my_map.tscn`).
+
+### Race maps
+
+`game/maps/rooftop_run.tscn`, `foundry.tscn` and `sky_ruins.tscn` are ordinary maps
+(MapBlocks in groups, so one click picks a whole piece and F6 plays it as a race) with
+four more node types:
+
+- **MapCheckpoint** (under `Checkpoints`): a gate. **Number** says the order (1, 2, 3...),
+  **Finish** marks the last one, **Opening** is its width and height. Racers must pass
+  them in order; the one before is where you come back to.
+- **MapHazard**: a MapBlock that sends you back to your checkpoint when you touch it
+  (molten metal, live wires, the presses). Same Size, Kind and Solid as any block.
+- **MapMover**: a group that moves. Its blocks ride along (and carry whoever stands on
+  them). **Travel** is how far it goes and comes back, **Period** how long the round
+  trip takes, **Hold** how long it rests at each end, **Spin** turns it (degrees a
+  second, for the sweeper arms) and **Phase** staggers it against its neighbours.
+  Everyone sees them in the same place: they run off the race clock.
+- **MapRoutePoint** (under `BotRoute`, in running order): the line the bots take, and
+  what they do at each point (run, jump, long jump, dive jump, flip dive, slide, crawl,
+  wall run, wall jump, chimney, grapple to the point plus Aim, wait for ground, wait for a
+  clear path). If you move an obstacle, move its route points with it.
+
+Falling below **Kill Height** sends you back too. A map counts as a race map when it has
+checkpoints; `game/arena/maps.gd` lists each map with its game, `ffa` or `race`, and the
+menus only offer a map for its own game.
+
+The three courses were laid out by `tools/race/build_race_maps.py` (the sections are in
+`tools/race/sections.py`: gaps, vaults, climbs, wall runs, chimneys, grapples, pistons,
+presses, sweepers and so on). Edit a map in the editor and the change is yours to keep;
+running the script again rebuilds all three from scratch and overwrites hand edits.
+After changing a course, `tests/run_race_test.sh` checks that bots still get round.
+`game/match/race_state.gd` (the `Race` autoload) runs the race rules and
+`game/bot/race_brain.gd` the race bots.
 
 ## Tuning movement
 

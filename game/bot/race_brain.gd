@@ -104,7 +104,7 @@ func update(delta: float) -> void:
 	if DevArgs.sync_log:
 		_log_time -= delta
 		if _log_time <= 0.0:
-			_log_time = 0.1
+			_log_time = 0.5
 			var p := me.global_position
 			print("RACER %d t=%.1f %.1f %.1f %.1f v=%.1f %s idx=%d act=%s ph=%d" % [me.peer_id, Race.time, p.x, p.y, p.z,
 				Vector2(me.velocity.x, me.velocity.z).length(), MovementController.State.keys()[me.motor.state] + ("+rope" if me.motor.grapple.attached else ""), _idx,

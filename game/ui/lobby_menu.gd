@@ -17,6 +17,8 @@ var _map_label: Label
 var _map_pick: OptionButton
 var _character: CharacterPicker
 var _weapon: WeaponPicker
+var _game_label: Label
+var _game_row: HBoxContainer   # the host's Shoot-out / Race switch
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
 
 
@@ -173,17 +175,29 @@ func _build_character() -> void:
 
 # Map: the host picks; everyone else sees it.
 func _build_map() -> void:
+	# Mode first: race maps only show up for a race, arena maps only for a shoot-out.
+	UiKit.section(_col, "Mode")
+	_game_label = UiKit.label(_col, "")
+	_game_row = UiKit.segmented(_col, ["Shoot-out (FFA / 1v1)", "Race"], Maps.GAMES.find(Net.game_kind()), func(i: int):
+		if _updating:
+			return
+		var g: String = Maps.GAMES[i]
+		var s := Net.match_settings.duplicate()
+		s["game"] = g
+		s["map"] = Game.last_map.get(g, Maps.default_id(g))
+		Net.set_match_settings(s))
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()
 	_map_pick.custom_minimum_size = Vector2(0, 44)
-	Maps.fill(_map_pick, Net.map_id())
+	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
 	_col.add_child(_map_pick)
-	_map_pick.item_selected.connect(func(i: int):
+	_map_pick.item_selected.connect(func(_i: int):
 		if _updating:
 			return
 		var s := Net.match_settings.duplicate()
-		s["map"] = Maps.LIST[i].id
+		s["map"] = Maps.picked(_map_pick)
+		Game.last_map[Maps.game_of(s.map)] = s.map
 		Net.set_match_settings(s))
 
 
@@ -215,7 +229,9 @@ func _build_rules() -> void:
 		if _updating:
 			return
 		var s := Net.match_settings.duplicate()
-		if s.mode == "kills":
+		if Net.game_kind() == "race":
+			s.race_minutes = int(v)
+		elif s.mode == "kills":
 			s.kills = int(v)
 		else:
 			s.minutes = int(v)
@@ -225,17 +241,33 @@ func _build_rules() -> void:
 
 func _refresh_rules() -> void:
 	var s: Dictionary = Net.match_settings
+	var race := Net.game_kind() == "race"
 	var kills_mode: bool = s.mode == "kills"
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
+	if race:
+		_rules_label.text = "First to the finish  ·  %d minute limit" % int(s.get("race_minutes", 10))
+	_game_label.text = Maps.GAME_NAMES.get(Net.game_kind(), "")
+	_game_label.visible = not Net.is_host()
+	_game_row.visible = Net.is_host()
+	_mode_pick.visible = not race
+	if _weapon:
+		_weapon.visible = not race   # no guns in a race
 	_rules_label.visible = not Net.is_host()
 	_host_rules.visible = Net.is_host()
 	_map_label.text = Maps.label(Net.map_id())
 	_map_label.visible = not Net.is_host()
 	_map_pick.visible = Net.is_host()
 	_updating = true
-	_map_pick.select(Maps.ids().find(Net.map_id()))
+	for i in _game_row.get_child_count():
+		(_game_row.get_child(i) as Button).set_pressed_no_signal(Maps.GAMES[i] == Net.game_kind())
+	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
 	_mode_pick.select(0 if kills_mode else 1)
-	if kills_mode:
+	if race:
+		_amount.min_value = 2
+		_amount.max_value = 30
+		_amount.set_value_no_signal(int(s.get("race_minutes", 10)))
+		_amount_unit.text = "minute limit"
+	elif kills_mode:
 		_amount.min_value = 1
 		_amount.max_value = 100
 		_amount.set_value_no_signal(s.kills)
