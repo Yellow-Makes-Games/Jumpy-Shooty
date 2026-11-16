@@ -5,6 +5,10 @@ extends RefCounted
 ## shoots by the same rules as a person: same speeds, same gun, same hit checks.
 ##
 ## What it does:
+##  - Picks who to fight: in a free-for-all with several bots it goes for whoever
+##    is nearest, favouring someone it can see, whoever just shot it, and whoever
+##    it is already fighting (so it does not flick between targets). Bots fight
+##    each other as well as you.
 ##  - Finds you: walks the map's navigation mesh (ramps, decks, tower) to where it
 ##    last saw you, and after a few seconds it heads for where you really are.
 ##  - Fights: strafes side to side at a comfortable range, jumps, and turns its aim
@@ -23,6 +27,11 @@ const HEAD := 1.6
 const HUNT_AFTER := 3.0    ## seconds without seeing you before it goes to where you really are
 const GRAPPLE_HEADROOM := 6.0  ## it only swings with this much open air above its head
 const LEVEL_GAP := 2.5     ## you are this much higher or lower: it comes to your floor instead of fighting from where it is
+const RETARGET := 0.25     ## seconds between choosing who to fight (straight away if the target dies)
+const SEEN_BIAS := 0.5     ## someone it can see counts as this much closer...
+const KEEP_BIAS := 0.7     ## ...its current target as this much closer...
+const REVENGE_BIAS := 0.5  ## ...and whoever shot it in the last REVENGE_TIME seconds as this much closer
+const REVENGE_TIME := 2.0
 
 var me: Player
 var d: BotDifficulty
@@ -31,6 +40,9 @@ var input: PlayerInput
 var _rng := RandomNumberGenerator.new()
 var _time := 0.0
 var _target: Player
+var _retarget := 0.0
+var _attacker := 0               # peer id of whoever last shot it
+var _attacked_time := -99.0
 var _seen: Array = []            # [time, aim point, velocity] of the target, oldest first
 var _last_seen_pos := Vector3.ZERO
 var _last_seen_time := -99.0
@@ -79,7 +91,15 @@ func update(delta: float) -> void:
 	if not me.alive:
 		_reset()
 		return
-	_target = _pick_target()
+	_retarget -= delta
+	if not is_instance_valid(_target):
+		_target = null
+	if _target == null or not _target.alive or _retarget <= 0.0:
+		_retarget = RETARGET
+		var picked := _pick_target()
+		if picked != _target:
+			_target = picked
+			_seen.clear()   # what it saw of the old target says nothing about this one
 	var visible := _target != null and _can_see(_target)
 	if visible:
 		_seen.append([_time, _aim_point(_target), _target.velocity])
@@ -129,14 +149,21 @@ func _reset() -> void:
 
 func _pick_target() -> Player:
 	var best: Player = null
-	var best_d := INF
+	var best_score := INF
+	var revenge := _time - _attacked_time < REVENGE_TIME
 	for p in me.get_parent().get_children():
 		var other := p as Player
 		if other == me or not other.alive:
 			continue
-		var dist := me.global_position.distance_to(other.global_position)
-		if dist < best_d:
-			best_d = dist
+		var score := me.global_position.distance_to(other.global_position)
+		if _can_see(other):
+			score *= SEEN_BIAS
+		if other == _target:
+			score *= KEEP_BIAS
+		if revenge and other.peer_id == _attacker:
+			score *= REVENGE_BIAS
+		if score < best_score:
+			best_score = score
 			best = other
 	return best
 
@@ -378,8 +405,14 @@ func _flat(a: Vector3, b: Vector3) -> float:
 # ---------------------------------------------------------------------------
 # Movement tricks
 
-func _on_hit(_shooter: int, target: int, _damage: float, _head: bool) -> void:
-	if target != me.peer_id or not me.alive or _dodge_time > 0.0:
+func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
+	if target != me.peer_id or not me.alive:
+		return
+	if shooter != me.peer_id:
+		_attacker = shooter
+		_attacked_time = _time
+		_retarget = 0.0   # think again about who to fight
+	if _dodge_time > 0.0:
 		return
 	if _rng.randf() < d.dodge_chance:
 		# Flip dodge: jump, then jump again in the air toward a side.

@@ -38,7 +38,7 @@ func _show_main() -> void:
 func _show_play() -> void:
 	UiKit.clear(_col)
 	UiKit.title(_col, "Play", 36)
-	UiKit.button(_col, "1v1 Bot", _show_bot).grab_focus()
+	UiKit.button(_col, "Vs Bots", _show_bot).grab_focus()
 	UiKit.button(_col, "Practice (free roam)", _show_practice)
 	UiKit.button(_col, "Multiplayer FFA", _show_multiplayer)
 	UiKit.spacer(_col)
@@ -87,8 +87,32 @@ const BOT_BLURBS := [
 
 func _show_bot() -> void:
 	UiKit.clear(_col)
-	UiKit.title(_col, "1v1 Bot", 36)
-	UiKit.label(_col, "Difficulty", true, 16)
+	UiKit.title(_col, "Vs Bots", 36)
+	# Bots and kills to win share a row, to keep the page short.
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	_col.add_child(row)
+	var left := VBoxContainer.new()
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(left)
+	UiKit.label(left, "Bots", true, 16)
+	var count := OptionButton.new()
+	for n in range(1, Game.MAX_BOTS + 1):
+		count.add_item("1 (1v1)" if n == 1 else "%d (free-for-all)" % n, n)
+	count.custom_minimum_size = Vector2(0, 44)
+	count.select(clampi(int(Game.last_bot.get("bots", 1)), 1, Game.MAX_BOTS) - 1)
+	left.add_child(count)
+	var right := VBoxContainer.new()
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(right)
+	UiKit.label(right, "Kills to win", true, 16)
+	var kills := SpinBox.new()
+	kills.min_value = 1
+	kills.max_value = 50
+	kills.value = Game.last_bot.kills
+	kills.custom_minimum_size = Vector2(0, 44)
+	right.add_child(kills)
+	UiKit.label(_col, "Difficulty (every bot)", true, 16)
 	var pick := OptionButton.new()
 	for i in BotDifficulty.NAMES.size():
 		pick.add_item(BotDifficulty.NAMES[i], i)
@@ -99,18 +123,11 @@ func _show_bot() -> void:
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.custom_minimum_size = Vector2(0, 44)
 	pick.item_selected.connect(func(i: int): blurb.text = BOT_BLURBS[i])
-	UiKit.spacer(_col, 4)
-	UiKit.label(_col, "Kills to win", true, 16)
-	var kills := SpinBox.new()
-	kills.min_value = 1
-	kills.max_value = 50
-	kills.value = Game.last_bot.kills
-	kills.custom_minimum_size = Vector2(0, 44)
-	_col.add_child(kills)
 	var map := _map_picker(Game.last_bot.map)
 	_character_picker()
 	UiKit.spacer(_col, 4)
-	UiKit.button(_col, "Start", func(): Game.start_bot(pick.selected, int(kills.value), Maps.LIST[map.selected].id)).grab_focus()
+	UiKit.button(_col, "Start", func(): Game.start_bot(pick.selected, int(kills.value), Maps.LIST[map.selected].id,
+			count.get_selected_id())).grab_focus()
 	UiKit.spacer(_col)
 	UiKit.button(_col, "Back", _show_play)
 
