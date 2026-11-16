@@ -5,12 +5,17 @@ extends RefCounted
 ## shoots by the same rules as a person: same speeds, same gun, same hit checks.
 ##
 ## What it does:
+##  - Notices you fairly: it sees you only when you are in front of it and nothing
+##    is in the way (no seeing through walls). It hears gunfire, a bullet going past
+##    and someone running nearby, and when you shoot it, it knows roughly where from.
+##    A sound gives it a rough spot, not your exact position.
 ##  - Picks who to fight: in a free-for-all with several bots it goes for whoever
-##    is nearest, favouring someone it can see, whoever just shot it, and whoever
-##    it is already fighting (so it does not flick between targets). Bots fight
-##    each other as well as you.
+##    it knows about that is nearest, favouring someone it can see, whoever just
+##    shot it, and whoever it is already fighting (so it does not flick between
+##    targets). Bots fight each other as well as you.
 ##  - Finds you: walks the map's navigation mesh (ramps, decks, tower) to where it
-##    last saw you, and after a few seconds it heads for where you really are.
+##    last saw or heard you (the better bots guess where you were running), then
+##    searches round there. When it gives up, or knows of nobody, it roams the map.
 ##  - Fights: strafes side to side at a comfortable range, jumps, and turns its aim
 ##    toward you at a limited speed. It sees you with a delay (its reaction time)
 ##    and its aim wobbles; it leads moving targets and goes for headshots more on
@@ -28,7 +33,10 @@ const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rif
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
 const PRONE_AIM := 0.4     ## aim height at someone belly-sliding (they are lying flat)
-const HUNT_AFTER := 3.0    ## seconds without seeing you before it goes to where you really are
+const SEARCH_RADIUS := 8.0 ## how far round the spot it lost you it looks
+const SOUND_GAP := 0.4     ## seconds between updating where it heard someone (so its goal does not jitter)
+const WHIZZ := 4.0         ## a shot ending this close is heard, however far away the shooter is
+const LOOK_TIME := 1.2     ## it looks toward a fresh sighting or sound for this long, then where it runs
 const GRAPPLE_HEADROOM := 6.0  ## it only swings with this much open air above its head
 const LEVEL_GAP := 2.5     ## you are this much higher or lower: it comes to your floor instead of fighting from where it is
 const RETARGET := 0.25     ## seconds between choosing who to fight (straight away if the target dies)
@@ -48,8 +56,12 @@ var _retarget := 0.0
 var _attacker := 0               # peer id of whoever last shot it
 var _attacked_time := -99.0
 var _seen: Array = []            # [time, aim point, velocity] of the target, oldest first
-var _last_seen_pos := Vector3.ZERO
 var _last_seen_time := -99.0
+var _known := {}                 # peer id -> [time, position]: where it last saw or heard each player
+var _in_view := {}               # peer id -> true for players it can see right now
+var _goal := Vector3.INF         # where it is walking when it cannot see its target
+var _goal_time := 0.0            # seconds it has been walking to _goal
+var _goal_from := -1.0           # the time of the sighting or sound _goal is based on
 var _path := PackedVector3Array()
 var _path_index := 0
 var _path_goal := Vector3.INF
@@ -91,6 +103,7 @@ func _init(player: Player, level: int) -> void:
 	_reach = r[2]
 	_rng.randomize()
 	Match.player_hit.connect(_on_hit)
+	Match.shot_fired.connect(_on_shot)
 
 
 ## Fill in this frame's input.
@@ -104,19 +117,21 @@ func update(delta: float) -> void:
 	if not me.alive:
 		_reset()
 		return
+	_sense()
 	_retarget -= delta
 	if not is_instance_valid(_target):
 		_target = null
-	if _target == null or not _target.alive or _retarget <= 0.0:
+	if _target == null or not _target.alive or not _known.has(_target.peer_id) or _retarget <= 0.0:
 		_retarget = RETARGET
 		var picked := _pick_target()
 		if picked != _target:
 			_target = picked
 			_seen.clear()   # what it saw of the old target says nothing about this one
-	var visible := _target != null and _can_see(_target)
+			_goal = Vector3.INF
+			_goal_from = -1.0
+	var visible := _target != null and _in_view.has(_target.peer_id)
 	if visible:
 		_seen.append([_time, _aim_point(_target), _target.velocity])
-		_last_seen_pos = _target.global_position
 		_last_seen_time = _time
 	while not _seen.is_empty() and _seen[0][0] < _time - 2.0:
 		_seen.pop_front()
@@ -147,6 +162,8 @@ func update(delta: float) -> void:
 
 func _reset() -> void:
 	_seen.clear()
+	_in_view.clear()
+	_goal = Vector3.INF
 	_path = PackedVector3Array()
 	_path_goal = Vector3.INF
 	input.grapple = false
@@ -162,16 +179,78 @@ func _reset() -> void:
 # ---------------------------------------------------------------------------
 # Seeing
 
+## Look and listen: update what it knows about where everyone is.
+func _sense() -> void:
+	for other in _others():
+		var id := other.peer_id
+		if not other.alive:
+			_known.erase(id)
+			_in_view.erase(id)
+			continue
+		if _can_see(other):
+			_known[id] = [_time, other.global_position]
+			_in_view[id] = true
+			continue
+		if _in_view.has(id):
+			# Just lost sight: it saw which way you were going.
+			_in_view.erase(id)
+			var v := Vector3(other.velocity.x, 0.0, other.velocity.z)
+			_known[id] = [_time, other.global_position + v * d.predict]
+			continue
+		# Footsteps: someone running close by (walking or crouching is quieter).
+		var speed := Vector2(other.velocity.x, other.velocity.z).length()
+		var dist := me.global_position.distance_to(other.global_position)
+		if speed > 2.5 and dist < d.step_range * (1.0 if speed > 6.0 else 0.5):
+			_hear(id, other.global_position, false)
+	for id in _known.keys():
+		if _time - float(_known[id][0]) > d.memory:
+			_known.erase(id)
+
+
+## It heard player `id` at `where`: it knows roughly where, worse from further away.
+## A player it can see needs no guessing, and a fresh sound is not replaced by
+## another straight away unless `force` (it was shot).
+func _hear(id: int, where: Vector3, force: bool) -> void:
+	if _in_view.has(id):
+		return
+	if not force and _known.has(id) and _time - float(_known[id][0]) < SOUND_GAP:
+		return
+	var off := me.global_position.distance_to(where) * d.sound_error
+	var miss := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)).limit_length(1.0)
+	_known[id] = [_time, where + miss * off]
+
+
+func _on_shot(shooter: int, muzzle: Vector3, ends: PackedVector3Array, _hits: Array) -> void:
+	if shooter == me.peer_id or not me.alive:
+		return
+	var close := me.eye_position().distance_to(muzzle) <= d.hear_range
+	if not close:
+		for e in ends:   # a bullet cracking past
+			if Geometry3D.get_closest_point_to_segment(me.eye_position(), muzzle, e).distance_to(me.eye_position()) < WHIZZ:
+				close = true
+				break
+	if close:
+		_hear(shooter, muzzle, false)
+
+
+func _others() -> Array[Player]:
+	var list: Array[Player] = []
+	for p in me.get_parent().get_children():
+		var other := p as Player
+		if other != null and other != me:
+			list.append(other)
+	return list
+
+
 func _pick_target() -> Player:
 	var best: Player = null
 	var best_score := INF
 	var revenge := _time - _attacked_time < REVENGE_TIME
-	for p in me.get_parent().get_children():
-		var other := p as Player
-		if other == me or not other.alive:
-			continue
-		var score := me.global_position.distance_to(other.global_position)
-		if _can_see(other):
+	for other in _others():
+		if not other.alive or not _known.has(other.peer_id):
+			continue   # it only goes after players it has seen or heard
+		var score := me.global_position.distance_to(_known[other.peer_id][1])
+		if _in_view.has(other.peer_id):
 			score *= SEEN_BIAS
 		if other == _target:
 			score *= KEEP_BIAS
@@ -183,14 +262,28 @@ func _pick_target() -> Player:
 	return best
 
 
+## In front of it (or right next to it) and not behind a wall.
 func _can_see(p: Player) -> bool:
-	var space := me.get_world_3d().direct_space_state
 	var eye := me.eye_position()
+	var to := p.global_position + Vector3(0, CHEST, 0) - eye
+	if to.length() > 3.0 and me.aim_forward().angle_to(to) > deg_to_rad(d.view_angle):
+		return false
+	var space := me.get_world_3d().direct_space_state
 	for h in [HEAD, CHEST]:
 		var q := PhysicsRayQueryParameters3D.create(eye, p.global_position + Vector3(0, h, 0), 1, [me.get_rid()])
 		if space.intersect_ray(q).is_empty():
 			return true
 	return false
+
+
+## Where it thinks its target is: where it really is when it can see it, otherwise
+## where it last saw or heard it.
+func _target_spot() -> Vector3:
+	if _target == null:
+		return Vector3.INF
+	if _in_view.has(_target.peer_id):
+		return _target.global_position
+	return _known[_target.peer_id][1] if _known.has(_target.peer_id) else Vector3.INF
 
 
 ## Where it aims on a target: chest, or head when it is going for headshots.
@@ -229,9 +322,7 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		_escape_time -= delta
 		_unstick(delta, _escape_dir)
 		return _escape_dir
-	if _target == null:
-		return Vector3.ZERO
-	var dist := pos.distance_to(_target.global_position)
+	var dist := pos.distance_to(_target.global_position) if visible else INF
 	var dir := Vector3.ZERO
 	if visible and dist < maxf(ENGAGE_RANGE, FAR + 10.0):
 		# Fight: strafe side to side, keeping a comfortable distance.
@@ -269,10 +360,8 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5 and _ground_ahead(f, 8.0):
 			_dive(f)
 	else:
-		# Chase: to where it last saw you, or to where you really are after a while.
-		var hunting := _time - _last_seen_time > HUNT_AFTER
-		var goal := _target.global_position if hunting else _last_seen_pos
-		dir = _follow_path(goal, delta)
+		# Chase to where it last saw or heard you and search round there, or roam.
+		dir = _follow_path(_hunt_goal(delta), delta)
 		input.sprint = d.sprint and not _corner_ahead   # sprinting round a sharp corner overshoots it
 		_chase_tricks(delta, dir, grounded, speed)
 	if _hop_time > 0.0:
@@ -286,6 +375,30 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		input.crouch = true
 	_unstick(delta, dir)
 	return dir
+
+
+## Where to walk when it cannot see its target: the spot it last saw or heard it,
+## then other places close to that spot. With nobody to go after, anywhere on the map.
+func _hunt_goal(delta: float) -> Vector3:
+	var nav := me.get_world_3d().navigation_map
+	_goal_time += delta
+	var info: Array = _known[_target.peer_id] if _target != null and _known.has(_target.peer_id) else []
+	if not info.is_empty() and float(info[0]) != _goal_from:
+		_goal_from = info[0]   # a new sighting or sound: go there
+		_goal = info[1]
+		_goal_time = 0.0
+	var pos := me.global_position
+	var arrived := _goal != Vector3.INF and _flat(pos, _goal) < 1.5 and absf(_goal.y - pos.y) < 2.5
+	if _goal == Vector3.INF or arrived or _goal_time > 12.0:
+		_goal_time = 0.0
+		if not info.is_empty():
+			var spot: Vector3 = info[1]
+			var off := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)).normalized() * _rng.randf_range(3.0, SEARCH_RADIUS)
+			_goal = NavigationServer3D.map_get_closest_point(nav, spot + off)
+		else:
+			_goal_from = -1.0
+			_goal = NavigationServer3D.map_get_random_point(nav, 1, true)
+	return _goal
 
 
 ## Once it is running fast it mixes in movement tricks: slides, bunny-hops, dives.
@@ -442,6 +555,9 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 		_attacker = shooter
 		_attacked_time = _time
 		_retarget = 0.0   # think again about who to fight
+		for other in _others():
+			if other.peer_id == shooter:
+				_hear(shooter, other.global_position, true)   # it knows roughly where that came from
 	if _dodge_time > 0.0:
 		return
 	if _rng.randf() < d.dodge_chance:
@@ -473,10 +589,12 @@ func _grapple(delta: float, visible: bool) -> void:
 			input.grapple = false
 		return
 	input.grapple = false
-	if not d.grapples or _target == null or not g.ready_to_fire():
+	# Toward its target when it can see it, otherwise toward where it is walking.
+	var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
+	if not d.grapples or spot == Vector3.INF or not g.ready_to_fire():
 		return
-	var dist := me.global_position.distance_to(_target.global_position)
-	var higher := _target.global_position.y - me.global_position.y > 2.5
+	var dist := me.global_position.distance_to(spot)
+	var higher := spot.y - me.global_position.y > 2.5
 	if not (higher or (dist > 25.0 and not visible)) or _rng.randf() > delta * 1.5:
 		return
 	# Aim up and ahead, toward the target, and hook whatever is there. Not indoors,
@@ -486,7 +604,7 @@ func _grapple(delta: float, visible: bool) -> void:
 	var up := PhysicsRayQueryParameters3D.create(eye, eye + Vector3(0, GRAPPLE_HEADROOM, 0), 1, [me.get_rid()])
 	if not space.intersect_ray(up).is_empty():
 		return
-	var to := _target.global_position - me.global_position
+	var to := spot - me.global_position
 	to.y = 0.0
 	var point := me.global_position + to.normalized() * minf(dist, 18.0) + Vector3(0, 9.0, 0)
 	var dir := (point - eye).normalized()
@@ -522,8 +640,8 @@ func _aim(delta: float, perceived: Array, move_dir: Vector3) -> void:
 		_error += Vector3(_rng.randfn(), _rng.randfn() * 0.6, _rng.randfn()) * delta * 2.0
 		_error = _error.limit_length(1.0)
 		target = point + _error * dist * tan(deg_to_rad(d.aim_error))
-	elif _target != null and _time - _last_seen_time < 1.0:
-		target = _last_seen_pos + Vector3(0, CHEST, 0)
+	elif _target != null and _known.has(_target.peer_id) and _time - float(_known[_target.peer_id][0]) < LOOK_TIME:
+		target = _known[_target.peer_id][1] + Vector3(0, CHEST, 0)   # look toward what it just saw or heard
 	elif move_dir.length() > 0.1:
 		target = eye + move_dir * 10.0
 	if target == Vector3.INF:
