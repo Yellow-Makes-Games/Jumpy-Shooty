@@ -13,9 +13,13 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 
 - Art style: clean, stylized low-poly.
 - Characters: robots.
-- Player robot (2026-11-16): the "Needle" look. Slim, one glowing eye, thin struts and
-  blade limbs. White armour for everyone; each player's colour shows on the trim panels
-  and the glowing visor.
+- Player robots (2026-11-16): two characters to choose from. **Needle**: slim, one
+  glowing eye, thin struts and blade limbs. **Vanguard**: an athletic armoured frame
+  with broad shoulders and a helmet with a visor band. White armour for everyone; each
+  player's colour shows on the trim panels and the glowing visor.
+- Characters are looks only (2026-11-16): same hitbox, same movement, same animations.
+  You pick yours before the round: on the Practice and 1v1 Bot pages, or in the lobby.
+  The choice is remembered. In a 1v1 the bot plays the robot you did not pick.
 - The grapple fires from the robot's left wrist; the pistol is in the right hand.
 - A robot that dies powers down (visor goes dark) and collapses; a respawn boots it back up.
 - UI: minimal and clean.

@@ -50,10 +50,21 @@ func _show_practice() -> void:
 	UiKit.title(_col, "Practice", 36)
 	UiKit.label(_col, "Roam a map on your own to learn its routes.", true, 15)
 	var map := _map_picker(Game.last_practice_map)
+	_character_picker()
 	UiKit.spacer(_col, 4)
 	UiKit.button(_col, "Start", func(): Game.start_practice(Maps.LIST[map.selected].id)).grab_focus()
 	UiKit.spacer(_col)
 	UiKit.button(_col, "Back", _show_play)
+
+
+## The "Character" chooser. The pick is saved straight away, like the other settings.
+func _character_picker() -> CharacterPicker:
+	var pick := CharacterPicker.new(Game.local_character())
+	_col.add_child(pick)
+	pick.picked.connect(func(id: String):
+		Settings.character = id
+		Settings.save_settings())
+	return pick
 
 
 ## A "Map" label and drop-down with every map; `current` is selected.
@@ -97,6 +108,7 @@ func _show_bot() -> void:
 	kills.custom_minimum_size = Vector2(0, 44)
 	_col.add_child(kills)
 	var map := _map_picker(Game.last_bot.map)
+	_character_picker()
 	UiKit.spacer(_col, 4)
 	UiKit.button(_col, "Start", func(): Game.start_bot(pick.selected, int(kills.value), Maps.LIST[map.selected].id)).grab_focus()
 	UiKit.spacer(_col)

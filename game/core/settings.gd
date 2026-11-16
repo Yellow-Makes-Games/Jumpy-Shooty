@@ -25,6 +25,7 @@ var vsync: bool = true
 
 # Profile
 var player_name: String = ""
+var character: String = Characters.default_id()   # the robot you play as (see Characters)
 
 
 func _ready() -> void:
@@ -47,6 +48,7 @@ func load_settings() -> void:
 	fullscreen = cfg.get_value("graphics", "fullscreen", fullscreen)
 	vsync = cfg.get_value("graphics", "vsync", vsync)
 	player_name = cfg.get_value("profile", "player_name", player_name)
+	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 
 
 func save_settings() -> void:
@@ -61,6 +63,7 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "fullscreen", fullscreen)
 	cfg.set_value("graphics", "vsync", vsync)
 	cfg.set_value("profile", "player_name", player_name)
+	cfg.set_value("profile", "character", character)
 	cfg.save(SAVE_PATH)
 
 

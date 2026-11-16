@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://q0018n1ihogs"
-path="res://.godot/imported/robot.glb-cfa89c472b90a5d24f0c64609ca73130.scn"
+uid="uid://pifvgckyqsk3"
+path="res://.godot/imported/needle_arms.glb-58f95f78a920a46e9e6a0a6c5a397eac.scn"
 
 [deps]
 
-source_file="res://game/player/robot/robot.glb"
-dest_files=["res://.godot/imported/robot.glb-cfa89c472b90a5d24f0c64609ca73130.scn"]
+source_file="res://game/player/robot/needle_arms.glb"
+dest_files=["res://.godot/imported/needle_arms.glb-58f95f78a920a46e9e6a0a6c5a397eac.scn"]
 
 [params]
 

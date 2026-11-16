@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://pifvgckyqsk3"
-path="res://.godot/imported/robot_arms.glb-177da740cd37cb7853ed369971b1798a.scn"
+uid="uid://pa3iqronqrbt"
+path="res://.godot/imported/vanguard.glb-8abe22dd5480d3646dfb730b5ae9f77e.scn"
 
 [deps]
 
-source_file="res://game/player/robot/robot_arms.glb"
-dest_files=["res://.godot/imported/robot_arms.glb-177da740cd37cb7853ed369971b1798a.scn"]
+source_file="res://game/player/robot/vanguard.glb"
+dest_files=["res://.godot/imported/vanguard.glb-8abe22dd5480d3646dfb730b5ae9f77e.scn"]
 
 [params]
 

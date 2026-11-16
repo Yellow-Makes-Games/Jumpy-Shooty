@@ -43,7 +43,7 @@ var _arm_l: PackedInt32Array
 func setup(player: Player, color: Color) -> void:
 	_player = player
 	name = "ViewModel"
-	model = RobotModel.new().setup(RobotModel.ARMS, color, true)
+	model = RobotModel.new().setup(Characters.arms(Net.player_character(player.peer_id)), color, true)
 	model.position = -EYE
 	model.set_layer(Player.VIEWMODEL_LAYER)
 	add_child(model)

@@ -8,6 +8,9 @@ Reads logs written with --sync-log. Whenever a body's animation changes, its cop
   ANIM SHOT <viewer> <id>                      a copy kicked another player's gun
 <animation> is the animator's body source (loco, air, slide, wall_l, flip_back, ...)
 plus "+reload" while the reload plays, or "-" once the body is gone (match over).
+Each copy also prints, when it builds a player's body for a match,
+  CHAR SELF <id> <character>                   the robot a player (or bot) plays as
+  CHAR SEEN <viewer> <id> <character>          the robot a copy shows for another player
 Times are on the player's own clock. The host also prints "SHOT <id> ..." for every
 shot it accepts; a shot it turns down (fired a moment after dying) is not shown.
 
@@ -16,10 +19,13 @@ For each viewer and player we check:
     then (within TOLERANCE seconds, since states change between network updates)
   - moves: each time a player held a move for a little while, the viewer showed it
   - shots: the viewer kicked the gun for (nearly) every shot fired
+  - character: match after match, the viewer shows the robot the player picked
 
 Usage: python3 tests/check_anim.py [--need=a,b,c] tests/out/*.log
   --need lists animations that must have been exercised by at least one player
   ("reload" counts whatever the body was doing at the time).
+  --characters=N fails unless at least N different robots were played.
+  --switched fails unless some player changed robot between matches.
 Exit code 0 = pass, 1 = fail.
 """
 import bisect
@@ -36,10 +42,16 @@ SHOTS_LIMIT = 0.90
 
 def main(args):
     need = set()
+    want_characters = 0
+    want_switch = False
     paths = []
     for a in args:
         if a.startswith("--need="):
             need = set(a[7:].split(","))
+        elif a.startswith("--characters="):
+            want_characters = int(a[13:])
+        elif a == "--switched":
+            want_switch = True
         else:
             paths.append(a)
     real = defaultdict(list)    # id -> [(t, animation)]
@@ -47,12 +59,18 @@ def main(args):
     fired = defaultdict(int)
     judged = defaultdict(int)
     shots = defaultdict(int)
+    played = defaultdict(list)       # id -> the character they played, match by match
+    shown_as = defaultdict(list)     # (viewer, id) -> the character shown, match by match
     for path in paths:
         with open(path, errors="replace") as f:
             for line in f:
                 p = line.split()
                 if len(p) >= 3 and p[0] == "SHOT" and p[1].isdigit():
                     judged[int(p[1])] += 1
+                if len(p) == 4 and p[0] == "CHAR" and p[1] == "SELF":
+                    played[int(p[2])].append(p[3])
+                elif len(p) == 5 and p[0] == "CHAR" and p[1] == "SEEN":
+                    shown_as[(int(p[2]), int(p[3]))].append(p[4])
                 if len(p) < 3 or p[0] != "ANIM":
                     continue
                 if p[1] == "SELF" and len(p) == 5:
@@ -124,7 +142,32 @@ def main(args):
             passed &= got >= fired[target] * SHOTS_LIMIT - 1
         print(("PASS: " if passed else "FAIL: ") + text)
         ok &= passed
+    ok &= _check_characters(played, shown_as, want_characters, want_switch)
     return 0 if ok else 1
+
+
+def _check_characters(played, shown, want_characters, want_switch):
+    """Every copy must show each player as the robot they picked, in every match."""
+    ok = True
+    used = sorted({c for line in played.values() for c in line})
+    print("characters played: " + " ".join(used))
+    if len(used) < want_characters:
+        print(f"FAIL: expected at least {want_characters} different characters")
+        ok = False
+    if want_switch and not any(len(set(line)) > 1 for line in played.values()):
+        print("FAIL: nobody changed character between matches")
+        ok = False
+    for (viewer, target), line in sorted(shown.items()):
+        if viewer == target or target not in played:
+            continue
+        truth = played[target]
+        # A copy that joined late or left early saw fewer matches; compare what overlaps.
+        n = min(len(truth), len(line))
+        passed = n > 0 and line[:n] == truth[:n]
+        ok &= passed
+        print(f"{'PASS' if passed else 'FAIL'}: viewer {viewer} shows {target} as {' then '.join(line[:n]) or 'nothing'}"
+              + ("" if passed else f" (they played {' then '.join(truth[:n])})"))
+    return ok
 
 
 def _at(line, t):

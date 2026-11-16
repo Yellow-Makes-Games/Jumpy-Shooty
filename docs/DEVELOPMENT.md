@@ -52,6 +52,12 @@ addresses or router settings. Everyone needs Steam running.
 or WSL; I run these on every change anyway):
 
 - movement checks (speeds, stopping, jump height, momentum in the air);
+- robot checks, for every character: the model files hold every bone and clip, the
+  skeletons match, each movement state plays the right animation, and the poses fit
+  the hitbox (`tests/robot_test.gd`);
+- the Testing Grounds practice courses and the Construction Site routes: a scripted
+  player runs each one (`tests/course_test.gd`, `tests/site_test.gd`). The site test also
+  checks the spawn points and that a bot can walk to every level. To run one route and
 - robot checks: the model files hold every bone and clip, each movement state plays the
   right animation, and the poses fit the hitbox (`tests/robot_test.gd`);
 - the Testing Grounds practice courses and the Construction Site and Office routes: a
@@ -82,6 +88,10 @@ or WSL; I run these on every change anyway):
   shows each other player doing the move they were really doing at that moment, shows
   each held move, and kicks their gun on every shot. The bot test checks the bot's body
   the same way.
+- character sync (same checker): the copies play different robots, and every copy must
+  show each player as the robot they picked. In the match test everyone picks again in
+  the lobby between matches, and the new picks must show in the next match. The bot
+  test checks the bot plays the robot you did not pick.
 
 ## Developer command-line options
 
@@ -100,6 +110,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot (degrees). Example: `--practice --spawn=45,0,10,-90` puts you at the start of the slide lane |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
+| `--character=ID` | Play as `needle` or `vanguard` without changing your saved choice |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
 | `--hold=SEC:ACTION:DURATION` | Hold an input action down, e.g. `--hold=5:move_forward:3` |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
@@ -181,18 +192,19 @@ All movement numbers are in `game/player/movement/movement_tuning.gd`, each with
 saying what it does. Change a number, press F5, and feel the difference. Tell me what
 feels off and I will tune it with you.
 
-## The robot model and its animations
+## The robot models and their animations
 
-The player robot is built by code, not drawn in a modelling program, so it can be changed
-by editing numbers and rebuilding. Everything is in `tools/robot/` (needs python3 with
-numpy):
+The player robots are built by code, not drawn in a modelling program, so they can be
+changed by editing numbers and rebuilding. Every character shares one skeleton and one
+set of animations; only the shape differs. Everything is in `tools/robot/` (needs
+python3 with numpy):
 
 | File | What it holds |
 | --- | --- |
-| `designs.py` | The robot's shape and materials. `CHOSEN` picks the look ("needle"); the two other drafts are kept |
+| `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard); the third draft, Brick, is kept |
 | `rig.py` | The skeleton (bone names and positions) and the pose solver |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
-| `build.py` | Writes `game/player/robot/robot.glb` (full body) and `robot_arms.glb` (first-person arms and pistol) |
+| `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and pistol) |
 
 After changing any of them:
 
@@ -205,7 +217,8 @@ To look at the result without opening the game (these render on a machine with n
 graphics card, so I can check poses myself):
 
 - `python3 tools/robot/sheet.py OUT_DIR run sprint:8 death:6:0:1.3` renders side and
-  front contact sheets of clips (name, frames, start and end time).
+  front contact sheets of clips (name, frames, start and end time). Add
+  `--glb game/player/robot/vanguard.glb` to look at another character.
 - `tools/robot/preview.sh JOB.json` renders any set of robots, poses and camera angles
   described in a job file; the format is at the top of `tools/robot/preview.gd`. It can
   also drive a robot with the game's real animator from made-up movement.
@@ -214,3 +227,10 @@ In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides wh
 body shows from the movement state (the same way for you, other players and the bot),
 and `view_model.gd` does the first-person arms. A model made in Blender later can
 replace the .glb files as long as it keeps the same bone and clip names.
+
+**Adding a character:** write its shape as a new function in `designs.py` (model it
+around the shared skeleton in `rig.py`), add its name to `DESIGNS` and `PLAYABLE`,
+rebuild, then list it in `game/player/robot/characters.gd` with a display name and a
+one-line description. The menus, the lobby, the network and the tests pick it up from
+that list. If its forearms are bulky, give it an entry in `FP_SLIM` so the
+first-person arms do not fill the view.

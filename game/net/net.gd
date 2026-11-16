@@ -24,8 +24,8 @@ const PLAYER_COLORS := [
 	Color(0.95, 0.80, 0.25), Color(0.75, 0.40, 0.95),
 ]
 
-## peer id -> { "name": String, "color": int }, plus "bot": true and "difficulty"
-## for computer players (ids from BOT_ID_BASE up), which the host simulates.
+## peer id -> { "name": String, "color": int, "character": String (see Characters) },
+## plus "bot": true and "difficulty" for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
 var in_match := false
 var is_online := false
@@ -40,6 +40,7 @@ var match_settings := {"mode": "kills", "kills": 15, "minutes": 8, "map": Maps.d
 var arena: Node = null
 
 var _local_name := "Player"
+var _local_character := Characters.default_id()
 
 
 func _ready() -> void:
@@ -71,15 +72,16 @@ func host_id() -> int:
 
 ## Play alone (bot mode and practice). Uses the offline peer, so the same code
 ## paths run with this player as "host".
-func start_offline(player_name: String) -> void:
+func start_offline(player_name: String, character: String) -> void:
 	leave()
 	_local_name = player_name
-	players = {1: {"name": player_name, "color": 0}}
+	_local_character = Characters.valid(character)
+	players = {1: {"name": player_name, "color": 0, "character": _local_character}}
 	is_online = false
 	players_changed.emit()
 
 
-func host_direct(player_name: String, listen_port: int = DEFAULT_PORT) -> Error:
+func host_direct(player_name: String, character: String, listen_port: int = DEFAULT_PORT) -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(listen_port, MAX_PLAYERS - 1)
@@ -87,7 +89,8 @@ func host_direct(player_name: String, listen_port: int = DEFAULT_PORT) -> Error:
 		return err
 	multiplayer.multiplayer_peer = peer
 	_local_name = player_name
-	players = {1: {"name": player_name, "color": 0}}
+	_local_character = Characters.valid(character)
+	players = {1: {"name": player_name, "color": 0, "character": _local_character}}
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -96,7 +99,7 @@ func host_direct(player_name: String, listen_port: int = DEFAULT_PORT) -> Error:
 	return OK
 
 
-func join_direct(player_name: String, address: String) -> Error:
+func join_direct(player_name: String, character: String, address: String) -> Error:
 	leave()
 	var join_port := DEFAULT_PORT
 	if ":" in address:
@@ -110,6 +113,7 @@ func join_direct(player_name: String, address: String) -> Error:
 		return err
 	multiplayer.multiplayer_peer = peer
 	_local_name = player_name
+	_local_character = Characters.valid(character)
 	is_online = true
 	print("[net] joining %s:%d" % [address, join_port])
 	return OK
@@ -129,7 +133,7 @@ func leave() -> void:
 
 func _on_connected_to_server() -> void:
 	_tune_link(1)
-	_register.rpc_id(1, _local_name)
+	_register.rpc_id(1, _local_name, _local_character)
 
 
 func _on_connection_failed() -> void:
@@ -177,15 +181,16 @@ func _broadcast_players() -> void:
 # Lobby
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register(player_name: String) -> void:
+func _register(player_name: String, character: String) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
 	if players.size() >= MAX_PLAYERS:
 		_refused.rpc_id(id, "The lobby is full.")
 		return
-	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color()}
-	print("[net] %d joined as %s" % [id, players[id].name])
+	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
+		"character": Characters.valid(character)}
+	print("[net] %d joined as %s (%s)" % [id, players[id].name, players[id].character])
 	_sync_settings.rpc_id(id, match_settings)
 	_sync_players.rpc(players)
 	if in_match:
@@ -199,6 +204,40 @@ func _sync_players(new_players: Dictionary) -> void:
 	players_changed.emit()
 	if not was_registered and players.has(my_id()) and not is_host():
 		joined_lobby.emit()
+
+
+## Pick the robot you play as. Works in the lobby; the host tells everyone. A change
+## made once the match has started is ignored (it applies from the next lobby on).
+func set_my_character(character: String) -> void:
+	_local_character = Characters.valid(character)
+	if is_host():
+		_apply_character(my_id(), _local_character)
+	else:
+		_choose_character.rpc_id(1, _local_character)
+
+
+## Call when the lobby opens: if a pick was ignored because the match had just
+## started, send it again now.
+func confirm_my_character() -> void:
+	if players.has(my_id()) and player_character(my_id()) != _local_character:
+		set_my_character(_local_character)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_character(character: String) -> void:
+	if is_host():
+		_apply_character(multiplayer.get_remote_sender_id(), character)
+
+
+func _apply_character(id: int, character: String) -> void:
+	if in_match or not players.has(id) or players[id].get("character", "") == Characters.valid(character):
+		return
+	players[id]["character"] = Characters.valid(character)
+	print("[net] %d picked %s" % [id, players[id].character])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
 
 
 ## Host only: change the win condition and tell everyone.
@@ -254,6 +293,7 @@ func add_bot(difficulty: int) -> int:
 	players[id] = {
 		"name": "Bot (%s)" % BotDifficulty.NAMES[difficulty],
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
+		"character": Characters.next(player_character(my_id())),   # not the one you picked, to tell you apart
 	}
 	players_changed.emit()
 	return id
@@ -272,6 +312,11 @@ func has_bots() -> bool:
 
 func player_name(id: int) -> String:
 	return players[id].name if players.has(id) else "?"
+
+
+## The robot a player is playing as (an id from Characters).
+func player_character(id: int) -> String:
+	return Characters.valid(str(players[id].get("character", ""))) if players.has(id) else Characters.default_id()
 
 
 func player_color(id: int) -> Color:

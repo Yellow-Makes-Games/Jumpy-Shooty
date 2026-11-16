@@ -19,7 +19,7 @@ COLORS = {"accent": [0.90, 0.14, 0.08], "visor": [0.90, 0.14, 0.08]}
 
 def main():
     args = sys.argv[1:]
-    glb = os.path.join(ROOT, "game", "player", "robot", "robot.glb")
+    glb = os.path.join(ROOT, "game", "player", "robot", "needle.glb")
     mode = []
     if "--gl" in args:
         args.remove("--gl")

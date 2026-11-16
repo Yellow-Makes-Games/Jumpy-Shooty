@@ -135,7 +135,7 @@ func _set_up(shot: Dictionary) -> void:
 ## A robot posed by RobotAnimator from made-up movement, stepped at 60 frames a second.
 func _puppet(item: Dictionary) -> void:
 	var c: Array = item.get("color", [0.95, 0.35, 0.25])
-	var robot := RobotModel.new().setup(RobotModel.BODY, Color(c[0], c[1], c[2]))
+	var robot := RobotModel.new().setup(Characters.body(item.get("character", "")), Color(c[0], c[1], c[2]))
 	_root.add_child(robot)
 	robot.position = _v(item.get("pos", [0, 0, 0]))
 	robot.rotation_degrees.y = item.get("yaw", 0.0)
