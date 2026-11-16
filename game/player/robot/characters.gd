@@ -13,6 +13,11 @@ const DIR := "res://game/player/robot/"
 const LIST := [
 	{"id": "needle", "name": "Needle", "blurb": "Slim and sleek: one glowing eye, thin struts, blade limbs."},
 	{"id": "vanguard", "name": "Vanguard", "blurb": "Athletic armoured frame: broad shoulders, helmet with a visor band."},
+	{"id": "kestrel", "name": "Kestrel", "blurb": "Scout racer: wedge helmet with crest fins, back thrusters, talon feet."},
+	{"id": "bulwark", "name": "Bulwark", "blurb": "Walking tank: three-eyed head in a high collar, dome shoulders, piston legs."},
+	{"id": "rivet", "name": "Rivet", "blurb": "Site worker: hard hat, camera-lens eye, hazard stripes, tank backpack."},
+	{"id": "specter", "name": "Specter", "blurb": "Stealth frame: hood with a V visor, trailing scarf, blade fins."},
+	{"id": "orbit", "name": "Orbit", "blurb": "Gyro bot: glowing orb head in gimbal rings, a glowing core in its chest."},
 ]
 
 

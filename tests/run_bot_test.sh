@@ -145,7 +145,7 @@ if errors:
 if len(overs) < 2 or any(len(o) != 5 for o in overs):
     print("  FAIL: expected two 5-player matches (a match and a rematch with all 4 bots)"); fail = True
 first = dict(chars[:5])
-want = {"1": "vanguard", "9001": "needle", "9002": "vanguard", "9003": "needle", "9004": "vanguard"}
+want = {"1": "vanguard", "9001": "kestrel", "9002": "bulwark", "9003": "rivet", "9004": "specter"}
 if first != want:
     print(f"  FAIL: expected robots {want}"); fail = True
 for b in bot_ids:

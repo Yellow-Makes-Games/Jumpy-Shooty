@@ -17,9 +17,15 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
   glowing eye, thin struts and blade limbs. **Vanguard**: an athletic armoured frame
   with broad shoulders and a helmet with a visor band. White armour for everyone; each
   player's colour shows on the trim panels and the glowing visor.
+- Five more robots (2026-11-16), picked from mockups in the same style: **Kestrel** (scout:
+  wedge helmet with crest fins, back thrusters, talon feet), **Bulwark** (heavy: low
+  three-eyed head in a high collar, dome shoulders, piston legs), **Rivet** (site worker:
+  hard hat, camera-lens eye, hazard stripes, tank backpack), **Specter** (stealth: hood
+  with a V visor, trailing scarf, blade fins) and **Orbit** (glowing orb head in gimbal
+  rings, glowing chest core). The bot named Rivet became Gizmo so names do not clash.
 - Characters are looks only (2026-11-16): same hitbox, same movement, same animations.
   You pick yours before the round: on the Practice and Vs Bots pages, or in the lobby.
-  The choice is remembered. In a 1v1 the bot plays the robot you did not pick.
+  The choice is remembered. In a 1v1 the bot plays the robot after yours in the list, never your own.
 - The grapple fires from the robot's left wrist; the pistol is in the right hand.
 - A robot that dies powers down (visor goes dark) and collapses; a respawn boots it back up.
 - First person shows your own body (2026-11-16): legs and torso when you look down, and
