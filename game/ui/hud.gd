@@ -25,6 +25,10 @@ class View:
 	var reloading := false
 	var reload := 0.0           ## 0..1
 	var weapon := ""
+	var gun := "pistol"         ## WeaponData id
+	var crosshair := "cross"
+	var spread_px := 0.0        ## the gun's spread on screen, in pixels from the middle
+	var ready := 1.0            ## 0..1: the pump or bolt is being worked (slow guns only)
 	var character := ""
 	var speed := 0.0            ## horizontal, m/s
 	var move_state := ""
@@ -145,6 +149,13 @@ func update_local(p: Player) -> void:
 		v.magazine = p.weapon.data.magazine
 		v.reloading = p.weapon.is_reloading()
 		v.reload = p.weapon.reload_progress()
+		var data := p.weapon.data
+		v.gun = data.id
+		v.crosshair = data.crosshair
+		var cam := get_viewport().get_camera_3d()
+		var fov := cam.fov if cam else 75.0
+		v.spread_px = tan(deg_to_rad(data.spread_degrees)) / tan(deg_to_rad(fov) * 0.5) * get_viewport().get_visible_rect().size.y * 0.5
+		v.ready = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval >= 0.5 else 1.0
 	v.speed = Vector2(p.velocity.x, p.velocity.z).length()
 	v.move_state = MovementController.State.keys()[p.motor.state].replace("_", " ")
 
@@ -222,7 +233,7 @@ func _on_hit(shooter: int, target: int, damage: float, headshot: bool) -> void:
 func _on_died(victim: int, killer: int) -> void:
 	var me := Net.my_id()
 	var head: bool = killer != 0 and _last_head.get(victim, false)
-	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0})
+	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": Net.player_weapon(killer)})
 	while _feed.size() > FEED_MAX:
 		_feed.pop_front()
 	if killer == me and victim != me:
@@ -307,10 +318,29 @@ func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
 			HudStyle.arc(ci, c, ring, -90, -90 + 360.0 * (1.0 - grapple_cooldown), Color(1, 1, 1, 0.6), 2.0)
 		_:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(1, 1, 1, 0.12), 1.5)
-	for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
-		ci.draw_line(c + d * 5.0, c + d * 13.0, Color(0, 0, 0, 0.55), 4.0)
-		ci.draw_line(c + d * 5.0, c + d * 13.0, HudStyle.WHITE, 2.0)
-	ci.draw_circle(c, 1.5, HudStyle.WHITE)
+	match view.crosshair:
+		"spread":   # the shotgun: four brackets on the edge of its cone
+			var r := maxf(view.spread_px, 12.0)
+			for i in 4:
+				var a := 45.0 + i * 90.0
+				HudStyle.arc(ci, c, r, a - 16.0, a + 16.0, Color(0, 0, 0, 0.5), 4.0)
+				HudStyle.arc(ci, c, r, a - 15.0, a + 15.0, HudStyle.WHITE, 2.0)
+		"dot":      # the sniper rifle: short ticks well clear of a precise dot
+			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+				ci.draw_line(c + d * 9.0, c + d * 15.0, Color(0, 0, 0, 0.55), 4.0)
+				ci.draw_line(c + d * 9.0, c + d * 15.0, HudStyle.WHITE, 2.0)
+		_:
+			var gap := 5.0 + view.spread_px * 0.6
+			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+				ci.draw_line(c + d * gap, c + d * (gap + 8.0), Color(0, 0, 0, 0.55), 4.0)
+				ci.draw_line(c + d * gap, c + d * (gap + 8.0), HudStyle.WHITE, 2.0)
+	ci.draw_circle(c, 2.0 if view.crosshair == "dot" else 1.5, Color(0, 0, 0, 0.5) if view.crosshair == "dot" else HudStyle.WHITE)
+	if view.crosshair == "dot":
+		ci.draw_circle(c, 1.4, HudStyle.WHITE)
+	if view.ready < 1.0:   # working the pump or bolt: a small bar fills under the crosshair
+		var bar := Rect2(c + Vector2(-14.0, 20.0), Vector2(28.0, 3.0))
+		ci.draw_rect(bar, Color(1, 1, 1, 0.2))
+		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * view.ready, bar.size.y)), Color(1, 1, 1, 0.8))
 	if _hit_time > 0.0:
 		var kill := _hit_kind == "kill"
 		var col := HudStyle.RED if kill else (HudStyle.YELLOW if _hit_kind == "head" else Color.WHITE)
@@ -403,7 +433,7 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 		var widths: Array = []
 		var total := 0.0
 		for part in parts:
-			var w := 22.0 if part[0] == "@gun" else HudStyle.text_width(part[0], 16 if part[0] != "HEAD" else 11)
+			var w := _gun_width(e.gun) if part[0] == "@gun" else HudStyle.text_width(part[0], 16 if part[0] != "HEAD" else 11)
 			widths.append(w)
 			total += w + 8.0
 		var plate := Rect2(right - total - 16.0, y - 14.0, total + 16.0 + 8.0, 28.0)
@@ -416,11 +446,15 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 			var col: Color = part[1]
 			col = Color(col.lightened(0.25), col.a * alpha)
 			if part[0] == "@gun":
-				HudStyle.pistol(ci, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
+				HudStyle.weapon_icon(ci, e.gun, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
 			else:
 				HudStyle.text(ci, Vector2(x, y), part[0], 16 if part[0] != "HEAD" else 11, col, HORIZONTAL_ALIGNMENT_RIGHT)
 			x -= widths[i] + 8.0
 		y += 32.0
+
+
+func _gun_width(gun: String) -> float:
+	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0}.get(gun, 22.0)
 
 
 ## Who got you (their robot, name, what was left of them, how), and a bar
@@ -441,7 +475,8 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 		_killer_view.position = card.position + Vector2(18, -26)
 		HudStyle.text(ci, Vector2(x, y + 30), "ELIMINATED BY", 13, HudStyle.RED)
 		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
-		HudStyle.text(ci, Vector2(x, y + 92), Characters.name_of(Net.player_character(_killer)), 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), WeaponData.name_of(Net.player_weapon(_killer))]
+		HudStyle.text(ci, Vector2(x, y + 92), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
 		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
 		if _killed_by_head:
 			chips.append("HEADSHOT")
@@ -523,7 +558,7 @@ func _refresh_scoreboard() -> void:
 	_score_title.text = title
 	UiKit.clear(_score_grid)
 	var dim := Color(1, 1, 1, 0.6)
-	for h in ["", "PLAYER", "ROBOT", "KILLS", "DEATHS"]:
+	for h in ["", "PLAYER", "ROBOT  ·  GUN", "KILLS", "DEATHS"]:
 		var l := _cell(_score_grid, h, 12, dim, false, h in ["KILLS", "DEATHS"])
 		if h == "PLAYER":
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -542,7 +577,7 @@ func _refresh_scoreboard() -> void:
 		name_row.add_child(chip)
 		_cell(name_row, row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 18, col)
 		_score_grid.add_child(name_row)
-		_cell(_score_grid, Characters.name_of(Net.player_character(row.id)), 16, Color(col, 0.75), false)
+		_cell(_score_grid, "%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), WeaponData.by_id(Net.player_weapon(row.id)).short_name], 16, Color(col, 0.75), false)
 		_cell(_score_grid, str(row.kills), 20, col, true, true)
 		_cell(_score_grid, str(row.deaths), 16, Color(col, 0.75), false, true)
 

@@ -85,5 +85,33 @@ static func pistol(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) ->
 	ci.draw_colored_polygon(pts, color)
 
 
+## A small silhouette of a gun, barrel to the right (kill feed, death screen). Returns its width.
+static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s: float = 1.0) -> float:
+	var shapes := []
+	match id:
+		"shotgun":
+			shapes = [[Vector2(0, 1), Vector2(9, 0), Vector2(36, 0), Vector2(36, 3), Vector2(13, 4), Vector2(11, 9),
+				Vector2(8, 9), Vector2(9, 4), Vector2(0, 6)], [Vector2(18, 4), Vector2(28, 4), Vector2(28, 7), Vector2(18, 7)]]
+		"rifle":
+			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(34, 0), Vector2(34, 2.5), Vector2(28, 3), Vector2(28, 5),
+				Vector2(18, 5), Vector2(17, 11), Vector2(14, 11), Vector2(14, 5), Vector2(11, 5), Vector2(10, 9),
+				Vector2(7, 9), Vector2(8, 5), Vector2(0, 6)]]
+		"sniper":
+			shapes = [[Vector2(0, 2), Vector2(8, 1), Vector2(26, 1), Vector2(44, 1.5), Vector2(44, 3), Vector2(26, 3.5),
+				Vector2(24, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 6)],
+				[Vector2(11, -3), Vector2(23, -3), Vector2(23, 0), Vector2(11, 0)]]
+		_:
+			pistol(ci, at, color, s)
+			return 19.0 * s
+	var width := 0.0
+	for shape in shapes:
+		var pts := PackedVector2Array()
+		for p in shape:
+			pts.append(at + p * s)
+			width = maxf(width, p.x * s)
+		ci.draw_colored_polygon(pts, color)
+	return width
+
+
 static func health_color(hp: float) -> Color:
 	return RED if hp <= LOW_HEALTH else WHITE

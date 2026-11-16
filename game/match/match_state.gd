@@ -14,7 +14,7 @@ signal state_changed               ## scores, health or timer changed
 signal player_hit(shooter: int, target: int, damage: float, headshot: bool)
 signal player_died(victim: int, killer: int)
 signal player_respawned(id: int, spawn_index: int)
-signal shot_fired(shooter: int, muzzle: Vector3, end: Vector3, hit_player: bool)
+signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array)  ## one end per pellet
 signal match_over(results: Array)
 
 const MAX_HEALTH := 100.0
@@ -22,7 +22,6 @@ const RESPAWN_DELAY := 3.0
 const MAX_REWIND := 0.6           ## seconds; older views are clamped (anti-abuse)
 const HIT_FORGIVENESS := 0.08     ## metres added to player radius when checking hits
 const HEAD_HEIGHT := 1.45         ## a hit above this height (from the feet) is a headshot
-const HEADSHOT_MULTIPLIER := 1.5
 ## kill_target 0 means "no kill target" (time-limit matches).
 var kill_target := 15
 var time_left := 480.0
@@ -143,25 +142,28 @@ func _process(delta: float) -> void:
 # ---------------------------------------------------------------------------
 # Shooting
 
-## Called by the local player when it fires. view_times maps each opponent's peer id
-## to the moment (on that opponent's clock) this player was seeing them.
+## Called by the local player when it fires. `directions` holds one direction per
+## pellet (one for most guns, ten for the shotgun). view_times maps each opponent's
+## peer id to the moment (on that opponent's clock) this player was seeing them.
 ## Bots (simulated on the host) pass their own id as `shooter`.
-func request_shot(origin: Vector3, direction: Vector3, view_times: Dictionary, weapon_id: String, shooter: int = 0) -> void:
+func request_shot(origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String, shooter: int = 0) -> void:
 	if Net.is_host():
-		_host_shot(shooter if shooter != 0 else Net.my_id(), origin, direction, view_times, weapon_id)
+		_host_shot(shooter if shooter != 0 else Net.my_id(), origin, directions, view_times, weapon_id)
 	else:
-		_shot_request.rpc_id(1, origin, direction, view_times, weapon_id)
+		_shot_request.rpc_id(1, origin, directions, view_times, weapon_id)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _shot_request(origin: Vector3, direction: Vector3, view_times: Dictionary, weapon_id: String) -> void:
+func _shot_request(origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String) -> void:
 	if Net.is_host():
-		_host_shot(multiplayer.get_remote_sender_id(), origin, direction, view_times, weapon_id)
+		_host_shot(multiplayer.get_remote_sender_id(), origin, directions, view_times, weapon_id)
 
 
-func _host_shot(shooter: int, origin: Vector3, direction: Vector3, view_times: Dictionary, weapon_id: String) -> void:
+func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String) -> void:
 	if not running or not is_alive(shooter) or not Net.arena:
 		return
+	# The gun is the one the shooter took into the match, whatever the message says.
+	weapon_id = Net.player_weapon(shooter)
 	var weapon := WeaponData.by_id(weapon_id)
 	var now := Net.now()
 	# Fire rate check (a little slack for network timing).
@@ -169,27 +171,17 @@ func _host_shot(shooter: int, origin: Vector3, direction: Vector3, view_times: D
 		return
 	_last_shot_time[shooter] = now
 	var shooter_node: Player = Net.arena.get_player(shooter)
-	if shooter_node == null:
+	if shooter_node == null or directions.is_empty():
 		return
 	# The shot must start near where the host believes the shooter is.
 	if origin.distance_to(shooter_node.latest_position() + Vector3(0, CameraRig.EYE_HEIGHT, 0)) > 3.0:
 		return
-	direction = direction.normalized()
+	if directions.size() > weapon.pellets:
+		directions = directions.slice(0, weapon.pellets)
 
-	# How far the shot can travel before hitting the level.
-	var end := origin + direction * weapon.max_range
+	# Rewind each opponent once to what the shooter saw.
 	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
-	var query := PhysicsRayQueryParameters3D.create(origin, end, 1)  # layer 1: level only
-	var world_hit := space.intersect_ray(query)
-	if world_hit:
-		end = world_hit.position
-
-	# Rewind each opponent to what the shooter saw, and find the nearest one the shot passes through.
-	var best_target := 0
-	var best_dist := INF
-	var best_point := end
-	var best_head := false
-	var best_height := 0.0
+	var bodies := []   # [id, feet, height]
 	for id in Net.players:
 		if id == shooter or not is_alive(id):
 			continue
@@ -197,28 +189,62 @@ func _host_shot(shooter: int, origin: Vector3, direction: Vector3, view_times: D
 		if target == null:
 			continue
 		var when := _clamped_view_time(target, view_times.get(id, -1.0))
-		var feet := target.position_at(when)
-		var height := Player.height_for_pose(target.pose_at(when))  # shorter when crouched
-		var r := Player.CAPSULE_RADIUS + HIT_FORGIVENESS
-		var a := feet + Vector3(0, Player.CAPSULE_RADIUS, 0)
-		var b := feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0)
-		var pts := Geometry3D.get_closest_points_between_segments(origin, end, a, b)
-		if pts[0].distance_to(pts[1]) <= r:
-			var d := origin.distance_to(pts[0])
-			if d < best_dist:
-				best_dist = d
-				best_target = id
-				best_point = pts[0]
-				best_height = pts[0].y - feet.y
-				best_head = best_height >= height - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
-	if best_target != 0:
-		end = best_point
-	_shot_effect.rpc(shooter, origin, end, best_target != 0)
-	if best_target != 0:
-		var dmg := weapon.damage * (HEADSHOT_MULTIPLIER if best_head else 1.0)
-		_host_damage(shooter, best_target, dmg, best_head)
+		bodies.append([id, target.position_at(when), Player.height_for_pose(target.pose_at(when))])  # shorter when crouched
+
+	var damage := {}   # target id -> total damage of this shot
+	var heads := {}    # target id -> a pellet hit the head
+	var ends := PackedVector3Array()
+	var hit_mask := 0
+	var log := []
+	for i in directions.size():
+		var direction := directions[i].normalized()
+		# How far the pellet can travel before hitting the level.
+		var end := origin + direction * weapon.max_range
+		var world_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, end, 1))  # layer 1: level only
+		if world_hit:
+			end = world_hit.position
+		# The nearest opponent the pellet passes through.
+		var best_target := 0
+		var best_dist := INF
+		var best_point := end
+		var best_head := false
+		var best_height := 0.0
+		for b in bodies:
+			var feet: Vector3 = b[1]
+			var height: float = b[2]
+			var r := Player.CAPSULE_RADIUS + HIT_FORGIVENESS
+			var a := feet + Vector3(0, Player.CAPSULE_RADIUS, 0)
+			var top := feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0)
+			var pts := Geometry3D.get_closest_points_between_segments(origin, end, a, top)
+			if pts[0].distance_to(pts[1]) <= r:
+				var d := origin.distance_to(pts[0])
+				if d < best_dist:
+					best_dist = d
+					best_target = b[0]
+					best_point = pts[0]
+					best_height = pts[0].y - feet.y
+					best_head = best_height >= height - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
+		if best_target != 0:
+			end = best_point
+			hit_mask |= 1 << i
+			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0)
+			damage[best_target] = damage.get(best_target, 0.0) + dmg
+			heads[best_target] = heads.get(best_target, false) or best_head
+		ends.append(end)
+		if DevArgs.sync_log:
+			log.append(("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss")
+	_shot_effect.rpc(shooter, origin, ends, hit_mask)
+	for id in damage:
+		_host_damage(shooter, id, damage[id], heads[id])
 	if DevArgs.sync_log:
-		print("SHOT %d %s" % [shooter, ("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss"])
+		# One line per shot (the first pellet that hit, if any), then the gun and its pellets.
+		var first := "miss"
+		for entry in log:
+			if entry != "miss":
+				first = entry
+				break
+		print("SHOT %d %s" % [shooter, first])
+		print("PELLETS %d %s %d/%d" % [shooter, weapon_id, log.size() - log.count("miss"), log.size()])
 
 
 ## Keeps the rewind within limits so a slow or dishonest client cannot shoot far into the past.
@@ -230,8 +256,11 @@ func _clamped_view_time(target: Player, t: float) -> float:
 
 
 @rpc("authority", "call_local", "unreliable")
-func _shot_effect(shooter: int, muzzle: Vector3, end: Vector3, hit_player: bool) -> void:
-	shot_fired.emit(shooter, muzzle, end, hit_player)
+func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_mask: int) -> void:
+	var hits := []
+	for i in ends.size():
+		hits.append(hit_mask & (1 << i) != 0)
+	shot_fired.emit(shooter, muzzle, ends, hits)
 
 
 # ---------------------------------------------------------------------------

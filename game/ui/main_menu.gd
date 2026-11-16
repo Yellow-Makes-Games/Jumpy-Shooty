@@ -172,7 +172,7 @@ func _start_button(row: HBoxContainer, on_press: Callable) -> void:
 	s.grab_focus()
 
 
-## Two columns: match options on the left, your robot on the right. Returns the left one.
+## Two columns: match options on the left, your robot and gun on the right. Returns the left one.
 func _two_columns() -> VBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 32)
@@ -184,11 +184,18 @@ func _two_columns() -> VBoxContainer:
 	var right := VBoxContainer.new()
 	right.custom_minimum_size = Vector2(340, 0)
 	row.add_child(right)
-	var pick := CharacterPicker.new(Game.local_character())
+	var pick := CharacterPicker.new(Game.local_character(), Net.PLAYER_COLORS[0], false, Game.local_weapon())
 	right.add_child(pick)
 	pick.picked.connect(func(id: String):
 		Settings.character = id
 		Settings.save_settings())
+	UiKit.spacer(right, 6)
+	var gun := WeaponPicker.new(Game.local_weapon())
+	right.add_child(gun)
+	gun.picked.connect(func(id: String):
+		Settings.weapon = id
+		Settings.save_settings()
+		pick.set_weapon(id))
 	return left
 
 

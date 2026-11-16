@@ -20,8 +20,11 @@ extends RefCounted
 ## How good it is at each of these comes from BotDifficulty.
 
 const ENGAGE_RANGE := 45.0
-const NEAR := 7.0          ## closer than this it backs off a little
-const FAR := 18.0          ## further than this it closes in
+## The distances each gun likes to fight at: [closer than this it backs off a little,
+## further than this it closes in, it does not shoot beyond this]. The shotgun rushes
+## in, the sniper rifle keeps its distance.
+const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rifle": [8.0, 22.0, 999.0],
+	"sniper": [16.0, 36.0, 999.0]}
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
 const PRONE_AIM := 0.4     ## aim height at someone belly-sliding (they are lying flat)
@@ -58,6 +61,10 @@ var _error := Vector3.ZERO       # aim wobble, a slow random walk
 var _go_head := false
 var _head_timer := 0.0
 var _fire_wait := 0.0
+var _burst := 0.0                # automatic gun: seconds left of the burst it is firing
+var NEAR := 7.0
+var FAR := 18.0
+var _reach := 999.0
 var _stuck_time := 0.0
 var _escape_dir := Vector3.ZERO
 var _escape_time := 0.0
@@ -78,6 +85,10 @@ func _init(player: Player, level: int) -> void:
 	me = player
 	d = BotDifficulty.make(level)
 	input = player.input
+	var r: Array = RANGES.get(player.weapon.data.id if player.weapon else "pistol", RANGES.pistol)
+	NEAR = r[0]
+	FAR = r[1]
+	_reach = r[2]
 	_rng.randomize()
 	Match.player_hit.connect(_on_hit)
 
@@ -222,7 +233,7 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		return Vector3.ZERO
 	var dist := pos.distance_to(_target.global_position)
 	var dir := Vector3.ZERO
-	if visible and dist < ENGAGE_RANGE:
+	if visible and dist < maxf(ENGAGE_RANGE, FAR + 10.0):
 		# Fight: strafe side to side, keeping a comfortable distance.
 		var to := _target.global_position - pos
 		to.y = 0.0
@@ -530,15 +541,39 @@ func _fire(delta: float, perceived: Array) -> void:
 	var w := me.weapon
 	if w.ammo == 0 and not w.is_reloading():
 		w.start_reload()
-	if perceived.is_empty() or _fire_wait > 0.0 or not Match.running:
+	# Top up a half-empty gun when nobody is in sight.
+	if perceived.is_empty() and not w.is_reloading() and w.ammo < w.data.magazine / 2 and _rng.randf() < delta:
+		w.start_reload()
+	if perceived.is_empty() or not Match.running:
+		_burst = 0.0
 		return
 	# Shoot when the view is close enough to where it wants to aim.
 	var eye := me.eye_position()
 	var want: Vector3 = (perceived[1] as Vector3) - eye
 	var dist := want.length()
+	if dist > _reach:
+		return   # a shotgun does not waste shells at long range
 	var off := me.aim_forward().angle_to(want)
 	var allowed: float = max(atan(0.35 / max(dist, 0.1)), deg_to_rad(1.0))
-	if off < allowed + deg_to_rad(d.aim_error) * 0.5:
+	if w.data.id == "sniper":
+		allowed *= 0.6   # waits for a clean shot
+	var on_target := off < allowed + deg_to_rad(d.aim_error) * 0.5
+	if w.data.automatic:
+		# Bursts: hold the trigger for a moment, then pause (longer on easier levels).
+		if _burst > 0.0:
+			_burst -= delta
+			input.fire = on_target or _burst > 0.1
+			if _burst <= 0.0:
+				_fire_wait = d.fire_gap * _rng.randf_range(1.5, 2.6)
+			return
+		if on_target and _fire_wait <= 0.0:
+			_burst = _rng.randf_range(0.35, 0.9)
+			input.fire_pressed = true
+			input.fire = true
+		return
+	if _fire_wait > 0.0:
+		return
+	if on_target:
 		input.fire_pressed = true
 		input.fire = true
-		_fire_wait = d.fire_gap * _rng.randf_range(0.85, 1.25)
+		_fire_wait = maxf(d.fire_gap, w.data.fire_interval) * _rng.randf_range(0.85, 1.25)

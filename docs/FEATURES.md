@@ -57,7 +57,7 @@ Last updated: five more robots (Kestrel, Bulwark, Rivet, Specter, Orbit). Decisi
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| First person | working | Your robot's arms and pistol, with poses for sprint, slide, wall run, vault, dive, grapple and reload. Drawn so they never cut into walls |
+| First person | working | Your robot's arms and gun, with poses for sprint, slide, wall run, vault, dive, grapple and reload. Drawn so they never cut into walls |
 | Your body in first person | working | Look down and you see your own torso and legs, running, crouching, hanging from the rope, casting your shadow. Sliding puts your legs out in front of you. In a flip the camera stays level so you can keep aiming, and your knees and feet sweep through the view (over the top for a backflip, round the edge for a side flip); a landing roll tucks them through and plants them. On your belly you see only your arms, as you would |
 | Third person with wall collision | working | V to switch; smooth blend between them. Shows your full robot |
 
@@ -68,8 +68,8 @@ Last updated: five more robots (Kestrel, Bulwark, Rivet, Specter, Orbit). Decisi
 | Health, damage, death, respawn (3 s), kills | working | Host decides; falling out of the arena counts as a death |
 | HUD | working | Two layouts, chosen separately for first and third person in Settings: Twin arcs (health and ammo as arcs round the crosshair, move cooldowns under it; first-person default) and Clean (corners; third-person default). Both have the score bar, kill feed with headshots, hit markers, damage numbers, arrows toward whoever hit you, a red screen edge at low health, kill confirmation, a death screen (the robot that got you, its HP left, headshot, distance, respawn bar) and the Tab scoreboard (also shown while dead). Font: Chakra Petch |
 | Match timer and kill target | working | Set per lobby by the host |
-| Weapons | working | Semi-automatic pistol: 25 damage, 12 rounds, 1.3 s reload. Numbers to tune by playtesting |
-| Weapon switching | not started | Only one weapon for now, by choice |
+| Weapons | working | Four guns, picked before the match (lobby, Practice and Vs Bots pages, beside the robot) and kept for the whole match. Pistol: semi-auto, 25 damage, 12 rounds. Shotgun: pump-action, 10 pellets of 11, one-shot kill up close, falls off from 9 to 22 m, 6 shells loaded one at a time (shooting stops the reload). Assault rifle: full auto, 10 shots a second, 13 damage, 30 rounds. Sniper rifle: bolt-action, 75 damage, 2x headshots (a headshot kills, two body shots do), no wobble, 5 rounds. Each has its own model, crosshair, HUD ammo display, kill-feed icon, muzzle flash and tracer, and its own animations in first and third person (hold, sprint carry, fire with pump or bolt, reload). Bots pick a gun at random and fight to suit it. Numbers to tune by playtesting |
+| Weapon switching | not started | One gun per match, by choice; change it in the lobby between matches |
 | Muzzle flash, tracers, impacts | rough | Simple glowing shapes |
 | Weapon sounds | not started | |
 | Bot | working | Offline: 1v1, or a free-for-all against up to 4 bots (you plus 4 is a full 5). Bots fight each other too: each goes for the nearest player, favouring one it can see, whoever just shot it and whoever it is already fighting. Bots are named (Gizmo, Sprocket, Bolt, Piston) and take turns through the robots, starting with the one after yours, so no bot plays your robot. One difficulty for every bot. Easy / Normal / Hard / Expert change reaction time, aim wobble, turn speed, fire rate, leading, headshots and which moves it uses. Finds you anywhere on the map (navigation mesh), takes the stairs to your floor, keeps its tricks away from drops, strafes and jumps in fights; Normal+ slides; Hard+ bunny-hops, dives (usually holding it into a belly slide), grapples, flip-dodges when hit. Same movement and gun rules as you. Numbers to tune by playtesting |
@@ -86,7 +86,9 @@ Last updated: five more robots (Kestrel, Bulwark, Rivet, Specter, Orbit). Decisi
 
 - Animations have only been judged from rendered still frames so far, not in motion on a
   real PC. Timing and feel will need a playtest pass.
-- The pistol has no sound yet, and the muzzle flash is still the simple placeholder.
+- The guns have no sound yet, and the muzzle flashes are still simple placeholders.
+- The sniper rifle has no scope or zoom: right mouse is the grapple. It can be added
+  with a new key if wanted.
 - Name tags show through walls (handy while testing; will be limited to line of sight).
 - No LAN address detection on some networks: the lobby may show 127.0.0.1. Use `ipconfig`
   to find your address if so.

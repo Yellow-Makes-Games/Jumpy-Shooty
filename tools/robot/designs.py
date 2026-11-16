@@ -4,12 +4,13 @@ facing -Z) and each is tied to one bone, so the robot moves as rigid segments.
 Materials (the game recolours "accent" and "visor" per player):
   armor   the main shell          accent  player-colour panels
   joint   dark joints and hands   visor   the glowing face
-  gun     the pistol              detail  mid-grey trim
+  detail  mid-grey trim
+The guns are in weapons.py: every robot holds all of them, and the game shows one.
 """
 import math
 import numpy as np
 from kit import Mesh, Part, loft, rect, ngon, box, prism, ball
-from rig import BODY, GUN_REST
+import weapons
 
 MATERIALS = {
     "armor": {"color": (0.90, 0.91, 0.93), "metallic": 0.1, "roughness": 0.55},
@@ -17,33 +18,8 @@ MATERIALS = {
     "joint": {"color": (0.12, 0.13, 0.15), "metallic": 0.3, "roughness": 0.6},
     "detail": {"color": (0.36, 0.38, 0.42), "metallic": 0.3, "roughness": 0.5},
     "visor": {"color": (0.05, 0.05, 0.06), "metallic": 0.0, "roughness": 0.3, "emission": (0.95, 0.35, 0.25)},
-    "gun": {"color": (0.17, 0.18, 0.21), "metallic": 0.6, "roughness": 0.4},
 }
-
-
-def in_gun_space(part, bone="pistol"):
-    """Place a part modelled in gun space (barrel -Z, sights +Y, origin in the grip)."""
-    o = BODY.bone(bone).pos if bone in ("pistol", "pistol_slide", "pistol_mag") else BODY.bone("pistol").pos
-    return Part(part.t @ GUN_REST.T + o)
-
-
-def pistol(mesh):
-    """A chunky sidearm, about 26 cm long."""
-    grip = box(0.036, 0.115, 0.05, 0.008).rot(pitch=-14).move(0, -0.035, 0.018)
-    frame = loft([rect(0.036, 0.19, 0.022, 0.006, cz=-0.06), rect(0.036, 0.20, 0.05, 0.006, cz=-0.06)])
-    guard = box(0.014, 0.012, 0.065).move(0, -0.012, -0.045) + box(0.014, 0.04, 0.012).move(0, 0.004, -0.078)
-    under = box(0.03, 0.022, 0.07).move(0, 0.012, -0.12)   # rail block under the barrel
-    mesh.add(in_gun_space(grip + frame + guard), "gun", "pistol")
-    mesh.add(in_gun_space(under), "detail", "pistol")
-    slide = loft([rect(0.042, 0.235, 0.05, 0.008, cz=-0.06), rect(0.042, 0.235, 0.078, 0.012, cz=-0.06),
-                  rect(0.03, 0.235, 0.09, 0.006, cz=-0.06)])
-    mesh.add(in_gun_space(slide), "gun", "pistol_slide")
-    stripe = box(0.044, 0.008, 0.10).move(0, 0.066, -0.02)
-    mesh.add(in_gun_space(stripe), "accent", "pistol_slide")
-    barrel = prism(6, 0.011, 0.02).rot(pitch=90).move(0, 0.064, -0.185)
-    mesh.add(in_gun_space(barrel), "detail", "pistol")
-    mag = box(0.026, 0.11, 0.034).rot(pitch=-14).move(0, -0.045, 0.02)
-    mesh.add(in_gun_space(mag), "detail", "pistol_mag")
+MATERIALS.update(weapons.materials())   # "<gun>.<kind>": each gun's own surfaces (see weapons.py)
 
 
 def _along_z(rings_part):
@@ -99,7 +75,7 @@ def vanguard():
     foot = _along_z(loft([rect(0.11, 0.085, -0.085, 0.018, cz=0.0425), rect(0.125, 0.09, 0.07, 0.018, cz=0.045),
                           rect(0.10, 0.045, 0.185, 0.012, cz=0.0225)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
-    pistol(m)
+    weapons.add_all(m)
     return m
 
 
@@ -149,7 +125,7 @@ def brick():
                           rect(0.16, 0.08, 0.20, 0.03, cz=0.04)]))
     m.add_pair(foot.move(-0.105, 0, 0), "armor", "foot_l")
     m.add_pair(box(0.185, 0.03, 0.31, 0.03).move(-0.105, 0.015, -0.05), "joint", "foot_l")
-    pistol(m)
+    weapons.add_all(m)
     return m
 
 
@@ -198,7 +174,7 @@ def needle():
     foot = _along_z(loft([rect(0.07, 0.06, -0.06, 0.012, cz=0.03), rect(0.08, 0.065, 0.06, 0.012, cz=0.0325),
                           rect(0.05, 0.03, 0.19, 0.008, cz=0.015)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
-    pistol(m)
+    weapons.add_all(m)
     return m
 
 
@@ -288,7 +264,7 @@ def kestrel():
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
     spur = loft([rect8(0.03, 0.04, 0.10, 0.0, cz=0.06), rect8(0.02, 0.03, 0.05, 0.0, cz=0.12), rect8(0.006, 0.01, 0.01, 0.0, cz=0.15)])
     m.add_pair(spur.move(-0.10, 0, 0), "accent", "foot_l")
-    pistol(m)
+    weapons.add_all(m)
     return m
 
 
@@ -345,7 +321,7 @@ def bulwark():
                           rect8(0.15, 0.06, 0.19, 0.02, cz=0.03)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
     m.add_pair(box(0.165, 0.025, 0.29, 0.02).move(-0.10, 0.0125, -0.045), "joint", "foot_l")
-    pistol(m)
+    weapons.add_all(m)
     return m
 
 
@@ -409,7 +385,7 @@ def rivet():
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
     m.add_pair(box(0.155, 0.065, 0.07, 0.02).move(-0.10, 0.04, -0.15), "accent", "foot_l")  # toe cap
     m.add_pair(box(0.16, 0.025, 0.29, 0.02).move(-0.10, 0.0125, -0.04), "joint", "foot_l")
-    pistol(m)
+    weapons.add_all(m)
     return m
 
 
@@ -467,7 +443,7 @@ def specter():
     foot = _along_z(loft([rect8(0.07, 0.06, -0.06, 0.012, cz=0.03), rect8(0.08, 0.06, 0.07, 0.012, cz=0.03),
                           rect8(0.01, 0.01, 0.22, 0.0, cz=0.008)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
-    pistol(m)
+    weapons.add_all(m)
     return m
 
 
@@ -521,12 +497,12 @@ def orbit():
                           rect8(0.06, 0.035, 0.17, 0.012, cz=0.025)]))
     m.add_pair(foot.move(-0.10, 0.012, 0), "armor", "foot_l")
     m.add_pair(box(0.07, 0.012, 0.20, 0.02).move(-0.10, 0.006, -0.03), "visor", "foot_l")
-    pistol(m)
+    weapons.add_all(m)
     return m
 
 
 ARM_BONES = ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
-             "pistol", "pistol_slide", "pistol_mag")  # what the first-person view shows
+             "pistol", "pistol_slide", "pistol_mag")  # what the first-person view shows (every gun rides on the last three)
 
 DESIGNS = {"vanguard": vanguard, "brick": brick, "needle": needle, "kestrel": kestrel, "bulwark": bulwark,
            "rivet": rivet, "specter": specter, "orbit": orbit}
