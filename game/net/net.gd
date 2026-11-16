@@ -285,15 +285,25 @@ func _free_color() -> int:
 	return 0
 
 
+## Names for computer players, so several bots can be told apart on the scoreboard.
+const BOT_NAMES := ["Rivet", "Sprocket", "Bolt", "Piston"]
+
+
 ## Adds a computer player (offline matches only for now). Returns its id.
+## Bots take turns through the robots, starting with the one after yours, so in a
+## 1v1 the bot never plays the robot you picked; colours always differ.
 func add_bot(difficulty: int) -> int:
 	var id := BOT_ID_BASE
 	while players.has(id):
 		id += 1
+	var index := id - BOT_ID_BASE
+	var character := player_character(my_id())
+	for i in index + 1:
+		character = Characters.next(character)
 	players[id] = {
-		"name": "Bot (%s)" % BotDifficulty.NAMES[difficulty],
+		"name": "%s (%s)" % [BOT_NAMES[index % BOT_NAMES.size()], BotDifficulty.NAMES[difficulty]],
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
-		"character": Characters.next(player_character(my_id())),   # not the one you picked, to tell you apart
+		"character": character,
 	}
 	players_changed.emit()
 	return id

@@ -9,11 +9,14 @@ const RESULTS := "res://game/ui/results_menu.tscn"
 
 enum Mode { NONE, PRACTICE, BOT, ONLINE }
 
+## Most bots in one offline match: you plus these fill a five-player free-for-all.
+const MAX_BOTS := 4
+
 var mode: Mode = Mode.NONE
 ## A message to show on the main menu (for example "The host left").
 var pending_notice := ""
-## The last bot match's settings, for a rematch.
-var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.default_id()}
+## The last bot match's settings, for a rematch. "bots": how many bots (1 is a 1v1).
+var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.default_id(), "bots": 1}
 ## The map last picked for practice.
 var last_practice_map := Maps.default_id()
 
@@ -63,19 +66,24 @@ func start_practice(map: String = "") -> void:
 	Net.host_start_match()
 
 
-## A 1v1 match against a computer player, offline.
-func start_bot(difficulty: int, kills_to_win: int, map: String = "") -> void:
+## An offline match against computer players: a 1v1 with one bot, or a
+## free-for-all with up to MAX_BOTS (you plus four bots is a full five).
+func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0) -> void:
 	mode = Mode.BOT
-	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": map if map != "" else last_bot.map}
+	if bots <= 0:
+		bots = int(last_bot.get("bots", 1))
+	bots = clampi(bots, 1, MAX_BOTS)
+	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": map if map != "" else last_bot.map, "bots": bots}
 	Net.start_offline(local_name(), local_character())
 	Net.match_settings = {"mode": "kills", "kills": kills_to_win, "minutes": 8, "map": _map_choice(last_bot.map)}
-	Net.add_bot(difficulty)
+	for i in bots:
+		Net.add_bot(difficulty)
 	Net.host_start_match()
 
 
-## Same bot and rules again (from the results screen).
+## Same bots and rules again (from the results screen).
 func rematch_bot() -> void:
-	start_bot(last_bot.difficulty, last_bot.kills)
+	start_bot(last_bot.difficulty, last_bot.kills, "", last_bot.bots)
 
 
 ## The map to play: the one picked in the menu, unless --map=ID overrides it.
@@ -157,7 +165,7 @@ func _on_players_changed() -> void:
 
 func _run_dev_args() -> void:
 	if DevArgs.bot >= 0:
-		start_bot(DevArgs.bot, DevArgs.kill_target if DevArgs.kill_target > 0 else 10)
+		start_bot(DevArgs.bot, DevArgs.kill_target if DevArgs.kill_target > 0 else 10, "", DevArgs.bots)
 	elif DevArgs.practice:
 		start_practice()
 	elif DevArgs.host:

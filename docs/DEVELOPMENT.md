@@ -71,7 +71,7 @@ or WSL; I run these on every change anyway):
 - the game boots into practice mode on every map without script errors;
 - bots climb the Construction Site tower to a player standing on a high floor
   (`tests/run_bot_climb_test.sh`);
-- a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match (`tests/run_bot_test.sh`);
+- a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match; a 5-player free-for-all against 4 bots, where every bot shoots, bots fight each other as well as you, the robots alternate, and the rematch keeps all 4 bots (`tests/run_bot_test.sh`);
 - a match test: 3 copies on a laggy network play two matches back to back, aiming
   and shooting on their own; checks that hits land, the match ends at the kill target,
   every copy agrees on the results, and "return to lobby, play again" works;
@@ -91,7 +91,7 @@ or WSL; I run these on every change anyway):
 - character sync (same checker): the copies play different robots, and every copy must
   show each player as the robot they picked. In the match test everyone picks again in
   the lobby between matches, and the new picks must show in the next match. The bot
-  test checks the bot plays the robot you did not pick.
+  test checks the bot plays the robot you did not pick, and that with several bots they take turns through the robots starting with the other one.
 
 ## Developer command-line options
 
@@ -109,6 +109,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--third-person` | Start in third person |
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot (degrees). Example: `--practice --spawn=45,0,10,-90` puts you at the start of the slide lane |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
+| `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
 | `--character=ID` | Play as `needle` or `vanguard` without changing your saved choice |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |

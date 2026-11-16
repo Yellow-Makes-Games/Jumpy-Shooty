@@ -10,6 +10,9 @@
 #  - the bot plays a different robot from yours (you are Needle or Vanguard in turn)
 #  - the bot dodges when it gets shot
 #  - matches end, and "Rematch" starts a new one
+#  - a 5-player free-for-all against 4 bots: every bot shoots and hits, bots fight
+#    each other as well as you, the robots alternate starting with the one you did
+#    not pick, and the rematch keeps all 4 bots
 #  - there are no script errors
 # Usage: [MAP=map_id] tests/run_bot_test.sh
 set -euo pipefail
@@ -36,10 +39,13 @@ timeout 90 "$GODOT" "${STILL[@]}" --bot=0 --time-limit=40 --quit-after=45 \
 # Expert again, but the player fights back; first to 2 so it ends, then rematches.
 timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --scripted-fire --kill-target=2 --time-limit=40 \
   --auto-return --quit-after=60 > "$OUT/bot_fight.log" 2>&1 &
+# Free-for-all: you plus 4 Hard bots, first to 3 kills, then a rematch.
+timeout 150 "$GODOT" "${COMMON[@]}" --bot=2 --bots=4 --character=vanguard --kill-target=3 --time-limit=60 \
+  --auto-return --quit-after=110 > "$OUT/bot_ffa.log" 2>&1 &
 wait || true
 
 python3 - "$OUT" <<'EOF'
-import re, sys
+import json, re, sys
 out = sys.argv[1]
 names = ["Easy", "Normal", "Hard", "Expert"]
 fail = False
@@ -123,6 +129,30 @@ if not any(a.startswith("flip") for a in anims):
 for needed in ["SLIDE", "DIVE", "FLIP", "GRAPPLE"]:
     if needed not in moves:
         print(f"FAIL: no bot ever used {needed}"); fail = True
+
+log = read("ffa")
+errors = log.count("SCRIPT ERROR")
+overs = [json.loads(m) for m in re.findall(r"^MATCH_OVER (.*)$", log, re.M)]
+chars = re.findall(r"^CHAR SELF (\d+) (\w+)", log, re.M)
+hits = re.findall(r"^SHOT (\d+) hit (\d+)", log, re.M)
+bot_ids = ["9001", "9002", "9003", "9004"]
+print(f"FFA     players per match {[len(o) for o in overs]}  hits {len(hits)}  errors {errors}")
+print(f"        robots {' '.join(f'{i}={c}' for i, c in chars)}")
+if errors:
+    print("  FAIL: script errors"); fail = True
+if len(overs) < 2 or any(len(o) != 5 for o in overs):
+    print("  FAIL: expected two 5-player matches (a match and a rematch with all 4 bots)"); fail = True
+first = dict(chars[:5])
+want = {"1": "vanguard", "9001": "needle", "9002": "vanguard", "9003": "needle", "9004": "vanguard"}
+if first != want:
+    print(f"  FAIL: expected robots {want}"); fail = True
+for b in bot_ids:
+    if not any(s == b for s, _ in hits):
+        print(f"  FAIL: bot {b} never hit anyone"); fail = True
+if not any(s in bot_ids and t in bot_ids for s, t in hits):
+    print("  FAIL: the bots never fought each other"); fail = True
+if not any(t == "1" for _, t in hits):
+    print("  FAIL: no bot ever hit you"); fail = True
 
 print("BOT TEST", "FAILED" if fail else "PASSED")
 sys.exit(1 if fail else 0)
