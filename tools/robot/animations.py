@@ -476,6 +476,101 @@ def body_clips():
         Clip("reload", 1.3, reload),
         Clip("death", 1.3, death),
         Clip("respawn", 0.6, respawn),
+    ] + view_clips()
+
+
+# ---------------------------------------------------------------------------
+# The body as you see it in first person ("view_" clips). The game keeps the neck
+# just under and behind the camera whatever the pose (RobotAnimator.place_for_view),
+# and the camera stays level, so these are made to be looked at from the eyes: the
+# pelvis tips back to bring the legs up into the lower part of the view, and moves
+# that spin the whole body in third person become leg sweeps here. Only the legs
+# and torso are drawn; the arms are ViewModel's.
+
+def _seen(lean, left, right, roll=0.0, turn=0.0, spread=6.0, curl=0.75, feet=-20.0):
+    """lean: pelvis tipped back (degrees). left/right: (thigh, knee) for each leg.
+    roll: the whole body wheeled about the line of sight (side flips). curl: how much
+    of the lean the spine takes back, so the chest stays under the camera."""
+    return {
+        "root": {"pos": (0.0, 0.0, 0.0), "rot": (0.0, 0.0, roll)},
+        "hips": {"pos": (0.0, 0.96, 0.0), "rot": (lean, turn, 0.0)},
+        "spine": (-lean * curl * 0.5, 0.0, 0.0), "chest": (-lean * curl * 0.5, 0.0, 0.0), "head": (0.0, 0.0, 0.0),
+        "leg_l": fk_leg(left[0], left[1], roll=-spread, foot_pitch=feet),
+        "leg_r": fk_leg(right[0], right[1], roll=spread, foot_pitch=feet),
+        "arm_r": fk_arm(40.0, roll=14.0, bend=80.0), "arm_l": fk_arm(40.0, roll=-14.0, bend=80.0),
+    }
+
+
+SEEN_HANG = _seen(4.0, (30.0, 40.0), (20.0, 34.0))
+
+
+def view_slide(t):
+    """Sliding: lying back, the lead leg stretched out ahead, the other knee up."""
+    s = math.sin(TAU * t / 0.8)
+    return _seen(52.0 + 1.0 * s, (42.0, 14.0), (74.0 + 1.5 * s, 92.0), turn=-6.0, feet=10.0)
+
+
+def view_air_tuck(t):
+    """Legs pulled up in the air: knees high in front."""
+    s = math.sin(TAU * t / 0.8)
+    return _seen(34.0, (104.0 + 2.0 * s, 112.0), (96.0 - 2.0 * s, 108.0))
+
+
+def view_flip_back(t):
+    """Backflip: the knees drive up and the feet kick up in front, then tuck in and drop away under you."""
+    return keyed(t, [
+        (0.0, SEEN_HANG),
+        (0.10, _seen(46.0, (96.0, 112.0), (88.0, 106.0)), "out"),
+        (0.21, _seen(68.0, (98.0, 58.0), (92.0, 52.0)), "linear"),
+        (0.33, _seen(26.0, (112.0, 140.0), (106.0, 136.0)), "linear"),
+        (0.45, SEEN_HANG, "out"),
+    ])
+
+
+def view_flip_front(t):
+    """Front flip: the legs whip back out of sight, come through tucked under you, and swing down in front to land."""
+    return keyed(t, [
+        (0.0, SEEN_HANG),
+        (0.10, _seen(-18.0, (-24.0, 84.0), (-30.0, 78.0)), "out"),
+        (0.23, _seen(26.0, (114.0, 140.0), (108.0, 136.0)), "linear"),
+        (0.34, _seen(64.0, (96.0, 54.0), (90.0, 48.0)), "linear"),
+        (0.45, SEEN_HANG, "out"),
+    ])
+
+
+def view_flip_left(t):
+    """Side flip to the left: the tucked legs wheel around the edge of the view, out to the right, over the top and back in from the left."""
+    return keyed(t, [
+        (0.0, SEEN_HANG),
+        (0.10, _seen(36.0, (80.0, 104.0), (70.0, 96.0), roll=70.0, spread=14.0, curl=1.0), "linear"),
+        (0.34, _seen(36.0, (80.0, 104.0), (70.0, 96.0), roll=295.0, spread=14.0, curl=1.0), "linear"),
+        (0.45, merged(SEEN_HANG, root={"pos": (0.0, 0.0, 0.0), "rot": (0.0, 0.0, 360.0)}), "linear"),
+    ])
+
+
+def view_flip_right(t):
+    return mirror(view_flip_left(t))
+
+
+def view_roll(t):
+    """Landing roll after a dive: the legs come through tucked under you and swing down to plant."""
+    return keyed(t, [
+        (0.0, _seen(-50.0, (-8.0, 20.0), (-2.0, 30.0))),
+        (0.14, _seen(22.0, (118.0, 142.0), (112.0, 138.0)), "linear"),
+        (0.30, _seen(58.0, (100.0, 66.0), (94.0, 60.0)), "linear"),
+        (0.45, _seen(16.0, (84.0, 112.0), (70.0, 104.0)), "out"),
+    ])
+
+
+def view_clips():
+    return [
+        Clip("view_slide", 0.8, view_slide, loop=True),
+        Clip("view_air_tuck", 0.8, view_air_tuck, loop=True),
+        Clip("view_roll", 0.45, view_roll),
+        Clip("view_flip_front", 0.45, view_flip_front),
+        Clip("view_flip_back", 0.45, view_flip_back),
+        Clip("view_flip_left", 0.45, view_flip_left),
+        Clip("view_flip_right", 0.45, view_flip_right),
     ]
 
 
@@ -519,7 +614,9 @@ def fp_sprint(t):
 
 
 def fp_slide(t):
-    return {"arm_r": fp_arm_r(0.19, -0.16, -0.43, cant=-20.0), "arm_l": FP_L_AWAY}
+    """Gun in the right hand; the left trails out to the side, clear of the legs you can see below."""
+    return {"arm_r": fp_arm_r(0.19, -0.16, -0.43, cant=-20.0),
+            "arm_l": fp_arm_l(-0.50, -0.46, -0.10, hand=(50.0, 0.0, 20.0))}
 
 
 def fp_wall_l(t):

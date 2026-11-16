@@ -23,6 +23,15 @@ const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
 	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06}
 const FLIPS := ["flip_front", "flip_back", "flip_left", "flip_right"]
+const VIEW_BACK := -0.02        ## first person: the front of the chest sits this far behind the eyes (just ahead of them)...
+const VIEW_BACK_DOWN := 0.32    ## ...and this much further back when looking straight down,
+const VIEW_BACK_FROM := 0.7     ## moving back as you look down past this (radians): the collar stays out of sight
+## First person: in these the torso keeps the pose's lean. In everything else it is
+## stood upright over the hips, which brings the knees forward into view.
+const VIEW_KEEP_LEAN := ["crouch", "slide", "dive", "roll", "belly_slide", "death", "tuck"]
+const VIEW_UPRIGHT_MAX := 0.6   ## radians of forward lean taken out, at most
+const VIEW_SIDE := 0.10         ## the body may shift this far sideways to stay under the eyes
+const VIEW_NECK_BELOW := 0.12   ## and its neck is kept at least this far below them
 const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right"]
 ## [right arm, left arm, torso]: how much each follows the aim in each source.
 const AIM_WEIGHTS := {
@@ -35,6 +44,14 @@ var model: RobotModel
 var rig: RobotRig
 ## What the body is doing right now, e.g. "loco", "slide", "flip_back". Tests read this.
 var source := ""
+## Posing your own body for the first-person camera: the torso stays upright under
+## the camera instead of leaning with the aim, and the moves that have a "view_"
+## clip (slide, tuck, flips, the landing roll) play that instead: made to be seen
+## from the eyes, with the legs brought up into view.
+var first_person := false:
+	set(on):
+		_snap_view = _snap_view or on != first_person   # the camera swaps bodies in one frame, so no easing
+		first_person = on
 
 var _pose: RobotPose
 var _from: RobotPose
@@ -66,6 +83,11 @@ var _grapple_w := 0.0
 var _prev_vy := 0.0
 var _dead_time := -1.0
 var _power := 1.0
+var _lean := 1.0          # how much the torso leans with the aim (0 in first person)
+var _upright := 0.0       # first person: how much of the torso's forward lean is taken out
+var _view_clip := false   # first person: the body is playing a "view_" clip this frame...
+var _pin := 0.0           # ...so its neck is pinned to the camera (eases in and out)
+var _snap_view := false   # first person was just switched on or off
 
 var _b := {}                      # bone name -> index
 var _arm_r: PackedInt32Array
@@ -162,6 +184,17 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		else:
 			_respawn_t = -1.0
 
+	# --- First person: stand the torso up over the hips
+	var ease := 1000.0 if _snap_view else delta
+	_snap_view = false
+	_pin = move_toward(_pin, 1.0 if _view_clip else 0.0, ease / 0.1)
+	_upright = move_toward(_upright, 1.0 if first_person and not _view_clip and key not in VIEW_KEEP_LEAN else 0.0, ease * 6.0)
+	if _upright > 0.0:
+		var lower: Quaternion = _pose.rot[_b["root"]] * _pose.rot[_b["hips"]]
+		var up := lower * _pose.rot[_b["spine"]] * _pose.rot[_b["chest"]] * Vector3.UP
+		var forward_lean := clampf(atan2(-up.z, up.y), 0.0, VIEW_UPRIGHT_MAX)
+		_pose.rot[_b["spine"]] = lower.inverse() * Quaternion(Vector3.RIGHT, forward_lean * _upright) * lower * _pose.rot[_b["spine"]]
+
 	# --- 3. Arms
 	_since_fire += delta
 	var want: Array = AIM_WEIGHTS.get(key, [0.0, 0.0, 0.0])
@@ -202,7 +235,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var spine: int = _b["spine"]
 	var chest: int = _b["chest"]
 	var head: int = _b["head"]
-	var p := inp.pitch * _torso
+	_lean = move_toward(_lean, 0.0 if first_person else 1.0, ease * 8.0)
+	var p := inp.pitch * _torso * _lean
 	_pose.rot[spine] = Quaternion(Vector3.RIGHT, p * 0.25) * _pose.rot[spine]
 	_pose.rot[chest] = Quaternion(Vector3.RIGHT, p * 0.25) * _pose.rot[chest]
 	_pose.rot[head] = Quaternion(Vector3.RIGHT, p * 0.2) * _pose.rot[head]
@@ -264,6 +298,28 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	_pose.apply(model.skeleton)
 
 
+## Your own body in first person: you see your legs and torso (not the head or the
+## arms; ViewModel draws those). Call after update(). The body is kept under and a
+## little behind the camera whatever it is doing, so you never look into your own
+## chest: its neck stays behind the eyes (by the depth of this robot's chest),
+## further back the more you look down.
+## amount: 1 in first person, 0 in third person (CameraRig.first_person_amount).
+func place_for_view(amount: float, eye_height: float, pitch: float) -> void:
+	if model.view_mesh:
+		model.view_mesh.visible = amount > 0.0
+	if amount <= 0.0:
+		model.position = Vector3.ZERO
+		return
+	var neck := model.bone_position("head")
+	var back := model.chest_front + VIEW_BACK \
+		+ VIEW_BACK_DOWN * clampf((-pitch - VIEW_BACK_FROM) / (deg_to_rad(89.0) - VIEW_BACK_FROM), 0.0, 1.0)
+	var height := eye_height - VIEW_NECK_BELOW - neck.y
+	var offset := Vector3(clampf(-neck.x, -VIEW_SIDE, VIEW_SIDE), minf(height, 0.0), back - neck.z)
+	# A "view_" clip is made for the camera: its neck goes exactly where the camera expects it.
+	offset = offset.lerp(Vector3(-neck.x, height, back - neck.z), _pin)
+	model.position = offset * amount
+
+
 func _pick(inp: RobotAnimInput) -> String:
 	if not inp.alive:
 		return "death"
@@ -301,8 +357,17 @@ func _air_target(vy: float) -> float:
 	return clampf(remap(vy, 7.0, -12.0, 0.0, 1.0), 0.0, 1.0)
 
 
+## The clip to play for `clip`: in first person, its "view_" version if there is one.
+func _seen(clip: String) -> String:
+	if first_person and rig.has_clip("view_" + clip):
+		_view_clip = true
+		return "view_" + clip
+	return clip
+
+
 func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: float, delta: float) -> void:
 	var direction := -1.0 if _reverse else 1.0
+	_view_clip = false
 	match key:
 		"loco":
 			var wr := clampf(speed / RUN_SPEED, 0.0, 1.0)
@@ -353,13 +418,15 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 			else:
 				_loop("air")
 		_:   # one-shots: vault, climb, roll, flips, death
-			if rig.has_clip(key):
-				rig.sample(_pose, key, minf(_time, rig.length(key)))
+			var clip := _seen(key)
+			if rig.has_clip(clip):
+				rig.sample(_pose, clip, minf(_time, rig.length(clip)))
 			else:
 				rig.sample(_pose, "air", 0.5 * rig.length("air"))
 
 
 func _loop(clip: String) -> void:
+	clip = _seen(clip)
 	if not rig.has_clip(clip):
 		rig.sample(_pose, "air", 0.5 * rig.length("air"))
 		return

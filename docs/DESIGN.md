@@ -22,6 +22,10 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
   The choice is remembered. In a 1v1 the bot plays the robot you did not pick.
 - The grapple fires from the robot's left wrist; the pistol is in the right hand.
 - A robot that dies powers down (visor goes dark) and collapses; a respawn boots it back up.
+- First person shows your own body (2026-11-16): legs and torso when you look down, and
+  in the moves that bring them into view. Flips keep the camera steady (chosen over a
+  camera that tumbles with the flip, so aiming still works mid-flip); the legs tuck and
+  sweep through the view instead.
 - UI: minimal and clean.
 - Music: none for now.
 - Sound effects: heavier and realistic.

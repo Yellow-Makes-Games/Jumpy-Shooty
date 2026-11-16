@@ -30,6 +30,9 @@ extends Node
 ## --press=SEC:ACTION   Press an input action (e.g. toggle_camera) SEC seconds after start (repeatable).
 ## --hold=SEC:ACTION:DURATION  Hold an input action down for DURATION seconds, starting SEC seconds after start (repeatable).
 ## --spawn=X,Y,Z,YAW[,PITCH]  Start the local player here (degrees), e.g. to look at the training yard.
+## --game-clock        Count the SEC of the options below in game time instead of real time. With Godot's own
+##                      --fixed-fps 60 (before the "--") a scripted run plays out the same however slowly it renders.
+## --look=SEC:YAW,PITCH  Turn the local player's view by YAW and to PITCH (degrees) SEC seconds after start (repeatable).
 ## --window=X,Y,W,H     Window position and size, so several copies can sit side by side.
 
 var host := false
@@ -60,8 +63,12 @@ var screenshots: Array = []  # [seconds, path]
 var presses: Array = []      # [seconds, action]
 var holds: Array = []        # [start seconds, action, end seconds, is down]
 var spawn: Array = []        # [Vector3 position, yaw, pitch] in radians, or empty
+var looks: Array = []        # [seconds, yaw turn, pitch] in radians
+var drives_keys := false     # --hold or --press was given: the player listens even if the mouse is not captured
 
 var _start_ticks := 0
+var _fixed_step := false     # --game-clock: count game time, so slow rendering does not shift the script
+var _game_time := 0.0
 
 
 func _ready() -> void:
@@ -108,13 +115,20 @@ func _ready() -> void:
 				net_sim_jitter = float(q[1]) if q.size() > 1 else 0.0
 				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
 			"--press":
+				drives_keys = true
 				presses.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
 			"--hold":
 				var h := value.split(":")
 				if h.size() == 3:
+					drives_keys = true
 					holds.append([float(h[0]), h[1], float(h[0]) + float(h[2]), false])
 			"--screenshot":
 				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
+			"--game-clock": _fixed_step = true
+			"--look":
+				var l := value.get_slice(":", 1).split(",")
+				if l.size() == 2:
+					looks.append([float(value.get_slice(":", 0)), deg_to_rad(float(l[0])), deg_to_rad(float(l[1]))])
 			"--spawn":
 				var c := value.split(",")
 				spawn = [Vector3(float(c[0]), float(c[1]), float(c[2])),
@@ -140,8 +154,27 @@ func any() -> bool:
 	return host or join_address != "" or practice or bot >= 0
 
 
-func _process(_delta: float) -> void:
-	var elapsed := (Time.get_ticks_msec() - _start_ticks) / 1000.0
+func _elapsed() -> float:
+	return _game_time if _fixed_step else (Time.get_ticks_msec() - _start_ticks) / 1000.0
+
+
+## Held actions change on a physics step (before the players run theirs), so the
+## step that reads them sees the key go down.
+func _physics_process(_delta: float) -> void:
+	var elapsed := _elapsed()
+	for hold in holds.duplicate():
+		if not hold[3] and elapsed >= hold[0]:
+			hold[3] = true
+			Input.action_press(hold[1])
+			print("[dev] holding: %s at %.2f" % [hold[1], elapsed])
+		elif hold[3] and elapsed >= hold[2]:
+			holds.erase(hold)
+			Input.action_release(hold[1])
+
+
+func _process(delta: float) -> void:
+	_game_time += delta
+	var elapsed := _elapsed()
 	for press in presses.duplicate():
 		if elapsed >= press[0]:
 			presses.erase(press)
@@ -151,20 +184,20 @@ func _process(_delta: float) -> void:
 				ev.pressed = down
 				Input.parse_input_event(ev)
 			print("[dev] pressed: %s" % press[1])
-	for hold in holds.duplicate():
-		if not hold[3] and elapsed >= hold[0]:
-			hold[3] = true
-			Input.action_press(hold[1])
-		elif hold[3] and elapsed >= hold[2]:
-			holds.erase(hold)
-			Input.action_release(hold[1])
+	for look in looks.duplicate():
+		if elapsed >= look[0]:
+			looks.erase(look)
+			var me: Player = Net.arena.local_player if Net.arena else null
+			if me:
+				me.input.yaw += look[1]
+				me.input.pitch = look[2]
 	for shot in screenshots.duplicate():
 		if elapsed >= shot[0]:
 			screenshots.erase(shot)
 			var img := get_viewport().get_texture().get_image()
 			img.save_png(shot[1])
-			print("[dev] screenshot saved: %s" % shot[1])
-	if quit_after > 0.0 and (Time.get_ticks_msec() - _start_ticks) / 1000.0 >= quit_after:
+			print("[dev] screenshot saved: %s at %.2f" % [shot[1], elapsed])
+	if quit_after > 0.0 and elapsed >= quit_after:
 		print("[dev] quit-after reached")
 		quit_after = 0.0
 		Net.leave()
