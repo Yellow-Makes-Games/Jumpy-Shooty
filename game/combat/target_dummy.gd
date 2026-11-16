@@ -63,14 +63,14 @@ func setup(i: int, pos: Vector3, facing: float, character: String, gun: String, 
 	_anim.state = MovementController.State.GROUND
 	_anim.yaw = yaw
 
-	_info = _label(26, Player.CAPSULE_HEIGHT + 0.45)
-	_last = _label(40, Player.CAPSULE_HEIGHT + 0.85)
+	_info = _label(26)
+	_last = _label(40)   # sits on top of the readout (see _refresh)
 	_last.visible = false
 	_refresh()
 	return self
 
 
-func _label(size: int, height: float) -> Label3D:
+func _label(size: int) -> Label3D:
 	var l := Label3D.new()
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.fixed_size = true
@@ -78,7 +78,8 @@ func _label(size: int, height: float) -> Label3D:
 	l.font_size = size
 	l.outline_size = 8
 	l.font = HudStyle.font(true)
-	l.position.y = height
+	l.position.y = Player.CAPSULE_HEIGHT + 0.35
+	l.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM   # grows upward from just over the head
 	add_child(l)
 	return l
 
@@ -150,4 +151,6 @@ func _refresh() -> void:
 		if _kill_time >= 0.0:
 			lines.append("Killed in %.2f s" % _kill_time)
 	_info.text = "\n".join(lines)
+	# Both labels keep their size on screen, so the gap between them is in pixels, not metres.
+	_last.offset.y = lines.size() * _info.font_size * 1.25 + 6.0
 	_info.modulate = Color(1.0, 0.45, 0.4) if is_down() else Color(0.93, 0.94, 0.96)
