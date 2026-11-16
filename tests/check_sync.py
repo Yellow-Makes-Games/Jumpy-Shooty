@@ -18,6 +18,7 @@ Usage: python3 tests/check_sync.py tests/out/*.log
 Exit code 0 = pass, 1 = fail.
 """
 import bisect
+import os
 import sys
 from collections import defaultdict
 
@@ -75,6 +76,9 @@ def main(paths):
                 real_step = _dist(real, preal)
                 if drawn_step - real_step > POP_LIMIT:
                     pops += 1
+                    if os.environ.get("SYNC_DEBUG"):   # where and when, to find the cause
+                        print(f"  pop: viewer {viewer} target {target} t={t:.2f} drawn step {drawn_step:.2f} m, "
+                              f"real step {real_step:.2f} m, really at ({real[0]:.1f}, {real[1]:.1f}, {real[2]:.1f})")
             prev = (t, pos, real)
         if not errors:
             print(f"FAIL: viewer {viewer} -> target {target}: no overlapping samples")

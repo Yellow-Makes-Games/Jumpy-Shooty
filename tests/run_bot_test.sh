@@ -10,7 +10,7 @@
 #  - the bot dodges when it gets shot
 #  - matches end, and "Rematch" starts a new one
 #  - there are no script errors
-# Usage: tests/run_bot_test.sh
+# Usage: [MAP=map_id] tests/run_bot_test.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
@@ -18,13 +18,18 @@ OUT=tests/out
 mkdir -p "$OUT"
 rm -f "$OUT"/bot_*.log
 COMMON=(--headless --path . -- --scripted-input --sync-log)
+STILL=(--headless --path . -- --sync-log)
+if [[ -n "${MAP:-}" ]]; then   # MAP=testing_grounds picks the map (default: the game's default)
+  COMMON+=("--map=$MAP")
+  STILL+=("--map=$MAP")
+fi
 
 for level in 0 1 2 3; do
   timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --time-limit=80 --quit-after=85 \
     > "$OUT/bot_$level.log" 2>&1 &
 done
 # Easy against a player who stands still: even the weakest bot must land hits.
-timeout 90 "$GODOT" --headless --path . -- --sync-log --bot=0 --time-limit=40 --quit-after=45 \
+timeout 90 "$GODOT" "${STILL[@]}" --bot=0 --time-limit=40 --quit-after=45 \
   > "$OUT/bot_still.log" 2>&1 &
 # Expert again, but the player fights back; first to 2 so it ends, then rematches.
 timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --scripted-fire --kill-target=2 --time-limit=40 \

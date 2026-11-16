@@ -9,6 +9,7 @@ OUT=tests/out
 mkdir -p "$OUT"
 rm -f "$OUT"/timed_*.log
 COMMON=(--scripted-input --scripted-fire --sync-log --quit-after=40)
+if [[ -n "${MAP:-}" ]]; then COMMON+=("--map=$MAP"); fi   # MAP=testing_grounds picks the map
 "$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --autostart=2 --rules=time:0.25 \
   "${COMMON[@]}" > "$OUT/timed_1.log" 2>&1 &
 sleep 1

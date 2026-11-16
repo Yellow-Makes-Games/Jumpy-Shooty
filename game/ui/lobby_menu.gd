@@ -11,6 +11,8 @@ var _host_rules: HBoxContainer
 var _mode_pick: OptionButton
 var _amount: SpinBox
 var _amount_unit: Label
+var _map_label: Label
+var _map_pick: OptionButton
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
 
 
@@ -24,6 +26,7 @@ func _ready() -> void:
 	_list.add_theme_constant_override("separation", 6)
 	_col.add_child(_list)
 	UiKit.spacer(_col, 8)
+	_build_map()
 	_build_rules()
 	UiKit.spacer(_col, 4)
 	_start = UiKit.button(_col, "Start match", Net.host_start_match)
@@ -65,6 +68,22 @@ func _refresh() -> void:
 		where = "Waiting for the host to start the match."
 	_info.text = "%d / %d players. %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
 	_refresh_rules()
+
+
+# Map: the host picks; everyone else sees it.
+func _build_map() -> void:
+	UiKit.label(_col, "Map", true, 16)
+	_map_label = UiKit.label(_col, "")
+	_map_pick = OptionButton.new()
+	_map_pick.custom_minimum_size = Vector2(0, 44)
+	Maps.fill(_map_pick, Net.map_id())
+	_col.add_child(_map_pick)
+	_map_pick.item_selected.connect(func(i: int):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["map"] = Maps.LIST[i].id
+		Net.set_match_settings(s))
 
 
 # Win condition: the host picks; everyone else sees it.
@@ -109,7 +128,11 @@ func _refresh_rules() -> void:
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
 	_rules_label.visible = not Net.is_host()
 	_host_rules.visible = Net.is_host()
+	_map_label.text = Maps.label(Net.map_id())
+	_map_label.visible = not Net.is_host()
+	_map_pick.visible = Net.is_host()
 	_updating = true
+	_map_pick.select(Maps.ids().find(Net.map_id()))
 	_mode_pick.select(0 if kills_mode else 1)
 	if kills_mode:
 		_amount.min_value = 1

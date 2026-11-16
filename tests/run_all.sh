@@ -17,18 +17,26 @@ echo "== Robot model and animator checks"
 run_script tests/robot_test.gd
 echo "== Testing Grounds: every practice course can be completed"
 run_script tests/course_test.gd
-echo "== Practice mode boots without errors"
-out=$("$GODOT" --headless --path . -- --practice --quit-after=3 2>&1)
-if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi
+echo "== Construction Site: spawn points, bot navigation and every movement route"
+run_script tests/site_test.gd
+echo "== Practice mode boots without errors on every map"
+for map in construction_site testing_grounds; do
+  out=$("$GODOT" --headless --path . -- --practice --map="$map" --quit-after=3 2>&1)
+  if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi
+done
 echo "PASS"
-echo "== Sync: 2 players, clean network"
-tests/run_sync_test.sh 2
-echo "== Sync: 5 players, bad network (100 ms latency, 60 ms jitter, 10% loss)"
-tests/run_sync_test.sh 5 "100,60,10"
-echo "== Match: 3 players, laggy network, two matches back to back"
-tests/run_match_test.sh 3 "100,40,5"
-echo "== Time-limit match (lobby rule)"
-tests/run_timed_match_test.sh
-echo "== 1v1 bot: every difficulty, plus a fight and a rematch"
-tests/run_bot_test.sh
+echo "== Sync: 2 players, clean network (Testing Grounds)"
+MAP=testing_grounds tests/run_sync_test.sh 2
+echo "== Sync: 5 players, bad network (100 ms latency, 60 ms jitter, 10% loss) (Construction Site)"
+MAP=construction_site tests/run_sync_test.sh 5 "100,60,10"
+echo "== Match: 3 players, laggy network, two matches back to back (Construction Site)"
+MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
+echo "== Time-limit match (lobby rule) (Testing Grounds)"
+MAP=testing_grounds tests/run_timed_match_test.sh
+echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Testing Grounds)"
+MAP=testing_grounds tests/run_bot_test.sh
+echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Construction Site)"
+MAP=construction_site tests/run_bot_test.sh
+echo "== Bots climb the Construction Site tower to a player on top"
+tests/run_bot_climb_test.sh
 echo "ALL TESTS PASSED"

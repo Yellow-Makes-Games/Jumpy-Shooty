@@ -18,6 +18,7 @@ mkdir -p "$OUT"
 rm -f "$OUT"/match_*.log
 EXTRA=()
 if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
+if [[ -n "${MAP:-}" ]]; then EXTRA+=("--map=$MAP"); fi   # MAP=testing_grounds picks the map (default: the game's default)
 COMMON=(--scripted-input --scripted-fire --sync-log --auto-return --quit-after=150)
 
 "$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --autostart="$PLAYERS" \

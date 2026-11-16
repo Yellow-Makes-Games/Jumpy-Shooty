@@ -2,25 +2,7 @@ extends Node3D
 ## The arena scene: builds the level, spawns one Player per connected peer,
 ## and hosts the HUD and pause menu.
 
-const KIND_COLORS := {
-	"floor": Color(0.34, 0.36, 0.40),
-	"wall": Color(0.55, 0.57, 0.62),
-	"block": Color(0.46, 0.48, 0.53),
-	"ramp": Color(0.62, 0.52, 0.36),
-	"bridge": Color(0.36, 0.50, 0.62),
-	"pillar": Color(0.50, 0.42, 0.40),
-	"cover": Color(0.42, 0.50, 0.40),
-	# Training yard: each lane has its own colour
-	"pad": Color(0.40, 0.44, 0.50),
-	"grapple": Color(0.85, 0.60, 0.20),
-	"wallrun": Color(0.30, 0.55, 0.75),
-	"slide": Color(0.80, 0.35, 0.35),
-	"vault": Color(0.45, 0.65, 0.40),
-	"pit": Color(0.55, 0.25, 0.22),
-	"stripe": Color(0.95, 0.90, 0.75),
-}
-
-var layout: TestingGrounds
+var layout: MapLayout
 var players_root: Node3D
 var local_player: Player
 var hud: Hud
@@ -28,9 +10,11 @@ var pause_menu: PauseMenu
 
 
 func _ready() -> void:
-	layout = TestingGrounds.new().build()
-	_build_environment()
-	_build_level()
+	layout = Maps.make(Net.map_id())
+	MapScenery.build_environment(self, layout)
+	var level := MapScenery.build_level(self, layout)
+	if Net.has_bots():
+		add_child(MapScenery.bake_navigation(level))   # only when bots play: it takes a moment
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
@@ -63,8 +47,14 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	# Falling out of the map, or getting outside its fence, counts as a death.
+	var floor_y := layout.kill_height()
+	var area := layout.bounds()
 	for p in players_root.get_children():
-		if (p as Player).is_local and p.global_position.y < -25.0:
+		if not (p as Player).is_local:
+			continue
+		var pos: Vector3 = p.global_position
+		if pos.y < floor_y or (area.has_area() and not area.has_point(Vector2(pos.x, pos.z))):
 			(p as Player).report_fell_once()
 
 
@@ -153,8 +143,8 @@ func _respawn(p: Player) -> void:
 	var ids := Net.players.keys()
 	ids.sort()
 	var index: int = max(ids.find(p.peer_id), 0)
-	var s: Array = layout.spawns[(index + randi() % 2 * 4) % layout.spawns.size()]
-	if not DevArgs.spawn.is_empty():
+	var s: Array = layout.spawns[(index + randi() % 2 * (layout.spawns.size() / 2)) % layout.spawns.size()]
+	if not DevArgs.spawn.is_empty() and not p.is_bot:
 		s = DevArgs.spawn
 	p.teleport(s[0], s[1])
 	if s.size() > 2:
@@ -169,93 +159,3 @@ func _capture_mouse(on: bool) -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED if on else Input.MOUSE_MODE_VISIBLE
-
-
-# ---------------------------------------------------------------------------
-# Level building
-
-func _build_environment() -> void:
-	var env := Environment.new()
-	env.background_mode = Environment.BG_SKY
-	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.22, 0.38, 0.62)
-	sky_mat.sky_horizon_color = Color(0.70, 0.74, 0.80)
-	sky_mat.ground_horizon_color = Color(0.45, 0.47, 0.50)
-	sky.sky_material = sky_mat
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.35
-	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.ssao_enabled = true
-	env.glow_enabled = true
-	var we := WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-52, -35, 0)
-	sun.light_energy = 1.1
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 120.0
-	add_child(sun)
-
-
-func _build_level() -> void:
-	var level := Node3D.new()
-	level.name = "Level"
-	add_child(level)
-	var grid := _grid_texture()
-	var materials := {}
-	for kind in KIND_COLORS:
-		var m := StandardMaterial3D.new()
-		m.albedo_color = KIND_COLORS[kind]
-		m.albedo_texture = grid
-		m.uv1_triplanar = true
-		m.uv1_world_triplanar = true
-		m.uv1_scale = Vector3(0.25, 0.25, 0.25)  # one grid square per 4 m (sub-lines every 1 m)
-		m.roughness = 0.85
-		materials[kind] = m
-	layout.instantiate(level, materials)
-	if Net.has_bots():
-		_bake_navigation(level)
-
-
-## Bots find their way around with a navigation mesh: a map of every walkable
-## floor, ramp and deck, worked out from the level's collision shapes. Only built
-## when bots are playing (it takes a moment).
-func _bake_navigation(level: Node3D) -> void:
-	var started := Time.get_ticks_msec()
-	var nav := NavigationMesh.new()
-	nav.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
-	nav.geometry_collision_mask = 1
-	nav.cell_size = 0.25
-	nav.cell_height = 0.25
-	nav.agent_radius = 0.5
-	nav.agent_height = 1.75
-	nav.agent_max_climb = 0.5
-	nav.agent_max_slope = 46.0
-	var source := NavigationMeshSourceGeometryData3D.new()
-	NavigationServer3D.parse_source_geometry_data(nav, source, level)
-	NavigationServer3D.bake_from_source_geometry_data(nav, source)
-	var region := NavigationRegion3D.new()
-	region.name = "Navigation"
-	region.navigation_mesh = nav
-	add_child(region)
-	print("Navigation mesh: %d polygons in %d ms" % [nav.get_polygon_count(), Time.get_ticks_msec() - started])
-
-
-## A greybox grid so you can judge distance and speed. Not final art.
-func _grid_texture() -> ImageTexture:
-	var size := 256
-	var img := Image.create(size, size, false, Image.FORMAT_RGB8)
-	img.fill(Color(1, 1, 1))
-	for i in size:
-		for j in size:
-			var major := i < 3 or j < 3
-			var minor := (i % 64) < 1 or (j % 64) < 1
-			if major:
-				img.set_pixel(i, j, Color(0.62, 0.62, 0.62))
-			elif minor:
-				img.set_pixel(i, j, Color(0.85, 0.85, 0.85))
-	img.generate_mipmaps()
-	return ImageTexture.create_from_image(img)

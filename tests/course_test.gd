@@ -1,79 +1,25 @@
-extends SceneTree
+extends "res://tests/course_runner.gd"
 ## Runs a scripted player through every practice course in the Testing Grounds
 ## training yard, to prove each one can actually be completed with the current
 ## movement tuning (and that nothing in the layout blocks the way).
 ## Run: godot --headless --path . --script tests/course_test.gd
 
-const EAST := -PI / 2.0   ## yaw that faces +x (down the lanes)
 
-var body: CharacterBody3D
-var motor: MovementController
-var input: PlayerInput
-var failures := 0
-
-var _runs: Array = []
-var _index := -1
-var _time := 0.0
-var _run: Dictionary
-var _mem := {}   # scratch state for the current run
+func _layout() -> MapLayout:
+	return TestingGrounds.new().build()
 
 
-func _initialize() -> void:
-	physics_frame.connect(_tick)
-	var level := Node3D.new()
-	root.add_child(level)
-	TestingGrounds.new().build().instantiate(level)
+func _title() -> String:
+	return "Testing Grounds course checks"
 
-	body = CharacterBody3D.new()
-	body.floor_snap_length = 0.3
-	body.floor_max_angle = deg_to_rad(46.0)
-	body.floor_stop_on_slope = true
-	var cs := CollisionShape3D.new()
-	var cap := CapsuleShape3D.new()
-	cap.radius = 0.4
-	cap.height = 1.8
-	cs.shape = cap
-	cs.position.y = 0.9
-	body.add_child(cs)
-	root.add_child(body)
-	motor = MovementController.new()
-	input = PlayerInput.new()
 
-	_runs = [
+func _courses() -> Array:
+	return [
 		_vault_run(), _ledge_run(1.6, true), _ledge_run(2.4, true), _ledge_run(3.2, true), _ledge_run(3.8, false),
 		_slide_run(), _grapple_run(), _wall_run(), _chimney_run(),
 		_gap_run(1, []), _gap_run(2, ["dive"]), _gap_run(3, ["flip", "dive"]),
 		_gap_run(2, [], false), _gap_run(3, ["dive"], false),
 	]
-	print("Testing Grounds course checks")
-
-
-func _tick() -> void:
-	var dt := 1.0 / Engine.physics_ticks_per_second
-	if _index == -1 or _time >= _run.max_time or _run.done.call():
-		if _index >= 0:
-			_run.check.call()
-		_index += 1
-		if _index >= _runs.size():
-			print("FAIL: %d course checks failed" % failures if failures else "PASS: all courses can be completed")
-			quit(1 if failures else 0)
-			return
-		_run = _runs[_index]
-		_time = 0.0
-		_mem = {"states": {}}
-		motor.reset()
-		_clear_input()
-		_teleport(_run.start, _run.get("yaw", EAST))
-		print("  %s" % _run.name)
-	_run.drive.call(dt)
-	motor.step(body, input, dt)
-	input.clear_edges()
-	_mem.states[motor.state] = true
-	if OS.get_environment("COURSE_DEBUG") == _run.name.get_slice(":", 0) and int(_time * 120) % 6 == 0:
-		var p := body.global_position
-		print("      t=%.2f pos=(%.1f, %.1f, %.1f) v=(%.1f, %.1f, %.1f) %s rope=%s" % [_time, p.x, p.y, p.z, body.velocity.x, body.velocity.y, body.velocity.z, MovementController.State.keys()[motor.state], motor.grapple.attached])
-	_mem["max_speed"] = max(_mem.get("max_speed", 0.0), motor.horizontal_speed(body))
-	_time += dt
 
 
 # ---------------------------------------------------------------------------
@@ -294,36 +240,3 @@ func _gap_run(index: int, tricks: Array, should_make_it: bool = true) -> Diction
 			else:
 				_expect(not made, "fell short%s (x %.1f, height %.1f)" % [" and had to climb the ledge" if climbed else "", p.x, p.y]),
 	}
-
-
-# ---------------------------------------------------------------------------
-
-func _look_at(target: Vector3) -> void:
-	var to := target - (body.global_position + Vector3(0, motor.eye_height, 0))
-	input.yaw = atan2(-to.x, -to.z)
-	input.pitch = atan2(to.y, Vector2(to.x, to.z).length())
-
-
-func _clear_input() -> void:
-	input.move = Vector2.ZERO
-	input.sprint = false
-	input.crouch = false
-	input.grapple = false
-	input.yaw = 0.0
-	input.pitch = 0.0
-	input.clear_edges()
-
-
-func _teleport(pos: Vector3, yaw: float) -> void:
-	body.global_position = pos
-	body.velocity = Vector3.ZERO
-	body.move_and_slide()
-	body.global_position = pos
-	body.velocity = Vector3.ZERO
-	input.yaw = yaw
-
-
-func _expect(ok: bool, what: String) -> void:
-	print("    %s  %s" % ["ok  " if ok else "FAIL", what])
-	if not ok:
-		failures += 1

@@ -13,7 +13,9 @@ var mode: Mode = Mode.NONE
 ## A message to show on the main menu (for example "The host left").
 var pending_notice := ""
 ## The last bot match's settings, for a rematch.
-var last_bot := {"difficulty": 1, "kills": 10}
+var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.default_id()}
+## The map last picked for practice.
+var last_practice_map := Maps.default_id()
 
 
 func _ready() -> void:
@@ -47,18 +49,21 @@ func goto_lobby() -> void:
 	get_tree().change_scene_to_file.call_deferred(LOBBY)
 
 
-func start_practice() -> void:
+func start_practice(map: String = "") -> void:
 	mode = Mode.PRACTICE
+	if map != "":
+		last_practice_map = map
 	Net.start_offline(local_name())
+	Net.match_settings["map"] = _map_choice(last_practice_map)
 	Net.host_start_match()
 
 
 ## A 1v1 match against a computer player, offline.
-func start_bot(difficulty: int, kills_to_win: int) -> void:
+func start_bot(difficulty: int, kills_to_win: int, map: String = "") -> void:
 	mode = Mode.BOT
-	last_bot = {"difficulty": difficulty, "kills": kills_to_win}
+	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": map if map != "" else last_bot.map}
 	Net.start_offline(local_name())
-	Net.match_settings = {"mode": "kills", "kills": kills_to_win, "minutes": 8}
+	Net.match_settings = {"mode": "kills", "kills": kills_to_win, "minutes": 8, "map": _map_choice(last_bot.map)}
 	Net.add_bot(difficulty)
 	Net.host_start_match()
 
@@ -68,10 +73,21 @@ func rematch_bot() -> void:
 	start_bot(last_bot.difficulty, last_bot.kills)
 
 
+## The map to play: the one picked in the menu, unless --map=ID overrides it.
+func _map_choice(picked: String) -> String:
+	if DevArgs.map != "":
+		return DevArgs.map
+	return picked if Maps.has(picked) else Maps.default_id()
+
+
 func host_online() -> Error:
 	mode = Mode.ONLINE
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
 	var err := Net.host_direct(local_name(), port)
+	if err == OK and DevArgs.map != "":
+		var with_map := Net.match_settings.duplicate()
+		with_map["map"] = DevArgs.map
+		Net.set_match_settings(with_map)
 	if err == OK and DevArgs.rules != "":
 		var s := Net.match_settings.duplicate()
 		var kind := DevArgs.rules.get_slice(":", 0)

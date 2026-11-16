@@ -7,7 +7,7 @@ Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player ho
 up to 4 friends connect to them. Today that works over direct IP; Steam invites and
 relays are next.
 
-**Status:** Milestone 1 in progress: match loop, full movement set, Testing Grounds and the 1v1 bot work; Steam, robot models, sound and the construction site map are next. See [docs/FEATURES.md](docs/FEATURES.md)
+**Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site map, the Testing Grounds test map and the 1v1 bot work; Steam and sound are next. See [docs/FEATURES.md](docs/FEATURES.md)
 for what works and what does not yet.
 
 ## Quick start
@@ -43,10 +43,10 @@ game/
   player/    player, movement (movement/), camera (camera/)
   match/     match rules run by the host: health, hits, kills, respawns, timer
   combat/    weapons and shot effects
-  arena/     the arena and its layout
+  arena/     the arena and the maps (each map is a script; see docs/DEVELOPMENT.md)
   ui/        menus, lobby, HUD, pause menu
   dev/       developer command-line options
-tools/       launch several copies, take screenshots
+tools/       launch several copies, take screenshots, render map previews
 tests/       automated tests (tests/run_all.sh)
 docs/        setup guide, feature tracker
 ```

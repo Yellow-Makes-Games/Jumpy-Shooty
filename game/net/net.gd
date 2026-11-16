@@ -33,7 +33,8 @@ var port := DEFAULT_PORT  ## the port we are hosting on
 
 ## Win condition chosen by the host in the lobby.
 ## mode: "kills" (first to `kills`) or "time" (most kills after `minutes`).
-var match_settings := {"mode": "kills", "kills": 15, "minutes": 8}
+## map: which map to play (an id from Maps).
+var match_settings := {"mode": "kills", "kills": 15, "minutes": 8, "map": Maps.default_id()}
 
 ## The arena currently running, if any. It registers itself here.
 var arena: Node = null
@@ -210,6 +211,8 @@ func set_match_settings(settings: Dictionary) -> void:
 @rpc("authority", "call_local", "reliable")
 func _sync_settings(settings: Dictionary) -> void:
 	match_settings = settings
+	if not Maps.has(str(match_settings.get("map", ""))):
+		match_settings["map"] = Maps.default_id()
 	players_changed.emit()  # lobby screens refresh on this
 
 
@@ -277,6 +280,11 @@ func player_color(id: int) -> Color:
 
 # ---------------------------------------------------------------------------
 # Match flow
+
+## The id of the map being played (or about to be).
+func map_id() -> String:
+	return str(match_settings.get("map", Maps.default_id()))
+
 
 func host_start_match() -> void:
 	if not is_host():
