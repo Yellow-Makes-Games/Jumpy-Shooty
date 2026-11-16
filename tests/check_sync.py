@@ -88,7 +88,36 @@ def main(paths):
         ok &= passed
         print(f"{'PASS' if passed else 'FAIL'}: viewer {viewer} sees {target}: "
               f"{len(errors)} frames ({stalls} viewer stalls skipped), error median {p50:.3f} m, p95 {p95:.3f} m, max {mx:.3f} m, pops {pops}")
+    ok &= _check_ropes(paths)
     return 0 if ok else 1
+
+
+def _check_ropes(paths):
+    """Every grapple a player fires should be drawn by everyone else.
+    Allows one miss per pair, for a rope fired just before the test ended."""
+    fired = {}  # player -> times they hooked on
+    seen = {}   # (viewer, player) -> times the viewer showed their rope
+    for path in paths:
+        with open(path) as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) == 4 and parts[0] == "ROPE" and parts[1] == "SELF" and parts[3] == "on":
+                    fired[parts[2]] = fired.get(parts[2], 0) + 1
+                elif len(parts) == 5 and parts[0] == "ROPE" and parts[1] == "SEEN" and parts[4] == "on":
+                    key = (parts[2], parts[3])
+                    seen[key] = seen.get(key, 0) + 1
+    if not fired:
+        print("FAIL: nobody fired the grapple")
+        return False
+    ok = True
+    viewers = {v for v, _ in seen} | set(fired)
+    for player, count in sorted(fired.items()):
+        for viewer in sorted(viewers - {player}):
+            got = seen.get((viewer, player), 0)
+            passed = got >= count - 1
+            ok &= passed
+            print(f"{'PASS' if passed else 'FAIL'}: viewer {viewer} saw {got} of {player}'s {count} grapples")
+    return ok
 
 
 def _interp(truth, times, t):

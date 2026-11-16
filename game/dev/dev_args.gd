@@ -9,6 +9,7 @@ extends Node
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.
 ## --practice           Skip the menus and drop into the arena alone.
+## --bot=LEVEL          Skip the menus and start a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert).
 ## --scripted-input     The local player moves on its own (for sync tests).
 ## --sync-log           Print position samples used by tests/check_sync.py.
 ## --quit-after=SECONDS Quit automatically after this many seconds.
@@ -18,9 +19,11 @@ extends Node
 ## --rules=kills:N | time:MINUTES  Host only: set the lobby's win condition.
 ## --kill-target=N      Host only: override the kill target for this match.
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
-## --auto-return       Leave the results screen for the lobby after 2 seconds.
+## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
+## --menu=PAGE          Open the main menu on this page: play, bot, multiplayer, settings.
 ## --third-person      Start in third-person view (not saved to settings).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
+## --spawn=X,Y,Z,YAW[,PITCH]  Start the local player here (degrees), e.g. to look at the training yard.
 ## --window=X,Y,W,H     Window position and size, so several copies can sit side by side.
 
 var host := false
@@ -29,6 +32,7 @@ var player_name := ""
 var port := 0
 var autostart := 0
 var practice := false
+var bot := -1
 var scripted_input := false
 var sync_log := false
 var scripted_fire := false
@@ -37,11 +41,13 @@ var kill_target := 0
 var rules := ""
 var time_limit := 0.0
 var quit_after := 0.0
+var menu := ""
 var window_rect := Rect2i()
 var net_sim_latency := 0.0
 var net_sim_jitter := 0.0
 var net_sim_loss := 0.0
 var screenshots: Array = []  # [seconds, path]
+var spawn: Array = []        # [Vector3 position, yaw, pitch] in radians, or empty
 
 var _start_ticks := 0
 
@@ -61,10 +67,12 @@ func _ready() -> void:
 			"--port": port = int(value)
 			"--autostart": autostart = int(value)
 			"--practice": practice = true
+			"--bot": bot = clampi(int(value), 0, 3)
 			"--scripted-input": scripted_input = true
 			"--sync-log": sync_log = true
 			"--scripted-fire": scripted_fire = true
 			"--auto-return": auto_return = true
+			"--menu": menu = value
 			"--kill-target": kill_target = int(value)
 			"--rules": rules = value
 			"--time-limit": time_limit = float(value)
@@ -77,6 +85,11 @@ func _ready() -> void:
 				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
 			"--screenshot":
 				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
+			"--spawn":
+				var c := value.split(",")
+				spawn = [Vector3(float(c[0]), float(c[1]), float(c[2])),
+					deg_to_rad(float(c[3])) if c.size() > 3 else 0.0,
+					deg_to_rad(float(c[4])) if c.size() > 4 else 0.0]
 			"--window":
 				var p := value.split(",")
 				if p.size() == 4:
@@ -94,7 +107,7 @@ func net_sim_enabled() -> bool:
 
 
 func any() -> bool:
-	return host or join_address != "" or practice
+	return host or join_address != "" or practice or bot >= 0
 
 
 func _process(_delta: float) -> void:

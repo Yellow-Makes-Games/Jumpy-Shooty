@@ -7,7 +7,7 @@ Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player ho
 up to 4 friends connect to them. Today that works over direct IP; Steam invites and
 relays are next.
 
-**Status:** Phase 1 of the Milestone 1 roadmap (match loop done; weapons, bot and more movement next). See [docs/FEATURES.md](docs/FEATURES.md)
+**Status:** Milestone 1 in progress: match loop, full movement set, Testing Grounds and the 1v1 bot work; Steam, robot models, sound and the construction site map are next. See [docs/FEATURES.md](docs/FEATURES.md)
 for what works and what does not yet.
 
 ## Quick start

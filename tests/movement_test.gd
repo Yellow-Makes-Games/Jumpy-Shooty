@@ -12,6 +12,9 @@ var _frame := 0
 var _scenario := -1
 var _data := {}
 
+const ANCHOR := Vector3(150, 60, 0)   ## underside of the block we swing from
+const ROPE := 15.0
+
 
 func _initialize() -> void:
 	physics_frame.connect(_tick)
@@ -34,6 +37,25 @@ func _initialize() -> void:
 	cs.position.y = 0.9
 	body.add_child(cs)
 	root.add_child(body)
+
+	# A block hanging high in the air to swing from. Its underside is at y = 60.
+	var hang := StaticBody3D.new()
+	var hang_shape := CollisionShape3D.new()
+	var hang_box := BoxShape3D.new()
+	hang_box.size = Vector3(4, 2, 4)
+	hang_shape.shape = hang_box
+	hang.add_child(hang_shape)
+	hang.position = ANCHOR + Vector3(0, 1, 0)
+	root.add_child(hang)
+
+	# Obstacles for crouch, slide, wall-run, vault and ledge checks.
+	_box(Vector3(-100, 1.9, -10), Vector3(4, 1, 10))      # low ceiling: 1.4 m gap underneath, z -15..-5
+	_box(Vector3(-150, 4, 0), Vector3(1, 8, 60))          # long wall, face at x = -149.5
+	_box(Vector3(100, 0.5, -20), Vector3(2, 1.0, 1.2))    # 1 m crate (vault)
+	_box(Vector3(100, 1.0, -60), Vector3(3, 2.0, 3))      # 2 m block (ledge climb)
+	var ramp := _box(Vector3(-60, 7, -20), Vector3(10, 1, 40))  # 20 degree slope, downhill toward +z
+	ramp.rotation.x = deg_to_rad(20.0)
+
 	motor = MovementController.new()
 	input = PlayerInput.new()
 
@@ -98,6 +120,249 @@ func _initialize() -> void:
 			func():
 				_data.erase("strafe")
 				_expect_true("faster than the 9 m/s it started with (%.2f)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > 10.5)],
+		["grapple catches the block and swings like a pendulum", 2.6,
+			func():
+				_start_swing()
+				_data["swing"] = {"max_speed": 0.0, "max_stretch": 0.0, "lowest": 999.0},
+			func():
+				var d: Dictionary = _data["swing"]
+				_data.erase("swing")
+				var g := motor.grapple
+				_expect_true("hooked on (anchor %s)" % g.anchor, g.attached)
+				_expect_near("rope length", g.length, ROPE, 0.3)
+				# Falling from 60 degrees: drop = L(1 - cos 60) = L/2, so v = sqrt(2 g L/2).
+				var expected := sqrt(t.gravity * g.length)
+				_expect_near("speed at the bottom of the swing", d["max_speed"], expected, expected * 0.06)
+				_expect_below("rope stretch", d["max_stretch"], 0.15)
+				_expect_near("lowest point is a rope's length below the anchor", g.anchor.y - d["lowest"], g.length, 0.2)],
+		["letting go keeps your momentum", 0.4,
+			func():
+				_start_swing()
+				_data["release_at_bottom"] = true,
+			func():
+				_expect_true("let go", not motor.grapple.attached)
+				var v0: float = _data.get("release_speed", 0.0)
+				_expect_true("released fast (%.2f m/s)" % v0, v0 > 0.9 * sqrt(t.gravity * ROPE))
+				_expect_near("horizontal speed 0.4 s after letting go", motor.horizontal_speed(body), v0, 0.2)
+				_data.erase("release_speed")],
+		["cooldown blocks an instant re-grapple", 0.05,
+			func():
+				_teleport(ANCHOR + Vector3(0, -12, 3))
+				_aim_at(ANCHOR)
+				input.grapple = true
+				input.grapple_pressed = true
+				_data["regrab"] = 0,
+			func():
+				_data.erase("regrab")
+				_expect_true("still off the rope during the cooldown", not motor.grapple.attached)],
+		["grapple works again after the cooldown", t.grapple_cooldown + 0.05,
+			func(): input.grapple = false,
+			func():
+				_aim_at(ANCHOR)
+				input.grapple = true
+				input.grapple_pressed = true
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)
+				input.clear_edges()
+				_expect_true("hooked on again", motor.grapple.attached)
+				input.grapple = false
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)],
+		["grapple misses when the target is out of range", 0.1,
+			func():
+				motor.grapple.reset()
+				_teleport(ANCHOR + Vector3(t.grapple_range + 5.0, -2.0, 0))
+				_aim_at(ANCHOR)
+				input.grapple = true
+				input.grapple_pressed = true,
+			func():
+				_expect_true("not hooked", not motor.grapple.attached)
+				input.grapple = false
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)],
+		["jumping off the rope gives an upward kick", 0.05,
+			func():
+				motor.grapple.reset()
+				_start_swing()
+				_data["jump_off_after"] = 0.6,
+			func():
+				_data.erase("jump_off_after")
+				_expect_true("let go", not motor.grapple.attached)
+				_expect_true("moving upward after the jump (%.2f m/s)" % body.velocity.y, body.velocity.y > t.grapple_jump_boost * 0.8)],
+		["crouch is slow", 1.5,
+			func():
+				motor.grapple.reset()
+				_teleport(Vector3(-100, 0.05, 0))
+				_clear_input()
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.crouch = true,
+			func():
+				_expect_near("crouched speed", motor.horizontal_speed(body), t.crouch_speed, 0.3)
+				_expect_true("state is Crouch", motor.state == MovementController.State.CROUCH)],
+		["crouching fits under a 1.4 m gap", 1.5,
+			func(): pass,
+			func(): _expect_true("got under it (z = %.1f)" % body.global_position.z, body.global_position.z < -8.0)],
+		["can't stand up under the low ceiling", 0.3,
+			func(): input.crouch = false,
+			func(): _expect_true("still crouched", motor.crouched)],
+		["standing up you can't get under it", 1.5,
+			func():
+				motor.reset()
+				_teleport(Vector3(-100, 0.05, 0))
+				input.crouch = false,
+			func(): _expect_true("blocked at the edge (z = %.1f)" % body.global_position.z, body.global_position.z > -5.0)],
+		["slide from a sprint boosts and keeps speed", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 0.05, 50))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -t.sprint_speed)
+				input.move = Vector2(0, 1)
+				input.sprint = true
+				input.crouch = true
+				input.crouch_pressed = true
+				_data["states"] = {},
+			func():
+				var expected: float = t.sprint_speed + t.slide_boost - t.slide_decel * 1.0
+				_expect_near("speed after 1 s of sliding", motor.horizontal_speed(body), expected, 0.4)
+				_expect_true("state is Slide", motor.state == MovementController.State.SLIDE)],
+		["slide ends when slow, back to crouching", 3.0,
+			func(): pass,
+			func(): _expect_true("state is Crouch", motor.state == MovementController.State.CROUCH)],
+		["sliding downhill speeds you up", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(-60, 13.2, -33.5))
+				_clear_input()
+				body.velocity = Vector3(0, 0, 8)
+				input.yaw = PI
+				input.move = Vector2(0, 1)
+				input.crouch = true
+				_data["slope_speed"] = 0.0,
+			func():
+				_expect_true("faster than you started (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > 11.5)
+				_expect_true("still sliding", motor.state == MovementController.State.SLIDE)],
+		["wall run along a wall", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(-148.9, 2.0, 25))
+				_clear_input()
+				body.velocity = Vector3(0, 3, -11)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1),
+			func():
+				_expect_true("state is Wall Run", motor.state == MovementController.State.WALL_RUN)
+				_expect_true("barely dropped (height %.2f)" % body.global_position.y, body.global_position.y > 2.5)
+				_expect_true("kept speed (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) >= 10.9)],
+		["wall jump kicks you off the wall", 0.05,
+			func(): input.jump_pressed = true,
+			func():
+				_expect_true("state is Air", motor.state == MovementController.State.AIR)
+				_expect_true("pushed away from the wall (%.1f m/s)" % body.velocity.x, body.velocity.x > t.wall_jump_push * 0.8)
+				_expect_true("going up (%.1f m/s)" % body.velocity.y, body.velocity.y > t.wall_jump_up - t.gravity * 0.05 - 0.2)],
+		["wall run times out", t.wall_run_max_time + 0.3,
+			func():
+				motor.reset()
+				_teleport(Vector3(-148.9, 6.0, 25))
+				_clear_input()
+				body.velocity = Vector3(0, 3, -11)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				_data["states"] = {},
+			func():
+				_expect_true("wall ran", _data["states"].has(MovementController.State.WALL_RUN))
+				_expect_true("then dropped off", motor.state != MovementController.State.WALL_RUN)],
+		["no wall run of the same wall twice without landing", 0.5,
+			func(): pass,
+			func(): _expect_true("did not start again", motor.state != MovementController.State.WALL_RUN)],
+		["running into a 1 m crate vaults over it, keeping speed", 1.6,
+			func():
+				motor.reset()
+				_teleport(Vector3(100, 0.05, -12))
+				_clear_input()
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.sprint = true
+				_data["states"] = {},
+			func():
+				_expect_true("vaulted", _data["states"].has(MovementController.State.MANTLE))
+				_expect_true("ended up past the crate (z = %.1f)" % body.global_position.z, body.global_position.z < -21.5)
+				_expect_true("still fast (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed)],
+		["running into a 2 m block stops you", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(100, 0.05, -55))
+				input.sprint = false,
+			func():
+				_expect_true("stopped at the block (z = %.1f)" % body.global_position.z, body.global_position.z > -58.7)
+				_expect_true("still on the ground", body.global_position.y < 0.1)],
+		["jumping at it grabs the ledge and climbs up", 1.2,
+			func():
+				input.jump_pressed = true
+				_data["climb"] = true,
+			func():
+				_data.erase("climb")
+				_expect_near("standing on top", body.global_position.y, 2.0, 0.08)
+				_expect_true("on the floor", body.is_on_floor())],
+		["dive from a run lunges forward", 0.15,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 0.05, 120))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -t.run_speed)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.dive_pressed = true
+				_data["states"] = {},
+			func():
+				_expect_true("state is Dive", motor.state == MovementController.State.DIVE)
+				_expect_true("faster (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed + t.dive_boost - 0.6)
+				_expect_true("low hitbox while diving", motor.crouched)
+				_expect_true("off the ground", not body.is_on_floor())],
+		["landing from a dive rolls, keeping speed", 0.7,
+			func(): pass,
+			func():
+				_expect_true("rolled", _data["states"].has(MovementController.State.ROLL))
+				_expect_true("still fast after the roll (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed + t.dive_boost - 1.5)],
+		["only one dive per jump, and a cooldown", 0.8,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 40, 120))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -8)
+				input.dive_pressed = true
+				_data["dive_again"] = 0,
+			func():
+				_data.erase("dive_again")
+				_expect_true("second dive did nothing (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) < 8.0 + t.dive_boost + 0.5)],
+		["jump in mid-air flips toward your direction", 0.05,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 40, 140))
+				_clear_input()
+				body.velocity = Vector3(0, -2, -8)
+				input.yaw = 0.0
+				input.move = Vector2(1, 0)
+				input.jump_pressed = true,
+			func():
+				_expect_true("state is Flip", motor.state == MovementController.State.FLIP)
+				_expect_true("pushed right (%.1f m/s)" % body.velocity.x, body.velocity.x > t.flip_burst * 0.9)
+				_expect_true("pushed up (%.1f m/s)" % body.velocity.y, body.velocity.y > t.flip_up - 1.5)],
+		["only one flip per jump", 0.2,
+			func():
+				_data["vy"] = body.velocity.y
+				input.move = Vector2.ZERO
+				input.jump_pressed = true,
+			func(): _expect_true("second flip did nothing (still falling: %.1f m/s)" % body.velocity.y, body.velocity.y < _data["vy"] - 3.0)],
+		["a jump pressed just above the floor is kept for landing, not a flip", 1.6,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 3.0, 160))
+				_clear_input()
+				_data["flip_watch"] = true
+				_data["states"] = {},
+			func():
+				_data.erase("flip_watch")
+				_expect_true("no flip", not _data["states"].has(MovementController.State.FLIP))
+				_expect_true("jumped on landing", _data.get("rebounded", false))],
 	]
 	print("Movement checks")
 
@@ -118,11 +383,99 @@ func _tick() -> void:
 		input.jump_pressed = true  # press jump just before touching down
 	if _data.has("strafe"):
 		input.yaw -= 1.6 * dt  # turn smoothly toward the strafe direction
+	if _data.has("release_at_bottom"):
+		_steps[_scenario][1] = 99.0  # keep swinging until we pass under the anchor
+		if motor.grapple.attached and body.global_position.x <= ANCHOR.x:
+			_data.erase("release_at_bottom")
+			input.grapple = false  # let go
+			_data["release_speed"] = motor.horizontal_speed(body)
+			_frame = 0
+			_steps[_scenario][1] = 0.4
+	if _data.has("regrab"):
+		_data["regrab"] += 1
+		if _data["regrab"] == 2:
+			input.grapple = false  # let go
+		elif _data["regrab"] == 4:
+			input.grapple = true   # and immediately try again
+			input.grapple_pressed = true
+	if _data.has("jump_off_after"):
+		_data["jump_off_after"] -= dt
+		_steps[_scenario][1] = 99.0
+		if _data["jump_off_after"] <= 0.0:
+			input.jump_pressed = true
+			_steps[_scenario][1] = 0.0  # check straight after this step
+	if _data.has("dive_again"):
+		_data["dive_again"] += 1
+		if _data["dive_again"] == 30:
+			input.dive_pressed = true   # try again in the same jump
+	if _data.has("flip_watch") and not body.is_on_floor() and body.velocity.y < 0.0 and body.global_position.y < 0.6 and not _data.has("pressed"):
+		input.jump_pressed = true   # just above the floor
+		_data["pressed"] = true
+	if _data.has("flip_watch") and _data.has("pressed") and body.velocity.y > 5.0:
+		_data["rebounded"] = true
 	motor.step(body, input, dt)
 	input.clear_edges()
+	if _data.has("states"):
+		_data["states"][motor.state] = true
+	if _data.has("climb") and motor.state == MovementController.State.MANTLE:
+		input.move = Vector2.ZERO  # stop once up, so we stay on top
+	if _data.has("swing"):
+		var d: Dictionary = _data["swing"]
+		d["max_speed"] = max(d["max_speed"], body.velocity.length())
+		var g := motor.grapple
+		if g.attached:
+			d["max_stretch"] = max(d["max_stretch"], g.rope_origin(body).distance_to(g.anchor) - g.length)
+			d["lowest"] = min(d["lowest"], g.rope_origin(body).y)
 	if _data.has("peak"):
 		_data["peak"] = max(_data["peak"], body.global_position.y)
 	_frame += 1
+
+
+## Hang at 60 degrees from vertical, ROPE metres from the anchor, at rest, and fire the hook.
+func _start_swing() -> void:
+	var t := motor.tuning
+	motor.grapple.reset()
+	var origin := ANCHOR + Vector3(sin(PI / 3.0), -cos(PI / 3.0), 0) * ROPE
+	_teleport(origin - Vector3(0, t.grapple_attach_height, 0))
+	_aim_at(ANCHOR)
+	input.move = Vector2.ZERO
+	input.sprint = false
+	input.grapple = true
+	input.grapple_pressed = true
+
+
+func _box(pos: Vector3, size: Vector3) -> StaticBody3D:
+	var b := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	cs.shape = shape
+	b.add_child(cs)
+	b.position = pos
+	root.add_child(b)
+	return b
+
+
+func _clear_input() -> void:
+	input.move = Vector2.ZERO
+	input.sprint = false
+	input.crouch = false
+	input.grapple = false
+	input.clear_edges()
+
+
+func _teleport(pos: Vector3) -> void:
+	body.global_position = pos
+	body.velocity = Vector3.ZERO
+	body.move_and_slide()
+	body.global_position = pos
+	body.velocity = Vector3.ZERO
+
+
+func _aim_at(target: Vector3) -> void:
+	var to := target - (body.global_position + Vector3(0, MovementTuning.EYE_HEIGHT, 0))
+	input.yaw = atan2(-to.x, -to.z)
+	input.pitch = atan2(to.y, Vector2(to.x, to.z).length())
 
 
 func _expect_near(what: String, value: float, expected: float, tolerance: float) -> void:

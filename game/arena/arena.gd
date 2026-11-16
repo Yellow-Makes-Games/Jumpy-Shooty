@@ -10,9 +10,17 @@ const KIND_COLORS := {
 	"bridge": Color(0.36, 0.50, 0.62),
 	"pillar": Color(0.50, 0.42, 0.40),
 	"cover": Color(0.42, 0.50, 0.40),
+	# Training yard: each lane has its own colour
+	"pad": Color(0.40, 0.44, 0.50),
+	"grapple": Color(0.85, 0.60, 0.20),
+	"wallrun": Color(0.30, 0.55, 0.75),
+	"slide": Color(0.80, 0.35, 0.35),
+	"vault": Color(0.45, 0.65, 0.40),
+	"pit": Color(0.55, 0.25, 0.22),
+	"stripe": Color(0.95, 0.90, 0.75),
 }
 
-var layout: GreyboxLayout
+var layout: TestingGrounds
 var players_root: Node3D
 var local_player: Player
 var hud: Hud
@@ -20,7 +28,7 @@ var pause_menu: PauseMenu
 
 
 func _ready() -> void:
-	layout = GreyboxLayout.new().build()
+	layout = TestingGrounds.new().build()
 	_build_environment()
 	_build_level()
 	players_root = Node3D.new()
@@ -55,8 +63,9 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if local_player and local_player.global_position.y < -25.0:
-		local_player.report_fell_once()
+	for p in players_root.get_children():
+		if (p as Player).is_local and p.global_position.y < -25.0:
+			(p as Player).report_fell_once()
 
 
 func _process(_delta: float) -> void:
@@ -86,27 +95,27 @@ func _on_player_respawned(id: int, _spawn_index: int) -> void:
 	if p == null:
 		return
 	if p.is_local:
-		var s: Array = _safest_spawn()
+		var s: Array = _safest_spawn(p)
 		p.respawn_at(s[0], s[1])
 	else:
 		p.expect_respawn()
 
 
 func _on_shot_fired(shooter: int, muzzle: Vector3, end: Vector3, hit_player: bool) -> void:
-	if shooter == Net.my_id():
-		return  # we already drew our own shot the moment we fired
 	var p := get_player(shooter)
+	if shooter == Net.my_id() or (p and p.is_local):
+		return  # we (or our bot) already drew this shot the moment it was fired
 	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, end, hit_player)
 
 
-## The spawn point furthest from every living opponent.
-func _safest_spawn() -> Array:
+## The spawn point furthest from every living opponent of `who`.
+func _safest_spawn(who: Player) -> Array:
 	var best: Array = layout.spawns[0]
 	var best_score := -1.0
 	for s in layout.spawns:
 		var nearest := INF
 		for p in players_root.get_children():
-			if p != local_player and (p as Player).alive:
+			if p != who and (p as Player).alive:
 				nearest = min(nearest, (s[0] as Vector3).distance_to(p.global_position))
 		if nearest > best_score:
 			best_score = nearest
@@ -128,11 +137,13 @@ func _sync_players() -> void:
 
 func _spawn(id: int) -> void:
 	var p := Player.new()
-	var local := id == Net.my_id()
-	p.setup(id, local)
+	var bot := Net.is_bot(id) and Net.is_host()   # the host runs the bots
+	var local := id == Net.my_id() or bot
+	p.setup(id, local, bot)
 	players_root.add_child(p)
 	if local:
-		local_player = p
+		if not bot:
+			local_player = p
 		_respawn(p)
 
 
@@ -141,7 +152,11 @@ func _respawn(p: Player) -> void:
 	ids.sort()
 	var index: int = max(ids.find(p.peer_id), 0)
 	var s: Array = layout.spawns[(index + randi() % 2 * 4) % layout.spawns.size()]
+	if not DevArgs.spawn.is_empty():
+		s = DevArgs.spawn
 	p.teleport(s[0], s[1])
+	if s.size() > 2:
+		p.input.pitch = s[2]
 
 
 func _on_pause_toggled() -> void:
@@ -198,21 +213,33 @@ func _build_level() -> void:
 		m.uv1_scale = Vector3(0.25, 0.25, 0.25)  # one grid square per 4 m (sub-lines every 1 m)
 		m.roughness = 0.85
 		materials[kind] = m
-	for piece in layout.pieces:
-		var body := StaticBody3D.new()
-		body.transform = piece.xf
-		var shape := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = piece.size
-		shape.shape = box
-		body.add_child(shape)
-		var mesh := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = piece.size
-		mesh.mesh = bm
-		mesh.material_override = materials[piece.kind]
-		body.add_child(mesh)
-		level.add_child(body)
+	layout.instantiate(level, materials)
+	if Net.has_bots():
+		_bake_navigation(level)
+
+
+## Bots find their way around with a navigation mesh: a map of every walkable
+## floor, ramp and deck, worked out from the level's collision shapes. Only built
+## when bots are playing (it takes a moment).
+func _bake_navigation(level: Node3D) -> void:
+	var started := Time.get_ticks_msec()
+	var nav := NavigationMesh.new()
+	nav.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
+	nav.geometry_collision_mask = 1
+	nav.cell_size = 0.25
+	nav.cell_height = 0.25
+	nav.agent_radius = 0.5
+	nav.agent_height = 1.75
+	nav.agent_max_climb = 0.5
+	nav.agent_max_slope = 46.0
+	var source := NavigationMeshSourceGeometryData3D.new()
+	NavigationServer3D.parse_source_geometry_data(nav, source, level)
+	NavigationServer3D.bake_from_source_geometry_data(nav, source)
+	var region := NavigationRegion3D.new()
+	region.name = "Navigation"
+	region.navigation_mesh = nav
+	add_child(region)
+	print("Navigation mesh: %d polygons in %d ms" % [nav.get_polygon_count(), Time.get_ticks_msec() - started])
 
 
 ## A greybox grid so you can judge distance and speed. Not final art.

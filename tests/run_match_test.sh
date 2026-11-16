@@ -43,18 +43,22 @@ python3 - "$OUT" "$PLAYERS" <<'PY' || fail=1
 import glob, json, sys, re
 out, players = sys.argv[1], int(sys.argv[2])
 results = {}
-hits = misses = 0
+hits = misses = heads = 0
 for path in sorted(glob.glob(f"{out}/match_*.log")):
     for line in open(path, errors="replace"):
         if line.startswith("MATCH_OVER "):
             results.setdefault(path, []).append(json.loads(line[len("MATCH_OVER "):]))
         if path.endswith("match_1.log") and line.startswith("SHOT "):
-            if " hit " in line: hits += 1
+            if " hit " in line:
+                hits += 1
+                if line.rstrip().endswith(" head"): heads += 1
             else: misses += 1
 ok = True
 shots = hits + misses
 ratio = hits / shots if shots else 0
-print(f"shots judged by host: {shots}, hits {hits} ({ratio:.0%})")
+print(f"shots judged by host: {shots}, hits {hits} ({ratio:.0%}), headshots {heads}")
+if hits and heads == 0:
+    print("FAIL: no headshots registered although shooters aim at heads half the time"); ok = False
 if shots < 20:
     print("FAIL: too few shots"); ok = False
 elif ratio < 0.6:

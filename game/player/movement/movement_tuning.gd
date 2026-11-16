@@ -4,6 +4,9 @@ extends Resource
 ## Distances are metres, speeds metres/second, times seconds.
 ## Values are first guesses to be tuned by playtesting.
 
+const EYE_HEIGHT := 1.6  ## eyes above the feet, standing
+const BODY_RADIUS := 0.4
+
 @export_group("Ground")
 @export var run_speed := 8.0          ## top speed you accelerate to while running
 @export var sprint_speed := 11.5      ## top speed while holding sprint
@@ -22,3 +25,64 @@ extends Resource
 @export var jump_velocity := 7.2
 @export var coyote_time := 0.12       ## you can still jump this long after running off a ledge
 @export var jump_buffer := 0.12       ## a jump pressed this long before landing still happens
+
+@export_group("Grapple")
+@export var grapple_range := 45.0         ## how far the hook reaches
+@export var grapple_cooldown := 0.6       ## seconds after letting go before it can fire again
+@export var grapple_min_length := 2.0     ## the rope never gets shorter than this
+@export var grapple_attach_height := 1.2  ## where the rope meets the body (chest height)
+@export var grapple_air_accel := 6.0      ## steering strength while swinging (lets you pump the swing)
+@export var grapple_reel_speed := 0.0     ## metres per second the rope shortens on its own (0 = never)
+@export var grapple_jump_boost := 4.5     ## upward kick when you jump off the rope
+
+@export_group("Crouch and slide")
+@export var stand_height := 1.8           ## body height standing
+@export var crouch_height := 1.1          ## body height crouched or sliding
+@export var crouch_eye_height := 1.0      ## eyes above the feet while crouched
+@export var crouch_speed := 4.0           ## top speed walking crouched
+@export var eye_move_speed := 6.0         ## how fast the view moves down/up when you crouch/stand
+@export var slide_start_speed := 7.0      ## you need at least this speed to start a slide
+@export var slide_end_speed := 4.5        ## the slide ends below this speed
+@export var slide_boost := 2.5            ## extra speed when a slide starts...
+@export var slide_boost_cooldown := 1.2   ## ...at most once per this many seconds
+@export var slide_boost_max_speed := 15.0 ## no boost if you are already this fast
+@export var slide_decel := 3.5            ## speed lost per second sliding on flat ground
+@export var slide_turn_rate := 1.0        ## how quickly you can steer a slide (radians per second)
+
+@export_group("Walls")
+@export var wall_reach := 0.35            ## how close a wall must be (beyond your body) to count
+@export var wall_run_min_speed := 6.0     ## you need this much speed along the wall to wall-run
+@export var wall_run_speed := 10.5        ## wall-running speeds you up to this (never slows you)
+@export var wall_run_accel := 4.0
+@export var wall_run_gravity := 4.0       ## gravity while wall-running (normal gravity is 22)
+@export var wall_run_max_time := 1.6      ## after this, normal gravity returns and you drop off
+@export var wall_run_min_height := 0.8    ## must be this high off the floor to start a wall run
+@export var wall_run_max_rise := 4.0      ## upward speed is capped to this when a wall run starts
+@export var wall_stick := 1.0             ## small push into the wall so you stay on it
+@export var wall_jump_push := 7.0         ## sideways push off the wall
+@export var wall_jump_up := 7.2           ## upward speed of a wall jump
+@export var wall_jump_grace := 0.15       ## you can still wall-jump this long after leaving a wall
+
+@export_group("Vault and ledges")
+@export var mantle_reach := 0.45          ## how far in front of you a ledge is looked for
+@export var vault_min_height := 0.45      ## lower than this is just a step
+@export var vault_max_height := 1.25      ## up to this height you vault straight over, keeping speed
+@export var ledge_max_height := 2.3       ## up to this height (above your feet) you can grab and climb, while in the air
+@export var vault_up_speed := 7.5
+@export var ledge_up_speed := 4.5
+@export var ledge_exit_speed := 5.0       ## speed you leave a ledge climb with
+
+@export_group("Dive and roll")
+@export var dive_boost := 4.0             ## forward speed added by a dive (toward where you look)
+@export var dive_max_speed := 17.0        ## a dive never pushes you past this speed
+@export var dive_hop := 3.5               ## upward speed of a dive from the ground
+@export var dive_air_up := 2.0            ## a dive in the air sets your upward speed to at least this
+@export var dive_air_accel := 1.0         ## steering while diving (weak)
+@export var dive_cooldown := 1.0          ## seconds between dives (and only one dive per jump)
+@export var roll_time := 0.45             ## landing from a dive rolls you forward this long, keeping speed
+@export var roll_turn_rate := 1.5         ## steering while rolling (radians per second)
+
+@export_group("Flip")
+@export var flip_burst := 4.5             ## press jump in mid-air: this much speed toward your WASD direction
+@export var flip_up := 4.5                ## and at least this much upward speed
+@export var flip_time := 0.45             ## how long the flip lasts (for the animation)

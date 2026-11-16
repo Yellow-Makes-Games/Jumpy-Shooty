@@ -88,7 +88,7 @@ func _ready() -> void:
 	ammo_box.add_child(_weapon)
 
 	_help = _label(Control.PRESET_CENTER_BOTTOM, HORIZONTAL_ALIGNMENT_CENTER, 15)
-	_help.text = "WASD move · Shift sprint · Space jump · Click shoot · R reload · V camera · Tab scores · Esc menu"
+	_help.text = "WASD move · Shift sprint · Space jump (again in mid-air: flip) · Ctrl crouch/slide · Q dive · Right-click grapple\nClick shoot · R reload · V camera · Tab scores · Esc menu"
 	_help.modulate = Color(1, 1, 1, 0.55)
 
 	_death = _label(Control.PRESET_CENTER, HORIZONTAL_ALIGNMENT_CENTER, 30)
@@ -150,7 +150,18 @@ func update_local(p: Player) -> void:
 		parts.append("%d:%02d" % [t / 60, t % 60])
 	if Match.kill_target > 0:
 		parts.append("First to %d kills" % Match.kill_target)
-	_match_info.text = "    ".join(parts) if not parts.is_empty() else "Practice"
+	_match_info.text = "    ".join(parts) if not parts.is_empty() else "Practice  ·  %s" % TestingGrounds.MAP_NAME
+
+	var g := p.motor.grapple
+	if g.attached:
+		_crosshair.grapple = Crosshair.GRAPPLE_ON
+	elif g.cooldown_left > 0.0:
+		_crosshair.grapple = Crosshair.GRAPPLE_COOLING
+		_crosshair.cooldown = g.cooldown_left / p.motor.tuning.grapple_cooldown
+	elif p.alive and not g.find_target(p, p.input).is_empty():
+		_crosshair.grapple = Crosshair.GRAPPLE_IN_RANGE
+	else:
+		_crosshair.grapple = Crosshair.GRAPPLE_NO_TARGET
 
 	var speed := Vector2(p.velocity.x, p.velocity.z).length()
 	var state: String = MovementController.State.keys()[p.motor.state]
@@ -172,9 +183,9 @@ func update_local(p: Player) -> void:
 			row.queue_free()
 
 
-func _on_hit(shooter: int, target: int, _damage: float) -> void:
+func _on_hit(shooter: int, target: int, _damage: float, headshot: bool) -> void:
 	if shooter == Net.my_id() and target != shooter:
-		_crosshair.flash_hit()
+		_crosshair.flash_hit(false, headshot)
 	if target == Net.my_id():
 		_damage_flash.color.a = 0.35
 
@@ -242,12 +253,17 @@ func _refresh_scoreboard() -> void:
 
 
 class Crosshair extends Control:
+	enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON }
+	var grapple := GRAPPLE_NO_TARGET
+	var cooldown := 0.0  ## 1 = just let go, 0 = ready
 	var _hit_time := 0.0
 	var _kill := false
+	var _head := false
 
-	func flash_hit(kill: bool = false) -> void:
+	func flash_hit(kill: bool = false, head: bool = false) -> void:
 		_hit_time = 0.35 if kill else 0.18
 		_kill = kill
+		_head = head
 
 	func _process(delta: float) -> void:
 		if _hit_time > 0.0:
@@ -262,7 +278,20 @@ class Crosshair extends Control:
 			draw_line(d * gap, d * (gap + len), Color.BLACK, 4.0)
 			draw_line(d * gap, d * (gap + len), c, 2.0)
 		draw_circle(Vector2.ZERO, 1.5, c)
+		# Grapple ring: bright when something is in reach, filling back up during the cooldown.
+		var ring := 22.0
+		match grapple:
+			GRAPPLE_IN_RANGE:
+				draw_arc(Vector2.ZERO, ring, 0.0, TAU, 40, Color(0.4, 0.9, 1.0, 0.85), 2.0)
+			GRAPPLE_ON:
+				draw_arc(Vector2.ZERO, ring, 0.0, TAU, 40, Color(1.0, 0.75, 0.2, 0.9), 2.5)
+			GRAPPLE_COOLING:
+				draw_arc(Vector2.ZERO, ring, -PI / 2, -PI / 2 + TAU * (1.0 - cooldown), 40, Color(1, 1, 1, 0.35), 2.0)
+			_:
+				draw_arc(Vector2.ZERO, ring, 0.0, TAU, 40, Color(1, 1, 1, 0.12), 1.5)
 		if _hit_time > 0.0:
-			var hc := Color(1, 0.25, 0.2) if _kill else Color(1, 1, 1)
+			# White = hit, yellow and larger = headshot, red = kill.
+			var hc := Color(1, 0.25, 0.2) if _kill else (Color(1, 0.85, 0.2) if _head else Color(1, 1, 1))
+			var reach := 20.0 if _head else 16.0
 			for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
-				draw_line(d.normalized() * 8.0, d.normalized() * 16.0, hc, 2.5)
+				draw_line(d.normalized() * 8.0, d.normalized() * reach, hc, 2.5)

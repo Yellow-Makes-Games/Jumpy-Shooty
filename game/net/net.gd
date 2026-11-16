@@ -17,13 +17,15 @@ signal session_ended(reason: String)    # host left, or we were refused
 signal match_started
 
 const DEFAULT_PORT := 24680
+const BOT_ID_BASE := 9001
 const MAX_PLAYERS := 5
 const PLAYER_COLORS := [
 	Color(0.95, 0.35, 0.25), Color(0.25, 0.65, 0.95), Color(0.40, 0.85, 0.35),
 	Color(0.95, 0.80, 0.25), Color(0.75, 0.40, 0.95),
 ]
 
-## peer id -> { "name": String, "color": int }
+## peer id -> { "name": String, "color": int }, plus "bot": true and "difficulty"
+## for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
 var in_match := false
 var is_online := false
@@ -239,6 +241,30 @@ func _free_color() -> int:
 		if not i in used:
 			return i
 	return 0
+
+
+## Adds a computer player (offline matches only for now). Returns its id.
+func add_bot(difficulty: int) -> int:
+	var id := BOT_ID_BASE
+	while players.has(id):
+		id += 1
+	players[id] = {
+		"name": "Bot (%s)" % BotDifficulty.NAMES[difficulty],
+		"color": _free_color(), "bot": true, "difficulty": difficulty,
+	}
+	players_changed.emit()
+	return id
+
+
+func is_bot(id: int) -> bool:
+	return players.has(id) and players[id].get("bot", false)
+
+
+func has_bots() -> bool:
+	for id in players:
+		if is_bot(id):
+			return true
+	return false
 
 
 func player_name(id: int) -> String:
