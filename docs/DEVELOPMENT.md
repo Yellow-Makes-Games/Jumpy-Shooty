@@ -71,7 +71,7 @@ or WSL; I run these on every change anyway):
 - the game boots into practice mode on every map without script errors;
 - bots climb the Construction Site tower to a player standing on a high floor
   (`tests/run_bot_climb_test.sh`);
-- a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match; a 5-player free-for-all against 4 bots, where every bot shoots, bots fight each other as well as you, the robots alternate, and the rematch keeps all 4 bots (`tests/run_bot_test.sh`);
+- a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, belly-slide, flip and grapple (and the easier ones never belly-slide), and Rematch starts a new match; a 5-player free-for-all against 4 bots, where every bot shoots, bots fight each other as well as you, the robots alternate, and the rematch keeps all 4 bots (`tests/run_bot_test.sh`);
 - a match test: 3 copies on a laggy network play two matches back to back, aiming
   and shooting on their own; checks that hits land, the match ends at the kill target,
   every copy agrees on the results, and "return to lobby, play again" works;

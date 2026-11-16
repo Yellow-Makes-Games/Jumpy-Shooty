@@ -11,6 +11,7 @@ const CAPSULE_RADIUS := 0.4
 const CAPSULE_HEIGHT := 1.8
 const VIEWMODEL_LAYER := 3   ## render layer for the first-person gun
 const CROUCH_HEIGHT := 1.1
+const PRONE_HEIGHT := 0.8    ## lying on your front (belly slide)
 const TUCK_LIFT := CAPSULE_HEIGHT - CROUCH_HEIGHT
 
 var peer_id := 1
@@ -50,7 +51,7 @@ var _rope_on := false             # remote: is the rope shown
 var _rope_anchor := Vector3.ZERO  # remote: where it is hooked
 var _roll := 0.0                  # local: camera tilt while wall-running
 var _shape: CollisionShape3D
-var _low := false                 # drawn crouched
+var _height := CAPSULE_HEIGHT     # remote: collision shape height for the pose we draw
 var _visual_yaw := 0.0
 
 
@@ -151,7 +152,6 @@ func _process(delta: float) -> void:
 		if rig:
 			_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
 			rig.set_view(input.yaw, input.pitch, motor.eye_height, _roll)
-		_update_pose(motor.crouched)
 		var g := motor.grapple
 		_anim.state = motor.state
 		_anim.crouched = motor.crouched
@@ -175,7 +175,7 @@ func _process(delta: float) -> void:
 	if alive:
 		_visual_yaw = s[2]
 	_remote_state = s[4]
-	_update_pose(pose_crouched(_remote_state))
+	_update_pose(height_for_pose(_remote_state))
 	_anim.state = pose_state(_remote_state)
 	_anim.crouched = pose_crouched(_remote_state)
 	_anim.velocity = velocity
@@ -219,6 +219,7 @@ func read_local_input() -> void:
 		input.jump_held = false
 		input.fire = false
 		input.grapple = false
+		input.dive = false
 		return
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
@@ -233,6 +234,7 @@ func read_local_input() -> void:
 		input.fire_pressed = true
 	if Input.is_action_just_pressed("jump"):
 		input.jump_pressed = true
+	input.dive = Input.is_action_pressed("dive")
 	if Input.is_action_just_pressed("dive"):
 		input.dive_pressed = true
 	input.grapple = Input.is_action_pressed("grapple")
@@ -464,8 +466,10 @@ func _sent_position() -> Vector3:
 	return global_position - Vector3(0, motor.tuck, 0)
 
 
-## Body height for a pose (shorter when crouched): used for the hitbox.
+## Body height for a pose (shorter when crouched, shortest on your belly): used for the hitbox.
 static func height_for_pose(pose: int) -> float:
+	if pose_state(pose) == MovementController.State.BELLY_SLIDE:
+		return PRONE_HEIGHT
 	return CROUCH_HEIGHT if pose_crouched(pose) else CAPSULE_HEIGHT
 
 
@@ -474,16 +478,14 @@ func pose_at(t: float) -> int:
 	return buffer.sample(t)[4] if buffer.has_data() else (_my_pose() if motor else 0)
 
 
-## Remote players: shrink the collision shape when they crouch. (Your own shape is
-## handled by the movement code.) The drawn body crouches through its animation.
-func _update_pose(low: bool) -> void:
-	if low == _low:
+## Remote players: shrink the collision shape when they crouch or lie down. (Your
+## own shape is handled by the movement code.) The drawn body follows through its animation.
+func _update_pose(h: float) -> void:
+	if is_equal_approx(h, _height):
 		return
-	_low = low
-	if not is_local:
-		var h := height_for_pose(make_pose(0, low))
-		(_shape.shape as CapsuleShape3D).height = h
-		_shape.position.y = h * 0.5
+	_height = h
+	(_shape.shape as CapsuleShape3D).height = h
+	_shape.position.y = h * 0.5
 
 
 ## The small animation facts that travel in snapshots (see RobotAnimInput.make_flags).
@@ -578,6 +580,7 @@ func _scripted_input(delta: float) -> void:
 		input.jump_pressed = true   # mid-air: flip
 	if fmod(t + 2.5, 5.3) < delta:
 		input.dive_pressed = true
+	input.dive = fmod(t + 7.8, 10.6) < 1.4   # every other dive: keep holding it, to land in a belly slide
 	# Crouch (or slide, when fast) for a moment every 7 s.
 	var was_crouching := input.crouch
 	input.crouch = fmod(t, 7.0) > 5.8

@@ -19,7 +19,8 @@ const SPRINT_SPEED := 11.5
 const CROUCH_SPEED := 4.0
 const WALL_SPEED := 10.5
 const FADE_DEFAULT := 0.12
-const FADES := {"roll": 0.05, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
+const CRAWL_SPEED := 2.0
+const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
 	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06}
 const FLIPS := ["flip_front", "flip_back", "flip_left", "flip_right"]
 const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right"]
@@ -27,7 +28,7 @@ const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "
 const AIM_WEIGHTS := {
 	"loco": [1.0, 1.0, 1.0], "crouch": [1.0, 1.0, 1.0], "slide": [1.0, 0.0, 1.0],
 	"air": [1.0, 1.0, 1.0], "tuck": [1.0, 1.0, 1.0], "grapple": [1.0, 0.0, 0.6],
-	"wall_l": [1.0, 0.0, 0.7], "wall_r": [1.0, 0.0, 0.7],
+	"wall_l": [1.0, 0.0, 0.7], "wall_r": [1.0, 0.0, 0.7], "belly_slide": [1.0, 1.0, 0.35],
 }
 
 var model: RobotModel
@@ -276,6 +277,7 @@ func _pick(inp: RobotAnimInput) -> String:
 		S.MANTLE: return "vault" if inp.vaulting() else "climb"
 		S.DIVE: return "dive"
 		S.ROLL: return "roll"
+		S.BELLY_SLIDE: return "belly_slide"
 		S.FLIP: return FLIPS[inp.flip()]
 	return "air"
 
@@ -331,6 +333,15 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 			rig.sample(_pose, "air", _air_t * rig.length("air"))
 		"tuck":
 			_loop("air_tuck")
+		"belly_slide":
+			# Sliding: a still pose. Slowed to a crawl: the knees work, at crawling pace.
+			_loop("belly_slide")
+			var wc := clampf((CRAWL_SPEED + 0.6 - speed) / 0.6, 0.0, 1.0) * clampf(speed / 0.5, 0.0, 1.0)
+			if wc > 0.01 and rig.has_clip("belly_crawl"):
+				var crawl_len := rig.length("belly_crawl")
+				_phase = fposmod(_phase + clampf(speed / CRAWL_SPEED, 0.4, 1.4) / crawl_len * delta, 1.0)
+				rig.sample(_tmp, "belly_crawl", _phase * crawl_len)
+				_pose.blend(_tmp, smoothstep(0.0, 1.0, wc))
 		"slide", "grapple", "dive":
 			_loop(key)
 		"wall_l", "wall_r":

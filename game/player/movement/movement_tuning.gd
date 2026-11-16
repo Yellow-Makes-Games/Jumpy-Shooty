@@ -82,6 +82,14 @@ const BODY_RADIUS := 0.4
 @export var roll_time := 0.45             ## landing from a dive rolls you forward this long, keeping speed
 @export var roll_turn_rate := 1.5         ## steering while rolling (radians per second)
 
+@export_group("Belly slide")
+@export var prone_height := 0.8           ## body height lying on your front (the capsule cannot be shorter)
+@export var prone_eye_height := 0.55      ## eyes above the floor lying down
+@export var belly_boost := 1.0            ## extra speed when you hit the ground on your belly
+@export var belly_decel := 3.0            ## speed lost per second belly-sliding on flat ground
+@export var belly_turn_rate := 0.7        ## how quickly you can steer a belly slide (radians per second)
+@export var belly_crawl_speed := 2.0      ## once the slide runs out (dive still held), you can crawl this fast
+
 @export_group("Flip")
 @export var flip_burst := 4.5             ## press jump in mid-air: this much speed toward your WASD direction
 @export var flip_up := 4.5                ## and at least this much upward speed
