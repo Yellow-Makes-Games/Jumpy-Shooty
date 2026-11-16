@@ -31,6 +31,7 @@ More detail, including how to play with a friend and run several copies on one P
 | Switch first / third person | V |
 | Scoreboard | Tab (hold) |
 | Menu | Esc |
+| Debug menu (Practice and Vs Bots only) | F1 |
 
 Grapple (right mouse), slide (Ctrl or C) and dive (Alt or Q) arrive in later phases.
 

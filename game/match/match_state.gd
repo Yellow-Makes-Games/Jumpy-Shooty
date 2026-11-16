@@ -14,6 +14,8 @@ signal state_changed               ## scores, health or timer changed
 signal player_hit(shooter: int, target: int, damage: float, headshot: bool)
 signal player_died(victim: int, killer: int)
 signal player_respawned(id: int, spawn_index: int)
+## A target dummy was hit (it also sends player_hit, with the dummy's id as the target).
+signal dummy_hit(shooter: int, dummy: int, damage: float, headshot: bool, killed: bool)
 signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array)  ## one end per pellet
 signal match_over(results: Array)
 
@@ -167,7 +169,8 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var weapon := WeaponData.by_id(weapon_id)
 	var now := Net.now()
 	# Fire rate check (a little slack for network timing).
-	if now - _last_shot_time.get(shooter, -10.0) < weapon.fire_interval * 0.7:
+	# (In game time: the debug menu can speed the game up offline.)
+	if (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale < weapon.fire_interval * 0.7:
 		return
 	_last_shot_time[shooter] = now
 	var shooter_node: Player = Net.arena.get_player(shooter)
@@ -190,6 +193,10 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 			continue
 		var when := _clamped_view_time(target, view_times.get(id, -1.0))
 		bodies.append([id, target.position_at(when), Player.height_for_pose(target.pose_at(when))])  # shorter when crouched
+	# Target dummies stand still: no rewind needed.
+	for d in Net.arena.dummies:
+		if not (d as TargetDummy).is_down():
+			bodies.append([dummy_id(d.index), d.global_position, Player.CAPSULE_HEIGHT])
 
 	var damage := {}   # target id -> total damage of this shot
 	var heads := {}    # target id -> a pellet hit the head
@@ -235,7 +242,10 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 			log.append(("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss")
 	_shot_effect.rpc(shooter, origin, ends, hit_mask)
 	for id in damage:
-		_host_damage(shooter, id, damage[id], heads[id])
+		if is_dummy(id):
+			_host_dummy_damage(shooter, id, damage[id], heads[id])
+		else:
+			_host_damage(shooter, id, damage[id], heads[id])
 	if DevArgs.sync_log:
 		# One line per shot (the first pellet that hit, if any), then the gun and its pellets.
 		var first := "miss"
@@ -269,6 +279,8 @@ func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_m
 func _host_damage(shooter: int, target: int, amount: float, headshot: bool = false) -> void:
 	if not is_alive(target):
 		return
+	if target == Net.my_id() and Cheats.god_mode():
+		return
 	health[target] = max(health[target] - amount, 0.0)
 	_hit.rpc(shooter, target, amount, health[target], headshot)
 	if health[target] <= 0.0:
@@ -280,6 +292,47 @@ func _hit(shooter: int, target: int, amount: float, new_health: float, headshot:
 	health[target] = new_health
 	player_hit.emit(shooter, target, amount, headshot)
 	state_changed.emit()
+
+
+# ---------------------------------------------------------------------------
+# Target dummies (see TargetDummy). They take part in hits under negative ids,
+# -1 for the first, so they never clash with a player's id.
+
+static func dummy_id(index: int) -> int:
+	return -1 - index
+
+
+static func is_dummy(id: int) -> bool:
+	return id < 0
+
+
+func _host_dummy_damage(shooter: int, id: int, amount: float, headshot: bool) -> void:
+	var index := -1 - id
+	if not Net.arena or index >= Net.arena.dummies.size():
+		return
+	var dummy: TargetDummy = Net.arena.dummies[index]
+	if dummy.is_down():
+		return
+	_dummy_hit.rpc(shooter, index, amount, maxf(dummy.health - amount, 0.0), headshot)
+
+
+@rpc("authority", "call_local", "reliable")
+func _dummy_hit(shooter: int, index: int, amount: float, new_health: float, headshot: bool) -> void:
+	if not Net.arena or index >= Net.arena.dummies.size():
+		return
+	var dummy: TargetDummy = Net.arena.dummies[index]
+	var who: Player = Net.arena.get_player(shooter)
+	var distance := who.global_position.distance_to(dummy.global_position) if who else -1.0
+	dummy.show_hit(amount, headshot, new_health, distance)
+	player_hit.emit(shooter, dummy_id(index), amount, headshot)
+	dummy_hit.emit(shooter, index, amount, headshot, new_health <= 0.0)
+
+
+## Practice and offline only (the debug menu): back to full health now.
+func host_heal(id: int) -> void:
+	if Net.is_host() and running and is_alive(id):
+		health[id] = MAX_HEALTH
+		_broadcast_state()
 
 
 ## The local player fell out of the arena.

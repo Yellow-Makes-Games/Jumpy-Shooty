@@ -6,6 +6,7 @@ extends Node3D
 ##    under plain Node3D nodes as you like (the maps group each object, so a click
 ##    selects the whole container or staircase; see docs/DEVELOPMENT.md).
 ##  - MapSpawn nodes: where players appear.
+##  - MapDummy nodes: target dummies to shoot at (test maps).
 ##  - Label3D nodes: signs and painted numbers.
 ##  - A WorldEnvironment (sky, ambient light, fog) and a DirectionalLight3D (the sun).
 ##
@@ -60,6 +61,8 @@ const FALLBACK_PALETTE := "res://game/maps/palettes/construction_site.tres"
 
 ## [position, yaw] of every spawn point; filled in by build().
 var spawns: Array = []
+## [position, yaw, MapDummy] of every target dummy; filled in by build().
+var dummies: Array = []
 
 var _materials := {}
 static var _fallback := {}
@@ -89,6 +92,8 @@ func build(with_meshes: bool = true) -> void:
 	var pieces := []
 	spawns = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
+	dummies = []
+	_collect_dummies(self, Transform3D.IDENTITY)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
 	add_child(body)
@@ -128,6 +133,16 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array) -> 
 		elif child is MapSpawn:
 			spawn_list.append([at.origin + Vector3(0, 0.2, 0), atan2(at.basis.z.x, at.basis.z.z)])
 		_collect(child, at, pieces, spawn_list)
+
+
+func _collect_dummies(node: Node, xf: Transform3D) -> void:
+	for child in node.get_children():
+		if not child is Node3D or not (child as Node3D).visible:
+			continue
+		var at := xf * (child as Node3D).transform
+		if child is MapDummy:
+			dummies.append([at.origin, atan2(at.basis.z.x, at.basis.z.z), child])
+		_collect_dummies(child, at)
 
 
 func _collision_shape(piece: Dictionary) -> Shape3D:

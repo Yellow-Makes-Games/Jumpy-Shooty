@@ -123,6 +123,7 @@ const KEY_BINDINGS := {
 	"reload": [KEY_R],
 	"weapon_1": [KEY_1],
 	"weapon_2": [KEY_2],
+	"debug_menu": [KEY_F1, KEY_QUOTELEFT],  # offline only (Practice, Vs Bots)
 }
 
 const MOUSE_BINDINGS := {

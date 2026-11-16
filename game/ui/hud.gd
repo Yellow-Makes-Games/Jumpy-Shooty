@@ -99,6 +99,7 @@ func _ready() -> void:
 	Match.player_hit.connect(_on_hit)
 	Match.player_died.connect(_on_died)
 	Match.player_respawned.connect(_on_respawned)
+	Match.dummy_hit.connect(_on_dummy_hit)
 
 
 func _full_rect(c: Control) -> Control:
@@ -228,6 +229,14 @@ func _on_hit(shooter: int, target: int, damage: float, headshot: bool) -> void:
 		var who: Player = Net.arena.get_player(shooter) if Net.arena and shooter != me else null
 		if who:
 			_arrows.append({"from": who.global_position, "age": 0.0})
+
+
+## A target dummy brought down counts as a kill for the marker and the confirmation.
+func _on_dummy_hit(shooter: int, _dummy: int, _damage: float, _headshot: bool, killed: bool) -> void:
+	if killed and shooter == Net.my_id():
+		_hit_time = KILL_HIT_TIME
+		_hit_kind = "kill"
+		_confirm = {"name": "Target dummy", "age": 0.0}
 
 
 func _on_died(victim: int, killer: int) -> void:
