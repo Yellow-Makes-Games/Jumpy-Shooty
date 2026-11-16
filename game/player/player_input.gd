@@ -12,6 +12,7 @@ var jump_pressed := false  ## true only on the frame the jump was pressed
 var sprint := false
 var crouch := false
 var crouch_pressed := false  ## crouch pressed this frame (starts a slide when fast)
+var dive := false             ## dive button held (keep holding through the landing to belly-slide)
 var dive_pressed := false
 var grapple := false          ## grapple button held
 var grapple_pressed := false  ## grapple button pressed this frame

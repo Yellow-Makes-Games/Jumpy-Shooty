@@ -12,6 +12,9 @@ extends RefCounted
 ##   MANTLE    vaulting a low obstacle or climbing up a ledge
 ##   DIVE      a forward lunge toward where you look (from the ground or once per jump)
 ##   ROLL      landing from a dive: a short roll that keeps your speed
+##   BELLY_SLIDE  keep holding dive as you land: slide along on your front instead
+##             of rolling. Lower than a crouch. Let go (or jump) to get up; once
+##             the slide runs out you can crawl until you let go.
 ##   FLIP      press jump again in mid-air: a flip toward your WASD direction with a
 ##             small burst, once per jump (a dodge)
 ##
@@ -20,12 +23,13 @@ extends RefCounted
 
 const TUCK_SETTLE_SPEED := 3.0   ## metres per second
 
-enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP }
+enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE }
 
 var tuning: MovementTuning
 var state: State = State.AIR
 var grapple: Grapple
 var crouched := false
+var prone := false   ## lying on your front (belly slide): shorter still than crouched; crouched stays true
 var eye_height := MovementTuning.EYE_HEIGHT  ## eyes above the feet right now (eases when crouching)
 var wall_normal := Vector3.ZERO              ## the wall being run on
 ## How far the feet are lifted by tucking the legs up in the air (0 or up to
@@ -115,8 +119,13 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		vel = _start_dive(vel, input, grounded)
 		diving_now = true
 	if state == State.DIVE and grounded and not diving_now:
-		state = State.ROLL
-		_roll_left = tuning.roll_time
+		if input.dive:
+			vel = _start_belly_slide(vel)   # still holding dive: land on your belly
+		else:
+			state = State.ROLL
+			_roll_left = tuning.roll_time
+	if state == State.BELLY_SLIDE and not grounded:
+		state = State.AIR   # slid off an edge
 	if state == State.ROLL:
 		_roll_left -= delta
 		if not grounded:
@@ -125,10 +134,17 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			state = State.GROUND
 			if input.crouch and Vector2(vel.x, vel.z).length() >= t.slide_start_speed:
 				vel = _start_slide(vel)   # roll straight into a slide
-	var low_move := state in [State.DIVE, State.ROLL]
+	var low_move := state in [State.DIVE, State.ROLL, State.BELLY_SLIDE]
 
-	# --- Crouch (or tuck your legs in the air). Diving and rolling are low too.
-	_update_crouch(body, input.crouch or low_move, grounded, delta)
+	# --- Crouch (or tuck your legs in the air). Diving and rolling are low too, and
+	# a belly slide is lower still. Let go of dive (or jump) to get up from your belly.
+	var want_prone := state == State.BELLY_SLIDE and input.dive and _jump_buffer <= 0.0
+	_update_crouch(body, input.crouch or low_move, want_prone, grounded, delta)
+	if state == State.BELLY_SLIDE and not prone:
+		state = State.GROUND   # up on your feet (or crouched, if there is no room to stand)
+		low_move = false
+		if input.crouch and Vector2(vel.x, vel.z).length() >= t.slide_start_speed:
+			vel = _start_slide(vel)   # up from your belly straight into a slide
 
 	# --- Vault over low obstacles; grab and climb higher ledges while in the air
 	if forward and not low_move and not grapple.attached and not rope_jump and vel.y < t.jump_velocity:
@@ -148,7 +164,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	if state == State.WALL_RUN and not _keep_wall_running(wall, vel, forward, grounded):
 		_end_wall_run()
 
-	var jumping := _jump_buffer > 0.0 and _since_ground <= t.coyote_time
+	var jumping := _jump_buffer > 0.0 and _since_ground <= t.coyote_time and not prone
 	var wall_jump := false
 	if not jumping and _jump_buffer > 0.0 and not grounded and not grapple.attached:
 		var kick := wall if wall != Vector3.ZERO else (_recent_wall if _since_wall <= t.wall_jump_grace else Vector3.ZERO)
@@ -184,6 +200,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
 	elif state == State.ROLL:
 		vel = _roll(vel, wish, delta)
+	elif state == State.BELLY_SLIDE:
+		vel = _belly_slide(body, vel, wish, input, delta)
 	elif grapple.attached and not grounded:
 		# Swinging: gravity plus stronger air steering (to pump the swing), then
 		# the rope removes any motion that would stretch it.
@@ -227,7 +245,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 	if grapple.attached:
 		vel = grapple.constrain_velocity(body, vel, delta)
-		if grounded:
+		if grounded and state != State.BELLY_SLIDE:
 			state = State.GRAPPLE if vel.y > 0.1 else State.GROUND
 
 	body.velocity = vel
@@ -246,6 +264,7 @@ func is_low() -> bool:
 	return crouched
 
 
+
 ## Forget everything in progress (respawn, teleport).
 func reset() -> void:
 	grapple.reset()
@@ -262,6 +281,7 @@ func reset() -> void:
 	if crouched and _shape:
 		_set_height(tuning.stand_height)
 	crouched = false
+	prone = false
 	tuck = 0.0
 	eye_height = MovementTuning.EYE_HEIGHT
 
@@ -283,11 +303,25 @@ func _set_height(h: float) -> void:
 	_shape.position.y = h * 0.5
 
 
-func _update_crouch(body: CharacterBody3D, want: bool, grounded: bool, delta: float) -> void:
+func _update_crouch(body: CharacterBody3D, want: bool, want_prone: bool, grounded: bool, delta: float) -> void:
 	var t := tuning
 	var diff := t.stand_height - t.crouch_height
 	if grounded:
 		tuck = move_toward(tuck, 0.0, TUCK_SETTLE_SPEED * delta)
+	if want_prone and not prone:
+		# Down on your belly: the feet stay on the floor, the top of the body drops.
+		_set_height(t.prone_height)
+		prone = true
+		crouched = true
+		return
+	if prone:
+		if want_prone:
+			return
+		# Up to a crouch, if there is room above; otherwise stay down (and crawl).
+		if body.test_move(body.global_transform, Vector3(0, t.crouch_height - t.prone_height, 0)):
+			return
+		_set_height(t.crouch_height)
+		prone = false
 	if want and not crouched:
 		_set_height(t.crouch_height)
 		crouched = true
@@ -319,6 +353,8 @@ func _update_crouch(body: CharacterBody3D, want: bool, grounded: bool, delta: fl
 
 func _ease_eye(delta: float) -> void:
 	var target := tuning.crouch_eye_height if crouched else MovementTuning.EYE_HEIGHT
+	if prone:
+		target = tuning.prone_eye_height
 	eye_height = move_toward(eye_height, target, tuning.eye_move_speed * delta)
 
 
@@ -451,7 +487,7 @@ func slide_boost_readiness() -> float:
 func _can_dive(grounded: bool) -> bool:
 	if _since_dive < tuning.dive_cooldown or grapple.attached:
 		return false
-	if state in [State.MANTLE, State.DIVE, State.ROLL]:
+	if state in [State.MANTLE, State.DIVE, State.ROLL, State.BELLY_SLIDE]:
 		return false
 	return grounded or not _air_dive_used
 
@@ -484,6 +520,44 @@ func _roll(vel: Vector3, wish: Vector3, delta: float) -> Vector3:
 		var angle := dir.signed_angle_to(wish, Vector3.UP)
 		var turn := tuning.roll_turn_rate * delta
 		h = dir.rotated(Vector3.UP, clamp(angle, -turn, turn)) * speed
+	return Vector3(h.x, min(vel.y, 0.0), h.z)
+
+
+## Landing from a dive with the dive button still held: onto your belly, with a
+## small push forward.
+func _start_belly_slide(vel: Vector3) -> Vector3:
+	var t := tuning
+	state = State.BELLY_SLIDE
+	var h := Vector3(vel.x, 0, vel.z)
+	var speed := h.length()
+	if speed > 0.01 and speed < t.dive_max_speed:
+		h = h / speed * min(speed + t.belly_boost, t.dive_max_speed)
+	return Vector3(h.x, vel.y, h.z)
+
+
+## Sliding on your front: like a slide (little friction, gravity pulls you down
+## slopes) but harder to steer. Once it slows to a crawl, you crawl.
+func _belly_slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, input: PlayerInput, delta: float) -> Vector3:
+	var t := tuning
+	var h := Vector3(vel.x, 0, vel.z)
+	var speed := h.length()
+	if speed <= t.belly_crawl_speed + 0.05:
+		var top: float = t.belly_crawl_speed * min(input.move.length(), 1.0)
+		vel = _apply_friction(vel, top, delta)
+		vel = _accelerate(vel, wish, top, t.ground_accel, delta)
+		return Vector3(vel.x, min(vel.y, 0.0), vel.z)
+	var n := body.get_floor_normal()
+	var downhill := Vector3(0, -t.gravity, 0)
+	downhill -= n * downhill.dot(n)
+	vel += downhill * delta
+	h = Vector3(vel.x, 0, vel.z)
+	speed = h.length()
+	var dir := h / speed
+	if wish != Vector3.ZERO:
+		var angle := dir.signed_angle_to(wish, Vector3.UP)
+		dir = dir.rotated(Vector3.UP, clamp(angle, -t.belly_turn_rate * delta, t.belly_turn_rate * delta))
+	speed = max(speed - t.belly_decel * delta, t.belly_crawl_speed)
+	h = dir * speed
 	return Vector3(h.x, min(vel.y, 0.0), h.z)
 
 

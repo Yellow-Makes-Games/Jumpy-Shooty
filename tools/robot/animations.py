@@ -306,6 +306,39 @@ def dive(t):
     }
 
 
+def _prone(sway=0.0, kick_l=0.0, kick_r=0.0, lift=0.0):
+    """Flat on the front, chest up, gun out in front in both hands. kick_l/kick_r
+    (0..1) draw a knee up and out to the side along the floor, for crawling."""
+    def leg(kick, side):
+        if kick <= 0.0:
+            return fk_leg(-6.0, 6.0, roll=side * 5.0, foot_pitch=-62.0)
+        return foot(side * (0.12 + 0.38 * kick), 0.05, 1.26 - 0.56 * kick, pitch=-75.0 + 15.0 * kick,
+                    pole=(side * 1.0, 0.15, -0.3 * kick))
+    return {
+        "hips": {"pos": (0.0, 0.21 + lift, 0.36), "rot": (-86.0, 0.0, sway)},
+        "spine": (12.0, 0.0, -sway * 0.5), "chest": (14.0, 0.0, -sway * 0.5), "head": (50.0, 0.0, 0.0),
+        "leg_l": leg(kick_l, -1.0), "leg_r": leg(kick_r, 1.0),
+        "arm_r": AIM_R, "arm_l": AIM_L,
+    }
+
+
+def belly_slide(t):
+    """Keep holding dive as you land: sliding on the front, gun out ahead. The game
+    raises the arms to the aim."""
+    s = math.sin(TAU * t / 0.8)
+    return _prone(sway=2.5 * s, lift=0.004 * s)
+
+
+CRAWL_PERIOD = 0.9
+
+
+def belly_crawl(t):
+    """Crawling once a belly slide runs out: knees drawn up in turn."""
+    p = (t / CRAWL_PERIOD) % 1.0
+    k = 0.5 - 0.5 * math.cos(TAU * p)
+    return _prone(sway=6.0 * math.sin(TAU * p), kick_l=max(k, 0.02), kick_r=max(1.0 - k, 0.02))
+
+
 def _tuck(pitch, y, z, thigh=108.0, knee=126.0, spine=-24.0, chest=-18.0, head=-18.0, arm=55.0, elbow=115.0, roll=0.0):
     return {
         "hips": {"pos": (0.0, y, z), "rot": (pitch, 0.0, roll)},
@@ -434,6 +467,8 @@ def body_clips():
         Clip("grapple", 1.2, grapple, loop=True),
         Clip("dive", 0.6, dive, loop=True),
         Clip("roll", 0.45, roll),
+        Clip("belly_slide", 0.8, belly_slide, loop=True),
+        Clip("belly_crawl", CRAWL_PERIOD, belly_crawl, loop=True),
         Clip("flip_front", 0.45, flip_front),
         Clip("flip_back", 0.45, flip_back),
         Clip("flip_left", 0.45, flip_left),

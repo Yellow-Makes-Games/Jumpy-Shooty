@@ -50,6 +50,7 @@ func _initialize() -> void:
 
 	# Obstacles for crouch, slide, wall-run, vault and ledge checks.
 	_box(Vector3(-100, 1.9, -10), Vector3(4, 1, 10))      # low ceiling: 1.4 m gap underneath, z -15..-5
+	_box(Vector3(-100, 1.45, 40), Vector3(4, 1, 10))      # lower still: 0.95 m gap (only lying down fits), z 35..45
 	_box(Vector3(-150, 4, 0), Vector3(1, 8, 60))          # long wall, face at x = -149.5
 	_box(Vector3(100, 0.5, -20), Vector3(2, 1.0, 1.2))    # 1 m crate (vault)
 	_box(Vector3(100, 1.0, -60), Vector3(3, 2.0, 3))      # 2 m block (ledge climb)
@@ -322,6 +323,71 @@ func _initialize() -> void:
 			func():
 				_expect_true("rolled", _data["states"].has(MovementController.State.ROLL))
 				_expect_true("still fast after the roll (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed + t.dive_boost - 1.5)],
+		["holding dive through the landing slides on your belly", 0.9,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 0.05, 200))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -t.run_speed)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.dive = true
+				input.dive_pressed = true
+				_data["states"] = {},
+			func():
+				_expect_true("belly-sliding", motor.state == MovementController.State.BELLY_SLIDE)
+				_expect_true("no roll", not _data["states"].has(MovementController.State.ROLL))
+				_expect_true("lying down: lower than a crouch", motor.prone and motor.eye_height < t.crouch_eye_height - 0.2)
+				_expect_true("still faster than running (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed + 1.0)],
+		["letting go of dive gets you up, keeping speed", 0.4,
+			func(): input.dive = false,
+			func():
+				_expect_true("standing", motor.state == MovementController.State.GROUND and not motor.crouched and not motor.prone)
+				_expect_true("kept moving (%.1f m/s)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > t.run_speed - 0.5)],
+		["letting go while holding crouch goes straight into a slide", 0.9,
+			func():
+				motor.reset()
+				_teleport(Vector3(30, 0.05, 170))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -t.run_speed)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.dive = true
+				input.dive_pressed = true
+				_data["belly_then_crouch"] = true,
+			func():
+				_data.erase("belly_then_crouch")
+				_expect_true("sliding (%s)" % MovementController.State.keys()[motor.state], motor.state == MovementController.State.SLIDE)],
+		["a belly slide runs out into a crawl, and you stay down while dive is held", 4.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(30, 0.05, 130))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -t.run_speed)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.dive = true
+				input.dive_pressed = true,
+			func():
+				_expect_true("still on the belly", motor.state == MovementController.State.BELLY_SLIDE and motor.prone)
+				_expect_near("crawling", motor.horizontal_speed(body), t.belly_crawl_speed, 0.15)],
+		["belly-slide under a 0.95 m gap; let go inside and you stay down until you crawl out", 6.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(-100, 0.05, 52))
+				_clear_input()
+				body.velocity = Vector3(0, 0, -t.run_speed)
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.dive = true
+				input.dive_pressed = true
+				_data["tunnel"] = true,
+			func():
+				_data.erase("tunnel")
+				_expect_true("let go under the gap", _data.has("released"))
+				_expect_true("never got up under it", not _data.has("stood_inside"))
+				_expect_true("crawled out the far side (z = %.1f)" % body.global_position.z, body.global_position.z < 34.5)
+				_expect_true("and stood up", not motor.prone and not motor.crouched)],
 		["only one dive per jump, and a cooldown", 0.8,
 			func():
 				motor.reset()
@@ -404,6 +470,17 @@ func _tick() -> void:
 		if _data["jump_off_after"] <= 0.0:
 			input.jump_pressed = true
 			_steps[_scenario][1] = 0.0  # check straight after this step
+	if _data.has("belly_then_crouch") and motor.state == MovementController.State.BELLY_SLIDE:
+		input.dive = false
+		input.crouch = true
+		input.crouch_pressed = true
+	if _data.has("tunnel"):
+		var z := body.global_position.z
+		if z < 43.0 and input.dive:
+			input.dive = false
+			_data["released"] = true
+		if z > 35.4 and z < 44.6 and _data.has("released") and not motor.prone:
+			_data["stood_inside"] = true
 	if _data.has("dive_again"):
 		_data["dive_again"] += 1
 		if _data["dive_again"] == 30:
@@ -461,6 +538,7 @@ func _clear_input() -> void:
 	input.sprint = false
 	input.crouch = false
 	input.grapple = false
+	input.dive = false
 	input.clear_edges()
 
 

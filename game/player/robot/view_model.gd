@@ -150,7 +150,7 @@ func update(delta: float) -> void:
 	_sway = (_sway + turn * 0.35).limit_length(0.12)
 	_sway = _sway.lerp(Vector2.ZERO, 1.0 - exp(-delta * 9.0))
 
-	_bob_w = move_toward(_bob_w, clampf(speed / 8.0, 0.0, 1.4) if grounded and motor.state != S.SLIDE else 0.0, delta * 6.0)
+	_bob_w = move_toward(_bob_w, clampf(speed / 8.0, 0.0, 1.4) if grounded and motor.state not in [S.SLIDE, S.BELLY_SLIDE] else 0.0, delta * 6.0)
 	_bob += delta * (5.0 + speed * 1.1)
 	var bob := Vector3(sin(_bob) * 0.004, -absf(cos(_bob)) * 0.006, 0.0) * _bob_w
 
@@ -178,7 +178,7 @@ func _pick(motor: MovementController, speed: float, reloading: bool) -> String:
 			var right := Vector3.RIGHT.rotated(Vector3.UP, _player.input.yaw)
 			return "fp_wall_r" if motor.wall_normal.dot(right) < 0.0 else "fp_wall_l"
 		S.MANTLE: return "fp_mantle"
-		S.DIVE: return "fp_dive"
+		S.DIVE, S.BELLY_SLIDE: return "fp_dive"
 		S.ROLL, S.FLIP: return "fp_tuck"
 		S.GRAPPLE: return "fp_one_hand"
 	return "fp_idle"
