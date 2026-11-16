@@ -11,6 +11,7 @@ const S := MovementController.State
 const EYE := Vector3(0.0, 1.60, 0.0)   ## where the camera sits inside the arms model
 const VIEW_FOV := 70.0                 ## must match view_fov in viewmodel.gdshader
 const FADE := 0.13
+const CRAWL_PERIOD := 0.9              ## seconds for one crawl cycle at crawling speed (matches belly_crawl)
 
 var model: RobotModel
 var rig: RobotRig
@@ -29,6 +30,8 @@ var _reload_w := 0.0
 var _raise_t := -1.0
 var _bob := 0.0
 var _bob_w := 0.0
+var _crawl := 0.0
+var _crawl_w := 0.0
 var _dip := 0.0
 var _dip_vel := 0.0
 var _prev_vy := 0.0
@@ -91,7 +94,7 @@ func update(delta: float) -> void:
 	var motor := _player.motor
 	var vel := _player.velocity
 	var speed := Vector2(vel.x, vel.z).length()
-	var grounded := motor.state in [S.GROUND, S.CROUCH, S.SLIDE, S.ROLL]
+	var grounded := motor.state in [S.GROUND, S.CROUCH, S.SLIDE, S.ROLL, S.BELLY_SLIDE]
 	var reloading := _player.weapon.is_reloading()
 	_since_fire += delta
 
@@ -153,6 +156,12 @@ func update(delta: float) -> void:
 	_bob_w = move_toward(_bob_w, clampf(speed / 8.0, 0.0, 1.4) if grounded and motor.state not in [S.SLIDE, S.BELLY_SLIDE] else 0.0, delta * 6.0)
 	_bob += delta * (5.0 + speed * 1.1)
 	var bob := Vector3(sin(_bob) * 0.004, -absf(cos(_bob)) * 0.006, 0.0) * _bob_w
+	# Crawling on your front (a belly slide that has run out of speed): the shoulders work from side to side.
+	var crawling := motor.state == S.BELLY_SLIDE and speed < RobotAnimator.CRAWL_SPEED + 0.6 and speed > 0.3
+	_crawl_w = move_toward(_crawl_w, 1.0 if crawling else 0.0, delta * 5.0)
+	_crawl += delta * TAU * clampf(speed / RobotAnimator.CRAWL_SPEED, 0.4, 1.4) / CRAWL_PERIOD
+	var crawl := sin(_crawl) * _crawl_w
+	bob += Vector3(crawl * 0.018, -absf(crawl) * 0.008, 0.0)
 
 	if grounded and not _was_grounded and _prev_vy < -2.0:
 		_dip_vel -= clampf(-_prev_vy * 0.05, 0.1, 0.7)
@@ -165,7 +174,7 @@ func update(delta: float) -> void:
 	var fall := clampf(-vel.y * 0.0012, -0.012, 0.02) if not grounded else 0.0
 
 	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, _recoil * 0.035)
-	rotation = Vector3(-_sway.y * 0.5 + _recoil * 0.07 + _dip * 0.8, _sway.x * 0.6, _sway.x * 0.5)
+	rotation = Vector3(-_sway.y * 0.5 + _recoil * 0.07 + _dip * 0.8, _sway.x * 0.6 + crawl * 0.03, _sway.x * 0.5 - crawl * 0.05)
 
 
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:

@@ -487,7 +487,7 @@ def body_clips():
 # that spin the whole body in third person become leg sweeps here. Only the legs
 # and torso are drawn; the arms are ViewModel's.
 
-def _seen(lean, left, right, roll=0.0, turn=0.0, spread=6.0, curl=0.5, feet=-20.0):
+def _seen(lean, left, right, roll=0.0, turn=0.0, spread=6.0, curl=0.75, feet=-20.0):
     """lean: pelvis tipped back (degrees). left/right: (thigh, knee) for each leg.
     roll: the whole body wheeled about the line of sight (side flips). curl: how much
     of the lean the spine takes back, so the chest stays under the camera."""
@@ -614,7 +614,9 @@ def fp_sprint(t):
 
 
 def fp_slide(t):
-    return {"arm_r": fp_arm_r(0.19, -0.16, -0.43, cant=-20.0), "arm_l": FP_L_AWAY}
+    """Gun in the right hand; the left trails out to the side, clear of the legs you can see below."""
+    return {"arm_r": fp_arm_r(0.19, -0.16, -0.43, cant=-20.0),
+            "arm_l": fp_arm_l(-0.50, -0.46, -0.10, hand=(50.0, 0.0, 20.0))}
 
 
 def fp_wall_l(t):

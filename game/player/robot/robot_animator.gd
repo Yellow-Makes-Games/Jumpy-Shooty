@@ -23,8 +23,8 @@ const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
 	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06}
 const FLIPS := ["flip_front", "flip_back", "flip_left", "flip_right"]
-const VIEW_BACK := 0.10         ## first person: the neck sits this far behind the eyes...
-const VIEW_BACK_DOWN := 0.42    ## ...and this far when looking straight down,
+const VIEW_BACK := -0.02        ## first person: the front of the chest sits this far behind the eyes (just ahead of them)...
+const VIEW_BACK_DOWN := 0.32    ## ...and this much further back when looking straight down,
 const VIEW_BACK_FROM := 0.7     ## moving back as you look down past this (radians): the collar stays out of sight
 ## First person: in these the torso keeps the pose's lean. In everything else it is
 ## stood upright over the hips, which brings the knees forward into view.
@@ -295,7 +295,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 ## Your own body in first person: you see your legs and torso (not the head or the
 ## arms; ViewModel draws those). Call after update(). The body is kept under and a
 ## little behind the camera whatever it is doing, so you never look into your own
-## chest: its neck stays behind the eyes, further back the more you look down.
+## chest: its neck stays behind the eyes (by the depth of this robot's chest),
+## further back the more you look down.
 ## amount: 1 in first person, 0 in third person (CameraRig.first_person_amount).
 func place_for_view(amount: float, eye_height: float, pitch: float) -> void:
 	if model.view_mesh:
@@ -304,7 +305,8 @@ func place_for_view(amount: float, eye_height: float, pitch: float) -> void:
 		model.position = Vector3.ZERO
 		return
 	var neck := model.bone_position("head")
-	var back := lerpf(VIEW_BACK, VIEW_BACK_DOWN, clampf((-pitch - VIEW_BACK_FROM) / (deg_to_rad(89.0) - VIEW_BACK_FROM), 0.0, 1.0))
+	var back := model.chest_front + VIEW_BACK \
+		+ VIEW_BACK_DOWN * clampf((-pitch - VIEW_BACK_FROM) / (deg_to_rad(89.0) - VIEW_BACK_FROM), 0.0, 1.0)
 	var height := eye_height - VIEW_NECK_BELOW - neck.y
 	var offset := Vector3(clampf(-neck.x, -VIEW_SIDE, VIEW_SIDE), minf(height, 0.0), back - neck.z)
 	# A "view_" clip is made for the camera: its neck goes exactly where the camera expects it.

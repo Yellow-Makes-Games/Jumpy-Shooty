@@ -16,6 +16,7 @@ var rig: RobotRig
 var skeleton: Skeleton3D
 var mesh: MeshInstance3D
 var view_mesh: MeshInstance3D     ## the same body without head and arms (first person only)
+var chest_front := 0.12           ## how far the chest sticks out in front of the neck (set by add_view_mesh)
 
 var _glow_materials: Array = []   # [material, is_shader]
 var _glow_color := Color.WHITE
@@ -104,8 +105,9 @@ func add_view_mesh(layer: int) -> void:
 		return
 	view_mesh = MeshInstance3D.new()
 	view_mesh.name = "ViewBody"
-	var cut: Array = _view_mesh_for(rig, mesh)   # [mesh, which surface of the full mesh each surface was]
+	var cut: Array = _view_mesh_for(rig, mesh)   # [mesh, which surface of the full mesh each surface was, chest depth]
 	view_mesh.mesh = cut[0]
+	chest_front = cut[2]
 	view_mesh.skin = mesh.skin
 	view_mesh.layers = 1 << (layer - 1)
 	view_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -123,12 +125,16 @@ static func _view_mesh_for(model_rig: RobotRig, full: MeshInstance3D) -> Array:
 		return _view_meshes[model_rig]
 	var skin := full.skin
 	var hidden := {}   # bone number as the mesh knows it -> true
+	var chest := -1
 	for b in skin.get_bind_count():
 		var bone_name := String(skin.get_bind_name(b))
 		if bone_name == "":
 			bone_name = model_rig.bone_names[skin.get_bind_bone(b)]
 		if bone_name in VIEW_HIDDEN:
 			hidden[b] = true
+		elif bone_name == "chest":
+			chest = b
+	var front := 0.0   # the chest's most forward point (-z), in the standing pose
 	var source := full.mesh
 	var out := ArrayMesh.new()
 	var surfaces := PackedInt32Array()
@@ -148,6 +154,8 @@ static func _view_mesh_for(model_rig: RobotRig, full: MeshInstance3D) -> Array:
 					best = k
 			if not hidden.has(bones[v * per + best]):
 				kept.append_array([index[t], index[t + 1], index[t + 2]])
+			if bones[v * per + best] == chest:
+				front = maxf(front, maxf(-verts[index[t]].z, maxf(-verts[index[t + 1]].z, -verts[index[t + 2]].z)))
 		if kept.is_empty():
 			continue   # a material only the head or arms use (the visor, the gun)
 		arrays[Mesh.ARRAY_INDEX] = kept
@@ -155,5 +163,5 @@ static func _view_mesh_for(model_rig: RobotRig, full: MeshInstance3D) -> Array:
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
 		out.surface_set_material(surfaces.size(), source.surface_get_material(s))
 		surfaces.append(s)
-	_view_meshes[model_rig] = [out, surfaces]
+	_view_meshes[model_rig] = [out, surfaces, front]
 	return _view_meshes[model_rig]
