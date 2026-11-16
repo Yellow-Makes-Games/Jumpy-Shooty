@@ -32,12 +32,16 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - Skill tricks welcome ("skill tricks galore"): bunny-hopping and air-strafing are intended.
 - No fall damage.
 - Grapple: short cooldown, attaches to any surface.
+- Grapple rope takes up its own slack (always tight, never pulls you in), so swings keep their momentum.
 
-## Arena
+## Maps
 
-- Size: about the size of the current test map (80 x 80 m).
+- **Testing Grounds** (2026-11-16): the starting test map, kept long-term for testing. It is not a player-facing map.
+  - The arena part (80 x 80 m) is the original combat test area.
+  - The training yard (through the doorway on the east side) has practice lanes for the grapple, wall run and wall jump, slide, and vault and ledge climb.
+- **Construction site:** the first playable, player-facing map.
+- Arena size: about the size of the Testing Grounds arena part (80 x 80 m).
 - Themes: different arenas can use different themes.
-- First arena: a construction site.
 
 ## Match rules
 

@@ -74,6 +74,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--autostart=N` | Host starts the match when N players are in the lobby |
 | `--net-sim=L,J,P` | Pretend the connection is bad: L ms latency, J ms jitter, P% loss |
 | `--third-person` | Start in third person |
+| `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot (degrees). Example: `--practice --spawn=45,0,10,-90` puts you at the start of the slide lane |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 
 ## Tuning movement

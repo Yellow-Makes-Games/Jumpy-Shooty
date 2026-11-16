@@ -7,6 +7,8 @@ echo "== Importing project"
 "$GODOT" --headless --path . --import > /dev/null 2>&1 || true
 echo "== Movement checks"
 "$GODOT" --headless --path . --script tests/movement_test.gd
+echo "== Testing Grounds: every practice course can be completed"
+"$GODOT" --headless --path . --script tests/course_test.gd
 echo "== Practice mode boots without errors"
 out=$("$GODOT" --headless --path . -- --practice --quit-after=3 2>&1)
 if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi

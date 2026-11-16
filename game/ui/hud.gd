@@ -150,7 +150,7 @@ func update_local(p: Player) -> void:
 		parts.append("%d:%02d" % [t / 60, t % 60])
 	if Match.kill_target > 0:
 		parts.append("First to %d kills" % Match.kill_target)
-	_match_info.text = "    ".join(parts) if not parts.is_empty() else "Practice"
+	_match_info.text = "    ".join(parts) if not parts.is_empty() else "Practice  ·  %s" % TestingGrounds.MAP_NAME
 
 	var g := p.motor.grapple
 	if g.attached:

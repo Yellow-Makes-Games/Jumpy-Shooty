@@ -21,6 +21,7 @@ extends Node
 ## --auto-return       Leave the results screen for the lobby after 2 seconds.
 ## --third-person      Start in third-person view (not saved to settings).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
+## --spawn=X,Y,Z,YAW[,PITCH]  Start the local player here (degrees), e.g. to look at the training yard.
 ## --window=X,Y,W,H     Window position and size, so several copies can sit side by side.
 
 var host := false
@@ -42,6 +43,7 @@ var net_sim_latency := 0.0
 var net_sim_jitter := 0.0
 var net_sim_loss := 0.0
 var screenshots: Array = []  # [seconds, path]
+var spawn: Array = []        # [Vector3 position, yaw, pitch] in radians, or empty
 
 var _start_ticks := 0
 
@@ -77,6 +79,11 @@ func _ready() -> void:
 				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
 			"--screenshot":
 				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
+			"--spawn":
+				var c := value.split(",")
+				spawn = [Vector3(float(c[0]), float(c[1]), float(c[2])),
+					deg_to_rad(float(c[3])) if c.size() > 3 else 0.0,
+					deg_to_rad(float(c[4])) if c.size() > 4 else 0.0]
 			"--window":
 				var p := value.split(",")
 				if p.size() == 4:

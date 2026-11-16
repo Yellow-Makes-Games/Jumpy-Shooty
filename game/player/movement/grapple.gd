@@ -3,8 +3,9 @@ extends RefCounted
 ## Momentum-based grappling hook.
 ##
 ## The hook does NOT pull you in. It works like a rope: when it catches a surface,
-## the rope's length is fixed at your current distance, and the rope only stops you
-## from moving further away than that. Gravity and your speed do the rest, so you
+## the rope's length is set to your current distance, and the rope only stops you
+## from moving further away than that. It takes up slack as you move closer (so it
+## is always tight), but it never pulls you in. Gravity and your speed do the rest, so you
 ## swing like a pendulum around the anchor:
 ##  - swinging down converts height into speed;
 ##  - steering in the air (WASD) at the right moment pumps the swing higher;
@@ -86,7 +87,11 @@ func release() -> void:
 ## Removes any velocity that would stretch the rope. Velocity along the swing is
 ## untouched, which is what makes this a pendulum rather than a pull.
 func constrain_velocity(body: Node3D, vel: Vector3, delta: float) -> Vector3:
-	length = max(length - tuning.grapple_reel_speed * delta, tuning.grapple_min_length)
+	# The rope takes up its own slack: if you move closer to the anchor it gets
+	# shorter and stays tight, so you never free-fall on a loose rope and then get
+	# jerked to a stop. It never pulls you in, though.
+	var current := rope_origin(body).distance_to(anchor)
+	length = clamp(min(length - tuning.grapple_reel_speed * delta, current), tuning.grapple_min_length, length)
 	var predicted := rope_origin(body) + vel * delta
 	var offset := predicted - anchor
 	if offset.length() <= length:

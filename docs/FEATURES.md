@@ -67,7 +67,8 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Muzzle flash, tracers, impacts | rough | Simple glowing shapes |
 | Weapon sounds | not started | |
 | Bot | not started | Phase 1 (simple), phase 3 (uses movement) |
-| Arena | rough | Greybox test layout; real arena designed in phase 2 |
+| Testing Grounds (test map) | working | Greybox combat arena plus a training yard with practice lanes: grapple beams, wall-run zigzag and wall-jump chimney, slide hill and bars, vault blocks and ledges at marked heights. An automated test runs each course |
+| Construction site (first real arena) | not started | |
 | Character models and animation | not started | Capsule placeholders; phase 4 |
 | Sound | not started | |
 
