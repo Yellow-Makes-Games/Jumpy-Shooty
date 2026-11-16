@@ -21,8 +21,10 @@ echo "== Testing Grounds: every practice course can be completed"
 run_script tests/course_test.gd
 echo "== Construction Site: spawn points, bot navigation and every movement route"
 run_script tests/site_test.gd
+echo "== Office: spawn points, bot navigation and every movement route"
+run_script tests/office_test.gd
 echo "== Practice mode boots without errors on every map"
-for map in construction_site testing_grounds; do
+for map in construction_site office testing_grounds; do
   out=$("$GODOT" --headless --path . -- --practice --map="$map" --quit-after=3 2>&1)
   if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi
 done
@@ -39,6 +41,8 @@ echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Testing Grounds)
 MAP=testing_grounds tests/run_bot_test.sh
 echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Construction Site)"
 MAP=construction_site tests/run_bot_test.sh
+echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Office)"
+MAP=office tests/run_bot_test.sh
 echo "== Bots climb the Construction Site tower to a player on top"
 tests/run_bot_climb_test.sh
 echo "ALL TESTS PASSED"

@@ -54,9 +54,10 @@ or WSL; I run these on every change anyway):
 - movement checks (speeds, stopping, jump height, momentum in the air);
 - robot checks: the model files hold every bone and clip, each movement state plays the
   right animation, and the poses fit the hitbox (`tests/robot_test.gd`);
-- the Testing Grounds practice courses and the Construction Site routes: a scripted
-  player runs each one (`tests/course_test.gd`, `tests/site_test.gd`). The site test also
-  checks the spawn points and that a bot can walk to every level. To run one route and
+- the Testing Grounds practice courses and the Construction Site and Office routes: a
+  scripted player runs each one (`tests/course_test.gd`, `tests/site_test.gd`,
+  `tests/office_test.gd`). The site and office tests also check the spawn points and that
+  a bot can walk to every level. To run one route and
   print what the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless
   --path . --script tests/site_test.gd`;
 - map scenes: every map loads and builds, every block has a colour, and the resize
@@ -90,7 +91,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
-| `--map=ID` | Which map: `construction_site` (the default), `testing_grounds`, or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `construction_site` (the default), `office`, `testing_grounds`, or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -105,8 +106,8 @@ top of `game/dev/dev_args.gd`. The useful ones:
 
 ## Maps
 
-Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn` and
-`game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`,
+`game/maps/office.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
@@ -146,7 +147,8 @@ things needs no extra step.
 it tells you if a route no longer works or a bot can no longer reach a floor. The test
 keeps its own note of where the routes are (at the top of `tests/site_test.gd`), so if
 you move the lift shaft or a climbing crate on purpose, change its numbers there too.
-The same goes for the Testing Grounds courses and `tests/course_test.gd`.
+The same goes for the Office and `tests/office_test.gd`, and the Testing Grounds courses
+and `tests/course_test.gd`.
 `tests/map_scene_test.gd` checks that every map loads, has a colour for every block and
 has enough spawn points.
 
