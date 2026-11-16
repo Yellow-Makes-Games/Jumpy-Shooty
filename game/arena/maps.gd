@@ -6,6 +6,7 @@ extends RefCounted
 
 const LIST := [
 	{"id": "construction_site", "name": "Construction Site", "scene": "res://game/maps/construction_site.tscn", "dev": false},
+	{"id": "office", "name": "Office", "scene": "res://game/maps/office.tscn", "dev": false},
 	{"id": "testing_grounds", "name": "Testing Grounds", "scene": "res://game/maps/testing_grounds.tscn", "dev": true},
 ]
 
