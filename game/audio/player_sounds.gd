@@ -28,8 +28,6 @@ var _reload_next := 0
 var _fire_t := -1.0
 var _fire_next := 0
 var _grapple_pending := -1.0   # attach clack, a moment after the hook flies
-var _wind: AudioStreamPlayer    # rushing air (your own player only)
-var _wind_level := 0.0
 var _quiet := 0.0              # seconds of silence left (just spawned: no landing thud)
 
 
@@ -82,7 +80,6 @@ func update(delta: float, a: RobotAnimInput, shown: bool) -> void:
 		_reset(a)
 		_alive = alive
 		_started = true
-		_update_wind(a, delta)
 		return
 	_quiet = maxf(_quiet - delta, 0.0)
 	var speed := Vector2(a.velocity.x, a.velocity.z).length()
@@ -91,7 +88,6 @@ func update(delta: float, a: RobotAnimInput, shown: bool) -> void:
 	else:
 		_movement(a, speed, delta)
 	_gun(a, delta)
-	_update_wind(a, delta)
 
 
 func _reset(a: RobotAnimInput) -> void:
@@ -230,33 +226,3 @@ func _gun(a: RobotAnimInput, delta: float) -> void:
 			_fire_next += 1
 		if _fire_next >= steps.size():
 			_fire_t = -1.0
-
-
-## Your own player only: rushing air at high speed (falls, swings, dives).
-func _update_wind(a: RobotAnimInput, delta: float) -> void:
-	if not own:
-		return
-	var speed := a.velocity.length() if a.alive else 0.0
-	var target := clampf((speed - 12.0) / 16.0, 0.0, 1.0)
-	_wind_level = move_toward(_wind_level, target, delta * 2.5)
-	if _wind == null:
-		if _wind_level <= 0.0 or Sound.silent or not Sound.has_sound("wind_loop"):
-			return
-		_wind = AudioStreamPlayer.new()
-		_wind.stream = Sound.stream("wind_loop")
-		_wind.bus = Sound.BUS_SFX
-		player.add_child(_wind)
-	if _wind_level <= 0.0:
-		if _wind.playing:
-			_wind.stop()
-		return
-	if not _wind.playing:
-		_wind.play(randf() * 2.0)
-	var level := _wind_level
-	_wind.volume_db = SfxList.VOLUME["wind_loop"] + linear_to_db(maxf(level, 0.001))
-	_wind.pitch_scale = 0.9 + level * 0.25
-
-
-func stop() -> void:
-	if _wind:
-		_wind.stop()

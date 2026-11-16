@@ -584,8 +584,6 @@ func _print_animation(shown: String) -> void:
 
 
 func _exit_tree() -> void:
-	if sounds:
-		sounds.stop()
 	if DevArgs.sync_log and _logged_anim != "":
 		_print_animation("-")  # this body is gone (match over, or the player left)
 

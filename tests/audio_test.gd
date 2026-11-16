@@ -4,7 +4,7 @@ extends SceneTree
 ##
 ## Every sound the code asks for exists and loads; every sound file has a volume;
 ## every gun has its shot (near, first-person and distant) and its equip sound; the
-## reload and pump/bolt steps fit inside each gun's timings; the wind loops.
+## reload and pump/bolt steps fit inside each gun's timings.
 
 const DIR := "res://game/audio/sfx/"
 
@@ -54,8 +54,6 @@ func _init() -> void:
 			"ui_toggle", "ui_tick", "ui_select", "match_start", "match_end"]:
 		_check(_exists(sound), "%s exists" % sound)
 
-	var wind := load(DIR + "wind_loop.wav") as AudioStreamWAV
-	_check(wind != null and wind.loop_mode == AudioStreamWAV.LOOP_FORWARD, "the wind loops")
 
 	print("PASS" if _ok else "FAIL")
 	quit(0 if _ok else 1)

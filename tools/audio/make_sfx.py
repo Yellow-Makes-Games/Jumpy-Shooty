@@ -654,24 +654,6 @@ def grapple_miss():
                       (metal_clack(rng, 0.95, 0.6, 0.5) * 0.5, 0.45)))
 
 
-def wind_loop():
-    """Rushing air at speed; loops seamlessly (the game sets its volume by speed)."""
-    rng = np.random.default_rng(9700)
-    length = 3.0
-    extra = 0.5
-    total = length + extra
-    lo = lp(noise(rng, total), 700) * 1.4
-    mid = bp(noise(rng, total), 900, 0.8) * (0.6 + 0.4 * np.sin(2 * math.pi * 0.7 * tt(total)))
-    hi = hp(noise(rng, total), 5000) * 0.04
-    x = lo + mid + hi
-    body = x[: n(length)].copy()
-    k = n(extra)
-    fade = np.linspace(0, 1, k)
-    body[:k] = body[:k] * fade + x[n(length): n(length) + k] * (1 - fade)   # the end flows into the start
-    body = hp(body, 40)
-    return body * (PEAK / np.max(np.abs(body)))
-
-
 # ---------------------------------------------------------------------------
 # Menus and match flow
 
@@ -773,7 +755,6 @@ def recipes():
     r["grapple_attach"] = grapple_attach
     r["grapple_release"] = grapple_release
     r["grapple_miss"] = grapple_miss
-    r["wind_loop"] = wind_loop
     for u in ["ui_hover", "ui_click", "ui_confirm", "ui_back", "ui_toggle", "ui_tick", "ui_select"]:
         r[u] = lambda u=u: ui(u)
     r["match_start"] = match_start
