@@ -53,7 +53,8 @@ static func draw(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 		var col := HudStyle.WHITE if i < v.ammo and not v.reloading else HudStyle.DIM
 		if v.reloading and i < int(ticks * v.reload):
 			col = HudStyle.ORANGE
-		HudStyle.edged_rect(ci, Rect2(right - (ticks - i) * 9.0 + 3.0, bottom - 36.0, 6.0, 16.0), col)
+		var pitch := 9.0 if ticks <= 15 else 6.0   # a 30-round magazine packs its ticks closer
+		HudStyle.edged_rect(ci, Rect2(right - (ticks - i) * pitch + 3.0, bottom - 36.0, pitch - 3.0, 16.0), col)
 	if v.reloading:
 		HudStyle.text(ci, Vector2(right, bottom - 66.0), "RELOADING", 24, HudStyle.ORANGE, HORIZONTAL_ALIGNMENT_RIGHT)
 	else:

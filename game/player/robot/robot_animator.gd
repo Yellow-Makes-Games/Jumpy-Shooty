@@ -11,7 +11,11 @@ extends RefCounted
 ##  5. Legs turn at the waist to face the way the robot is moving (it can strafe
 ##     and back-pedal while the upper body keeps aiming).
 ##  6. Recoil, and the left arm reaching for the grapple anchor.
-## The clips come from the model file; see tools/robot/animations.py.
+## The clips come from the model file; see tools/robot/animations.py. A long gun has its
+## own version of the clips where the hands hold the gun ("aim_rifle", "reload_shotgun";
+## tools/robot/weapon_anims.py), used instead of the plain (pistol) ones. Long guns also
+## turn the chest a little (a bladed stance; the twist is in their aim clip), carry the
+## gun across the chest when sprinting, and work a pump or bolt after each shot.
 
 const S := MovementController.State
 const RUN_SPEED := 8.0
@@ -42,6 +46,8 @@ const AIM_WEIGHTS := {
 
 var model: RobotModel
 var rig: RobotRig
+## The gun in the hands (an id from WeaponData). Set it with set_weapon().
+var weapon := "pistol"
 ## What the body is doing right now, e.g. "loco", "slide", "flip_back". Tests read this.
 var source := ""
 ## Posing your own body for the first-person camera: the torso stays upright under
@@ -88,6 +94,12 @@ var _upright := 0.0       # first person: how much of the torso's forward lean i
 var _view_clip := false   # first person: the body is playing a "view_" clip this frame...
 var _pin := 0.0           # ...so its neck is pinned to the camera (eases in and out)
 var _snap_view := false   # first person was just switched on or off
+var _stance := Quaternion.IDENTITY   # the chest's turn for the gun's stance (from its aim clip)
+var _carry := 0.0         # sprinting with a long gun: arms holding it across the chest
+var _carry_pose: RobotPose
+var _fire_t := -1.0       # time into the gun's fire clip (pump, bolt), or -1
+var _kick := 1.0
+var _loop_reload := false
 
 var _b := {}                      # bone name -> index
 var _arm_r: PackedInt32Array
@@ -111,8 +123,27 @@ func _init(robot: RobotModel) -> void:
 	for i in rig.bone_names.size():
 		if not (i in _arm_r or i in _arm_l):
 			_not_arms.append(i)
-	if rig.has_clip("aim"):
-		rig.sample(_aim, "aim", 0.0)
+	_carry_pose = rig.new_pose()
+	set_weapon(robot.weapon if robot.weapon != "" else "pistol")
+
+
+## Hold this gun: its stance, reload and fire animations.
+func set_weapon(id: String) -> void:
+	weapon = WeaponData.valid(id)
+	var data := WeaponData.by_id(weapon)
+	_kick = data.kick
+	_loop_reload = data.reload_per_round
+	if rig.has_clip(clip("aim")):
+		rig.sample(_aim, clip("aim"), 0.0)
+	_stance = _aim.rot[_b["chest"]].normalized()
+	if rig.has_clip("carry_" + weapon):
+		rig.sample(_carry_pose, "carry_" + weapon, 0.0)
+
+
+## The gun's own version of a clip if it has one ("reload" -> "reload_rifle"), otherwise the clip.
+func clip(base: String) -> String:
+	var own := base + "_" + weapon
+	return own if rig.has_clip(own) else base
 
 
 func _bones(names: Array) -> PackedInt32Array:
@@ -125,8 +156,10 @@ func _bones(names: Array) -> PackedInt32Array:
 
 ## A shot was fired: kick the gun.
 func fire() -> void:
-	_recoil = 1.0
+	_recoil = _kick
 	_since_fire = 0.0
+	if rig.has_clip("fire_" + weapon):
+		_fire_t = 0.0
 
 
 ## Back to life: play the boot-up over whatever the body is doing.
@@ -177,9 +210,10 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		else:
 			_kick_t = -1.0
 	if _respawn_t >= 0.0:
-		if rig.has_clip("respawn") and _respawn_t < rig.length("respawn") and inp.alive:
-			rig.sample(_tmp, "respawn", _respawn_t)
-			_pose.blend(_tmp, 1.0 - smoothstep(0.3, 1.0, _respawn_t / rig.length("respawn")))
+		var rclip := clip("respawn")
+		if rig.has_clip(rclip) and _respawn_t < rig.length(rclip) and inp.alive:
+			rig.sample(_tmp, rclip, _respawn_t)
+			_pose.blend(_tmp, 1.0 - smoothstep(0.3, 1.0, _respawn_t / rig.length(rclip)))
 			_respawn_t += delta
 		else:
 			_respawn_t = -1.0
@@ -200,35 +234,63 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var want: Array = AIM_WEIGHTS.get(key, [0.0, 0.0, 0.0])
 	var want_r: float = want[0]
 	var want_l: float = want[1]
-	if key == "loco" and speed > RUN_SPEED + 1.0 and _since_fire > 0.7 and _reload_t < 0.0:
-		want_r = 0.0   # sprinting: arms pump, until you shoot
+	var sprinting := key == "loco" and speed > RUN_SPEED + 1.0 and _since_fire > 0.7 and _reload_t < 0.0
+	if sprinting:
+		want_r = 0.0   # sprinting: arms pump (a long gun is carried across the chest), until you shoot
 		want_l = 0.0
+	var has_carry := weapon != "pistol" and rig.has_clip("carry_" + weapon)
+	_carry = move_toward(_carry, 1.0 if sprinting and has_carry and inp.alive else 0.0, delta * 7.0)
 	if _respawn_t >= 0.0:
 		want_r = 0.0
 		want_l = 0.0
 	_aim_r = move_toward(_aim_r, want_r, delta * 9.0)
 	_aim_l = move_toward(_aim_l, want_l, delta * 9.0)
 	_torso = move_toward(_torso, want[2], delta * 8.0)
+	if _carry > 0.0:
+		_pose.blend_bones(_carry_pose, _carry, _arm_r)
+		_pose.blend_bones(_carry_pose, _carry, _arm_l)
 	_pose.blend_bones(_aim, _aim_r, _arm_r)
 	_pose.blend_bones(_aim, _aim_l, _arm_l)
 
 	var reloading := inp.reloading() and inp.alive
-	if reloading and not _was_reloading and rig.has_clip("reload"):
+	var rclip := clip("reload")
+	if reloading and not _was_reloading and rig.has_clip(rclip):
 		_reload_t = 0.0
 	_was_reloading = reloading
 	_reload_w = 0.0
 	if _reload_t >= 0.0:
-		var rlen := rig.length("reload")
-		if _reload_t >= rlen or not inp.alive or (not reloading and _reload_t < rlen - 0.3):
+		var rlen := rig.length(rclip)
+		if _loop_reload and reloading and _reload_t >= rlen:
+			_reload_t = fmod(_reload_t, rlen)   # a shell at a time: round and round until full
+		if _reload_t >= rlen or not inp.alive or (not reloading and (_loop_reload or _reload_t < rlen - 0.3)):
 			_reload_t = -1.0
 		else:
-			_reload_w = clampf(minf(_reload_t / 0.1, (rlen - _reload_t) / 0.15), 0.0, 1.0)
+			_reload_w = 1.0 if _loop_reload else clampf(minf(_reload_t / 0.1, (rlen - _reload_t) / 0.15), 0.0, 1.0)
 			if want[2] <= 0.0:
 				_reload_w = 0.0   # mid-flip, mid-roll: the hands are busy
-			rig.sample(_tmp, "reload", _reload_t)
+			rig.sample(_tmp, rclip, _reload_t)
 			_pose.blend_bones(_tmp, _reload_w, _arm_r)
 			_pose.blend_bones(_tmp, _reload_w, _arm_l)
 			_reload_t += delta
+
+	# The pump or the bolt, after a shot (the left hand only where it is on the gun)
+	if _fire_t >= 0.0:
+		var fclip := "fire_" + weapon
+		var flen := rig.length(fclip)
+		if _fire_t >= flen or not inp.alive or _reload_w > 0.0:
+			_fire_t = -1.0
+		else:
+			var fw := clampf(minf(_fire_t / 0.06, (flen - _fire_t) / 0.12), 0.0, 1.0)
+			rig.sample(_tmp, fclip, _fire_t)
+			_pose.blend_bones(_tmp, fw * _aim_r, _arm_r)
+			_pose.blend_bones(_tmp, fw * minf(_aim_l, _aim_r), _arm_l)
+			_fire_t += delta
+
+	# A long gun's stance: the chest turns a little to bring the left shoulder forward
+	var stance := maxf(_aim_r, _reload_w)
+	var twist := Quaternion.IDENTITY.slerp(_stance, stance)
+	_pose.rot[_b["chest"]] = _pose.rot[_b["chest"]] * twist
+	_pose.rot[_b["head"]] = twist.inverse() * _pose.rot[_b["head"]]   # the head keeps looking where you aim
 
 	# --- 4. Aim pitch through the spine, then the arms make up the difference
 	var hips: int = _b["hips"]
@@ -244,14 +306,15 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var chest_fwd := chest_rot * Vector3.FORWARD
 	var chest_pitch := asin(clampf(chest_fwd.y, -1.0, 1.0))
 	_recoil = _recoil * exp(-delta * 16.0)
-	var lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7) + _recoil * 0.2
+	var lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7) + minf(_recoil, 1.5) * 0.2
 	var up_r: int = _b["upper_arm_r"]
 	var up_l: int = _b["upper_arm_l"]
 	var w_r := maxf(_aim_r, _reload_w)
 	var w_l := maxf(_aim_l, _reload_w)
-	_pose.rot[up_r] = Quaternion(Vector3.RIGHT, lift * w_r) * _pose.rot[up_r]
-	_pose.rot[up_l] = Quaternion(Vector3.RIGHT, lift * w_l) * _pose.rot[up_l]
-	if _b.has("pistol_slide"):
+	var across := twist.inverse() * Vector3.RIGHT   # the body's left-right axis, seen from the turned chest
+	_pose.rot[up_r] = Quaternion(across, lift * w_r) * _pose.rot[up_r]
+	_pose.rot[up_l] = Quaternion(across, lift * w_l) * _pose.rot[up_l]
+	if _b.has("pistol_slide") and weapon == "pistol":
 		_pose.pos[_b["pistol_slide"]] += Vector3(0.0, 0.035 * _recoil, 0.0)
 
 	# --- 6 (before the waist turn, which must not move the chest). Grapple arm

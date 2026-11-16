@@ -1,6 +1,6 @@
 extends Control
 ## Multiplayer lobby: shows who is connected and who is hosting, and lets each
-## player pick their robot. The host starts the match; anyone can leave.
+## player pick their robot and their gun. The host starts the match; anyone can leave.
 
 var _col: VBoxContainer          # the left column: players, map, rules
 var _side: VBoxContainer         # the right column: your character
@@ -16,6 +16,7 @@ var _amount_unit: Label
 var _map_label: Label
 var _map_pick: OptionButton
 var _character: CharacterPicker
+var _weapon: WeaponPicker
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
 
 
@@ -40,6 +41,7 @@ func _ready() -> void:
 	UiKit.spacer(_col, 4)
 	_build_map()
 	_build_rules()
+	UiKit.spacer(_col, 4)
 	_build_character()
 	UiKit.spacer(page, 4)
 	var buttons := HBoxContainer.new()
@@ -81,9 +83,11 @@ func _refresh() -> void:
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
 		_character.set_color(Net.player_color(Net.my_id()))
+		_weapon.select(Net.player_weapon(Net.my_id()))
+		_character.set_weapon(Net.player_weapon(Net.my_id()))
 
 
-## One player: colour stripe, name, HOST and YOU tags, robot.
+## One player: colour stripe, name, HOST and YOU tags, robot and gun.
 func _player_row(id: int) -> PanelContainer:
 	var card := PanelContainer.new()
 	var box := StyleBoxFlat.new()
@@ -111,7 +115,7 @@ func _player_row(id: int) -> PanelContainer:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
-	var who := UiKit.label(row, Characters.name_of(Net.player_character(id)), true, 16)
+	var who := UiKit.label(row, "%s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name], true, 16)
 	who.autowrap_mode = TextServer.AUTOWRAP_OFF
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return card
@@ -140,8 +144,22 @@ func _tag(parent: Node, text: String, color: Color) -> void:
 # Character: everyone picks their own robot. Saved as your choice for next time too.
 func _build_character() -> void:
 	Net.confirm_my_character()
-	_character = CharacterPicker.new(Net.player_character(Net.my_id()), Net.player_color(Net.my_id()), true)
+	_character = CharacterPicker.new(Net.player_character(Net.my_id()), Net.player_color(Net.my_id()), true,
+		Net.player_weapon(Net.my_id()))
 	_side.add_child(_character)
+	# Your gun: in the left column, under the rules (the side column is narrow).
+	_weapon = WeaponPicker.new(Net.player_weapon(Net.my_id()))
+	_col.add_child(_weapon)
+	_weapon.picked.connect(func(id: String):
+		Settings.weapon = id
+		Settings.save_settings()
+		_character.set_weapon(id)
+		Net.set_my_weapon(id))
+	if DevArgs.switch_weapon and not Match.last_results.is_empty():
+		get_tree().create_timer(1.2).timeout.connect(func():
+			if is_inside_tree() and not Net.in_match:
+				var ids := WeaponData.IDS
+				Net.set_my_weapon(ids[(ids.find(Net.player_weapon(Net.my_id())) + 1) % ids.size()]))
 	_character.picked.connect(func(id: String):
 		Settings.character = id
 		Settings.save_settings()

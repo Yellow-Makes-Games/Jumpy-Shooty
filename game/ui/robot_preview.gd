@@ -6,6 +6,7 @@ extends SubViewportContainer
 
 var character := ""
 var color := Color.WHITE
+var weapon := "pistol"   ## the gun in its hands
 var turn := true   ## sway left and right; false keeps it facing you
 
 var _stage: Node3D
@@ -52,15 +53,17 @@ func _init(preview_size: Vector2 = Vector2(150, 190), zoom: float = 1.0) -> void
 	view.add_child(_stage)
 
 
-func show_robot(id: String, player_color: Color) -> void:
+func show_robot(id: String, player_color: Color, gun: String = "") -> void:
 	id = Characters.valid(id)
-	if id == character and player_color == color and not _robots.is_empty() and not _lineup:
+	gun = weapon if gun == "" else WeaponData.valid(gun)
+	if id == character and player_color == color and gun == weapon and not _robots.is_empty() and not _lineup:
 		return
 	character = id
 	color = player_color
+	weapon = gun
 	_lineup = false
 	_drop_robots()
-	_add(id, player_color, Vector3.ZERO, 0.0)
+	_add(id, player_color, Vector3.ZERO, 0.0, gun)
 	_camera.position = Vector3(0, 1.0, 4.6)
 
 
@@ -81,14 +84,36 @@ func show_lineup(ids: Array, colors: Array, spacing: float = 1.15) -> void:
 	_camera.position = Vector3(0, 1.0, dist)
 
 
-func _add(id: String, player_color: Color, at: Vector3, phase: float) -> void:
-	var robot := RobotModel.new().setup(Characters.body(id), player_color)
+func _add(id: String, player_color: Color, at: Vector3, phase: float, gun: String = "pistol") -> void:
+	var robot := RobotModel.new().setup(Characters.body(id), player_color, false, gun)
 	robot.position = at
 	_stage.add_child(robot)
 	var pose := robot.rig.new_pose()
-	robot.rig.sample(pose, "idle", phase)
+	var entry := {"robot": robot, "pose": pose, "phase": phase, "hold": null}
+	# A long gun: hold it the way the game does (its aim pose on the arms, chest turned).
+	if robot.rig.has_clip("aim_" + gun):
+		var hold := robot.rig.new_pose()
+		robot.rig.sample(hold, "aim_" + gun, 0.0)
+		entry.hold = hold
+	_robots.append(entry)
+	_pose(entry, phase)
+
+
+func _pose(r: Dictionary, t: float) -> void:
+	var robot: RobotModel = r.robot
+	var pose: RobotPose = r.pose
+	robot.rig.sample(pose, "idle", fmod(t, robot.rig.length("idle")))
+	if r.hold:
+		var hold: RobotPose = r.hold
+		var rig := robot.rig
+		var arms := PackedInt32Array()
+		for n in ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag"]:
+			arms.append(rig.bones[n])
+		pose.blend_bones(hold, 1.0, arms)
+		var chest: int = rig.bones["chest"]
+		pose.rot[chest] = pose.rot[chest] * hold.rot[chest]
+		pose.rot[rig.bones["head"]] = hold.rot[chest].inverse() * pose.rot[rig.bones["head"]]
 	pose.apply(robot.skeleton)
-	_robots.append({"robot": robot, "pose": pose, "phase": phase})
 
 
 func _process(delta: float) -> void:
@@ -97,8 +122,7 @@ func _process(delta: float) -> void:
 	_time += delta
 	for r in _robots:
 		var robot: RobotModel = r.robot
-		robot.rig.sample(r.pose, "idle", fmod(_time + r.phase, robot.rig.length("idle")))
-		(r.pose as RobotPose).apply(robot.skeleton)
+		_pose(r, _time + r.phase)
 		if _lineup:   # each turned a little toward the middle of the row
 			robot.rotation.y = PI + 0.15 - clampf(robot.position.x * 0.4, -0.5, 0.5)
 	if not _lineup:

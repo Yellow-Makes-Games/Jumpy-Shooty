@@ -15,6 +15,8 @@ run_script() {  # fails on any script error, even if the script itself reports P
 run_script tests/movement_test.gd
 echo "== Robot model and animator checks"
 run_script tests/robot_test.gd
+echo "== Weapons: damage, falloff and reloading"
+run_script tests/weapon_test.gd
 echo "== Map scenes: every map loads and builds; blocks and resize handles"
 run_script tests/map_scene_test.gd
 echo "== Testing Grounds: every practice course can be completed"

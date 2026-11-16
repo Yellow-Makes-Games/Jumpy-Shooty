@@ -92,13 +92,13 @@ func _on_player_respawned(id: int, _spawn_index: int) -> void:
 		p.expect_respawn()
 
 
-func _on_shot_fired(shooter: int, muzzle: Vector3, end: Vector3, hit_player: bool) -> void:
+func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array) -> void:
 	var p := get_player(shooter)
 	if shooter == Net.my_id() or (p and p.is_local):
 		return  # we (or our bot) already drew this shot the moment it was fired
 	if p:
 		p.show_shot()
-	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, end, hit_player)
+	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter))
 
 
 ## The spawn point furthest from every living opponent of `who`.

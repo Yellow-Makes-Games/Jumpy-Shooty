@@ -10,6 +10,9 @@ extends Node
 ## --autostart=N        Host only: start the match once N players are in the lobby.
 ## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit) without changing the saved choice.
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
+## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
+## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
+## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --practice           Skip the menus and drop into the arena alone.
 ## --map=ID             Which map to play: construction_site, office or testing_grounds (host, practice and bot).
 ## --bot=LEVEL          Skip the menus and start a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert).
@@ -43,6 +46,9 @@ var autostart := 0
 var practice := false
 var character := ""
 var switch_character := false
+var weapon := ""
+var bot_weapon := ""
+var switch_weapon := false
 var map := ""
 var bot := -1
 var bots := 1
@@ -92,6 +98,15 @@ func _ready() -> void:
 				else:
 					push_warning("Unknown character: %s (characters: %s)" % [value, ", ".join(Characters.ids())])
 			"--switch-character": switch_character = true
+			"--weapon", "--bot-weapon":
+				if WeaponData.has(value):
+					if key == "--weapon":
+						weapon = value
+					else:
+						bot_weapon = value
+				else:
+					push_warning("Unknown weapon: %s (weapons: %s)" % [value, ", ".join(WeaponData.IDS)])
+			"--switch-weapon": switch_weapon = true
 			"--map":
 				if Maps.has(value):
 					map = value

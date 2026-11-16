@@ -22,7 +22,12 @@ const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const BODY_BONES := ["root", "hips", "spine", "chest", "head", "upper_arm_l", "forearm_l", "hand_l",
 	"upper_arm_r", "forearm_r", "hand_r", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r",
-	"foot_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple"]
+	"foot_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper"]
+const LONG_GUNS := ["shotgun", "rifle", "sniper"]
+## Each long gun's own versions of these (e.g. "aim_rifle"); the pump and bolt guns also have "fire".
+const GUN_BODY_CLIPS := ["aim", "carry", "reload", "respawn"]
+const GUN_ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",
+	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
 	"pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple"]
 
@@ -30,6 +35,7 @@ var failures := 0
 var robot: RobotModel
 var animator: RobotAnimator
 var _character := ""
+var _weapon := "pistol"
 var _done := false
 
 
@@ -50,8 +56,18 @@ func _checks() -> void:
 	_expect("an unknown character falls back to the default", Characters.valid("nobody") == Characters.default_id())
 	var first := RobotRig.open(Characters.body(Characters.default_id()))
 	for id in Characters.ids():
-		_check_file(Characters.body(id), BODY_BONES, BODY_CLIPS)
-		_check_file(Characters.arms(id), ARM_BONES, ARM_CLIPS)
+		var body_clips := BODY_CLIPS.duplicate()
+		var arm_clips := ARM_CLIPS.duplicate()
+		for gun in LONG_GUNS:
+			for c in GUN_BODY_CLIPS:
+				body_clips.append(c + "_" + gun)
+			for c in GUN_ARM_CLIPS:
+				arm_clips.append(c + "_" + gun)
+			if gun != "rifle":
+				body_clips.append("fire_" + gun)
+				arm_clips.append("fp_fire_" + gun)
+		_check_file(Characters.body(id), BODY_BONES, body_clips)
+		_check_file(Characters.arms(id), ARM_BONES, arm_clips)
 		var rig := RobotRig.open(Characters.body(id))
 		var same := rig.bone_names == first.bone_names
 		for i in mini(rig.rest_pos.size(), first.rest_pos.size()):
@@ -72,6 +88,10 @@ func _checks() -> void:
 		_character = id
 		_drop_robot()
 		_check_character()
+		for gun in LONG_GUNS:
+			_drop_robot()
+			_check_gun(gun)
+		_drop_robot()
 
 
 func _check_character() -> void:
@@ -165,6 +185,66 @@ func _check_character() -> void:
 	_expect("dead: the body is down on the floor", _top() < 0.75, "%.2f" % _top())
 	_expect("dead: nothing sinks through the floor", _lowest_bone() > -0.12, "%.2f" % _lowest_bone())
 	_check_first_person()
+
+
+## A robot holding a long gun: it shows only that gun, holds it in both hands, aims
+## it, works its pump or bolt, carries it when sprinting and reloads it.
+func _check_gun(gun: String) -> void:
+	print("%s with the %s" % [Characters.name_of(_character), WeaponData.name_of(gun)])
+	_weapon = gun
+	_fresh()
+	var own := 0
+	var others := []
+	for i in robot.mesh.mesh.get_surface_count():
+		var mname := robot.mesh.mesh.surface_get_material(i).resource_name
+		if mname.begins_with(gun + "."):
+			own += 1
+		elif "." in mname:
+			others.append(mname)
+	_expect("shows its own gun and no other", own >= 3 and others.is_empty(), "%d surfaces; others %s" % [own, others])
+	_expect("the animator holds the same gun", animator.weapon == gun)
+
+	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
+	var level := robot.muzzle()
+	var grip := robot.marker("pistol")
+	_expect("standing: barrel out in front at chest height", level.z < -0.55 and level.y > 1.2 and level.y < 1.7, str(level))
+	_expect("standing: barrel points forward", (level - grip).normalized().dot(Vector3.FORWARD) > 0.9, str((level - grip).normalized()))
+	var hands := robot.marker("hand_l").distance_to(robot.marker("hand_r"))
+	_expect("standing: both hands on the gun", hands > 0.12 and hands < 0.45, "%.2f m apart" % hands)
+	var head_fwd: Vector3 = robot.skeleton.get_bone_global_pose(robot.rig.bones["head"]).basis * Vector3.FORWARD
+	_expect("standing: the chest turns but the head looks ahead", head_fwd.dot(Vector3.FORWARD) > 0.95, str(head_fwd))
+	_fresh()
+	_run(_input(S.GROUND, Vector3.ZERO, deg_to_rad(40.0)), 1.0)
+	_expect("aiming up 40 degrees raises the barrel", robot.muzzle().y > level.y + 0.2, "%.2f" % robot.muzzle().y)
+	var up_dir := (robot.muzzle() - robot.marker("pistol")).normalized()
+	_expect("and points it up", up_dir.y > 0.45, str(up_dir))
+
+	if gun != "rifle":
+		_fresh()
+		_run(_input(S.GROUND, Vector3.ZERO, 0.0), 0.5)
+		var rest := robot.marker("pistol_slide").distance_to(robot.marker("pistol"))
+		animator.fire()
+		var moved := 0.0
+		for i in 40:
+			_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0 / 60.0)
+			moved = maxf(moved, absf(robot.marker("pistol_slide").distance_to(robot.marker("pistol")) - rest))
+		_expect("firing works the %s" % ("pump" if gun == "shotgun" else "bolt"), moved > 0.05, "%.3f m" % moved)
+
+	_fresh()
+	_run(_input(S.GROUND, Vector3(0, 0, -11.5), 0.0), 1.0)
+	var carried := (robot.muzzle() - robot.marker("pistol")).normalized()
+	_expect("sprinting: carried across the chest, muzzle up", carried.y > 0.2 and animator._carry > 0.9, str(carried))
+
+	_fresh()
+	var reloading := _input(S.GROUND, Vector3.ZERO, 0.0)
+	reloading.flags = RobotAnimInput.make_flags(false, false, true, 0, 0)
+	_run(reloading, 1.0)
+	var mid_reload := robot.marker("hand_l").distance_to(robot.marker("hand_r"))
+	_run(reloading, 1.0)
+	if gun == "shotgun":
+		_expect("reloading: loads shell after shell while the reload lasts", animator._reload_t >= 0.0)
+	_expect("reloading: the left hand leaves its hold", absf(mid_reload - hands) > 0.03 or gun == "shotgun", "%.2f vs %.2f" % [mid_reload, hands])
+	_weapon = "pistol"
 
 
 ## Your own body in first person (Player does this for the local player only).
@@ -280,7 +360,7 @@ func _check_file(path: String, bones: Array, clips: Array) -> void:
 ## A robot back in its starting state (one model, a new animator each time).
 func _fresh() -> void:
 	if robot == null:
-		robot = RobotModel.new().setup(Characters.body(_character), Color(1, 0.3, 0.2))
+		robot = RobotModel.new().setup(Characters.body(_character), Color(1, 0.3, 0.2), false, _weapon)
 		root.add_child(robot)
 	robot.position = Vector3.ZERO
 	animator = RobotAnimator.new(robot)

@@ -5,8 +5,9 @@
     python3 tools/robot/build.py --drafts DIR   # writes every draft design into DIR, for comparing looks
 
 Each playable character (designs.PLAYABLE) gets NAME.glb (the full body) and
-NAME_arms.glb (the first-person arms and pistol). They share one skeleton and one
-set of animations: designs.py is each robot's shape, animations.py the moves.
+NAME_arms.glb (the first-person arms and guns). They share one skeleton and one
+set of animations: designs.py is each robot's shape, weapons.py the guns every robot
+carries, animations.py the moves and weapon_anims.py the long guns' versions of them.
 After changing either, run this and then open the project in Godot (it re-imports
 the files on its own).
 """
@@ -25,9 +26,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 def body_clips():
     try:
         import animations
+        import weapon_anims
     except ImportError:
         return []
-    return [c.bake(BODY) for c in animations.body_clips()]
+    return [c.bake(BODY) for c in animations.body_clips() + weapon_anims.body_clips()]
 
 
 def slim(mesh, k):
@@ -56,10 +58,11 @@ def main():
             print("%s: %d triangles" % (name, mesh.count()))
         return
     import animations
+    import weapon_anims
     out = os.path.join(ROOT, "game", "player", "robot")
     os.makedirs(out, exist_ok=True)
     clips = body_clips()
-    arm_clips = [c.bake(BODY) for c in animations.arms_clips()]
+    arm_clips = [c.bake(BODY) for c in animations.arms_clips() + weapon_anims.arms_clips()]
     for name in designs.PLAYABLE:
         mesh = designs.DESIGNS[name]()
         write_model(os.path.join(out, name + ".glb"), BODY, mesh, designs.MATERIALS, clips, name=name.capitalize())

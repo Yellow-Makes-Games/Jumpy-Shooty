@@ -6,6 +6,8 @@ extends Node3D
 ## It follows what your body is doing (sprint, slide, wall run, vault, dive, flips,
 ## grapple, reload) with a small set of arm poses, plus movement you can feel:
 ## sway when you turn, bob when you run, a dip when you land, recoil when you shoot.
+## Each long gun has its own set of these poses ("fp_idle_rifle"...), and the shotgun
+## and sniper rifle work their pump or bolt after every shot ("fp_fire_shotgun").
 
 const S := MovementController.State
 const EYE := Vector3(0.0, 1.60, 0.0)   ## where the camera sits inside the arms model
@@ -44,12 +46,17 @@ var _last_yaw := 0.0
 var _last_pitch := 0.0
 var _grapple_w := 0.0
 var _arm_l: PackedInt32Array
+var _weapon := "pistol"
+var _data: WeaponData
+var _fire_t := -1.0
 
 
 func setup(player: Player, color: Color) -> void:
 	_player = player
 	name = "ViewModel"
-	model = RobotModel.new().setup(Characters.arms(Net.player_character(player.peer_id)), color, true)
+	_data = player.weapon.data if player.weapon else WeaponData.pistol()
+	_weapon = _data.id
+	model = RobotModel.new().setup(Characters.arms(Net.player_character(player.peer_id)), color, true, _weapon)
 	model.position = -EYE
 	model.set_layer(Player.VIEWMODEL_LAYER)
 	add_child(model)
@@ -62,13 +69,21 @@ func setup(player: Player, color: Color) -> void:
 		_arm_l.append(rig.bones[n])
 	_last_yaw = player.input.yaw
 	_last_pitch = player.input.pitch
-	rig.sample(_pose, "fp_idle", 0.0)
+	rig.sample(_pose, clip("fp_idle"), 0.0)
 	_pose.apply(model.skeleton)
 
 
+## The gun's own version of a pose if it has one ("fp_idle" -> "fp_idle_rifle").
+func clip(base: String) -> String:
+	var own := base + "_" + _weapon
+	return own if rig.has_clip(own) else base
+
+
 func fire() -> void:
-	_recoil = 1.0
+	_recoil = _data.kick
 	_since_fire = 0.0
+	if rig.has_clip("fp_fire_" + _weapon):
+		_fire_t = 0.0
 
 
 func respawn() -> void:
@@ -102,7 +117,7 @@ func update(delta: float) -> void:
 	_since_fire += delta
 
 	# --- Arm pose for what the body is doing
-	var key := _pick(motor, speed, reloading)
+	var key := clip(_pick(motor, speed, reloading))
 	if key != source:
 		_from.copy(_base)
 		_fade = 0.0 if source != "" else 1.0
@@ -120,12 +135,24 @@ func update(delta: float) -> void:
 	# --- Reload and respawn play over the top
 	_reload_w = move_toward(_reload_w, 1.0 if reloading else 0.0, delta * 9.0)
 	if _reload_w > 0.0:
-		rig.sample(_tmp, "fp_reload", _player.weapon.reload_progress() * rig.length("fp_reload") if reloading else 0.0)
+		var rclip := clip("fp_reload")
+		rig.sample(_tmp, rclip, _player.weapon.round_progress() * rig.length(rclip) if reloading else 0.0)
 		_pose.blend(_tmp, _reload_w)
+	# Working the pump or the bolt after a shot
+	if _fire_t >= 0.0:
+		var fclip := "fp_fire_" + _weapon
+		var flen := rig.length(fclip)
+		if _fire_t >= flen or reloading:
+			_fire_t = -1.0
+		else:
+			rig.sample(_tmp, fclip, _fire_t)
+			_pose.blend(_tmp, clampf(minf(_fire_t / 0.05, (flen - _fire_t) / 0.12), 0.0, 1.0) * (1.0 - _grapple_w))
+			_fire_t += delta
 	if _raise_t >= 0.0:
-		if _raise_t < rig.length("fp_raise"):
-			rig.sample(_tmp, "fp_raise", _raise_t)
-			_pose.blend(_tmp, 1.0 - smoothstep(0.6, 1.0, _raise_t / rig.length("fp_raise")))
+		var raise := clip("fp_raise")
+		if _raise_t < rig.length(raise):
+			rig.sample(_tmp, raise, _raise_t)
+			_pose.blend(_tmp, 1.0 - smoothstep(0.6, 1.0, _raise_t / rig.length(raise)))
 			_raise_t += delta
 		else:
 			_raise_t = -1.0
@@ -144,7 +171,8 @@ func update(delta: float) -> void:
 		_pose.rot[rig.bones["hand_l"]] = _pose.rot[rig.bones["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
 
 	_recoil *= exp(-delta * 18.0)
-	_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
+	if _weapon == "pistol":
+		_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
 	_pose.apply(model.skeleton)
 
 	# --- Whole-view movement: sway, bob, landing dip, recoil
@@ -176,9 +204,10 @@ func update(delta: float) -> void:
 	_dip += _dip_vel * delta
 	var fall := clampf(-vel.y * 0.0012, -0.012, 0.02) if not grounded else 0.0
 
-	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, _recoil * 0.035)
+	var kick := minf(_recoil, 1.6)
+	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, kick * 0.035)
 	position += LOOK_DOWN_SHIFT * smoothstep(deg_to_rad(LOOK_DOWN_FROM), deg_to_rad(LOOK_DOWN_FULL), -pitch)
-	rotation = Vector3(-_sway.y * 0.5 + _recoil * 0.07 + _dip * 0.8, _sway.x * 0.6 + crawl * 0.03, _sway.x * 0.5 - crawl * 0.05)
+	rotation = Vector3(-_sway.y * 0.5 + kick * 0.07 + _dip * 0.8, _sway.x * 0.6 + crawl * 0.03, _sway.x * 0.5 - crawl * 0.05)
 
 
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:

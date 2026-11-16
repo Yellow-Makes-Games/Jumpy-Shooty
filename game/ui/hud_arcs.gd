@@ -3,7 +3,8 @@ extends RefCounted
 ## "Twin arcs" HUD layout: everything about you sits around the crosshair, so you
 ## never look away from the middle of the screen while moving fast.
 ## Left arc: health (fills from the bottom; a red chunk shows what you just lost).
-## Right arc: one tick per round in the magazine (fills orange while reloading).
+## Right arc: one tick per round in the magazine (fills orange while reloading; a
+## shotgun's fills shell by shell).
 ## Under the crosshair: four short arcs for grapple, dive, flip and slide boost,
 ## then your speed and what you are doing.
 
@@ -27,10 +28,11 @@ static func draw(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 	# Ammo, right: rounds from 35 deg (lower right) up to -35 deg (upper right).
 	var n := clampi(v.magazine, 1, 30)
 	var step := SPAN / n
+	var gap := minf(0.8, step * 0.18)   # thinner gaps for a 30-round magazine
 	var bottom := SPAN * 0.5
 	for i in n:
-		var a0 := bottom - i * step - 0.8
-		var a1 := a0 - step + 1.6
+		var a0 := bottom - i * step - gap
+		var a1 := a0 - step + gap * 2.0
 		var on := i < v.ammo and not v.reloading
 		HudStyle.edged_arc(ci, c, R, a1, a0, HudStyle.WHITE if on else HudStyle.DIM, 7.0)
 	if v.reloading:

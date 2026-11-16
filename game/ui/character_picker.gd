@@ -14,14 +14,16 @@ const PREVIEW_TALL := Vector2(230, 280)    # above the buttons (the lobby's side
 var current := ""
 
 var _color := Color.WHITE
+var _weapon := "pistol"
 var _buttons := {}                 # character id -> Button
 var _blurb: Label
 var _preview: RobotPreview
 
 
 ## tall: put the preview above the buttons (for a narrow column) instead of beside them.
-func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], tall: bool = false) -> void:
+func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], tall: bool = false, gun: String = "pistol") -> void:
 	_color = player_color
+	_weapon = WeaponData.valid(gun)
 	add_theme_constant_override("separation", 6)
 	UiKit.section(self, "Robot")
 	var box: BoxContainer = VBoxContainer.new() if tall else HBoxContainer.new()
@@ -85,5 +87,12 @@ func _on_pressed(id: String) -> void:
 	picked.emit(id)
 
 
+## Put this gun in the preview robot's hands.
+func set_weapon(id: String) -> void:
+	if WeaponData.valid(id) != _weapon:
+		_weapon = WeaponData.valid(id)
+		_show_robot()
+
+
 func _show_robot() -> void:
-	_preview.show_robot(current, _color)
+	_preview.show_robot(current, _color, _weapon)
