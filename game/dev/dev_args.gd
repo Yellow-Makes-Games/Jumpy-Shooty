@@ -30,6 +30,7 @@ extends Node
 ## --press=SEC:ACTION   Press an input action (e.g. toggle_camera) SEC seconds after start (repeatable).
 ## --hold=SEC:ACTION:DURATION  Hold an input action down for DURATION seconds, starting SEC seconds after start (repeatable).
 ## --spawn=X,Y,Z,YAW[,PITCH]  Start the local player here (degrees), e.g. to look at the training yard.
+## --look=SEC:YAW,PITCH  Turn the local player's view by YAW and to PITCH (degrees) SEC seconds after start (repeatable).
 ## --window=X,Y,W,H     Window position and size, so several copies can sit side by side.
 
 var host := false
@@ -60,6 +61,7 @@ var screenshots: Array = []  # [seconds, path]
 var presses: Array = []      # [seconds, action]
 var holds: Array = []        # [start seconds, action, end seconds, is down]
 var spawn: Array = []        # [Vector3 position, yaw, pitch] in radians, or empty
+var looks: Array = []        # [seconds, yaw turn, pitch] in radians
 
 var _start_ticks := 0
 
@@ -115,6 +117,10 @@ func _ready() -> void:
 					holds.append([float(h[0]), h[1], float(h[0]) + float(h[2]), false])
 			"--screenshot":
 				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
+			"--look":
+				var l := value.get_slice(":", 1).split(",")
+				if l.size() == 2:
+					looks.append([float(value.get_slice(":", 0)), deg_to_rad(float(l[0])), deg_to_rad(float(l[1]))])
 			"--spawn":
 				var c := value.split(",")
 				spawn = [Vector3(float(c[0]), float(c[1]), float(c[2])),
@@ -158,6 +164,13 @@ func _process(_delta: float) -> void:
 		elif hold[3] and elapsed >= hold[2]:
 			holds.erase(hold)
 			Input.action_release(hold[1])
+	for look in looks.duplicate():
+		if elapsed >= look[0]:
+			looks.erase(look)
+			var me: Player = Net.arena.local_player if Net.arena else null
+			if me:
+				me.input.yaw += look[1]
+				me.input.pitch = look[2]
 	for shot in screenshots.duplicate():
 		if elapsed >= shot[0]:
 			screenshots.erase(shot)

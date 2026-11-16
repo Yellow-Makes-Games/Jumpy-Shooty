@@ -103,6 +103,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		add_child(rig)
 		rig.setup(self)
 		robot.set_layer(CameraRig.BODY_LAYER)
+		robot.add_view_mesh(CameraRig.VIEW_BODY_LAYER)
 		view = ViewModel.new()
 		rig.camera.add_child(view)
 		view.setup(self, Net.player_color(id))
@@ -510,7 +511,11 @@ func _animate(delta: float) -> void:
 	visual.transform = Transform3D(Basis(Vector3.UP, _visual_yaw), Vector3(0, -_corpse_drop, 0))
 	_anim.alive = alive
 	_anim.yaw = _visual_yaw
+	var first_person := rig.first_person_amount() if rig and alive else 0.0
+	animator.first_person = first_person > 0.0
 	animator.update(delta, _anim, visual.global_transform)
+	if rig:
+		animator.place_for_view(first_person, motor.eye_height, input.pitch)
 	if DevArgs.sync_log:
 		_log_animation()
 

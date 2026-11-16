@@ -9,6 +9,8 @@ const TP_DISTANCE := 3.4
 const TP_SHOULDER := 0.55
 const BLEND_TIME := 0.18
 const BODY_LAYER := 2   ## render layer of the local player's own body (hidden in first person)
+const VIEW_BODY_LAYER := 4   ## your own legs and torso as seen in first person (hidden in third person)
+const BODY_SWAP := 0.35   ## how far toward third person the view switches from one body to the other
 
 var pivot: Node3D
 var arm: SpringArm3D
@@ -59,6 +61,12 @@ func is_third_person() -> bool:
 	return Settings.third_person
 
 
+## 1 in first person, falling to 0 by the time the full body is shown (on the way
+## to third person). The body you see in first person is placed and posed by this.
+func first_person_amount() -> float:
+	return 1.0 - clampf(_blend / BODY_SWAP, 0.0, 1.0)
+
+
 func _process(delta: float) -> void:
 	if not camera:
 		return
@@ -69,8 +77,9 @@ func _process(delta: float) -> void:
 	var tp := tp_anchor.global_transform
 	camera.global_transform = fp.interpolate_with(tp, s)
 	# Hide our own body while the camera is inside or near it.
-	camera.set_cull_mask_value(BODY_LAYER, _blend > 0.35)
-	camera.set_cull_mask_value(Player.VIEWMODEL_LAYER, _blend <= 0.35)
+	camera.set_cull_mask_value(BODY_LAYER, _blend > BODY_SWAP)
+	camera.set_cull_mask_value(VIEW_BODY_LAYER, _blend <= BODY_SWAP)
+	camera.set_cull_mask_value(Player.VIEWMODEL_LAYER, _blend <= BODY_SWAP)
 
 
 func _on_settings_changed() -> void:

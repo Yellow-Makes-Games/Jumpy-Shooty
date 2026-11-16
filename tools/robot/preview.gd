@@ -12,6 +12,11 @@ extends SceneTree
 ## aiming: {"puppet": {"state": 0, "velocity": [x,y,z], "pitch": 20, "flags": 0,
 ##   "crouched": false, "grapple": [x,y,z], "alive": true, "seconds": 1.0,
 ##   "fire_at": 0.9, "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
+## A puppet with "first_person": {"pitch": -40, "eye": 1.6, "fov": 95} is seen through
+## its own eyes (the shot's camera is ignored): the body as you see it in first person.
+
+const BODY_LAYER := 2        # CameraRig's layers (that script needs the whole game loaded)
+const VIEW_BODY_LAYER := 4
 
 var _job := {}
 var _shot := -1
@@ -93,6 +98,8 @@ func _set_up(shot: Dictionary) -> void:
 	root.size = Vector2i(size[0], size[1])
 	DisplayServer.window_set_size(Vector2i(size[0], size[1]))
 	var cam: Dictionary = shot.camera
+	_camera.near = 0.05
+	_camera.set_cull_mask_value(BODY_LAYER, true)
 	_camera.position = _v(cam.pos)
 	_camera.look_at(_v(cam.look))
 	if cam.get("ortho", 0.0) > 0.0:
@@ -142,12 +149,23 @@ func _puppet(item: Dictionary) -> void:
 	var animator := RobotAnimator.new(robot)
 	var inp := RobotAnimInput.new()
 	var step: Dictionary = item.puppet
+	var first: Dictionary = item.get("first_person", {})
+	var holder := Node3D.new()   # the first-person body is moved about inside this
+	if not first.is_empty():
+		holder.transform = robot.transform
+		robot.transform = Transform3D.IDENTITY
+		_root.remove_child(robot)
+		_root.add_child(holder)
+		holder.add_child(robot)
+		robot.set_layer(BODY_LAYER)
+		robot.add_view_mesh(VIEW_BODY_LAYER)
+		animator.first_person = true
 	while not step.is_empty():
 		inp.state = int(step.get("state", inp.state))
 		inp.crouched = step.get("crouched", inp.crouched)
 		if step.has("velocity"):
-			inp.velocity = _v(step.velocity).rotated(Vector3.UP, robot.rotation.y)
-		inp.yaw = robot.rotation.y
+			inp.velocity = _v(step.velocity).rotated(Vector3.UP, robot.global_rotation.y)
+		inp.yaw = robot.global_rotation.y
 		inp.pitch = deg_to_rad(step.get("pitch", rad_to_deg(inp.pitch)))
 		inp.flags = int(step.get("flags", inp.flags))
 		inp.alive = step.get("alive", inp.alive)
@@ -161,8 +179,18 @@ func _puppet(item: Dictionary) -> void:
 				animator.fire()
 				fired = true
 			animator.update(1.0 / 60.0, inp, robot.global_transform)
+			if not first.is_empty():
+				animator.place_for_view(1.0, first.get("eye", 1.6), deg_to_rad(first.get("pitch", 0.0)))
 			t += 1.0 / 60.0
 		step = step.get("then", {})
+	if not first.is_empty() and not first.get("outside", false):   # "outside": keep the shot's camera
+		_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+		_camera.fov = first.get("fov", 95.0)
+		_camera.near = 0.05
+		_camera.set_cull_mask_value(BODY_LAYER, false)
+		_camera.global_transform = holder.global_transform * Transform3D(
+			Basis.from_euler(Vector3(deg_to_rad(first.get("pitch", 0.0)), 0.0, deg_to_rad(first.get("roll", 0.0)))),
+			Vector3(0.0, first.get("eye", 1.6), 0.0))
 	if item.has("label"):
 		var tag := Label3D.new()
 		tag.text = item.label
@@ -171,7 +199,7 @@ func _puppet(item: Dictionary) -> void:
 		tag.pixel_size = 0.004
 		tag.font_size = 32
 		tag.outline_size = 10
-		tag.position = robot.position + Vector3(0, 2.1, 0)
+		tag.position = (robot.position + Vector3(0, 2.1, 0)) if first.is_empty() else _camera.global_transform * Vector3(0.0, 0.85, -1.0)
 		_root.add_child(tag)
 
 
