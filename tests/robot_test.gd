@@ -1,9 +1,10 @@
 extends SceneTree
-## Headless checks on the robot model and its animator.
+## Headless checks on the robot models (every playable character) and the animator.
 ## Run: godot --headless --path . --script tests/robot_test.gd
 ##
-## Checks that the model files hold every bone and clip the game asks for, that each
-## movement state plays the right animation, and that the poses make sense for the
+## For each character in Characters: the model files hold every bone and clip the game
+## asks for, the skeleton matches the others (so animations and the hitbox are shared),
+## each movement state plays the right animation, and the poses make sense for the
 ## hitbox: standing height, crouch height, feet on the floor, gun following the aim.
 
 const S := MovementController.State
@@ -24,6 +25,7 @@ const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forear
 var failures := 0
 var robot: RobotModel
 var animator: RobotAnimator
+var _character := ""
 var _done := false
 
 
@@ -32,8 +34,7 @@ func _process(_delta: float) -> bool:
 		return true
 	_checks()
 	print("ROBOT TEST PASSED" if failures == 0 else "ROBOT TEST FAILED: %d" % failures)
-	for i in robot.mesh.mesh.get_surface_count():   # headless Godot grumbles at exit otherwise
-		robot.mesh.set_surface_override_material(i, null)
+	_drop_robot()
 	quit(1 if failures else 0)
 	_done = true
 	return false
@@ -41,8 +42,17 @@ func _process(_delta: float) -> bool:
 
 func _checks() -> void:
 	print("Robot model files")
-	_check_file(RobotModel.BODY, BODY_BONES, BODY_CLIPS)
-	_check_file(RobotModel.ARMS, ARM_BONES, ARM_CLIPS)
+	_expect("at least two characters to choose from", Characters.LIST.size() >= 2)
+	_expect("an unknown character falls back to the default", Characters.valid("nobody") == Characters.default_id())
+	var first := RobotRig.open(Characters.body(Characters.default_id()))
+	for id in Characters.ids():
+		_check_file(Characters.body(id), BODY_BONES, BODY_CLIPS)
+		_check_file(Characters.arms(id), ARM_BONES, ARM_CLIPS)
+		var rig := RobotRig.open(Characters.body(id))
+		var same := rig.bone_names == first.bone_names
+		for i in mini(rig.rest_pos.size(), first.rest_pos.size()):
+			same = same and rig.rest_pos[i].distance_to(first.rest_pos[i]) < 0.001
+		_expect("%s: same skeleton as %s" % [id, Characters.default_id()], same)
 
 	print("Animation flags survive packing")
 	var inp := RobotAnimInput.new()
@@ -54,7 +64,14 @@ func _checks() -> void:
 	_expect("wall-jump counter wraps", inp.wall_jumps() == 2)
 	_expect("fits a snapshot float exactly", int(float(inp.flags)) == inp.flags and inp.flags < 128)
 
-	print("Each movement state plays its animation")
+	for id in Characters.ids():
+		_character = id
+		_drop_robot()
+		_check_character()
+
+
+func _check_character() -> void:
+	print("%s: each movement state plays its animation" % Characters.name_of(_character))
 	var right := RobotAnimInput.make_flags(true, false, false, 0, 0)
 	var vault := RobotAnimInput.make_flags(false, true, false, 0, 0)
 	var flip_r := RobotAnimInput.make_flags(false, false, false, RobotAnimInput.FLIP_RIGHT, 0)
@@ -78,7 +95,7 @@ func _checks() -> void:
 		_expect("%s%s shows \"%s\"" % [S.keys()[c[0]], "" if c[3] else " (dead)", c[4]], animator.source == c[4],
 			"got \"%s\"" % animator.source)
 
-	print("Poses fit the hitbox")
+	print("%s: poses fit the hitbox" % Characters.name_of(_character))
 	_fresh()
 	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
 	_near("standing: top of the head", _top(), 1.76, 0.08)
@@ -146,9 +163,18 @@ func _check_file(path: String, bones: Array, clips: Array) -> void:
 ## A robot back in its starting state (one model, a new animator each time).
 func _fresh() -> void:
 	if robot == null:
-		robot = RobotModel.new().setup(RobotModel.BODY, Color(1, 0.3, 0.2))
+		robot = RobotModel.new().setup(Characters.body(_character), Color(1, 0.3, 0.2))
 		root.add_child(robot)
 	animator = RobotAnimator.new(robot)
+
+
+func _drop_robot() -> void:
+	if robot == null:
+		return
+	for i in robot.mesh.mesh.get_surface_count():   # headless Godot grumbles otherwise
+		robot.mesh.set_surface_override_material(i, null)
+	robot.queue_free()
+	robot = null
 
 
 func _input(state: int, velocity: Vector3, pitch: float) -> RobotAnimInput:

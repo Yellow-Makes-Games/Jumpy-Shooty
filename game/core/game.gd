@@ -36,6 +36,11 @@ func local_name() -> String:
 	return "Player"
 
 
+## The robot this copy of the game plays as.
+func local_character() -> String:
+	return DevArgs.character if DevArgs.character != "" else Settings.character
+
+
 func goto_main_menu(notice: String = "") -> void:
 	if notice != "":
 		pending_notice = notice
@@ -53,7 +58,7 @@ func start_practice(map: String = "") -> void:
 	mode = Mode.PRACTICE
 	if map != "":
 		last_practice_map = map
-	Net.start_offline(local_name())
+	Net.start_offline(local_name(), local_character())
 	Net.match_settings["map"] = _map_choice(last_practice_map)
 	Net.host_start_match()
 
@@ -62,7 +67,7 @@ func start_practice(map: String = "") -> void:
 func start_bot(difficulty: int, kills_to_win: int, map: String = "") -> void:
 	mode = Mode.BOT
 	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": map if map != "" else last_bot.map}
-	Net.start_offline(local_name())
+	Net.start_offline(local_name(), local_character())
 	Net.match_settings = {"mode": "kills", "kills": kills_to_win, "minutes": 8, "map": _map_choice(last_bot.map)}
 	Net.add_bot(difficulty)
 	Net.host_start_match()
@@ -83,7 +88,7 @@ func _map_choice(picked: String) -> String:
 func host_online() -> Error:
 	mode = Mode.ONLINE
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
-	var err := Net.host_direct(local_name(), port)
+	var err := Net.host_direct(local_name(), local_character(), port)
 	if err == OK and DevArgs.map != "":
 		var with_map := Net.match_settings.duplicate()
 		with_map["map"] = DevArgs.map
@@ -103,7 +108,7 @@ func host_online() -> Error:
 
 func join_online(address: String) -> Error:
 	mode = Mode.ONLINE
-	return Net.join_direct(local_name(), address)
+	return Net.join_direct(local_name(), local_character(), address)
 
 
 func leave_to_menu() -> void:
@@ -142,7 +147,10 @@ func _on_match_over(_results: Array) -> void:
 
 
 func _on_players_changed() -> void:
-	if DevArgs.autostart > 0 and Net.is_host() and not Net.in_match and Net.players.size() >= DevArgs.autostart:
+	# Dev/test: start as soon as enough players have joined. After a match the lobby
+	# restarts on its own timer instead (so a change in the lobby does not cut it short).
+	if DevArgs.autostart > 0 and Net.is_host() and not Net.in_match and Net.players.size() >= DevArgs.autostart \
+			and Match.last_results.is_empty():
 		print("[dev] autostart with %d players" % Net.players.size())
 		Net.host_start_match()
 

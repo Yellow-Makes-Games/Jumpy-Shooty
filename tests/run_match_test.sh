@@ -5,6 +5,8 @@
 #  - kills, deaths and respawns happen
 #  - the match ends at the kill target and every copy gets the same results
 #  - every copy shows the others' animations, shots, reloads and deaths
+#  - every copy shows each player as the robot they picked, and a new pick made in
+#    the lobby between the two matches shows up in the second one
 #  - there are no script errors
 # Usage: tests/run_match_test.sh [PLAYERS] [NET_SIM]
 set -euo pipefail
@@ -19,14 +21,15 @@ rm -f "$OUT"/match_*.log
 EXTRA=()
 if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
 if [[ -n "${MAP:-}" ]]; then EXTRA+=("--map=$MAP"); fi   # MAP=testing_grounds picks the map (default: the game's default)
-COMMON=(--scripted-input --scripted-fire --sync-log --auto-return --quit-after=150)
+COMMON=(--scripted-input --scripted-fire --sync-log --auto-return --switch-character --quit-after=150)
+CHARACTERS=(needle vanguard)
 
-"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --autostart="$PLAYERS" \
+"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --character=needle --autostart="$PLAYERS" \
   --rules=kills:4 --time-limit=60 "${COMMON[@]}" "${EXTRA[@]}" > "$OUT/match_1.log" 2>&1 &
 HOST=$!
 sleep 1
 for i in $(seq 2 "$PLAYERS"); do
-  "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name="P$i" "${COMMON[@]}" "${EXTRA[@]}" \
+  "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name="P$i" --character="${CHARACTERS[$(((i + 1) % 2))]}" "${COMMON[@]}" "${EXTRA[@]}" \
     > "$OUT/match_$i.log" 2>&1 &
 done
 # Two matches back to back (results -> lobby -> play again). Stop everyone a few
@@ -82,5 +85,5 @@ print("PASS: match test" if ok else "FAIL: match test")
 sys.exit(0 if ok else 1)
 PY
 echo "-- Animation: every copy shows what each player is doing"
-python3 tests/check_anim.py --need=loco,air,death,reload "$OUT"/match_*.log || fail=1
+python3 tests/check_anim.py --need=loco,air,death,reload --characters=2 --switched "$OUT"/match_*.log || fail=1
 exit $fail

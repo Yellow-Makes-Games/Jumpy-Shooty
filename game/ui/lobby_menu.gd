@@ -1,8 +1,9 @@
 extends Control
-## Multiplayer lobby: shows who is connected and who is hosting.
-## The host starts the match; anyone can leave.
+## Multiplayer lobby: shows who is connected and who is hosting, and lets each
+## player pick their robot. The host starts the match; anyone can leave.
 
-var _col: VBoxContainer
+var _col: VBoxContainer          # the left column: players, map, rules
+var _side: VBoxContainer         # the right column: your character
 var _list: VBoxContainer
 var _start: Button
 var _info: Label
@@ -13,24 +14,36 @@ var _amount: SpinBox
 var _amount_unit: Label
 var _map_label: Label
 var _map_pick: OptionButton
+var _character: CharacterPicker
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
 
 
 func _ready() -> void:
-	_col = UiKit.screen(self, 520)
-	UiKit.title(_col, "Lobby", 40)
-	_info = UiKit.label(_col, "", true, 16)
+	var page := UiKit.screen(self, 860)
+	UiKit.title(page, "Lobby", 40)
+	_info = UiKit.label(page, "", true, 16)
 	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UiKit.spacer(_col, 4)
+	UiKit.spacer(page, 4)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 36)
+	page.add_child(columns)
+	_col = VBoxContainer.new()
+	_col.add_theme_constant_override("separation", 12)
+	_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(_col)
+	_side = VBoxContainer.new()
+	_side.custom_minimum_size = Vector2(270, 0)
+	columns.add_child(_side)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 6)
 	_col.add_child(_list)
 	UiKit.spacer(_col, 8)
 	_build_map()
 	_build_rules()
-	UiKit.spacer(_col, 4)
-	_start = UiKit.button(_col, "Start match", Net.host_start_match)
-	UiKit.button(_col, "Leave lobby", Game.leave_to_menu)
+	_build_character()
+	UiKit.spacer(page, 4)
+	_start = UiKit.button(page, "Start match", Net.host_start_match)
+	UiKit.button(page, "Leave lobby", Game.leave_to_menu)
 	Net.players_changed.connect(_refresh)
 	_refresh()
 	# Dev/test: the host starts the next match on its own.
@@ -59,6 +72,9 @@ func _refresh() -> void:
 			name_text += "   (you)"
 		var l := UiKit.label(row, "  " + name_text)
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var who := UiKit.label(row, Characters.name_of(Net.player_character(id)), true, 16)
+		who.autowrap_mode = TextServer.AUTOWRAP_OFF
+		who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_start.visible = Net.is_host()
 	_start.disabled = Net.players.size() < 1
 	var where := ""
@@ -68,6 +84,25 @@ func _refresh() -> void:
 		where = "Waiting for the host to start the match."
 	_info.text = "%d / %d players. %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
 	_refresh_rules()
+	if Net.players.has(Net.my_id()):   # show what the host has on record for us
+		_character.select(Net.player_character(Net.my_id()))
+		_character.set_color(Net.player_color(Net.my_id()))
+
+
+# Character: everyone picks their own robot. Saved as your choice for next time too.
+func _build_character() -> void:
+	Net.confirm_my_character()
+	_character = CharacterPicker.new(Net.player_character(Net.my_id()), Net.player_color(Net.my_id()), true)
+	_side.add_child(_character)
+	_character.picked.connect(func(id: String):
+		Settings.character = id
+		Settings.save_settings()
+		Net.set_my_character(id))
+	# Dev/test: after a match, come back as the other robot (checks the choice syncs).
+	if DevArgs.switch_character and not Match.last_results.is_empty():
+		get_tree().create_timer(1.0).timeout.connect(func():
+			if is_inside_tree() and not Net.in_match:
+				Net.set_my_character(Characters.next(Net.player_character(Net.my_id()))))
 
 
 # Map: the host picks; everyone else sees it.

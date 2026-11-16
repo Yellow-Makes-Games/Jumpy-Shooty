@@ -8,6 +8,8 @@ extends Node
 ## --port=PORT         Host only: port to listen on (default 24680).
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.
+## --character=ID      Play as this robot (needle, vanguard) without changing the saved choice.
+## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
 ## --practice           Skip the menus and drop into the arena alone.
 ## --map=ID             Which map to play: construction_site or testing_grounds (host, practice and bot).
 ## --bot=LEVEL          Skip the menus and start a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert).
@@ -35,6 +37,8 @@ var player_name := ""
 var port := 0
 var autostart := 0
 var practice := false
+var character := ""
+var switch_character := false
 var map := ""
 var bot := -1
 var scripted_input := false
@@ -73,6 +77,12 @@ func _ready() -> void:
 			"--port": port = int(value)
 			"--autostart": autostart = int(value)
 			"--practice": practice = true
+			"--character":
+				if Characters.has(value):
+					character = value
+				else:
+					push_warning("Unknown character: %s (characters: %s)" % [value, ", ".join(Characters.ids())])
+			"--switch-character": switch_character = true
 			"--map":
 				if Maps.has(value):
 					map = value

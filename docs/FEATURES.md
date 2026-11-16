@@ -3,7 +3,7 @@
 Status: **not started** · **rough** (exists, placeholder or partial) · **working** (done,
 tested by me) · **verified** (also checked by Austin on a real PC / with a friend).
 
-Last updated: robot player model and animations. Decisions are in [DESIGN.md](DESIGN.md).
+Last updated: Vanguard robot and character select. Decisions are in [DESIGN.md](DESIGN.md).
 
 ## Menus and flow
 
@@ -12,6 +12,7 @@ Last updated: robot player model and animations. Decisions are in [DESIGN.md](DE
 | Main menu (Play, Multiplayer, Settings, Exit) | working | Placeholder styling |
 | Mode select (1v1 Bot, Practice, Multiplayer FFA) | working | 1v1 Bot page: pick difficulty and kills to win; Rematch on the results screen |
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
+| Character select | working | Needle or Vanguard, with a live preview. On the Practice and 1v1 Bot pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
 | Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
 | Settings menu (mouse, camera, audio, graphics) | working | Audio sliders have no sounds to affect yet |
 | Pause menu in match | working | Resume, settings, leave; host can end the match early |
@@ -31,6 +32,7 @@ Last updated: robot player model and animations. Decisions are in [DESIGN.md](DE
 | Internet play between two PCs | not started | Needs Steam, or router port forwarding for direct IP |
 | Hit detection (host decides with rewind) | working | Laggy-network test: 90% of aimed shots hit with rewind vs 37% without |
 | Headshots | working | 1.5x damage above the shoulders (lower when crouched). Yellow hit marker |
+| Character sync | working | Every copy shows each player as the robot they picked, including a new pick made in the lobby between matches. Checked by the sync and match tests |
 | Animation sync | working | Other players show the move they are really doing (run, slide, wall run side, flip direction, vault or climb, reload, shots, death). Checked by the sync and match tests, also on the laggy network |
 
 ## Movement
@@ -73,7 +75,7 @@ Last updated: robot player model and animations. Decisions are in [DESIGN.md](DE
 | Construction Site (first real map) | working | "The Tower": a half-built six-floor tower in an 80 x 80 m yard, with a crane, scaffolding, a hoist tower, containers, a pit and a fence to wall-run. 12 spawn points. An automated test runs a player over 18 movement routes and checks that bots can walk to every level. Needs a playtest for balance (the top may be too strong) |
 | Map choice | working | The host picks the map in the lobby; practice and the bot menu have a picker. Testing Grounds is listed as a test map |
 | Map editing | working | Maps are scenes: open one in the Godot editor, click a piece to select it, drag its face handles to resize it, F6 to play it. See DEVELOPMENT.md |
-| Character model | working | "Needle" robot: white armour, player colour on the trim and visor. Built by code in `tools/robot/` (see DEVELOPMENT.md) |
+| Character models | working | Two robots, Needle and Vanguard: white armour, player colour on the trim and visor. Same skeleton, hitbox and animations. Built by code in `tools/robot/` (see DEVELOPMENT.md) |
 | Character animation | working | Idle, run, sprint, crouch, slide, jump and fall, landing, wall run (both sides), wall jump, vault, ledge climb, grapple swing, dive, landing roll, four flips, shooting, reload, death, respawn. The body aims where the player looks; legs follow the direction of travel. Same animator for you, other players and the bot. The vault is the least polished clip |
 | Sound | not started | |
 

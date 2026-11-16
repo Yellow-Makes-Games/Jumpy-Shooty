@@ -205,4 +205,8 @@ ARM_BONES = ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "
              "pistol", "pistol_slide", "pistol_mag")  # what the first-person view shows
 
 DESIGNS = {"vanguard": vanguard, "brick": brick, "needle": needle}
-CHOSEN = "needle"
+PLAYABLE = ("needle", "vanguard")
+# First-person arms only: thin a design's forearms and hands by this factor, so bulky
+# gauntlets held up to the camera do not fill the view or push through each other.
+FP_SLIM = {"vanguard": 0.74}
+  # the characters build.py writes for the game (see game/player/robot/characters.gd)

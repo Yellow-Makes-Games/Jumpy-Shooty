@@ -81,7 +81,13 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	visual = Node3D.new()
 	visual.name = "Visual"
 	add_child(visual)
-	robot = RobotModel.new().setup(RobotModel.BODY, Net.player_color(id))
+	var character := Net.player_character(id)
+	if DevArgs.sync_log:   # for tests/check_anim.py: which robot each copy shows for each player
+		if local:
+			print("CHAR SELF %d %s" % [id, character])
+		else:
+			print("CHAR SEEN %d %d %s" % [Net.my_id(), id, character])
+	robot = RobotModel.new().setup(Characters.body(character), Net.player_color(id))
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 

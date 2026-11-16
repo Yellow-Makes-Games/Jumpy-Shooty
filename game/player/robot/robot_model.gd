@@ -3,8 +3,6 @@ extends Node3D
 ## One robot on screen: the model from a .glb file, coloured for its player.
 ## RobotAnimator poses its skeleton every frame.
 
-const BODY := "res://game/player/robot/robot.glb"
-const ARMS := "res://game/player/robot/robot_arms.glb"
 const VIEW_SHADER := "res://game/player/robot/viewmodel.gdshader"
 const VISOR_ENERGY := 1.6
 

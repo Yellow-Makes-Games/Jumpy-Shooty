@@ -7,6 +7,7 @@
 #  - harder bots are more accurate (Expert beats Easy)
 #  - the harder bots use the movement set: slides, dives, flips, grapples
 #  - the bot's body is animated: it plays its moves and its gun kicks on every shot
+#  - the bot plays a different robot from yours (you are Needle or Vanguard in turn)
 #  - the bot dodges when it gets shot
 #  - matches end, and "Rematch" starts a new one
 #  - there are no script errors
@@ -25,7 +26,8 @@ if [[ -n "${MAP:-}" ]]; then   # MAP=testing_grounds picks the map (default: the
 fi
 
 for level in 0 1 2 3; do
-  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --time-limit=80 --quit-after=85 \
+  character=$([[ $((level % 2)) -eq 0 ]] && echo needle || echo vanguard)
+  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --character="$character" --time-limit=80 --quit-after=85 \
     > "$OUT/bot_$level.log" 2>&1 &
 done
 # Easy against a player who stands still: even the weakest bot must land hits.
@@ -84,6 +86,12 @@ for level in range(4):
         print("  FAIL: the bot's body never showed running or jumping"); fail = True
     if kicks != len(shots):
         print("  FAIL: the bot's gun did not kick once per shot"); fail = True
+    mine = re.findall(r"^CHAR SELF 1 (\w+)", log, re.M)
+    bots = re.findall(r"^CHAR SELF 9001 (\w+)", log, re.M)
+    want = "needle" if level % 2 == 0 else "vanguard"
+    print(f"        you play {' '.join(mine) or '?'}, the bot plays {' '.join(bots) or '?'}")
+    if mine != [want] or len(bots) != 1 or bots[0] == want:
+        print(f"  FAIL: expected you as {want} and the bot as a different robot"); fail = True
 
 if rates[3] <= rates[0]:
     print("FAIL: Expert should be more accurate than Easy"); fail = True
