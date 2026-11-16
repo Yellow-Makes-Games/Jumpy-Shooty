@@ -13,6 +13,7 @@ extends Node
 ## --practice           Skip the menus and drop into the arena alone.
 ## --map=ID             Which map to play: construction_site, office or testing_grounds (host, practice and bot).
 ## --bot=LEVEL          Skip the menus and start a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert).
+## --bots=N             With --bot: play against N bots (1 to 4) in a free-for-all instead of one.
 ## --scripted-input     The local player moves on its own (for sync tests).
 ## --sync-log           Print position samples used by tests/check_sync.py.
 ## --quit-after=SECONDS Quit automatically after this many seconds.
@@ -41,6 +42,7 @@ var character := ""
 var switch_character := false
 var map := ""
 var bot := -1
+var bots := 1
 var scripted_input := false
 var sync_log := false
 var scripted_fire := false
@@ -89,6 +91,7 @@ func _ready() -> void:
 				else:
 					push_warning("Unknown map: %s (maps: %s)" % [value, ", ".join(Maps.ids())])
 			"--bot": bot = clampi(int(value), 0, 3)
+			"--bots": bots = clampi(int(value), 1, 4)
 			"--scripted-input": scripted_input = true
 			"--sync-log": sync_log = true
 			"--scripted-fire": scripted_fire = true
