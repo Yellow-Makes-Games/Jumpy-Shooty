@@ -35,6 +35,9 @@ var wall_normal := Vector3.ZERO              ## the wall being run on
 var tuck := 0.0
 ## Direction of the current flip, relative to where you face (x = right, y = forward).
 var flip_dir := Vector2.ZERO
+## Wall jumps so far, and the wall last kicked off. For animation.
+var wall_jumps := 0
+var kick_wall := Vector3.ZERO
 
 var _since_ground := 0.0   # seconds since we last stood on the floor
 var _jump_buffer := 0.0    # seconds left on a buffered jump press
@@ -417,6 +420,8 @@ func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 	if state == State.WALL_RUN:
 		_end_wall_run()
 	_used_wall = n
+	kick_wall = n
+	wall_jumps += 1
 	var h := Vector3(vel.x, 0, vel.z)
 	var into := h.dot(n)
 	if into < 0.0:

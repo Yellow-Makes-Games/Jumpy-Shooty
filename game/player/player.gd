@@ -33,8 +33,13 @@ var _scripted_time := 0.0
 var _remote_state := 0
 var _teleport_count := 0          # local: bumped on every respawn; remote: last seen value
 var _awaiting_respawn := false    # remote: hidden until the first post-respawn snapshot
-var _body_gun: Node3D
-var _view_gun: Node3D
+var robot: RobotModel             ## the body everyone sees
+var animator: RobotAnimator
+var view: ViewModel               ## first-person arms and gun (your own player only)
+var _anim := RobotAnimInput.new()
+var _corpse_drop := 0.0           # a body shot in mid-air falls to the ground (visual only)
+var _corpse_fall := 0.0
+var _corpse_room := 0.0
 var _fell_reported := false
 var _fire_buffer := 0.0           # a click slightly too early still fires when the gun is ready
 var _rope: MeshInstance3D         # the grapple line, drawn from the gun to the anchor
@@ -46,10 +51,6 @@ var _roll := 0.0                  # local: camera tilt while wall-running
 var _shape: CollisionShape3D
 var _low := false                 # drawn crouched
 var _visual_yaw := 0.0
-var _visual_height := 1.0         # body drawn this tall (fraction of standing height)
-var _anim_state := -1             # movement state the body animation is showing
-var _anim_time := 0.0
-var _anim_flip := Vector2.ZERO    # flip direction relative to facing (x right, y forward)
 
 
 func _init() -> void:
@@ -76,11 +77,12 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	add_child(shape)
 	_shape = shape
 
-	visual = _build_placeholder_body(Net.player_color(id))
+	visual = Node3D.new()
+	visual.name = "Visual"
 	add_child(visual)
-	_body_gun = _build_placeholder_gun()
-	_body_gun.position = Vector3(0.32, 1.25, -0.35)
-	visual.add_child(_body_gun)
+	robot = RobotModel.new().setup(RobotModel.BODY, Net.player_color(id))
+	visual.add_child(robot)
+	animator = RobotAnimator.new(robot)
 
 	if is_bot:
 		motor = MovementController.new()
@@ -93,12 +95,10 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		rig = CameraRig.new()
 		add_child(rig)
 		rig.setup(self)
-		_set_layer_recursive(visual, CameraRig.BODY_LAYER)
-		_view_gun = _build_placeholder_gun()
-		_view_gun.position = Vector3(0.2, -0.17, -0.62)
-		_view_gun.scale = Vector3(0.7, 0.7, 0.7)
-		rig.camera.add_child(_view_gun)
-		_set_layer_recursive(_view_gun, VIEWMODEL_LAYER)
+		robot.set_layer(CameraRig.BODY_LAYER)
+		view = ViewModel.new()
+		rig.camera.add_child(view)
+		view.setup(self, Net.player_color(id))
 	else:
 		_add_name_tag(Net.player_name(id))
 	_build_rope()
@@ -133,7 +133,7 @@ func _physics_process(delta: float) -> void:
 		var now := Net.now()
 		if not is_bot:
 			Net.send_snapshot(now, make_snapshot())
-		buffer.push(now, now, _sent_position(), velocity, input.yaw, input.pitch, _my_pose())
+		buffer.push(now, now, _sent_position(), velocity, input.yaw, input.pitch, _my_pose(), _my_anim_flags())
 	if DevArgs.sync_log:
 		var sp := _sent_position()  # without the leg tuck, which is a pose, not movement
 		print("SYNC SELF %d %.4f %.4f %.4f %.4f %d %.2f %.2f %.2f" % [peer_id, Net.now(), sp.x, sp.y, sp.z, _my_pose(), velocity.x, velocity.y, velocity.z])
@@ -144,9 +144,18 @@ func _process(delta: float) -> void:
 		if rig:
 			_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
 			rig.set_view(input.yaw, input.pitch, motor.eye_height, _roll)
-		_update_pose(motor.state, motor.crouched)
-		_animate_body(motor.state, _visual_yaw, velocity, delta)
+		_update_pose(motor.crouched)
 		var g := motor.grapple
+		_anim.state = motor.state
+		_anim.crouched = motor.crouched
+		_anim.velocity = velocity
+		_anim.pitch = input.pitch
+		_anim.flags = _my_anim_flags()
+		_anim.grapple_on = g.attached
+		_anim.grapple_anchor = g.anchor
+		_animate(delta)
+		if view:
+			view.update(delta)
 		_draw_rope(g.attached and alive, g.anchor)
 		return
 	if not buffer.has_data():
@@ -156,10 +165,18 @@ func _process(delta: float) -> void:
 	var s := buffer.sample(rt)
 	global_position = s[0] + Vector3(0, tuck_offset(s[4]), 0)
 	velocity = s[1]
-	_visual_yaw = s[2]
+	if alive:
+		_visual_yaw = s[2]
 	_remote_state = s[4]
-	_update_pose(pose_state(_remote_state), pose_crouched(_remote_state))
-	_animate_body(pose_state(_remote_state), _visual_yaw, velocity, delta)
+	_update_pose(pose_crouched(_remote_state))
+	_anim.state = pose_state(_remote_state)
+	_anim.crouched = pose_crouched(_remote_state)
+	_anim.velocity = velocity
+	_anim.pitch = s[3]
+	_anim.flags = s[5]
+	_anim.grapple_on = _rope_on
+	_anim.grapple_anchor = _rope_anchor
+	_animate(delta)
 	while not _rope_events.is_empty() and _rope_events[0][0] <= rt:
 		var ev: Array = _rope_events.pop_front()
 		_rope_on = ev[1]
@@ -242,6 +259,9 @@ func _update_weapon(delta: float) -> void:
 	if not weapon.fire():
 		return
 	_fire_buffer = 0.0
+	animator.fire()
+	if view:
+		view.fire()
 	var eye := eye_position()
 	var dir := _aim_direction(eye)
 	var spread := deg_to_rad(weapon.data.spread_degrees)
@@ -288,9 +308,21 @@ func _aim_direction(eye: Vector3) -> Vector3:
 
 
 func muzzle_position() -> Vector3:
-	if is_local and _view_gun and not rig.is_third_person():
-		return _view_gun.get_node("Muzzle").global_position
-	return _body_gun.get_node("Muzzle").global_position
+	if view and not rig.is_third_person():
+		return view.marker("muzzle")
+	return robot.marker("muzzle")
+
+
+## Where the grapple rope leaves the robot: the launcher on its left wrist.
+func rope_origin() -> Vector3:
+	if view and not rig.is_third_person():
+		return view.marker("grapple")
+	return robot.marker("grapple")
+
+
+## Another player's shot, as told by the host: kick their gun.
+func show_shot() -> void:
+	animator.fire()
 
 
 # ---------------------------------------------------------------------------
@@ -301,10 +333,15 @@ func set_dead() -> void:
 	if motor:
 		motor.reset()
 	_rope_on = false
-	visual.visible = false
 	collision_layer = 0
-	if _view_gun:
-		_view_gun.visible = false
+	# The body stays where it fell and powers down. Shot in mid-air, it drops to the ground.
+	_corpse_drop = 0.0
+	_corpse_fall = 0.0
+	var below := PhysicsRayQueryParameters3D.create(global_position + Vector3(0, 0.5, 0), global_position + Vector3(0, -80.0, 0), 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(below) if is_inside_tree() else {}
+	_corpse_room = maxf(global_position.y - hit.position.y, 0.0) if hit else 200.0
+	if not is_local and not buffer.has_data():
+		visual.visible = false   # joined while they were dead: nothing to show yet
 
 
 ## Local player: come back at a spawn point.
@@ -315,8 +352,9 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	alive = true
 	visual.visible = true
 	collision_layer = 1 << 1
-	if _view_gun:
-		_view_gun.visible = true
+	animator.respawn()
+	if view:
+		view.respawn()
 	if weapon:
 		weapon.reset()
 	_send_timer = 0.0  # tell everyone at once
@@ -326,6 +364,7 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 func expect_respawn() -> void:
 	alive = true
 	_awaiting_respawn = true
+	visual.visible = false
 
 
 func report_fell_once() -> void:
@@ -338,14 +377,16 @@ func report_fell_once() -> void:
 # Network state
 
 ## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state,
-## respawn count, grapple attached (0/1), grapple anchor (3).
+## respawn count, grapple attached (0/1), grapple anchor (3), animation flags
+## (see RobotAnimInput.make_flags).
 func make_snapshot() -> PackedFloat32Array:
 	var p := _sent_position()
 	var v := velocity
 	var g := motor.grapple
 	var a := g.anchor
 	return PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch,
-		float(_my_pose()), float(_teleport_count), 1.0 if g.attached else 0.0, a.x, a.y, a.z])
+		float(_my_pose()), float(_teleport_count), 1.0 if g.attached else 0.0, a.x, a.y, a.z,
+		float(_my_anim_flags())])
 
 
 func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
@@ -360,9 +401,10 @@ func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 			if alive:
 				visual.visible = true
 				collision_layer = 1 << 1
+				animator.respawn()
 	buffer.push(remote_time, Net.now(),
 		Vector3(data[0], data[1], data[2]), Vector3(data[3], data[4], data[5]),
-		data[6], data[7], int(data[8]))
+		data[6], data[7], int(data[8]), int(data[14]) if data.size() >= 15 else 0)
 	if data.size() >= 14:
 		var on := data[10] > 0.5
 		var anchor := Vector3(data[11], data[12], data[13])
@@ -421,47 +463,43 @@ func pose_at(t: float) -> int:
 	return buffer.sample(t)[4] if buffer.has_data() else (_my_pose() if motor else 0)
 
 
-## Shrinks the drawn body and (for remote players) the collision shape when crouched.
-func _update_pose(_state: int, low: bool) -> void:
+## Remote players: shrink the collision shape when they crouch. (Your own shape is
+## handled by the movement code.) The drawn body crouches through its animation.
+func _update_pose(low: bool) -> void:
 	if low == _low:
 		return
 	_low = low
-	var h := height_for_pose(make_pose(0, low))
-	_visual_height = h / CAPSULE_HEIGHT
 	if not is_local:
+		var h := height_for_pose(make_pose(0, low))
 		(_shape.shape as CapsuleShape3D).height = h
 		_shape.position.y = h * 0.5
 
 
-## Placeholder body animation for dives, rolls and flips: tips and spins the body
-## around its middle. Replaced by real animation when the robot models arrive.
-func _animate_body(state: int, yaw: float, vel: Vector3, delta: float) -> void:
-	const S := MovementController.State
-	if state != _anim_state:
-		_anim_state = state
-		_anim_time = 0.0
-		if state == S.FLIP:
-			if motor:
-				_anim_flip = motor.flip_dir
-			else:  # remote: work it out from which way they are moving
-				var local := Vector3(vel.x, 0, vel.z).rotated(Vector3.UP, -yaw)
-				_anim_flip = Vector2(local.x, -local.z).normalized() if local.length() > 1.0 else Vector2(0, -1)
-	_anim_time += delta
-	var tilt := Basis()
-	match state:
-		S.DIVE:
-			tilt = Basis(Vector3.RIGHT, deg_to_rad(-70.0))
-		S.ROLL:
-			tilt = Basis(Vector3.RIGHT, -TAU * clamp(_anim_time / 0.45, 0.0, 1.0))
-		S.FLIP:
-			var turn: float = TAU * clamp(_anim_time / 0.45, 0.0, 1.0)
-			if abs(_anim_flip.x) > abs(_anim_flip.y):
-				tilt = Basis(Vector3.BACK, -turn * signf(_anim_flip.x))   # side flip
-			else:
-				tilt = Basis(Vector3.RIGHT, -turn * signf(_anim_flip.y))  # front or back flip
-	var spin := Basis(Vector3.UP, yaw) * tilt
-	var centre := Vector3(0, CAPSULE_HEIGHT * _visual_height * 0.5, 0)
-	visual.transform = Transform3D(spin * Basis.from_scale(Vector3(1, _visual_height, 1)), centre - spin * centre)
+## The small animation facts that travel in snapshots (see RobotAnimInput.make_flags).
+func _my_anim_flags() -> int:
+	var right := Vector3.RIGHT.rotated(Vector3.UP, input.yaw)
+	var wall := motor.wall_normal if motor.state == MovementController.State.WALL_RUN else motor.kick_wall
+	var flip := RobotAnimInput.FLIP_BACK
+	var f := motor.flip_dir
+	if absf(f.x) > absf(f.y):
+		flip = RobotAnimInput.FLIP_RIGHT if f.x > 0.0 else RobotAnimInput.FLIP_LEFT
+	elif f.y > 0.0:
+		flip = RobotAnimInput.FLIP_FRONT
+	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
+		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps)
+
+
+## Turns the body to face its yaw and plays its animation.
+func _animate(delta: float) -> void:
+	if not alive and _corpse_drop < _corpse_room:
+		_corpse_fall += 22.0 * delta
+		_corpse_drop = minf(_corpse_drop + _corpse_fall * delta, _corpse_room)
+	elif alive:
+		_corpse_drop = 0.0
+	visual.transform = Transform3D(Basis(Vector3.UP, _visual_yaw), Vector3(0, -_corpse_drop, 0))
+	_anim.alive = alive
+	_anim.yaw = _visual_yaw
+	animator.update(delta, _anim, visual.global_transform)
 
 
 ## Lean the camera away from the wall while wall-running.
@@ -549,55 +587,7 @@ func _nearest_visible_opponent() -> Player:
 
 
 # ---------------------------------------------------------------------------
-# Placeholder body and gun. Replaced by real models in the art phase.
-
-func _build_placeholder_body(color: Color) -> Node3D:
-	var root := Node3D.new()
-	root.name = "Visual"
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.6
-	var body := MeshInstance3D.new()
-	var cap := CapsuleMesh.new()
-	cap.radius = CAPSULE_RADIUS
-	cap.height = CAPSULE_HEIGHT
-	body.mesh = cap
-	body.material_override = mat
-	body.position.y = CAPSULE_HEIGHT * 0.5
-	root.add_child(body)
-	var visor_mat := StandardMaterial3D.new()
-	visor_mat.albedo_color = Color(0.08, 0.09, 0.12)
-	visor_mat.metallic = 0.6
-	visor_mat.roughness = 0.2
-	var visor := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.55, 0.18, 0.2)
-	visor.mesh = box
-	visor.material_override = visor_mat
-	visor.position = Vector3(0.0, 1.5, -0.33)
-	root.add_child(visor)
-	return root
-
-
-func _build_placeholder_gun() -> Node3D:
-	var gun := Node3D.new()
-	gun.name = "Gun"
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.15, 0.16, 0.18)
-	mat.metallic = 0.5
-	mat.roughness = 0.4
-	var body := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.08, 0.12, 0.5)
-	body.mesh = box
-	body.material_override = mat
-	gun.add_child(body)
-	var muzzle := Node3D.new()
-	muzzle.name = "Muzzle"
-	muzzle.position = Vector3(0, 0.02, -0.28)
-	gun.add_child(muzzle)
-	return gun
-
+# Grapple rope and name tag
 
 func _build_rope() -> void:
 	var mat := StandardMaterial3D.new()
@@ -629,13 +619,13 @@ func _build_rope() -> void:
 	add_child(_hook)
 
 
-## Stretches the rope from the gun to the anchor.
+## Stretches the rope from the wrist launcher to the anchor.
 func _draw_rope(on: bool, anchor: Vector3) -> void:
 	_rope.visible = on
 	_hook.visible = on
 	if not on:
 		return
-	var from := muzzle_position()
+	var from := rope_origin()
 	var span := anchor - from
 	var dist := span.length()
 	if dist < 0.05:
@@ -660,12 +650,5 @@ func _add_name_tag(text: String) -> void:
 	tag.pixel_size = 0.0015
 	tag.font_size = 28
 	tag.outline_size = 8
-	tag.position.y = CAPSULE_HEIGHT + 0.35
+	tag.position.y = CAPSULE_HEIGHT + 0.42
 	visual.add_child(tag)
-
-
-func _set_layer_recursive(node: Node, layer: int) -> void:
-	if node is VisualInstance3D:
-		node.layers = 1 << (layer - 1)
-	for c in node.get_children():
-		_set_layer_recursive(c, layer)

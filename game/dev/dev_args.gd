@@ -24,6 +24,7 @@ extends Node
 ## --third-person      Start in third-person view (not saved to settings).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
 ## --press=SEC:ACTION   Press an input action (e.g. toggle_camera) SEC seconds after start (repeatable).
+## --hold=SEC:ACTION:DURATION  Hold an input action down for DURATION seconds, starting SEC seconds after start (repeatable).
 ## --spawn=X,Y,Z,YAW[,PITCH]  Start the local player here (degrees), e.g. to look at the training yard.
 ## --window=X,Y,W,H     Window position and size, so several copies can sit side by side.
 
@@ -49,6 +50,7 @@ var net_sim_jitter := 0.0
 var net_sim_loss := 0.0
 var screenshots: Array = []  # [seconds, path]
 var presses: Array = []      # [seconds, action]
+var holds: Array = []        # [start seconds, action, end seconds, is down]
 var spawn: Array = []        # [Vector3 position, yaw, pitch] in radians, or empty
 
 var _start_ticks := 0
@@ -87,6 +89,10 @@ func _ready() -> void:
 				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
 			"--press":
 				presses.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
+			"--hold":
+				var h := value.split(":")
+				if h.size() == 3:
+					holds.append([float(h[0]), h[1], float(h[0]) + float(h[2]), false])
 			"--screenshot":
 				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
 			"--spawn":
@@ -125,6 +131,13 @@ func _process(_delta: float) -> void:
 				ev.pressed = down
 				Input.parse_input_event(ev)
 			print("[dev] pressed: %s" % press[1])
+	for hold in holds.duplicate():
+		if not hold[3] and elapsed >= hold[0]:
+			hold[3] = true
+			Input.action_press(hold[1])
+		elif hold[3] and elapsed >= hold[2]:
+			holds.erase(hold)
+			Input.action_release(hold[1])
 	for shot in screenshots.duplicate():
 		if elapsed >= shot[0]:
 			screenshots.erase(shot)

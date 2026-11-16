@@ -21,6 +21,7 @@ class Snap:
 	var yaw: float
 	var pitch: float
 	var state: int
+	var flags: int
 
 var snaps: Array[Snap] = []
 ## Estimated (our clock - their clock). Taken from the fastest packets seen, and
@@ -31,7 +32,7 @@ var _jitter := 0.0
 var _delay := 0.1
 
 
-func push(remote_time: float, local_time: float, pos: Vector3, vel: Vector3, yaw: float, pitch: float, state: int) -> void:
+func push(remote_time: float, local_time: float, pos: Vector3, vel: Vector3, yaw: float, pitch: float, state: int, flags: int = 0) -> void:
 	if not snaps.is_empty() and remote_time <= snaps[-1].t:
 		return  # stale or duplicate (unreliable packets can arrive out of order)
 	var sample := local_time - remote_time
@@ -50,6 +51,7 @@ func push(remote_time: float, local_time: float, pos: Vector3, vel: Vector3, yaw
 	s.yaw = yaw
 	s.pitch = pitch
 	s.state = state
+	s.flags = flags
 	snaps.append(s)
 	if snaps.size() > KEEP:
 		snaps.pop_front()
@@ -72,18 +74,18 @@ func render_time(local_time: float, delta: float = 0.016) -> float:
 	return local_time - _offset - _delay
 
 
-## Returns [position, velocity, yaw, pitch, state] at the given sender-clock time.
+## Returns [position, velocity, yaw, pitch, state, animation flags] at the given sender-clock time.
 func sample(rt: float) -> Array:
 	var n := snaps.size()
 	if n == 0:
-		return [Vector3.ZERO, Vector3.ZERO, 0.0, 0.0, 0]
+		return [Vector3.ZERO, Vector3.ZERO, 0.0, 0.0, 0, 0]
 	if rt <= snaps[0].t:
 		var f := snaps[0]
-		return [f.pos, f.vel, f.yaw, f.pitch, f.state]
+		return [f.pos, f.vel, f.yaw, f.pitch, f.state, f.flags]
 	var last := snaps[n - 1]
 	if rt >= last.t:
 		var ahead: float = min(rt - last.t, MAX_EXTRAPOLATE)
-		return [last.pos + last.vel * ahead, last.vel, last.yaw, last.pitch, last.state]
+		return [last.pos + last.vel * ahead, last.vel, last.yaw, last.pitch, last.state, last.flags]
 	var i := n - 2
 	while i > 0 and snaps[i].t > rt:
 		i -= 1
@@ -95,7 +97,8 @@ func sample(rt: float) -> Array:
 	var vel := a.vel.lerp(b.vel, u)
 	var yaw := lerp_angle(a.yaw, b.yaw, u)
 	var pitch: float = lerp(a.pitch, b.pitch, u)
-	return [pos, vel, yaw, pitch, b.state if u > 0.5 else a.state]
+	var near := b if u > 0.5 else a
+	return [pos, vel, yaw, pitch, near.state, near.flags]
 
 
 static func _hermite(p0: Vector3, m0: Vector3, p1: Vector3, m1: Vector3, u: float) -> Vector3:
