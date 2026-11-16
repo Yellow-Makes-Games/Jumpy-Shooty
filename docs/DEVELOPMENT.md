@@ -69,7 +69,10 @@ or WSL; I run these on every change anyway):
 - a sync test: 2 copies on a clean network, then 5 copies on a simulated bad network
   (100 ms latency, 60 ms jitter, 10% packet loss). Each copy moves on its own, and the test
   checks that every copy draws every other player within 15 cm of where they really were
-  (95% of frames), with no visible pops, and that everyone notices when the host leaves;
+  (95% of frames), with no visible pops, and that everyone notices when the host leaves.
+  The 5-copy run fails now and then on a small test machine (five copies sharing four
+  processor cores); `SYNC_DEBUG=1 python3 tests/check_sync.py tests/out/sync_*.log` prints
+  where and when each pop happened;
 - the sync, match and bot tests take a map: `MAP=testing_grounds tests/run_bot_test.sh`.
   `run_all.sh` spreads them over both maps;
 - animation sync (`tests/check_anim.py`, part of the sync and match tests): every copy
