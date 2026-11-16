@@ -69,6 +69,10 @@ or WSL; I run these on every change anyway):
   a bot can walk to every level. To run one route and
   print what the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless
   --path . --script tests/site_test.gd`;
+- the debug menu and target dummies, in a real Practice match on the Testing Grounds:
+  body shots and headshots on a dummy, it goes down and gets back up, god mode, infinite
+  ammo, adding and removing bots, changing robot and gun, game speed, and that no cheat
+  works online (`tests/debug_test.gd`);
 - map scenes: every map loads and builds, every block has a colour, and the resize
   handles move the right face (`tests/map_scene_test.gd`);
 - the game boots into practice mode on every map without script errors;
@@ -99,6 +103,14 @@ or WSL; I run these on every change anyway):
   show each player as the robot they picked. In the match test everyone picks again in
   the lobby between matches, and the new picks must show in the next match. The bot
   test checks the bot plays the robot you did not pick, and that with several bots they take turns through the robots starting with the other one.
+
+## Debug menu
+
+Press **F1** (or **`**) in Practice or Vs Bots for testing cheats: god mode, infinite
+ammo, no cooldowns, noclip, game speed, teleports, changing robot and gun, adding and
+freezing bots, and an FPS readout. It lives in `game/dev/debug_menu.gd`; the switches
+are in `game/dev/cheats.gd`, whose checks all answer "off" in an online match, so a new
+cheat should go through one of them.
 
 ## Developer command-line options
 
@@ -146,6 +158,9 @@ Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`
   tree, or select the object and press Ungroup in the 3D toolbar (next to the lock).
 - **MapSpawn** nodes (under `Spawns`): where players appear. The green figure shows
   which way they face. Keep at least 8.
+- **MapDummy** nodes (under `TargetRange` in the Testing Grounds): target dummies. The
+  orange figure shows which way the dummy faces; the inspector picks its robot, its gun
+  and the caption over its head (the Testing Grounds ones give the distance).
 - **Label3D** nodes: signs and painted floor numbers.
 - **Environment** (sky, ambient light) and **Sun**: ordinary Godot nodes, so the editor
   shows the map lit the way the game does.

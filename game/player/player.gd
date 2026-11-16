@@ -54,6 +54,7 @@ var _roll := 0.0                  # local: camera tilt while wall-running
 var _shape: CollisionShape3D
 var _height := CAPSULE_HEIGHT     # remote: collision shape height for the pose we draw
 var _visual_yaw := 0.0
+var _flying := false              # local: the debug menu's noclip is on
 
 
 func _init() -> void:
@@ -124,7 +125,10 @@ func _physics_process(delta: float) -> void:
 	if not is_local:
 		return
 	if is_bot:
-		brain.update(delta)
+		if Cheats.bots_frozen():
+			_hold_still()
+		else:
+			brain.update(delta)
 	elif DevArgs.scripted_input:
 		_scripted_input(delta)
 	else:
@@ -133,9 +137,19 @@ func _physics_process(delta: float) -> void:
 		_set_crosshair_ray()
 		var was_on := motor.grapple.attached
 		var hooking := input.grapple_pressed and motor.grapple.ready_to_fire()
-		motor.step(self, input, delta)
-		if hooking and not motor.grapple.attached:
-			sounds.grapple_missed()   # nothing in range to hook
+		var fly := Cheats.flying() and not is_bot
+		if fly != _flying:
+			_flying = fly
+			motor.reset()
+			velocity = Vector3.ZERO
+		if fly:
+			_fly(delta)
+		else:
+			motor.step(self, input, delta)
+			if hooking and not motor.grapple.attached:
+				sounds.grapple_missed()   # nothing in range to hook
+		if Cheats.cooldowns_off() and not is_bot:
+			motor.clear_cooldowns()
 		if DevArgs.sync_log and motor.grapple.attached != was_on:
 			print("ROPE SELF %d %s" % [peer_id, "on" if motor.grapple.attached else "off"])
 		_visual_yaw = input.yaw
@@ -268,6 +282,8 @@ func _set_crosshair_ray() -> void:
 
 func _update_weapon(delta: float) -> void:
 	weapon.update(delta)
+	if Cheats.ammo() and not is_bot:
+		weapon.ammo = weapon.data.magazine
 	if input.fire_pressed:
 		_fire_buffer = 0.1
 	else:
@@ -300,7 +316,7 @@ func _update_weapon(delta: float) -> void:
 		if hit:
 			end = hit.position
 		ends.append(end)
-		hits.append(hit and hit.collider is Player)
+		hits.append(hit and (hit.collider is Player or hit.collider is TargetDummy))
 	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id)  # into the arena, not among the players
 	Sound.shot_landed(muzzle_position(), ends, hits, sounds.own)
 	var view_times := {}
@@ -608,6 +624,33 @@ func teleport(pos: Vector3, yaw: float) -> void:
 	velocity = Vector3.ZERO
 	input.yaw = yaw
 	input.pitch = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Debug menu cheats (offline only, see Cheats)
+
+## Noclip: fly through everything. WASD moves along the view, Space up, Ctrl / C down, Shift faster.
+func _fly(delta: float) -> void:
+	var look := Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0))
+	var dir := look * Vector3(input.move.x, 0.0, -input.move.y)
+	if input.jump_held:
+		dir += Vector3.UP
+	if input.crouch:
+		dir += Vector3.DOWN
+	velocity = dir.limit_length(1.0) * (32.0 if input.sprint else 12.0)
+	global_position += velocity * delta
+	motor.state = MovementController.State.AIR
+
+
+## A frozen bot: stands where it is and holds fire (it still falls and can be shot).
+func _hold_still() -> void:
+	input.move = Vector2.ZERO
+	input.sprint = false
+	input.jump_held = false
+	input.crouch = false
+	input.dive = false
+	input.grapple = false
+	input.fire = false
 
 
 # ---------------------------------------------------------------------------

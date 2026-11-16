@@ -345,6 +345,13 @@ func add_bot(difficulty: int, weapon: String = "") -> int:
 	return id
 
 
+## Takes a computer player out (debug menu, offline only).
+func remove_bot(id: int) -> void:
+	if is_bot(id) and not is_online:
+		players.erase(id)
+		players_changed.emit()
+
+
 func is_bot(id: int) -> bool:
 	return players.has(id) and players[id].get("bot", false)
 

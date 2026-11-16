@@ -1,12 +1,15 @@
 extends Node3D
 ## The arena scene: builds the level, spawns one Player per connected peer,
-## and hosts the HUD and pause menu.
+## and hosts the HUD, the pause menu and (offline) the debug menu.
 
 var layout: MapRoot
 var players_root: Node3D
 var local_player: Player
 var hud: Hud
 var pause_menu: PauseMenu
+var debug_menu: DebugMenu
+## The map's target dummies (TargetDummy), in the order of their index.
+var dummies: Array = []
 
 
 func _ready() -> void:
@@ -15,7 +18,8 @@ func _ready() -> void:
 	add_child(layout)
 	layout.build()
 	if Net.has_bots():
-		add_child(MapScenery.bake_navigation(layout))   # only when bots play: it takes a moment
+		ensure_navigation()   # only when bots play: it takes a moment
+	_spawn_dummies()
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
@@ -24,6 +28,9 @@ func _ready() -> void:
 	pause_menu = PauseMenu.new()
 	add_child(pause_menu)
 	pause_menu.visibility_changed.connect(_on_pause_toggled)
+	debug_menu = DebugMenu.new()
+	add_child(debug_menu)
+	debug_menu.toggled.connect(_on_pause_toggled)
 	Net.arena = self
 	Net.players_changed.connect(_sync_players)
 	Match.player_died.connect(_on_player_died)
@@ -36,6 +43,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if Net.arena == self:
 		Net.arena = null
+	Engine.time_scale = 1.0   # the debug menu's slow motion ends with the match
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 
@@ -43,7 +51,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("pause"):
 		pause_menu.visible = not pause_menu.visible
 		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.pressed and not pause_menu.visible:
+	elif event is InputEventMouseButton and event.pressed and not _menu_open():
 		_capture_mouse(true)
 
 
@@ -52,7 +60,7 @@ func _physics_process(_delta: float) -> void:
 	var floor_y := layout.kill_height
 	var area := layout.bounds
 	for p in players_root.get_children():
-		if not (p as Player).is_local:
+		if not (p as Player).is_local or (p == local_player and Cheats.flying()):
 			continue
 		var pos: Vector3 = p.global_position
 		if pos.y < floor_y or (area.has_area() and not area.has_point(Vector2(pos.x, pos.z))):
@@ -154,8 +162,50 @@ func _respawn(p: Player) -> void:
 
 
 func _on_pause_toggled() -> void:
-	Sound.play("ui_click" if pause_menu.visible else "ui_back")
-	_capture_mouse(not pause_menu.visible)
+	Sound.play("ui_click" if _menu_open() else "ui_back")
+	_capture_mouse(not _menu_open())
+
+
+func _menu_open() -> bool:
+	return pause_menu.visible or debug_menu.is_open()
+
+
+## The navigation mesh bots walk on. Baked when the match starts with bots, or
+## when the debug menu adds the first one.
+func ensure_navigation() -> void:
+	if not has_node("Navigation"):
+		add_child(MapScenery.bake_navigation(layout))
+
+
+## Debug menu: rebuilds a player from Net.players (after changing their robot or
+## gun), keeping where they stand and look.
+func rebuild_player(id: int) -> void:
+	var old := get_player(id)
+	if old == null:
+		return
+	var pos := old.global_position
+	var yaw := old.input.yaw
+	var pitch := old.input.pitch
+	players_root.remove_child(old)
+	old.queue_free()
+	_spawn(id)
+	var p := get_player(id)
+	if p and p.is_local:
+		p.teleport(pos, yaw)
+		p.input.pitch = pitch
+	if p and not Match.is_alive(id):
+		p.set_dead()
+
+
+func _spawn_dummies() -> void:
+	var root := Node3D.new()
+	root.name = "Dummies"
+	add_child(root)
+	for d in layout.dummies:
+		var marker: MapDummy = d[2]
+		var dummy := TargetDummy.new().setup(dummies.size(), d[0], d[1], marker.character, marker.gun, marker.caption)
+		root.add_child(dummy)
+		dummies.append(dummy)
 
 
 func _capture_mouse(on: bool) -> void:

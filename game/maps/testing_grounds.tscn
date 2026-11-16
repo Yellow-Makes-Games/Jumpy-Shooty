@@ -4,6 +4,7 @@
 [ext_resource type="Resource" path="res://game/maps/palettes/testing_grounds.tres" id="2_i5v0i"]
 [ext_resource type="Script" uid="uid://54hcvu7hy6we" path="res://game/arena/map_block.gd" id="3_jbpnt"]
 [ext_resource type="Script" uid="uid://nastdacq4avs" path="res://game/arena/map_spawn.gd" id="4_1nbxg"]
+[ext_resource type="Script" uid="uid://b8cbf4nhxbmow" path="res://game/arena/map_dummy.gd" id="5_dummy"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_21ygj"]
 sky_top_color = Color(0.22, 0.38, 0.62, 1)
@@ -994,3 +995,64 @@ script = ExtResource("4_1nbxg")
 [node name="Spawn8" type="Marker3D" parent="Spawns" unique_id=1606571103]
 transform = Transform3D(0.92387956, 0, -0.38268343, 0, 1, 0, 0.38268343, 0, 0.92387956, -13.0112, 0, 31.4119)
 script = ExtResource("4_1nbxg")
+
+[node name="TargetRange" type="Node3D" parent="." unique_id=795425564]
+
+[node name="Dummy5m" type="Marker3D" parent="TargetRange" unique_id=423946139]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 49, 0, 2)
+script = ExtResource("5_dummy")
+character = "needle"
+gun = "pistol"
+caption = "5 m"
+
+[node name="Dummy10m" type="Marker3D" parent="TargetRange" unique_id=947876999]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 54, 0, -2)
+script = ExtResource("5_dummy")
+character = "vanguard"
+gun = "rifle"
+caption = "10 m"
+
+[node name="Dummy20m" type="Marker3D" parent="TargetRange" unique_id=1497871144]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 64, 0, 2)
+script = ExtResource("5_dummy")
+character = "kestrel"
+gun = "shotgun"
+caption = "20 m"
+
+[node name="Dummy35m" type="Marker3D" parent="TargetRange" unique_id=203694312]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 79, 0, -2)
+script = ExtResource("5_dummy")
+character = "bulwark"
+gun = "sniper"
+caption = "35 m"
+
+[node name="Dummy60m" type="Marker3D" parent="TargetRange" unique_id=255555737]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 104, 0, 1)
+script = ExtResource("5_dummy")
+character = "rivet"
+gun = "rifle"
+caption = "60 m"
+
+[node name="Sign_TargetRange" type="Label3D" parent="TargetRange" unique_id=1863673106]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 111.4, 7, 0.5)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "TARGET RANGE"
+font_size = 110
+
+[node name="Sign_ShootTheDummies" type="Label3D" parent="TargetRange" unique_id=1250797845]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 111.4, 5.9, 0.5)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "Shoot from the line at the yard entrance. Each dummy shows your damage.
+Bring one down and it gets back up. F1 opens the debug menu."
+font_size = 40
+
+[node name="FiringLine" type="Node3D" parent="TargetRange" unique_id=302142728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 0.012, 0.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.4, 0.02, 7)
+kind = "stripe"
+solid = false

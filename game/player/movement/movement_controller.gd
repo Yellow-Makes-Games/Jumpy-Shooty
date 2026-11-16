@@ -469,6 +469,13 @@ func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 # ---------------------------------------------------------------------------
 # Dive, roll and flip
 
+## Debug menu ("No cooldowns"): the grapple, dive and slide boost are ready again.
+func clear_cooldowns() -> void:
+	grapple.cooldown_left = 0.0
+	_since_dive = 99.0
+	_since_slide_boost = 99.0
+
+
 ## HUD readouts: how ready each move is, from 0 (just used) to 1 (ready).
 func dive_readiness() -> float:
 	if _air_dive_used:
