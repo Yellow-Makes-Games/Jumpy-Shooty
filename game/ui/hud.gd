@@ -58,6 +58,9 @@ var _last_head := {}            # target id -> was the last hit on them a headsh
 var _dead := false
 var _killer := 0
 var _killer_hp := 0.0
+var _killer_dist := -1.0
+var _killed_by_head := false
+var _killer_view: RobotPreview   # the robot that got you, on the death screen
 var _respawn_left := 0.0
 var _pulse := 0.0
 var _board_age := 0.0
@@ -82,6 +85,10 @@ func _ready() -> void:
 	_layout.draw.connect(_draw_layout)
 	_overlay = _full_rect(Control.new())
 	_overlay.draw.connect(_draw_overlay)
+	_killer_view = RobotPreview.new(Vector2(150, 190), 1.15)
+	_killer_view.turn = false
+	_killer_view.visible = false
+	_root.add_child(_killer_view)
 	_build_scoreboard()
 
 	Match.state_changed.connect(_refresh_scoreboard)
@@ -226,6 +233,15 @@ func _on_died(victim: int, killer: int) -> void:
 		_dead = true
 		_killer = killer if killer != victim else 0
 		_killer_hp = Match.health.get(killer, 0.0)
+		_killed_by_head = _last_head.get(me, false)
+		_killer_dist = -1.0
+		var mine: Player = Net.arena.get_player(me) if Net.arena else null
+		var theirs: Player = Net.arena.get_player(_killer) if Net.arena and _killer != 0 else null
+		if mine and theirs:
+			_killer_dist = mine.global_position.distance_to(theirs.global_position)
+		if _killer != 0:
+			_killer_view.show_robot(Net.player_character(_killer), Net.player_color(_killer))
+		_killer_view.visible = _killer != 0
 		_respawn_left = Match.RESPAWN_DELAY
 		_arrows.clear()
 		_numbers.clear()
@@ -235,6 +251,7 @@ func _on_died(victim: int, killer: int) -> void:
 func _on_respawned(id: int, _spawn_index: int) -> void:
 	if id == Net.my_id():
 		_dead = false
+		_killer_view.visible = false
 		_respawn_left = 0.0
 		view.hp_trail = Match.MAX_HEALTH
 
@@ -406,26 +423,48 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 		y += 32.0
 
 
+## Who got you (their robot, name, what was left of them, how), and a bar
+## counting down to your respawn. The scoreboard shows underneath.
 func _draw_death(ci: CanvasItem, size: Vector2) -> void:
-	ci.draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.04, 0.06, 0.6))
-	var cx := size.x * 0.5
-	var y := size.y * 0.5 - 300.0
-	var progress := 1.0 - _respawn_left / Match.RESPAWN_DELAY
-	var ring_c := Vector2(cx, y + 20.0)
-	HudStyle.arc(ci, ring_c, 40.0, 0, 360, Color(1, 1, 1, 0.2), 4.0)
-	HudStyle.arc(ci, ring_c, 40.0, -90, -90 + 360.0 * progress, HudStyle.ORANGE, 4.0)
-	HudStyle.text(ci, ring_c, "%.1f" % _respawn_left, 22, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-	if _killer == 0:
-		HudStyle.text(ci, Vector2(cx, y + 92.0), "You fell", 30, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-		HudStyle.text(ci, Vector2(cx, y + 122.0), "Respawning", 14, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER, false)
+	ci.draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.04, 0.06, 0.62))
+	var top := Color(0.55, 0.05, 0.05, 0.35)
+	ci.draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, 260), Vector2(0, 260)]),
+		PackedColorArray([top, top, Color(top, 0), Color(top, 0)]))
+	var w := 560.0
+	var card := Rect2(size.x * 0.5 - w * 0.5, 104.0, w, 164.0)
+	var stripe := Net.player_color(_killer) if _killer != 0 else Color(1, 1, 1, 0.4)
+	HudStyle.plate(ci, card, 8.0, Color(0.05, 0.06, 0.08, 0.85))
+	ci.draw_rect(Rect2(card.position, Vector2(5, card.size.y)), stripe)
+	var x := card.position.x + (176.0 if _killer != 0 else 30.0)
+	var y := card.position.y
+	if _killer != 0:
+		_killer_view.position = card.position + Vector2(18, -26)
+		HudStyle.text(ci, Vector2(x, y + 30), "ELIMINATED BY", 13, HudStyle.RED)
+		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
+		HudStyle.text(ci, Vector2(x, y + 92), Characters.name_of(Net.player_character(_killer)), 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
+		if _killed_by_head:
+			chips.append("HEADSHOT")
+		if _killer_dist >= 0.0:
+			chips.append("%d M AWAY" % roundi(_killer_dist))
+		var cx := x
+		for chip in chips:
+			var cw := HudStyle.text_width(chip, 12) + 18.0
+			var col: Color = HudStyle.YELLOW if chip == "HEADSHOT" else Color(1, 1, 1, 0.85)
+			HudStyle.plate(ci, Rect2(cx, y + 112, cw, 24), 3.0, Color(1, 1, 1, 0.08))
+			HudStyle.text(ci, Vector2(cx + 9, y + 124), chip, 12, col)
+			cx += cw + 6.0
 	else:
-		var name := Net.player_name(_killer)
-		var w1 := HudStyle.text_width(name, 30)
-		var w := w1 + HudStyle.text_width(" got you", 30)
-		HudStyle.text(ci, Vector2(cx - w * 0.5, y + 92.0), name, 30, Net.player_color(_killer).lightened(0.25))
-		HudStyle.text(ci, Vector2(cx - w * 0.5 + w1, y + 92.0), " got you", 30, HudStyle.WHITE)
-		var info := "%s  ·  %d HP left" % [Characters.name_of(Net.player_character(_killer)), ceili(_killer_hp)]
-		HudStyle.text(ci, Vector2(cx, y + 122.0), info, 14, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER, false)
+		HudStyle.text(ci, Vector2(x, y + 44), "ELIMINATED", 13, HudStyle.RED)
+		HudStyle.text(ci, Vector2(x, y + 82), "You fell", 38, HudStyle.WHITE)
+		HudStyle.text(ci, Vector2(x, y + 118), "Out of the arena", 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+	# Respawn countdown.
+	var progress := clampf(1.0 - _respawn_left / Match.RESPAWN_DELAY, 0.0, 1.0)
+	var bar := Rect2(card.position.x, card.end.y + 16.0, w, 6.0)
+	ci.draw_rect(bar, Color(1, 1, 1, 0.15))
+	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
+	HudStyle.text(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 13, Color(1, 1, 1, 0.8))
+	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +481,7 @@ func _build_scoreboard() -> void:
 	_scoreboard.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_scoreboard.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_scoreboard.custom_minimum_size = Vector2(640, 0)
-	_scoreboard.position.y += 60.0
+	_scoreboard.position.y += 110.0
 	_scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scoreboard.visible = false
 	_root.add_child(_scoreboard)
