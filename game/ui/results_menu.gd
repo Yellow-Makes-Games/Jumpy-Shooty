@@ -11,8 +11,12 @@ func _ready() -> void:
 	UiKit.spacer(col, 6)
 	ResultsTable.build(col, results)
 	UiKit.spacer(col, 12)
-	if Game.mode == Game.Mode.ONLINE and Net.is_online:
+	if Game.mode == Game.Mode.BOT:
+		UiKit.button(col, "Rematch", Game.rematch_bot).grab_focus()
+	elif Game.mode == Game.Mode.ONLINE and Net.is_online:
 		UiKit.button(col, "Return to lobby", Game.goto_lobby).grab_focus()
 	UiKit.button(col, "Main menu", Game.leave_to_menu)
 	if DevArgs.auto_return and Game.mode == Game.Mode.ONLINE:
 		get_tree().create_timer(2.0).timeout.connect(Game.goto_lobby)
+	elif DevArgs.auto_return and Game.mode == Game.Mode.BOT:
+		get_tree().create_timer(2.0).timeout.connect(Game.rematch_bot)

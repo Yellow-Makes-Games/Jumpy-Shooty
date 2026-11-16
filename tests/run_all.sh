@@ -27,4 +27,6 @@ echo "== Match: 3 players, laggy network, two matches back to back"
 tests/run_match_test.sh 3 "100,40,5"
 echo "== Time-limit match (lobby rule)"
 tests/run_timed_match_test.sh
+echo "== 1v1 bot: every difficulty, plus a fight and a rematch"
+tests/run_bot_test.sh
 echo "ALL TESTS PASSED"

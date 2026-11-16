@@ -12,6 +12,8 @@ enum Mode { NONE, PRACTICE, BOT, ONLINE }
 var mode: Mode = Mode.NONE
 ## A message to show on the main menu (for example "The host left").
 var pending_notice := ""
+## The last bot match's settings, for a rematch.
+var last_bot := {"difficulty": 1, "kills": 10}
 
 
 func _ready() -> void:
@@ -49,6 +51,21 @@ func start_practice() -> void:
 	mode = Mode.PRACTICE
 	Net.start_offline(local_name())
 	Net.host_start_match()
+
+
+## A 1v1 match against a computer player, offline.
+func start_bot(difficulty: int, kills_to_win: int) -> void:
+	mode = Mode.BOT
+	last_bot = {"difficulty": difficulty, "kills": kills_to_win}
+	Net.start_offline(local_name())
+	Net.match_settings = {"mode": "kills", "kills": kills_to_win, "minutes": 8}
+	Net.add_bot(difficulty)
+	Net.host_start_match()
+
+
+## Same bot and rules again (from the results screen).
+func rematch_bot() -> void:
+	start_bot(last_bot.difficulty, last_bot.kills)
 
 
 func host_online() -> Error:
@@ -115,7 +132,9 @@ func _on_players_changed() -> void:
 
 
 func _run_dev_args() -> void:
-	if DevArgs.practice:
+	if DevArgs.bot >= 0:
+		start_bot(DevArgs.bot, DevArgs.kill_target if DevArgs.kill_target > 0 else 10)
+	elif DevArgs.practice:
 		start_practice()
 	elif DevArgs.host:
 		var err := host_online()

@@ -10,7 +10,12 @@ var _status: Label
 
 func _ready() -> void:
 	_col = UiKit.screen(self)
-	_show_main()
+	match DevArgs.menu:
+		"play": _show_play()
+		"bot": _show_bot()
+		"multiplayer": _show_multiplayer()
+		"settings": _show_settings()
+		_: _show_main()
 
 
 func _show_main() -> void:
@@ -32,14 +37,48 @@ func _show_main() -> void:
 func _show_play() -> void:
 	UiKit.clear(_col)
 	UiKit.title(_col, "Play", 36)
-	var bot := UiKit.button(_col, "1v1 Bot", func(): pass)
-	bot.disabled = true
-	bot.tooltip_text = "The bot arrives in phase 1."
-	UiKit.label(_col, "1v1 Bot arrives in phase 1.", true, 15)
+	UiKit.button(_col, "1v1 Bot", _show_bot).grab_focus()
 	UiKit.button(_col, "Practice (free roam)", Game.start_practice)
 	UiKit.button(_col, "Multiplayer FFA", _show_multiplayer)
 	UiKit.spacer(_col)
 	UiKit.button(_col, "Back", _show_main)
+
+
+const BOT_BLURBS := [
+	"Slow to react, wobbly aim, mostly just runs and shoots.",
+	"Reacts in about a third of a second, slides while chasing you.",
+	"Quick and accurate, strafes hard, grapples, dives and flips.",
+	"Near-instant reactions, leads its shots, goes for your head.",
+]
+
+
+func _show_bot() -> void:
+	UiKit.clear(_col)
+	UiKit.title(_col, "1v1 Bot", 36)
+	UiKit.label(_col, "Difficulty", true, 16)
+	var pick := OptionButton.new()
+	for i in BotDifficulty.NAMES.size():
+		pick.add_item(BotDifficulty.NAMES[i], i)
+	pick.custom_minimum_size = Vector2(0, 44)
+	pick.select(Game.last_bot.difficulty)
+	_col.add_child(pick)
+	var blurb := UiKit.label(_col, BOT_BLURBS[Game.last_bot.difficulty], true, 15)
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	blurb.custom_minimum_size = Vector2(0, 44)
+	pick.item_selected.connect(func(i: int): blurb.text = BOT_BLURBS[i])
+	UiKit.spacer(_col, 4)
+	UiKit.label(_col, "Kills to win", true, 16)
+	var kills := SpinBox.new()
+	kills.min_value = 1
+	kills.max_value = 50
+	kills.value = Game.last_bot.kills
+	kills.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(kills)
+	UiKit.label(_col, "Map: %s" % TestingGrounds.MAP_NAME, true, 15)
+	UiKit.spacer(_col, 4)
+	UiKit.button(_col, "Start", func(): Game.start_bot(pick.selected, int(kills.value))).grab_focus()
+	UiKit.spacer(_col)
+	UiKit.button(_col, "Back", _show_play)
 
 
 func _show_multiplayer() -> void:

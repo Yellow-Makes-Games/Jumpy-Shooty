@@ -145,9 +145,10 @@ func _process(delta: float) -> void:
 
 ## Called by the local player when it fires. view_times maps each opponent's peer id
 ## to the moment (on that opponent's clock) this player was seeing them.
-func request_shot(origin: Vector3, direction: Vector3, view_times: Dictionary, weapon_id: String) -> void:
+## Bots (simulated on the host) pass their own id as `shooter`.
+func request_shot(origin: Vector3, direction: Vector3, view_times: Dictionary, weapon_id: String, shooter: int = 0) -> void:
 	if Net.is_host():
-		_host_shot(Net.my_id(), origin, direction, view_times, weapon_id)
+		_host_shot(shooter if shooter != 0 else Net.my_id(), origin, direction, view_times, weapon_id)
 	else:
 		_shot_request.rpc_id(1, origin, direction, view_times, weapon_id)
 
@@ -253,9 +254,9 @@ func _hit(shooter: int, target: int, amount: float, new_health: float, headshot:
 
 
 ## The local player fell out of the arena.
-func request_fell() -> void:
+func request_fell(id: int = 0) -> void:
 	if Net.is_host():
-		_host_fell(Net.my_id())
+		_host_fell(id if id != 0 else Net.my_id())
 	else:
 		_fell_request.rpc_id(1)
 

@@ -3,7 +3,8 @@ extends CharacterBody3D
 ## A player in the arena. The same scene is used for:
 ##  - the local player: reads input, runs movement, fires, sends snapshots;
 ##  - remote players: shown from snapshots, smoothed by SnapshotBuffer.
-## Bots will be local players whose input comes from the AI.
+##  - bots: simulated on the host like a local player, but input comes from a
+##    BotBrain instead of the keyboard, and there is no camera.
 
 const SEND_RATE := 30.0  ## snapshots per second
 const CAPSULE_RADIUS := 0.4
@@ -13,7 +14,9 @@ const CROUCH_HEIGHT := 1.1
 const TUCK_LIFT := CAPSULE_HEIGHT - CROUCH_HEIGHT
 
 var peer_id := 1
-var is_local := false
+var is_local := false   ## simulated on this machine (you, or a bot when hosting)
+var is_bot := false
+var brain: BotBrain
 var alive := true
 
 var input := PlayerInput.new()
@@ -57,9 +60,10 @@ func _init() -> void:
 	collision_mask = 1 | (1 << 1)
 
 
-func setup(id: int, local: bool) -> void:
+func setup(id: int, local: bool, bot: bool = false) -> void:
 	peer_id = id
 	is_local = local
+	is_bot = bot
 	name = "Player_%d" % id
 	set_multiplayer_authority(id)
 
@@ -78,7 +82,12 @@ func setup(id: int, local: bool) -> void:
 	_body_gun.position = Vector3(0.32, 1.25, -0.35)
 	visual.add_child(_body_gun)
 
-	if is_local:
+	if is_bot:
+		motor = MovementController.new()
+		weapon = WeaponState.new(WeaponData.pistol())
+		brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
+		_add_name_tag(Net.player_name(id))
+	elif is_local:
 		motor = MovementController.new()
 		weapon = WeaponState.new(WeaponData.pistol())
 		rig = CameraRig.new()
@@ -101,7 +110,9 @@ func setup(id: int, local: bool) -> void:
 func _physics_process(delta: float) -> void:
 	if not is_local:
 		return
-	if DevArgs.scripted_input:
+	if is_bot:
+		brain.update(delta)
+	elif DevArgs.scripted_input:
 		_scripted_input(delta)
 	else:
 		read_local_input()
@@ -120,7 +131,8 @@ func _physics_process(delta: float) -> void:
 	if _send_timer <= 0.0:
 		_send_timer += 1.0 / SEND_RATE
 		var now := Net.now()
-		Net.send_snapshot(now, make_snapshot())
+		if not is_bot:
+			Net.send_snapshot(now, make_snapshot())
 		buffer.push(now, now, _sent_position(), velocity, input.yaw, input.pitch, _my_pose())
 	if DevArgs.sync_log:
 		var sp := _sent_position()  # without the leg tuck, which is a pose, not movement
@@ -129,8 +141,9 @@ func _physics_process(delta: float) -> void:
 
 func _process(delta: float) -> void:
 	if is_local:
-		_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
-		rig.set_view(input.yaw, input.pitch, motor.eye_height, _roll)
+		if rig:
+			_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
+			rig.set_view(input.yaw, input.pitch, motor.eye_height, _roll)
 		_update_pose(motor.state, motor.crouched)
 		_animate_body(motor.state, _visual_yaw, velocity, delta)
 		var g := motor.grapple
@@ -242,12 +255,12 @@ func _update_weapon(delta: float) -> void:
 	var hit := get_world_3d().direct_space_state.intersect_ray(ray)
 	if hit:
 		end = hit.position
-	ShotFx.spawn(get_parent(), muzzle_position(), end, hit and hit.collider is Player)
+	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), end, hit and hit.collider is Player)  # into the arena, not among the players
 	var view_times := {}
 	for p in get_parent().get_children():
 		if p != self and p is Player and p.last_render_time >= 0.0:
 			view_times[p.peer_id] = p.last_render_time
-	Match.request_shot(eye, dir, view_times, weapon.data.id)
+	Match.request_shot(eye, dir, view_times, weapon.data.id, peer_id)
 
 
 func eye_position() -> Vector3:
@@ -318,7 +331,7 @@ func expect_respawn() -> void:
 func report_fell_once() -> void:
 	if not _fell_reported and alive:
 		_fell_reported = true
-		Match.request_fell()
+		Match.request_fell(peer_id)
 
 
 # ---------------------------------------------------------------------------

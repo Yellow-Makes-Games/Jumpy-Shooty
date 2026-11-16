@@ -10,7 +10,7 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Feature | Status | Notes |
 | --- | --- | --- |
 | Main menu (Play, Multiplayer, Settings, Exit) | working | Placeholder styling |
-| Mode select (1v1 Bot, Multiplayer FFA) | rough | Bot button disabled until phase 1; Practice mode added |
+| Mode select (1v1 Bot, Practice, Multiplayer FFA) | working | 1v1 Bot page: pick difficulty and kills to win; Rematch on the results screen |
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
 | Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
 | Settings menu (mouse, camera, audio, graphics) | working | Audio sliders have no sounds to affect yet |
@@ -67,7 +67,7 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Weapon switching | not started | Only one weapon for now, by choice |
 | Muzzle flash, tracers, impacts | rough | Simple glowing shapes |
 | Weapon sounds | not started | |
-| Bot | not started | Phase 1 (simple), phase 3 (uses movement) |
+| Bot | working | 1v1, offline. Easy / Normal / Hard / Expert change reaction time, aim wobble, turn speed, fire rate, leading, headshots and which moves it uses. Finds you anywhere on the map (navigation mesh), strafes and jumps in fights; Normal+ slides; Hard+ bunny-hops, dives, grapples, flip-dodges when hit. Same movement and gun rules as you. Numbers to tune by playtesting |
 | Testing Grounds (test map) | working | Greybox combat arena plus a training yard with practice lanes: grapple beams, wall-run zigzag and wall-jump chimney, slide hill and bars, vault blocks and ledges at marked heights, gap jumps of 6, 10 and 13 m (jump / jump + dive / jump + flip + dive). An automated test runs each course |
 | Construction site (first real arena) | not started | |
 | Character models and animation | not started | Capsule placeholders; phase 4 |
