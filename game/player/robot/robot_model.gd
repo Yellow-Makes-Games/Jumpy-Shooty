@@ -10,8 +10,12 @@ const VISOR_ENERGY := 1.6
 const VIEW_HIDDEN := ["head", "upper_arm_l", "forearm_l", "hand_l", "grapple", "upper_arm_r",
 	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "muzzle"]
 
-static var _view_meshes := {}     # model file -> the mesh without VIEW_HIDDEN
+static var _view_meshes := {}     # body mesh -> the mesh without VIEW_HIDDEN
+static var _gun_meshes := {}      # [model file, gun] -> [the mesh with only that gun, which surface of the full mesh each surface was]
 
+## The gun this robot holds (an id from WeaponData). Every model file holds every
+## gun; their surfaces' materials are named "<gun>.<kind>", and the others are left out.
+var weapon := ""
 var rig: RobotRig
 var skeleton: Skeleton3D
 var mesh: MeshInstance3D
@@ -28,7 +32,8 @@ static func trim_color(player_color: Color) -> Color:
 
 
 ## viewmodel: draw with the first-person shader (own field of view, never clips into walls).
-func setup(path: String, player_color: Color, viewmodel: bool = false) -> RobotModel:
+## gun: which gun it holds (an id from WeaponData).
+func setup(path: String, player_color: Color, viewmodel: bool = false, gun: String = "pistol") -> RobotModel:
 	rig = RobotRig.open(path)
 	var node := rig.scene.instantiate()
 	add_child(node)
@@ -39,11 +44,13 @@ func setup(path: String, player_color: Color, viewmodel: bool = false) -> RobotM
 	for c in skeleton.get_children():
 		if c is MeshInstance3D:
 			mesh = c
+	weapon = WeaponData.valid(gun)
+	mesh.mesh = _with_gun(path, mesh.mesh, weapon)
 	var trim := trim_color(player_color)
 	_glow_color = trim
 	for i in mesh.mesh.get_surface_count():
 		var base: StandardMaterial3D = mesh.mesh.surface_get_material(i)
-		var kind := base.resource_name
+		var kind := material_kind(base.resource_name)
 		var color := trim if kind == "accent" else base.albedo_color
 		if viewmodel:
 			var sm := ShaderMaterial.new()
@@ -69,6 +76,34 @@ func setup(path: String, player_color: Color, viewmodel: bool = false) -> RobotM
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mesh.extra_cull_margin = 10.0   # the shader moves it on screen; never cull it
 	return self
+
+
+## "rifle.accent" -> "accent"; "armor" -> "armor".
+static func material_kind(material_name: String) -> String:
+	return material_name.get_slice(".", 1) if "." in material_name else material_name
+
+
+## The model's mesh with only one gun's surfaces (made once per model file and gun).
+static func _with_gun(path: String, full: Mesh, gun: String) -> Mesh:
+	var key := path + "|" + gun
+	if _gun_meshes.has(key):
+		return _gun_meshes[key]
+	var out := ArrayMesh.new()
+	for s in full.get_surface_count():
+		var mat := full.surface_get_material(s)
+		var mname := mat.resource_name if mat else ""
+		if "." in mname and mname.get_slice(".", 0) != gun:
+			continue
+		var flags: int = full.surface_get_format(s) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, full.surface_get_arrays(s), [], {}, flags)
+		out.surface_set_material(out.get_surface_count() - 1, mat)
+	_gun_meshes[key] = out
+	return out
+
+
+## Where the gun's shots leave its barrel, in the world.
+func muzzle() -> Vector3:
+	return marker(WeaponData.by_id(weapon).muzzle_bone)
 
 
 ## Where a marker bone ("muzzle", "grapple") is in the world right now.
@@ -121,8 +156,8 @@ func add_view_mesh(layer: int) -> void:
 ## The model's mesh with the triangles of VIEW_HIDDEN bones removed. Every triangle
 ## follows one bone, so this is a clean cut at the neck and shoulders.
 static func _view_mesh_for(model_rig: RobotRig, full: MeshInstance3D) -> Array:
-	if _view_meshes.has(model_rig):
-		return _view_meshes[model_rig]
+	if _view_meshes.has(full.mesh):
+		return _view_meshes[full.mesh]
 	var skin := full.skin
 	var hidden := {}   # bone number as the mesh knows it -> true
 	var chest := -1
@@ -163,5 +198,5 @@ static func _view_mesh_for(model_rig: RobotRig, full: MeshInstance3D) -> Array:
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
 		out.surface_set_material(surfaces.size(), source.surface_get_material(s))
 		surfaces.append(s)
-	_view_meshes[model_rig] = [out, surfaces, front]
-	return _view_meshes[model_rig]
+	_view_meshes[full.mesh] = [out, surfaces, front]
+	return _view_meshes[full.mesh]

@@ -31,6 +31,7 @@ var vsync: bool = true
 # Profile
 var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
+var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
 
 
 func _ready() -> void:
@@ -56,6 +57,7 @@ func load_settings() -> void:
 	vsync = cfg.get_value("graphics", "vsync", vsync)
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
+	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
 
 
 func save_settings() -> void:
@@ -73,6 +75,7 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "vsync", vsync)
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
+	cfg.set_value("profile", "weapon", weapon)
 	cfg.save(SAVE_PATH)
 
 

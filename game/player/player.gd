@@ -88,18 +88,21 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 			print("CHAR SELF %d %s" % [id, character])
 		else:
 			print("CHAR SEEN %d %d %s" % [Net.my_id(), id, character])
-	robot = RobotModel.new().setup(Characters.body(character), Net.player_color(id))
+	var gun := Net.player_weapon(id)
+	if DevArgs.sync_log:   # which gun each copy shows each player holding
+		print("GUN %s %d %d %s" % ["SELF" if local else "SEEN", Net.my_id(), id, gun])
+	robot = RobotModel.new().setup(Characters.body(character), Net.player_color(id), false, gun)
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 
 	if is_bot:
 		motor = MovementController.new()
-		weapon = WeaponState.new(WeaponData.pistol())
+		weapon = WeaponState.new(WeaponData.by_id(gun))
 		brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
 		_add_name_tag(Net.player_name(id))
 	elif is_local:
 		motor = MovementController.new()
-		weapon = WeaponState.new(WeaponData.pistol())
+		weapon = WeaponState.new(WeaponData.by_id(gun))
 		rig = CameraRig.new()
 		add_child(rig)
 		rig.setup(self)
@@ -275,24 +278,46 @@ func _update_weapon(delta: float) -> void:
 	if view:
 		view.fire()
 	var eye := eye_position()
-	var dir := _aim_direction(eye)
-	var spread := deg_to_rad(weapon.data.spread_degrees)
-	var side := dir.cross(Vector3.UP)
-	if side.length_squared() > 0.0001:
-		dir = dir.rotated(side.normalized(), randf_range(-spread, spread))
-	dir = dir.rotated(Vector3.UP, randf_range(-spread, spread)).normalized()
+	var dirs := shot_directions(_aim_direction(eye), weapon.data)
 	# Show the shot straight away; the host decides whether it hit.
-	var end := eye + dir * weapon.data.max_range
-	var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
-	var hit := get_world_3d().direct_space_state.intersect_ray(ray)
-	if hit:
-		end = hit.position
-	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), end, hit and hit.collider is Player)  # into the arena, not among the players
+	var ends := PackedVector3Array()
+	var hits := []
+	var space := get_world_3d().direct_space_state
+	for dir in dirs:
+		var end := eye + dir * weapon.data.max_range
+		var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
+		var hit := space.intersect_ray(ray)
+		if hit:
+			end = hit.position
+		ends.append(end)
+		hits.append(hit and hit.collider is Player)
+	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id)  # into the arena, not among the players
 	var view_times := {}
 	for p in get_parent().get_children():
 		if p != self and p is Player and p.last_render_time >= 0.0:
 			view_times[p.peer_id] = p.last_render_time
-	Match.request_shot(eye, dir, view_times, weapon.data.id, peer_id)
+	Match.request_shot(eye, dirs, view_times, weapon.data.id, peer_id)
+
+
+## The directions of one shot's pellets (one for most guns), spread at random
+## around `aim` by the gun's spread. A shotgun's pellets fill its cone evenly.
+static func shot_directions(aim: Vector3, data: WeaponData) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	var spread := deg_to_rad(data.spread_degrees)
+	var side := aim.cross(Vector3.UP)
+	side = side.normalized() if side.length_squared() > 0.0001 else Vector3.RIGHT
+	var up := side.cross(aim).normalized()
+	for i in data.pellets:
+		if data.pellets == 1:
+			var d := aim.rotated(side, randf_range(-spread, spread))
+			out.append(d.rotated(Vector3.UP, randf_range(-spread, spread)).normalized())
+			continue
+		# Pellets spread over a disc: one in the middle, the rest in rings, each nudged at random.
+		var angle := TAU * (float(i) / data.pellets) + randf_range(-0.3, 0.3)
+		var r := spread * (0.0 if i == 0 else sqrt(randf_range(0.25, 1.0)))
+		var off := (side * cos(angle) + up * sin(angle)) * tan(r)
+		out.append((aim + off).normalized())
+	return out
 
 
 func eye_position() -> Vector3:
@@ -321,8 +346,8 @@ func _aim_direction(eye: Vector3) -> Vector3:
 
 func muzzle_position() -> Vector3:
 	if view and not rig.is_third_person():
-		return view.marker("muzzle")
-	return robot.marker("muzzle")
+		return view.marker(WeaponData.by_id(robot.weapon).muzzle_bone)
+	return robot.muzzle()
 
 
 ## Where the grapple rope leaves the robot: the launcher on its left wrist.

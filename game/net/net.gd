@@ -24,7 +24,8 @@ const PLAYER_COLORS := [
 	Color(0.95, 0.80, 0.25), Color(0.75, 0.40, 0.95),
 ]
 
-## peer id -> { "name": String, "color": int, "character": String (see Characters) },
+## peer id -> { "name": String, "color": int, "character": String (see Characters),
+##   "weapon": String (see WeaponData) },
 ## plus "bot": true and "difficulty" for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
 var in_match := false
@@ -41,6 +42,7 @@ var arena: Node = null
 
 var _local_name := "Player"
 var _local_character := Characters.default_id()
+var _local_weapon := WeaponData.default_id()
 
 
 func _ready() -> void:
@@ -72,16 +74,17 @@ func host_id() -> int:
 
 ## Play alone (bot mode and practice). Uses the offline peer, so the same code
 ## paths run with this player as "host".
-func start_offline(player_name: String, character: String) -> void:
+func start_offline(player_name: String, character: String, weapon: String = "") -> void:
 	leave()
 	_local_name = player_name
 	_local_character = Characters.valid(character)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character}}
+	_local_weapon = WeaponData.valid(weapon)
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon}}
 	is_online = false
 	players_changed.emit()
 
 
-func host_direct(player_name: String, character: String, listen_port: int = DEFAULT_PORT) -> Error:
+func host_direct(player_name: String, character: String, listen_port: int = DEFAULT_PORT, weapon: String = "") -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(listen_port, MAX_PLAYERS - 1)
@@ -90,7 +93,8 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	multiplayer.multiplayer_peer = peer
 	_local_name = player_name
 	_local_character = Characters.valid(character)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character}}
+	_local_weapon = WeaponData.valid(weapon)
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon}}
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -99,7 +103,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	return OK
 
 
-func join_direct(player_name: String, character: String, address: String) -> Error:
+func join_direct(player_name: String, character: String, address: String, weapon: String = "") -> Error:
 	leave()
 	var join_port := DEFAULT_PORT
 	if ":" in address:
@@ -114,6 +118,7 @@ func join_direct(player_name: String, character: String, address: String) -> Err
 	multiplayer.multiplayer_peer = peer
 	_local_name = player_name
 	_local_character = Characters.valid(character)
+	_local_weapon = WeaponData.valid(weapon)
 	is_online = true
 	print("[net] joining %s:%d" % [address, join_port])
 	return OK
@@ -133,7 +138,7 @@ func leave() -> void:
 
 func _on_connected_to_server() -> void:
 	_tune_link(1)
-	_register.rpc_id(1, _local_name, _local_character)
+	_register.rpc_id(1, _local_name, _local_character, _local_weapon)
 
 
 func _on_connection_failed() -> void:
@@ -181,7 +186,7 @@ func _broadcast_players() -> void:
 # Lobby
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register(player_name: String, character: String) -> void:
+func _register(player_name: String, character: String, weapon: String) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
@@ -189,8 +194,8 @@ func _register(player_name: String, character: String) -> void:
 		_refused.rpc_id(id, "The lobby is full.")
 		return
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
-		"character": Characters.valid(character)}
-	print("[net] %d joined as %s (%s)" % [id, players[id].name, players[id].character])
+		"character": Characters.valid(character), "weapon": WeaponData.valid(weapon)}
+	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
 	_sync_settings.rpc_id(id, match_settings)
 	_sync_players.rpc(players)
 	if in_match:
@@ -221,6 +226,8 @@ func set_my_character(character: String) -> void:
 func confirm_my_character() -> void:
 	if players.has(my_id()) and player_character(my_id()) != _local_character:
 		set_my_character(_local_character)
+	if players.has(my_id()) and player_weapon(my_id()) != _local_weapon:
+		set_my_weapon(_local_weapon)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -234,6 +241,33 @@ func _apply_character(id: int, character: String) -> void:
 		return
 	players[id]["character"] = Characters.valid(character)
 	print("[net] %d picked %s" % [id, players[id].character])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Pick the gun you take into the match (an id from WeaponData). Like the robot: works
+## in the lobby, and a pick made once the match has started applies from the next lobby.
+func set_my_weapon(weapon: String) -> void:
+	_local_weapon = WeaponData.valid(weapon)
+	if is_host():
+		_apply_weapon(my_id(), _local_weapon)
+	else:
+		_choose_weapon.rpc_id(1, _local_weapon)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_weapon(weapon: String) -> void:
+	if is_host():
+		_apply_weapon(multiplayer.get_remote_sender_id(), weapon)
+
+
+func _apply_weapon(id: int, weapon: String) -> void:
+	if in_match or not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
+		return
+	players[id]["weapon"] = WeaponData.valid(weapon)
+	print("[net] %d took the %s" % [id, players[id].weapon])
 	if is_online:
 		_sync_players.rpc(players)
 	else:
@@ -291,8 +325,9 @@ const BOT_NAMES := ["Rivet", "Sprocket", "Bolt", "Piston"]
 
 ## Adds a computer player (offline matches only for now). Returns its id.
 ## Bots take turns through the robots, starting with the one after yours, so in a
-## 1v1 the bot never plays the robot you picked; colours always differ.
-func add_bot(difficulty: int) -> int:
+## 1v1 the bot never plays the robot you picked; colours always differ. Each bot
+## takes a gun at random (or `weapon`, if given).
+func add_bot(difficulty: int, weapon: String = "") -> int:
 	var id := BOT_ID_BASE
 	while players.has(id):
 		id += 1
@@ -304,6 +339,7 @@ func add_bot(difficulty: int) -> int:
 		"name": "%s (%s)" % [BOT_NAMES[index % BOT_NAMES.size()], BotDifficulty.NAMES[difficulty]],
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
 		"character": character,
+		"weapon": WeaponData.valid(weapon) if weapon != "" else WeaponData.IDS[randi() % WeaponData.IDS.size()],
 	}
 	players_changed.emit()
 	return id
@@ -327,6 +363,11 @@ func player_name(id: int) -> String:
 ## The robot a player is playing as (an id from Characters).
 func player_character(id: int) -> String:
 	return Characters.valid(str(players[id].get("character", ""))) if players.has(id) else Characters.default_id()
+
+
+## The gun a player is using (an id from WeaponData).
+func player_weapon(id: int) -> String:
+	return WeaponData.valid(str(players[id].get("weapon", ""))) if players.has(id) else WeaponData.default_id()
 
 
 func player_color(id: int) -> Color:

@@ -11,6 +11,8 @@ plus "+reload" while the reload plays, or "-" once the body is gone (match over)
 Each copy also prints, when it builds a player's body for a match,
   CHAR SELF <id> <character>                   the robot a player (or bot) plays as
   CHAR SEEN <viewer> <id> <character>          the robot a copy shows for another player
+  GUN SELF <me> <id> <gun> / GUN SEEN <viewer> <id> <gun>   the gun a player holds, and the
+                                               gun a copy shows in another player's hands
 Times are on the player's own clock. The host also prints "SHOT <id> ..." for every
 shot it accepts; a shot it turns down (fired a moment after dying) is not shown.
 
@@ -26,6 +28,8 @@ Usage: python3 tests/check_anim.py [--need=a,b,c] tests/out/*.log
   ("reload" counts whatever the body was doing at the time).
   --characters=N fails unless at least N different robots were played.
   --switched fails unless some player changed robot between matches.
+  --guns=N fails unless at least N different guns were used; --switched-guns unless
+  some player changed gun between matches.
 Exit code 0 = pass, 1 = fail.
 """
 import bisect
@@ -44,6 +48,8 @@ def main(args):
     need = set()
     want_characters = 0
     want_switch = False
+    want_guns = 0
+    want_gun_switch = False
     paths = []
     for a in args:
         if a.startswith("--need="):
@@ -52,6 +58,10 @@ def main(args):
             want_characters = int(a[13:])
         elif a == "--switched":
             want_switch = True
+        elif a.startswith("--guns="):
+            want_guns = int(a[7:])
+        elif a == "--switched-guns":
+            want_gun_switch = True
         else:
             paths.append(a)
     real = defaultdict(list)    # id -> [(t, animation)]
@@ -61,6 +71,8 @@ def main(args):
     shots = defaultdict(int)
     played = defaultdict(list)       # id -> the character they played, match by match
     shown_as = defaultdict(list)     # (viewer, id) -> the character shown, match by match
+    held_gun = defaultdict(list)     # id -> the gun they held, match by match
+    shown_gun = defaultdict(list)    # (viewer, id) -> the gun shown in their hands
     for path in paths:
         with open(path, errors="replace") as f:
             for line in f:
@@ -71,6 +83,10 @@ def main(args):
                     played[int(p[2])].append(p[3])
                 elif len(p) == 5 and p[0] == "CHAR" and p[1] == "SEEN":
                     shown_as[(int(p[2]), int(p[3]))].append(p[4])
+                elif len(p) == 5 and p[0] == "GUN" and p[1] == "SELF":
+                    held_gun[int(p[3])].append(p[4])
+                elif len(p) == 5 and p[0] == "GUN" and p[1] == "SEEN":
+                    shown_gun[(int(p[2]), int(p[3]))].append(p[4])
                 if len(p) < 3 or p[0] != "ANIM":
                     continue
                 if p[1] == "SELF" and len(p) == 5:
@@ -143,19 +159,21 @@ def main(args):
         print(("PASS: " if passed else "FAIL: ") + text)
         ok &= passed
     ok &= _check_characters(played, shown_as, want_characters, want_switch)
+    ok &= _check_characters(held_gun, shown_gun, want_guns, want_gun_switch, "gun")
     return 0 if ok else 1
 
 
-def _check_characters(played, shown, want_characters, want_switch):
-    """Every copy must show each player as the robot they picked, in every match."""
+def _check_characters(played, shown, want_characters, want_switch, what="character"):
+    """Every copy must show each player as the robot they picked (or holding the gun
+    they picked), in every match."""
     ok = True
     used = sorted({c for line in played.values() for c in line})
-    print("characters played: " + " ".join(used))
+    print(f"{what}s played: " + " ".join(used))
     if len(used) < want_characters:
-        print(f"FAIL: expected at least {want_characters} different characters")
+        print(f"FAIL: expected at least {want_characters} different {what}s")
         ok = False
     if want_switch and not any(len(set(line)) > 1 for line in played.values()):
-        print("FAIL: nobody changed character between matches")
+        print(f"FAIL: nobody changed {what} between matches")
         ok = False
     for (viewer, target), line in sorted(shown.items()):
         if viewer == target or target not in played:
@@ -165,7 +183,7 @@ def _check_characters(played, shown, want_characters, want_switch):
         n = min(len(truth), len(line))
         passed = n > 0 and line[:n] == truth[:n]
         ok &= passed
-        print(f"{'PASS' if passed else 'FAIL'}: viewer {viewer} shows {target} as {' then '.join(line[:n]) or 'nothing'}"
+        print(f"{'PASS' if passed else 'FAIL'}: viewer {viewer} shows {target} {'with' if what == 'gun' else 'as'} {' then '.join(line[:n]) or 'nothing'}"
               + ("" if passed else f" (they played {' then '.join(truth[:n])})"))
     return ok
 

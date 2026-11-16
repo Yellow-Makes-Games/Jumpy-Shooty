@@ -11,7 +11,7 @@ whole-body spins go past 180 degrees.
 """
 import math
 import numpy as np
-from m3 import v, norm, euler, frame, quat, rx, ry
+from m3 import v, norm, euler, frame, quat, rx, ry, rz
 
 FPS = 30
 
@@ -23,6 +23,7 @@ class Bone:
 
 class Skeleton:
     def __init__(self, spec):
+        self.spec = list(spec)
         self.bones = []
         self._by_name = {}
         for name, parent, pos in spec:
@@ -43,6 +44,8 @@ class Skeleton:
     def names(self):
         return [b.name for b in self.bones]
 
+
+FIST = 0.045   # from the wrist to the middle of the fist (where a grip sits)
 
 # The gun is modelled barrel-forward (-Z), sights up; in the rest pose the arm hangs
 # down, so the gun hangs barrel-down. This turns gun-space directions into bone space.
@@ -65,6 +68,7 @@ BODY = Skeleton([
     ("pistol_slide", "pistol", (0.215, 0.835, 0)),
     ("pistol_mag", "pistol", (0.215, 0.835, 0)),
     ("muzzle", "pistol", (0.215, 0.835 - 0.20, -0.064)),  # where shots leave the barrel
+    # The other guns' muzzles (in gun space: forward, up), added below.
     ("thigh_l", "hips", (-0.10, 0.90, 0)),
     ("shin_l", "thigh_l", (-0.10, 0.50, 0)),
     ("foot_l", "shin_l", (-0.10, 0.10, 0)),
@@ -73,9 +77,27 @@ BODY = Skeleton([
     ("foot_r", "shin_r", (0.10, 0.10, 0)),
 ])
 
+# Where each long gun's shots leave its barrel, in gun space (x, up, back). The pistol's is "muzzle".
+MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565), "sniper": (0.0, 0.058, -0.86)}
+
+
+def _with_muzzles(skel_spec):
+    grip = np.array((0.215, 0.835, 0.0))
+    out = list(skel_spec)
+    at = [n for n, _, _ in out].index("muzzle") + 1
+    for weapon, p in MUZZLES.items():
+        pos = grip + GUN_REST @ np.array(p)
+        out.insert(at, ("muzzle_" + weapon, "pistol", tuple(float(x) for x in pos)))
+        at += 1
+    return out
+
+
+BODY = Skeleton(_with_muzzles(BODY.spec))
+
 MOVING_BONES = ("root", "hips", "pistol", "pistol_slide", "pistol_mag")  # bones whose position is animated
 
 ZERO = (0.0, 0.0, 0.0)
+OVERREACH = []   # how far beyond reach each over-stretched limb was asked to go (for checking new poses)
 
 
 def _two_bone(S, T, l1, l2, pole, knee):
@@ -83,6 +105,8 @@ def _two_bone(S, T, l1, l2, pole, knee):
     d = T - S
     dist = np.linalg.norm(d)
     reach = (l1 + l2) * 0.999
+    if dist > reach * 1.02:
+        OVERREACH.append(dist / reach)
     if dist > reach:
         d = d / dist * reach
         dist = reach
@@ -168,27 +192,6 @@ def solve(skel, spec):
         return G[name], Pg[name]
 
     for side in ("l", "r"):
-        arm = spec.get("arm_" + side, {})
-        up, fo, ha = "upper_arm_" + side, "forearm_" + side, "hand_" + side
-        if "ik" in arm:
-            R, O = space(arm.get("space", "model"))
-            target = O + R @ np.array(arm["ik"], dtype=float)
-            pole = R @ np.array(arm.get("pole", (0.3 if side == "r" else -0.3, -1.0, 0.6)), dtype=float)
-            S = Pg["chest"] + G["chest"] @ skel.offset(up)
-            l1 = np.linalg.norm(skel.offset(fo))
-            l2 = np.linalg.norm(skel.offset(ha))
-            Ru, Rl, _ = _two_bone(S, target, l1, l2, pole, knee=False)
-            place_global(up, Ru)
-            place_global(fo, Rl)
-            if "hand" in arm:
-                place_global(ha, R @ euler(arm["hand"]) @ ry(arm.get("cant", 0.0)))
-            else:
-                place(ha, euler(arm.get("hand_local", ZERO)))
-        else:
-            place(up, euler(arm.get("fk", ZERO)))
-            place(fo, rx(arm.get("bend", 0.0)))
-            place(ha, euler(arm.get("hand", ZERO)))
-
         leg = spec.get("leg_" + side, {})
         th, sh, ft = "thigh_" + side, "shin_" + side, "foot_" + side
         if "ik" in leg:
@@ -207,16 +210,70 @@ def solve(skel, spec):
             place(sh, rx(-leg.get("bend", 0.0)))
             place(ft, euler(leg.get("foot", ZERO)))
 
-    if "pistol" in skel._by_name:
-        gun = spec.get("pistol", {})
-        place("pistol", GUN_REST @ euler(gun.get("rot", ZERO)) @ GUN_REST.T,
-              skel.offset("pistol") + GUN_REST @ np.array(gun.get("pos", ZERO), dtype=float))
-        place("pistol_slide", np.eye(3), GUN_REST @ v(0, 0, spec.get("slide", 0.0)))
-        place("pistol_mag", np.eye(3), GUN_REST @ np.array(spec.get("mag", ZERO), dtype=float))
+    # The right arm (which holds the gun) first, then the gun, then the left arm, which
+    # can hold on to a point on the gun ("grip").
+    for side in ("r", "l"):
+        arm = spec.get("arm_" + side, {})
+        up, fo, ha = "upper_arm_" + side, "forearm_" + side, "hand_" + side
+        S = Pg["chest"] + G["chest"] @ skel.offset(up)
+        l1 = np.linalg.norm(skel.offset(fo))
+        l2 = np.linalg.norm(skel.offset(ha))
+        if "grip" in arm and "pistol" in G:
+            # Hold a point on the gun (gun space; on the gun's frame, or riding on its
+            # slide / pump with "on": "pistol_slide"). The fist closes on that point.
+            on = arm.get("on", "pistol")
+            contact = Pg[on] + G[on] @ GUN_REST @ np.array(arm["grip"], dtype=float)
+            if "hand" in arm:   # the fist's turn, relative to the right fist on the grip
+                hand_rot = G["pistol"] @ euler(arm["hand"])
+                target = contact - hand_rot @ v(0.0, -FIST, 0.0)
+            else:               # in line with the forearm
+                hand_rot = None
+                target = contact - norm(contact - S) * FIST
+            pole = G["chest"] @ np.array(arm.get("pole", (-0.6, -1.0, 0.2)), dtype=float)
+            Ru, Rl, _ = _two_bone(S, target, l1, l2, pole, knee=False)
+            place_global(up, Ru)
+            place_global(fo, Rl)
+            if hand_rot is not None:
+                place_global(ha, hand_rot)
+            else:
+                place(ha, euler(arm.get("hand_local", ZERO)))
+        elif "ik" in arm:
+            R, O = space(arm.get("space", "model"))
+            target = O + R @ np.array(arm["ik"], dtype=float)
+            pole = R @ np.array(arm.get("pole", (0.3 if side == "r" else -0.3, -1.0, 0.6)), dtype=float)
+            Ru, Rl, _ = _two_bone(S, target, l1, l2, pole, knee=False)
+            place_global(up, Ru)
+            place_global(fo, Rl)
+            if "hand" in arm:
+                place_global(ha, R @ euler(arm["hand"]) @ ry(arm.get("cant", 0.0)))
+            else:
+                place(ha, euler(arm.get("hand_local", ZERO)))
+        else:
+            place(up, euler(arm.get("fk", ZERO)))
+            place(fo, rx(arm.get("bend", 0.0)))
+            place(ha, euler(arm.get("hand", ZERO)))
+        if side == "r" and "pistol" in skel._by_name:
+            _place_gun(skel, spec, place)
+
     for b in skel.bones:   # marker bones (muzzle, grapple) just ride along
         if b.name not in L:
             place(b.name, np.eye(3))
     return L, T
+
+
+def _place_gun(skel, spec, place):
+    """The gun in the right fist, its slide (or pump, or bolt) and its magazine (or shell).
+    All three are modelled around the grip, in gun space (barrel -Z, sights +Y)."""
+    gun = spec.get("pistol", {})
+    place("pistol", GUN_REST @ euler(gun.get("rot", ZERO)) @ GUN_REST.T,
+          skel.offset("pistol") + GUN_REST @ np.array(gun.get("pos", ZERO), dtype=float))
+    # The slide moves back along the barrel; a bolt can also turn about the bore ("slide_turn",
+    # degrees, about a line "slide_axis" metres above the grip).
+    turn = rz(spec.get("slide_turn", 0.0))
+    axis = v(0.0, spec.get("slide_axis", 0.0), 0.0)
+    place("pistol_slide", GUN_REST @ turn @ GUN_REST.T, GUN_REST @ (v(0, 0, spec.get("slide", 0.0)) + axis - turn @ axis))
+    place("pistol_mag", GUN_REST @ euler(spec.get("mag_rot", ZERO)) @ GUN_REST.T,
+          GUN_REST @ np.array(spec.get("mag", ZERO), dtype=float))
 
 
 def _slerp_m(a, b, u):

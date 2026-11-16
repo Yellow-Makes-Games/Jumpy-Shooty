@@ -54,7 +54,10 @@ or WSL; I run these on every change anyway):
 - movement checks (speeds, stopping, jump height, momentum in the air);
 - robot checks, for every character: the model files hold every bone and clip, the
   skeletons match, each movement state plays the right animation, and the poses fit
-  the hitbox (`tests/robot_test.gd`);
+  the hitbox (`tests/robot_test.gd`); every gun has its muzzle bone and its own aim,
+  carry, reload and first-person clips;
+- weapons: damage and falloff (a close shotgun blast and a sniper headshot kill, the
+  rifle never one-shots), whole-magazine and shell-by-shell reloads (`tests/weapon_test.gd`);
 - the Testing Grounds practice courses and the Construction Site routes: a scripted
   player runs each one (`tests/course_test.gd`, `tests/site_test.gd`). The site test also
   checks the spawn points and that a bot can walk to every level. To run one route and
@@ -112,6 +115,9 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
 | `--character=ID` | Play as `needle` or `vanguard` without changing your saved choice |
+| `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
+| `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
+| `--switch-weapon` | With `--auto-return`: pick the next gun in the lobby between matches (for the match test) |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
 | `--hold=SEC:ACTION:DURATION` | Hold an input action down, e.g. `--hold=5:move_forward:3` |
 | `--look=SEC:YAW,PITCH` | Turn your view by YAW and to PITCH (degrees) after SEC seconds, e.g. `--look=3:0,-60` to look down |
@@ -207,7 +213,9 @@ python3 with numpy):
 | `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard); the third draft, Brick, is kept |
 | `rig.py` | The skeleton (bone names and positions) and the pose solver |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
-| `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and pistol) |
+| `weapons.py` | The four guns' shapes and materials (pistol, shotgun, rifle, sniper), and where the left hand holds each long gun |
+| `weapon_anims.py` | The long guns' own clips: how each is held, carried when sprinting, fired (pump, bolt), reloaded, and the first-person arm poses for each |
+| `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and guns) |
 
 After changing any of them:
 
@@ -228,7 +236,14 @@ graphics card, so I can check poses myself):
 
 In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides what the
 body shows from the movement state (the same way for you, other players and the bot),
-and `view_model.gd` does the first-person arms. A model made in Blender later can
+and `view_model.gd` does the first-person arms.
+
+**Guns.** Every model file holds all four guns; `RobotModel` keeps only the picked one's
+mesh parts (the materials are named `GUN.KIND`, e.g. `rifle.accent`). A long gun's clips
+are the base name plus the gun (`aim_rifle`, `fp_reload_shotgun`, `fire_sniper`); the
+game falls back to the plain (pistol) clip when a gun has no version of one. Each gun's
+shots leave from its own marker bone (`muzzle_shotgun`, ...). The numbers for every gun
+are in `game/combat/weapon_data.gd`. A model made in Blender later can
 replace the .glb files as long as it keeps the same bone and clip names.
 
 **Your own body in first person.** The arms and gun you see are the separate arms

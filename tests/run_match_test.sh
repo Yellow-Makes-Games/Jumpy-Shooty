@@ -5,8 +5,9 @@
 #  - kills, deaths and respawns happen
 #  - the match ends at the kill target and every copy gets the same results
 #  - every copy shows the others' animations, shots, reloads and deaths
-#  - every copy shows each player as the robot they picked, and a new pick made in
-#    the lobby between the two matches shows up in the second one
+#  - every copy shows each player as the robot they picked and with the gun they
+#    picked (the copies start with different guns), and new picks made in the lobby
+#    between the two matches show up in the second one
 #  - there are no script errors
 # Usage: tests/run_match_test.sh [PLAYERS] [NET_SIM]
 set -euo pipefail
@@ -21,15 +22,16 @@ rm -f "$OUT"/match_*.log
 EXTRA=()
 if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
 if [[ -n "${MAP:-}" ]]; then EXTRA+=("--map=$MAP"); fi   # MAP=testing_grounds picks the map (default: the game's default)
-COMMON=(--scripted-input --scripted-fire --sync-log --auto-return --switch-character --quit-after=150)
+COMMON=(--scripted-input --scripted-fire --sync-log --auto-return --switch-character --switch-weapon --quit-after=150)
 CHARACTERS=(needle vanguard)
+GUNS=(pistol shotgun rifle sniper)
 
-"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --character=needle --autostart="$PLAYERS" \
+"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --character=needle --weapon=pistol --autostart="$PLAYERS" \
   --rules=kills:4 --time-limit=60 "${COMMON[@]}" "${EXTRA[@]}" > "$OUT/match_1.log" 2>&1 &
 HOST=$!
 sleep 1
 for i in $(seq 2 "$PLAYERS"); do
-  "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name="P$i" --character="${CHARACTERS[$(((i + 1) % 2))]}" "${COMMON[@]}" "${EXTRA[@]}" \
+  "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name="P$i" --character="${CHARACTERS[$(((i + 1) % 2))]}" --weapon="${GUNS[$(((i - 1) % 4))]}" "${COMMON[@]}" "${EXTRA[@]}" \
     > "$OUT/match_$i.log" 2>&1 &
 done
 # Two matches back to back (results -> lobby -> play again). Stop everyone a few
@@ -48,20 +50,38 @@ python3 - "$OUT" "$PLAYERS" <<'PY' || fail=1
 import glob, json, sys, re
 out, players = sys.argv[1], int(sys.argv[2])
 results = {}
+ok = True
 hits = misses = heads = 0
+per_gun = {}   # gun -> [shots that hit, shots]
 for path in sorted(glob.glob(f"{out}/match_*.log")):
+    last_shot = ""
     for line in open(path, errors="replace"):
+        if path.endswith("match_1.log") and line.startswith("PELLETS "):
+            g = per_gun.setdefault(line.split()[2], [0, 0])
+            g[0] += " hit " in last_shot
+            g[1] += 1
         if line.startswith("MATCH_OVER "):
             results.setdefault(path, []).append(json.loads(line[len("MATCH_OVER "):]))
         if path.endswith("match_1.log") and line.startswith("SHOT "):
+            last_shot = line
             if " hit " in line:
                 hits += 1
                 if line.rstrip().endswith(" head"): heads += 1
             else: misses += 1
-ok = True
 shots = hits + misses
 ratio = hits / shots if shots else 0
 print(f"shots judged by host: {shots}, hits {hits} ({ratio:.0%}), headshots {heads}")
+print("by gun: " + ", ".join(f"{g} {h}/{n}" for g, (h, n) in sorted(per_gun.items())))
+# The rifle's wobble (and its long bursts while the target moves) makes it miss
+# more by design, so the rewind check looks at the other guns. Any pellet counts
+# for the shotgun.
+if per_gun:
+    aimed = [v for g, v in per_gun.items() if g != "rifle"]
+    hits_aimed, shots_aimed = sum(h for h, _ in aimed), sum(n for _, n in aimed)
+    ratio = hits_aimed / shots_aimed if shots_aimed else ratio
+    rifle = per_gun.get("rifle", [0, 0])
+    if rifle[1] >= 10 and rifle[0] < rifle[1] * 0.25:
+        print("FAIL: the rifle hardly ever hits"); ok = False
 if hits and heads == 0:
     print("FAIL: no headshots registered although shooters aim at heads half the time"); ok = False
 if shots < 20:
@@ -85,5 +105,5 @@ print("PASS: match test" if ok else "FAIL: match test")
 sys.exit(0 if ok else 1)
 PY
 echo "-- Animation: every copy shows what each player is doing"
-python3 tests/check_anim.py --need=loco,air,death,reload --characters=2 --switched "$OUT"/match_*.log || fail=1
+python3 tests/check_anim.py --need=loco,air,death,reload --characters=2 --switched --guns=3 --switched-guns "$OUT"/match_*.log || fail=1
 exit $fail

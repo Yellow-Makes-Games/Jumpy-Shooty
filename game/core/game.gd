@@ -44,6 +44,11 @@ func local_character() -> String:
 	return DevArgs.character if DevArgs.character != "" else Settings.character
 
 
+## The gun this copy of the game takes into a match.
+func local_weapon() -> String:
+	return DevArgs.weapon if DevArgs.weapon != "" else Settings.weapon
+
+
 func goto_main_menu(notice: String = "") -> void:
 	if notice != "":
 		pending_notice = notice
@@ -61,7 +66,7 @@ func start_practice(map: String = "") -> void:
 	mode = Mode.PRACTICE
 	if map != "":
 		last_practice_map = map
-	Net.start_offline(local_name(), local_character())
+	Net.start_offline(local_name(), local_character(), local_weapon())
 	Net.match_settings["map"] = _map_choice(last_practice_map)
 	Net.host_start_match()
 
@@ -74,10 +79,10 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 		bots = int(last_bot.get("bots", 1))
 	bots = clampi(bots, 1, MAX_BOTS)
 	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": map if map != "" else last_bot.map, "bots": bots}
-	Net.start_offline(local_name(), local_character())
+	Net.start_offline(local_name(), local_character(), local_weapon())
 	Net.match_settings = {"mode": "kills", "kills": kills_to_win, "minutes": 8, "map": _map_choice(last_bot.map)}
 	for i in bots:
-		Net.add_bot(difficulty)
+		Net.add_bot(difficulty, DevArgs.bot_weapon)
 	Net.host_start_match()
 
 
@@ -96,7 +101,7 @@ func _map_choice(picked: String) -> String:
 func host_online() -> Error:
 	mode = Mode.ONLINE
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
-	var err := Net.host_direct(local_name(), local_character(), port)
+	var err := Net.host_direct(local_name(), local_character(), port, local_weapon())
 	if err == OK and DevArgs.map != "":
 		var with_map := Net.match_settings.duplicate()
 		with_map["map"] = DevArgs.map
@@ -116,7 +121,7 @@ func host_online() -> Error:
 
 func join_online(address: String) -> Error:
 	mode = Mode.ONLINE
-	return Net.join_direct(local_name(), local_character(), address)
+	return Net.join_direct(local_name(), local_character(), address, local_weapon())
 
 
 func leave_to_menu() -> void:
