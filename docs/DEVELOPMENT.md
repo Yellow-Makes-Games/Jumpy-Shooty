@@ -59,6 +59,8 @@ or WSL; I run these on every change anyway):
   checks the spawn points and that a bot can walk to every level. To run one route and
   print what the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless
   --path . --script tests/site_test.gd`;
+- map scenes: every map loads and builds, every block has a colour, and the resize
+  handles move the right face (`tests/map_scene_test.gd`);
 - the game boots into practice mode on every map without script errors;
 - bots climb the Construction Site tower to a player standing on a high floor
   (`tests/run_bot_climb_test.sh`);
@@ -88,7 +90,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
-| `--map=ID` | Which map: `construction_site` (the default) or `testing_grounds`. Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `construction_site` (the default), `testing_grounds`, or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -103,31 +105,73 @@ top of `game/dev/dev_args.gd`. The useful ones:
 
 ## Maps
 
-A map is a script, not a scene: it lists its pieces (boxes, ramps, cylinders), spawn
-points and signs, and the game builds the collision, the meshes and the bots' navigation
-mesh from that list. Everything is in `game/arena/`:
+Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn` and
+`game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+
+**What a map is made of.** The root node is a `MapRoot`. Under it:
+
+- **MapBlock** nodes: every floor, wall, crate and girder. A block is a box, cylinder or
+  tube with a **Kind** (its colour from the map's palette). Its inspector also has
+  **Size**, **Solid** (off = drawn only, like paint on the floor), **Drawn** (off = an
+  invisible wall, shown in the editor as a faint blue box) and **Tint** (to make one block
+  a little lighter or darker).
+- Plain **Node3D** groups. Each object (a container, a staircase, the crane) is a group
+  grouped the Godot way (the group icon beside it in the Scene tree), so a click in the
+  3D view selects the whole object. To change one part, pick the part in the Scene
+  tree, or select the object and press Ungroup in the 3D toolbar (next to the lock).
+- **MapSpawn** nodes (under `Spawns`): where players appear. The green figure shows
+  which way they face. Keep at least 8.
+- **Label3D** nodes: signs and painted floor numbers.
+- **Environment** (sky, ambient light) and **Sun**: ordinary Godot nodes, so the editor
+  shows the map lit the way the game does.
+
+**Editing.** Move, turn and duplicate (Ctrl+D) blocks like any node. To resize a block,
+drag one of the red handles on its faces: that face moves and the opposite one stays
+put. Sizes snap to 0.1 m, or whole metres while you hold Ctrl. You can also type the
+Size in the inspector, or use the scale tool (scale is folded into the size in the
+game). A block or group you hide with the eye icon is left out of the game.
+
+Colours live in the palette (`game/maps/palettes/*.tres`): change one there and every
+block of that kind changes. To add a kind, add an entry to the palette's Colors, then
+type its name into a block's Kind. The MapRoot's inspector also has the map's rules:
+**Bounds** (leave it and you are out; drawn as a red rectangle), **Kill Height** and the
+**Swing Point** the test player hooks.
+
+**Trying it.** With a map scene open, press **F6** (run current scene): the game starts in
+practice mode on that map. In the game, all blocks of one kind are merged into a single
+mesh and the bots' navigation mesh is worked out from the solid blocks, so moving
+things needs no extra step.
+
+**Checking it.** After moving things on the Construction Site, run `tests/site_test.gd`:
+it tells you if a route no longer works or a bot can no longer reach a floor. The test
+keeps its own note of where the routes are (at the top of `tests/site_test.gd`), so if
+you move the lift shaft or a climbing crate on purpose, change its numbers there too.
+The same goes for the Testing Grounds courses and `tests/course_test.gd`.
+`tests/map_scene_test.gd` checks that every map loads, has a colour for every block and
+has enough spawn points.
+
+**A new map.** Make a scene with a MapRoot root (or duplicate an existing map and strip
+it down), give it a palette, add blocks, spawns, a WorldEnvironment and a sun. F6 plays
+it straight away. To put it in the menus, add a line to `LIST` in `game/arena/maps.gd`.
+
+The scripts behind this:
 
 | File | What it holds |
 | --- | --- |
-| `maps.gd` | The list of maps (id, name, script). Add a map here and it shows up in the menus |
-| `map_layout.gd` | The base every map extends: piece helpers (`_box`, `_span`, `_ramp`, ...), spawns, signs |
-| `map_scenery.gd`, `map_mesher.gd` | Sky and sun from the map's look, one merged mesh per colour, the navigation mesh |
-| `site_kit.gd` | Building blocks for construction sites: floor plates with holes, stairs, girders, scaffolding, containers, the crane, vehicles, the fence, signs. Also the colours and the looks (time of day) |
-| `construction_site.gd` | The Construction Site map: where everything goes. Positions are metres; x runs west to east, z north to south, y up |
-| `testing_grounds.gd` | The test map |
+| `game/arena/maps.gd` | The list of maps (id, name, scene). Add a map here and it shows up in the menus |
+| `game/arena/map_root.gd`, `map_block.gd`, `map_spawn.gd`, `map_palette.gd` | The node types above; `MapRoot.build()` turns the blocks into collision and meshes |
+| `game/arena/map_mesher.gd`, `map_scenery.gd` | One merged mesh per kind, the materials, the navigation mesh |
+| `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline |
 
-To look at a map without opening the game:
+To render pictures of a map without opening the game:
 
 ```
-tools/map_preview.sh res://game/arena/construction_site.gd OUT_DIR --shots="sw;top;cut7.5;-24,1.7,35:0,13,0:75"
+tools/map_preview.sh construction_site OUT_DIR --shots="sw;top;cut7.5;-24,1.7,35:0,13,0:75"
 ```
 
 Shots are corners (`sw`, `ne`, ...), `top` (a plan), `cutY` (a plan with everything above
-height Y sliced off, to see one floor) or a camera `x,y,z:look-x,y,z:fov`. `--look=NAME`
-renders one of the other looks kept in `site_kit.gd` (`golden`, `dusk`, `mist`).
-
-After moving things on the Construction Site, run `tests/site_test.gd`: it tells you if a
-route no longer works or a bot can no longer reach a floor.
+height Y sliced off, to see one floor) or a camera `x,y,z:look-x,y,z:fov`. The map can
+also be a scene path (`res://game/maps/my_map.tscn`).
 
 ## Tuning movement
 

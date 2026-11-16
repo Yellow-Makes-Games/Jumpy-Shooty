@@ -48,9 +48,10 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - **Construction Site:** the first playable, player-facing map.
   - Layout (2026-11-16): "The Tower", picked from three concepts (the others were "The Yard", two structures facing each other, and "The Dig", a deep excavation). One half-built tower in the middle, king of the hill: floors every 4 m up to 20 m, stepping back as they rise, with a crow's nest at 24 m on the lift shaft and the crane's jib at 34 m.
   - Lots of verticality, and a route for every move: stairs, a lift shaft to wall-jump, tall crates to climb a floor at a time, scaffolding and a hoist tower to jump and climb, walls and the fence to wall-run, girders, the crane and floodlight masts to swing from, a conveyor and an earth ramp to slide, pipes to run through.
-  - Look (2026-11-16): "Clear midday", picked from four (the others were golden hour, dusk under floodlights, and a misty morning with a muted palette). Clean, stylized, low-poly; bright sun, blue sky, primary colours.
+  - Look (2026-11-16): "Clear midday", picked from four (the others were golden hour, dusk under floodlights, and a misty morning with a muted palette; they were dropped when maps became scenes). Clean, stylized, low-poly; bright sun, blue sky, primary colours.
 - Arena size: about the size of the Testing Grounds arena part (80 x 80 m).
 - The host picks the map in the lobby; practice and the bot menu have a map picker too.
+- Maps are scenes edited in the Godot editor (2026-11-15): every piece is a node you can select, move and resize, and the game merges them into a few meshes when a match starts. Decided before making more maps.
 - Themes: different arenas can use different themes.
 
 ## Match rules

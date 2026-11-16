@@ -17,6 +17,7 @@ var motor: MovementController
 var input: PlayerInput
 var failures := 0
 var level: Node3D
+var map: MapRoot   ## the map being run on (built without meshes)
 
 var _runs: Array = []
 var _index := -1
@@ -25,9 +26,9 @@ var _run: Dictionary
 var _mem := {}   # scratch state for the current run
 
 
-## The map to run on.
-func _layout() -> MapLayout:
-	return null
+## The id of the map to run on (see Maps).
+func _map_id() -> String:
+	return ""
 
 
 ## The courses, in order.
@@ -47,7 +48,9 @@ func _before_courses() -> void:
 func _initialize() -> void:
 	level = Node3D.new()
 	root.add_child(level)
-	_layout().instantiate(level)
+	map = Maps.make(_map_id())
+	level.add_child(map)
+	map.build(false)
 
 	body = CharacterBody3D.new()
 	body.floor_snap_length = 0.3
