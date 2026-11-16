@@ -9,6 +9,7 @@ extends Node
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.
 ## --practice           Skip the menus and drop into the arena alone.
+## --map=ID             Which map to play: construction_site or testing_grounds (host, practice and bot).
 ## --bot=LEVEL          Skip the menus and start a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert).
 ## --scripted-input     The local player moves on its own (for sync tests).
 ## --sync-log           Print position samples used by tests/check_sync.py.
@@ -20,7 +21,7 @@ extends Node
 ## --kill-target=N      Host only: override the kill target for this match.
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
-## --menu=PAGE          Open the main menu on this page: play, bot, multiplayer, settings.
+## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings.
 ## --third-person      Start in third-person view (not saved to settings).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
 ## --press=SEC:ACTION   Press an input action (e.g. toggle_camera) SEC seconds after start (repeatable).
@@ -34,6 +35,7 @@ var player_name := ""
 var port := 0
 var autostart := 0
 var practice := false
+var map := ""
 var bot := -1
 var scripted_input := false
 var sync_log := false
@@ -71,6 +73,11 @@ func _ready() -> void:
 			"--port": port = int(value)
 			"--autostart": autostart = int(value)
 			"--practice": practice = true
+			"--map":
+				if Maps.has(value):
+					map = value
+				else:
+					push_warning("Unknown map: %s (maps: %s)" % [value, ", ".join(Maps.ids())])
 			"--bot": bot = clampi(int(value), 0, 3)
 			"--scripted-input": scripted_input = true
 			"--sync-log": sync_log = true

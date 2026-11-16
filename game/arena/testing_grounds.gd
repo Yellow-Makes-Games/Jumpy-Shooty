@@ -1,5 +1,5 @@
 class_name TestingGrounds
-extends RefCounted
+extends MapLayout
 ## "Testing Grounds": the long-term test map, built from boxes.
 ##
 ## Two parts:
@@ -19,10 +19,23 @@ extends RefCounted
 
 const MAP_NAME := "Testing Grounds"
 
-## Each piece: { "xf": Transform3D (centre), "size": Vector3, "kind": String, "solid": bool }
-var pieces: Array = []
-var spawns: Array = []   ## Array of [Vector3 position, float yaw]
-var signs: Array = []    ## Array of {"pos", "text", "yaw", "size"}
+const KIND_COLORS := {
+	"floor": Color(0.34, 0.36, 0.40),
+	"wall": Color(0.55, 0.57, 0.62),
+	"block": Color(0.46, 0.48, 0.53),
+	"ramp": Color(0.62, 0.52, 0.36),
+	"bridge": Color(0.36, 0.50, 0.62),
+	"pillar": Color(0.50, 0.42, 0.40),
+	"cover": Color(0.42, 0.50, 0.40),
+	# Training yard: each lane has its own colour
+	"pad": Color(0.40, 0.44, 0.50),
+	"grapple": Color(0.85, 0.60, 0.20),
+	"wallrun": Color(0.30, 0.55, 0.75),
+	"slide": Color(0.80, 0.35, 0.35),
+	"vault": Color(0.45, 0.65, 0.40),
+	"pit": Color(0.55, 0.25, 0.22),
+	"stripe": Color(0.95, 0.90, 0.75),
+}
 
 const HALF := 40.0       ## the arena part is 80 x 80 m (x and z from -40 to 40)
 const WALL_H := 14.0
@@ -36,7 +49,19 @@ const LANE_SLIDE := 10.0
 const LANE_VAULT := 30.0
 
 
-func build() -> TestingGrounds:
+func map_name() -> String:
+	return MAP_NAME
+
+
+func kind_colors() -> Dictionary:
+	return KIND_COLORS
+
+
+func grid_texture() -> bool:
+	return true
+
+
+func build() -> MapLayout:
 	_shell()
 	_arena()
 	_grapple_lane()
@@ -236,81 +261,3 @@ func _spawns() -> void:
 		if abs(pos.x) > 20 and abs(pos.z) > 20:
 			pos *= 0.55  # stay off the corner decks
 		spawns.append([pos, a])
-
-
-## A staircase of blocks you vault up, each `rise` higher. Starts at `start`
-## (ground level) and runs along x by `run` metres in total.
-func _steps(start: Vector3, run: float, count: int, top: float) -> void:
-	var depth := run / count
-	for i in count:
-		var h := top * (i + 1) / count
-		_box(Vector3(start.x + depth * (i + 0.5), h * 0.5, start.z), Vector3(abs(depth), h, 4), "block")
-
-
-func _box(center: Vector3, size: Vector3, kind: String) -> void:
-	pieces.append({"xf": Transform3D(Basis(), center), "size": size, "kind": kind, "solid": true})
-
-
-## Paint on the floor: drawn but not solid, so it never trips you.
-func _decal(center: Vector3, size: Vector3, kind: String) -> void:
-	pieces.append({"xf": Transform3D(Basis(), center), "size": size, "kind": kind, "solid": false})
-
-
-func _sign(pos: Vector3, text: String, yaw: float, size: int = 72, help: String = "") -> void:
-	signs.append({"pos": pos, "text": text, "yaw": yaw, "size": size})
-	if help != "":
-		signs.append({"pos": pos - Vector3(0, 1.1, 0), "text": help, "yaw": yaw, "size": 40})
-
-
-## A slab from `low` up to `high` (both are centres of the walking surface).
-func _ramp(low: Vector3, high: Vector3, width: float) -> void:
-	_slab(low, high, width, 0.5, "ramp")
-
-
-func _beam(a: Vector3, b: Vector3, width: float) -> void:
-	_slab(a, b, width, 0.6, "bridge")
-
-
-func _slab(a: Vector3, b: Vector3, width: float, thickness: float, kind: String) -> void:
-	var dir := b - a
-	var basis := Basis.looking_at(dir.normalized(), Vector3.UP)
-	var center := (a + b) * 0.5 - basis.y * (thickness * 0.5)
-	pieces.append({"xf": Transform3D(basis, center), "size": Vector3(width, thickness, dir.length()), "kind": kind, "solid": true})
-
-
-## Adds the level's collision (and, if `materials` is given, its meshes) under `parent`.
-func instantiate(parent: Node3D, materials: Dictionary = {}) -> void:
-	for piece in pieces:
-		var body: Node3D
-		if piece.solid:
-			body = StaticBody3D.new()
-			var shape := CollisionShape3D.new()
-			var box := BoxShape3D.new()
-			box.size = piece.size
-			shape.shape = box
-			body.add_child(shape)
-		else:
-			body = Node3D.new()
-		body.transform = piece.xf
-		if not materials.is_empty():
-			var mesh := MeshInstance3D.new()
-			var bm := BoxMesh.new()
-			bm.size = piece.size
-			mesh.mesh = bm
-			mesh.material_override = materials[piece.kind]
-			body.add_child(mesh)
-		parent.add_child(body)
-	if materials.is_empty():
-		return
-	for s in signs:
-		var label := Label3D.new()
-		label.text = s.text
-		label.font_size = s.size
-		label.pixel_size = 0.01
-		label.outline_size = 12
-		label.modulate = Color(1, 1, 1)
-		label.outline_modulate = Color(0.05, 0.05, 0.08)
-		label.position = s.pos
-		label.rotation.y = s.yaw
-		label.double_sided = false
-		parent.add_child(label)

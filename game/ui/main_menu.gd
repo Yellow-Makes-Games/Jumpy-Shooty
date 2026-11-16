@@ -13,6 +13,7 @@ func _ready() -> void:
 	match DevArgs.menu:
 		"play": _show_play()
 		"bot": _show_bot()
+		"practice": _show_practice()
 		"multiplayer": _show_multiplayer()
 		"settings": _show_settings()
 		_: _show_main()
@@ -38,10 +39,31 @@ func _show_play() -> void:
 	UiKit.clear(_col)
 	UiKit.title(_col, "Play", 36)
 	UiKit.button(_col, "1v1 Bot", _show_bot).grab_focus()
-	UiKit.button(_col, "Practice (free roam)", Game.start_practice)
+	UiKit.button(_col, "Practice (free roam)", _show_practice)
 	UiKit.button(_col, "Multiplayer FFA", _show_multiplayer)
 	UiKit.spacer(_col)
 	UiKit.button(_col, "Back", _show_main)
+
+
+func _show_practice() -> void:
+	UiKit.clear(_col)
+	UiKit.title(_col, "Practice", 36)
+	UiKit.label(_col, "Roam a map on your own to learn its routes.", true, 15)
+	var map := _map_picker(Game.last_practice_map)
+	UiKit.spacer(_col, 4)
+	UiKit.button(_col, "Start", func(): Game.start_practice(Maps.LIST[map.selected].id)).grab_focus()
+	UiKit.spacer(_col)
+	UiKit.button(_col, "Back", _show_play)
+
+
+## A "Map" label and drop-down with every map; `current` is selected.
+func _map_picker(current: String) -> OptionButton:
+	UiKit.label(_col, "Map", true, 16)
+	var pick := OptionButton.new()
+	pick.custom_minimum_size = Vector2(0, 44)
+	Maps.fill(pick, current)
+	_col.add_child(pick)
+	return pick
 
 
 const BOT_BLURBS := [
@@ -74,9 +96,9 @@ func _show_bot() -> void:
 	kills.value = Game.last_bot.kills
 	kills.custom_minimum_size = Vector2(0, 44)
 	_col.add_child(kills)
-	UiKit.label(_col, "Map: %s" % TestingGrounds.MAP_NAME, true, 15)
+	var map := _map_picker(Game.last_bot.map)
 	UiKit.spacer(_col, 4)
-	UiKit.button(_col, "Start", func(): Game.start_bot(pick.selected, int(kills.value))).grab_focus()
+	UiKit.button(_col, "Start", func(): Game.start_bot(pick.selected, int(kills.value), Maps.LIST[map.selected].id)).grab_focus()
 	UiKit.spacer(_col)
 	UiKit.button(_col, "Back", _show_play)
 

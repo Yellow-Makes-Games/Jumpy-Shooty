@@ -577,11 +577,11 @@ func _scripted_input(delta: float) -> void:
 	input.crouch = fmod(t, 7.0) > 5.8
 	input.crouch_pressed = input.crouch and not was_crouching
 	input.fire = false
-	# Every 5 s, swing from the central tower for a moment (tests the grapple online).
+	# Every 5 s, swing from a high point in the middle for a moment (tests the grapple online).
 	var swing_phase := fmod(t + float(peer_id % 7), 5.0)
 	input.grapple = swing_phase < 1.3
 	if swing_phase < delta:
-		var to_tower := Vector3(0, 5.5, 0) - eye_position()
+		var to_tower: Vector3 = Net.arena.layout.swing_point() - eye_position()
 		input.yaw = atan2(-to_tower.x, -to_tower.z)
 		input.pitch = atan2(to_tower.y, Vector2(to_tower.x, to_tower.z).length())
 		input.grapple_pressed = true
