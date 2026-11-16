@@ -34,7 +34,7 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
   sweep through the view instead.
 - UI: minimal and clean.
 - Music: none for now (Austin will add it later; the Music slider and bus are ready).
-- Sound effects: crisp and modern. Other players' sounds are positional (3D) so fights read clearly.
+- Sound effects: crisp and realistic, not high-pitched or arcade-like. Other players' sounds are positional (3D) so fights read clearly.
 
 ## Weapons
 

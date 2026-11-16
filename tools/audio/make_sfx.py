@@ -8,8 +8,9 @@ Run it again after changing a recipe:
     python3 tools/audio/make_sfx.py            # every sound
     python3 tools/audio/make_sfx.py fire_      # only names starting with "fire_"
 
-The style is "crisp and modern": a sharp transient on everything, tight low end, a
-short bright metallic layer (the players are robots), and short, controlled tails.
+The style is crisp but realistic: a clean attack, real weight in the low end, gun
+actions and armour made of dull steel rather than ringing bells, and room tails.
+The players are robots, so feet and hits are metal, but nothing is "beepy".
 Every sound is normalised to the same peak; Sound (game/audio/sound.gd) sets how loud
 each one plays. Needs Python 3 and numpy only. Output: 44.1 kHz, 16-bit, mono (the
 first-person gunshots are stereo for a wider tail).
@@ -148,7 +149,7 @@ def modal(rng, seconds, freqs, decays, amps=None, detune=0.0):
 
 def click(rng, seconds=0.006, tau=0.0007, cutoff=3000.0):
     """A very short bright transient."""
-    return hp(noise(rng, seconds) * env(seconds, tau, 0.0001), cutoff)
+    return lp(hp(noise(rng, seconds) * env(seconds, tau, 0.0001), cutoff * 0.45), 6500)
 
 
 def sat(x, drive=2.0):
@@ -227,45 +228,49 @@ def write(name, x):
 # Guns
 
 GUNS = {
-    # crack: (centre Hz, Q, decay), thump: (start Hz, end Hz, decay, gain), body: (cutoff, decay, gain),
-    # mech: metallic action (freqs, decay), tail: (rt60, gain, brightness), ring: a faint synthetic sheen
-    "pistol": dict(crack=(3200, 0.9, 0.022), thump=(190, 62, 0.05, 0.85), body=(2600, 0.035, 0.55),
-                   mech=([2350, 3900, 6100], 0.02), slide_at=0.032, tail=(0.55, 0.38, 4200),
-                   ring=(5200, 0.05, 0.05), drive=2.4),
-    "rifle": dict(crack=(3600, 0.8, 0.017), thump=(170, 58, 0.04, 0.95), body=(3000, 0.028, 0.6),
-                  mech=([1900, 3300, 5200], 0.016), slide_at=0.026, tail=(0.45, 0.3, 3800),
-                  ring=(4400, 0.04, 0.04), drive=2.8),
-    "shotgun": dict(crack=(2300, 0.6, 0.04), thump=(150, 42, 0.11, 1.25), body=(1800, 0.075, 0.95),
-                    mech=([1500, 2650, 4100], 0.03), slide_at=None, tail=(1.0, 0.55, 3000),
-                    ring=None, drive=3.0),
-    "sniper": dict(crack=(4200, 0.7, 0.03), thump=(130, 34, 0.14, 1.3), body=(2200, 0.06, 0.8),
-                   mech=([1250, 2300, 3700], 0.04), slide_at=None, tail=(1.7, 0.6, 3400),
-                   ring=(3100, 0.18, 0.06), drive=3.2),
+    # crack: (centre Hz, Q, decay), blast: (lowpass Hz, decay, gain), boom: (decay, gain),
+    # thump: (start Hz, end Hz, decay, gain), mech: metallic action (freqs, decay),
+    # tail: (rt60, gain, brightness), slide_at: the slide or bolt carrier slamming home
+    "pistol": dict(crack=(1700, 0.7, 0.012), blast=(2400, 0.022, 1.0), boom=(0.07, 0.6),
+                   thump=(130, 50, 0.05, 0.7), mech=([980, 1630, 2480], 0.01), slide_at=0.03,
+                   tail=(0.75, 0.45, 2200), drive=2.6),
+    "rifle": dict(crack=(1900, 0.7, 0.01), blast=(2600, 0.02, 1.0), boom=(0.06, 0.75),
+                  thump=(120, 46, 0.045, 0.8), mech=([860, 1420, 2210], 0.009), slide_at=0.024,
+                  tail=(0.65, 0.4, 2100), drive=3.0),
+    "shotgun": dict(crack=(1200, 0.6, 0.02), blast=(1700, 0.045, 1.3), boom=(0.16, 0.55),
+                    thump=(100, 42, 0.08, 0.6), mech=([700, 1180, 1870], 0.014), slide_at=None,
+                    tail=(1.2, 0.6, 1800), drive=3.2),
+    "sniper": dict(crack=(2000, 0.6, 0.016), blast=(2000, 0.04, 1.3), boom=(0.2, 0.5),
+                   thump=(95, 38, 0.1, 0.55), mech=([640, 1090, 1720], 0.016), slide_at=None,
+                   tail=(1.9, 0.7, 1900), drive=3.4),
 }
 
 
 def gun_dry(rng, g):
-    length = 0.5
+    """The shot itself: a broadband blast, the supersonic crack, a low boom and the action cycling."""
+    length = 0.6
     cf, cq, ctau = g["crack"]
-    crack = bp(noise(rng, length), cf, cq) * env(length, ctau, 0.0002)
-    crack += 0.6 * hp(noise(rng, length), 5500) * env(length, ctau * 0.35, 0.0001)
+    crack = bp(noise(rng, length), cf, cq) * env(length, ctau, 0.0002) * 1.6
+    air = hp(noise(rng, length), 4500) * env(length, 0.0025, 0.0001) * 0.25
+    bc, btau, bg = g["blast"]
+    blast = lp(noise(rng, length), bc) * env(length, btau, 0.0004) * bg
+    btau2, bgain = g["boom"]
+    boom = lp(lp(noise(rng, length), 260), 260) * env(length, btau2, 0.002) * bgain * 1.1
     f0, f1, ttau, tg = g["thump"]
-    thump = sat(sine_sweep(length, f0, f1, ttau * 0.5) * env(length, ttau, 0.001) * 1.4, 1.6) * tg
-    bc, btau, bg = g["body"]
-    body = lp(noise(rng, length), bc) * env(length, btau, 0.0006) * bg
+    thump = sine_sweep(length, f0, f1, ttau * 0.4) * env(length, ttau, 0.001) * tg * 0.55
     freqs, mtau = g["mech"]
-    mech = modal(rng, length, freqs, [mtau, mtau * 0.7, mtau * 0.5], [0.35, 0.25, 0.18], 0.03)
-    parts = [click(rng, 0.01, 0.0006, 2500) * 1.3, crack, thump, body, mech]
+    mech = modal(rng, length, freqs, [mtau, mtau * 0.8, mtau * 0.6], [0.16, 0.12, 0.08], 0.05)
+    mech += bp(noise(rng, length), freqs[1], 1.5) * env(length, mtau * 0.6, 0.0002) * 0.25
+    parts = [blast, crack, air, boom, thump, mech]
     if g["slide_at"]:
-        parts.append((modal(rng, 0.08, [x * 1.12 for x in freqs], [0.012, 0.009, 0.007], [0.22, 0.16, 0.1]), g["slide_at"]))
-    if g["ring"]:
-        rf, rtau, rg = g["ring"]
-        parts.append(np.sin(2 * math.pi * rf * tt(length)) * env(length, rtau, 0.002) * rg)
+        slam = bp(noise(rng, 0.06), freqs[0] * 1.2, 1.2) * env(0.06, 0.006, 0.0002) * 0.3
+        parts.append((slam, g["slide_at"]))
     dry = mix(*parts)
-    dry = sat(dry * 1.2, g["drive"])
-    dry = peak(dry, 3800, 1.0, 3.0)    # presence: the crisp edge
-    dry = peak(dry, 300, 0.9, -2.5)    # less mud
-    return dry
+    dry = sat(dry * 1.1, g["drive"])
+    dry = peak(dry, 180, 0.8, 1.5)     # weight
+    dry = peak(dry, 2200, 0.9, 2.0)    # the crack cuts through
+    dry = peak(dry, 4500, 0.8, -3.0)   # no fizz
+    return lp(dry, 9000)
 
 
 def gun_fire(name, stereo=False, seed=0):
@@ -300,24 +305,26 @@ def gun_far(name):
 
 def metal_clack(rng, scale=1.0, decay=1.0, weight=1.0):
     """The hard click of steel parts meeting."""
-    f = [x * scale for x in (2100, 3450, 5300, 7600)]
-    d = [0.03 * decay, 0.02 * decay, 0.012 * decay, 0.006 * decay]
-    m = modal(rng, 0.2, f, d, [0.6, 0.45, 0.3, 0.2], 0.04)
-    thud = sine_sweep(0.2, 260 * scale, 110, 0.01) * env(0.2, 0.018) * 0.45 * weight
-    return mix(click(rng, 0.01, 0.0005, 2500) * 0.9, m, thud)
+    f = [x * scale for x in (1150, 1870, 2830, 4100)]
+    d = [0.016 * decay, 0.011 * decay, 0.007 * decay, 0.004 * decay]
+    m = modal(rng, 0.2, f, d, [0.35, 0.28, 0.18, 0.1], 0.06)
+    knock = bp(noise(rng, 0.2), 1400 * scale, 1.2) * env(0.2, 0.006 * decay, 0.0002) * 0.9
+    thud = sine_sweep(0.2, 200 * scale, 90, 0.01) * env(0.2, 0.022) * 0.55 * weight
+    return mix(click(rng, 0.01, 0.0005, 2500) * 0.6, knock, m, thud)
 
 
 def metal_slide(rng, seconds=0.07, centre=2400.0, rise=1.4):
     """Steel sliding on steel: a short gritty scrape."""
     grit = noise(rng, seconds) * (rng.uniform(0, 1, n(seconds)) > 0.6)
-    return sweep_bp(grit, centre, centre * rise, 3.0) * bell_env(seconds, 0.3, 1.2) * 0.9
+    centre *= 0.55   # recipes give the old, brighter centres
+    return sweep_bp(grit, centre, centre * rise, 2.0) * bell_env(seconds, 0.3, 1.2) * 0.9
 
 
 def handling(name, rng):
     s = {
         "dry_click": lambda: mix(click(rng, 0.01, 0.0004, 3500) * 0.8,
-                                 modal(rng, 0.12, [3100, 4700, 6900], [0.015, 0.01, 0.006], [0.5, 0.3, 0.2]),
-                                 (modal(rng, 0.08, [1800, 2900], [0.01, 0.008], [0.25, 0.15]), 0.012)),
+                                 metal_clack(rng, 1.1, 0.4, 0.2),
+                                 (metal_clack(rng, 0.8, 0.5, 0.3) * 0.5, 0.012)),
         "mag_out": lambda: mix(metal_clack(rng, 1.25, 0.6, 0.3), (metal_slide(rng, 0.09, 1800, 1.3), 0.01)),
         "mag_in": lambda: mix(metal_slide(rng, 0.06, 1600, 1.6) * 0.7, (metal_clack(rng, 0.85, 1.2, 1.2), 0.055)),
         "mag_out_rifle": lambda: mix(metal_clack(rng, 1.05, 0.7, 0.4), (metal_slide(rng, 0.12, 1400, 1.4), 0.015)),
@@ -330,7 +337,7 @@ def handling(name, rng):
         "pump_back": lambda: mix(metal_slide(rng, 0.09, 900, 2.2) * 1.1, (metal_clack(rng, 0.7, 1.3, 1.2), 0.08)),
         "pump_fwd": lambda: mix(metal_slide(rng, 0.07, 1500, 0.6) * 0.9, (metal_clack(rng, 0.62, 1.6, 1.5), 0.065)),
         "shell_in": lambda: mix(metal_slide(rng, 0.05, 1100, 1.5) * 0.6,
-                                (modal(rng, 0.15, [1250, 2050, 3300], [0.025, 0.018, 0.01], [0.5, 0.35, 0.2]), 0.045),
+                                (metal_clack(rng, 0.75, 0.9, 0.8), 0.045),
                                 (metal_clack(rng, 1.4, 0.5, 0.6) * 0.5, 0.06)),
         "bolt_up": lambda: metal_clack(rng, 1.2, 0.6, 0.3),
         "bolt_back": lambda: mix(metal_slide(rng, 0.13, 1700, 1.5), (metal_clack(rng, 0.9, 1.0, 0.6) * 0.8, 0.12)),
@@ -364,76 +371,75 @@ def equip(name):
 def impact_wall(seed):
     """A bullet striking concrete or steel: a hard snap, a puff of grit, sometimes a ping."""
     rng = np.random.default_rng(5000 + seed)
-    snap = hp(noise(rng, 0.05), 1800) * env(0.05, 0.003, 0.0002) * 0.6
-    body = bp(noise(rng, 0.12), rng.uniform(900, 1500), 1.0) * env(0.12, 0.02) * 1.6
-    thud = sat(sine_sweep(0.1, 260, 110, 0.01) * env(0.1, 0.016) * 1.4, 1.5) * 0.8
+    snap = lp(hp(noise(rng, 0.05), 900), 5000) * env(0.05, 0.003, 0.0002) * 0.7
+    body = bp(noise(rng, 0.15), rng.uniform(500, 850), 0.8) * env(0.15, 0.025) * 1.8
+    thud = sat(sine_sweep(0.12, 200, 80, 0.01) * env(0.12, 0.015) * 1.4, 1.5) * 0.35
     debris = np.zeros(n(0.2))
     for _ in range(rng.integers(5, 10)):
         at = n(rng.uniform(0.008, 0.16))
-        d = lp(click(rng, 0.008, 0.0006, 2000), 7000) * rng.uniform(0.1, 0.3)
+        d = lp(click(rng, 0.008, 0.0006, 2000), 3500) * rng.uniform(0.1, 0.3)
         debris[at:at + len(d)] += d[: len(debris) - at]
     parts = [snap, body, thud, debris]
     if seed % 2 == 1:   # every other variant has a little metal in it
-        parts.append(modal(rng, 0.25, [rng.uniform(2200, 3200), rng.uniform(4300, 5600)], [0.06, 0.035], [0.18, 0.1]))
+        parts.append(modal(rng, 0.25, [rng.uniform(1100, 1500), rng.uniform(2100, 2700)], [0.03, 0.02], [0.12, 0.06]))
     dry = mix(*parts)
-    return finish(mix(dry, fftconv(lp(dry, 3000), room_ir(rng, 0.35)) * 0.12))
+    return finish(mix(dry, fftconv(lp(dry, 2000), room_ir(rng, 0.45, 2500)) * 0.2))
 
 
 def ricochet(seed):
     """The whine of a round glancing off."""
     rng = np.random.default_rng(5500 + seed)
     length = 0.42
-    f0, f1 = rng.uniform(3600, 4400), rng.uniform(1500, 1900)
+    f0, f1 = rng.uniform(1900, 2300), rng.uniform(800, 1000)
     t = tt(length)
     vib = 1 + 0.02 * np.sin(2 * math.pi * rng.uniform(25, 40) * t)
     f = (f0 * (f1 / f0) ** (t / length)) * vib
-    whine = np.sin(2 * math.pi * np.cumsum(f) / SR) * env(length, 0.12, 0.004)
-    hiss = bp(noise(rng, length), 3000, 2.0) * env(length, 0.08, 0.004) * 0.25
-    return finish(mix(lp(click(rng, 0.03, 0.002, 1500), 6000) * 0.8, (whine * 0.5 + hiss, 0.005)))
+    whine = sweep_bp(noise(rng, length), f0, f1, 6.0) * 2.5 * env(length, 0.12, 0.004)   # noisy, not a pure tone
+    hiss = bp(noise(rng, length), 1500, 1.5) * env(length, 0.08, 0.004) * 0.25
+    return finish(mix(lp(click(rng, 0.03, 0.002, 1500), 4000) * 0.8, (whine * 0.35 + hiss, 0.005)))
 
 
 def impact_body(seed):
     """A round hitting robot armour: a hard metallic tink over a dull thunk."""
     rng = np.random.default_rng(6000 + seed)
     k = rng.uniform(0.92, 1.08)
-    ping = modal(rng, 0.35, [1180 * k, 1930 * k, 3070 * k, 4520 * k], [0.09, 0.06, 0.035, 0.02], [0.5, 0.4, 0.3, 0.2])
-    thunk = sine_sweep(0.15, 210, 90, 0.012) * env(0.15, 0.03) * 0.9
-    crunch = bp(noise(rng, 0.06), 2400, 0.8) * env(0.06, 0.008, 0.0002) * 0.8
-    sparks = hp(noise(rng, 0.12) * (rng.uniform(0, 1, n(0.12)) > 0.93), 5000) * env(0.12, 0.04) * 0.5
+    ping = modal(rng, 0.35, [520 * k, 860 * k, 1370 * k, 2010 * k], [0.05, 0.035, 0.02, 0.012], [0.3, 0.25, 0.16, 0.08], 0.04)
+    thunk = sine_sweep(0.2, 170, 70, 0.012) * env(0.2, 0.03) * 0.5
+    crunch = bp(noise(rng, 0.08), 1100, 0.8) * env(0.08, 0.012, 0.0002) * 1.0
+    sparks = lp(hp(noise(rng, 0.12) * (rng.uniform(0, 1, n(0.12)) > 0.95), 2500), 5000) * env(0.12, 0.03) * 0.2
     return finish(sat(mix(click(rng, 0.01, 0.0005, 2500), crunch, thunk, ping, (sparks, 0.01)), 1.5))
 
 
 def whiz(seed):
     """A round passing close by your head: a sharp supersonic snap with a short zip."""
     rng = np.random.default_rng(6500 + seed)
-    snap = hp(noise(rng, 0.03), 2500) * env(0.03, 0.002, 0.0002)
-    zip_ = sweep_bp(noise(rng, 0.14), rng.uniform(5200, 6200), rng.uniform(1700, 2300), 4.0) * bell_env(0.14, 0.2, 1.5)
+    snap = lp(hp(noise(rng, 0.03), 1500), 6000) * env(0.03, 0.002, 0.0002)
+    zip_ = sweep_bp(noise(rng, 0.14), rng.uniform(2600, 3200), rng.uniform(800, 1100), 2.5) * bell_env(0.14, 0.2, 1.5)
     return finish(mix(snap * 0.8, zip_))
 
 
 def hitmarker():
     rng = np.random.default_rng(7000)
-    tone = np.sin(2 * math.pi * 3100 * tt(0.08)) * env(0.08, 0.014, 0.0005)
-    tone += 0.35 * np.sin(2 * math.pi * 4650 * tt(0.08)) * env(0.08, 0.009, 0.0005)
-    return finish(mix(click(rng, 0.006, 0.0004, 4000) * 0.6, tone))
+    # A dull metallic tick, like a round striking armour plate a long way off.
+    tick = metal_clack(rng, 0.85, 0.7, 0.4)
+    return finish(mix(tick, bp(noise(rng, 0.03), 1200, 1.0) * env(0.03, 0.004) * 0.5))
 
 
 def hitmarker_head():
     rng = np.random.default_rng(7001)
-    bell = modal(rng, 0.45, [2640, 5290, 7930], [0.13, 0.06, 0.03], [0.6, 0.3, 0.12])
-    tick = np.sin(2 * math.pi * 3500 * tt(0.06)) * env(0.06, 0.012)
-    return finish(mix(click(rng, 0.006, 0.0004, 4000) * 0.6, tick * 0.6, bell))
+    # A helmet "tink": a sharper strike with a short ring of hard steel.
+    ring = modal(rng, 0.3, [1320, 2190, 3350], [0.07, 0.04, 0.02], [0.35, 0.2, 0.1], 0.02)
+    return finish(mix(metal_clack(rng, 1.0, 0.8, 0.4), ring))
 
 
 def kill_confirm(head=False):
     rng = np.random.default_rng(7100 + head)
-    thunk = sat(sine_sweep(0.2, 260, 110, 0.03) * env(0.2, 0.06, 0.001), 2.0) * 0.7
-    notes = [1318.5, 1975.5] if not head else [1567.98, 2349.3]
-    chord = sum(np.sin(2 * math.pi * f * tt(0.7)) * env(0.7, 0.2, 0.003) for f in notes) * 0.35
-    chord += sum(np.sin(2 * math.pi * 2 * f * tt(0.7)) * env(0.7, 0.07, 0.003) for f in notes) * 0.08
-    parts = [click(rng, 0.008, 0.0005, 3000) * 0.7, thunk, (chord, 0.035)]
+    # A heavy, muted thunk with a low metallic ring: felt more than heard.
+    thunk = sat(sine_sweep(0.35, 150, 55, 0.03) * env(0.35, 0.09, 0.001) * 1.3, 2.0)
+    ring = modal(rng, 0.7, [392, 588, 931] if not head else [466, 699, 1108], [0.22, 0.14, 0.08], [0.3, 0.18, 0.1], 0.01)
+    parts = [metal_clack(rng, 0.7, 1.0, 0.8) * 0.6, thunk, (ring, 0.02)]
     if head:
-        parts.append((modal(rng, 0.6, [3520, 5280, 7040], [0.18, 0.1, 0.05], [0.25, 0.15, 0.08]), 0.075))
+        parts.append((metal_clack(rng, 1.0, 0.9, 0.3) * 0.6, 0.0))
     return finish(mix(*parts))
 
 
@@ -445,8 +451,8 @@ def hurt(head=False):
     rattle = modal(rng, 0.25, [740, 1210, 1860], [0.05, 0.035, 0.02], [0.3, 0.2, 0.12], 0.05)
     parts = [punch, crunch, rattle]
     if head:
-        parts += [modal(rng, 0.8, [1870, 2790], [0.25, 0.15], [0.25, 0.12]),
-                  hp(noise(rng, 0.05), 3000) * env(0.05, 0.006) * 0.5]
+        parts += [modal(rng, 0.6, [880, 1370], [0.12, 0.07], [0.2, 0.1]),
+                  bp(noise(rng, 0.05), 1600, 1.0) * env(0.05, 0.006) * 0.5]
     return finish(mix(*parts))
 
 
@@ -454,8 +460,8 @@ def death():
     """A robot powering down: a falling electric whine, crackle and a final clunk."""
     rng = np.random.default_rng(7300)
     length = 1.0
-    whine = lp(glide(length, 900, 55, "saw"), 2500) * env(length, 0.35, 0.01) * 0.45
-    crackle = hp(noise(rng, 0.5) * (rng.uniform(0, 1, n(0.5)) > 0.97), 3000) * env(0.5, 0.15) * 0.7
+    whine = lp(glide(length, 260, 35, "saw"), 700) * env(length, 0.3, 0.01) * 0.25
+    crackle = lp(hp(noise(rng, 0.5) * (rng.uniform(0, 1, n(0.5)) > 0.98), 1500), 5000) * env(0.5, 0.12) * 0.4
     hit = sat(sine_sweep(0.3, 200, 50, 0.03) * env(0.3, 0.07), 2) * 0.9
     clatter = mix(*[(metal_clack(rng, rng.uniform(0.6, 0.9), 1.2, 1.0) * rng.uniform(0.3, 0.6), at) for at in (0.32, 0.45, 0.53)])
     return finish(mix(hit, crackle, whine, clatter))
@@ -465,10 +471,9 @@ def respawn():
     """Powering up: a rising shimmer that lands on a soft click."""
     rng = np.random.default_rng(7400)
     length = 0.6
-    rise = glide(length, 220, 1320) * np.linspace(0, 1, n(length)) ** 2 * 0.35
-    rise += glide(length, 330, 1980) * np.linspace(0, 1, n(length)) ** 3 * 0.18
-    air = sweep_bp(noise(rng, length), 400, 6000, 2.0) * np.linspace(0, 1, n(length)) ** 2 * 0.4
-    land = sum(np.sin(2 * math.pi * f * tt(0.5)) * env(0.5, 0.12, 0.002) for f in (1320, 1980)) * 0.3
+    rise = lp(glide(length, 60, 240, "saw"), 600) * np.linspace(0, 1, n(length)) ** 2 * 0.25   # systems spinning up
+    air = sweep_bp(noise(rng, length), 200, 1800, 1.5) * np.linspace(0, 1, n(length)) ** 2 * 0.4
+    land = mix(metal_clack(rng, 0.7, 1.0, 1.0), sine_sweep(0.2, 140, 60, 0.02) * env(0.2, 0.04) * 0.6)
     return finish(mix(rise, air, (land, length), (click(rng) * 0.6, length)))
 
 
@@ -478,20 +483,21 @@ def respawn():
 def footstep(seed, weight=1.0):
     rng = np.random.default_rng(8000 + seed)
     k = rng.uniform(0.9, 1.1)
-    thud = sine_sweep(0.15, 150 * k, 62, 0.012) * env(0.15, 0.028, 0.001) * weight
-    body = lp(noise(rng, 0.08), 500) * env(0.08, 0.014, 0.0008) * 0.7
-    clank = modal(rng, 0.2, [780 * k, 1310 * k, 2170 * k, 3420 * k], [0.035, 0.025, 0.016, 0.01], [0.35, 0.3, 0.22, 0.14], 0.03)
-    scuff = bp(noise(rng, 0.05), 2800, 1.5) * env(0.05, 0.008, 0.002) * 0.25
-    servo = (np.sin(2 * math.pi * rng.uniform(1700, 2100) * tt(0.04)) * env(0.04, 0.012) * 0.06)
-    return finish(sat(mix(click(rng, 0.006, 0.0005, 3000) * 0.35, thud, body, clank, scuff, (servo, 0.015)), 1.4))
+    thud = sine_sweep(0.2, 120 * k, 50, 0.012) * env(0.2, 0.03, 0.001) * weight * 0.7
+    body = lp(noise(rng, 0.1), 450) * env(0.1, 0.018, 0.0008) * 1.0
+    heel = bp(noise(rng, 0.06), 900 * k, 1.0) * env(0.06, 0.008, 0.0004) * 0.6
+    clank = modal(rng, 0.2, [430 * k, 710 * k, 1130 * k, 1690 * k], [0.03, 0.022, 0.014, 0.008], [0.22, 0.2, 0.14, 0.08], 0.04)
+    scuff = bp(noise(rng, 0.08), 1500, 1.0) * env(0.08, 0.014, 0.004) * 0.25
+    return finish(sat(mix(click(rng, 0.006, 0.0005, 3000) * 0.25, thud, body, heel, clank, (scuff, 0.01)), 1.4))
 
 
 def land(hard=False):
     rng = np.random.default_rng(8100 + hard)
     w = 1.6 if hard else 1.0
     thud = sat(sine_sweep(0.4, 160, 40, 0.025) * env(0.4, 0.07 * w, 0.001) * 1.4, 2.0)
-    plate = modal(rng, 0.5, [520, 890, 1460, 2310], [0.09 * w, 0.06 * w, 0.04, 0.02], [0.35, 0.3, 0.2, 0.12], 0.03)
-    hiss = hp(noise(rng, 0.3), 3500) * env(0.3, 0.07, 0.02) * 0.25 * w    # the shock absorbers
+    plate = modal(rng, 0.5, [310, 540, 870, 1340], [0.06 * w, 0.045 * w, 0.03, 0.015], [0.3, 0.25, 0.16, 0.08], 0.04)
+    plate += lp(noise(rng, 0.5), 700) * env(0.5, 0.05 * w, 0.001) * 0.8
+    hiss = bp(noise(rng, 0.3), 1800, 0.8) * env(0.3, 0.06, 0.02) * 0.12 * w    # the shock absorbers
     debris = np.zeros(n(0.3))
     for _ in range(10 if hard else 4):
         at = n(rng.uniform(0.01, 0.22))
@@ -501,13 +507,14 @@ def land(hard=False):
 
 
 def servo(rng, seconds, f0, f1, level=0.3):
-    """An electric motor whirring from f0 to f1: a filtered sawtooth with a little buzz."""
-    w = lp(glide(seconds, f0, f1, "saw"), 3000) * 0.6 + glide(seconds, f0 * 2, f1 * 2) * 0.3
-    return w * bell_env(seconds, 0.25, 1.0) * level
+    """An electric motor whirring from f0 to f1: a low, muffled hum under the movement."""
+    w = lp(glide(seconds, f0 * 0.5, f1 * 0.5, "saw"), 900) * 0.6
+    return w * bell_env(seconds, 0.25, 1.0) * level * 0.35
 
 
 def whoosh(rng, seconds, f0=500, f1=2500, q=1.3, at=0.45):
-    return sweep_bp(noise(rng, seconds), f0, f1, q) * bell_env(seconds, at, 1.6)
+    """Air rushing past: a broad band of noise gliding up (kept low, like real air)."""
+    return sweep_bp(noise(rng, seconds), f0 * 0.5, f1 * 0.45, q * 0.8) * bell_env(seconds, at, 1.6)
 
 
 def jump():
@@ -515,7 +522,7 @@ def jump():
     push = sine_sweep(0.12, 180, 80, 0.015) * env(0.12, 0.03) * 0.6
     hiss = hp(noise(rng, 0.16), 2500) * env(0.16, 0.04, 0.004) * 0.15
     return finish(mix(click(rng, 0.006, 0.0005, 3000) * 0.4, push,
-                      modal(rng, 0.15, [950, 1650, 2700], [0.03, 0.02, 0.012], [0.25, 0.18, 0.1]),
+                      metal_clack(rng, 0.6, 1.0, 0.8) * 0.5,
                       hiss, servo(rng, 0.14, 380, 820, 0.25), whoosh(rng, 0.22, 600, 1800) * 0.35))
 
 
@@ -538,9 +545,9 @@ def scrape(rng, seconds, centre, rough=0.75, rumble=0.5):
     """Metal dragging along the ground, with the odd spark."""
     grit = noise(rng, seconds) * (rng.uniform(0, 1, n(seconds)) > rough)
     am = 0.7 + 0.3 * lp(rng.uniform(-1, 1, n(seconds)), 30) * 8
-    s = bp(grit, centre, 1.4) * am
-    s += lp(noise(rng, seconds), 260) * rumble
-    s += hp(noise(rng, seconds) * (rng.uniform(0, 1, n(seconds)) > 0.985), 6000) * 0.25
+    s = bp(grit, centre * 0.5, 1.0) * am
+    s += lp(noise(rng, seconds), 220) * rumble * 1.5
+    s += lp(hp(noise(rng, seconds) * (rng.uniform(0, 1, n(seconds)) > 0.99), 3000), 6000) * 0.12
     return s
 
 
@@ -558,7 +565,7 @@ def belly_slide():
     body = scrape(rng, length, 1200, 0.7, 0.8) * np.concatenate([np.linspace(0, 1, n(0.03)), np.ones(n(0.45)),
                                                                    np.linspace(1, 0, n(length) - n(0.03) - n(0.45)) ** 1.5])
     hit = sat(sine_sweep(0.3, 140, 45, 0.02) * env(0.3, 0.06) * 1.3, 2)
-    return finish(mix(hit, modal(rng, 0.4, [430, 760, 1290], [0.08, 0.05, 0.03], [0.35, 0.25, 0.15]), body * 0.8))
+    return finish(mix(hit, modal(rng, 0.4, [280, 490, 820], [0.06, 0.04, 0.025], [0.3, 0.2, 0.1]), body * 0.8))
 
 
 def crawl(seed):
@@ -569,7 +576,7 @@ def crawl(seed):
 
 def roll():
     rng = np.random.default_rng(8700)
-    clunks = [(sat(sine_sweep(0.2, 150, 55, 0.015) * env(0.2, 0.04), 1.5) * g + modal(rng, 0.2, [600, 1050, 1720], [0.04, 0.03, 0.02], [0.25, 0.2, 0.1]) * g, at)
+    clunks = [(sat(sine_sweep(0.2, 150, 55, 0.015) * env(0.2, 0.04), 1.5) * g + modal(rng, 0.2, [340, 590, 960], [0.03, 0.02, 0.012], [0.22, 0.16, 0.08]) * g, at)
               for at, g in ((0.0, 1.0), (0.13, 0.75), (0.27, 0.55))]
     tumble = scrape(rng, 0.45, 1500, 0.8, 0.35) * bell_env(0.45, 0.3, 1.2) * 0.6
     return finish(mix(*clunks, whoosh(rng, 0.4, 400, 1600, 1.2, 0.35) * 0.5, tumble))
@@ -578,7 +585,7 @@ def roll():
 def wall_run_start():
     """Magnetic feet catching the wall: a clamp and an electric buzz."""
     rng = np.random.default_rng(8800)
-    buzz = lp(glide(0.12, 110, 95, "square"), 1800) * env(0.12, 0.05, 0.003) * 0.25
+    buzz = lp(glide(0.12, 70, 60, "square"), 500) * env(0.12, 0.04, 0.003) * 0.12
     return finish(mix(metal_clack(rng, 0.85, 1.4, 1.1), (buzz, 0.005), servo(rng, 0.16, 500, 900, 0.15)))
 
 
@@ -611,12 +618,12 @@ def crouch(down=True):
 def grapple_fire():
     rng = np.random.default_rng(9300)
     pop = mix(lp(noise(rng, 0.08), 1200) * env(0.08, 0.012, 0.0005), sine_sweep(0.1, 220, 80, 0.01) * env(0.1, 0.025) * 0.8)
-    cable = sweep_bp(noise(rng, 0.32), 1800, 6500, 3.0) * env(0.32, 0.12, 0.004) * 0.7
+    cable = sweep_bp(noise(rng, 0.32), 900, 2600, 2.0) * env(0.32, 0.12, 0.004) * 0.6
     ticks = np.zeros(n(0.3))
     at = 0.02
     gap = 0.03
     while at < 0.28:
-        c = click(rng, 0.004, 0.0004, 4000) * 0.25
+        c = click(rng, 0.004, 0.0004, 2500) * 0.18
         k = n(at)
         ticks[k:k + len(c)] += c[: len(ticks) - k]
         at += gap
@@ -626,23 +633,23 @@ def grapple_fire():
 
 def grapple_attach():
     rng = np.random.default_rng(9400)
-    bite = modal(rng, 0.3, [2650, 4100, 6200], [0.04, 0.025, 0.012], [0.5, 0.35, 0.2])
-    tension = sweep_bp(noise(rng, 0.2), 900, 400, 4.0) * env(0.2, 0.06) * 0.4
+    bite = metal_clack(rng, 0.9, 1.2, 1.0)
+    tension = sweep_bp(noise(rng, 0.2), 500, 220, 3.0) * env(0.2, 0.06) * 0.4
     return finish(mix(click(rng, 0.006, 0.0004, 3000), bite, sine_sweep(0.12, 300, 120, 0.01) * env(0.12, 0.02) * 0.6, tension))
 
 
 def grapple_release():
     rng = np.random.default_rng(9500)
     unhook = metal_clack(rng, 1.15, 0.6, 0.4) * 0.6
-    reel = sweep_bp(noise(rng, 0.26), 5000, 1500, 3.0) * bell_env(0.26, 0.2, 1.2) * 0.7
+    reel = sweep_bp(noise(rng, 0.26), 2400, 800, 2.0) * bell_env(0.26, 0.2, 1.2) * 0.6
     whirr = servo(rng, 0.24, 1400, 600, 0.14)
     return finish(mix(unhook, (reel, 0.01), (whirr, 0.01), (metal_clack(rng, 0.9, 0.7, 0.6) * 0.5, 0.25)))
 
 
 def grapple_miss():
     rng = np.random.default_rng(9600)
-    out = sweep_bp(noise(rng, 0.25), 1800, 6000, 3.0) * env(0.25, 0.1, 0.004) * 0.5
-    back = sweep_bp(noise(rng, 0.22), 5000, 1500, 3.0) * bell_env(0.22, 0.3, 1.2) * 0.5
+    out = sweep_bp(noise(rng, 0.25), 900, 2600, 2.0) * env(0.25, 0.1, 0.004) * 0.5
+    back = sweep_bp(noise(rng, 0.22), 2400, 800, 2.0) * bell_env(0.22, 0.3, 1.2) * 0.5
     return finish(mix(lp(noise(rng, 0.06), 1200) * env(0.06, 0.01) * 0.6, out, (back, 0.24),
                       (metal_clack(rng, 0.95, 0.6, 0.5) * 0.5, 0.45)))
 
@@ -654,7 +661,7 @@ def wind_loop():
     extra = 0.5
     total = length + extra
     lo = lp(noise(rng, total), 700) * 1.4
-    mid = bp(noise(rng, total), 1800, 0.8) * (0.6 + 0.4 * np.sin(2 * math.pi * 0.7 * tt(total)))
+    mid = bp(noise(rng, total), 900, 0.8) * (0.6 + 0.4 * np.sin(2 * math.pi * 0.7 * tt(total)))
     hi = hp(noise(rng, total), 5000) * 0.04
     x = lo + mid + hi
     body = x[: n(length)].copy()
@@ -670,6 +677,7 @@ def wind_loop():
 
 def tone(f, seconds, tau, partials=((1, 1.0), (2, 0.18), (3, 0.06))):
     t = tt(seconds)
+    f *= 0.5   # recipes give the old, brighter pitches
     return sum(a * np.sin(2 * math.pi * f * m * t) * np.exp(-t / (tau / m)) for m, a in partials) * np.clip(t / 0.002, 0, 1)
 
 
@@ -698,11 +706,10 @@ def match_start():
     rng = np.random.default_rng(9900)
     rise_len = 0.7
     ramp = np.linspace(0, 1, n(rise_len)) ** 2.5
-    riser = sweep_bp(noise(rng, rise_len), 300, 7000, 2.5, 0.8) * ramp * 0.6
-    riser += glide(rise_len, 110, 440, "saw") * ramp * 0.08
+    riser = sweep_bp(noise(rng, rise_len), 150, 2500, 1.5, 0.8) * ramp * 0.6
     boom = sat(sine_sweep(0.9, 140, 38, 0.04) * env(0.9, 0.22, 0.001) * 1.6, 2.2)
     chord = modal(rng, 1.4, [612, 1043, 1690, 2475], [0.4, 0.3, 0.2, 0.12], [0.22, 0.18, 0.12, 0.08])   # a struck steel plate, not a chord
-    crash = hp(noise(rng, 1.0), 4000) * env(1.0, 0.18, 0.001) * 0.35
+    crash = bp(noise(rng, 1.0), 1500, 0.7) * env(1.0, 0.15, 0.001) * 0.3
     hit = mix(click(rng, 0.01, 0.0006, 2000), boom, chord, crash)
     tail = fftconv(lp(hit, 4000), room_ir(rng, 1.4)) * 0.25
     return finish(mix(riser, (mix(hit, tail), rise_len)))
@@ -712,7 +719,7 @@ def match_end():
     rng = np.random.default_rng(9950)
     boom = sat(sine_sweep(1.0, 120, 35, 0.05) * env(1.0, 0.3, 0.001) * 1.5, 2.0)
     chord = modal(rng, 2.0, [418, 731, 1187, 1802], [0.6, 0.45, 0.3, 0.18], [0.2, 0.16, 0.1, 0.06])
-    hit = mix(click(rng, 0.01, 0.0006, 2000), boom, chord, hp(noise(rng, 1.2), 3500) * env(1.2, 0.25) * 0.3)
+    hit = mix(click(rng, 0.01, 0.0006, 2000), boom, chord, bp(noise(rng, 1.2), 1300, 0.7) * env(1.2, 0.2) * 0.3)
     return finish(mix(hit, fftconv(lp(hit, 3500), room_ir(rng, 1.8)) * 0.3))
 
 

@@ -41,6 +41,8 @@ var _next_2d := 0
 var _next_3d := 0
 var _last_played := {}   # name -> time, to stop a flood of the same sound in one moment
 var _head_kill := {}     # victim id -> my last hit on them was a headshot
+## No sound card (headless test runs and servers): everything runs and logs, nothing plays.
+var silent := DisplayServer.get_name() == "headless"
 
 
 func _ready() -> void:
@@ -169,6 +171,8 @@ func play(sound: String, volume_db: float = 0.0, pitch_jitter: float = 0.0) -> A
 		return null
 	if DevArgs.sound_log:
 		print("SFX %s" % sound)
+	if silent:
+		return null
 	var p := _pool_2d[_next_2d]
 	_next_2d = (_next_2d + 1) % POOL_2D
 	p.stream = s
@@ -185,6 +189,8 @@ func play_at(sound: String, pos: Vector3, kind: String = "move", volume_db: floa
 		return null
 	if DevArgs.sound_log:
 		print("SFX3D %s %.1f" % [sound, pos.distance_to(listener_position())])
+	if silent:
+		return null
 	var p := _pool_3d[_next_3d]
 	_next_3d = (_next_3d + 1) % POOL_3D
 	var r: Array = RANGE.get(kind, RANGE.move)
@@ -324,3 +330,17 @@ func _on_button_pressed(b: BaseButton) -> void:
 func _on_slider_changed(_value: float, slider: Slider) -> void:
 	if slider.is_visible_in_tree() and not _too_soon("ui_tick", 0.04):
 		play("ui_tick", 0.0, 0.02)
+
+
+## Quitting: let go of every sound so none is still playing as the game shuts down.
+func _exit_tree() -> void:
+	stop_all()
+
+
+func stop_all() -> void:
+	for p in _pool_2d:
+		p.stop()
+		p.stream = null
+	for p in _pool_3d:
+		p.stop()
+		p.stream = null

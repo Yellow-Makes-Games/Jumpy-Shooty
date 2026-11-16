@@ -86,23 +86,29 @@ func update(delta: float, a: RobotAnimInput, shown: bool) -> void:
 		return
 	_quiet = maxf(_quiet - delta, 0.0)
 	var speed := Vector2(a.velocity.x, a.velocity.z).length()
-	if _quiet <= 0.0:
+	if _quiet > 0.0:
+		_reset_movement(a)   # just spawned: settle without sounds
+	else:
 		_movement(a, speed, delta)
 	_gun(a, delta)
 	_update_wind(a, delta)
 
 
 func _reset(a: RobotAnimInput) -> void:
+	_reset_movement(a)
+	_reloading = a.reloading() and a.alive
+	_reload_t = -1.0
+	_fire_t = -1.0
+	_grapple_pending = -1.0
+
+
+func _reset_movement(a: RobotAnimInput) -> void:
 	_state = a.state
 	_crouched = a.crouched
 	_grapple = a.grapple_on
 	_wall_jumps = a.wall_jumps()
 	_fall = 0.0
 	_stride = 0.0
-	_reloading = a.reloading() and a.alive
-	_reload_t = -1.0
-	_fire_t = -1.0
-	_grapple_pending = -1.0
 
 
 func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
@@ -234,7 +240,7 @@ func _update_wind(a: RobotAnimInput, delta: float) -> void:
 	var target := clampf((speed - 12.0) / 16.0, 0.0, 1.0)
 	_wind_level = move_toward(_wind_level, target, delta * 2.5)
 	if _wind == null:
-		if _wind_level <= 0.0 or not Sound.has_sound("wind_loop"):
+		if _wind_level <= 0.0 or Sound.silent or not Sound.has_sound("wind_loop"):
 			return
 		_wind = AudioStreamPlayer.new()
 		_wind.stream = Sound.stream("wind_loop")

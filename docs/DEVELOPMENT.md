@@ -294,13 +294,14 @@ first-person arms do not fill the view.
 Every sound is made by code, like the robots: `tools/audio/make_sfx.py` (python3 with
 numpy) builds all of them from noise, sine waves, filters and envelopes and writes
 `game/audio/sfx/*.wav`. Nothing is recorded or downloaded, so they are ours to ship
-(see `game/audio/LICENSE.md`). The style is crisp and modern: a sharp attack on
-everything, a tight low end, short tails, and a bright metallic layer because the
-players are robots. Each recipe is a short function near the sound's name; change its
+(see `game/audio/LICENSE.md`). The style is crisp but realistic: a clean attack,
+real weight in the low end, gun actions and armour that sound like dull steel rather
+than ringing bells, and room tails. The players are robots, so their feet and hits are
+metal, but nothing beeps. Each recipe is a short function near the sound's name; change its
 numbers and rebuild:
 
 ```
-python3 tools/audio/make_sfx.py            # every sound (about a minute)
+python3 tools/audio/make_sfx.py            # every sound (a few seconds)
 python3 tools/audio/make_sfx.py fire_      # only the ones whose names start with fire_
 godot --headless --path . --import
 ```
