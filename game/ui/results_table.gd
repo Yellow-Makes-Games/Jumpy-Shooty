@@ -9,6 +9,9 @@ static func build(parent: Control, rows: Array) -> void:
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 6)
 	parent.add_child(list)
+	if not rows.is_empty() and rows[0].get("race", false):
+		_build_race(list, rows)
+		return
 	var head := _row(list, Color(0, 0, 0, 0), Color(0, 0, 0, 0))
 	for h in [["", 34], ["PLAYER", 0], ["KILLS", 70], ["DEATHS", 70]]:
 		var l := _cell(head, h[0], 12, UiKit.TEXT_DIM, false, h[1])
@@ -28,6 +31,38 @@ static func build(parent: Control, rows: Array) -> void:
 		_cell(who, Characters.name_of(Net.player_character(row.id)), 13, UiKit.TEXT_DIM, false)
 		_cell(card, str(row.kills), 26, GOLD if rank == 1 else Color.WHITE, true, 70)
 		_cell(card, str(row.deaths), 20, UiKit.TEXT_DIM, false, 70)
+
+
+## A race: place, racer, time (or DNF and how many gates), resets.
+static func _build_race(list: VBoxContainer, rows: Array) -> void:
+	var head := _row(list, Color(0, 0, 0, 0), Color(0, 0, 0, 0))
+	for h in [["", 34], ["RACER", 0], ["TIME", 110], ["RESETS", 70]]:
+		var l := _cell(head, h[0], 12, UiKit.TEXT_DIM, false, h[1])
+		if h[0] == "RACER":
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var rank := 0
+	var best := -1.0
+	for row in rows:
+		rank += 1
+		var me: bool = row.id == Net.my_id()
+		var card := _row(list, Color(UiKit.ACCENT, 0.14) if me else Color(1, 1, 1, 0.05), Net.player_color(row.id))
+		_cell(card, str(rank) if row.finished else "–", 22, GOLD if rank == 1 and row.finished else UiKit.TEXT_DIM, true, 34)
+		var who := VBoxContainer.new()
+		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		who.add_theme_constant_override("separation", -2)
+		card.add_child(who)
+		_cell(who, row.name + ("  (you)" if me else ""), 20, Color.WHITE, true)
+		var gates: String = "all %d gates" % Race.gates if row.finished else "%d of %d gates" % [row.cp, Race.gates]
+		_cell(who, "%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), gates], 13, UiKit.TEXT_DIM, false)
+		var time_s := "DNF"
+		if row.finished:
+			time_s = Race.format_time(row.time)
+			if best < 0.0:
+				best = row.time
+			elif row.time > best:
+				time_s = "+%.2f" % (row.time - best)
+		_cell(card, time_s, 24 if row.finished else 18, (GOLD if rank == 1 else Color.WHITE) if row.finished else UiKit.TEXT_DIM, true, 110)
+		_cell(card, str(row.resets), 20, UiKit.TEXT_DIM, false, 70)
 
 
 static func _row(list: Node, bg: Color, stripe: Color) -> HBoxContainer:

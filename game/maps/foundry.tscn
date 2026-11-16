@@ -185,7 +185,7 @@ size = Vector3(1.6, 2.6, 2.4)
 kind = "crate"
 
 [node name="Sign_Foundry" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 6, 5.5, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 6, 5.5, 0)
 pixel_size = 0.01
 modulate = Color(1, 0.6, 0.3, 1)
 outline_size = 16
@@ -484,7 +484,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_MoltenPool" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 62, 5, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 62, 5, 0)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -792,7 +792,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_PressRow" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 119.5, 5, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 119.5, 5, 0)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -1107,7 +1107,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_TankFarm" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 137.5, 5, 20)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 137.5, 5, 20)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -1379,7 +1379,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_FurnaceStack" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 137.5, 5, 92)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 137.5, 5, 92)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -1745,7 +1745,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_CastingHall" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 137.5, 16.2, 134)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 137.5, 16.2, 134)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -2207,7 +2207,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_StampingLine" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 117.5, 16.2, 221)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 117.5, 16.2, 221)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -2607,7 +2607,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_SlagLake" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 63.5, 16.2, 221)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 63.5, 16.2, 221)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -2950,7 +2950,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_BoilerWall" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -1.5, 16.2, 221)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.5, 16.2, 221)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -3228,7 +3228,7 @@ action = 0
 radius = 1.6
 
 [node name="Sign_PipeAndChute" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -70.5, 16.2, 221)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -70.5, 16.2, 221)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16

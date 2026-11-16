@@ -14,6 +14,12 @@ const MOVES_R := 50.0
 
 
 static func draw(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
+	if not v.race:   # a race has no health or ammo
+		_draw_health_ammo(ci, c, v)
+	_draw_moves(ci, c, v)
+
+
+static func _draw_health_ammo(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 	# Health, left: from 145 deg (lower left) up to 215 deg (upper left).
 	var lo := 180.0 - SPAN * 0.5
 	var hp_col := HudStyle.health_color(v.hp)
@@ -42,6 +48,9 @@ static func draw(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 		var w := HudStyle.text(ci, c + Vector2(R + 16.0, 0), str(v.ammo), 22, HudStyle.WHITE)
 		HudStyle.text(ci, c + Vector2(R + 18.0 + w, 3), "/%d" % v.magazine, 13, Color(1, 1, 1, 0.65))
 
+
+
+static func _draw_moves(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 	# Moves, under the crosshair: grapple, dive, flip, slide (left to right).
 	for i in v.moves.size():
 		var m: Array = v.moves[i]

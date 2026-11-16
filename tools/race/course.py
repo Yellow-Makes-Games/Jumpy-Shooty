@@ -240,7 +240,7 @@ class Course:
                 self.add_node("Start%d" % (row * count + i + 1), "Marker3D", "Spawns", props, script="spawn")
 
     def sign(self, f, y, r, text, size=96, color=(1, 1, 1, 1), parent="Signs", yaw=0.0):
-        cols = self.basis(yaw=yaw + math.pi)   # readable from the side racers come from
+        cols = self.basis(yaw=yaw)   # a Label3D reads from its +z side: back toward the racers coming
         props = [("transform", self.xform(cols, self.w(f, y, r))), ("pixel_size", "0.01"),
                  ("modulate", "Color(%s)" % ", ".join(fmt(c) for c in color)),
                  ("outline_size", "16"), ("outline_modulate", "Color(0.05, 0.05, 0.08, 1)"),
