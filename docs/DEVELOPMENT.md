@@ -53,7 +53,7 @@ or WSL; I run these on every change anyway):
 
 - movement checks (speeds, stopping, jump height, momentum in the air);
 - the game boots into practice mode without script errors;
-- a bot of every difficulty finds you, shoots and hits, harder bots hit more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match (`tests/run_bot_test.sh`);
+- a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match (`tests/run_bot_test.sh`);
 - a match test: 3 copies on a laggy network play two matches back to back, aiming
   and shooting on their own; checks that hits land, the match ends at the kill target,
   every copy agrees on the results, and "return to lobby, play again" works;
@@ -78,6 +78,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot (degrees). Example: `--practice --spawn=45,0,10,-90` puts you at the start of the slide lane |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `bot`, `multiplayer`, `settings` |
+| `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 
 ## Tuning movement
