@@ -35,8 +35,11 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], tall:
 	side.alignment = BoxContainer.ALIGNMENT_CENTER
 	side.add_theme_constant_override("separation", 8)
 	box.add_child(side)
-	var buttons: BoxContainer = HBoxContainer.new() if tall else VBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 8)
+	# A grid, so the buttons stay compact however many robots there are.
+	var buttons := GridContainer.new()
+	buttons.columns = 3 if tall else 2
+	buttons.add_theme_constant_override("h_separation", 8)
+	buttons.add_theme_constant_override("v_separation", 8)
 	side.add_child(buttons)
 	var group := ButtonGroup.new()
 	for c in Characters.LIST:
@@ -44,13 +47,13 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], tall:
 		b.text = c.name
 		b.toggle_mode = true
 		b.button_group = group
-		b.custom_minimum_size = Vector2(0, 44)
+		b.custom_minimum_size = Vector2(0, 40)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(_on_pressed.bind(c.id))
 		buttons.add_child(b)
 		_buttons[c.id] = b
 	_blurb = UiKit.label(side, "", true, 16)
-	_blurb.custom_minimum_size = Vector2(0, 44)
+	_blurb.custom_minimum_size = Vector2(0, 40)
 	select(Characters.valid(start))
 
 

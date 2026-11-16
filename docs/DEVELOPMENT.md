@@ -111,7 +111,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
-| `--character=ID` | Play as `needle` or `vanguard` without changing your saved choice |
+| `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter` or `orbit` without changing your saved choice |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
 | `--hold=SEC:ACTION:DURATION` | Hold an input action down, e.g. `--hold=5:move_forward:3` |
 | `--look=SEC:YAW,PITCH` | Turn your view by YAW and to PITCH (degrees) after SEC seconds, e.g. `--look=3:0,-60` to look down |
@@ -204,7 +204,7 @@ python3 with numpy):
 
 | File | What it holds |
 | --- | --- |
-| `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard); the third draft, Brick, is kept |
+| `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit); the unused draft, Brick, is kept |
 | `rig.py` | The skeleton (bone names and positions) and the pose solver |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
 | `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and pistol) |

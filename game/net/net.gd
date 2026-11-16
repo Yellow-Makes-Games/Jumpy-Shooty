@@ -286,7 +286,7 @@ func _free_color() -> int:
 
 
 ## Names for computer players, so several bots can be told apart on the scoreboard.
-const BOT_NAMES := ["Rivet", "Sprocket", "Bolt", "Piston"]
+const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston"]   # never the name of a robot you can play
 
 
 ## Adds a computer player (offline matches only for now). Returns its id.

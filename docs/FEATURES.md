@@ -3,7 +3,7 @@
 Status: **not started** · **rough** (exists, placeholder or partial) · **working** (done,
 tested by me) · **verified** (also checked by Austin on a real PC / with a friend).
 
-Last updated: Vanguard robot and character select. Decisions are in [DESIGN.md](DESIGN.md).
+Last updated: five more robots (Kestrel, Bulwark, Rivet, Specter, Orbit). Decisions are in [DESIGN.md](DESIGN.md).
 
 ## Menus and flow
 
@@ -12,7 +12,7 @@ Last updated: Vanguard robot and character select. Decisions are in [DESIGN.md](
 | Main menu (Play, Multiplayer, Settings, Exit) | working | Styled to match the HUD (Chakra Petch, dark panels, orange accent, drifting grid backdrop). Front page shows every robot side by side, idling; Play has cards for Vs Bots, Practice and Multiplayer |
 | Mode select (Vs Bots, Practice, Multiplayer FFA) | working | Vs Bots page: pick how many bots (1 for a 1v1, up to 4 for a 5-player free-for-all), difficulty and kills to win; Rematch on the results screen |
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
-| Character select | working | Needle or Vanguard, with a live preview. On the Practice and Vs Bots pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
+| Character select | working | Seven robots (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit), with a live preview. On the Practice and Vs Bots pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
 | Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
 | Settings menu (mouse, camera, HUD, audio, graphics) | working | Tabs: Controls (with the key list), Camera & HUD, Audio, Graphics. Switches and sliders apply at once. Audio sliders have no sounds to affect yet |
 | Pause menu in match | working | Resume, settings, leave, controls list; host can end the match early |
@@ -72,13 +72,13 @@ Last updated: Vanguard robot and character select. Decisions are in [DESIGN.md](
 | Weapon switching | not started | Only one weapon for now, by choice |
 | Muzzle flash, tracers, impacts | rough | Simple glowing shapes |
 | Weapon sounds | not started | |
-| Bot | working | Offline: 1v1, or a free-for-all against up to 4 bots (you plus 4 is a full 5). Bots fight each other too: each goes for the nearest player, favouring one it can see, whoever just shot it and whoever it is already fighting. Bots are named (Rivet, Sprocket, Bolt, Piston) and take turns through the robots, starting with the one you did not pick. One difficulty for every bot. Easy / Normal / Hard / Expert change reaction time, aim wobble, turn speed, fire rate, leading, headshots and which moves it uses. Finds you anywhere on the map (navigation mesh), takes the stairs to your floor, keeps its tricks away from drops, strafes and jumps in fights; Normal+ slides; Hard+ bunny-hops, dives (usually holding it into a belly slide), grapples, flip-dodges when hit. Same movement and gun rules as you. Numbers to tune by playtesting |
+| Bot | working | Offline: 1v1, or a free-for-all against up to 4 bots (you plus 4 is a full 5). Bots fight each other too: each goes for the nearest player, favouring one it can see, whoever just shot it and whoever it is already fighting. Bots are named (Gizmo, Sprocket, Bolt, Piston) and take turns through the robots, starting with the one after yours, so no bot plays your robot. One difficulty for every bot. Easy / Normal / Hard / Expert change reaction time, aim wobble, turn speed, fire rate, leading, headshots and which moves it uses. Finds you anywhere on the map (navigation mesh), takes the stairs to your floor, keeps its tricks away from drops, strafes and jumps in fights; Normal+ slides; Hard+ bunny-hops, dives (usually holding it into a belly slide), grapples, flip-dodges when hit. Same movement and gun rules as you. Numbers to tune by playtesting |
 | Testing Grounds (test map) | working | Greybox combat arena plus a training yard with practice lanes: grapple beams, wall-run zigzag and wall-jump chimney, slide hill and bars, vault blocks and ledges at marked heights, gap jumps of 6, 10 and 13 m (jump / jump + dive / jump + flip + dive). An automated test runs each course |
 | Construction Site (first real map) | working | "The Tower": a half-built six-floor tower in an 80 x 80 m yard, with a crane, scaffolding, a hoist tower, containers, a pit and a fence to wall-run. 12 spawn points. An automated test runs a player over 18 movement routes and checks that bots can walk to every level. Needs a playtest for balance (the top may be too strong) |
 | Office (second real map) | working | "Atrium tower": a smaller interior map, a 48 x 36 m office building with three floors (0, 5 and 10 m) round a three-storey atrium. Bridge across the atrium at 10 m, skylight beams to swing from, a service lift shaft to wall-jump, a shelf and a filing stack to climb a floor, stairs either side, desks and dividers to vault, a half-shut server room shutter to slide under, long window walls to wall-run. 12 spawn points. An automated test runs 8 movement routes and checks that bots can walk everywhere. Needs a playtest for balance |
 | Map choice | working | The host picks the map in the lobby; practice and the bot menu have a picker. Testing Grounds is listed as a test map |
 | Map editing | working | Maps are scenes: open one in the Godot editor, click a piece to select it, drag its face handles to resize it, F6 to play it. See DEVELOPMENT.md |
-| Character models | working | Two robots, Needle and Vanguard: white armour, player colour on the trim and visor. Same skeleton, hitbox and animations. Built by code in `tools/robot/` (see DEVELOPMENT.md) |
+| Character models | working | Seven robots: Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter and Orbit, all with white armour, player colour on the trim and visor. Same skeleton, hitbox and animations. Built by code in `tools/robot/` (see DEVELOPMENT.md) |
 | Character animation | working | Idle, run, sprint, crouch, slide, jump and fall, landing, wall run (both sides), wall jump, vault, ledge climb, grapple swing, dive, landing roll, belly slide and crawl, four flips, shooting, reload, death, respawn. The body aims where the player looks; legs follow the direction of travel. Same animator for you, other players and the bot. The vault is the least polished clip |
 | Sound | not started | |
 
