@@ -91,6 +91,10 @@ or WSL; I run these on every change anyway):
   shows each other player doing the move they were really doing at that moment, shows
   each held move, and kicks their gun on every shot. The bot test checks the bot's body
   the same way.
+- sound effects (`tests/run_audio_test.sh`): every sound file loads and every sound the
+  code asks for exists (`tests/audio_test.gd`); in a bot match your own gun, reloads,
+  steps and hit markers play, and the bots' shots, impacts and steps play placed in the
+  world; online, each copy hears the other's shots and footsteps in the world.
 - character sync (same checker): the copies play different robots, and every copy must
   show each player as the robot they picked. In the match test everyone picks again in
   the lobby between matches, and the new picks must show in the next match. The bot
@@ -284,3 +288,33 @@ rebuild, then list it in `game/player/robot/characters.gd` with a display name a
 one-line description. The menus, the lobby, the network and the tests pick it up from
 that list. If its forearms are bulky, give it an entry in `FP_SLIM` so the
 first-person arms do not fill the view.
+
+## Sound effects
+
+Every sound is made by code, like the robots: `tools/audio/make_sfx.py` (python3 with
+numpy) builds all of them from noise, sine waves, filters and envelopes and writes
+`game/audio/sfx/*.wav`. Nothing is recorded or downloaded, so they are ours to ship
+(see `game/audio/LICENSE.md`). The style is crisp and modern: a sharp attack on
+everything, a tight low end, short tails, and a bright metallic layer because the
+players are robots. Each recipe is a short function near the sound's name; change its
+numbers and rebuild:
+
+```
+python3 tools/audio/make_sfx.py            # every sound (about a minute)
+python3 tools/audio/make_sfx.py fire_      # only the ones whose names start with fire_
+godot --headless --path . --import
+```
+
+In the game, `game/audio/` holds the code:
+
+| File | What it does |
+| --- | --- |
+| `sound.gd` | The `Sound` autoload. Plays your own sounds in your head and everyone else's placed in the world (3D, quieter and duller with distance; far gunshots add a distant echo layer). Sets up the Effects and Music buses for the Audio sliders, with a limiter on Master. Hooks every menu button and slider by itself, and plays hit markers, kill and hurt sounds from the match events |
+| `player_sounds.gd` | One per player: footsteps, jumps, landings, slides, wall runs, vaults, the grapple, reload steps, the pump and the bolt. It watches the same movement facts the animation uses, so it works the same for you, bots and other players |
+| `sfx_list.gd` | The tables to tune: how loud each sound plays, and when each reload and pump/bolt sound plays (matched to the animations in `tools/robot/weapon_anims.py`) |
+
+A menu button picks its click with `button.set_meta("sfx", "back")` (or `"confirm"`,
+`"select"`, `"none"`); buttons labelled Back, Resume, Leave lobby, Leave match and Main
+menu play the back sound already, and the orange main buttons play the confirm sound.
+`--sound-log` prints every sound as it plays. The Music bus is ready for music but
+nothing plays on it yet.

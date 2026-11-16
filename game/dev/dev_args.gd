@@ -19,6 +19,7 @@ extends Node
 ## --bots=N             With --bot: play against N bots (1 to 4) in a free-for-all instead of one.
 ## --scripted-input     The local player moves on its own (for sync tests).
 ## --sync-log           Print position samples used by tests/check_sync.py.
+## --sound-log          Print every sound effect as it plays ("SFX name", "SFX3D name"): tests/audio_test.sh.
 ## --quit-after=SECONDS Quit automatically after this many seconds.
 ## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
 ##                      P percent of movement packets lost (incoming, this copy only).
@@ -54,6 +55,7 @@ var bot := -1
 var bots := 1
 var scripted_input := false
 var sync_log := false
+var sound_log := false
 var scripted_fire := false
 var auto_return := false
 var kill_target := 0
@@ -116,6 +118,7 @@ func _ready() -> void:
 			"--bots": bots = clampi(int(value), 1, 4)
 			"--scripted-input": scripted_input = true
 			"--sync-log": sync_log = true
+			"--sound-log": sound_log = true
 			"--scripted-fire": scripted_fire = true
 			"--auto-return": auto_return = true
 			"--menu": menu = value

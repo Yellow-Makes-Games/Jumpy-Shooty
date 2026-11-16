@@ -47,4 +47,6 @@ echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Office)"
 MAP=office tests/run_bot_test.sh
 echo "== Bots climb the Construction Site tower to a player on top"
 tests/run_bot_climb_test.sh
+echo "== Sound effects: every sound loads; yours, the bots' and other players' play (Testing Grounds)"
+tests/run_audio_test.sh
 echo "ALL TESTS PASSED"

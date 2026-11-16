@@ -37,6 +37,7 @@ var _awaiting_respawn := false    # remote: hidden until the first post-respawn 
 var robot: RobotModel             ## the body everyone sees
 var animator: RobotAnimator
 var view: ViewModel               ## first-person arms and gun (your own player only)
+var sounds: PlayerSounds          ## footsteps, jumps, reloads... (see game/audio/)
 var _anim := RobotAnimInput.new()
 var _corpse_drop := 0.0           # a body shot in mid-air falls to the ground (visual only)
 var _corpse_fall := 0.0
@@ -94,6 +95,9 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	robot = RobotModel.new().setup(Characters.body(character), Net.player_color(id), false, gun)
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
+	sounds = PlayerSounds.new(self, local and not bot, gun)
+	if sounds.own:
+		Sound.play("equip_" + gun)   # bringing your gun up as the match starts
 
 	if is_bot:
 		motor = MovementController.new()
@@ -131,7 +135,10 @@ func _physics_process(delta: float) -> void:
 	if alive:
 		_set_crosshair_ray()
 		var was_on := motor.grapple.attached
+		var hooking := input.grapple_pressed and motor.grapple.ready_to_fire()
 		motor.step(self, input, delta)
+		if hooking and not motor.grapple.attached:
+			sounds.grapple_missed()   # nothing in range to hook
 		if DevArgs.sync_log and motor.grapple.attached != was_on:
 			print("ROPE SELF %d %s" % [peer_id, "on" if motor.grapple.attached else "off"])
 		_visual_yaw = input.yaw
@@ -165,6 +172,7 @@ func _process(delta: float) -> void:
 		_anim.grapple_on = g.attached
 		_anim.grapple_anchor = g.anchor
 		_animate(delta)
+		sounds.update(delta, _anim, true)
 		if view:
 			view.update(delta)
 		_draw_rope(g.attached and alive, g.anchor)
@@ -188,6 +196,7 @@ func _process(delta: float) -> void:
 	_anim.grapple_on = _rope_on
 	_anim.grapple_anchor = _rope_anchor
 	_animate(delta)
+	sounds.update(delta, _anim, visual.visible)
 	while not _rope_events.is_empty() and _rope_events[0][0] <= rt:
 		var ev: Array = _rope_events.pop_front()
 		_rope_on = ev[1]
@@ -270,8 +279,12 @@ func _update_weapon(delta: float) -> void:
 	if not wants or not Match.running:
 		return
 	if not weapon.fire():
+		if input.fire_pressed and weapon.ammo <= 0 and sounds.own:
+			Sound.play("dry_click", 0.0, 0.03)   # empty: the gun clicks while it reloads
 		return
 	_fire_buffer = 0.0
+	Sound.gun_fire(weapon.data.id, muzzle_position(), sounds.own)
+	sounds.fired()
 	animator.fire()
 	if DevArgs.sync_log:
 		print("ANIM FIRE %d" % peer_id)
@@ -292,6 +305,7 @@ func _update_weapon(delta: float) -> void:
 		ends.append(end)
 		hits.append(hit and hit.collider is Player)
 	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id)  # into the arena, not among the players
+	Sound.shot_landed(muzzle_position(), ends, hits, sounds.own)
 	var view_times := {}
 	for p in get_parent().get_children():
 		if p != self and p is Player and p.last_render_time >= 0.0:
@@ -360,6 +374,8 @@ func rope_origin() -> Vector3:
 ## Another player's shot, as told by the host: kick their gun.
 func show_shot() -> void:
 	animator.fire()
+	Sound.gun_fire(robot.weapon, muzzle_position(), false)
+	sounds.fired()
 	if DevArgs.sync_log:
 		print("ANIM SHOT %d %d" % [Net.my_id(), peer_id])
 
@@ -392,6 +408,7 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	visual.visible = true
 	collision_layer = 1 << 1
 	animator.respawn()
+	sounds.respawned()
 	if view:
 		view.respawn()
 	if weapon:
@@ -404,6 +421,7 @@ func expect_respawn() -> void:
 	alive = true
 	_awaiting_respawn = true
 	visual.visible = false
+	sounds.respawned()
 
 
 func report_fell_once() -> void:
@@ -566,6 +584,8 @@ func _print_animation(shown: String) -> void:
 
 
 func _exit_tree() -> void:
+	if sounds:
+		sounds.stop()
 	if DevArgs.sync_log and _logged_anim != "":
 		_print_animation("-")  # this body is gone (match over, or the player left)
 

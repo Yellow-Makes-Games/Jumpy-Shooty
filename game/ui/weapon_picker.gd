@@ -32,6 +32,7 @@ func _init(start: String = "") -> void:
 		b.custom_minimum_size = Vector2(0, 44)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(_on_pressed.bind(id))
+		b.set_meta("sfx", "none")   # picking a gun plays the gun being readied instead
 		row.add_child(b)
 		_buttons[id] = b
 	_blurb = UiKit.label(self, "", true, 15)
@@ -58,7 +59,9 @@ func select(id: String) -> void:
 func _on_pressed(id: String) -> void:
 	if id == current:
 		_buttons[id].set_pressed_no_signal(true)
+		Sound.play("ui_click")
 		return
+	Sound.play("equip_" + id)
 	select(id)
 	picked.emit(id)
 
