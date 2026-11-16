@@ -78,6 +78,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot (degrees). Example: `--practice --spawn=45,0,10,-90` puts you at the start of the slide lane |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `bot`, `multiplayer`, `settings` |
+| `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 
 ## Tuning movement

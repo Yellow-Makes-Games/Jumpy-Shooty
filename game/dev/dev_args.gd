@@ -23,6 +23,7 @@ extends Node
 ## --menu=PAGE          Open the main menu on this page: play, bot, multiplayer, settings.
 ## --third-person      Start in third-person view (not saved to settings).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
+## --press=SEC:ACTION   Press an input action (e.g. toggle_camera) SEC seconds after start (repeatable).
 ## --spawn=X,Y,Z,YAW[,PITCH]  Start the local player here (degrees), e.g. to look at the training yard.
 ## --window=X,Y,W,H     Window position and size, so several copies can sit side by side.
 
@@ -47,6 +48,7 @@ var net_sim_latency := 0.0
 var net_sim_jitter := 0.0
 var net_sim_loss := 0.0
 var screenshots: Array = []  # [seconds, path]
+var presses: Array = []      # [seconds, action]
 var spawn: Array = []        # [Vector3 position, yaw, pitch] in radians, or empty
 
 var _start_ticks := 0
@@ -83,6 +85,8 @@ func _ready() -> void:
 				net_sim_latency = float(q[0]) if q.size() > 0 else 0.0
 				net_sim_jitter = float(q[1]) if q.size() > 1 else 0.0
 				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
+			"--press":
+				presses.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
 			"--screenshot":
 				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
 			"--spawn":
@@ -112,6 +116,15 @@ func any() -> bool:
 
 func _process(_delta: float) -> void:
 	var elapsed := (Time.get_ticks_msec() - _start_ticks) / 1000.0
+	for press in presses.duplicate():
+		if elapsed >= press[0]:
+			presses.erase(press)
+			for down in [true, false]:
+				var ev := InputEventAction.new()
+				ev.action = press[1]
+				ev.pressed = down
+				Input.parse_input_event(ev)
+			print("[dev] pressed: %s" % press[1])
 	for shot in screenshots.duplicate():
 		if elapsed >= shot[0]:
 			screenshots.erase(shot)

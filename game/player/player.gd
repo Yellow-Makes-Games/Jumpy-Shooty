@@ -173,8 +173,8 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not is_local or DevArgs.scripted_input:
-		return
+	if not is_local or is_bot or DevArgs.scripted_input:
+		return  # only your own player listens to the keyboard and mouse (a bot is local too)
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens := deg_to_rad(Settings.mouse_sensitivity)
 		input.yaw -= event.relative.x * sens
