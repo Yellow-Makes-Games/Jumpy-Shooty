@@ -99,7 +99,6 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		motor = MovementController.new()
 		weapon = WeaponState.new(WeaponData.by_id(gun))
 		brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
-		_add_name_tag(Net.player_name(id))
 	elif is_local:
 		motor = MovementController.new()
 		weapon = WeaponState.new(WeaponData.by_id(gun))
@@ -111,8 +110,6 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		view = ViewModel.new()
 		rig.camera.add_child(view)
 		view.setup(self, Net.player_color(id))
-	else:
-		_add_name_tag(Net.player_name(id))
 	_build_rope()
 
 
@@ -658,7 +655,7 @@ func _nearest_visible_opponent() -> Player:
 
 
 # ---------------------------------------------------------------------------
-# Grapple rope and name tag
+# Grapple rope
 
 func _build_rope() -> void:
 	var mat := StandardMaterial3D.new()
@@ -711,15 +708,3 @@ func _draw_rope(on: bool, anchor: Vector3) -> void:
 	_rope.global_transform = Transform3D(Basis(x, y * dist, z), from + span * 0.5)
 	_hook.global_position = anchor
 
-
-func _add_name_tag(text: String) -> void:
-	var tag := Label3D.new()
-	tag.text = text
-	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	tag.no_depth_test = true
-	tag.fixed_size = true
-	tag.pixel_size = 0.0015
-	tag.font_size = 28
-	tag.outline_size = 8
-	tag.position.y = CAPSULE_HEIGHT + 0.42
-	visual.add_child(tag)
