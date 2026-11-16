@@ -433,6 +433,21 @@ func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 # ---------------------------------------------------------------------------
 # Dive, roll and flip
 
+## HUD readouts: how ready each move is, from 0 (just used) to 1 (ready).
+func dive_readiness() -> float:
+	if _air_dive_used:
+		return 0.0   # already dived on this jump
+	return clampf(_since_dive / tuning.dive_cooldown, 0.0, 1.0)
+
+
+func flip_readiness() -> float:
+	return 0.0 if _flip_used else 1.0
+
+
+func slide_boost_readiness() -> float:
+	return clampf(_since_slide_boost / tuning.slide_boost_cooldown, 0.0, 1.0)
+
+
 func _can_dive(grounded: bool) -> bool:
 	if _since_dive < tuning.dive_cooldown or grapple.attached:
 		return false

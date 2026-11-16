@@ -2,6 +2,8 @@ class_name PauseMenu
 extends CanvasLayer
 ## Esc menu during a match. The game keeps running underneath (it is multiplayer).
 
+const CONTROLS := "WASD move · Shift sprint · Space jump (again in mid-air: flip)\nCtrl crouch/slide · Q dive · Right-click grapple · Click shoot\nR reload · V camera · Tab scores · Esc menu"
+
 var _root: Control
 var _col: VBoxContainer
 
@@ -27,6 +29,8 @@ func _show_main() -> void:
 	if Net.is_online and Net.is_host():
 		leave_text = "Close lobby (ends the match for everyone)"
 	UiKit.button(_col, leave_text, Game.leave_to_menu)
+	UiKit.spacer(_col, 6)
+	UiKit.label(_col, CONTROLS, true, 15)
 
 
 func _show_settings() -> void:

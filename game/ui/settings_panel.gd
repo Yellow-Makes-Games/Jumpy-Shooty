@@ -14,6 +14,9 @@ func _ready() -> void:
 	_section("Camera")
 	_slider("Field of view", 70.0, 120.0, 1.0, Settings.field_of_view, func(v): Settings.field_of_view = v)
 	_check("Third-person camera (V to switch in game)", Settings.third_person, func(v): Settings.third_person = v)
+	_section("HUD")
+	_option("HUD in first person", Settings.HUD_STYLES, Settings.hud_first_person, func(v): Settings.hud_first_person = v)
+	_option("HUD in third person", Settings.HUD_STYLES, Settings.hud_third_person, func(v): Settings.hud_third_person = v)
 	_section("Audio")
 	_slider("Master volume", 0.0, 1.0, 0.05, Settings.master_volume, func(v): Settings.master_volume = v)
 	_slider("Music volume", 0.0, 1.0, 0.05, Settings.music_volume, func(v): Settings.music_volume = v)
@@ -65,6 +68,24 @@ func _check(text: String, value: bool, setter: Callable) -> void:
 		setter.call(x)
 		Settings.apply())
 	add_child(c)
+
+
+## A drop-down. `choices` maps each stored value to the text shown for it.
+func _option(text: String, choices: Dictionary, value: String, setter: Callable) -> void:
+	var row := HBoxContainer.new()
+	add_child(row)
+	var l := UiKit.label(row, text)
+	l.custom_minimum_size = Vector2(230, 0)
+	var o := OptionButton.new()
+	o.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var keys := choices.keys()
+	for k in keys:
+		o.add_item(choices[k])
+	o.selected = maxi(keys.find(value), 0)
+	o.item_selected.connect(func(i):
+		setter.call(keys[i])
+		Settings.apply())
+	row.add_child(o)
 
 
 func _fmt(x: float, step: float) -> String:

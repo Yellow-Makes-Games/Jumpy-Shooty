@@ -1,0 +1,65 @@
+class_name HudClean
+extends RefCounted
+## "Clean" HUD layout: the classic corners, kept small.
+## Bottom left: your moves (grapple, dive, flip, slide boost) above your health.
+## Bottom right: ammo with one tick per round. Under the crosshair: speed and
+## what you are doing, small and faint.
+
+const MARGIN := 28.0
+
+
+static func draw(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
+	var size := c * 2.0
+	var bottom := size.y - MARGIN
+
+	# Health: big number, robot name, ten segments.
+	var hp_col := HudStyle.health_color(v.hp)
+	var w := HudStyle.text(ci, Vector2(MARGIN, bottom - 46.0), str(ceili(v.hp)), 52, hp_col)
+	HudStyle.text(ci, Vector2(MARGIN + w + 10.0, bottom - 36.0), v.character.to_upper(), 12, Color(1, 1, 1, 0.75))
+	for i in 10:
+		var seg_hp := (i + 1) * Match.MAX_HEALTH / 10.0
+		var col := HudStyle.DIM
+		if v.hp >= seg_hp - 5.0:
+			col = hp_col
+		elif v.hp_trail >= seg_hp - 5.0:
+			col = HudStyle.RED
+		HudStyle.edged_rect(ci, Rect2(MARGIN + i * 30.0, bottom - 8.0, 27.0, 8.0), col)
+
+	# Moves: a chip each, with a ring that refills as the move recharges.
+	var x := MARGIN - 4.0
+	var y := bottom - 100.0
+	for i in v.moves.size():
+		var m: Array = v.moves[i]
+		var ready: float = m[2]
+		var label: String = m[0]
+		var cw := 34.0 + HudStyle.text_width(label, 11)
+		HudStyle.plate(ci, Rect2(x, y - 15.0, cw, 30.0), 3.0)
+		var ring_c := Vector2(x + 15.0, y)
+		var col := HudStyle.WHITE
+		if m[3]:
+			col = HudStyle.ORANGE
+		elif i == 0 and ready >= 1.0:
+			col = HudStyle.CYAN
+		HudStyle.arc(ci, ring_c, 10.0, 0, 360, Color(1, 1, 1, 0.18), 3.0)
+		HudStyle.arc(ci, ring_c, 10.0, -90, -90 + 360.0 * ready, col, 3.0)
+		var text_col := Color(1, 1, 1, 0.95 if ready >= 1.0 else 0.5)
+		HudStyle.text(ci, Vector2(x + 30.0, y), label, 11, text_col)
+		x += cw + 6.0
+
+	# Ammo: count, magazine, a tick per round, weapon.
+	var right := size.x - MARGIN
+	var ticks := clampi(v.magazine, 1, 30)
+	for i in ticks:
+		var col := HudStyle.WHITE if i < v.ammo and not v.reloading else HudStyle.DIM
+		if v.reloading and i < int(ticks * v.reload):
+			col = HudStyle.ORANGE
+		HudStyle.edged_rect(ci, Rect2(right - (ticks - i) * 9.0 + 3.0, bottom - 36.0, 6.0, 16.0), col)
+	if v.reloading:
+		HudStyle.text(ci, Vector2(right, bottom - 66.0), "RELOADING", 24, HudStyle.ORANGE, HORIZONTAL_ALIGNMENT_RIGHT)
+	else:
+		var mw := HudStyle.text(ci, Vector2(right, bottom - 62.0), "/ %d" % v.magazine, 22, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
+		HudStyle.text(ci, Vector2(right - mw - 8.0, bottom - 70.0), str(v.ammo), 52, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	HudStyle.text(ci, Vector2(right, bottom - 6.0), v.weapon.to_upper() + "  ·  R RELOAD", 12, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_RIGHT)
+
+	var speed := "%s  ·  %.1f m/s" % [v.move_state, v.speed]
+	HudStyle.text(ci, c + Vector2(0, 40), speed, 13, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
