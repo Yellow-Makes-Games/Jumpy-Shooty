@@ -1,6 +1,6 @@
 extends Control
 ## Main menu. The front page has the title and big buttons on the left and your
-## robot on the right; every other page (Play, Practice, 1v1 Bot, Multiplayer,
+## robot on the right; every other page (Play, Practice, Vs Bots, Multiplayer,
 ## Settings) is one centred panel. Built in code.
 
 var _front: Control             # the front page
@@ -117,16 +117,11 @@ func _show_play() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	_col.add_child(row)
-	_card(row, "1v1 Bot", "Fight a computer opponent, Easy to Expert.", _show_bot).grab_focus()
+	_card(row, "Vs Bots", "A 1v1, or a free-for-all against up to 4 bots. Easy to Expert.", _show_bot).grab_focus()
 	_card(row, "Practice", "Free roam on your own to learn a map's routes.", _show_practice)
 	_card(row, "Multiplayer", "Free-for-all with up to 4 friends.", _show_multiplayer)
 	UiKit.spacer(_col, 4)
 	_back_row(_show_main)
-	UiKit.button(_col, "Vs Bots", _show_bot).grab_focus()
-	UiKit.button(_col, "Practice (free roam)", _show_practice)
-	UiKit.button(_col, "Multiplayer FFA", _show_multiplayer)
-	UiKit.spacer(_col)
-	UiKit.button(_col, "Back", _show_main)
 
 
 ## A big button with a heading and a line of text.
@@ -227,68 +222,45 @@ const BOT_BLURBS := [
 
 func _show_bot() -> void:
 	_page(820)
-	UiKit.title(_col, "1v1 Bot", 36)
-	var left := _two_columns()
-	UiKit.section(left, "Difficulty")
-	var level := [Game.last_bot.difficulty]   # in an array so the button callback can change it
-	var seg := UiKit.segmented(left, BotDifficulty.NAMES, level[0], func(_i: int): pass)
-	var blurb := UiKit.label(left, BOT_BLURBS[level[0]], true, 15)
-	for i in seg.get_child_count():
-		(seg.get_child(i) as Button).pressed.connect(func():
-			level[0] = i
-			blurb.text = BOT_BLURBS[i])
-	blurb.custom_minimum_size = Vector2(0, 40)
-	UiKit.section(left, "Kills to win")
-	UiKit.clear(_col)
 	UiKit.title(_col, "Vs Bots", 36)
-	# Bots and kills to win share a row, to keep the page short.
+	var left := _two_columns()
+	# How many bots and kills to win share a row, to keep the page short.
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	_col.add_child(row)
-	var left := VBoxContainer.new()
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(left)
-	UiKit.label(left, "Bots", true, 16)
+	row.add_theme_constant_override("separation", 16)
+	left.add_child(row)
+	var bots_box := VBoxContainer.new()
+	bots_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(bots_box)
+	UiKit.section(bots_box, "Bots")
 	var count := OptionButton.new()
 	for n in range(1, Game.MAX_BOTS + 1):
 		count.add_item("1 (1v1)" if n == 1 else "%d (free-for-all)" % n, n)
-	count.custom_minimum_size = Vector2(0, 44)
+	count.custom_minimum_size = Vector2(0, 46)
 	count.select(clampi(int(Game.last_bot.get("bots", 1)), 1, Game.MAX_BOTS) - 1)
-	left.add_child(count)
-	var right := VBoxContainer.new()
-	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(right)
-	UiKit.label(right, "Kills to win", true, 16)
+	bots_box.add_child(count)
+	var kills_box := VBoxContainer.new()
+	kills_box.custom_minimum_size = Vector2(150, 0)
+	row.add_child(kills_box)
+	UiKit.section(kills_box, "Kills to win")
 	var kills := SpinBox.new()
 	kills.min_value = 1
 	kills.max_value = 50
 	kills.value = Game.last_bot.kills
-	kills.custom_minimum_size = Vector2(140, 46)
-	kills.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	left.add_child(kills)
+	kills.custom_minimum_size = Vector2(0, 46)
+	kills_box.add_child(kills)
+	UiKit.section(left, "Difficulty (every bot)")
+	var level := [Game.last_bot.difficulty]   # in an array so the button callbacks can change it
+	var seg := UiKit.segmented(left, BotDifficulty.NAMES, level[0], func(_i: int): pass)
+	var blurb := UiKit.label(left, BOT_BLURBS[level[0]], true, 15)
+	blurb.custom_minimum_size = Vector2(0, 40)
+	for i in seg.get_child_count():
+		(seg.get_child(i) as Button).pressed.connect(func():
+			level[0] = i
+			blurb.text = BOT_BLURBS[i])
 	var map := _map_picker(left, Game.last_bot.map)
-	var row := _back_row(_show_play)
-	_start_button(row, func(): Game.start_bot(level[0], int(kills.value), Maps.LIST[map.selected].id))
-	kills.custom_minimum_size = Vector2(0, 44)
-	right.add_child(kills)
-	UiKit.label(_col, "Difficulty (every bot)", true, 16)
-	var pick := OptionButton.new()
-	for i in BotDifficulty.NAMES.size():
-		pick.add_item(BotDifficulty.NAMES[i], i)
-	pick.custom_minimum_size = Vector2(0, 44)
-	pick.select(Game.last_bot.difficulty)
-	_col.add_child(pick)
-	var blurb := UiKit.label(_col, BOT_BLURBS[Game.last_bot.difficulty], true, 15)
-	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	blurb.custom_minimum_size = Vector2(0, 44)
-	pick.item_selected.connect(func(i: int): blurb.text = BOT_BLURBS[i])
-	var map := _map_picker(Game.last_bot.map)
-	_character_picker()
-	UiKit.spacer(_col, 4)
-	UiKit.button(_col, "Start", func(): Game.start_bot(pick.selected, int(kills.value), Maps.LIST[map.selected].id,
-			count.get_selected_id())).grab_focus()
-	UiKit.spacer(_col)
-	UiKit.button(_col, "Back", _show_play)
+	var buttons := _back_row(_show_play)
+	_start_button(buttons, func(): Game.start_bot(level[0], int(kills.value), Maps.LIST[map.selected].id,
+			count.get_selected_id()))
 
 
 func _show_multiplayer() -> void:

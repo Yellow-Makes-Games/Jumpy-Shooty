@@ -9,9 +9,7 @@ Last updated: Vanguard robot and character select. Decisions are in [DESIGN.md](
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Main menu (Play, Multiplayer, Settings, Exit) | working | Styled to match the HUD (Chakra Petch, dark panels, orange accent, drifting grid backdrop). Front page shows your robot; Play has cards for 1v1 Bot, Practice and Multiplayer |
-| Mode select (1v1 Bot, Practice, Multiplayer FFA) | working | 1v1 Bot page: pick difficulty and kills to win; Rematch on the results screen |
-| Main menu (Play, Multiplayer, Settings, Exit) | working | Placeholder styling |
+| Main menu (Play, Multiplayer, Settings, Exit) | working | Styled to match the HUD (Chakra Petch, dark panels, orange accent, drifting grid backdrop). Front page shows every robot side by side, idling; Play has cards for Vs Bots, Practice and Multiplayer |
 | Mode select (Vs Bots, Practice, Multiplayer FFA) | working | Vs Bots page: pick how many bots (1 for a 1v1, up to 4 for a 5-player free-for-all), difficulty and kills to win; Rematch on the results screen |
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
 | Character select | working | Needle or Vanguard, with a live preview. On the Practice and Vs Bots pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
