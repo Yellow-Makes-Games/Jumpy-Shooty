@@ -1,0 +1,996 @@
+[gd_scene format=3 uid="uid://dfmlivyf37puu"]
+
+[ext_resource type="Script" uid="uid://cvi2cr76l7a75" path="res://game/arena/map_root.gd" id="1_ov1cm"]
+[ext_resource type="Resource" path="res://game/maps/palettes/testing_grounds.tres" id="2_i5v0i"]
+[ext_resource type="Script" uid="uid://54hcvu7hy6we" path="res://game/arena/map_block.gd" id="3_jbpnt"]
+[ext_resource type="Script" uid="uid://nastdacq4avs" path="res://game/arena/map_spawn.gd" id="4_1nbxg"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_21ygj"]
+sky_top_color = Color(0.22, 0.38, 0.62, 1)
+sky_horizon_color = Color(0.7, 0.74, 0.8, 1)
+ground_bottom_color = Color(0.2, 0.17, 0.13, 1)
+ground_horizon_color = Color(0.45, 0.47, 0.5, 1)
+
+[sub_resource type="Sky" id="Sky_l4vkl"]
+sky_material = SubResource("ProceduralSkyMaterial_21ygj")
+
+[sub_resource type="Environment" id="Environment_jnsip"]
+background_mode = 2
+sky = SubResource("Sky_l4vkl")
+ambient_light_source = 3
+ambient_light_energy = 0.35
+tonemap_mode = 4
+ssao_enabled = true
+glow_enabled = true
+
+[node name="TestingGrounds" type="Node3D" unique_id=941301076]
+script = ExtResource("1_ov1cm")
+palette = ExtResource("2_i5v0i")
+grid_texture = true
+
+[node name="Environment" type="WorldEnvironment" parent="." unique_id=1655908847]
+environment = SubResource("Environment_jnsip")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1466702186]
+transform = Transform3D(0.81915206, 0.45198438, -0.35312894, 0, 0.6156615, 0.7880107, 0.57357645, -0.6455006, 0.5043204, 0, 0, 0)
+light_energy = 1.1
+shadow_enabled = true
+directional_shadow_max_distance = 120.0
+
+[node name="Shell" type="Node3D" parent="." unique_id=1373769877]
+
+[node name="Floor" type="Node3D" parent="Shell" unique_id=1654021738]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, -0.5, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(152, 1, 80)
+kind = "floor"
+
+[node name="Wall" type="Node3D" parent="Shell" unique_id=9716548]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 7, -40)
+script = ExtResource("3_jbpnt")
+size = Vector3(152, 14, 1)
+kind = "wall"
+
+[node name="Wall2" type="Node3D" parent="Shell" unique_id=1943526224]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 7, 40)
+script = ExtResource("3_jbpnt")
+size = Vector3(152, 14, 1)
+kind = "wall"
+
+[node name="Wall3" type="Node3D" parent="Shell" unique_id=1456151705]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 7, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 14, 80)
+kind = "wall"
+
+[node name="Wall4" type="Node3D" parent="Shell" unique_id=1138396316]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112, 7, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 14, 80)
+kind = "wall"
+
+[node name="Wall5" type="Node3D" parent="Shell" unique_id=1812555576]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 7, -25)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 14, 30)
+kind = "wall"
+
+[node name="Wall6" type="Node3D" parent="Shell" unique_id=1024096946]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 7, 25)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 14, 30)
+kind = "wall"
+
+[node name="Stripe" type="Node3D" parent="Shell" unique_id=1169842229]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 78, 0.01, -20)
+script = ExtResource("3_jbpnt")
+size = Vector3(68, 0.02, 0.3)
+kind = "stripe"
+solid = false
+
+[node name="Stripe2" type="Node3D" parent="Shell" unique_id=846060029]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 78, 0.01, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(68, 0.02, 0.3)
+kind = "stripe"
+solid = false
+
+[node name="Stripe3" type="Node3D" parent="Shell" unique_id=1767088669]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 78, 0.01, 20)
+script = ExtResource("3_jbpnt")
+size = Vector3(68, 0.02, 0.3)
+kind = "stripe"
+solid = false
+
+[node name="Sign_TrainingYard" type="Label3D" parent="Shell" unique_id=1114217549]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 39.4, 9, -12)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "TRAINING YARD  >"
+font_size = 160
+
+[node name="Arena" type="Node3D" parent="." unique_id=1510224733]
+
+[node name="Block" type="Node3D" parent="Arena" unique_id=987416849]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(12, 6, 12)
+kind = "block"
+
+[node name="Ramp" type="Node3D" parent="Arena" unique_id=1423753962]
+transform = Transform3D(1, 0, 0, 0, 0.91914505, -0.3939193, 0, 0.3939193, 0.91914505, 0, 2.7702, 12.9015)
+script = ExtResource("3_jbpnt")
+size = Vector3(5, 0.5, 15.2315)
+kind = "ramp"
+
+[node name="Ramp2" type="Node3D" parent="Arena" unique_id=9740485]
+transform = Transform3D(-1, 0, 0, 0, 0.91914505, -0.3939193, 0, -0.3939193, -0.91914505, 0, 2.7702, -12.9015)
+script = ExtResource("3_jbpnt")
+size = Vector3(5, 0.5, 15.2315)
+kind = "ramp"
+
+[node name="Cover" type="Node3D" parent="Arena" unique_id=1739841376]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 6.6, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 1.2, 4)
+kind = "cover"
+
+[node name="Cover2" type="Node3D" parent="Arena" unique_id=746527618]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 6.6, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 1.2, 4)
+kind = "cover"
+
+[node name="Block2" type="Node3D" parent="Arena" unique_id=1467463313]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28, 2, -28)
+script = ExtResource("3_jbpnt")
+size = Vector3(14, 4, 14)
+kind = "block"
+
+[node name="Ramp3" type="Node3D" parent="Arena" unique_id=747553320]
+transform = Transform3D(1, 0, 0, 0, 0.91381156, -0.40613845, 0, 0.40613845, 0.91381156, -28, 1.7715, -16.6015)
+script = ExtResource("3_jbpnt")
+size = Vector3(4, 0.5, 9.8489)
+kind = "ramp"
+
+[node name="Bridge" type="Node3D" parent="Arena" unique_id=87135704]
+transform = Transform3D(-0.70710677, -0.07647191, -0.7029595, 0, 0.9941348, -0.10814761, 0.70710677, -0.07647191, -0.7029595, -15.4771, 4.7018, -15.4771)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 0.6, 18.4932)
+kind = "bridge"
+
+[node name="Block3" type="Node3D" parent="Arena" unique_id=1937911695]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28, 2, 28)
+script = ExtResource("3_jbpnt")
+size = Vector3(14, 4, 14)
+kind = "block"
+
+[node name="Ramp4" type="Node3D" parent="Arena" unique_id=1765586065]
+transform = Transform3D(-1, 0, 0, 0, 0.91381156, -0.40613845, 0, -0.40613845, -0.91381156, -28, 1.7715, 16.6015)
+script = ExtResource("3_jbpnt")
+size = Vector3(4, 0.5, 9.8489)
+kind = "ramp"
+
+[node name="Bridge2" type="Node3D" parent="Arena" unique_id=362361989]
+transform = Transform3D(0.70710677, -0.07647191, -0.7029595, 0, 0.9941348, -0.10814761, 0.70710677, 0.07647191, 0.7029595, -15.4771, 4.7018, 15.4771)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 0.6, 18.4932)
+kind = "bridge"
+
+[node name="Block4" type="Node3D" parent="Arena" unique_id=306323430]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 2, -28)
+script = ExtResource("3_jbpnt")
+size = Vector3(14, 4, 14)
+kind = "block"
+
+[node name="Ramp5" type="Node3D" parent="Arena" unique_id=1205128025]
+transform = Transform3D(1, 0, 0, 0, 0.91381156, -0.40613845, 0, 0.40613845, 0.91381156, 28, 1.7715, -16.6015)
+script = ExtResource("3_jbpnt")
+size = Vector3(4, 0.5, 9.8489)
+kind = "ramp"
+
+[node name="Bridge3" type="Node3D" parent="Arena" unique_id=353700612]
+transform = Transform3D(-0.70710677, 0.07647191, 0.7029595, 0, 0.9941348, -0.10814761, -0.70710677, -0.07647191, -0.7029595, 15.4771, 4.7018, -15.4771)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 0.6, 18.4932)
+kind = "bridge"
+
+[node name="Block5" type="Node3D" parent="Arena" unique_id=2144564304]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 2, 28)
+script = ExtResource("3_jbpnt")
+size = Vector3(14, 4, 14)
+kind = "block"
+
+[node name="Ramp6" type="Node3D" parent="Arena" unique_id=744577231]
+transform = Transform3D(-1, 0, 0, 0, 0.91381156, -0.40613845, 0, -0.40613845, -0.91381156, 28, 1.7715, 16.6015)
+script = ExtResource("3_jbpnt")
+size = Vector3(4, 0.5, 9.8489)
+kind = "ramp"
+
+[node name="Bridge4" type="Node3D" parent="Arena" unique_id=1913679145]
+transform = Transform3D(0.70710677, 0.07647191, 0.7029595, 0, 0.9941348, -0.10814761, -0.70710677, 0.07647191, 0.7029595, 15.4771, 4.7018, 15.4771)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 0.6, 18.4932)
+kind = "bridge"
+
+[node name="Wall" type="Node3D" parent="Arena" unique_id=1765760033]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 3, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 6, 18)
+kind = "wall"
+
+[node name="Wall2" type="Node3D" parent="Arena" unique_id=1856543982]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 3, 0)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 6, 18)
+kind = "wall"
+
+[node name="Wall3" type="Node3D" parent="Arena" unique_id=280512078]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(16, 5, 1)
+kind = "wall"
+
+[node name="Wall4" type="Node3D" parent="Arena" unique_id=1350365728]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 30)
+script = ExtResource("3_jbpnt")
+size = Vector3(16, 5, 1)
+kind = "wall"
+
+[node name="Pillar" type="Node3D" parent="Arena" unique_id=1147250218]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 4, 12)
+script = ExtResource("3_jbpnt")
+size = Vector3(2, 8, 2)
+kind = "pillar"
+
+[node name="Pillar2" type="Node3D" parent="Arena" unique_id=128385082]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 4, -12)
+script = ExtResource("3_jbpnt")
+size = Vector3(2, 8, 2)
+kind = "pillar"
+
+[node name="Pillar3" type="Node3D" parent="Arena" unique_id=1720053600]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 4, -10)
+script = ExtResource("3_jbpnt")
+size = Vector3(2, 8, 2)
+kind = "pillar"
+
+[node name="Pillar4" type="Node3D" parent="Arena" unique_id=771753377]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 4, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(2, 8, 2)
+kind = "pillar"
+
+[node name="Cover3" type="Node3D" parent="Arena" unique_id=1305030676]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 0.75, 6)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 1.5, 2.5)
+kind = "cover"
+
+[node name="Cover4" type="Node3D" parent="Arena" unique_id=1270093126]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0.75, -6)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 1.5, 2.5)
+kind = "cover"
+
+[node name="Cover5" type="Node3D" parent="Arena" unique_id=117779831]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.75, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 1.5, 2.5)
+kind = "cover"
+
+[node name="Cover6" type="Node3D" parent="Arena" unique_id=190168634]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.75, -26)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 1.5, 2.5)
+kind = "cover"
+
+[node name="Cover7" type="Node3D" parent="Arena" unique_id=857842774]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34, 0.75, -2)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 1.5, 2.5)
+kind = "cover"
+
+[node name="Cover8" type="Node3D" parent="Arena" unique_id=1417160787]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34, 0.75, 2)
+script = ExtResource("3_jbpnt")
+size = Vector3(2.5, 1.5, 2.5)
+kind = "cover"
+
+[node name="GrappleLane" type="Node3D" parent="." unique_id=845570469]
+
+[node name="Block" type="Node3D" parent="GrappleLane" unique_id=650697405]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.6, 0.6, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 1.2, 4)
+kind = "block"
+
+[node name="Block2" type="Node3D" parent="GrappleLane" unique_id=880413267]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.8, 1.2, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 2.4, 4)
+kind = "block"
+
+[node name="Block3" type="Node3D" parent="GrappleLane" unique_id=742859798]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 1.8, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 3.6, 4)
+kind = "block"
+
+[node name="Block4" type="Node3D" parent="GrappleLane" unique_id=1533381542]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.2, 2.4, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 4.8, 4)
+kind = "block"
+
+[node name="Block5" type="Node3D" parent="GrappleLane" unique_id=26335824]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49.4, 3, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 6, 4)
+kind = "block"
+
+[node name="Pad" type="Node3D" parent="GrappleLane" unique_id=1851969662]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, 3, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(6, 6, 12)
+kind = "pad"
+
+[node name="Pit" type="Node3D" parent="GrappleLane" unique_id=895989993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 75, 0.01, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(40, 0.02, 14)
+kind = "pit"
+solid = false
+
+[node name="Grapple" type="Node3D" parent="GrappleLane" unique_id=2112774763]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62, 14.5, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 1, 16)
+kind = "grapple"
+
+[node name="Pillar" type="Node3D" parent="GrappleLane" unique_id=1066072078]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62, 7.5, -37.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.8, 15, 0.8)
+kind = "pillar"
+
+[node name="Pillar2" type="Node3D" parent="GrappleLane" unique_id=1118566998]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62, 7.5, -22.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.8, 15, 0.8)
+kind = "pillar"
+
+[node name="Grapple2" type="Node3D" parent="GrappleLane" unique_id=1958899437]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74, 14.5, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 1, 16)
+kind = "grapple"
+
+[node name="Pillar3" type="Node3D" parent="GrappleLane" unique_id=690151470]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74, 7.5, -37.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.8, 15, 0.8)
+kind = "pillar"
+
+[node name="Pillar4" type="Node3D" parent="GrappleLane" unique_id=722971594]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74, 7.5, -22.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.8, 15, 0.8)
+kind = "pillar"
+
+[node name="Grapple3" type="Node3D" parent="GrappleLane" unique_id=605268889]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 14.5, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 1, 16)
+kind = "grapple"
+
+[node name="Pillar5" type="Node3D" parent="GrappleLane" unique_id=725305590]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 7.5, -37.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.8, 15, 0.8)
+kind = "pillar"
+
+[node name="Pillar6" type="Node3D" parent="GrappleLane" unique_id=1042943923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 7.5, -22.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.8, 15, 0.8)
+kind = "pillar"
+
+[node name="Pad2" type="Node3D" parent="GrappleLane" unique_id=475622042]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99, 3, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(8, 6, 12)
+kind = "pad"
+
+[node name="Block6" type="Node3D" parent="GrappleLane" unique_id=427818651]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 108.4, 0.6, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 1.2, 4)
+kind = "block"
+
+[node name="Block7" type="Node3D" parent="GrappleLane" unique_id=1038785517]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.2, 1.2, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 2.4, 4)
+kind = "block"
+
+[node name="Block8" type="Node3D" parent="GrappleLane" unique_id=1684300321]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106, 1.8, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 3.6, 4)
+kind = "block"
+
+[node name="Block9" type="Node3D" parent="GrappleLane" unique_id=1800031186]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.8, 2.4, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 4.8, 4)
+kind = "block"
+
+[node name="Block10" type="Node3D" parent="GrappleLane" unique_id=1364213905]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.6, 3, -30)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.2, 6, 4)
+kind = "block"
+
+[node name="Sign_Grapple" type="Label3D" parent="GrappleLane" unique_id=1653868600]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 43, 9, -30)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "GRAPPLE"
+font_size = 110
+
+[node name="Sign_RightclickABeamAndSwingL" type="Label3D" parent="GrappleLane" unique_id=2133249135]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 43, 7.9, -30)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "Right-click a beam and swing. Let go at the bottom to fly.
+Jump while swinging to let go with a kick."
+font_size = 40
+
+[node name="Sign_Finish" type="Label3D" parent="GrappleLane" unique_id=1853839793]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 95.5, 8.5, -30)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "FINISH"
+font_size = 96
+
+[node name="WallLane" type="Node3D" parent="." unique_id=1559374947]
+
+[node name="Ramp" type="Node3D" parent="WallLane" unique_id=735686679]
+transform = Transform3D(0, -0.3846154, -0.9230769, 0, 0.9230769, -0.3846154, 1, 0, 0, 47.0962, 1.0192, -10)
+script = ExtResource("3_jbpnt")
+size = Vector3(4, 0.5, 6.5)
+kind = "ramp"
+
+[node name="Pad" type="Node3D" parent="WallLane" unique_id=252401415]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.5, 1.25, -10)
+script = ExtResource("3_jbpnt")
+size = Vector3(5, 2.5, 4)
+kind = "pad"
+
+[node name="Pit" type="Node3D" parent="WallLane" unique_id=1481054177]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77, 0.01, -10)
+script = ExtResource("3_jbpnt")
+size = Vector3(44, 0.02, 12)
+kind = "pit"
+solid = false
+
+[node name="Wallrun" type="Node3D" parent="WallLane" unique_id=1287825848]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58, 4, -12.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(16, 8, 1)
+kind = "wallrun"
+
+[node name="Wallrun2" type="Node3D" parent="WallLane" unique_id=142026039]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70, 4, -7.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(12, 8, 1)
+kind = "wallrun"
+
+[node name="Wallrun3" type="Node3D" parent="WallLane" unique_id=1171019889]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80, 4, -12.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(12, 8, 1)
+kind = "wallrun"
+
+[node name="Wallrun4" type="Node3D" parent="WallLane" unique_id=1202632585]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90, 4, -7.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(12, 8, 1)
+kind = "wallrun"
+
+[node name="Pad2" type="Node3D" parent="WallLane" unique_id=153407977]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103, 2, -10)
+script = ExtResource("3_jbpnt")
+size = Vector3(10, 4, 6)
+kind = "pad"
+
+[node name="Wallrun5" type="Node3D" parent="WallLane" unique_id=1953118805]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76, 4, -19.5)
+script = ExtResource("3_jbpnt")
+size = Vector3(40, 8, 1)
+kind = "wallrun"
+
+[node name="Sign_WallRun" type="Label3D" parent="WallLane" unique_id=894646520]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 43, 7, -10)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "WALL RUN"
+font_size = 110
+
+[node name="Sign_RunAlongTheWallJumpAndHo" type="Label3D" parent="WallLane" unique_id=138554385]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 43, 5.9, -10)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "Run along the wall, jump and hold forward.
+Jump to kick off toward the next wall."
+font_size = 40
+
+[node name="Sign_Finish" type="Label3D" parent="WallLane" unique_id=1909091502]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 97.9, 5.5, -10)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "FINISH"
+font_size = 96
+
+[node name="SlideLane" type="Node3D" parent="." unique_id=1157072962]
+
+[node name="Block" type="Node3D" parent="SlideLane" unique_id=308489472]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.625, 0.6, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.25, 1.2, 4)
+kind = "block"
+
+[node name="Block2" type="Node3D" parent="SlideLane" unique_id=1841667888]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.875, 1.2, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.25, 2.4, 4)
+kind = "block"
+
+[node name="Block3" type="Node3D" parent="SlideLane" unique_id=1278780406]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.125, 1.8, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.25, 3.6, 4)
+kind = "block"
+
+[node name="Block4" type="Node3D" parent="SlideLane" unique_id=330291421]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.375, 2.4, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(1.25, 4.8, 4)
+kind = "block"
+
+[node name="Pad" type="Node3D" parent="SlideLane" unique_id=1612909940]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.5, 2.4, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(3, 4.8, 10)
+kind = "pad"
+
+[node name="Ramp" type="Node3D" parent="SlideLane" unique_id=1657229200]
+transform = Transform3D(0, 0.23337297, 0.9723873, 0, 0.9723873, -0.23337297, -1, 0, 0, 61.9417, 2.1569, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(10, 0.5, 20.5679)
+kind = "ramp"
+
+[node name="Slide" type="Node3D" parent="SlideLane" unique_id=1311540333]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80, 1.7, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.6, 0.6, 10)
+kind = "slide"
+
+[node name="Pillar" type="Node3D" parent="SlideLane" unique_id=1258270951]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80, 0.7, 4.75)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.5, 1.4, 0.5)
+kind = "pillar"
+
+[node name="Pillar2" type="Node3D" parent="SlideLane" unique_id=620841]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80, 0.7, 15.25)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.5, 1.4, 0.5)
+kind = "pillar"
+
+[node name="Slide2" type="Node3D" parent="SlideLane" unique_id=243705230]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 1.7, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.6, 0.6, 10)
+kind = "slide"
+
+[node name="Pillar3" type="Node3D" parent="SlideLane" unique_id=383995535]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 0.7, 4.75)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.5, 1.4, 0.5)
+kind = "pillar"
+
+[node name="Pillar4" type="Node3D" parent="SlideLane" unique_id=1513079419]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 0.7, 15.25)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.5, 1.4, 0.5)
+kind = "pillar"
+
+[node name="Slide3" type="Node3D" parent="SlideLane" unique_id=1108653466]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92, 1.7, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.6, 0.6, 10)
+kind = "slide"
+
+[node name="Pillar5" type="Node3D" parent="SlideLane" unique_id=395505558]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92, 0.7, 4.75)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.5, 1.4, 0.5)
+kind = "pillar"
+
+[node name="Pillar6" type="Node3D" parent="SlideLane" unique_id=1052239069]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92, 0.7, 15.25)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.5, 1.4, 0.5)
+kind = "pillar"
+
+[node name="Ramp2" type="Node3D" parent="SlideLane" unique_id=711564197]
+transform = Transform3D(0, -0.24253564, -0.97014254, 0, 0.97014254, -0.24253564, 1, 0, 0, 101.0606, 0.5075, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(8, 0.5, 6.1847)
+kind = "ramp"
+
+[node name="Stripe" type="Node3D" parent="SlideLane" unique_id=1657831202]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72, 0.01, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.25, 0.02, 10)
+kind = "stripe"
+solid = false
+
+[node name="Stripe2" type="Node3D" parent="SlideLane" unique_id=1830839866]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 77, 0.01, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.25, 0.02, 10)
+kind = "stripe"
+solid = false
+
+[node name="Stripe3" type="Node3D" parent="SlideLane" unique_id=632625199]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82, 0.01, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.25, 0.02, 10)
+kind = "stripe"
+solid = false
+
+[node name="Stripe4" type="Node3D" parent="SlideLane" unique_id=1478741429]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87, 0.01, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.25, 0.02, 10)
+kind = "stripe"
+solid = false
+
+[node name="Stripe5" type="Node3D" parent="SlideLane" unique_id=170697878]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92, 0.01, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.25, 0.02, 10)
+kind = "stripe"
+solid = false
+
+[node name="Stripe6" type="Node3D" parent="SlideLane" unique_id=1319854521]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97, 0.01, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.25, 0.02, 10)
+kind = "stripe"
+solid = false
+
+[node name="Stripe7" type="Node3D" parent="SlideLane" unique_id=2012858489]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102, 0.01, 10)
+script = ExtResource("3_jbpnt")
+size = Vector3(0.25, 0.02, 10)
+kind = "stripe"
+solid = false
+
+[node name="Sign_Slide" type="Label3D" parent="SlideLane" unique_id=1770302572]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 43, 8, 10)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "SLIDE"
+font_size = 110
+
+[node name="Sign_SprintThenCrouchCtrlToSl" type="Label3D" parent="SlideLane" unique_id=24919375]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 43, 6.9, 10)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "Sprint, then crouch (Ctrl) to slide.
+Slide down the hill and under the bars."
+font_size = 40
+
+[node name="VaultLane" type="Node3D" parent="." unique_id=712174488]
+
+[node name="Vault" type="Node3D" parent="VaultLane" unique_id=1994252891]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 0.25, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 0.5, 5)
+kind = "vault"
+
+[node name="Vault2" type="Node3D" parent="VaultLane" unique_id=297052932]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56, 0.375, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 0.75, 5)
+kind = "vault"
+
+[node name="Vault3" type="Node3D" parent="VaultLane" unique_id=2091573332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62, 0.5, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 1, 5)
+kind = "vault"
+
+[node name="Vault4" type="Node3D" parent="VaultLane" unique_id=2067302517]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68, 0.625, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(1, 1.25, 5)
+kind = "vault"
+
+[node name="Vault5" type="Node3D" parent="VaultLane" unique_id=1723822388]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 74, 0.8, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(2, 1.6, 5)
+kind = "vault"
+
+[node name="Vault6" type="Node3D" parent="VaultLane" unique_id=1489282622]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80, 1.2, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(2, 2.4, 5)
+kind = "vault"
+
+[node name="Vault7" type="Node3D" parent="VaultLane" unique_id=560546915]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 1.6, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(2, 3.2, 5)
+kind = "vault"
+
+[node name="Vault8" type="Node3D" parent="VaultLane" unique_id=1316595383]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 92, 1.9, 26)
+script = ExtResource("3_jbpnt")
+size = Vector3(2, 3.8, 5)
+kind = "vault"
+
+[node name="Wallrun" type="Node3D" parent="VaultLane" unique_id=1263148632]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98, 6, 33)
+script = ExtResource("3_jbpnt")
+size = Vector3(8, 12, 1)
+kind = "wallrun"
+
+[node name="Wallrun2" type="Node3D" parent="VaultLane" unique_id=1210634699]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98, 6, 37)
+script = ExtResource("3_jbpnt")
+size = Vector3(8, 12, 1)
+kind = "wallrun"
+
+[node name="Pad" type="Node3D" parent="VaultLane" unique_id=1835880730]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 106, 5.25, 35)
+script = ExtResource("3_jbpnt")
+size = Vector3(8, 10.5, 6)
+kind = "pad"
+
+[node name="Sign_VaultClimb" type="Label3D" parent="VaultLane" unique_id=216766021]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 43, 6, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "VAULT + CLIMB"
+font_size = 110
+
+[node name="Sign_RunIntoLowBlocksToVaultT" type="Label3D" parent="VaultLane" unique_id=1004251646]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 43, 4.9, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "Run into low blocks to vault them.
+Jump at higher ledges and hold forward to climb."
+font_size = 40
+
+[node name="Sign_050M" type="Label3D" parent="VaultLane" unique_id=275711525]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 49.45, 1, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "0.50 m"
+font_size = 48
+
+[node name="Sign_075M" type="Label3D" parent="VaultLane" unique_id=1685399148]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 55.45, 1.25, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "0.75 m"
+font_size = 48
+
+[node name="Sign_100M" type="Label3D" parent="VaultLane" unique_id=1374831340]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 61.45, 1.5, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "1.00 m"
+font_size = 48
+
+[node name="Sign_125M" type="Label3D" parent="VaultLane" unique_id=646294582]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 67.45, 1.75, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "1.25 m"
+font_size = 48
+
+[node name="Sign_16M" type="Label3D" parent="VaultLane" unique_id=1045987103]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 72.95, 2.1, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "1.6 m"
+font_size = 48
+
+[node name="Sign_24M" type="Label3D" parent="VaultLane" unique_id=1988984382]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 78.95, 2.9, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "2.4 m"
+font_size = 48
+
+[node name="Sign_32M" type="Label3D" parent="VaultLane" unique_id=685625241]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 84.95, 3.7, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "3.2 m"
+font_size = 48
+
+[node name="Sign_38MtooHigh" type="Label3D" parent="VaultLane" unique_id=1576929372]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 90.95, 4.3, 26)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "3.8 m
+too high"
+font_size = 48
+
+[node name="Sign_WallJump" type="Label3D" parent="VaultLane" unique_id=2110088375]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 93, 14, 35)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "WALL JUMP"
+font_size = 110
+
+[node name="Sign_JumpBackAndForthBetweenT" type="Label3D" parent="VaultLane" unique_id=490675233]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 93, 12.9, 35)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "Jump back and forth between the walls to climb."
+font_size = 40
+
+[node name="Sign_Top" type="Label3D" parent="VaultLane" unique_id=1513935323]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 102.2, 13, 35)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "TOP"
+font_size = 96
+
+[node name="GapLane" type="Node3D" parent="." unique_id=149123136]
+
+[node name="Ramp" type="Node3D" parent="GapLane" unique_id=994385357]
+transform = Transform3D(0, -0.44721362, -0.89442724, 0, 0.89442724, -0.44721362, 1, 0, 0, 44.1118, 0.7764, 35)
+script = ExtResource("3_jbpnt")
+size = Vector3(4, 0.5, 4.4721)
+kind = "ramp"
+
+[node name="Pit" type="Node3D" parent="GapLane" unique_id=140571009]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 71.5, 0.01, 35)
+script = ExtResource("3_jbpnt")
+size = Vector3(35, 0.02, 4)
+kind = "pit"
+solid = false
+
+[node name="Pad" type="Node3D" parent="GapLane" unique_id=162241990]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49, 1, 35)
+script = ExtResource("3_jbpnt")
+size = Vector3(6, 2, 4)
+kind = "pad"
+
+[node name="Pad2" type="Node3D" parent="GapLane" unique_id=870912676]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.5, 1, 35)
+script = ExtResource("3_jbpnt")
+size = Vector3(3, 2, 4)
+kind = "pad"
+
+[node name="Pad3" type="Node3D" parent="GapLane" unique_id=57643047]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 72.5, 1, 35)
+script = ExtResource("3_jbpnt")
+size = Vector3(3, 2, 4)
+kind = "pad"
+
+[node name="Pad4" type="Node3D" parent="GapLane" unique_id=2029669746]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 88.5, 1, 35)
+script = ExtResource("3_jbpnt")
+size = Vector3(3, 2, 4)
+kind = "pad"
+
+[node name="Sign_GapJumps" type="Label3D" parent="GapLane" unique_id=1358414992]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 44.5, 8.5, 35)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "GAP JUMPS"
+font_size = 110
+
+[node name="Sign_QDivesTowardWhereYouLook" type="Label3D" parent="GapLane" unique_id=516985053]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 44.5, 7.4, 35)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "Q dives toward where you look.
+Jump again in mid-air to flip toward your WASD direction."
+font_size = 40
+
+[node name="Sign_Jump6M" type="Label3D" parent="GapLane" unique_id=1206462523]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 55, 5, 35)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "JUMP
+6 m"
+font_size = 56
+
+[node name="Sign_JumpDive10M" type="Label3D" parent="GapLane" unique_id=1367430619]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 66, 5, 35)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "JUMP + DIVE
+10 m"
+font_size = 56
+
+[node name="Sign_JumpFlipDive13M" type="Label3D" parent="GapLane" unique_id=1661544369]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 80.5, 5, 35)
+pixel_size = 0.01
+double_sided = false
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "JUMP + FLIP + DIVE
+13 m"
+font_size = 56
+
+[node name="Spawns" type="Node3D" parent="." unique_id=400521584]
+
+[node name="Spawn" type="Marker3D" parent="Spawns" unique_id=976479630]
+transform = Transform3D(0.9238795, 0, 0.38268346, 0, 1, 0, -0.38268346, 0, 0.9238795, 13.0112, 0, 31.4119)
+script = ExtResource("4_1nbxg")
+
+[node name="Spawn2" type="Marker3D" parent="Spawns" unique_id=1395632176]
+transform = Transform3D(0.38268343, 0, 0.9238795, 0, 1, 0, -0.9238795, 0, 0.38268343, 31.4119, 0, 13.0112)
+script = ExtResource("4_1nbxg")
+
+[node name="Spawn3" type="Marker3D" parent="Spawns" unique_id=639038054]
+transform = Transform3D(-0.3826834, 0, 0.92387956, 0, 1, 0, -0.92387956, 0, -0.3826834, 31.4119, 0, -13.0112)
+script = ExtResource("4_1nbxg")
+
+[node name="Spawn4" type="Marker3D" parent="Spawns" unique_id=1773228559]
+transform = Transform3D(-0.9238795, 0, 0.3826835, 0, 1, 0, -0.3826835, 0, -0.9238795, 13.0112, 0, -31.4119)
+script = ExtResource("4_1nbxg")
+
+[node name="Spawn5" type="Marker3D" parent="Spawns" unique_id=133167803]
+transform = Transform3D(-0.9238795, 0, -0.38268343, 0, 1, 0, 0.38268343, 0, -0.9238795, -13.0112, 0, -31.4119)
+script = ExtResource("4_1nbxg")
+
+[node name="Spawn6" type="Marker3D" parent="Spawns" unique_id=1461919981]
+transform = Transform3D(-0.38268358, 0, -0.9238795, 0, 1, 0, 0.9238795, 0, -0.38268358, -31.4119, 0, -13.0112)
+script = ExtResource("4_1nbxg")
+
+[node name="Spawn7" type="Marker3D" parent="Spawns" unique_id=331844674]
+transform = Transform3D(0.3826836, 0, -0.92387944, 0, 1, 0, 0.92387944, 0, 0.3826836, -31.4119, 0, 13.0112)
+script = ExtResource("4_1nbxg")
+
+[node name="Spawn8" type="Marker3D" parent="Spawns" unique_id=1606571103]
+transform = Transform3D(0.92387956, 0, -0.38268343, 0, 1, 0, 0.38268343, 0, 0.92387956, -13.0112, 0, 31.4119)
+script = ExtResource("4_1nbxg")

@@ -11,15 +11,34 @@ extends "res://tests/course_runner.gd"
 ##    gap from the hoist tower.
 ## Run: godot --headless --path . --script tests/site_test.gd
 
-const S := preload("res://game/arena/construction_site.gd")
+## Where things are on the map (game/maps/construction_site.tscn). If you move one
+## of them in the editor, change its numbers here too, or the route test for it fails.
+class S:
+	const HALF := 40.0                ## the site is 80 x 80 m
+	const TOWER := 16.0               ## the tower is 32 x 32 m
+	const NEST := 24.0                ## height of the crow's nest
+	const SHAFT_X := 1.5              ## the lift shaft's gap is 3 m wide (x) and 4 m deep (z)
+	const SHAFT_Z := 2.0
+	const PIT_DEPTH := 3.0            ## the pit in the south-west corner
+	const HOIST := Rect2(-28, -8, 5, 5)   ## the hoist tower west of the tower
+	const HOIST_TOP := 20.0
+	const STEP_UP := 2.2              ## height of the tall crate by an edge of every floor
+	const STEP_UPS := [               ## where each crate stands (floor level), from the ground up
+		Vector3(7.85, 0, -1),
+		Vector3(1.5, 4, 6.85),
+		Vector3(6.85, 8, -14),
+		Vector3(4.3, 12, -4.15),
+		Vector3(-2.15, 16, -10),
+		Vector3(0, 20, -5.85),
+	]
+	const SCAFFOLD_X0 := 16.0         ## the scaffolding on the tower's east face
+	const SCAFFOLD_X1 := 18.4
+	const CONTAINER_H := 2.6
+	const NORTH_STACK_Z := -19.7      ## centre line of the containers north of the tower
 
-var site: ConstructionSite
 
-
-func _layout() -> MapLayout:
-	site = ConstructionSite.new()
-	site.build()
-	return site
+func _map_id() -> String:
+	return "construction_site"
 
 
 func _title() -> String:
@@ -59,27 +78,27 @@ func _before_courses() -> void:
 	cap.radius = 0.4
 	cap.height = 1.8
 	var bad := 0
-	for s in site.spawns:
+	for s in map.spawns:
 		var pos: Vector3 = s[0]
 		var q := PhysicsShapeQueryParameters3D.new()
 		q.shape = cap
 		q.transform = Transform3D(Basis(), pos + Vector3(0, 0.95, 0))
 		q.exclude = [body.get_rid()]
 		var below := space.intersect_ray(PhysicsRayQueryParameters3D.create(pos + Vector3(0, 0.5, 0), pos - Vector3(0, 1.0, 0)))
-		if not space.intersect_shape(q, 1).is_empty() or below.is_empty() or not site.bounds().has_point(Vector2(pos.x, pos.z)):
+		if not space.intersect_shape(q, 1).is_empty() or below.is_empty() or not map.bounds.has_point(Vector2(pos.x, pos.z)):
 			print("      blocked or off the ground: %s" % pos)
 			bad += 1
-	_expect(site.spawns.size() >= 8, "%d spawn points (the arena needs at least 8)" % site.spawns.size())
+	_expect(map.spawns.size() >= 8, "%d spawn points (the arena needs at least 8)" % map.spawns.size())
 	_expect(bad == 0, "every spawn point is clear, on the ground and inside the fence")
 
 	print("  bot navigation")
 	var region := MapScenery.bake_navigation(level)
 	root.add_child(region)
-	var map := root.get_world_3d().navigation_map
+	var nav_map := root.get_world_3d().navigation_map
 	# The navigation map picks up a new region a few frames later (it syncs on a thread)
 	for i in 240:
 		await physics_frame
-		if NavigationServer3D.map_get_iteration_id(map) > 0 and NavigationServer3D.map_get_closest_point(map, Vector3(0, 4, 10)).y > 3.0:
+		if NavigationServer3D.map_get_iteration_id(nav_map) > 0 and NavigationServer3D.map_get_closest_point(nav_map, Vector3(0, 4, 10)).y > 3.0:
 			break
 	var goals := {
 		"4 m floor": Vector3(0, 4, 10), "8 m floor": Vector3(12, 8, -12), "12 m floor": Vector3(0, 12, 4.5),
@@ -92,8 +111,8 @@ func _before_courses() -> void:
 	for goal_name in goals:
 		var goal: Vector3 = goals[goal_name]
 		var worst := 0.0
-		for s in site.spawns:
-			var path := NavigationServer3D.map_get_path(map, s[0], goal, true)
+		for s in map.spawns:
+			var path := NavigationServer3D.map_get_path(nav_map, s[0], goal, true)
 			var miss := 99.0 if path.is_empty() else path[path.size() - 1].distance_to(goal)
 			worst = maxf(worst, miss)
 		_expect(worst < 1.0, "a bot can walk to the %s from every spawn point%s" % [goal_name, "" if worst < 1.0 else " (ends %.1f m short)" % worst])

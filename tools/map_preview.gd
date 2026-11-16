@@ -2,14 +2,17 @@ extends SceneTree
 ## Renders pictures of a map without opening the game: an aerial view from each
 ## corner and a top-down plan. Used by tools/map_preview.sh.
 ##
-##   godot --path . --script tools/map_preview.gd -- --map=res://path/to/map.gd --out=DIR
-##       [--shots=sw;ne;top] [--size=1600x900] [--no-signs] [--look=NAME]
+##   godot --path . --script tools/map_preview.gd -- --map=ID --out=DIR
+##       [--shots=sw;ne;top] [--size=1600x900] [--no-signs]
+##
+## ID is a map id from game/arena/maps.gd (construction_site) or a map scene's path
+## (res://game/maps/my_map.tscn).
 ##
 ## Shots (separated by ";"): a corner or side to look from (sw, se, nw, ne, s, n, e,
 ## w), "top" (a plan), "cutY" (a plan with everything above height Y sliced off, to
 ## see one floor), or a camera "x,y,z:lx,ly,lz[:fov]" (position : look-at).
 
-var _layout: MapLayout
+var _map: MapRoot
 var _camera: Camera3D
 var _shots: Array = []
 var _shot := -1
@@ -29,7 +32,6 @@ func _initialize() -> void:
 	var shots := "sw;ne;top"
 	var size := Vector2i(1600, 900)
 	var show_signs := true
-	var look_name := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--map="):
 			map_path = arg.substr(6)
@@ -41,26 +43,23 @@ func _initialize() -> void:
 			size = Vector2i(int(arg.substr(7).get_slice("x", 0)), int(arg.substr(7).get_slice("x", 1)))
 		elif arg == "--no-signs":
 			show_signs = false
-		elif arg.begins_with("--look="):
-			look_name = arg.substr(7)
-	var script: GDScript = load(map_path) if map_path != "" else null
-	if script == null:
-		push_error("map_preview: give --map=res://... (a MapLayout script)")
+	if map_path.begins_with("res://"):
+		var scene := load(map_path) as PackedScene
+		_map = scene.instantiate() as MapRoot if scene else null
+	elif Maps.has(map_path):
+		_map = Maps.make(map_path)
+	if _map == null:
+		push_error("map_preview: give --map=ID (one of %s) or --map=res://...tscn (a map scene)" % ", ".join(Maps.ids()))
 		quit(1)
 		return
 	_prefix = map_path.get_file().get_basename()
-	_layout = script.new().build()
-	if look_name != "":
-		_layout.set("look_name", look_name)
-		_prefix += "_" + look_name
-	if not show_signs:
-		_layout.signs.clear()
 	root.size = size
 	DisplayServer.window_set_size(size)
-	var stage := Node3D.new()
-	root.add_child(stage)
-	MapScenery.build_environment(stage, _layout)
-	MapScenery.build_level(stage, _layout)
+	root.add_child(_map)
+	_map.build()
+	if not show_signs:
+		for label in _map.find_children("*", "Label3D", true, false):
+			label.visible = false
 	_camera = Camera3D.new()
 	_camera.far = 600.0
 	root.add_child(_camera)
@@ -70,7 +69,7 @@ func _initialize() -> void:
 
 
 func _process(_delta: float) -> bool:
-	if _layout == null:
+	if _map == null:
 		return true
 	if _wait > 0:
 		_wait -= 1

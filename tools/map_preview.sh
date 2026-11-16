@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Renders pictures of a map in a software renderer (no GPU needed).
-# Usage: tools/map_preview.sh res://game/arena/construction_site.gd OUT_DIR [more map_preview.gd options]
+# Usage: tools/map_preview.sh construction_site OUT_DIR [more map_preview.gd options]
+# (a map id from game/arena/maps.gd, or a map scene's res:// path)
 set -euo pipefail
 MAP="$1"; OUT="$(realpath -m "$2")"; shift 2
 mkdir -p "$OUT"

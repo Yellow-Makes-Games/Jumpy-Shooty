@@ -43,9 +43,11 @@ game/
   player/    player, movement (movement/), camera (camera/)
   match/     match rules run by the host: health, hits, kills, respawns, timer
   combat/    weapons and shot effects
-  arena/     the arena and the maps (each map is a script; see docs/DEVELOPMENT.md)
+  arena/     the arena and the map system (see docs/DEVELOPMENT.md)
+  maps/      the maps: scenes you edit in the Godot editor, and their palettes
   ui/        menus, lobby, HUD, pause menu
   dev/       developer command-line options
+addons/      map_tools: the editor plugin for editing maps
 tools/       launch several copies, take screenshots, render map previews
 tests/       automated tests (tests/run_all.sh)
 docs/        setup guide, feature tracker

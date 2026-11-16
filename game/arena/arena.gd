@@ -2,7 +2,7 @@ extends Node3D
 ## The arena scene: builds the level, spawns one Player per connected peer,
 ## and hosts the HUD and pause menu.
 
-var layout: MapLayout
+var layout: MapRoot
 var players_root: Node3D
 var local_player: Player
 var hud: Hud
@@ -11,10 +11,11 @@ var pause_menu: PauseMenu
 
 func _ready() -> void:
 	layout = Maps.make(Net.map_id())
-	MapScenery.build_environment(self, layout)
-	var level := MapScenery.build_level(self, layout)
+	layout.name = "Level"
+	add_child(layout)
+	layout.build()
 	if Net.has_bots():
-		add_child(MapScenery.bake_navigation(level))   # only when bots play: it takes a moment
+		add_child(MapScenery.bake_navigation(layout))   # only when bots play: it takes a moment
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
@@ -48,8 +49,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(_delta: float) -> void:
 	# Falling out of the map, or getting outside its fence, counts as a death.
-	var floor_y := layout.kill_height()
-	var area := layout.bounds()
+	var floor_y := layout.kill_height
+	var area := layout.bounds
 	for p in players_root.get_children():
 		if not (p as Player).is_local:
 			continue

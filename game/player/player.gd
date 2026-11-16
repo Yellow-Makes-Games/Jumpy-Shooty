@@ -581,7 +581,7 @@ func _scripted_input(delta: float) -> void:
 	var swing_phase := fmod(t + float(peer_id % 7), 5.0)
 	input.grapple = swing_phase < 1.3
 	if swing_phase < delta:
-		var to_tower: Vector3 = Net.arena.layout.swing_point() - eye_position()
+		var to_tower: Vector3 = Net.arena.layout.swing_point - eye_position()
 		input.yaw = atan2(-to_tower.x, -to_tower.z)
 		input.pitch = atan2(to_tower.y, Vector2(to_tower.x, to_tower.z).length())
 		input.grapple_pressed = true

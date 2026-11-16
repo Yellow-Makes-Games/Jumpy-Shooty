@@ -5,8 +5,33 @@ extends "res://tests/course_runner.gd"
 ## Run: godot --headless --path . --script tests/course_test.gd
 
 
-func _layout() -> MapLayout:
-	return TestingGrounds.new().build()
+# Where the Testing Grounds courses are (game/maps/testing_grounds.tscn). If you
+# move a course in the editor, change its numbers here too.
+const LANE_GRAPPLE := -30.0                 ## z of each lane
+const LANE_WALL := -10.0
+const GRAPPLE_BEAMS := [62.0, 74.0, 86.0]   ## x of each grapple beam
+const GRAPPLE_BEAM_Y := 14.0
+const WALL_PANELS := [   ## [x from, x to, z of the panel centre]. Faces are 4 m apart.
+	[50.0, 66.0, -12.5],
+	[64.0, 76.0, -7.5],
+	[74.0, 86.0, -12.5],
+	[84.0, 96.0, -7.5],
+]
+const SLIDE_HILL := 4.8                      ## height of the slide lane's hill top
+const LEDGE_HEIGHTS := [1.6, 2.4, 3.2, 3.8]
+const CHIMNEY_TOP := 12.0
+const GAP_Z := 35.0
+const GAP_HEIGHT := 2.0
+const GAP_PLATFORMS := [   ## [x from, x to]
+	[46.0, 52.0],
+	[58.0, 61.0],
+	[71.0, 74.0],
+	[87.0, 90.0],
+]
+
+
+func _map_id() -> String:
+	return "testing_grounds"
 
 
 func _title() -> String:
@@ -42,7 +67,7 @@ func _vault_run() -> Dictionary:
 
 
 func _ledge_run(h: float, should_climb: bool) -> Dictionary:
-	var index := TestingGrounds.LEDGE_HEIGHTS.find(h)
+	var index := LEDGE_HEIGHTS.find(h)
 	var face := 74.0 + index * 6.0 - 1.0   # west face of that block
 	return {
 		"name": "ledge %.1f m: run, jump and climb" % h if should_climb else "ledge %.1f m: too high to climb" % h,
@@ -66,7 +91,7 @@ func _ledge_run(h: float, should_climb: bool) -> Dictionary:
 func _slide_run() -> Dictionary:
 	return {
 		"name": "slide: down the hill and under all three bars",
-		"start": Vector3(50.5, TestingGrounds.SLIDE_HILL + 0.05, 10), "max_time": 5.0,
+		"start": Vector3(50.5, SLIDE_HILL + 0.05, 10), "max_time": 5.0,
 		"drive": func(_dt):
 			input.move = Vector2(0, 1)
 			input.sprint = true
@@ -83,8 +108,8 @@ func _slide_run() -> Dictionary:
 
 
 func _grapple_run() -> Dictionary:
-	var beams: Array = TestingGrounds.GRAPPLE_BEAMS
-	var z := TestingGrounds.LANE_GRAPPLE
+	var beams: Array = GRAPPLE_BEAMS
+	var z := LANE_GRAPPLE
 	return {
 		"name": "grapple: swing beam to beam across the pit to the far platform",
 		"start": Vector3(51, 6.05, z), "max_time": 10.0,
@@ -98,7 +123,7 @@ func _grapple_run() -> Dictionary:
 			var g := motor.grapple
 			if next < beams.size():
 				var beam_x: float = beams[next]
-				_look_at(Vector3(beam_x, TestingGrounds.GRAPPLE_BEAM_Y, z))
+				_look_at(Vector3(beam_x, GRAPPLE_BEAM_Y, z))
 				input.move = Vector2(0, 1 if beam_x > p.x else -1)   # always push east (pumps the swing)
 				if not g.attached and not body.is_on_floor() and g.ready_to_fire():
 					input.grapple = true
@@ -127,7 +152,7 @@ func _grapple_run() -> Dictionary:
 
 
 func _wall_run() -> Dictionary:
-	var panels: Array = TestingGrounds.WALL_PANELS
+	var panels: Array = WALL_PANELS
 	return {
 		"name": "wall run: zigzag along the four panels to the far platform",
 		"start": Vector3(51, 2.55, -11.45), "max_time": 8.0,
@@ -160,7 +185,7 @@ func _wall_run() -> Dictionary:
 				input.yaw = EAST
 				input.move = Vector2(0, 1)
 				# Head for the middle of the finish platform.
-				var dz := TestingGrounds.LANE_WALL - p.z
+				var dz := LANE_WALL - p.z
 				input.move.x = clamp(dz, -1.0, 1.0),
 		"done": func():
 			var p := body.global_position
@@ -189,15 +214,15 @@ func _chimney_run() -> Dictionary:
 				_mem["last_jump"] = 0.0
 			_mem["last_jump"] = _mem.get("last_jump", 0.0) + _dt
 			# Near the top, push east to grab the platform's ledge.
-			if p.y > TestingGrounds.CHIMNEY_TOP - 1.5 - 2.2:
+			if p.y > CHIMNEY_TOP - 1.5 - 2.2:
 				input.move = Vector2(0, 1)
 			elif _mem.has("started") and _mem.last_jump > 0.12 and body.velocity.y < 3.0:
 				input.jump_pressed = true   # wall jump off whichever wall we are touching
 				_mem["last_jump"] = 0.0,
-		"done": func(): return body.global_position.y > TestingGrounds.CHIMNEY_TOP - 1.6 and body.is_on_floor(),
+		"done": func(): return body.global_position.y > CHIMNEY_TOP - 1.6 and body.is_on_floor(),
 		"check": func():
 			var y := body.global_position.y
-			_expect(y > TestingGrounds.CHIMNEY_TOP - 1.6 and body.is_on_floor(), "standing on the platform at the top (feet at %.1f m)" % y),
+			_expect(y > CHIMNEY_TOP - 1.6 and body.is_on_floor(), "standing on the platform at the top (feet at %.1f m)" % y),
 	}
 
 
@@ -205,13 +230,13 @@ func _chimney_run() -> Dictionary:
 ## tricks in order from the top of the jump. `should_make_it` false checks that
 ## the gap really needs those tricks.
 func _gap_run(index: int, tricks: Array, should_make_it: bool = true) -> Dictionary:
-	var from: Array = TestingGrounds.GAP_PLATFORMS[index - 1]
-	var to: Array = TestingGrounds.GAP_PLATFORMS[index]
-	var top := TestingGrounds.GAP_HEIGHT
+	var from: Array = GAP_PLATFORMS[index - 1]
+	var to: Array = GAP_PLATFORMS[index]
+	var top := GAP_HEIGHT
 	var label := "jump" if tricks.is_empty() else "jump + " + " + ".join(tricks)
 	return {
 		"name": "gap %d m with %s: %s" % [int(to[0] - from[1]), label, "makes it" if should_make_it else "falls short"],
-		"start": Vector3(max(from[1] - 8.0, from[0] + 0.5), top + 0.05, TestingGrounds.GAP_Z), "max_time": 3.0,
+		"start": Vector3(max(from[1] - 8.0, from[0] + 0.5), top + 0.05, GAP_Z), "max_time": 3.0,
 		"drive": func(_dt):
 			var p := body.global_position
 			input.move = Vector2(0, 1)
