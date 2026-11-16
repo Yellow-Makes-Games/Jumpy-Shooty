@@ -39,7 +39,7 @@ func _build_front() -> void:
 	_front = Control.new()
 	_front.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_front)
-	_robot = RobotPreview.new(Vector2(560, 720), 1.1)
+	_robot = RobotPreview.new(Vector2(820, 720), 0.92)
 	_robot.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, 60)
 	_robot.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_robot.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -71,11 +71,14 @@ func _page(width: float) -> void:
 func _show_main() -> void:
 	_front.visible = true
 	_center.visible = false
-	_robot.show_robot(Game.local_character(), Net.PLAYER_COLORS[0])
+	_robot.show_lineup(Characters.ids(), Net.PLAYER_COLORS)   # every robot, newest on the left
 	var left: VBoxContainer = _front.get_node("Column")
 	UiKit.clear(left)
-	_big(left, "JUMPY", Color.WHITE)
-	_big(left, "SHOOTY", UiKit.ACCENT)
+	var logo := VBoxContainer.new()
+	logo.add_theme_constant_override("separation", -34)   # the font's line height is generous
+	left.add_child(logo)
+	_big(logo, "JUMPY", Color.WHITE)
+	_big(logo, "SHOOTY", UiKit.ACCENT)
 	UiKit.label(left, "Grapple, wall-run, slide and shoot.", true, 18)
 	if Game.pending_notice != "":
 		var n := UiKit.label(left, Game.pending_notice, false, 17)
