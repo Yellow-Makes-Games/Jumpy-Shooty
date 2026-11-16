@@ -105,6 +105,8 @@ func _on_shot_fired(shooter: int, muzzle: Vector3, end: Vector3, hit_player: boo
 	var p := get_player(shooter)
 	if shooter == Net.my_id() or (p and p.is_local):
 		return  # we (or our bot) already drew this shot the moment it was fired
+	if p:
+		p.show_shot()
 	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, end, hit_player)
 
 

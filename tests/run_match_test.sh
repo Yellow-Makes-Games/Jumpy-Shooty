@@ -4,6 +4,7 @@
 #  - hits land (the host's rewind matches what shooters saw), even on a laggy network
 #  - kills, deaths and respawns happen
 #  - the match ends at the kill target and every copy gets the same results
+#  - every copy shows the others' animations, shots, reloads and deaths
 #  - there are no script errors
 # Usage: tests/run_match_test.sh [PLAYERS] [NET_SIM]
 set -euo pipefail
@@ -79,4 +80,6 @@ else:
 print("PASS: match test" if ok else "FAIL: match test")
 sys.exit(0 if ok else 1)
 PY
+echo "-- Animation: every copy shows what each player is doing"
+python3 tests/check_anim.py --need=loco,air,death,reload "$OUT"/match_*.log || fail=1
 exit $fail

@@ -3,7 +3,7 @@
 Status: **not started** · **rough** (exists, placeholder or partial) · **working** (done,
 tested by me) · **verified** (also checked by Austin on a real PC / with a friend).
 
-Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN.md](DESIGN.md).
+Last updated: robot player model and animations. Decisions are in [DESIGN.md](DESIGN.md).
 
 ## Menus and flow
 
@@ -31,6 +31,7 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Internet play between two PCs | not started | Needs Steam, or router port forwarding for direct IP |
 | Hit detection (host decides with rewind) | working | Laggy-network test: 90% of aimed shots hit with rewind vs 37% without |
 | Headshots | working | 1.5x damage above the shoulders (lower when crouched). Yellow hit marker |
+| Animation sync | working | Other players show the move they are really doing (run, slide, wall run side, flip direction, vault or climb, reload, shots, death). Checked by the sync and match tests, also on the laggy network |
 
 ## Movement
 
@@ -53,8 +54,8 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| First person | working | |
-| Third person with wall collision | working | V to switch; smooth blend between them |
+| First person | working | Your robot's arms and pistol, with poses for sprint, slide, wall run, vault, dive, grapple and reload. Drawn so they never cut into walls |
+| Third person with wall collision | working | V to switch; smooth blend between them. Shows your full robot |
 
 ## Combat, bot, arena, art, audio
 
@@ -70,12 +71,15 @@ Last updated: phase 1, part 2 (design answers applied). Decisions are in [DESIGN
 | Bot | working | 1v1, offline. Easy / Normal / Hard / Expert change reaction time, aim wobble, turn speed, fire rate, leading, headshots and which moves it uses. Finds you anywhere on the map (navigation mesh), strafes and jumps in fights; Normal+ slides; Hard+ bunny-hops, dives, grapples, flip-dodges when hit. Same movement and gun rules as you. Numbers to tune by playtesting |
 | Testing Grounds (test map) | working | Greybox combat arena plus a training yard with practice lanes: grapple beams, wall-run zigzag and wall-jump chimney, slide hill and bars, vault blocks and ledges at marked heights, gap jumps of 6, 10 and 13 m (jump / jump + dive / jump + flip + dive). An automated test runs each course |
 | Construction site (first real arena) | not started | |
-| Character models and animation | not started | Capsule placeholders; phase 4 |
+| Character model | working | "Needle" robot: white armour, player colour on the trim and visor. Built by code in `tools/robot/` (see DEVELOPMENT.md) |
+| Character animation | working | Idle, run, sprint, crouch, slide, jump and fall, landing, wall run (both sides), wall jump, vault, ledge climb, grapple swing, dive, landing roll, four flips, shooting, reload, death, respawn. The body aims where the player looks; legs follow the direction of travel. Same animator for you, other players and the bot. The vault is the least polished clip |
 | Sound | not started | |
 
 ## Known issues
 
-- The first-person gun can poke into walls when you stand right against them.
+- Animations have only been judged from rendered still frames so far, not in motion on a
+  real PC. Timing and feel will need a playtest pass.
+- The pistol has no sound yet, and the muzzle flash is still the simple placeholder.
 - Name tags show through walls (handy while testing; will be limited to line of sight).
 - No LAN address detection on some networks: the lobby may show 127.0.0.1. Use `ipconfig`
   to find your address if so.

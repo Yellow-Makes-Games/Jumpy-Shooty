@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Automated multiplayer sync test: runs one host and N-1 clients headless on this
 # machine, all moving on their own, then checks that every copy draws every other
-# player close to where they really were, with no pops.
+# player close to where they really were, with no pops, and doing what they were
+# really doing (the same animation).
 #
 # Usage: tests/run_sync_test.sh [PLAYERS] [NET_SIM]
 #   PLAYERS  2..5 (default 2)
@@ -40,4 +41,8 @@ for i in $(seq 2 "$PLAYERS"); do
   fi
 done
 echo "PASS: all clients noticed the host leaving"
-python3 tests/check_sync.py "$OUT"/sync_*.log
+fail=0
+python3 tests/check_sync.py "$OUT"/sync_*.log || fail=1
+echo "-- Animation: every copy shows what each player is doing"
+python3 tests/check_anim.py --need=loco,air,grapple,dive,flip_front "$OUT"/sync_*.log || fail=1
+exit $fail

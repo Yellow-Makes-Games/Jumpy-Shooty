@@ -8,3 +8,5 @@ builds/
 Thumbs.db
 # Test output
 tests/out/
+# Python
+__pycache__/
