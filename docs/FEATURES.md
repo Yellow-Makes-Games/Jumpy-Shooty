@@ -9,13 +9,13 @@ Last updated: Vanguard robot and character select. Decisions are in [DESIGN.md](
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Main menu (Play, Multiplayer, Settings, Exit) | working | Placeholder styling |
+| Main menu (Play, Multiplayer, Settings, Exit) | working | Styled to match the HUD (Chakra Petch, dark panels, orange accent, drifting grid backdrop). Front page shows every robot side by side, idling; Play has cards for Vs Bots, Practice and Multiplayer |
 | Mode select (Vs Bots, Practice, Multiplayer FFA) | working | Vs Bots page: pick how many bots (1 for a 1v1, up to 4 for a 5-player free-for-all), difficulty and kills to win; Rematch on the results screen |
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
 | Character select | working | Needle or Vanguard, with a live preview. On the Practice and Vs Bots pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
 | Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
-| Settings menu (mouse, camera, audio, graphics) | working | Audio sliders have no sounds to affect yet |
-| Pause menu in match | working | Resume, settings, leave; host can end the match early |
+| Settings menu (mouse, camera, HUD, audio, graphics) | working | Tabs: Controls (with the key list), Camera & HUD, Audio, Graphics. Switches and sliders apply at once. Audio sliders have no sounds to affect yet |
+| Pause menu in match | working | Resume, settings, leave, controls list; host can end the match early |
 | Match results screen | working | Rankings, kills, deaths; return to lobby or main menu |
 | Return to lobby and play again | working | Tested: two matches back to back |
 
@@ -64,7 +64,7 @@ Last updated: Vanguard robot and character select. Decisions are in [DESIGN.md](
 | Feature | Status | Notes |
 | --- | --- | --- |
 | Health, damage, death, respawn (3 s), kills | working | Host decides; falling out of the arena counts as a death |
-| Kill feed, hit marker, damage flash, death screen | working | Placeholder look |
+| HUD | working | Two layouts, chosen separately for first and third person in Settings: Twin arcs (health and ammo as arcs round the crosshair, move cooldowns under it; first-person default) and Clean (corners; third-person default). Both have the score bar, kill feed with headshots, hit markers, damage numbers, arrows toward whoever hit you, a red screen edge at low health, kill confirmation, a death screen (the robot that got you, its HP left, headshot, distance, respawn bar) and the Tab scoreboard (also shown while dead). Font: Chakra Petch |
 | Match timer and kill target | working | Set per lobby by the host |
 | Weapons | working | Semi-automatic pistol: 25 damage, 12 rounds, 1.3 s reload. Numbers to tune by playtesting |
 | Weapon switching | not started | Only one weapon for now, by choice |

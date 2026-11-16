@@ -1,27 +1,69 @@
 class_name Hud
 extends CanvasLayer
-## In-game HUD: crosshair and hit marker, health, ammo and weapon, kills, match
-## timer, kill feed, death screen with respawn countdown, and the Tab scoreboard.
-## Placeholder styling until the UI look is chosen.
+## In-game HUD. Two layouts show your own state: Twin arcs (health and ammo as arcs
+## either side of the crosshair, moves under it) and Clean (health and ammo in the
+## bottom corners). Settings picks one for first person and one for third person.
+## Shared by both: the score bar, kill feed, crosshair with grapple ring, hit
+## markers and damage numbers, damage direction arrows, the low-health edge, the
+## kill confirmation, the death screen and the Tab scoreboard.
+## Drawn in code; see HudArcs and HudClean for the layouts and HudStyle for the look.
 
-const FEED_LIFETIME := 5.0
+const FEED_LIFETIME := 6.0
+const FEED_MAX := 5
+const HIT_TIME := 0.2
+const KILL_HIT_TIME := 0.4
+const NUMBER_TIME := 0.8
+const ARROW_TIME := 1.6
+const CONFIRM_TIME := 1.8
+
+## Everything the layouts show about the local player, filled in once per frame.
+class View:
+	var hp := 100.0
+	var hp_trail := 100.0       ## health a moment ago: the gap shows as a red chunk that drains away
+	var ammo := 0
+	var magazine := 12
+	var reloading := false
+	var reload := 0.0           ## 0..1
+	var weapon := ""
+	var character := ""
+	var speed := 0.0            ## horizontal, m/s
+	var move_state := ""
+	## [label, key, readiness 0..1, active] for grapple, dive, flip, slide
+	var moves: Array = []
+
+enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON }
+
+var view := View.new()
+var style := "arcs"
+var grapple := GRAPPLE_NO_TARGET
+var grapple_cooldown := 0.0     ## 1 = just let go, 0 = ready
+var tether := 0.0
 
 var _root: Control
-var _crosshair: Crosshair
-var _health_bar: ProgressBar
-var _health_label: Label
-var _ammo: Label
-var _weapon: Label
-var _match_info: Label
-var _stats: Label
-var _help: Label
-var _feed: VBoxContainer
-var _death: Label
-var _damage_flash: ColorRect
+var _flash: ColorRect
+var _vignette: TextureRect
+var _layout: Control
+var _overlay: Control
 var _scoreboard: PanelContainer
-var _score_rows: VBoxContainer
+var _score_grid: GridContainer
+var _score_title: Label
 
+var _feed: Array = []           # {killer, victim, head, age}
+var _numbers: Array = []        # {value, head, age, x}
+var _arrows: Array = []         # {from: Vector3, age}
+var _hit_time := 0.0
+var _hit_kind := "hit"          # hit, head, kill
+var _confirm := {}              # {name, age}
+var _last_head := {}            # target id -> was the last hit on them a headshot
+var _dead := false
+var _killer := 0
+var _killer_hp := 0.0
+var _killer_dist := -1.0
+var _killed_by_head := false
+var _killer_view: RobotPreview   # the robot that got you, on the death screen
 var _respawn_left := 0.0
+var _pulse := 0.0
+var _board_age := 0.0
 
 
 func _ready() -> void:
@@ -32,68 +74,21 @@ func _ready() -> void:
 	_root.theme = UiKit.make_theme()
 	add_child(_root)
 
-	_damage_flash = ColorRect.new()
-	_damage_flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_damage_flash.color = Color(0.9, 0.05, 0.05, 0.0)
-	_damage_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(_damage_flash)
-
-	_crosshair = Crosshair.new()
-	_crosshair.set_anchors_preset(Control.PRESET_CENTER)
-	_root.add_child(_crosshair)
-
-	# Top centre: timer and kill target
-	_match_info = _label(Control.PRESET_CENTER_TOP, HORIZONTAL_ALIGNMENT_CENTER, 24)
-	# Top left: your kills, speed, ping
-	_stats = _label(Control.PRESET_TOP_LEFT, HORIZONTAL_ALIGNMENT_LEFT, 18)
-	# Top right: kill feed
-	_feed = VBoxContainer.new()
-	_feed.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 20)
-	_feed.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_root.add_child(_feed)
-
-	# Bottom left: health
-	var health_box := VBoxContainer.new()
-	health_box.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 24)
-	health_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_root.add_child(health_box)
-	_health_label = Label.new()
-	_style(_health_label, 26)
-	health_box.add_child(_health_label)
-	_health_bar = ProgressBar.new()
-	_health_bar.custom_minimum_size = Vector2(260, 14)
-	_health_bar.show_percentage = false
-	_health_bar.max_value = Match.MAX_HEALTH
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color(0.35, 0.9, 0.45)
-	_health_bar.add_theme_stylebox_override("fill", fill)
-	var bg := StyleBoxFlat.new()
-	bg.bg_color = Color(0, 0, 0, 0.5)
-	_health_bar.add_theme_stylebox_override("background", bg)
-	health_box.add_child(_health_bar)
-
-	# Bottom right: ammo and weapon
-	var ammo_box := VBoxContainer.new()
-	ammo_box.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
-	ammo_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	ammo_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_root.add_child(ammo_box)
-	_ammo = Label.new()
-	_style(_ammo, 34)
-	_ammo.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	ammo_box.add_child(_ammo)
-	_weapon = Label.new()
-	_style(_weapon, 16)
-	_weapon.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	ammo_box.add_child(_weapon)
-
-	_help = _label(Control.PRESET_CENTER_BOTTOM, HORIZONTAL_ALIGNMENT_CENTER, 15)
-	_help.text = "WASD move · Shift sprint · Space jump (again in mid-air: flip) · Ctrl crouch/slide · Q dive · Right-click grapple\nClick shoot · R reload · V camera · Tab scores · Esc menu"
-	_help.modulate = Color(1, 1, 1, 0.55)
-
-	_death = _label(Control.PRESET_CENTER, HORIZONTAL_ALIGNMENT_CENTER, 30)
-	_death.visible = false
-
+	_flash = _full_rect(ColorRect.new())
+	_flash.color = Color(0.9, 0.05, 0.05, 0.0)
+	_vignette = _full_rect(TextureRect.new())
+	_vignette.texture = _vignette_texture()
+	_vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	_vignette.modulate.a = 0.0
+	_layout = _full_rect(Control.new())
+	_layout.draw.connect(_draw_layout)
+	_overlay = _full_rect(Control.new())
+	_overlay.draw.connect(_draw_overlay)
+	_killer_view = RobotPreview.new(Vector2(150, 190), 1.15)
+	_killer_view.turn = false
+	_killer_view.visible = false
+	_root.add_child(_killer_view)
 	_build_scoreboard()
 
 	Match.state_changed.connect(_refresh_scoreboard)
@@ -102,123 +97,454 @@ func _ready() -> void:
 	Match.player_respawned.connect(_on_respawned)
 
 
-func _label(preset: int, align: int, size: int) -> Label:
-	var l := Label.new()
-	l.set_anchors_and_offsets_preset(preset, Control.PRESET_MODE_MINSIZE, 20)
-	l.horizontal_alignment = align
-	if preset in [Control.PRESET_TOP_RIGHT, Control.PRESET_BOTTOM_RIGHT]:
-		l.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	if preset in [Control.PRESET_CENTER_TOP, Control.PRESET_CENTER_BOTTOM, Control.PRESET_CENTER]:
-		l.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	if preset in [Control.PRESET_BOTTOM_LEFT, Control.PRESET_BOTTOM_RIGHT, Control.PRESET_CENTER_BOTTOM]:
-		l.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	if preset == Control.PRESET_CENTER:
-		l.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_style(l, size)
-	_root.add_child(l)
-	return l
+func _full_rect(c: Control) -> Control:
+	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(c)
+	return c
 
 
-func _style(l: Label, size: int) -> void:
-	l.add_theme_font_size_override("font_size", size)
-	l.add_theme_color_override("font_outline_color", Color.BLACK)
-	l.add_theme_constant_override("outline_size", 6)
+## Red at the screen edges, clear in the middle (shown at low health).
+func _vignette_texture() -> Texture2D:
+	var g := Gradient.new()
+	g.set_offset(0, 0.0)
+	g.set_color(0, Color(0.75, 0.05, 0.05, 0.0))
+	g.set_offset(1, 1.0)
+	g.set_color(1, Color(0.75, 0.05, 0.05, 0.55))
+	g.add_point(0.55, Color(0.75, 0.05, 0.05, 0.0))
+	var t := GradientTexture2D.new()
+	t.gradient = g
+	t.fill = GradientTexture2D.FILL_RADIAL
+	t.fill_from = Vector2(0.5, 0.5)
+	t.fill_to = Vector2(1.15, 0.5)
+	t.width = 256
+	t.height = 256
+	return t
 
 
 # ---------------------------------------------------------------------------
+# Every frame
 
 func set_players(_players: Dictionary) -> void:
 	_refresh_scoreboard()
 
 
 func update_local(p: Player) -> void:
-	var me := p.peer_id
 	var delta := get_process_delta_time()
-	var hp: float = Match.health.get(me, Match.MAX_HEALTH)
-	_health_bar.value = hp
-	_health_label.text = "%d" % ceil(hp)
-	if p.weapon:
-		_weapon.text = p.weapon.data.display_name
-		if p.weapon.is_reloading():
-			_ammo.text = "Reloading %d%%" % int(p.weapon.reload_progress() * 100)
-		else:
-			_ammo.text = "%d / %d" % [p.weapon.ammo, p.weapon.data.magazine]
+	var me := p.peer_id
+	style = Settings.hud_style()
+	_pulse += delta
 
-	var parts := PackedStringArray()
-	if Match.time_left < 1e8:
-		var t := int(ceil(Match.time_left))
-		parts.append("%d:%02d" % [t / 60, t % 60])
-	if Match.kill_target > 0:
-		parts.append("First to %d kills" % Match.kill_target)
-	_match_info.text = "    ".join(parts) if not parts.is_empty() else "Practice  ·  %s" % (Maps.name_of(Net.map_id()))
+	var v := view
+	v.hp = Match.health.get(me, Match.MAX_HEALTH)
+	v.hp_trail = maxf(v.hp, move_toward(v.hp_trail, v.hp, delta * (0.0 if _hit_recently() else 60.0)))
+	v.character = Characters.name_of(Net.player_character(me))
+	if p.weapon:
+		v.weapon = p.weapon.data.display_name
+		v.ammo = p.weapon.ammo
+		v.magazine = p.weapon.data.magazine
+		v.reloading = p.weapon.is_reloading()
+		v.reload = p.weapon.reload_progress()
+	v.speed = Vector2(p.velocity.x, p.velocity.z).length()
+	v.move_state = MovementController.State.keys()[p.motor.state].replace("_", " ")
 
 	var g := p.motor.grapple
+	tether = g.length if g.attached else 0.0
 	if g.attached:
-		_crosshair.grapple = Crosshair.GRAPPLE_ON
+		grapple = GRAPPLE_ON
 	elif g.cooldown_left > 0.0:
-		_crosshair.grapple = Crosshair.GRAPPLE_COOLING
-		_crosshair.cooldown = g.cooldown_left / p.motor.tuning.grapple_cooldown
+		grapple = GRAPPLE_COOLING
+		grapple_cooldown = g.cooldown_left / p.motor.tuning.grapple_cooldown
 	elif p.alive and not g.find_target(p, p.input).is_empty():
-		_crosshair.grapple = Crosshair.GRAPPLE_IN_RANGE
+		grapple = GRAPPLE_IN_RANGE
 	else:
-		_crosshair.grapple = Crosshair.GRAPPLE_NO_TARGET
+		grapple = GRAPPLE_NO_TARGET
+	v.moves = [
+		["GRAPPLE", "RMB", 1.0 - grapple_cooldown if grapple == GRAPPLE_COOLING else 1.0, grapple == GRAPPLE_ON],
+		["DIVE", "Q", p.motor.dive_readiness(), false],
+		["FLIP", "SPACE", p.motor.flip_readiness(), false],
+		["SLIDE", "C", p.motor.slide_boost_readiness(), false],
+	]
 
-	var speed := Vector2(p.velocity.x, p.velocity.z).length()
-	var state: String = MovementController.State.keys()[p.motor.state]
-	var text := "Kills %d   Deaths %d\nSpeed %4.1f m/s   %s" % [Match.kills(me), Match.deaths(me), speed, state.capitalize()]
-	var ping := _ping_ms()
-	if ping >= 0:
-		text += "\nPing %d ms" % ping
-	_stats.text = text
-
+	_age(delta)
 	if _respawn_left > 0.0:
-		_respawn_left = max(_respawn_left - delta, 0.0)
-		_death.text = "%s\nRespawning in %.1f" % [_death.get_meta("who", ""), _respawn_left]
-	_scoreboard.visible = Input.is_action_pressed("scoreboard")
-	_damage_flash.color.a = move_toward(_damage_flash.color.a, 0.0, delta * 1.5)
+		_respawn_left = maxf(_respawn_left - delta, 0.0)
+	_scoreboard.visible = Input.is_action_pressed("scoreboard") or _dead
+	if _scoreboard.visible:
+		_board_age += delta
+		if _board_age > 0.5:   # keeps the clock and ping in its title current
+			_board_age = 0.0
+			_refresh_scoreboard()
+	_flash.color.a = move_toward(_flash.color.a, 0.0, delta * 1.2)
+	var low := p.alive and v.hp <= HudStyle.LOW_HEALTH
+	var pulse := 0.75 + 0.25 * sin(_pulse * 5.0)
+	_vignette.modulate.a = move_toward(_vignette.modulate.a, pulse if low else 0.0, delta * 3.0)
+	_layout.visible = not _dead and not _scoreboard.visible
+	_layout.queue_redraw()
+	_overlay.queue_redraw()
 
-	for row in _feed.get_children():
-		row.set_meta("age", row.get_meta("age", 0.0) + delta)
-		if row.get_meta("age") > FEED_LIFETIME:
-			row.queue_free()
+
+func _hit_recently() -> bool:
+	return _flash.color.a > 0.05
 
 
-func _on_hit(shooter: int, target: int, _damage: float, headshot: bool) -> void:
-	if shooter == Net.my_id() and target != shooter:
-		_crosshair.flash_hit(false, headshot)
-	if target == Net.my_id():
-		_damage_flash.color.a = 0.35
+func _age(delta: float) -> void:
+	_hit_time = maxf(_hit_time - delta, 0.0)
+	for list in [_feed, _numbers, _arrows]:
+		for e in list:
+			e.age += delta
+	_feed = _feed.filter(func(e): return e.age < FEED_LIFETIME)
+	_numbers = _numbers.filter(func(e): return e.age < NUMBER_TIME)
+	_arrows = _arrows.filter(func(e): return e.age < ARROW_TIME)
+	if not _confirm.is_empty():
+		_confirm.age += delta
+		if _confirm.age > CONFIRM_TIME:
+			_confirm = {}
+
+
+# ---------------------------------------------------------------------------
+# Match events
+
+func _on_hit(shooter: int, target: int, damage: float, headshot: bool) -> void:
+	_last_head[target] = headshot
+	var me := Net.my_id()
+	if shooter == me and target != me:
+		_hit_time = HIT_TIME
+		_hit_kind = "head" if headshot else "hit"
+		_numbers.append({"value": int(round(damage)), "head": headshot, "age": 0.0, "x": randf_range(-8.0, 8.0)})
+	if target == me:
+		_flash.color.a = 0.18
+		var who: Player = Net.arena.get_player(shooter) if Net.arena and shooter != me else null
+		if who:
+			_arrows.append({"from": who.global_position, "age": 0.0})
 
 
 func _on_died(victim: int, killer: int) -> void:
-	var text := ""
-	if killer == 0:
-		text = "%s fell" % Net.player_name(victim)
-	else:
-		text = "%s  >  %s" % [Net.player_name(killer), Net.player_name(victim)]
-	var l := Label.new()
-	l.text = text
-	_style(l, 18)
-	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	if victim == Net.my_id() or killer == Net.my_id():
-		l.add_theme_color_override("font_color", UiKit.ACCENT)
-	_feed.add_child(l)
-	while _feed.get_child_count() > 5:
-		_feed.get_child(0).free()
-	if killer == Net.my_id() and victim != killer:
-		_crosshair.flash_hit(true)
-	if victim == Net.my_id():
+	var me := Net.my_id()
+	var head: bool = killer != 0 and _last_head.get(victim, false)
+	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0})
+	while _feed.size() > FEED_MAX:
+		_feed.pop_front()
+	if killer == me and victim != me:
+		_hit_time = KILL_HIT_TIME
+		_hit_kind = "kill"
+		_confirm = {"name": Net.player_name(victim), "age": 0.0}
+	if victim == me:
+		_dead = true
+		_killer = killer if killer != victim else 0
+		_killer_hp = Match.health.get(killer, 0.0)
+		_killed_by_head = _last_head.get(me, false)
+		_killer_dist = -1.0
+		var mine: Player = Net.arena.get_player(me) if Net.arena else null
+		var theirs: Player = Net.arena.get_player(_killer) if Net.arena and _killer != 0 else null
+		if mine and theirs:
+			_killer_dist = mine.global_position.distance_to(theirs.global_position)
+		if _killer != 0:
+			_killer_view.show_robot(Net.player_character(_killer), Net.player_color(_killer))
+		_killer_view.visible = _killer != 0
 		_respawn_left = Match.RESPAWN_DELAY
-		_death.set_meta("who", "You fell" if killer == 0 else "Killed by %s" % Net.player_name(killer))
-		_death.visible = true
-		_crosshair.visible = false
+		_arrows.clear()
+		_numbers.clear()
+		_refresh_scoreboard()
 
 
 func _on_respawned(id: int, _spawn_index: int) -> void:
 	if id == Net.my_id():
+		_dead = false
+		_killer_view.visible = false
 		_respawn_left = 0.0
-		_death.visible = false
-		_crosshair.visible = true
+		view.hp_trail = Match.MAX_HEALTH
+
+
+# ---------------------------------------------------------------------------
+# Drawing
+
+func _draw_layout() -> void:
+	var c := _layout.size * 0.5
+	if style == "clean":
+		HudClean.draw(_layout, c, view)
+	else:
+		HudArcs.draw(_layout, c, view)
+
+
+func _draw_overlay() -> void:
+	var ci := _overlay
+	var size := ci.size
+	var c := size * 0.5
+	if _dead:
+		_draw_death(ci, size)
+	_draw_score_bar(ci, size)
+	_draw_feed(ci, size)
+	if _dead or _scoreboard.visible:
+		return
+	_draw_crosshair(ci, c)
+	_draw_arrows(ci, c)
+	for n in _numbers:
+		var t: float = n.age / NUMBER_TIME
+		var col: Color = HudStyle.YELLOW if n.head else HudStyle.WHITE
+		col.a = 1.0 - t * t
+		HudStyle.text(ci, c + Vector2(40.0 + n.x, -38.0 - 26.0 * t), str(n.value), 20, col)
+	if not _confirm.is_empty():
+		var a := clampf((CONFIRM_TIME - _confirm.age) / 0.4, 0.0, 1.0)
+		var y := c.y - (128.0 if style == "arcs" else 92.0)
+		var w1 := HudStyle.text_width("ELIMINATED  ", 20)
+		var w := w1 + HudStyle.text_width(_confirm.name, 20)
+		HudStyle.text(ci, Vector2(c.x - w * 0.5, y), "ELIMINATED", 20, Color(HudStyle.RED, a))
+		HudStyle.text(ci, Vector2(c.x - w * 0.5 + w1, y), _confirm.name, 20, Color(1, 1, 1, a))
+	if grapple == GRAPPLE_ON and tether > 0.0:
+		HudStyle.text(ci, c + Vector2(40, 34), "%d m" % roundi(tether), 13, Color(1.0, 0.7, 0.45))
+
+
+func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
+	var ring := 30.0 if style == "arcs" else 22.0
+	match grapple:
+		GRAPPLE_IN_RANGE:
+			HudStyle.arc(ci, c, ring, 0, 360, Color(HudStyle.CYAN, 0.9), 2.0)
+		GRAPPLE_ON:
+			HudStyle.arc(ci, c, ring, 0, 360, Color(HudStyle.ORANGE, 0.95), 3.0)
+		GRAPPLE_COOLING:
+			HudStyle.arc(ci, c, ring, 0, 360, Color(1, 1, 1, 0.15), 2.0)
+			HudStyle.arc(ci, c, ring, -90, -90 + 360.0 * (1.0 - grapple_cooldown), Color(1, 1, 1, 0.6), 2.0)
+		_:
+			HudStyle.arc(ci, c, ring, 0, 360, Color(1, 1, 1, 0.12), 1.5)
+	for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+		ci.draw_line(c + d * 5.0, c + d * 13.0, Color(0, 0, 0, 0.55), 4.0)
+		ci.draw_line(c + d * 5.0, c + d * 13.0, HudStyle.WHITE, 2.0)
+	ci.draw_circle(c, 1.5, HudStyle.WHITE)
+	if _hit_time > 0.0:
+		var kill := _hit_kind == "kill"
+		var col := HudStyle.RED if kill else (HudStyle.YELLOW if _hit_kind == "head" else Color.WHITE)
+		var reach := 24.0 if kill else (20.0 if _hit_kind == "head" else 17.0)
+		var w := 4.0 if kill else 3.0
+		for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+			var n: Vector2 = d.normalized()
+			ci.draw_line(c + n * 9.0, c + n * reach, Color(0, 0, 0, 0.5), w + 2.0)
+			ci.draw_line(c + n * 9.0, c + n * reach, col, w)
+
+
+## Red chevrons around the crosshair pointing at whoever just hit you.
+func _draw_arrows(ci: CanvasItem, c: Vector2) -> void:
+	var cam := get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	for a in _arrows:
+		var local: Vector3 = cam.global_transform.basis.inverse() * (a.from - cam.global_position)
+		var ang := atan2(local.x, -local.z) - PI / 2.0
+		var alpha := clampf((ARROW_TIME - a.age) / 0.5, 0.0, 1.0) * 0.9
+		var dir := Vector2.from_angle(ang)
+		var side := dir.orthogonal()
+		var r := 150.0
+		var pts := PackedVector2Array([c + dir * r + side * 15.0, c + dir * (r + 17.0), c + dir * r - side * 15.0])
+		ci.draw_polyline(pts, Color(0, 0, 0, alpha * 0.5), 8.0, true)
+		ci.draw_polyline(pts, Color(HudStyle.RED, alpha), 5.0, true)
+
+
+## Top centre: your kills, the clock, and the best of everyone else.
+func _draw_score_bar(ci: CanvasItem, size: Vector2) -> void:
+	var cx := size.x * 0.5
+	var y := 38.0
+	var me := Net.my_id()
+	var timed := Match.time_left < 1e8
+	var clock := ""
+	if timed:
+		var t := int(ceil(Match.time_left))
+		clock = "%d:%02d" % [t / 60, t % 60]
+	if Game.mode == Game.Mode.PRACTICE or Net.players.size() < 2:
+		var s := "Practice  ·  %s" % Maps.name_of(Net.map_id())
+		if timed:
+			s = clock + "   " + s
+		_pill(ci, Vector2(cx, y), s, 20, HudStyle.WHITE)
+		return
+	var best_id := 0
+	for row in Match.build_results():
+		if row.id != me:
+			best_id = row.id
+			break
+	var mid := clock if timed else "First to %d" % Match.kill_target
+	var mid_w := _pill(ci, Vector2(cx, y), mid, 28 if timed else 20, HudStyle.WHITE)
+	var gap := mid_w * 0.5 + 10.0
+	var mine := "YOU %d" % Match.kills(me)
+	_pill(ci, Vector2(cx - gap - (HudStyle.text_width(mine, 22) + 28.0) * 0.5, y), mine, 22, HudStyle.ORANGE)
+	if best_id != 0:
+		var theirs := "%s %d" % [Net.player_name(best_id).to_upper(), Match.kills(best_id)]
+		_pill(ci, Vector2(cx + gap + (HudStyle.text_width(theirs, 22) + 28.0) * 0.5, y), theirs, 22, HudStyle.WHITE)
+	var sub := "FIRST TO %d" % Match.kill_target if Match.kill_target > 0 and timed else ("MOST KILLS WINS" if timed else "")
+	if sub != "":
+		HudStyle.text(ci, Vector2(cx, y + 32.0), sub, 12, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER, false)
+
+
+## A rounded plate with text in it, centred on `at`. Returns its width.
+func _pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> float:
+	var w := HudStyle.text_width(s, size) + 28.0
+	var h := size + 12.0
+	HudStyle.plate(ci, Rect2(at.x - w * 0.5, at.y - h * 0.5, w, h), h * 0.5)
+	HudStyle.text(ci, at, s, size, color, HORIZONTAL_ALIGNMENT_CENTER)
+	return w
+
+
+## Top right: the latest knockouts, newest at the bottom. Yours are orange.
+func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
+	var me := Net.my_id()
+	var right := size.x - 22.0
+	var y := 34.0
+	for e in _feed:
+		var alpha := clampf((FEED_LIFETIME - e.age) / 0.6, 0.0, 1.0)
+		var mine: bool = e.killer == me or e.victim == me
+		var victim := Net.player_name(e.victim)
+		var parts: Array = []   # [text, colour] drawn right to left
+		if e.killer == 0:
+			parts = [["fell", Color(1, 1, 1, 0.65)], [victim, Net.player_color(e.victim)]]
+		else:
+			parts = [[victim, Net.player_color(e.victim)]]
+			if e.head:
+				parts.append(["HEAD", HudStyle.YELLOW])
+			parts.append(["@gun", Color.WHITE])
+			parts.append([Net.player_name(e.killer), Net.player_color(e.killer)])
+		var widths: Array = []
+		var total := 0.0
+		for part in parts:
+			var w := 22.0 if part[0] == "@gun" else HudStyle.text_width(part[0], 16 if part[0] != "HEAD" else 11)
+			widths.append(w)
+			total += w + 8.0
+		var plate := Rect2(right - total - 16.0, y - 14.0, total + 16.0 + 8.0, 28.0)
+		HudStyle.plate(ci, plate, 3.0, Color(HudStyle.ORANGE, 0.28 * alpha) if mine else Color(HudStyle.PANEL, HudStyle.PANEL.a * alpha))
+		if mine:
+			ci.draw_rect(Rect2(plate.position, Vector2(3, plate.size.y)), Color(HudStyle.ORANGE, alpha))
+		var x := right - 4.0
+		for i in parts.size():
+			var part: Array = parts[i]
+			var col: Color = part[1]
+			col = Color(col.lightened(0.25), col.a * alpha)
+			if part[0] == "@gun":
+				HudStyle.pistol(ci, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
+			else:
+				HudStyle.text(ci, Vector2(x, y), part[0], 16 if part[0] != "HEAD" else 11, col, HORIZONTAL_ALIGNMENT_RIGHT)
+			x -= widths[i] + 8.0
+		y += 32.0
+
+
+## Who got you (their robot, name, what was left of them, how), and a bar
+## counting down to your respawn. The scoreboard shows underneath.
+func _draw_death(ci: CanvasItem, size: Vector2) -> void:
+	ci.draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.04, 0.06, 0.62))
+	var top := Color(0.55, 0.05, 0.05, 0.35)
+	ci.draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, 260), Vector2(0, 260)]),
+		PackedColorArray([top, top, Color(top, 0), Color(top, 0)]))
+	var w := 560.0
+	var card := Rect2(size.x * 0.5 - w * 0.5, 104.0, w, 164.0)
+	var stripe := Net.player_color(_killer) if _killer != 0 else Color(1, 1, 1, 0.4)
+	HudStyle.plate(ci, card, 8.0, Color(0.05, 0.06, 0.08, 0.85))
+	ci.draw_rect(Rect2(card.position, Vector2(5, card.size.y)), stripe)
+	var x := card.position.x + (176.0 if _killer != 0 else 30.0)
+	var y := card.position.y
+	if _killer != 0:
+		_killer_view.position = card.position + Vector2(18, -26)
+		HudStyle.text(ci, Vector2(x, y + 30), "ELIMINATED BY", 13, HudStyle.RED)
+		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
+		HudStyle.text(ci, Vector2(x, y + 92), Characters.name_of(Net.player_character(_killer)), 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
+		if _killed_by_head:
+			chips.append("HEADSHOT")
+		if _killer_dist >= 0.0:
+			chips.append("%d M AWAY" % roundi(_killer_dist))
+		var cx := x
+		for chip in chips:
+			var cw := HudStyle.text_width(chip, 12) + 18.0
+			var col: Color = HudStyle.YELLOW if chip == "HEADSHOT" else Color(1, 1, 1, 0.85)
+			HudStyle.plate(ci, Rect2(cx, y + 112, cw, 24), 3.0, Color(1, 1, 1, 0.08))
+			HudStyle.text(ci, Vector2(cx + 9, y + 124), chip, 12, col)
+			cx += cw + 6.0
+	else:
+		HudStyle.text(ci, Vector2(x, y + 44), "ELIMINATED", 13, HudStyle.RED)
+		HudStyle.text(ci, Vector2(x, y + 82), "You fell", 38, HudStyle.WHITE)
+		HudStyle.text(ci, Vector2(x, y + 118), "Out of the arena", 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+	# Respawn countdown.
+	var progress := clampf(1.0 - _respawn_left / Match.RESPAWN_DELAY, 0.0, 1.0)
+	var bar := Rect2(card.position.x, card.end.y + 16.0, w, 6.0)
+	ci.draw_rect(bar, Color(1, 1, 1, 0.15))
+	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
+	HudStyle.text(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 13, Color(1, 1, 1, 0.8))
+	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+
+
+# ---------------------------------------------------------------------------
+# Scoreboard (hold Tab; also shown while you wait to respawn)
+
+func _build_scoreboard() -> void:
+	_scoreboard = PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0.04, 0.05, 0.07, 0.88)
+	box.set_corner_radius_all(14)
+	box.set_content_margin_all(18)
+	_scoreboard.add_theme_stylebox_override("panel", box)
+	_scoreboard.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
+	_scoreboard.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_scoreboard.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_scoreboard.custom_minimum_size = Vector2(640, 0)
+	_scoreboard.position.y += 110.0
+	_scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_scoreboard.visible = false
+	_root.add_child(_scoreboard)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	_scoreboard.add_child(col)
+	_score_title = _cell(col, "", 15, Color(1, 1, 1, 0.85), false)
+	_score_grid = GridContainer.new()
+	_score_grid.columns = 5
+	_score_grid.add_theme_constant_override("h_separation", 28)
+	_score_grid.add_theme_constant_override("v_separation", 8)
+	col.add_child(_score_grid)
+
+
+func _cell(parent: Node, text: String, size: int, color: Color, bold: bool = true, right: bool = false) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", HudStyle.font(bold))
+	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_color_override("font_color", color)
+	if right:
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	parent.add_child(l)
+	return l
+
+
+func _refresh_scoreboard() -> void:
+	if not _score_grid:
+		return
+	var title := Maps.name_of(Net.map_id())
+	if Match.kill_target > 0:
+		title += "  ·  First to %d" % Match.kill_target
+	if Match.time_left < 1e8:
+		var t := int(ceil(Match.time_left))
+		title += "  ·  %d:%02d left" % [t / 60, t % 60]
+	var ping := _ping_ms()
+	if ping >= 0:
+		title += "  ·  Ping %d ms" % ping
+	_score_title.text = title
+	UiKit.clear(_score_grid)
+	var dim := Color(1, 1, 1, 0.6)
+	for h in ["", "PLAYER", "ROBOT", "KILLS", "DEATHS"]:
+		var l := _cell(_score_grid, h, 12, dim, false, h in ["KILLS", "DEATHS"])
+		if h == "PLAYER":
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var rank := 0
+	for row in Match.build_results():
+		rank += 1
+		var mine: bool = row.id == Net.my_id()
+		var col := HudStyle.ORANGE if mine else HudStyle.WHITE
+		_cell(_score_grid, str(rank), 16, dim)
+		var name_row := HBoxContainer.new()
+		name_row.add_theme_constant_override("separation", 10)
+		var chip := ColorRect.new()
+		chip.color = Net.player_color(row.id)
+		chip.custom_minimum_size = Vector2(12, 12)
+		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		name_row.add_child(chip)
+		_cell(name_row, row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 18, col)
+		_score_grid.add_child(name_row)
+		_cell(_score_grid, Characters.name_of(Net.player_character(row.id)), 16, Color(col, 0.75), false)
+		_cell(_score_grid, str(row.kills), 20, col, true, true)
+		_cell(_score_grid, str(row.deaths), 16, Color(col, 0.75), false, true)
 
 
 func _ping_ms() -> int:
@@ -228,70 +554,3 @@ func _ping_ms() -> int:
 		if host_peer:
 			return int(host_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
 	return -1
-
-
-# ---------------------------------------------------------------------------
-# Scoreboard (hold Tab)
-
-func _build_scoreboard() -> void:
-	_scoreboard = PanelContainer.new()
-	_scoreboard.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
-	_scoreboard.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_scoreboard.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_scoreboard.custom_minimum_size = Vector2(520, 0)
-	_scoreboard.visible = false
-	_root.add_child(_scoreboard)
-	_score_rows = VBoxContainer.new()
-	_scoreboard.add_child(_score_rows)
-
-
-func _refresh_scoreboard() -> void:
-	if not _score_rows:
-		return
-	UiKit.clear(_score_rows)
-	ResultsTable.build(_score_rows, Match.build_results())
-
-
-class Crosshair extends Control:
-	enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON }
-	var grapple := GRAPPLE_NO_TARGET
-	var cooldown := 0.0  ## 1 = just let go, 0 = ready
-	var _hit_time := 0.0
-	var _kill := false
-	var _head := false
-
-	func flash_hit(kill: bool = false, head: bool = false) -> void:
-		_hit_time = 0.35 if kill else 0.18
-		_kill = kill
-		_head = head
-
-	func _process(delta: float) -> void:
-		if _hit_time > 0.0:
-			_hit_time -= delta
-		queue_redraw()
-
-	func _draw() -> void:
-		var c := Color(1, 1, 1, 0.9)
-		var gap := 5.0
-		var len := 9.0
-		for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
-			draw_line(d * gap, d * (gap + len), Color.BLACK, 4.0)
-			draw_line(d * gap, d * (gap + len), c, 2.0)
-		draw_circle(Vector2.ZERO, 1.5, c)
-		# Grapple ring: bright when something is in reach, filling back up during the cooldown.
-		var ring := 22.0
-		match grapple:
-			GRAPPLE_IN_RANGE:
-				draw_arc(Vector2.ZERO, ring, 0.0, TAU, 40, Color(0.4, 0.9, 1.0, 0.85), 2.0)
-			GRAPPLE_ON:
-				draw_arc(Vector2.ZERO, ring, 0.0, TAU, 40, Color(1.0, 0.75, 0.2, 0.9), 2.5)
-			GRAPPLE_COOLING:
-				draw_arc(Vector2.ZERO, ring, -PI / 2, -PI / 2 + TAU * (1.0 - cooldown), 40, Color(1, 1, 1, 0.35), 2.0)
-			_:
-				draw_arc(Vector2.ZERO, ring, 0.0, TAU, 40, Color(1, 1, 1, 0.12), 1.5)
-		if _hit_time > 0.0:
-			# White = hit, yellow and larger = headshot, red = kill.
-			var hc := Color(1, 0.25, 0.2) if _kill else (Color(1, 0.85, 0.2) if _head else Color(1, 1, 1))
-			var reach := 20.0 if _head else 16.0
-			for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
-				draw_line(d.normalized() * 8.0, d.normalized() * reach, hc, 2.5)

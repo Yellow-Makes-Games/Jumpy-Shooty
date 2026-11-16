@@ -6,6 +6,7 @@ var _col: VBoxContainer          # the left column: players, map, rules
 var _side: VBoxContainer         # the right column: your character
 var _list: VBoxContainer
 var _start: Button
+var _waiting: Label
 var _info: Label
 var _rules_label: Label
 var _host_rules: HBoxContainer
@@ -19,31 +20,39 @@ var _updating := false   # true while we fill the controls from settings (ignore
 
 
 func _ready() -> void:
-	var page := UiKit.screen(self, 860)
-	UiKit.title(page, "Lobby", 40)
+	var page := UiKit.screen(self, 900)
+	UiKit.title(page, "Lobby", 36)
 	_info = UiKit.label(page, "", true, 16)
-	_info.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UiKit.spacer(page, 4)
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 36)
+	columns.add_theme_constant_override("separation", 32)
 	page.add_child(columns)
 	_col = VBoxContainer.new()
 	_col.add_theme_constant_override("separation", 12)
 	_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_child(_col)
 	_side = VBoxContainer.new()
-	_side.custom_minimum_size = Vector2(270, 0)
+	_side.custom_minimum_size = Vector2(280, 0)
 	columns.add_child(_side)
+	UiKit.section(_col, "Players")
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 6)
 	_col.add_child(_list)
-	UiKit.spacer(_col, 8)
+	UiKit.spacer(_col, 4)
 	_build_map()
 	_build_rules()
 	_build_character()
 	UiKit.spacer(page, 4)
-	_start = UiKit.button(page, "Start match", Net.host_start_match)
-	UiKit.button(page, "Leave lobby", Game.leave_to_menu)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	page.add_child(buttons)
+	var leave := UiKit.button(buttons, "Leave lobby", Game.leave_to_menu)
+	leave.custom_minimum_size = Vector2(200, 56)
+	_waiting = UiKit.label(buttons, "Waiting for the host to start...", true, 17)
+	_waiting.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_waiting.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_start = UiKit.primary_button(buttons, "Start match", Net.host_start_match)
+	_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	Net.players_changed.connect(_refresh)
 	_refresh()
 	# Dev/test: the host starts the next match on its own.
@@ -58,35 +67,74 @@ func _refresh() -> void:
 	var ids := Net.players.keys()
 	ids.sort()
 	for id in ids:
-		var row := HBoxContainer.new()
-		_list.add_child(row)
-		var swatch := ColorRect.new()
-		swatch.color = Net.player_color(id)
-		swatch.custom_minimum_size = Vector2(18, 18)
-		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(swatch)
-		var name_text: String = Net.player_name(id)
-		if id == Net.host_id():
-			name_text += "   (host)"
-		if id == Net.my_id():
-			name_text += "   (you)"
-		var l := UiKit.label(row, "  " + name_text)
-		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var who := UiKit.label(row, Characters.name_of(Net.player_character(id)), true, 16)
-		who.autowrap_mode = TextServer.AUTOWRAP_OFF
-		who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		_list.add_child(_player_row(id))
 	_start.visible = Net.is_host()
+	_waiting.visible = not Net.is_host()
 	_start.disabled = Net.players.size() < 1
 	var where := ""
 	if Net.is_host():
 		where = "Friends on your network can join at %s (port %d)." % [_local_ip(), Net.port]
 	else:
-		where = "Waiting for the host to start the match."
-	_info.text = "%d / %d players. %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
+		where = "The host picks the map and rules and starts the match."
+	_info.text = "%d of %d players.  %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
 	_refresh_rules()
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
 		_character.set_color(Net.player_color(Net.my_id()))
+
+
+## One player: colour stripe, name, HOST and YOU tags, robot.
+func _player_row(id: int) -> PanelContainer:
+	var card := PanelContainer.new()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(1, 1, 1, 0.05) if id != Net.my_id() else Color(UiKit.ACCENT, 0.12)
+	box.set_corner_radius_all(6)
+	box.border_width_left = 5
+	box.border_color = Net.player_color(id)
+	box.content_margin_left = 16
+	box.content_margin_right = 16
+	box.content_margin_top = 10
+	box.content_margin_bottom = 10
+	card.add_theme_stylebox_override("panel", box)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	card.add_child(row)
+	var name_label := UiKit.label(row, Net.player_name(id), false, 20)
+	name_label.add_theme_font_override("font", HudStyle.font(true))
+	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	if id == Net.host_id():
+		_tag(row, "HOST", UiKit.ACCENT)
+	if id == Net.my_id():
+		_tag(row, "YOU", Color(1, 1, 1, 0.8))
+	if Net.is_bot(id):
+		_tag(row, "BOT", Color(1, 1, 1, 0.6))
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+	var who := UiKit.label(row, Characters.name_of(Net.player_character(id)), true, 16)
+	who.autowrap_mode = TextServer.AUTOWRAP_OFF
+	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return card
+
+
+func _tag(parent: Node, text: String, color: Color) -> void:
+	var p := PanelContainer.new()
+	var s := StyleBoxFlat.new()
+	s.draw_center = false
+	s.set_border_width_all(1)
+	s.border_color = color
+	s.set_corner_radius_all(3)
+	s.content_margin_left = 6
+	s.content_margin_right = 6
+	p.add_theme_stylebox_override("panel", s)
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_override("font", HudStyle.font(true))
+	l.add_theme_font_size_override("font_size", 11)
+	l.add_theme_color_override("font_color", color)
+	p.add_child(l)
+	parent.add_child(p)
 
 
 # Character: everyone picks their own robot. Saved as your choice for next time too.
@@ -107,7 +155,7 @@ func _build_character() -> void:
 
 # Map: the host picks; everyone else sees it.
 func _build_map() -> void:
-	UiKit.label(_col, "Map", true, 16)
+	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()
 	_map_pick.custom_minimum_size = Vector2(0, 44)
@@ -123,7 +171,7 @@ func _build_map() -> void:
 
 # Win condition: the host picks; everyone else sees it.
 func _build_rules() -> void:
-	UiKit.label(_col, "Win condition", true, 16)
+	UiKit.section(_col, "Win condition")
 	_rules_label = UiKit.label(_col, "")
 	_host_rules = HBoxContainer.new()
 	_host_rules.add_theme_constant_override("separation", 10)

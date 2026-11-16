@@ -14,6 +14,11 @@ var invert_y: bool = false
 var field_of_view: float = 95.0
 var third_person: bool = false
 
+# HUD: which layout to show in each camera view (see HUD_STYLES)
+const HUD_STYLES := {"arcs": "Twin arcs (around the crosshair)", "clean": "Clean (corners)"}
+var hud_first_person: String = "arcs"
+var hud_third_person: String = "clean"
+
 # Audio (0..1)
 var master_volume: float = 0.8
 var music_volume: float = 0.6
@@ -42,6 +47,8 @@ func load_settings() -> void:
 	invert_y = cfg.get_value("controls", "invert_y", invert_y)
 	field_of_view = cfg.get_value("camera", "field_of_view", field_of_view)
 	third_person = cfg.get_value("camera", "third_person", third_person)
+	hud_first_person = _hud_style(cfg.get_value("hud", "first_person", hud_first_person))
+	hud_third_person = _hud_style(cfg.get_value("hud", "third_person", hud_third_person))
 	master_volume = cfg.get_value("audio", "master_volume", master_volume)
 	music_volume = cfg.get_value("audio", "music_volume", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx_volume", sfx_volume)
@@ -57,6 +64,8 @@ func save_settings() -> void:
 	cfg.set_value("controls", "invert_y", invert_y)
 	cfg.set_value("camera", "field_of_view", field_of_view)
 	cfg.set_value("camera", "third_person", third_person)
+	cfg.set_value("hud", "first_person", hud_first_person)
+	cfg.set_value("hud", "third_person", hud_third_person)
 	cfg.set_value("audio", "master_volume", master_volume)
 	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("audio", "sfx_volume", sfx_volume)
@@ -76,6 +85,15 @@ func apply() -> void:
 	var master := AudioServer.get_bus_index("Master")
 	AudioServer.set_bus_volume_db(master, linear_to_db(max(master_volume, 0.0001)))
 	changed.emit()
+
+
+## The HUD layout for the current camera view.
+func hud_style() -> String:
+	return hud_third_person if third_person else hud_first_person
+
+
+static func _hud_style(value) -> String:
+	return str(value) if HUD_STYLES.has(str(value)) else "arcs"
 
 
 func set_third_person(value: bool) -> void:
