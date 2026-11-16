@@ -24,11 +24,19 @@ var _cache := {}
 func _initialize() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--job="):
-			_job = JSON.parse_string(FileAccess.get_file_as_string(arg.substr(6)))
+			var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(arg.substr(6)))
+			if parsed is Dictionary:
+				_job = parsed
+	if not _job.has("shots"):
+		push_error("preview: no job file, or it has no shots")
+		quit(1)
+		return
 	_build_stage()
 
 
 func _process(_delta: float) -> bool:
+	if not _job.has("shots"):
+		return true
 	if _wait > 0:
 		_wait -= 1
 		return false

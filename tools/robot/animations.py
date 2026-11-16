@@ -507,11 +507,11 @@ def fp_tuck(t):
 
 def fp_mantle(t):
     """Hands reach for the edge and push it down past the camera."""
-    reach = {"arm_r": fp_arm_r(0.20, -0.26, -0.40, cant=-25.0),
-             "arm_l": fp_arm_l(-0.17, -0.24, -0.44, hand=(95.0, 0.0, 0.0), cant=90.0)}
-    push = {"arm_r": fp_arm_r(0.23, -0.47, -0.28, cant=-35.0),
-            "arm_l": fp_arm_l(-0.20, -0.48, -0.30, hand=(110.0, 0.0, 0.0), cant=90.0)}
-    return keyed(t, [(0.0, reach), (0.28, push, "out"), (0.45, push)])
+    reach = {"arm_r": fp_arm_r(0.22, -0.13, -0.44, cant=-28.0),
+             "arm_l": fp_arm_l(-0.19, -0.12, -0.47, hand=(95.0, 0.0, 0.0), cant=90.0)}
+    push = {"arm_r": fp_arm_r(0.24, -0.47, -0.28, cant=-35.0),
+            "arm_l": fp_arm_l(-0.21, -0.48, -0.30, hand=(110.0, 0.0, 0.0), cant=90.0)}
+    return keyed(t, [(0.0, reach), (0.08, reach), (0.34, push, "in"), (0.45, push)])
 
 
 def fp_raise(t):

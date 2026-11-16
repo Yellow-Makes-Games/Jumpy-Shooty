@@ -13,6 +13,11 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 
 - Art style: clean, stylized low-poly.
 - Characters: robots.
+- Player robot (2026-11-16): the "Needle" look. Slim, one glowing eye, thin struts and
+  blade limbs. White armour for everyone; each player's colour shows on the trim panels
+  and the glowing visor.
+- The grapple fires from the robot's left wrist; the pistol is in the right hand.
+- A robot that dies powers down (visor goes dark) and collapses; a respawn boots it back up.
 - UI: minimal and clean.
 - Music: none for now.
 - Sound effects: heavier and realistic.

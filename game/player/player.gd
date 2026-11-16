@@ -40,6 +40,7 @@ var _anim := RobotAnimInput.new()
 var _corpse_drop := 0.0           # a body shot in mid-air falls to the ground (visual only)
 var _corpse_fall := 0.0
 var _corpse_room := 0.0
+var _logged_anim := ""            # --sync-log: the last animation we printed
 var _fell_reported := false
 var _fire_buffer := 0.0           # a click slightly too early still fires when the gun is ready
 var _rope: MeshInstance3D         # the grapple line, drawn from the gun to the anchor
@@ -260,6 +261,8 @@ func _update_weapon(delta: float) -> void:
 		return
 	_fire_buffer = 0.0
 	animator.fire()
+	if DevArgs.sync_log:
+		print("ANIM FIRE %d" % peer_id)
 	if view:
 		view.fire()
 	var eye := eye_position()
@@ -323,6 +326,8 @@ func rope_origin() -> Vector3:
 ## Another player's shot, as told by the host: kick their gun.
 func show_shot() -> void:
 	animator.fire()
+	if DevArgs.sync_log:
+		print("ANIM SHOT %d %d" % [Net.my_id(), peer_id])
 
 
 # ---------------------------------------------------------------------------
@@ -500,6 +505,31 @@ func _animate(delta: float) -> void:
 	_anim.alive = alive
 	_anim.yaw = _visual_yaw
 	animator.update(delta, _anim, visual.global_transform)
+	if DevArgs.sync_log:
+		_log_animation()
+
+
+## For tests/check_anim.py: prints the animation this body shows whenever it changes.
+## Your own player and the bot print what they are doing (SELF); every other player
+## prints what this copy of the game draws for them (SEEN).
+func _log_animation() -> void:
+	var shown := animator.source + ("+reload" if alive and _anim.reloading() else "")
+	if shown == _logged_anim or not visual.visible:
+		return
+	_logged_anim = shown
+	_print_animation(shown)
+
+
+func _print_animation(shown: String) -> void:
+	if is_local:
+		print("ANIM SELF %d %.4f %s" % [peer_id, Net.now(), shown])
+	elif buffer.has_data():
+		print("ANIM SEEN %d %d %.4f %s" % [Net.my_id(), peer_id, last_render_time, shown])
+
+
+func _exit_tree() -> void:
+	if DevArgs.sync_log and _logged_anim != "":
+		_print_animation("-")  # this body is gone (match over, or the player left)
 
 
 ## Lean the camera away from the wall while wall-running.
@@ -566,6 +596,8 @@ func _scripted_input(delta: float) -> void:
 			input.fire = true
 			if fmod(t, 0.2) < delta:
 				input.fire_pressed = true  # click about 5 times a second
+		if fmod(t, 6.0) < delta and weapon:
+			weapon.start_reload()  # top up now and then (tests the reload animation online)
 
 
 func _nearest_visible_opponent() -> Player:

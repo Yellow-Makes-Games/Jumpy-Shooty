@@ -6,6 +6,7 @@
 #    moving player, and even Easy hits a player standing still
 #  - harder bots are more accurate (Expert beats Easy)
 #  - the harder bots use the movement set: slides, dives, flips, grapples
+#  - the bot's body is animated: it plays its moves and its gun kicks on every shot
 #  - the bot dodges when it gets shot
 #  - matches end, and "Rematch" starts a new one
 #  - there are no script errors
@@ -37,6 +38,7 @@ names = ["Easy", "Normal", "Hard", "Expert"]
 fail = False
 rates = {}
 moves = set()
+anims = set()
 
 def read(name):
     return open(f"{out}/bot_{name}.log", encoding="utf-8", errors="replace").read()
@@ -69,6 +71,14 @@ for level in range(4):
         print("  FAIL: the bot barely moved"); fail = True
     if "MATCH_OVER" not in log:
         print("  FAIL: the match never ended"); fail = True
+    played = set(re.findall(r"^ANIM SELF 9001 \S+ ([a-z_]+)", log, re.M))
+    kicks = len(re.findall(r"^ANIM FIRE 9001", log, re.M))
+    anims |= played
+    print(f"        animations {sorted(played)}  gun kicks {kicks}")
+    if "loco" not in played or "air" not in played:
+        print("  FAIL: the bot's body never showed running or jumping"); fail = True
+    if kicks != len(shots):
+        print("  FAIL: the bot's gun did not kick once per shot"); fail = True
 
 if rates[3] <= rates[0]:
     print("FAIL: Expert should be more accurate than Easy"); fail = True
@@ -82,6 +92,7 @@ if not hits or log.count("SCRIPT ERROR"):
 log = read("fight")
 shots, hits, kinds, ropes, spots = bot_stats(log)
 moves |= kinds
+anims |= set(re.findall(r"^ANIM SELF 9001 \S+ ([a-z_]+)", log, re.M))  # the only match where the bot dies
 overs = log.count("MATCH_OVER")
 print(f"Fight   shots {len(shots):3}  hits {len(hits):3}  moves {sorted(kinds)}  matches {overs}  "
       f"errors {log.count('SCRIPT ERROR')}")
@@ -91,6 +102,11 @@ if overs < 2:
     print("  FAIL: expected a match and a rematch"); fail = True
 if "FLIP" not in kinds:
     print("  FAIL: the bot never flip-dodged while being shot"); fail = True
+for needed in ["slide", "dive", "grapple", "death"]:
+    if needed not in anims:
+        print(f"FAIL: no bot's body ever showed {needed}"); fail = True
+if not any(a.startswith("flip") for a in anims):
+    print("FAIL: no bot's body ever showed a flip"); fail = True
 for needed in ["SLIDE", "DIVE", "FLIP", "GRAPPLE"]:
     if needed not in moves:
         print(f"FAIL: no bot ever used {needed}"); fail = True

@@ -13,6 +13,8 @@ run_script() {  # fails on any script error, even if the script itself reports P
   if echo "$out" | grep -q "SCRIPT ERROR"; then echo "FAIL: script errors above"; return 1; fi
 }
 run_script tests/movement_test.gd
+echo "== Robot model and animator checks"
+run_script tests/robot_test.gd
 echo "== Testing Grounds: every practice course can be completed"
 run_script tests/course_test.gd
 echo "== Practice mode boots without errors"

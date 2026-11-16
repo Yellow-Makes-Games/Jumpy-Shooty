@@ -52,6 +52,8 @@ addresses or router settings. Everyone needs Steam running.
 or WSL; I run these on every change anyway):
 
 - movement checks (speeds, stopping, jump height, momentum in the air);
+- robot checks: the model files hold every bone and clip, each movement state plays the
+  right animation, and the poses fit the hitbox (`tests/robot_test.gd`);
 - the game boots into practice mode without script errors;
 - a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match (`tests/run_bot_test.sh`);
 - a match test: 3 copies on a laggy network play two matches back to back, aiming
@@ -60,7 +62,11 @@ or WSL; I run these on every change anyway):
 - a sync test: 2 copies on a clean network, then 5 copies on a simulated bad network
   (100 ms latency, 60 ms jitter, 10% packet loss). Each copy moves on its own, and the test
   checks that every copy draws every other player within 15 cm of where they really were
-  (95% of frames), with no visible pops, and that everyone notices when the host leaves.
+  (95% of frames), with no visible pops, and that everyone notices when the host leaves;
+- animation sync (`tests/check_anim.py`, part of the sync and match tests): every copy
+  shows each other player doing the move they were really doing at that moment, shows
+  each held move, and kicks their gun on every shot. The bot test checks the bot's body
+  the same way.
 
 ## Developer command-line options
 
@@ -79,6 +85,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `bot`, `multiplayer`, `settings` |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
+| `--hold=SEC:ACTION:DURATION` | Hold an input action down, e.g. `--hold=5:move_forward:3` |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 
 ## Tuning movement
@@ -86,3 +93,37 @@ top of `game/dev/dev_args.gd`. The useful ones:
 All movement numbers are in `game/player/movement/movement_tuning.gd`, each with a comment
 saying what it does. Change a number, press F5, and feel the difference. Tell me what
 feels off and I will tune it with you.
+
+## The robot model and its animations
+
+The player robot is built by code, not drawn in a modelling program, so it can be changed
+by editing numbers and rebuilding. Everything is in `tools/robot/` (needs python3 with
+numpy):
+
+| File | What it holds |
+| --- | --- |
+| `designs.py` | The robot's shape and materials. `CHOSEN` picks the look ("needle"); the two other drafts are kept |
+| `rig.py` | The skeleton (bone names and positions) and the pose solver |
+| `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
+| `build.py` | Writes `game/player/robot/robot.glb` (full body) and `robot_arms.glb` (first-person arms and pistol) |
+
+After changing any of them:
+
+```
+python3 tools/robot/build.py
+godot --headless --path . --import
+```
+
+To look at the result without opening the game (these render on a machine with no
+graphics card, so I can check poses myself):
+
+- `python3 tools/robot/sheet.py OUT_DIR run sprint:8 death:6:0:1.3` renders side and
+  front contact sheets of clips (name, frames, start and end time).
+- `tools/robot/preview.sh JOB.json` renders any set of robots, poses and camera angles
+  described in a job file; the format is at the top of `tools/robot/preview.gd`. It can
+  also drive a robot with the game's real animator from made-up movement.
+
+In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides what the
+body shows from the movement state (the same way for you, other players and the bot),
+and `view_model.gd` does the first-person arms. A model made in Blender later can
+replace the .glb files as long as it keeps the same bone and clip names.
