@@ -48,7 +48,10 @@ var source := ""
 ## the camera instead of leaning with the aim, and the moves that have a "view_"
 ## clip (slide, tuck, flips, the landing roll) play that instead: made to be seen
 ## from the eyes, with the legs brought up into view.
-var first_person := false
+var first_person := false:
+	set(on):
+		_snap_view = _snap_view or on != first_person   # the camera swaps bodies in one frame, so no easing
+		first_person = on
 
 var _pose: RobotPose
 var _from: RobotPose
@@ -84,6 +87,7 @@ var _lean := 1.0          # how much the torso leans with the aim (0 in first pe
 var _upright := 0.0       # first person: how much of the torso's forward lean is taken out
 var _view_clip := false   # first person: the body is playing a "view_" clip this frame...
 var _pin := 0.0           # ...so its neck is pinned to the camera (eases in and out)
+var _snap_view := false   # first person was just switched on or off
 
 var _b := {}                      # bone name -> index
 var _arm_r: PackedInt32Array
@@ -181,8 +185,10 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_respawn_t = -1.0
 
 	# --- First person: stand the torso up over the hips
-	_pin = move_toward(_pin, 1.0 if _view_clip else 0.0, delta / 0.1)
-	_upright = move_toward(_upright, 1.0 if first_person and not _view_clip and key not in VIEW_KEEP_LEAN else 0.0, delta * 6.0)
+	var ease := 1000.0 if _snap_view else delta
+	_snap_view = false
+	_pin = move_toward(_pin, 1.0 if _view_clip else 0.0, ease / 0.1)
+	_upright = move_toward(_upright, 1.0 if first_person and not _view_clip and key not in VIEW_KEEP_LEAN else 0.0, ease * 6.0)
 	if _upright > 0.0:
 		var lower: Quaternion = _pose.rot[_b["root"]] * _pose.rot[_b["hips"]]
 		var up := lower * _pose.rot[_b["spine"]] * _pose.rot[_b["chest"]] * Vector3.UP
@@ -229,7 +235,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var spine: int = _b["spine"]
 	var chest: int = _b["chest"]
 	var head: int = _b["head"]
-	_lean = move_toward(_lean, 0.0 if first_person else 1.0, delta * 8.0)
+	_lean = move_toward(_lean, 0.0 if first_person else 1.0, ease * 8.0)
 	var p := inp.pitch * _torso * _lean
 	_pose.rot[spine] = Quaternion(Vector3.RIGHT, p * 0.25) * _pose.rot[spine]
 	_pose.rot[chest] = Quaternion(Vector3.RIGHT, p * 0.25) * _pose.rot[chest]

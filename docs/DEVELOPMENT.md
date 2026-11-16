@@ -107,13 +107,15 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--autostart=N` | Host starts the match when N players are in the lobby |
 | `--net-sim=L,J,P` | Pretend the connection is bad: L ms latency, J ms jitter, P% loss |
 | `--third-person` | Start in third person |
-| `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot (degrees). Example: `--practice --spawn=45,0,10,-90` puts you at the start of the slide lane |
+| `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
 | `--character=ID` | Play as `needle` or `vanguard` without changing your saved choice |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
 | `--hold=SEC:ACTION:DURATION` | Hold an input action down, e.g. `--hold=5:move_forward:3` |
+| `--look=SEC:YAW,PITCH` | Turn your view by YAW and to PITCH (degrees) after SEC seconds, e.g. `--look=3:0,-60` to look down |
+| `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 
 ## Maps
@@ -228,6 +230,38 @@ In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides wh
 body shows from the movement state (the same way for you, other players and the bot),
 and `view_model.gd` does the first-person arms. A model made in Blender later can
 replace the .glb files as long as it keeps the same bone and clip names.
+
+**Your own body in first person.** The arms and gun you see are the separate arms
+model on the camera (`view_model.gd`). The legs and torso are your real body: the same
+skeleton and the same animator everyone else sees, drawn for your camera by a second
+mesh with the head and arms left out (`RobotModel.add_view_mesh`; the full mesh stays
+hidden from your camera and only casts your shadow). Three things make it look right
+from inside, all in `robot_animator.gd` and switched by `first_person`:
+
+- The torso stays upright under the camera instead of leaning with your aim or with
+  the run, and `place_for_view` keeps the neck just below and behind your eyes, sliding
+  the body back as you look straight down so you see your legs and not the inside of
+  your chest.
+- A move whose normal animation would look wrong from inside has a second version
+  made for the camera, named `view_` plus the clip's name (`view_flip_back`,
+  `view_slide`, `view_roll`...). When one exists it is played for you instead; everyone
+  else still sees the normal clip, and `animator.source` reports the normal name. The
+  flips are the main case: the body does not turn over in front of a level camera, the
+  legs tuck and sweep through the view instead.
+- To add one, write the function next to the others under "The body as you see it in
+  first person" in `animations.py` using `_seen(lean, left leg, right leg)`, list it in
+  `view_clips()`, rebuild, and look at it with a first-person puppet shot in
+  `preview.sh` (`"first_person": {"pitch": -30, "eye": 1.6}`) before trying it in the game.
+
+To photograph a move in the real game, script it, for example a backflip:
+
+```
+godot --fixed-fps 60 --path . -- --practice --game-clock --hold=2.0:jump:0.1 \
+    --hold=2.4:jump:0.1 --screenshot=2.6:/tmp/flip.png --quit-after=3
+```
+
+Use the Vulkan renderer for this; the compatibility renderer draws the first-person
+arms wrongly.
 
 **Adding a character:** write its shape as a new function in `designs.py` (model it
 around the shared skeleton in `rig.py`), add its name to `DESIGNS` and `PLAYABLE`,

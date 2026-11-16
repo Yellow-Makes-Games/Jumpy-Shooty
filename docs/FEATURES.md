@@ -58,6 +58,7 @@ Last updated: Vanguard robot and character select. Decisions are in [DESIGN.md](
 | Feature | Status | Notes |
 | --- | --- | --- |
 | First person | working | Your robot's arms and pistol, with poses for sprint, slide, wall run, vault, dive, grapple and reload. Drawn so they never cut into walls |
+| Your body in first person | working | Look down and you see your own torso and legs, running, crouching, hanging from the rope, casting your shadow. Sliding puts your legs out in front of you. In a flip the camera stays level so you can keep aiming, and your knees and feet sweep through the view (over the top for a backflip, round the edge for a side flip); a landing roll tucks them through and plants them. On your belly you see only your arms, as you would |
 | Third person with wall collision | working | V to switch; smooth blend between them. Shows your full robot |
 
 ## Combat, bot, arena, art, audio

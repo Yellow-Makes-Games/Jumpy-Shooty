@@ -6,6 +6,8 @@ extends SceneTree
 ## asks for, the skeleton matches the others (so animations and the hitbox are shared),
 ## each movement state plays the right animation, and the poses make sense for the
 ## hitbox: standing height, crouch height, feet on the floor, gun following the aim.
+## Then the body as you see it in first person: no head or arms, kept under and behind
+## the camera in every move, and never upside down in front of your eyes.
 
 const S := MovementController.State
 const CROUCH_HEIGHT := 1.1   ## CROUCH_HEIGHT (the player script needs the full game to load)
@@ -14,7 +16,8 @@ const PRONE_HEIGHT := 0.8    ## Player.PRONE_HEIGHT
 const BODY_CLIPS := ["aim", "idle", "run", "sprint", "crouch_idle", "crouch_walk", "slide",
 	"air", "air_tuck", "land", "wall_run_l", "wall_run_r", "wall_jump_l", "wall_jump_r",
 	"vault", "climb", "grapple", "dive", "roll", "belly_slide", "belly_crawl", "flip_front", "flip_back", "flip_left",
-	"flip_right", "reload", "death", "respawn"]
+	"flip_right", "reload", "death", "respawn",
+	"view_slide", "view_air_tuck", "view_roll", "view_flip_front", "view_flip_back", "view_flip_left", "view_flip_right"]
 const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const BODY_BONES := ["root", "hips", "spine", "chest", "head", "upper_arm_l", "forearm_l", "hand_l",
@@ -161,6 +164,106 @@ func _check_character() -> void:
 	_run(dead, 2.0)
 	_expect("dead: the body is down on the floor", _top() < 0.75, "%.2f" % _top())
 	_expect("dead: nothing sinks through the floor", _lowest_bone() > -0.12, "%.2f" % _lowest_bone())
+	_check_first_person()
+
+
+## Your own body in first person (Player does this for the local player only).
+func _check_first_person() -> void:
+	print("%s: the body you see in first person" % Characters.name_of(_character))
+	_fresh()
+	robot.add_view_mesh(4)
+	var full := _triangles(robot.mesh.mesh)
+	var seen := _triangles(robot.view_mesh.mesh)
+	_expect("leaves out the head and arms", seen > 0 and seen < full * 0.8, "%d of %d triangles" % [seen, full])
+	_expect("follows the same skeleton", robot.view_mesh.get_node_or_null(robot.view_mesh.skeleton) == robot.skeleton)
+	_expect("casts no shadow of its own", robot.view_mesh.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+
+	# In every move, wherever you look: the neck stays behind the eyes (which are at
+	# x = z = 0, eye height) and below them, so you never look into your own chest.
+	var flip_b := RobotAnimInput.make_flags(false, false, false, RobotAnimInput.FLIP_BACK, 0)
+	var flip_l := RobotAnimInput.make_flags(false, false, false, RobotAnimInput.FLIP_LEFT, 0)
+	var flip_r := RobotAnimInput.make_flags(false, false, false, RobotAnimInput.FLIP_RIGHT, 0)
+	var moves := [   # [name, state, crouched, flags, velocity, eye height, seconds]
+		["standing", S.GROUND, false, 0, Vector3.ZERO, 1.6, 0.6], ["sprinting", S.GROUND, false, 0, Vector3(0, 0, -11.5), 1.6, 0.6],
+		["strafing", S.GROUND, false, 0, Vector3(8, 0, 0), 1.6, 0.6], ["crouched", S.CROUCH, true, 0, Vector3.ZERO, 1.0, 0.6],
+		["sliding", S.SLIDE, true, 0, Vector3(0, 0, -12), 1.0, 0.6], ["jumping", S.AIR, false, 0, Vector3(0, 6, -8), 1.6, 0.6],
+		["tucked", S.AIR, true, 0, Vector3(0, 0, -8), 1.0, 0.6], ["on the rope", S.GRAPPLE, false, 0, Vector3(0, 0, -12), 1.6, 0.6],
+		["wall-running", S.WALL_RUN, false, 0, Vector3(0, 0, -10), 1.6, 0.6], ["climbing", S.MANTLE, false, 0, Vector3.ZERO, 1.6, 0.3],
+		["diving", S.DIVE, true, 0, Vector3(0, 0, -14), 1.0, 0.6], ["rolling", S.ROLL, true, 0, Vector3(0, 0, -10), 1.0, 0.2],
+		["belly-sliding", S.BELLY_SLIDE, true, 0, Vector3(0, 0, -9), 0.55, 0.6],
+		["front flip", S.FLIP, false, 0, Vector3(0, 2, -9), 1.6, 0.22], ["backflip", S.FLIP, false, flip_b, Vector3(0, 2, -9), 1.6, 0.22],
+		["left flip", S.FLIP, false, flip_l, Vector3(0, 2, -9), 1.6, 0.22], ["right flip", S.FLIP, false, flip_r, Vector3(0, 2, -9), 1.6, 0.22],
+	]
+	for m in moves:
+		var worst_back := INF
+		var worst_up := -INF
+		for pitch in [0.0, -45.0, -88.0]:
+			_fresh()
+			animator.first_person = true
+			var inp := _input(m[1], m[4], deg_to_rad(pitch))
+			inp.crouched = m[2]
+			inp.flags = m[3]
+			_run_view(inp, m[6], m[5])
+			var neck := robot.marker("head")
+			worst_back = minf(worst_back, neck.z)
+			worst_up = maxf(worst_up, neck.y - m[5])
+		_expect("%s: neck behind the eyes (%.2f m) and below them (%.2f m)" % [m[0], worst_back, -worst_up],
+			worst_back > robot.chest_front - 0.05 and worst_up < -0.11)
+
+	# Flips and the landing roll: the same animation name as everyone else sees, but
+	# the body never turns upside down in front of the camera (which stays level).
+	for flip in [[0, "flip_front"], [flip_b, "flip_back"]]:
+		for view in [false, true]:
+			_fresh()
+			animator.first_person = view
+			var inp := _input(S.FLIP, Vector3(0, 2, -9), 0.0)
+			inp.flags = flip[0]
+			_run_view(inp, 0.22, 1.6, view)
+			var upright := robot.marker("head").y > robot.marker("hips").y
+			if view:
+				_expect("%s in first person: still called %s, and the body stays upright" % [flip[1], flip[1]],
+					animator.source == flip[1] and upright)
+			else:
+				_expect("%s in third person: the body is upside down halfway" % flip[1], not upright)
+	_fresh()
+	animator.first_person = true
+	_run_view(_input(S.SLIDE, Vector3(0, 0, -12), 0.0), 0.6, 1.0)
+	var toes := minf(robot.marker("foot_l").z, robot.marker("foot_r").z)
+	var feet_up := maxf(robot.marker("foot_l").y, robot.marker("foot_r").y)
+	_expect("sliding: the legs are out in front, in view at eye level", toes < -0.7 and feet_up > 1.0 - 1.09 * -toes,
+		"toes %.2f m ahead, %.2f m up" % [-toes, feet_up])
+
+	# The torso stays upright under the camera instead of leaning with the aim.
+	for view in [false, true]:
+		_fresh()
+		animator.first_person = view
+		_run_view(_input(S.GROUND, Vector3.ZERO, deg_to_rad(-60.0)), 0.8, 1.6, view)
+		var lean := absf(robot.marker("head").z - robot.marker("spine").z)
+		if view:
+			_expect("looking down in first person: the torso stays upright", lean < 0.05, "%.2f m" % lean)
+		else:
+			_expect("looking down in third person: the torso leans with the aim", lean > 0.1, "%.2f m" % lean)
+
+	# Back to third person: the body returns to where everyone else sees it.
+	animator.place_for_view(0.0, 1.6, 0.0)
+	_expect("third person: the body is back in place and the first-person copy hidden",
+		robot.position == Vector3.ZERO and not robot.view_mesh.visible)
+
+
+func _triangles(mesh: Mesh) -> int:
+	var n := 0
+	for i in mesh.get_surface_count():
+		n += mesh.surface_get_array_index_len(i) / 3
+	return n
+
+
+## Like _run, also placing the body for the first-person camera each frame.
+func _run_view(inp: RobotAnimInput, seconds: float, eye: float, view: bool = true) -> void:
+	var t := 0.0
+	while t < seconds:
+		animator.update(1.0 / 60.0, inp, robot.global_transform)
+		animator.place_for_view(1.0 if view else 0.0, eye, inp.pitch)
+		t += 1.0 / 60.0
 
 
 
@@ -179,6 +282,7 @@ func _fresh() -> void:
 	if robot == null:
 		robot = RobotModel.new().setup(Characters.body(_character), Color(1, 0.3, 0.2))
 		root.add_child(robot)
+	robot.position = Vector3.ZERO
 	animator = RobotAnimator.new(robot)
 
 
@@ -187,6 +291,9 @@ func _drop_robot() -> void:
 		return
 	for i in robot.mesh.mesh.get_surface_count():   # headless Godot grumbles otherwise
 		robot.mesh.set_surface_override_material(i, null)
+	if robot.view_mesh:
+		for i in robot.view_mesh.mesh.get_surface_count():
+			robot.view_mesh.set_surface_override_material(i, null)
 	robot.queue_free()
 	robot = null
 

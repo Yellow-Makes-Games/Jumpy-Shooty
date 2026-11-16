@@ -12,6 +12,9 @@ const EYE := Vector3(0.0, 1.60, 0.0)   ## where the camera sits inside the arms 
 const VIEW_FOV := 70.0                 ## must match view_fov in viewmodel.gdshader
 const FADE := 0.13
 const CRAWL_PERIOD := 0.9              ## seconds for one crawl cycle at crawling speed (matches belly_crawl)
+const LOOK_DOWN_FROM := 35.0            ## degrees of down pitch where the arms start moving out of the way...
+const LOOK_DOWN_FULL := 80.0
+const LOOK_DOWN_SHIFT := Vector3(0.05, -0.08, 0.0)   ## ...of your own body below you, ending this far over
 
 var model: RobotModel
 var rig: RobotRig
@@ -174,6 +177,7 @@ func update(delta: float) -> void:
 	var fall := clampf(-vel.y * 0.0012, -0.012, 0.02) if not grounded else 0.0
 
 	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, _recoil * 0.035)
+	position += LOOK_DOWN_SHIFT * smoothstep(deg_to_rad(LOOK_DOWN_FROM), deg_to_rad(LOOK_DOWN_FULL), -pitch)
 	rotation = Vector3(-_sway.y * 0.5 + _recoil * 0.07 + _dip * 0.8, _sway.x * 0.6 + crawl * 0.03, _sway.x * 0.5 - crawl * 0.05)
 
 
