@@ -85,9 +85,7 @@ func apply() -> void:
 		if DisplayServer.window_get_mode() != mode:
 			DisplayServer.window_set_mode(mode)
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
-	var master := AudioServer.get_bus_index("Master")
-	AudioServer.set_bus_volume_db(master, linear_to_db(max(master_volume, 0.0001)))
-	changed.emit()
+	changed.emit()   # Sound puts the volumes on the audio buses
 
 
 ## The HUD layout for the current camera view.

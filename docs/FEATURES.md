@@ -14,7 +14,7 @@ Last updated: five more robots (Kestrel, Bulwark, Rivet, Specter, Orbit). Decisi
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
 | Character select | working | Seven robots (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit), with a live preview. On the Practice and Vs Bots pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
 | Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
-| Settings menu (mouse, camera, HUD, audio, graphics) | working | Tabs: Controls (with the key list), Camera & HUD, Audio, Graphics. Switches and sliders apply at once. Audio sliders have no sounds to affect yet |
+| Settings menu (mouse, camera, HUD, audio, graphics) | working | Tabs: Controls (with the key list), Camera & HUD, Audio, Graphics. Switches and sliders apply at once. Audio: Master, Music (nothing plays on it yet) and Effects |
 | Pause menu in match | working | Resume, settings, leave, controls list; host can end the match early |
 | Match results screen | working | Rankings, kills, deaths; return to lobby or main menu |
 | Return to lobby and play again | working | Tested: two matches back to back |
@@ -71,7 +71,7 @@ Last updated: five more robots (Kestrel, Bulwark, Rivet, Specter, Orbit). Decisi
 | Weapons | working | Four guns, picked before the match (lobby, Practice and Vs Bots pages, beside the robot) and kept for the whole match. Pistol: semi-auto, 25 damage, 12 rounds. Shotgun: pump-action, 10 pellets of 11, one-shot kill up close, falls off from 9 to 22 m, 6 shells loaded one at a time (shooting stops the reload). Assault rifle: full auto, 10 shots a second, 13 damage, 30 rounds. Sniper rifle: bolt-action, 75 damage, 2x headshots (a headshot kills, two body shots do), no wobble, 5 rounds. Each has its own model, crosshair, HUD ammo display, kill-feed icon, muzzle flash and tracer, and its own animations in first and third person (hold, sprint carry, fire with pump or bolt, reload). Bots pick a gun at random and fight to suit it. Numbers to tune by playtesting |
 | Weapon switching | not started | One gun per match, by choice; change it in the lobby between matches |
 | Muzzle flash, tracers, impacts | rough | Simple glowing shapes |
-| Weapon sounds | not started | |
+| Weapon sounds | working | Each gun has its own shot (a wide version for your own gun, a placed one for others, and a distant echo layer when far away), every reload step timed to the animation, the shotgun's pump and the sniper's bolt after each shot, an empty click, and a sound for bringing the gun up (on spawn and when picking it in a menu). Made by code; not yet heard on a real PC |
 | Bot | working | Offline: 1v1, or a free-for-all against up to 4 bots (you plus 4 is a full 5). Bots fight each other too: each goes for the nearest player, favouring one it can see, whoever just shot it and whoever it is already fighting. Bots are named (Gizmo, Sprocket, Bolt, Piston) and take turns through the robots, starting with the one after yours, so no bot plays your robot. One difficulty for every bot. Easy / Normal / Hard / Expert change reaction time, aim wobble, turn speed, fire rate, leading, headshots and which moves it uses. Finds you anywhere on the map (navigation mesh), takes the stairs to your floor, keeps its tricks away from drops, strafes and jumps in fights; Normal+ slides; Hard+ bunny-hops, dives (usually holding it into a belly slide), grapples, flip-dodges when hit. Same movement and gun rules as you. Numbers to tune by playtesting |
 | Testing Grounds (test map) | working | Greybox combat arena plus a training yard with practice lanes: grapple beams, wall-run zigzag and wall-jump chimney, slide hill and bars, vault blocks and ledges at marked heights, gap jumps of 6, 10 and 13 m (jump / jump + dive / jump + flip + dive). An automated test runs each course |
 | Construction Site (first real map) | working | "The Tower": a half-built six-floor tower in an 80 x 80 m yard, with a crane, scaffolding, a hoist tower, containers, a pit and a fence to wall-run. 12 spawn points. An automated test runs a player over 18 movement routes and checks that bots can walk to every level. Needs a playtest for balance (the top may be too strong) |
@@ -80,13 +80,15 @@ Last updated: five more robots (Kestrel, Bulwark, Rivet, Specter, Orbit). Decisi
 | Map editing | working | Maps are scenes: open one in the Godot editor, click a piece to select it, drag its face handles to resize it, F6 to play it. See DEVELOPMENT.md |
 | Character models | working | Seven robots: Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter and Orbit, all with white armour, player colour on the trim and visor. Same skeleton, hitbox and animations. Built by code in `tools/robot/` (see DEVELOPMENT.md) |
 | Character animation | working | Idle, run, sprint, crouch, slide, jump and fall, landing, wall run (both sides), wall jump, vault, ledge climb, grapple swing, dive, landing roll, belly slide and crawl, four flips, shooting, reload, death, respawn. The body aims where the player looks; legs follow the direction of travel. Same animator for you, other players and the bot. The vault is the least polished clip |
-| Sound | not started | |
+| Sound | working | Crisp, realistic sound effects (low and weighty, not arcade), all generated by `tools/audio/make_sfx.py` (no recordings; see `game/audio/LICENSE.md`). Bullet impacts on walls (with the odd ricochet) and on robots, near-miss whizzes, hit markers (brighter for headshots), kill confirms, hurt and death sounds. Robot footsteps and sounds for every move (jump, landing, roll, slide, belly slide and crawl, wall run, wall jump, vault, ledge climb, grapple fire/attach/release/miss, dive, flip, crouch). Menu hover, click, confirm, back, toggles and sliders; match start and end. Other players' sounds are placed in 3D. No music yet. Levels need a listen on a real PC |
 
 ## Known issues
 
 - Animations have only been judged from rendered still frames so far, not in motion on a
   real PC. Timing and feel will need a playtest pass.
-- The guns have no sound yet, and the muzzle flashes are still simple placeholders.
+- The muzzle flashes are still simple placeholders.
+- The sound effects have only been checked by measurement and automated tests, not
+  listened to on a real PC yet: expect to tune levels in `game/audio/sfx_list.gd`.
 - The sniper rifle has no scope or zoom: right mouse is the grapple. It can be added
   with a new key if wanted.
 - Name tags show through walls (handy while testing; will be limited to line of sight).

@@ -7,7 +7,7 @@ Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player ho
 up to 4 friends connect to them. Today that works over direct IP; Steam invites and
 relays are next.
 
-**Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site and Office maps, the Testing Grounds test map and offline bot matches (1v1, or a free-for-all against up to 4 bots) work; Steam and sound are next. See [docs/FEATURES.md](docs/FEATURES.md)
+**Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site and Office maps, the Testing Grounds test map and offline bot matches (1v1, or a free-for-all against up to 4 bots) work, with sound effects for every gun, hit, move and menu; Steam is next. See [docs/FEATURES.md](docs/FEATURES.md)
 for what works and what does not yet.
 
 ## Quick start
@@ -43,12 +43,13 @@ game/
   player/    player, movement (movement/), camera (camera/)
   match/     match rules run by the host: health, hits, kills, respawns, timer
   combat/    weapons and shot effects
+  audio/     sound effects (sfx/) and the code that plays them
   arena/     the arena and the map system (see docs/DEVELOPMENT.md)
   maps/      the maps: scenes you edit in the Godot editor, and their palettes
   ui/        menus, lobby, HUD, pause menu
   dev/       developer command-line options
 addons/      map_tools: the editor plugin for editing maps
-tools/       launch several copies, take screenshots, render map previews
+tools/       launch several copies, take screenshots, render map previews, build the robots and sounds
 tests/       automated tests (tests/run_all.sh)
 docs/        setup guide, feature tracker
 ```

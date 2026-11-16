@@ -52,6 +52,7 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], tall:
 		b.custom_minimum_size = Vector2(0, 40)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(_on_pressed.bind(c.id))
+		b.set_meta("sfx", "select")
 		buttons.add_child(b)
 		_buttons[c.id] = b
 	_blurb = UiKit.label(side, "", true, 16)

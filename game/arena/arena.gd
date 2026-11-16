@@ -99,6 +99,7 @@ func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit
 	if p:
 		p.show_shot()
 	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter))
+	Sound.shot_landed(p.muzzle_position() if p else muzzle, ends, hits, false)
 
 
 ## The spawn point furthest from every living opponent of `who`.
@@ -153,6 +154,7 @@ func _respawn(p: Player) -> void:
 
 
 func _on_pause_toggled() -> void:
+	Sound.play("ui_click" if pause_menu.visible else "ui_back")
 	_capture_mouse(not pause_menu.visible)
 
 
