@@ -24,6 +24,7 @@ const NEAR := 7.0          ## closer than this it backs off a little
 const FAR := 18.0          ## further than this it closes in
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
+const PRONE_AIM := 0.4     ## aim height at someone belly-sliding (they are lying flat)
 const HUNT_AFTER := 3.0    ## seconds without seeing you before it goes to where you really are
 const GRAPPLE_HEADROOM := 6.0  ## it only swings with this much open air above its head
 const LEVEL_GAP := 2.5     ## you are this much higher or lower: it comes to your floor instead of fighting from where it is
@@ -61,6 +62,7 @@ var _stuck_time := 0.0
 var _escape_dir := Vector3.ZERO
 var _escape_time := 0.0
 var _slide_time := 0.0
+var _belly_time := 0.0           # holding dive: lands a dive on its belly and slides
 var _hop_time := 0.0
 var _trick_wait := 0.0
 var _dodge_side := 0.0           # a flip dodge in progress: which way (-1 left, 1 right)
@@ -119,7 +121,7 @@ func update(delta: float) -> void:
 		if me.motor.state != _last_state:
 			_last_state = me.motor.state
 			if _time - float(_state_seen.get(_last_state, -9.0)) > 0.5 and _last_state in [MovementController.State.DIVE, MovementController.State.FLIP,
-					MovementController.State.GRAPPLE, MovementController.State.SLIDE,
+					MovementController.State.GRAPPLE, MovementController.State.SLIDE, MovementController.State.BELLY_SLIDE,
 					MovementController.State.WALL_RUN, MovementController.State.MANTLE]:
 				print("BOT_MOVE %d %s" % [me.peer_id, MovementController.State.keys()[_last_state]])
 			_state_seen[_last_state] = _time
@@ -139,6 +141,8 @@ func _reset() -> void:
 	input.grapple = false
 	input.crouch = false
 	_slide_time = 0.0
+	_belly_time = 0.0
+	input.dive = false
 	_hop_time = 0.0
 	_dodge_time = 0.0
 	_grapple_time = 0.0
@@ -180,8 +184,12 @@ func _can_see(p: Player) -> bool:
 
 ## Where it aims on a target: chest, or head when it is going for headshots.
 func _aim_point(p: Player) -> Vector3:
-	var low: bool = p.motor.crouched if p.motor else Player.pose_crouched(p.pose_at(p.latest_time()))
+	var pose := p.pose_at(p.latest_time()) if not p.motor else 0
+	var low: bool = p.motor.crouched if p.motor else Player.pose_crouched(pose)
+	var prone: bool = p.motor.prone if p.motor else Player.pose_state(pose) == MovementController.State.BELLY_SLIDE
 	var h := (HEAD - 0.6 if low else HEAD) if _go_head else (CHEST - 0.3 if low else CHEST)
+	if prone:
+		h = PRONE_AIM
 	return p.global_position + Vector3(0, h, 0)
 
 
@@ -204,6 +212,8 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 	var grounded := me.is_on_floor()
 	var speed := Vector2(me.velocity.x, me.velocity.z).length()
 	input.crouch = false
+	_belly_time = maxf(_belly_time - delta, 0.0)
+	input.dive = _belly_time > 0.0
 	if _escape_time > 0.0:
 		_escape_time -= delta
 		_unstick(delta, _escape_dir)
@@ -246,7 +256,7 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 			_dodge_time = 0.3
 		# Close the gap fast with a dive (it dives where it looks: at you).
 		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5 and _ground_ahead(f, 8.0):
-			input.dive_pressed = true
+			_dive(f)
 	else:
 		# Chase: to where it last saw you, or to where you really are after a while.
 		var hunting := _time - _last_seen_time > HUNT_AFTER
@@ -279,12 +289,21 @@ func _chase_tricks(delta: float, dir: Vector3, grounded: bool, speed: float) -> 
 	var straight := facing.angle_to(dir) < deg_to_rad(15.0) and _straight_ahead(dir) > 8.0
 	var roll := _rng.randf()
 	if d.grapples and straight and roll < 0.3 and me.motor.state != MovementController.State.SLIDE:
-		input.dive_pressed = true   # dives go where it looks, so only when looking where it runs
+		_dive(dir)   # dives go where it looks, so only when looking where it runs
 	elif roll < 0.6:
 		_slide_time = 0.8
 		input.crouch_pressed = true
 	elif d.jumpiness >= 0.15:
 		_hop_time = _rng.randf_range(0.8, 2.0)
+
+
+## Dive, and the better bots usually keep the button held to land in a belly slide
+## (a smaller target, and it keeps shooting) when there is room ahead to slide.
+func _dive(dir: Vector3) -> void:
+	input.dive_pressed = true
+	if d.belly_slides and _rng.randf() < 0.7 and _straight_ahead(dir) > 8.0:
+		_belly_time = _rng.randf_range(0.9, 1.6)
+		input.dive = true
 
 
 ## How far it can run in this direction before hitting something (up to 12 m).

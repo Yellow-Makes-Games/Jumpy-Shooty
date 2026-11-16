@@ -16,6 +16,7 @@ var jumpiness: float         ## 0..1: how often it jumps (and bunny-hops) in a f
 var slides: bool             ## slides while chasing
 var dodge_chance: float      ## 0..1: chance to dive or flip away when it gets hit
 var grapples: bool           ## uses the grapple to close distance or reach high ground
+var belly_slides: bool       ## holds its dives into a belly slide (Hard and Expert)
 var sprint: bool
 
 
@@ -30,6 +31,7 @@ static func make(level: int) -> BotDifficulty:
 			d._fill(0.22, 2.2, 520.0, 0.24, 0.85, 0.35, 0.85, 0.3, true, 0.4, true, true)
 		_:
 			d._fill(0.14, 1.2, 800.0, 0.18, 1.0, 0.55, 1.0, 0.45, true, 0.65, true, true)
+	d.belly_slides = level >= HARD
 	return d
 
 

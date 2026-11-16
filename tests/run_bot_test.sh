@@ -5,7 +5,7 @@
 #  - the bot finds the player and shoots at every difficulty; Normal and up hit a
 #    moving player, and even Easy hits a player standing still
 #  - harder bots are more accurate (Expert beats Easy)
-#  - the harder bots use the movement set: slides, dives, flips, grapples
+#  - the harder bots use the movement set: slides, dives, belly slides, flips, grapples
 #  - the bot's body is animated: it plays its moves and its gun kicks on every shot
 #  - the bot plays a different robot from yours (you are Needle or Vanguard in turn)
 #  - the bot dodges when it gets shot
@@ -82,6 +82,8 @@ for level in range(4):
         print("  FAIL: the bot never hit"); fail = True
     if moved < 8:
         print("  FAIL: the bot barely moved"); fail = True
+    if level < 2 and "BELLY_SLIDE" in kinds:
+        print("  FAIL: only Hard and Expert bots belly-slide"); fail = True
     if "MATCH_OVER" not in log:
         print("  FAIL: the match never ended"); fail = True
     played = set(re.findall(r"^ANIM SELF 9001 \S+ ([a-z_]+)", log, re.M))
@@ -126,7 +128,7 @@ for needed in ["slide", "dive", "grapple", "death"]:
         print(f"FAIL: no bot's body ever showed {needed}"); fail = True
 if not any(a.startswith("flip") for a in anims):
     print("FAIL: no bot's body ever showed a flip"); fail = True
-for needed in ["SLIDE", "DIVE", "FLIP", "GRAPPLE"]:
+for needed in ["SLIDE", "DIVE", "BELLY_SLIDE", "FLIP", "GRAPPLE"]:
     if needed not in moves:
         print(f"FAIL: no bot ever used {needed}"); fail = True
 

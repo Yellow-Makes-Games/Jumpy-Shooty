@@ -9,10 +9,11 @@ extends SceneTree
 
 const S := MovementController.State
 const CROUCH_HEIGHT := 1.1   ## CROUCH_HEIGHT (the player script needs the full game to load)
+const PRONE_HEIGHT := 0.8    ## Player.PRONE_HEIGHT
 
 const BODY_CLIPS := ["aim", "idle", "run", "sprint", "crouch_idle", "crouch_walk", "slide",
 	"air", "air_tuck", "land", "wall_run_l", "wall_run_r", "wall_jump_l", "wall_jump_r",
-	"vault", "climb", "grapple", "dive", "roll", "flip_front", "flip_back", "flip_left",
+	"vault", "climb", "grapple", "dive", "roll", "belly_slide", "belly_crawl", "flip_front", "flip_back", "flip_left",
 	"flip_right", "reload", "death", "respawn"]
 const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
@@ -82,6 +83,7 @@ func _check_character() -> void:
 		[S.WALL_RUN, false, 0, true, "wall_l"], [S.WALL_RUN, false, right, true, "wall_r"],
 		[S.MANTLE, false, vault, true, "vault"], [S.MANTLE, false, 0, true, "climb"],
 		[S.DIVE, true, 0, true, "dive"], [S.ROLL, true, 0, true, "roll"],
+		[S.BELLY_SLIDE, true, 0, true, "belly_slide"],
 		[S.FLIP, false, 0, true, "flip_front"], [S.FLIP, false, flip_r, true, "flip_right"],
 		[S.GROUND, false, 0, false, "death"],
 	]
@@ -128,6 +130,18 @@ func _check_character() -> void:
 	slide.crouched = true
 	_run(slide, 1.0)
 	_expect("sliding: head under the crouch height", _top() < CROUCH_HEIGHT + 0.12, "%.2f" % _top())
+
+	for speed in [11.0, 1.5]:
+		_fresh()
+		var belly := _input(S.BELLY_SLIDE, Vector3(0, 0, -speed), 0.0)
+		belly.crouched = true
+		_run(belly, 1.0)
+		var what := "belly-sliding" if speed > 5.0 else "crawling"
+		var high := maxf(_top(), _highest_bone() + 0.1)
+		_expect("%s: whole body under the prone height (%.1f m)" % [what, PRONE_HEIGHT], high < PRONE_HEIGHT, "%.2f" % high)
+		_expect("%s: no joint sinks into the floor" % what, _lowest_bone() > 0.0, "%.2f" % _lowest_bone())
+		var gun := robot.marker("muzzle")
+		_expect("%s: gun out in front, off the floor" % what, gun.z < -0.6 and gun.y > 0.1, str(gun))
 
 	_fresh()
 	var before := robot.marker("muzzle")
@@ -204,6 +218,14 @@ func _top() -> float:
 
 func _lowest_foot() -> float:
 	return minf(_bone_y("foot_l"), _bone_y("foot_r"))
+
+
+func _highest_bone() -> float:
+	var high := -INF
+	for b in BODY_BONES:
+		if b not in ["root", "muzzle", "grapple"]:
+			high = maxf(high, _bone_y(b))
+	return high
 
 
 func _lowest_bone() -> float:
