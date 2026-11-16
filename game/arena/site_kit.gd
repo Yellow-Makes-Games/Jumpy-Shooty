@@ -46,7 +46,13 @@ const COLORS := {
 	"lamp": Color(1.0, 0.97, 0.85),
 	"backdrop": Color(0.62, 0.70, 0.80),
 	"street": Color(0.50, 0.50, 0.50),
+	"joint": Color(0.63, 0.64, 0.64),
+	"hazard": Color(0.96, 0.78, 0.14),
+	"board": Color(0.95, 0.95, 0.93),
+	"gate": Color(0.50, 0.55, 0.60),
 }
+
+const PAINT := Color(0.16, 0.18, 0.22)   ## stencilled numbers and sign lettering
 
 ## Time of day and palette. "look" holds MapScenery look keys; "colors" replaces
 ## entries of COLORS.
@@ -268,6 +274,48 @@ func plate(top: float, rects: Array, holes: Array = [], kind: String = "concrete
 	for s in strips:
 		_span(s[0], s[1], top - thickness, top, s[2], s[3], kind)
 		_plates.append([top, Rect2(s[0], s[2], s[1] - s[0], s[3] - s[2])])
+	if kind != "concrete":
+		return
+	# Paint on a concrete floor: joint lines every 4 m, and a yellow safety line
+	# round every hole in it.
+	var lo := Vector2(xl[0], zl[0])
+	var hi := Vector2(xl[xl.size() - 1], zl[zl.size() - 1])
+	var at := ceilf(lo.x / 4.0) * 4.0
+	while at < hi.x:
+		_floor_line(top, Vector2(at, lo.y), Vector2(at, hi.y), 0.05, "joint", filled)
+		at += 4.0
+	at = ceilf(lo.y / 4.0) * 4.0
+	while at < hi.y:
+		_floor_line(top, Vector2(lo.x, at), Vector2(hi.x, at), 0.05, "joint", filled)
+		at += 4.0
+	for h: Rect2 in holes:
+		var r := h.grow(0.3)
+		_floor_line(top, Vector2(r.position.x, r.position.y), Vector2(r.end.x, r.position.y), 0.14, "hazard", filled)
+		_floor_line(top, Vector2(r.position.x, r.end.y), Vector2(r.end.x, r.end.y), 0.14, "hazard", filled)
+		_floor_line(top, Vector2(r.position.x, r.position.y), Vector2(r.position.x, r.end.y), 0.14, "hazard", filled)
+		_floor_line(top, Vector2(r.end.x, r.position.y), Vector2(r.end.x, r.end.y), 0.14, "hazard", filled)
+
+
+## A painted line on a floor from `a` to `b` (x, z; along x or along z), drawn only
+## where `filled` says there is floor.
+func _floor_line(top: float, a: Vector2, b: Vector2, width: float, kind: String, filled: Callable) -> void:
+	var length := a.distance_to(b)
+	var dir := (b - a) / length
+	var steps := int(ceil(length / 0.25))
+	var start := -1.0
+	for i in steps + 1:
+		var from := minf(i * 0.25, length)
+		var mid := a + dir * minf(from + 0.125, length)
+		var inside: bool = i < steps and filled.call(mid.x, mid.y)
+		if inside and start < 0.0:
+			start = from
+		elif not inside and start >= 0.0:
+			var p := a + dir * start
+			var q := a + dir * from
+			var half := Vector2(absf(dir.y), absf(dir.x)) * width * 0.5
+			_span(minf(p.x, q.x) - half.x, maxf(p.x, q.x) + half.x, top + 0.003, top + 0.012,
+				minf(p.y, q.y) - half.y, maxf(p.y, q.y) + half.y, kind, false)
+			start = -1.0
 
 
 ## The height of the highest floor plate over this spot (0 = just the ground).
@@ -726,6 +774,32 @@ func crane(base: Vector3, height: float, dir: Vector3, jib_len: float, counter_l
 			for sz in [-1, 1]:
 				var corner := centre + basis * Vector3(sx * (load_size.z * 0.5 - 0.2), load_size.y * 0.5, sz * (load_size.x * 0.5 - 0.5))
 				_strut(block + Vector3(0, -0.4, 0), corner, 0.05, 0.05, "cable", false)
+
+
+## Lettering painted on a wall at `pos`, facing the way `yaw` turns it (0 = readable
+## from the south, PI/2 = from the east). `size` 100 is letters about 0.7 m high.
+func stencil(pos: Vector3, text: String, yaw: float, size: int = 180, color: Color = PAINT) -> void:
+	signs.append({"pos": pos, "text": text, "yaw": yaw, "size": size, "color": color, "outline": color})
+
+
+## A sign board on the inside of the fence. `side`: 0 north, 1 west, 2 south, 3 east
+## fence; `along` is how far along it from the middle (to the right as you face it).
+func site_board(half: float, side: int, along: float, text: String, size: int = 110) -> void:
+	var yaw := side * PI * 0.5
+	var basis := Basis(Vector3.UP, yaw)
+	var width := text.length() * size * 0.0058 + 1.6   # roughly the lettering plus a margin
+	_part(Vector3.ZERO, yaw, Vector3(along, 4.4, -half + 0.17), Vector3(width, size * 0.01 + 0.7, 0.08), "board", false)
+	stencil(basis * Vector3(along, 4.4, -half + 0.23), text, yaw, size)
+
+
+## A pair of closed site gates in the fence (drawn on its inner face).
+func site_gate(half: float, side: int, along: float, width: float = 9.0, height: float = 5.0) -> void:
+	var yaw := side * PI * 0.5
+	for s in [-1, 1]:
+		_part(Vector3.ZERO, yaw, Vector3(along + s * width * 0.25, height * 0.5, -half + 0.05), Vector3(width * 0.5 - 0.1, height, 0.1), "gate", false)
+		_part(Vector3.ZERO, yaw, Vector3(along + s * width * 0.25, height * 0.55, -half + 0.11), Vector3(width * 0.5 - 0.1, 0.5, 0.04), "hazard", false)
+	for s in [-1, 0, 1]:
+		_part(Vector3.ZERO, yaw, Vector3(along + s * width * 0.5, height * 0.5 + 0.2, -half + 0.12), Vector3(0.3, height + 0.4, 0.24), "machine_dark", false)
 
 
 ## A label that always faces the camera (concept pictures only).

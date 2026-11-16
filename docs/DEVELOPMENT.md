@@ -54,7 +54,14 @@ or WSL; I run these on every change anyway):
 - movement checks (speeds, stopping, jump height, momentum in the air);
 - robot checks: the model files hold every bone and clip, each movement state plays the
   right animation, and the poses fit the hitbox (`tests/robot_test.gd`);
-- the game boots into practice mode without script errors;
+- the Testing Grounds practice courses and the Construction Site routes: a scripted
+  player runs each one (`tests/course_test.gd`, `tests/site_test.gd`). The site test also
+  checks the spawn points and that a bot can walk to every level. To run one route and
+  print what the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless
+  --path . --script tests/site_test.gd`;
+- the game boots into practice mode on every map without script errors;
+- bots climb the Construction Site tower to a player standing on a high floor
+  (`tests/run_bot_climb_test.sh`);
 - a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, flip and grapple, and Rematch starts a new match (`tests/run_bot_test.sh`);
 - a match test: 3 copies on a laggy network play two matches back to back, aiming
   and shooting on their own; checks that hits land, the match ends at the kill target,
@@ -63,6 +70,8 @@ or WSL; I run these on every change anyway):
   (100 ms latency, 60 ms jitter, 10% packet loss). Each copy moves on its own, and the test
   checks that every copy draws every other player within 15 cm of where they really were
   (95% of frames), with no visible pops, and that everyone notices when the host leaves;
+- the sync, match and bot tests take a map: `MAP=testing_grounds tests/run_bot_test.sh`.
+  `run_all.sh` spreads them over both maps;
 - animation sync (`tests/check_anim.py`, part of the sync and match tests): every copy
   shows each other player doing the move they were really doing at that moment, shows
   each held move, and kicks their gun on every shot. The bot test checks the bot's body
@@ -76,6 +85,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
+| `--map=ID` | Which map: `construction_site` (the default) or `testing_grounds`. Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -83,10 +93,38 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--third-person` | Start in third person |
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot (degrees). Example: `--practice --spawn=45,0,10,-90` puts you at the start of the slide lane |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
-| `--menu=PAGE` | Open the main menu on a page: `play`, `bot`, `multiplayer`, `settings` |
+| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
 | `--hold=SEC:ACTION:DURATION` | Hold an input action down, e.g. `--hold=5:move_forward:3` |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
+
+## Maps
+
+A map is a script, not a scene: it lists its pieces (boxes, ramps, cylinders), spawn
+points and signs, and the game builds the collision, the meshes and the bots' navigation
+mesh from that list. Everything is in `game/arena/`:
+
+| File | What it holds |
+| --- | --- |
+| `maps.gd` | The list of maps (id, name, script). Add a map here and it shows up in the menus |
+| `map_layout.gd` | The base every map extends: piece helpers (`_box`, `_span`, `_ramp`, ...), spawns, signs |
+| `map_scenery.gd`, `map_mesher.gd` | Sky and sun from the map's look, one merged mesh per colour, the navigation mesh |
+| `site_kit.gd` | Building blocks for construction sites: floor plates with holes, stairs, girders, scaffolding, containers, the crane, vehicles, the fence, signs. Also the colours and the looks (time of day) |
+| `construction_site.gd` | The Construction Site map: where everything goes. Positions are metres; x runs west to east, z north to south, y up |
+| `testing_grounds.gd` | The test map |
+
+To look at a map without opening the game:
+
+```
+tools/map_preview.sh res://game/arena/construction_site.gd OUT_DIR --shots="sw;top;cut7.5;-24,1.7,35:0,13,0:75"
+```
+
+Shots are corners (`sw`, `ne`, ...), `top` (a plan), `cutY` (a plan with everything above
+height Y sliced off, to see one floor) or a camera `x,y,z:look-x,y,z:fov`. `--look=NAME`
+renders one of the other looks kept in `site_kit.gd` (`golden`, `dusk`, `mist`).
+
+After moving things on the Construction Site, run `tests/site_test.gd`: it tells you if a
+route no longer works or a bot can no longer reach a floor.
 
 ## Tuning movement
 

@@ -86,6 +86,7 @@ func build() -> MapLayout:
 	crane(CRANE_BASE, CRANE_HEIGHT, Vector3(-1, 0, 1), 56, 14, 52, 13)
 	_yard()
 	hoarding(HALF, FENCE_HEIGHT)
+	_signage()
 	_spawns()
 	surroundings(HALF + 6.0)
 	return self
@@ -320,6 +321,29 @@ func _conveyor() -> void:
 		for s in [-1, 1]:
 			_box(Vector3(p.x, (p.y - 0.4) * 0.5, p.z + s * (CONVEYOR_W * 0.5 + 0.1)), Vector3(0.16, p.y - 0.4, 0.16), "machine_dark", false)
 		_box(Vector3(p.x, (p.y - 0.4) * 0.6, p.z), Vector3(0.1, 0.1, CONVEYOR_W + 0.2), "machine_dark", false)
+
+
+## Floor numbers on the lift shaft (so you can call out where you are), sign boards
+## and a gate on the fence, and the haul road.
+func _signage() -> void:
+	var names := ["G", "1", "2", "3", "4", "5"]
+	for i in names.size():
+		var f := i * 4.0
+		stencil(Vector3(3.03, f + 1.9, 0), names[i], PI * 0.5)
+		stencil(Vector3(-3.03, f + 1.9, 0), names[i], -PI * 0.5)
+		if i > 0:
+			stencil(Vector3(0, f + 1.9, 3.03), names[i], 0.0)
+	site_board(HALF, 0, -16, "JS BUILD CO.", 150)
+	site_board(HALF, 0, 15, "SITE RULES:  NO JUMPING  ·  NO SHOOTING", 84)
+	site_board(HALF, 3, 0, "HARD HATS MUST BE WORN", 100)
+	site_board(HALF, 1, 6, "DANGER  ·  DEEP EXCAVATION", 96)
+	site_board(HALF, 2, -17, "GATE 1  ·  DELIVERIES", 100)
+	site_gate(HALF, 2, 0)
+	# The haul road: in at the gate, up to the earth ramp, and round the east side
+	_decal(Vector3(0, 0.012, 35.5), Vector3(8, 0.02, 9), "gravel")
+	_decal(Vector3(12.5, 0.012, 35), Vector3(17, 0.02, 4.5), "gravel")
+	_decal(Vector3(23, 0.012, 1.5), Vector3(4.5, 0.02, 71.5), "gravel")
+	_decal(Vector3(2.5, 0.012, -32), Vector3(36.5, 0.02, 4.5), "gravel")
 
 
 # ---------------------------------------------------------------------------
