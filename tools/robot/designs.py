@@ -5,6 +5,7 @@ Materials (the game recolours "accent" and "visor" per player):
   armor   the main shell          accent  player-colour panels
   joint   dark joints and hands   visor   the glowing face
   detail  mid-grey trim
+  steel, mail, cloth, cross   the Templar's plate, chain mail, white surcoat and red cross
 The guns are in weapons.py: every robot holds all of them, and the game shows one.
 """
 import math
@@ -18,6 +19,11 @@ MATERIALS = {
     "joint": {"color": (0.12, 0.13, 0.15), "metallic": 0.3, "roughness": 0.6},
     "detail": {"color": (0.36, 0.38, 0.42), "metallic": 0.3, "roughness": 0.5},
     "visor": {"color": (0.05, 0.05, 0.06), "metallic": 0.0, "roughness": 0.3, "emission": (0.95, 0.35, 0.25)},
+    # The Templar's own surfaces (the game leaves any kind but accent and visor as built).
+    "steel": {"color": (0.66, 0.68, 0.71), "metallic": 0.75, "roughness": 0.32},
+    "mail": {"color": (0.40, 0.41, 0.43), "metallic": 0.6, "roughness": 0.6},
+    "cloth": {"color": (0.93, 0.91, 0.86), "metallic": 0.0, "roughness": 0.9},
+    "cross": {"color": (0.70, 0.06, 0.07), "metallic": 0.0, "roughness": 0.8},
 }
 MATERIALS.update(weapons.materials())   # "<gun>.<kind>": each gun's own surfaces (see weapons.py)
 
@@ -501,13 +507,87 @@ def orbit():
     return m
 
 
+# ---------------------------------------------------------------------------
+def templar():
+    """Knight: a crusader. Flat-topped great helm with an eye slit behind a cross of
+    trim, a white surcoat with a red cross over chain mail, plate at the shoulders,
+    elbows and knees, a split surcoat skirt and steel sabatons. The cross stays red; the player colour is on the
+    helm's cross, the belt, the shoulder bands and the hems."""
+    m = Mesh()
+    # Head: the great helm, flat-fronted with chamfered sides and a flat top
+    m.add(prism(8, 0.055, 0.10).move(0, 1.47, 0), "mail", "head")
+    m.add(loft([rect8(0.26, 0.28, 1.485, 0.05), rect8(0.25, 0.27, 1.53, 0.05), rect8(0.245, 0.265, 1.76, 0.05),
+                rect8(0.225, 0.245, 1.785, 0.045), rect8(0.19, 0.21, 1.80, 0.04)]), "steel", "head")
+    m.add(loft([rect8(0.265, 0.285, 1.485, 0.05), rect8(0.265, 0.285, 1.51, 0.05)]), "detail", "head")  # lower rim
+    m.add(loft([rect8(0.25, 0.27, 1.735, 0.05), rect8(0.25, 0.27, 1.755, 0.05)]), "detail", "head")  # crown band
+    m.add_pair(box(0.058, 0.018, 0.02).move(-0.043, 1.645, -0.136), "visor", "head")  # eye slit
+    m.add(box(0.15, 0.024, 0.02).move(0, 1.668, -0.139), "accent", "head")  # brow bar of the cross
+    m.add(box(0.028, 0.17, 0.02).move(0, 1.585, -0.139), "accent", "head")  # nasal bar
+    for i in range(3):
+        for j in range(2):
+            m.add(box(0.012, 0.012, 0.02).move(0.038 + 0.022 * j, 1.545 + 0.025 * i, -0.137), "joint", "head")  # breaths
+            m.add(box(0.012, 0.012, 0.02).move(-0.038 - 0.022 * j, 1.545 + 0.025 * i, -0.137), "joint", "head")
+
+    # Torso: mail collar under the helm, the surcoat over the chest with a red cross front and back
+    m.add(loft([rect8(0.32, 0.24, 1.43, 0.06), rect8(0.26, 0.21, 1.49, 0.05), rect8(0.17, 0.16, 1.53, 0.04)],
+               cap_end=False), "mail", "chest")
+    m.add(loft([rect8(0.30, 0.22, 1.17, 0.05), rect8(0.40, 0.25, 1.30, 0.06), rect8(0.40, 0.25, 1.45, 0.06),
+                rect8(0.27, 0.18, 1.50, 0.04)]), "cloth", "chest")
+    for side in (-1, 1):
+        bar = loft([rect8(0.06, 0.02, 1.19, 0.0, cz=0.112 * side), rect8(0.06, 0.02, 1.30, 0.0, cz=0.128 * side),
+                    rect8(0.06, 0.02, 1.455, 0.0, cz=0.128 * side)])
+        m.add(bar, "cross", "chest")
+        m.add(box(0.24, 0.06, 0.02).move(0, 1.37, 0.128 * side), "cross", "chest")
+    m.add(loft([rect8(0.28, 0.20, 1.02, 0.05), rect8(0.31, 0.225, 1.19, 0.05)]), "cloth", "spine")
+    m.add(loft([rect8(0.06, 0.02, 1.03, 0.0, cz=-0.105), rect8(0.06, 0.02, 1.18, 0.0, cz=-0.115)]), "cross", "spine")
+    m.add(loft([rect8(0.06, 0.02, 1.03, 0.0, cz=0.105), rect8(0.06, 0.02, 1.18, 0.0, cz=0.115)]), "cross", "spine")
+    m.add(loft([rect8(0.27, 0.19, 0.84, 0.05), rect8(0.35, 0.235, 0.93, 0.06), rect8(0.31, 0.21, 1.05, 0.05)]), "cloth", "hips")
+    m.add(box(0.36, 0.045, 0.25, 0.05).move(0, 0.985, 0), "accent", "hips")  # sword belt
+    m.add(box(0.05, 0.05, 0.02).move(0, 0.985, -0.128), "steel", "hips")  # buckle
+    # The surcoat skirt: a short hoop on the hips, then a split panel down each thigh
+    m.add(loft([rect8(0.36, 0.25, 0.96, 0.06), rect8(0.40, 0.29, 0.78, 0.07)], cap_start=False), "cloth", "hips")
+
+    # Arms: mail sleeves, round steel shoulder plates, elbow cops, plated gauntlets
+    m.add_pair(ball(0.068).move(-0.215, 1.40, 0), "mail", "upper_arm_l")
+    m.add_pair(loft([ngon(10, 0.075, 1.33, 0.085, cx=-0.245), ngon(10, 0.10, 1.40, 0.11, cx=-0.255),
+                     ngon(10, 0.085, 1.47, 0.095, cx=-0.245), ngon(10, 0.04, 1.51, 0.05, cx=-0.235)]), "steel", "upper_arm_l")
+    m.add_pair(loft([ngon(10, 0.101, 1.385, 0.111, cx=-0.255), ngon(10, 0.101, 1.40, 0.111, cx=-0.255)]), "accent", "upper_arm_l")
+    m.add_pair(loft([rect8(0.10, 0.105, 1.35, 0.03, cx=-0.217), rect8(0.09, 0.095, 1.17, 0.028, cx=-0.215)]), "mail", "upper_arm_l")
+    m.add_pair(ball(0.058).move(-0.215, 1.13, 0.0), "steel", "forearm_l")  # elbow cop
+    m.add_pair(loft([rect8(0.085, 0.09, 1.10, 0.025, cx=-0.215), rect8(0.09, 0.095, 0.99, 0.026, cx=-0.215)]), "mail", "forearm_l")
+    m.add_pair(loft([rect8(0.13, 0.14, 1.01, 0.035, cx=-0.215), rect8(0.10, 0.11, 0.90, 0.028, cx=-0.215)]), "steel", "forearm_l")  # gauntlet cuff
+    m.add_pair(box(0.062, 0.10, 0.095, 0.018).move(-0.215, 0.835, 0), "steel", "hand_l")
+    m.add_pair(box(0.066, 0.03, 0.10, 0.012).move(-0.215, 0.81, 0), "joint", "hand_l")  # knuckle plate
+    _arms_common(m, -0.30)
+
+    # Legs: mail chausses, a knee plate, steel sabatons
+    m.add_pair(ball(0.07).move(-0.10, 0.90, 0), "mail", "thigh_l")
+    m.add_pair(loft([rect8(0.14, 0.15, 0.87, 0.035, cx=-0.11), rect8(0.13, 0.145, 0.70, 0.035, cx=-0.11),
+                     rect8(0.10, 0.11, 0.55, 0.028, cx=-0.10)]), "mail", "thigh_l")
+    m.add_pair(loft([rect8(0.17, 0.18, 0.82, 0.04, cx=-0.11), rect8(0.19, 0.20, 0.59, 0.05, cx=-0.113)], cap_start=False),
+               "cloth", "thigh_l")  # the skirt's split panel
+    m.add_pair(loft([rect8(0.195, 0.205, 0.605, 0.05, cx=-0.113), rect8(0.195, 0.205, 0.585, 0.05, cx=-0.113)]), "accent", "thigh_l")
+    m.add_pair(ball(0.055).move(-0.10, 0.50, 0), "mail", "shin_l")
+    m.add_pair(loft([rect8(0.10, 0.02, 0.58, 0.0, cx=-0.10, cz=-0.06), rect8(0.12, 0.05, 0.50, 0.012, cx=-0.10, cz=-0.075),
+                     rect8(0.09, 0.02, 0.43, 0.0, cx=-0.10, cz=-0.06)]), "steel", "shin_l")  # poleyn
+    m.add_pair(loft([rect8(0.10, 0.11, 0.46, 0.025, cx=-0.10), rect8(0.12, 0.14, 0.33, 0.03, cx=-0.10, cz=0.01),
+                     rect8(0.095, 0.105, 0.15, 0.025, cx=-0.10)]), "mail", "shin_l")
+    m.add_pair(ball(0.047).move(-0.10, 0.10, 0), "mail", "foot_l")
+    foot = _along_z(loft([rect8(0.12, 0.09, -0.085, 0.02, cz=0.045), rect8(0.13, 0.095, 0.07, 0.022, cz=0.047),
+                          rect8(0.09, 0.05, 0.19, 0.015, cz=0.025), rect8(0.04, 0.025, 0.225, 0.006, cz=0.012)]))
+    m.add_pair(foot.move(-0.10, 0, 0), "steel", "foot_l")
+    m.add_pair(box(0.135, 0.02, 0.28, 0.02).move(-0.10, 0.01, -0.04), "joint", "foot_l")
+    weapons.add_all(m)
+    return m
+
+
 ARM_BONES = ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
              "pistol", "pistol_slide", "pistol_mag", "pistol_l", "pistol_l_slide", "pistol_l_mag")  # what the first-person view shows (every gun rides on the last three)
 
 DESIGNS = {"vanguard": vanguard, "brick": brick, "needle": needle, "kestrel": kestrel, "bulwark": bulwark,
-           "rivet": rivet, "specter": specter, "orbit": orbit}
-PLAYABLE = ("needle", "vanguard", "kestrel", "bulwark", "rivet", "specter", "orbit")
+           "rivet": rivet, "specter": specter, "orbit": orbit, "templar": templar}
+PLAYABLE = ("needle", "vanguard", "kestrel", "bulwark", "rivet", "specter", "orbit", "templar")
 # First-person arms only: thin a design's forearms and hands by this factor, so bulky
 # gauntlets held up to the camera do not fill the view or push through each other.
-FP_SLIM = {"vanguard": 0.74, "bulwark": 0.68, "rivet": 0.8}
+FP_SLIM = {"vanguard": 0.74, "bulwark": 0.68, "rivet": 0.8, "templar": 0.78}
   # the characters build.py writes for the game (see game/player/robot/characters.gd)
