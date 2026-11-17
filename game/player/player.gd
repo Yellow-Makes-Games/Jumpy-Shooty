@@ -1197,6 +1197,13 @@ func latest_position() -> Vector3:
 	return last.pos + Vector3(0, tuck_offset(last.state), 0)
 
 
+## Newest known velocity: from snapshots, or the body's own for a player with none.
+func latest_velocity() -> Vector3:
+	if not buffer.has_data():
+		return velocity
+	return buffer.snaps[-1].vel
+
+
 func latest_time() -> float:
 	return buffer.snaps[-1].t if buffer.has_data() else Net.now()
 
