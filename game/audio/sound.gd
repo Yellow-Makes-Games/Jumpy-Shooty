@@ -9,7 +9,7 @@ extends Node
 ##    where a fight is. They get quieter and duller with distance.
 ## Names ending in a number ("step_1".."step_6") are variants: play("step") picks one.
 ##
-## Buses: Master <- Effects (all of this) and Master <- Music (empty for now). The
+## Buses: Master <- Effects (all of this) and Master <- Music (the songs: see Music). The
 ## Audio sliders in Settings set their volumes. A limiter on Master keeps gunfire
 ## from clipping.
 ##
