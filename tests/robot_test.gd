@@ -108,6 +108,7 @@ func _check_character() -> void:
 		[S.DIVE, true, 0, true, "dive"], [S.ROLL, true, 0, true, "roll"],
 		[S.BELLY_SLIDE, true, 0, true, "belly_slide"],
 		[S.FLIP, false, 0, true, "flip_front"], [S.FLIP, false, flip_r, true, "flip_right"],
+		[S.FLOAT, false, 0, true, "float"],
 		[S.GROUND, false, 0, false, "death"],
 	]
 	for c in cases:
@@ -165,6 +166,24 @@ func _check_character() -> void:
 		_expect("%s: no joint sinks into the floor" % what, _lowest_bone() > 0.0, "%.2f" % _lowest_bone())
 		var gun := robot.marker("muzzle")
 		_expect("%s: gun out in front, off the floor" % what, gun.z < -0.6 and gun.y > 0.1, str(gun))
+
+	_fresh()
+	var floating := _input(S.FLOAT, Vector3(0, 0, -12), 0.0)
+	_run(floating, 0.5)
+	var held := robot.bone_position("muzzle")
+	_expect("floating: gun still held out in front", held.z < -0.35 and held.y > 1.2, str(held))
+	var seat := robot.bone_position("hips")
+	var leg_l := robot.bone_position("foot_l") - seat
+	var leg_r := robot.bone_position("foot_r") - seat
+	_expect("floating: legs straight out to the sides",
+		Vector2(leg_l.x, leg_l.z).length() > 0.65 and Vector2(leg_r.x, leg_r.z).length() > 0.65 and leg_l.dot(leg_r) < 0.0,
+		"%s %s" % [leg_l, leg_r])
+	_run(floating, RobotAnimator.FLOAT_SPIN_TIME * 0.25)
+	var later := robot.bone_position("foot_l") - robot.bone_position("hips")
+	var turned := rad_to_deg(absf(Vector2(leg_l.x, leg_l.z).angle_to(Vector2(later.x, later.z))))
+	_near("floating: the legs turn a quarter circle in a quarter of the spin time (degrees)", turned, 90.0, 8.0)
+	_expect("floating: the gun stays on target while they turn", robot.bone_position("muzzle").distance_to(held) < 0.03,
+		"%.3f m" % robot.bone_position("muzzle").distance_to(held))
 
 	_fresh()
 	var before := robot.marker("muzzle")

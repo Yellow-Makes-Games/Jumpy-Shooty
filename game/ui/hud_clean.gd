@@ -1,7 +1,7 @@
 class_name HudClean
 extends RefCounted
 ## "Clean" HUD layout: the classic corners, kept small.
-## Bottom left: your moves (grapple, dive, flip, slide boost, rocket boots, kick) above your health.
+## Bottom left: your moves (grapple, dive, flip, float, slide boost, rocket boots, kick) above your health.
 ## Bottom right: ammo with one tick per round. Under the crosshair: speed and
 ## what you are doing, small and faint.
 

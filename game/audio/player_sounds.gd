@@ -113,6 +113,8 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 	var was_air: bool = not (_state in grounded_states) and _state != S.MANTLE and _state != S.WALL_RUN
 	if state in [S.AIR, S.DIVE, S.FLIP, S.GRAPPLE]:
 		_fall = minf(_fall, a.velocity.y)
+	elif state == S.FLOAT:
+		_fall = 0.0   # a float stops the fall: the landing after it is only as hard as the drop from there
 
 	if state != _state:
 		match state:
@@ -121,6 +123,7 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 			S.ROLL: _play("roll")
 			S.DIVE: _play("dive")
 			S.FLIP: _play("flip")
+			S.FLOAT: _play("float")
 			S.WALL_RUN: _play("wall_run")
 			S.MANTLE: _play("vault" if a.vaulting() else "ledge_climb")
 			S.AIR:
