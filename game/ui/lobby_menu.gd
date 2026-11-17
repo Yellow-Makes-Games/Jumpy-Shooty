@@ -229,14 +229,12 @@ func _build_map() -> void:
 	# Mode first: race maps only show up for a race, arena maps only for a shoot-out.
 	UiKit.section(_col, "Mode")
 	_game_label = UiKit.label(_col, "")
-	_game_row = UiKit.segmented(_col, ["Shoot-out (FFA / 1v1)", "Race"], Maps.GAMES.find(Net.game_kind()), func(i: int):
+	_game_row = UiKit.segmented(_col, GunGame.MODE_LABELS, GunGame.MODES.find(GunGame.mode_of(Net.match_settings)), func(i: int):
 		if _updating:
 			return
-		var g: String = Maps.GAMES[i]
-		var s := Net.match_settings.duplicate()
-		s["game"] = g
-		s["map"] = Game.last_map.get(g, Maps.default_id(g))
-		Net.set_match_settings(s))
+		var m: String = GunGame.MODES[i]
+		var g := GunGame.game_of_mode(m)
+		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))))
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()
@@ -293,24 +291,27 @@ func _build_rules() -> void:
 func _refresh_rules() -> void:
 	var s: Dictionary = Net.match_settings
 	var race := Net.game_kind() == "race"
-	var kills_mode: bool = s.mode == "kills"
+	var gun_game := GunGame.active()
+	var kills_mode: bool = s.mode != "time"
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
 	if race:
 		_rules_label.text = "First to the finish  ·  %d minute limit" % int(s.get("race_minutes", 10))
-	_game_label.text = Maps.GAME_NAMES.get(Net.game_kind(), "")
+	if gun_game:
+		_rules_label.text = "Every kill moves you to the next of %d weapons. First to get a kill with the last one (brass knuckles) wins. Kicked to death: back one weapon." % GunGame.steps()
+	_game_label.text = "Gun Game" if gun_game else Maps.GAME_NAMES.get(Net.game_kind(), "")
 	_game_label.visible = not Net.is_host()
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
 	if _weapon:
-		_weapon.visible = not race   # no guns in a race
-	_rules_label.visible = not Net.is_host()
-	_host_rules.visible = Net.is_host()
+		_weapon.visible = not race and not gun_game   # no guns in a race; Gun Game hands them out
+	_rules_label.visible = not Net.is_host() or gun_game
+	_host_rules.visible = Net.is_host() and not gun_game
 	_map_label.text = Maps.label(Net.map_id())
 	_map_label.visible = not Net.is_host()
 	_map_pick.visible = Net.is_host()
 	_updating = true
 	for i in _game_row.get_child_count():
-		(_game_row.get_child(i) as Button).set_pressed_no_signal(Maps.GAMES[i] == Net.game_kind())
+		(_game_row.get_child(i) as Button).set_pressed_no_signal(GunGame.MODES[i] == GunGame.mode_of(s))
 	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
 	_mode_pick.select(0 if kills_mode else 1)
 	if race:

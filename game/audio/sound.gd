@@ -289,7 +289,8 @@ func _on_player_died(victim: int, killer: int) -> void:
 ## A melee blow landed: a clang where each one struck (the hammer's is a heavy crash).
 func _on_melee_landed(_attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
 	for i in mini(points.size(), 2):
-		var hit := "hammer_hit" if weapon_id in ["hammer", "flying_kick"] else "melee_hit"
+		var hit: String = {"hammer": "hammer_hit", "flying_kick": "hammer_hit", "axe": "hammer_hit", "bat": "bat_hit",
+			"brass_knuckles": "punch_hit"}.get(weapon_id, "melee_hit")
 		play_at(hit, points[i], "body", -2.0 * i, 0.06)
 
 

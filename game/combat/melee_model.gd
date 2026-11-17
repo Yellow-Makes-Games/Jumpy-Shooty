@@ -1,6 +1,6 @@
 class_name MeleeModel
 extends RefCounted
-## The melee weapons' looks (sword, hammer, dagger), built from simple shapes and
+## The melee weapons' looks (sword, hammer, dagger, brass knuckles, spear, axe, bat), built from simple shapes and
 ## carried in the robot's fist on its "pistol" bone (the grip). The guns live in the
 ## robot model files; the blades are made here so they need no new model files.
 ##
@@ -16,7 +16,9 @@ const TO_BONE := Basis(Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0))
 ## The blade leans forward a little in the ready stance.
 const READY_TILT := -0.45
 ## How far up the weapon its cutting edge runs (from, to), in metres from the grip.
-const EDGES := {"sword": [0.3, 1.0], "hammer": [0.55, 0.9], "dagger": [0.12, 0.45]}
+const EDGES := {"sword": [0.3, 1.0], "hammer": [0.55, 0.9], "dagger": [0.12, 0.45],
+	"brass_knuckles": [0.0, 0.1], "spear": [0.95, 1.5], "axe": [0.52, 0.8], "bat": [0.35, 0.86]}
+const WOOD := Color(0.45, 0.28, 0.15)
 
 
 ## Adds the weapon to `model` (a RobotModel). `viewmodel`: first-person arms (own shader).
@@ -33,7 +35,7 @@ static func attach(model: RobotModel, id: String, trim: Color, viewmodel: bool) 
 		mi.mesh = part[0]
 		mi.transform = part[1]
 		var kind: String = part[2]
-		var color: Color = {"steel": STEEL, "dark": DARK, "grip": GRIP, "edge": trim}[kind]
+		var color: Color = {"steel": STEEL, "dark": DARK, "grip": GRIP, "edge": trim, "wood": WOOD}[kind]
 		var energy := 1.4 if kind == "edge" else 0.0
 		if viewmodel:
 			var sm := ShaderMaterial.new()
@@ -75,6 +77,40 @@ static func edge(melee: Node3D) -> Array:
 ## [mesh, transform, material kind] for each piece of a weapon.
 static func parts(id: String) -> Array:
 	match id:
+		"brass_knuckles":   # four rings across the fingers, a bar in the palm, spikes on the knuckles
+			var out := [[_box(0.03, 0.105, 0.022), _at(0, 0.0, -0.05), "steel"], [_box(0.026, 0.09, 0.014), _at(0, 0.0, 0.005), "dark"]]
+			for i in 4:
+				var y := -0.04 + i * 0.027
+				out.append([_box(0.032, 0.006, 0.06), _at(0, y + 0.0135, -0.022), "steel"])
+				out.append([_tip(0.022, 0.024, 0.018), Transform3D(Basis(Vector3.RIGHT, -PI / 2.0), Vector3(0, y, -0.072)), "edge"])
+			return out
+		"spear":
+			return [
+				[_cyl(0.019, 1.95), _at(0, 0.45), "wood"],
+				[_cyl(0.024, 0.14), _at(0, -0.02), "grip"],
+				[_cyl(0.026, 0.05), _at(0, 1.43), "dark"],
+				[_box(0.07, 0.2, 0.014), _at(0, 1.56), "steel"],
+				[_tip(0.07, 0.14, 0.014), _at(0, 1.73), "steel"],
+				[_box(0.012, 0.3, 0.018), _at(0, 1.6), "edge"],
+				[_cyl(0.022, 0.06), _at(0, -0.52), "dark"],
+			]
+		"axe":
+			return [
+				[_cyl(0.022, 0.8), _at(0, 0.28), "wood"],
+				[_cyl(0.027, 0.13), _at(0, -0.06), "grip"],
+				[_box(0.04, 0.12, 0.1), _at(0, 0.66, 0.0), "dark"],
+				[_box(0.022, 0.24, 0.16), _at(0, 0.66, -0.12), "steel"],
+				[_box(0.026, 0.27, 0.025), _at(0, 0.66, -0.205), "edge"],
+				[_box(0.034, 0.06, 0.06), _at(0, 0.66, 0.07), "steel"],
+			]
+		"bat":
+			return [
+				[_cone(0.022, 0.05, 0.7), _at(0, 0.5), "wood"],
+				[_cyl(0.022, 0.24), _at(0, 0.03), "grip"],
+				[_cyl(0.032, 0.03), _at(0, -0.1), "dark"],
+				[_cyl(0.052, 0.025), _at(0, 0.72), "edge"],
+				[_cyl(0.05, 0.03), _at(0, 0.86), "dark"],
+			]
 		"hammer":
 			return [
 				[_cyl(0.026, 0.8), _at(0, 0.24), "grip"],
@@ -121,6 +157,13 @@ static func _cyl(r: float, h: float) -> CylinderMesh:
 	m.height = h
 	m.radial_segments = 10
 	m.rings = 1
+	return m
+
+
+## A round bar that widens from `r0` at the bottom to `r1` at the top.
+static func _cone(r0: float, r1: float, h: float) -> CylinderMesh:
+	var m := _cyl(r0, h)
+	m.top_radius = r1
 	return m
 
 

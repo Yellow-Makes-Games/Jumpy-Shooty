@@ -212,13 +212,15 @@ func _map_picker(parent: Node, current: String, game: String = "ffa") -> OptionB
 const MODE_LABELS := ["Shoot-out (FFA / 1v1)", "Race"]
 
 
-## A "Mode" heading and switch: free-for-all (or 1v1) or race. Returns [mode] (an
-## array, so the callbacks can change it); `on_change` gets the new game id.
-func _mode_picker(parent: Node, game: String, on_change: Callable) -> Array:
+## A "Mode" heading and switch: free-for-all (or 1v1) or race, and Gun Game if
+## `gun_game`. Returns [mode] (an array, so the callbacks can change it); `on_change`
+## gets the new mode: a game id ("ffa", "race") or "gungame".
+func _mode_picker(parent: Node, game: String, on_change: Callable, gun_game: bool = false) -> Array:
 	UiKit.section(parent, "Mode")
 	var mode := [game]
-	UiKit.segmented(parent, MODE_LABELS, Maps.GAMES.find(game), func(i: int):
-		mode[0] = Maps.GAMES[i]
+	var modes: Array = GunGame.MODES if gun_game else Maps.GAMES
+	UiKit.segmented(parent, GunGame.MODE_LABELS if gun_game else MODE_LABELS, maxi(modes.find(game), 0), func(i: int):
+		mode[0] = modes[i]
 		on_change.call(mode[0]))
 	return mode
 
@@ -294,11 +296,13 @@ func _show_bot() -> void:
 	var blurb := UiKit.label(left, "", true, 15)
 	blurb.custom_minimum_size = Vector2(0, 40)
 	var game := str(Game.last_bot.get("game", Maps.game_of(Game.last_bot.map)))
+	if game == "ffa" and str(Game.last_bot.get("rules", "")) == "gungame":
+		game = "gungame"
 	var map_ref: Array[OptionButton] = [null]   # filled below; see _show_practice
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
 		var race := g == "race"
-		kills_box.visible = not race
+		kills_box.visible = g == "ffa"
 		for n in range(1, Game.MAX_BOTS + 1):
 			var t := "%d (1v1)" % n if n == 1 else "%d (free-for-all)" % n
 			if race:
@@ -309,19 +313,20 @@ func _show_bot() -> void:
 		(seg.get_child(i) as Button).pressed.connect(func():
 			level[0] = i
 			blurb.text = (RACE_BLURBS if map_ref[0] and Maps.game_of(Maps.picked(map_ref[0])) == "race" else BOT_BLURBS)[i])
-	var mode := _mode_picker(left, game, func(g: String):
-		show_mode.call(g)
-		Maps.fill(map_ref[0], Game.last_map.get(g, Maps.default_id(g)), g))
+	var mode := _mode_picker(left, game, func(m: String):
+		show_mode.call(m)
+		var g := GunGame.game_of_mode(m)
+		Maps.fill(map_ref[0], Game.last_map.get(g, Maps.default_id(g)), g), true)
 	# The mode switch goes first on the page.
 	var mode_row_start := left.get_child_count() - 2
 	left.move_child(left.get_child(mode_row_start), 0)
 	left.move_child(left.get_child(mode_row_start + 1), 1)
-	var map := _map_picker(left, Game.last_bot.map, mode[0])
+	var map := _map_picker(left, Game.last_bot.map, GunGame.game_of_mode(mode[0]))
 	map_ref[0] = map
 	show_mode.call(mode[0])
 	var buttons := _back_row(_show_play)
 	_start_button(buttons, func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
-			count.get_selected_id()))
+			count.get_selected_id(), mode[0] == "gungame"))
 
 
 func _show_multiplayer() -> void:

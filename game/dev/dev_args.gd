@@ -29,7 +29,7 @@ extends Node
 ## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
 ##                      P percent of movement packets lost (incoming, this copy only).
 ## --scripted-fire     With --scripted-input: aim at the nearest opponent and shoot.
-## --rules=kills:N | time:MINUTES  Host only: set the lobby's win condition.
+## --rules=kills:N | time:MINUTES | gungame  Set the win condition (Gun Game also works with --bot).
 ## --kill-target=N      Host only: override the kill target for this match.
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).

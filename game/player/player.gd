@@ -77,6 +77,8 @@ var _tug_left := 0.0
 var _tug_fresh := false
 var _flame: Node3D                # rocket-boot flames under the feet
 var _flame_t := 0.0
+var _burst_left := 0              # local: rounds of a burst still to fire
+var _burst_wait := 0.0            # local: seconds until the next round of the burst
 
 
 func _init() -> void:
@@ -304,15 +306,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pick_on_death(event)
 
 
-## Waiting to respawn: 1-7 (or the mouse wheel) picks the weapon you come back with.
+## Waiting to respawn: the mouse wheel goes through every weapon, and the number keys
+## pick a group (1 sidearms, 2 shotguns... 6 melee; again goes on through the group).
 func _pick_on_death(event: InputEvent) -> void:
+	if GunGame.active():
+		return   # Gun Game hands out the weapons
 	var ids := WeaponData.IDS
 	var current := ids.find(Net.player_weapon(peer_id))
 	var pick := -1
 	if event is InputEventKey and event.pressed and not event.echo:
 		var k: int = event.keycode - KEY_1
-		if k >= 0 and k < ids.size():
-			pick = k
+		if k >= 0 and k < WeaponData.GROUPS.size():
+			var group: Array = WeaponData.GROUPS[k][1]
+			var at := group.find(ids[current]) if current >= 0 else -1
+			pick = ids.find(group[(at + 1) % group.size()] if at >= 0 else group[0])
 	elif event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			pick = (current + 1) % ids.size()
@@ -390,6 +397,19 @@ func _update_weapon(delta: float) -> void:
 	if weapon.data.is_melee():
 		_update_melee(delta)
 		return
+	if _burst_left > 0:   # the rest of a burst, a round every burst_gap seconds
+		_burst_wait -= delta
+		if _burst_wait <= 0.0 and Match.running and weapon.ammo > 0 and not weapon.is_reloading():
+			_burst_left -= 1
+			_burst_wait = weapon.data.burst_gap
+			weapon.ammo -= 1
+			_fire_round()
+			if weapon.ammo <= 0:
+				_burst_left = 0
+				weapon.start_reload()
+		elif weapon.ammo <= 0 or weapon.is_reloading():
+			_burst_left = 0
+		return
 	var wants: bool = input.fire if weapon.data.automatic else _fire_buffer > 0.0
 	if not wants or not Match.running:
 		return
@@ -398,6 +418,15 @@ func _update_weapon(delta: float) -> void:
 			Sound.play("dry_click", 0.0, 0.03)   # empty: the gun clicks while it reloads
 		return
 	_fire_buffer = 0.0
+	if weapon.data.burst > 1:
+		_burst_left = weapon.data.burst - 1
+		_burst_wait = weapon.data.burst_gap
+	_fire_round()
+
+
+## One round leaves the gun (a shot, or a rocket or grenade): sound, recoil, and the
+## host is asked what it hit.
+func _fire_round() -> void:
 	Sound.gun_fire(weapon.data.id, muzzle_position(), sounds.own)
 	sounds.fired()
 	animator.fire()
@@ -406,6 +435,9 @@ func _update_weapon(delta: float) -> void:
 	if view:
 		view.fire()
 	var eye := eye_position()
+	if weapon.data.is_projectile():
+		Match.request_projectile(eye, _aim_direction(eye), peer_id)
+		return
 	var dirs := shot_directions(_aim_direction(eye), weapon.data)
 	# Show the shot straight away; the host decides whether it hit.
 	var ends := PackedVector3Array()
@@ -460,8 +492,11 @@ func _strike() -> void:
 	if not alive:
 		return
 	if rig:   # your own blow: the view jolts the way the blade travels
-		var side := 0.0 if robot.weapon == "hammer" else (1.0 if _swings % 2 == 1 else -1.0)
-		_punch += Vector2(side * 0.035, -0.03 if robot.weapon == "hammer" else -0.012)
+		var straight := robot.weapon in ["hammer", "spear", "bat"]   # one way every time
+		var side := 0.0 if straight else (1.0 if _swings % 2 == 1 else -1.0)
+		if robot.weapon == "bat":
+			side = 1.0
+		_punch += Vector2(side * 0.035, -0.03 if robot.weapon in ["hammer", "axe"] else -0.012)
 		_punch_roll += side * 0.03
 	var eye := eye_position()
 	var view_times := {}
@@ -812,7 +847,7 @@ func show_shot() -> void:
 func dev_swap_after_death() -> void:
 	var key := InputEventKey.new()
 	key.pressed = true
-	key.keycode = KEY_1 + (WeaponData.IDS.find(Net.player_weapon(peer_id)) + 1) % WeaponData.IDS.size()
+	key.keycode = KEY_1 + (WeaponData.group_of(Net.player_weapon(peer_id)) + 1) % WeaponData.GROUPS.size()
 	get_tree().create_timer(0.5).timeout.connect(func():
 		if is_instance_valid(self) and is_inside_tree():
 			_pick_on_death(key))
@@ -865,6 +900,61 @@ func respawn_count() -> int:
 
 func set_respawn_count(n: int) -> void:
 	_teleport_count = n
+
+
+## A blast went off nearby: the view jolts (0..1, how close).
+func shake(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	_punch += Vector2(randf_range(-0.03, 0.03), randf_range(0.01, 0.04)) * amount
+	_punch_roll += randf_range(-0.04, 0.04) * amount
+
+
+## Gun Game: a new weapon in your hands right now, wherever you are and whatever you
+## are doing (only the robot's model, arms, sounds and gun are rebuilt, not the movement).
+func change_weapon(gun: String) -> void:
+	if racing or robot == null or robot.weapon == gun:
+		return
+	var was_visible := visual.visible
+	var old_bonus := weapon.data.move_bonus if weapon else 1.0
+	visual.remove_child(robot)
+	robot.queue_free()
+	robot = RobotModel.new().setup(Characters.body(Net.player_character(peer_id)), Net.player_color(peer_id), false, gun)
+	visual.add_child(robot)
+	animator = RobotAnimator.new(robot)
+	sounds = PlayerSounds.new(self, is_local and not is_bot, gun)
+	_seen_swings = -1
+	_strike_left = -1.0
+	_burst_left = 0
+	if is_local:
+		weapon = WeaponState.new(WeaponData.by_id(gun))
+		if old_bonus != 1.0:
+			motor.tuning.run_speed /= old_bonus
+			motor.tuning.sprint_speed /= old_bonus
+			motor.tuning.air_speed /= old_bonus
+		_apply_move_bonus()
+		if is_bot and brain is BotBrain:
+			(brain as BotBrain).weapon_changed()
+	if rig:
+		robot.set_layer(CameraRig.BODY_LAYER)
+		robot.add_view_mesh(CameraRig.VIEW_BODY_LAYER)
+		rig.camera.remove_child(view)
+		view.queue_free()
+		view = ViewModel.new()
+		rig.camera.add_child(view)
+		view.setup(self, Net.player_color(peer_id))
+		view.respawn()
+		if sounds.own:
+			Sound.play("equip_" + gun)
+	if _trail:
+		_trail.queue_free()
+		_trail = null
+	if WeaponData.melee(gun):
+		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(peer_id)))
+		add_child(_trail)
+	visual.visible = was_visible
+	if DevArgs.sync_log:
+		print("GUN %s %d %d %s" % ["SELF" if is_local else "SEEN", Net.my_id(), peer_id, gun])
 
 
 ## Remote player rebuilt while dead (they swapped weapons): hidden until they respawn.

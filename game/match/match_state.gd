@@ -22,6 +22,12 @@ signal match_over(results: Array)
 signal melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array)
 ## Someone hit a wall hard enough to hurt (for the crash sound everyone hears).
 signal slammed(id: int, where: Vector3, speed: float)
+## A rocket or grenade left `shooter`'s gun (everyone draws it: see Projectile).
+signal projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3)
+## ...and blew up here.
+signal exploded(id: int, at: Vector3, weapon_id: String)
+## Gun Game: a player moved up (or down) the ladder to the weapon at `level`.
+signal gun_game_level(id: int, level: int)
 
 const MAX_HEALTH := 100.0
 const RESPAWN_DELAY := 3.0
@@ -53,6 +59,8 @@ var _last_slam_time: Dictionary = {}   # host: id -> Net.now() of last crash tha
 var _last_shove: Dictionary = {}       # host: id -> [who shoved them, Net.now()]
 var _last_kick_time: Dictionary = {}   # host: id -> Net.now() of last accepted kick
 var _tethers: Dictionary = {}          # host: id -> [the player their hook is on, Net.now()]
+var _projectiles: Dictionary = {}      # host: id -> {pos, vel, shooter, weapon, t}
+var _next_projectile := 1
 ## How each player last died: "" (shot or cut down), "fell", or "slam" (hit a wall too hard).
 var death_cause: Dictionary = {}
 var _respawn_counter := 0
@@ -102,6 +110,9 @@ func _on_match_started() -> void:
 		if Game.mode == Game.Mode.PRACTICE:
 			kill_target = 0
 			time_left = INF
+		elif GunGame.active():
+			kill_target = 0   # it ends when someone gets through the ladder
+			time_left = GunGame.TIME_LIMIT if DevArgs.time_limit <= 0.0 else DevArgs.time_limit
 		scores.clear()
 		health.clear()
 		respawn_timers.clear()
@@ -110,9 +121,10 @@ func _on_match_started() -> void:
 		_last_shove.clear()
 		_last_kick_time.clear()
 		_tethers.clear()
+		_projectiles.clear()
 		death_cause.clear()
 		for id in Net.players:
-			scores[id] = {"kills": 0, "deaths": 0}
+			scores[id] = {"kills": 0, "deaths": 0, "level": 0}
 			health[id] = MAX_HEALTH
 		_broadcast_state()
 
@@ -123,9 +135,11 @@ func _on_players_changed() -> void:
 	var changed := false
 	for id in Net.players:
 		if not scores.has(id):  # someone joined mid-match
-			scores[id] = {"kills": 0, "deaths": 0}
+			scores[id] = {"kills": 0, "deaths": 0, "level": 0}
 			health[id] = MAX_HEALTH
 			changed = true
+			if GunGame.active():
+				Net.host_set_weapon(id, GunGame.weapon_at(0))
 	for id in scores.keys():
 		if not Net.players.has(id):
 			scores.erase(id)
@@ -197,7 +211,9 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var now := Net.now()
 	# Fire rate check (a little slack for network timing).
 	# (In game time: the debug menu can speed the game up offline.)
-	if (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale < weapon.fire_interval * 0.7:
+	if (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale < weapon.shot_gap() * 0.7:
+		return
+	if weapon.is_melee() or weapon.is_projectile():
 		return
 	_last_shot_time[shooter] = now
 	var shooter_node: Player = Net.arena.get_player(shooter)
@@ -236,6 +252,23 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		var best_point := end
 		var best_head := false
 		var best_height := 0.0
+		if weapon.pierce:   # the railgun: everyone along the line
+			for b in bodies:
+				var hit := _ray_body(origin, end, b)
+				if hit.is_empty():
+					continue
+				hit_mask |= 1 << i
+				var dmg := weapon.damage_at(hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0)
+				damage[b[0]] = damage.get(b[0], 0.0) + dmg
+				shove[b[0]] = shove.get(b[0], Vector3.ZERO) \
+					+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
+				heads[b[0]] = heads.get(b[0], false) or hit.head
+				if DevArgs.sync_log:
+					log.append("hit %d at %.2f m%s" % [b[0], hit.height, " head" if hit.head else ""])
+			if wall_cell >= 0:
+				breaks.damage(wall_cell, weapon.damage_at(origin.distance_to(end)) * weapon.structure_damage)
+			ends.append(end)
+			continue
 		for b in bodies:
 			var feet: Vector3 = b[1]
 			var height: float = b[2]
@@ -281,6 +314,166 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 				break
 		print("SHOT %d %s" % [shooter, first])
 		print("PELLETS %d %s %d/%d" % [shooter, weapon_id, log.size() - log.count("miss"), log.size()])
+
+
+## Where a ray from `origin` to `end` passes through body `b` ([id, feet, height, yaw]):
+## {dist, height, head}, or {} if it misses.
+func _ray_body(origin: Vector3, end: Vector3, b: Array) -> Dictionary:
+	var feet: Vector3 = b[1]
+	var height: float = b[2]
+	var r := Player.CAPSULE_RADIUS + HIT_FORGIVENESS
+	var pts := Geometry3D.get_closest_points_between_segments(origin, end,
+		feet + Vector3(0, Player.CAPSULE_RADIUS, 0), feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0))
+	if pts[0].distance_to(pts[1]) > r:
+		return {}
+	var h: float = pts[0].y - feet.y
+	return {"dist": origin.distance_to(pts[0]), "height": h, "head": h >= height - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)}
+
+
+# ---------------------------------------------------------------------------
+# Rockets and grenades (WeaponData.Kind.PROJECTILE). The host flies each one (the
+# same path everyone draws), and decides where it blows up and who it hurts.
+
+## Called by the local player (or a bot) when it fires a rocket or grenade: from the
+## eyes, toward where it aims.
+func request_projectile(origin: Vector3, direction: Vector3, shooter: int = 0) -> void:
+	if Net.is_host():
+		_host_projectile(shooter if shooter != 0 else Net.my_id(), origin, direction)
+	else:
+		_projectile_request.rpc_id(1, origin, direction)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _projectile_request(origin: Vector3, direction: Vector3) -> void:
+	if Net.is_host():
+		_host_projectile(multiplayer.get_remote_sender_id(), origin, direction)
+
+
+func _host_projectile(shooter: int, origin: Vector3, direction: Vector3) -> void:
+	if not running or not is_alive(shooter) or not Net.arena or Race.active or direction.length_squared() < 0.0001:
+		return
+	var weapon := WeaponData.by_id(Net.player_weapon(shooter))
+	if not weapon.is_projectile():
+		return
+	var now := Net.now()
+	if (now - _last_shot_time.get(shooter, -10.0)) * Engine.time_scale < weapon.fire_interval * 0.7:
+		return
+	var who: Player = Net.arena.get_player(shooter)
+	if who == null or origin.distance_to(who.latest_position() + Vector3(0, CameraRig.EYE_HEIGHT, 0)) > 3.0:
+		return
+	_last_shot_time[shooter] = now
+	direction = direction.normalized()
+	var id := _next_projectile
+	_next_projectile += 1
+	_projectiles[id] = {"pos": origin, "vel": direction * weapon.projectile_speed, "shooter": shooter,
+		"weapon": weapon.id, "t": 0.0}
+	if DevArgs.sync_log:
+		print("PROJECTILE %d %s %d" % [shooter, weapon.id, id])
+	_projectile_spawn.rpc(id, shooter, weapon.id, origin, direction)
+
+
+@rpc("authority", "call_local", "reliable")
+func _projectile_spawn(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3) -> void:
+	projectile_fired.emit(id, shooter, weapon_id, origin, direction)
+
+
+func _physics_process(delta: float) -> void:
+	if _projectiles.is_empty() or not Net.is_host():
+		return
+	if not running or Net.arena == null:
+		_projectiles.clear()
+		return
+	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
+	for id in _projectiles.keys():
+		var p: Dictionary = _projectiles[id]
+		var w := WeaponData.by_id(p.weapon)
+		var from: Vector3 = p.pos
+		var vel: Vector3 = p.vel
+		vel.y -= w.projectile_gravity * delta
+		var to := from + vel * delta
+		p.vel = vel
+		p.t += delta
+		# Into someone (not the shooter: it leaves from inside them)?
+		var direct := 0
+		var at := to
+		var best := INF
+		for b in _live_bodies(p.shooter):
+			var pts := Geometry3D.get_closest_points_between_segments(from, to,
+				b[1] + Vector3(0, Player.CAPSULE_RADIUS, 0), b[1] + Vector3(0, b[2] - Player.CAPSULE_RADIUS, 0))
+			if pts[0].distance_to(pts[1]) <= Player.CAPSULE_RADIUS + 0.12:
+				var d := from.distance_to(pts[0])
+				if d < best:
+					best = d
+					direct = b[0]
+					at = pts[0]
+		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1))
+		if wall and from.distance_to(wall.position) < best:
+			_host_explode(id, wall.position + wall.normal * 0.05, 0, wall.collider, wall.normal)
+		elif direct != 0:
+			_host_explode(id, at, direct)
+		elif p.t >= w.fuse:
+			_host_explode(id, to, 0)
+		else:
+			p.pos = to
+
+
+## Everyone alive who can be hit, where they are now: [id, feet, height]. Not `except`.
+func _live_bodies(except: int = 0) -> Array:
+	var out := []
+	for id in Net.players:
+		if id == except or not is_alive(id):
+			continue
+		var p: Player = Net.arena.get_player(id)
+		if p:
+			out.append([id, p.latest_position(), Player.height_for_pose(p.pose_at(p.latest_time()))])
+	for d in Net.arena.dummies:
+		if not (d as TargetDummy).is_down():
+			out.append([dummy_id(d.index), d.global_position, Player.CAPSULE_HEIGHT])
+	return out
+
+
+func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, normal: Vector3 = Vector3.UP) -> void:
+	var p: Dictionary = _projectiles.get(id, {})
+	_projectiles.erase(id)
+	if p.is_empty():
+		return
+	var w := WeaponData.by_id(p.weapon)
+	var shooter: int = p.shooter
+	_projectile_boom.rpc(id, at, w.id)
+	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
+	var hits := []   # [id, damage, shove]
+	for b in _live_bodies():
+		var feet: Vector3 = b[1]
+		var near := Geometry3D.get_closest_point_to_segment(at, feet + Vector3(0, Player.CAPSULE_RADIUS, 0),
+			feet + Vector3(0, b[2] - Player.CAPSULE_RADIUS, 0))
+		var d := 0.0 if b[0] == direct else maxf(at.distance_to(near) - Player.CAPSULE_RADIUS, 0.0)
+		if d > w.splash_radius:
+			continue
+		if b[0] != direct and not space.intersect_ray(PhysicsRayQueryParameters3D.create(at, near, 1)).is_empty():
+			continue   # behind a wall
+		var f := 1.0 if d <= w.splash_inner else clampf(1.0 - (d - w.splash_inner) / (w.splash_radius - w.splash_inner), 0.0, 1.0)
+		var dmg := w.damage * f * (w.self_damage if b[0] == shooter else 1.0)
+		var away := feet + Vector3(0, b[2] * 0.5, 0) - at
+		away = away.normalized() if away.length_squared() > 0.0001 else Vector3.UP
+		hits.append([b[0], dmg, away * w.knockback * f + Vector3.UP * w.knockback_up * f])
+	if DevArgs.sync_log:
+		print("BOOM %d %s %d hit %d" % [shooter, w.id, direct, hits.size()])
+	var breaks := _breakables()
+	if breaks and collider:
+		breaks.damage(breaks.cell_at(collider, at - normal * 0.05, normal), w.damage * w.structure_damage)
+		_flush_breaks()
+	for h in hits:
+		if is_dummy(h[0]):
+			_host_dummy_damage(shooter, h[0], h[1], false)
+		else:
+			if h[1] >= 1.0:
+				_host_damage(shooter, h[0], h[1], false)
+			_host_shove(shooter, h[0], h[2])
+
+
+@rpc("authority", "call_local", "reliable")
+func _projectile_boom(id: int, at: Vector3, weapon_id: String) -> void:
+	exploded.emit(id, at, weapon_id)
 
 
 ## Everyone `attacker` could hit, each moved back to where `attacker` saw them:
@@ -454,7 +647,7 @@ func _host_kick(attacker: int, origin: Vector3, direction: Vector3, view_times: 
 		if is_dummy(h[0]):
 			_host_dummy_damage(attacker, h[0], h[1], false)
 		else:
-			_host_damage(attacker, h[0], h[1], false)
+			_host_damage(attacker, h[0], h[1], false, "kick")
 			_host_shove(attacker, h[0], h[2])
 
 
@@ -738,9 +931,38 @@ func _host_kill(victim: int, killer: int, cause: String = "") -> void:
 		scores[killer].kills += 1
 	respawn_timers[victim] = RESPAWN_DELAY
 	_last_shove.erase(victim)
+	var finished := false
+	var moves := []   # Gun Game: [id, new level]
+	if GunGame.active() and killer != 0 and killer != victim and scores.has(killer):
+		var up: int = int(scores[killer].get("level", 0)) + 1
+		scores[killer]["level"] = up
+		if up >= GunGame.steps():
+			finished = true
+		else:
+			moves.append([killer, up])
+		if cause == "kick" and scores.has(victim) and int(scores[victim].get("level", 0)) > 0:
+			scores[victim]["level"] = int(scores[victim].level) - 1   # kicked to death: back one weapon
+			moves.append([victim, scores[victim].level])
 	_died.rpc(victim, killer, scores, cause)
-	if killer != 0 and kill_target > 0 and kills(killer) >= kill_target:
+	for m in moves:
+		Net.host_set_weapon(m[0], GunGame.weapon_at(m[1]))
+		_gun_game_level.rpc(m[0], m[1])
+	if finished:
 		host_end_match()
+	elif killer != 0 and kill_target > 0 and kills(killer) >= kill_target:
+		host_end_match()
+
+
+@rpc("authority", "call_local", "reliable")
+func _gun_game_level(id: int, level: int) -> void:
+	if DevArgs.sync_log:
+		print("GUNGAME %d %d %s" % [id, level, GunGame.weapon_at(level)])
+	gun_game_level.emit(id, level)
+
+
+## Gun Game: how far along the ladder a player is (0 = the first weapon).
+func level(id: int) -> int:
+	return int(scores[id].get("level", 0)) if scores.has(id) else 0
 
 
 @rpc("authority", "call_local", "reliable")
@@ -781,9 +1003,13 @@ func build_results() -> Array:
 	if Race.active:
 		return Race.standings()
 	var rows: Array = []
+	var gun_game := GunGame.active()
 	for id in scores:
-		rows.append({"id": id, "name": Net.player_name(id), "kills": scores[id].kills, "deaths": scores[id].deaths})
+		rows.append({"id": id, "name": Net.player_name(id), "kills": scores[id].kills, "deaths": scores[id].deaths,
+			"level": int(scores[id].get("level", 0))})
 	rows.sort_custom(func(a, b):
+		if gun_game and a.level != b.level:
+			return a.level > b.level
 		if a.kills != b.kills:
 			return a.kills > b.kills
 		return a.deaths < b.deaths)

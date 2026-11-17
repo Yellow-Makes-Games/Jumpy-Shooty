@@ -355,10 +355,23 @@ func _choose_weapon(weapon: String) -> void:
 func _apply_weapon(id: int, weapon: String) -> void:
 	if not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
 		return
+	if in_match and GunGame.active():
+		return   # Gun Game hands out the weapons
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
 		return   # mid-fight you can only swap while waiting to respawn
 	players[id]["weapon"] = WeaponData.valid(weapon)
 	print("[net] %d took the %s" % [id, players[id].weapon])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Host only: give a player a weapon now, alive or not (Gun Game), and tell everyone.
+func host_set_weapon(id: int, weapon: String) -> void:
+	if not is_host() or not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
+		return
+	players[id]["weapon"] = WeaponData.valid(weapon)
 	if is_online:
 		_sync_players.rpc(players)
 	else:
@@ -493,6 +506,13 @@ func map_id() -> String:
 func host_start_match() -> void:
 	if not is_host():
 		return
+	if GunGame.active():   # everyone starts on the first rung of the ladder
+		for id in players:
+			players[id]["weapon"] = GunGame.weapon_at(0)
+		if is_online:
+			_sync_players.rpc(players)
+		else:
+			players_changed.emit()
 	_start_match.rpc()
 
 

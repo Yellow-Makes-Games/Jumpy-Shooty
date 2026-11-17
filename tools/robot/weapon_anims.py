@@ -26,7 +26,32 @@ from rig import Clip, FIST, keyed, merged
 import animations as A
 from weapons import SUPPORT
 
-LONG = ("shotgun", "rifle", "sniper")
+LONG = ("shotgun", "rifle", "sniper", "break_action", "smg", "burst_rifle", "lmg", "lever_action",
+        "bolt_action", "railgun", "rocket_launcher", "grenade_launcher")
+# Sidearms held like the pistol: they keep its poses but have their own reloads.
+SIDEARMS = ("revolver", "machine_pistol")
+
+# How each long gun is held, reloaded and worked after a shot.
+#   hold: whose hold it copies; reload: mag (drop the magazine, with "handle": charge or
+#   bolt after), shell (a shell at a time into the tube, looped), break (tip the barrels
+#   open), cover (lift the top cover, swap the box), gate (a round into the side gate,
+#   looped), top (a round in through the open bolt, looped), cell (swap the power cell),
+#   rocket (a new rocket in at the back), drum (a grenade into the drum, looped);
+#   fire: pump, bolt, lever, vent (the railgun's sleeve snaps back).
+SPEC = {
+    "shotgun": {"hold": "shotgun", "reload": "shell", "fire": "pump"},
+    "rifle": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.06, 0.07, -0.13)},
+    "sniper": {"hold": "sniper", "reload": "mag", "handle": "bolt", "fire": "bolt", "bolt": (-0.088, 0.06, -0.02)},
+    "break_action": {"hold": "shotgun", "reload": "break"},
+    "smg": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.03, 0.07, -0.10), "mag_hold": (0.0, -0.10, -0.085)},
+    "burst_rifle": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.034, 0.075, 0.02), "mag_hold": (0.0, -0.08, -0.10)},
+    "lmg": {"hold": "rifle", "reload": "cover", "mag_hold": (0.0, -0.05, -0.12)},
+    "lever_action": {"hold": "rifle", "reload": "gate", "fire": "lever"},
+    "bolt_action": {"hold": "sniper", "reload": "top", "fire": "bolt", "bolt": (-0.08, 0.06, -0.01)},
+    "railgun": {"hold": "sniper", "reload": "cell", "fire": "vent", "mag_hold": (0.0, -0.005, 0.105)},
+    "rocket_launcher": {"hold": "rocket_launcher", "reload": "rocket"},
+    "grenade_launcher": {"hold": "shotgun", "reload": "drum"},
+}
 
 # Third person, model space (the robot stands at the origin, facing -Z): where the
 # right fist holds the grip, and how far the chest turns to the right.
@@ -34,21 +59,29 @@ HOLD = {
     "shotgun": {"grip": (0.10, 1.42, -0.27), "twist": -32.0},
     "rifle": {"grip": (0.10, 1.42, -0.30), "twist": -30.0},
     "sniper": {"grip": (0.10, 1.43, -0.27), "twist": -32.0},
+    "rocket_launcher": {"grip": (0.10, 1.36, -0.25), "twist": -26.0},
 }
 # First person, relative to the camera.
 FP_HOLD = {
     "shotgun": {"grip": (0.170, -0.275, -0.34), "twist": -24.0},
     "rifle": {"grip": (0.170, -0.265, -0.35), "twist": -22.0},
     "sniper": {"grip": (0.175, -0.272, -0.34), "twist": -24.0},
+    "rocket_launcher": {"grip": (0.175, -0.31, -0.33), "twist": -20.0},
 }
+for _g in LONG:
+    HOLD.setdefault(_g, HOLD[SPEC[_g]["hold"]])
+    FP_HOLD.setdefault(_g, FP_HOLD[SPEC[_g]["hold"]])
 # First person only: the shoulders sit lower and further forward than the body's, so the
 # arms come up into view from below instead of across it (only the arms are drawn).
 FP_HIPS = (0.0, 0.86, -0.09)
 EYE_Y = A.EYE[1]
 
 # Reload lengths match WeaponData (the shotgun's is one shell; it loops).
-RELOAD = {"shotgun": 0.5, "rifle": 1.9, "sniper": 2.4}
-FIRE = {"shotgun": 0.6, "sniper": 1.1}
+RELOAD = {"shotgun": 0.5, "rifle": 1.9, "sniper": 2.4, "break_action": 1.7, "smg": 1.6, "burst_rifle": 2.0,
+          "lmg": 3.6, "lever_action": 0.45, "bolt_action": 0.5, "railgun": 2.6, "rocket_launcher": 1.5,
+          "grenade_launcher": 0.55, "revolver": 2.0, "machine_pistol": 1.4}
+FIRE = {"shotgun": 0.6, "sniper": 1.1, "lever_action": 0.66, "bolt_action": 0.95, "railgun": 0.5}
+LOOPED = ("shotgun", "lever_action", "bolt_action", "grenade_launcher")   # a round at a time
 POLE_R = (0.7, -1.0, 0.1)
 POLE_L = (-0.6, -1.0, 0.2)
 
@@ -130,9 +163,13 @@ def reload_clip(gun, fp):
     away = _away_fp() if fp else _away_body()
     rest = held(gun, fp)
     tilt = held(gun, fp, offset=(-0.02, 0.02, 0.04), hand=(98.0, 12.0, 0.0), cant=32.0)
-    if gun == "shotgun":
+    spec = SPEC[gun]
+    style = spec["reload"]
+    if style == "shell":
         return _shotgun_reload(rest, tilt)
-    mag_hold = (0.0, -0.09, -0.10)          # the left fist on the magazine
+    if style in NEW_RELOADS:
+        return NEW_RELOADS[style](gun, fp, rest, tilt, away)
+    mag_hold = spec.get("mag_hold", (0.0, -0.09, -0.10))   # the left fist on the magazine
     start = dict(tilt)
     keys = [(0.0, rest)]
 
@@ -148,13 +185,16 @@ def reload_clip(gun, fp):
     k(0.80, tilt, on_gun(mag_hold, "pistol_mag"), "linear", mag=(0.0, -0.20, 0.06))
     k(1.02, tilt, on_gun(mag_hold, "pistol_mag"), "out", mag=(0.0, -0.04, 0.01))
     k(1.12, tilt, on_gun(mag_hold, "pistol_mag"), "in")
-    if gun == "rifle":
-        handle = (-0.06, 0.07, -0.13)
+    if spec.get("handle") == "charge":
+        handle = spec["handle_at"]
         k(1.32, rest, on_gun(handle, "pistol_slide"))
         k(1.44, rest, on_gun(handle, "pistol_slide"), "out", slide=0.075)
         k(1.52, rest, on_gun(handle, "pistol_slide"), "in")
         k(1.74, rest, support(gun))
         k(1.90, rest, support(gun))
+    elif spec.get("handle") is None:
+        k(1.32, rest, support(gun))
+        k(1.45, rest, support(gun))
     else:
         bolt = (-0.088, 0.06, -0.02)
         k(1.40, rest, on_gun(bolt, "pistol_slide"))
@@ -165,7 +205,167 @@ def reload_clip(gun, fp):
         k(2.24, rest, support(gun))
         k(2.40, rest, support(gun))
     del start
+    return _scaled(keys, RELOAD[gun])
+
+
+def _scaled(keys, length):
+    """Keys stretched (or squeezed) to `length` seconds."""
+    k = length / keys[-1][0]
+    keys = [(key[0] * k,) + tuple(key[1:]) for key in keys]
     return lambda t: keyed(t, keys)
+
+
+def _hinge(rot, pivot):
+    """mag / mag_rot that turn the magazine-bone part by `rot` (pitch, yaw, roll) about `pivot` (gun space)."""
+    p = np.array(pivot, dtype=float)
+    off = p - euler(rot) @ p
+    return {"mag_rot": tuple(float(x) for x in rot), "mag": tuple(float(x) for x in off)}
+
+
+def _break_reload(gun, fp, rest, tilt, away):
+    """Break-action: thumb the lever, tip the barrels down on their hinge (the left hand
+    on the fore-end pushes them), two shells into the breech, snap it shut."""
+    hinge = (0.0, 0.045, -0.13)
+    fore = SUPPORT[gun]["grip"]
+    breech = (0.0, 0.066, -0.14)
+    lift = held(gun, fp, offset=(-0.01, 0.04, 0.05), hand=(104.0, 10.0, 0.0), cant=18.0)
+    shut = _hinge((0.0, 0.0, 0.0), hinge)
+    opened = _hinge((-34.0, 0.0, 0.0), hinge)
+    keys = [(0.0, dict(rest, **shut))]
+    for t, base, left, opn, ease in [
+        (0.18, lift, on_gun(fore, "pistol_mag"), False, "smooth"),
+        (0.36, lift, on_gun(fore, "pistol_mag"), True, "out"),
+        (0.62, tilt, away, True, "in"),
+        (0.92, tilt, on_gun(breech), True, "out"),
+        (1.02, tilt, on_gun(_add(breech, (0.0, -0.01, 0.02))), True, "in"),
+        (1.22, lift, on_gun(fore, "pistol_mag"), True, "smooth"),
+        (1.38, lift, on_gun(fore, "pistol_mag"), False, "in"),
+        (1.70, rest, on_gun(fore, "pistol_mag"), False, "smooth"),
+    ]:
+        spec = dict(base, arm_l=left)
+        spec.update(opened if opn else shut)
+        keys.append((t, spec, ease))
+    return _scaled(keys, RELOAD[gun])
+
+
+def _cover_reload(gun, fp, rest, tilt, away):
+    """LMG: lift the top cover, drop the empty box, hang a new one and slam the cover."""
+    cover = {"slide_pivot": (0.095, 0.16)}
+    lid = (0.0, 0.10, -0.02)
+    box_at = SPEC[gun]["mag_hold"]
+
+    def k(t, base, left, ease="smooth", pitch=0.0, **more):
+        spec = dict(base, arm_l=left, slide_pitch=pitch, **cover)
+        spec.update(more)
+        return (t, spec, ease)
+    keys = [
+        k(0.0, rest, support(gun)),
+        k(0.30, tilt, on_gun(lid, "pistol_slide")),
+        k(0.55, tilt, on_gun(lid, "pistol_slide"), "out", pitch=-62.0),
+        k(0.80, tilt, on_gun(box_at, "pistol_mag"), pitch=-62.0),
+        k(0.95, tilt, on_gun(box_at, "pistol_mag"), pitch=-62.0, mag=(0.0, -0.04, 0.0)),
+        k(1.30, tilt, away, "in", pitch=-62.0, mag=(0.0, -0.8, 0.05)),
+        k(1.90, tilt, on_gun(box_at, "pistol_mag"), "linear", pitch=-62.0, mag=(0.0, -0.25, 0.05)),
+        k(2.25, tilt, on_gun(box_at, "pistol_mag"), "out", pitch=-62.0, mag=(0.0, 0.0, 0.0)),
+        k(2.55, tilt, on_gun(lid, "pistol_slide"), pitch=-62.0),
+        k(2.85, tilt, on_gun(lid, "pistol_slide"), "in", pitch=0.0),
+        k(3.05, rest, on_gun(lid, "pistol_slide")),
+        k(3.35, rest, support(gun)),
+        k(3.60, rest, support(gun)),
+    ]
+    return lambda t: keyed(t, keys)
+
+
+def _gate_reload(gun, fp, rest, tilt, away):
+    """Lever-action: a round from the belt, pushed into the loading gate. Loops."""
+    rnd = (0.0, 0.055, -0.04)
+    start_off = (-0.06, -0.28, 0.06)
+    gate_off = (-0.03, -0.01, -0.02)
+    side = held(gun, fp, offset=(-0.02, 0.02, 0.04), hand=(96.0, 18.0, 0.0), cant=-24.0)
+    keys = [
+        (0.0, dict(side, arm_l=on_gun(rnd, "pistol_mag"), mag=start_off)),
+        (0.20, dict(side, arm_l=on_gun(rnd, "pistol_mag"), mag=gate_off), "out"),
+        (0.30, dict(side, arm_l=on_gun(rnd, "pistol_mag"), mag=(0.0, 0.0, 0.0)), "in"),
+        (0.45, dict(side, arm_l=on_gun(_add(rnd, start_off))), "smooth"),
+    ]
+    return _scaled(keys, RELOAD[gun])
+
+
+def _top_reload(gun, fp, rest, tilt, away):
+    """Bolt-action: bolt open, a round pressed down into the action from above. Loops."""
+    bolt_open = {"slide_turn": -70.0, "slide": 0.09}
+    top = (0.0, 0.09, -0.06)
+    above = _add(top, (-0.03, 0.10, 0.04))
+    work = dict(tilt, **bolt_open)
+    keys = [
+        (0.0, dict(work, arm_l=on_gun(above))),
+        (0.22, dict(work, arm_l=on_gun(top)), "out"),
+        (0.30, dict(work, arm_l=on_gun(_add(top, (0.0, -0.02, 0.0)))), "in"),
+        (0.50, dict(work, arm_l=on_gun(above)), "smooth"),
+    ]
+    return _scaled(keys, RELOAD[gun])
+
+
+def _cell_reload(gun, fp, rest, tilt, away):
+    """Railgun: pop the spent power cell out of the back, slot in a fresh one."""
+    cell = SPEC[gun]["mag_hold"]
+
+    def k(t, base, left, ease="smooth", **more):
+        return (t, dict(base, arm_l=left, **more), ease)
+    keys = [
+        k(0.0, rest, support(gun)),
+        k(0.35, tilt, on_gun(cell, "pistol_mag")),
+        k(0.55, tilt, on_gun(cell, "pistol_mag"), "out", mag=(0.0, -0.03, 0.03)),
+        k(0.85, tilt, away, "in", mag=(0.0, -0.8, 0.1)),
+        k(1.45, tilt, on_gun(cell, "pistol_mag"), "linear", mag=(0.0, -0.22, 0.08)),
+        k(1.80, tilt, on_gun(cell, "pistol_mag"), "out", mag=(0.0, 0.0, 0.0)),
+        k(1.95, tilt, on_gun(cell, "pistol_mag"), "in"),
+        k(2.30, rest, support(gun)),
+        k(2.60, rest, support(gun)),
+    ]
+    return lambda t: keyed(t, keys)
+
+
+def _rocket_reload(gun, fp, rest, tilt, away):
+    """Rocket launcher: a new rocket from the hip, up behind the shoulder and slid into the back of the tube."""
+    grab = (0.0, 0.115, -0.36)        # a point on the rocket's body
+    low = (-0.04, -0.36, 0.10)
+    behind = (0.0, -0.02, 0.22)
+    lift = held(gun, fp, offset=(0.0, 0.02, 0.0), hand=(96.0, 6.0, 0.0), cant=12.0)
+
+    def k(t, base, left, ease="smooth", **more):
+        return (t, dict(base, arm_l=left, **more), ease)
+    keys = [
+        k(0.0, rest, away, mag=low),
+        k(0.30, lift, on_gun(grab, "pistol_mag"), "out", mag=low),
+        k(0.70, lift, on_gun(grab, "pistol_mag"), "smooth", mag=behind),
+        k(1.05, lift, on_gun(grab, "pistol_mag"), "in", mag=(0.0, 0.0, 0.0)),
+        k(1.25, rest, support(gun), "smooth"),
+        k(1.50, rest, support(gun)),
+    ]
+    return lambda t: keyed(t, keys)
+
+
+def _drum_reload(gun, fp, rest, tilt, away):
+    """Grenade launcher: a grenade pushed into the front of the drum, which turns one chamber. Loops."""
+    face = (0.03, 0.07, -0.27)
+    start = _add(face, (-0.08, -0.26, 0.10))
+    keys = [
+        (0.0, dict(tilt, arm_l=on_gun(start), mag_rot=(0.0, 0.0, 0.0))),
+        (0.24, dict(tilt, arm_l=on_gun(face), mag_rot=(0.0, 0.0, 0.0)), "out"),
+        (0.32, dict(tilt, arm_l=on_gun(_add(face, (0.0, 0.0, 0.03))), mag_rot=(0.0, 0.0, 0.0)), "in"),
+        (0.44, dict(tilt, arm_l=on_gun(face), mag_rot=(0.0, 0.0, 60.0)), "out"),
+        (0.55, dict(tilt, arm_l=on_gun(start), mag_rot=(0.0, 0.0, 60.0)), "smooth"),
+    ]
+    for i, key in enumerate(keys):   # the drum turns about its own axis, not the grip
+        spec = dict(key[1])
+        spec.update(_hinge(spec["mag_rot"], (0.0, 0.07, 0.0)))
+        keys[i] = (key[0], spec) + tuple(key[2:])
+    return lambda t: keyed(t, keys)
+
+
+NEW_RELOADS = {"break": _break_reload, "cover": _cover_reload, "gate": _gate_reload, "top": _top_reload,
+               "cell": _cell_reload, "rocket": _rocket_reload, "drum": _drum_reload}
 
 
 def _shotgun_reload(rest, tilt):
@@ -187,19 +387,34 @@ def _shotgun_reload(rest, tilt):
 def fire_clip(gun, fp):
     rest = held(gun, fp)
     dip = held(gun, fp, offset=(0.0, -0.015, 0.02), hand=(86.0, 3.0, 0.0), cant=-6.0)
-    if gun == "shotgun":
+    style = SPEC[gun].get("fire")
+    if style == "pump":
         return lambda t: keyed(t, [
             (0.0, rest), (0.10, rest),
             (0.24, dict(dip, slide=0.08), "out"),
             (0.38, dict(rest, slide=0.0), "in"),
             (0.60, rest),
         ])
-    bolt = (-0.088, 0.06, -0.02)
+    if style == "lever":
+        pin = {"slide_pivot": (-0.012, 0.065)}
+        flick = held(gun, fp, offset=(0.0, -0.01, 0.015), hand=(84.0, 0.0, 0.0), cant=-4.0)
+        return lambda t: keyed(t, [
+            (0.0, dict(rest, slide_pitch=0.0, **pin)), (0.08, dict(rest, slide_pitch=0.0, **pin)),
+            (0.22, dict(flick, slide_pitch=48.0, **pin), "out"),
+            (0.38, dict(rest, slide_pitch=0.0, **pin), "in"),
+            (0.66, dict(rest, slide_pitch=0.0, **pin)),
+        ])
+    if style == "vent":
+        return lambda t: keyed(t, [
+            (0.0, dict(rest, slide=0.0)), (0.04, dict(dip, slide=0.06), "out"),
+            (0.36, dict(rest, slide=0.0), "smooth"), (0.5, rest),
+        ])
+    bolt = SPEC[gun].get("bolt", (-0.088, 0.06, -0.02))
     work = held(gun, fp, offset=(0.0, 0.0, 0.02), hand=(92.0, -4.0, 0.0), cant=14.0)
 
     def at_bolt(**more):
         return dict(work, arm_l=on_gun(bolt, "pistol_slide"), **more)
-    return lambda t: keyed(t, [
+    keys = [
         (0.0, rest), (0.12, rest),
         (0.32, at_bolt()),
         (0.42, at_bolt(slide_turn=-70.0), "out"),
@@ -208,7 +423,8 @@ def fire_clip(gun, fp):
         (0.78, at_bolt(), "in"),
         (0.98, rest),
         (1.10, rest),
-    ])
+    ]
+    return _scaled(keys, FIRE[gun]) if gun != "sniper" else (lambda t: keyed(t, keys))
 
 
 def respawn(gun):
@@ -227,11 +443,12 @@ def body_clips():
         out += [
             Clip("aim_" + gun, 1 / 30, aim(gun)),
             Clip("carry_" + gun, 1 / 30, carry(gun)),
-            Clip("reload_" + gun, RELOAD[gun], reload_clip(gun, False), loop=gun == "shotgun"),
+            Clip("reload_" + gun, RELOAD[gun], reload_clip(gun, False), loop=gun in LOOPED),
             Clip("respawn_" + gun, 0.6, respawn(gun)),
         ]
         if gun in FIRE:
             out.append(Clip("fire_" + gun, FIRE[gun], fire_clip(gun, False)))
+    out += [Clip("reload_" + g, RELOAD[g], sidearm_reload(g, False)) for g in SIDEARMS]
     return out
 
 
@@ -264,7 +481,7 @@ def fp_clips_for(gun):
     for name, fn in clips.items():
         length = {"fp_mantle": 0.45, "fp_raise": 0.4}.get(name, 1 / 30)
         out.append(Clip("%s_%s" % (name, gun), length, fn))
-    out.append(Clip("fp_reload_" + gun, RELOAD[gun], reload_clip(gun, True), loop=gun == "shotgun"))
+    out.append(Clip("fp_reload_" + gun, RELOAD[gun], reload_clip(gun, True), loop=gun in LOOPED))
     if gun in FIRE:
         out.append(Clip("fp_fire_" + gun, FIRE[gun], fire_clip(gun, True)))
     return out
@@ -274,4 +491,53 @@ def arms_clips():
     out = []
     for gun in LONG:
         out += fp_clips_for(gun)
+    out += [Clip("fp_reload_" + g, RELOAD[g], sidearm_reload(g, True)) for g in SIDEARMS]
     return out
+
+
+# ---------------------------------------------------------------------------
+# Sidearms (held like the pistol, with the pistol's poses)
+
+def sidearm_reload(gun, fp):
+    if gun == "revolver":
+        return _revolver_reload(fp)
+    base = A.fp_reload if fp else A.reload
+    k = 1.3 / RELOAD[gun]
+    return lambda t: base(t * k)
+
+
+def _revolver_reload(fp):
+    """Revolver: tip it, swing the cylinder out to the left, knock out the empties,
+    push in a speed loader, flick the cylinder shut."""
+    if fp:
+        rest_r, rest_l = A.FP_R, A.FP_L
+        tilt_r = A.fp_arm_r(0.16, -0.14, -0.38, hand=(118.0, 14.0, 0.0), cant=42.0)
+        up_r = A.fp_arm_r(0.15, -0.10, -0.36, hand=(140.0, 10.0, 0.0), cant=30.0)
+        away = A.fp_arm_l(-0.04, -0.50, -0.20, hand=(80.0, 0.0, 0.0))
+    else:
+        rest_r = A._arm("r", A.AIM_R["ik"], A.AIM_R["hand"])
+        rest_l = A._arm("l", A.AIM_L["ik"], A.AIM_L["hand"])
+        tilt_r = A._arm("r", (0.07, 0.22, -0.37), (120.0, 14.0, 0.0), 42.0)
+        up_r = A._arm("r", (0.07, 0.27, -0.33), (145.0, 10.0, 0.0), 30.0)
+        away = A._arm("l", (-0.19, -0.22, -0.10), (40.0, 0.0, 0.0))
+    cyl = (0.0, 0.046, -0.06)
+    shut = _hinge((0.0, 0.0, 0.0), (-0.02, 0.02, 0.0))
+    swung = _hinge((0.0, 0.0, 80.0), (-0.02, 0.02, 0.0))
+
+    def k(t, r, l, opn, ease="smooth"):
+        spec = {"arm_r": r, "arm_l": l, "slide": 0.0}
+        spec.update(swung if opn else shut)
+        return (t, spec, ease)
+    keys = [
+        k(0.0, rest_r, rest_l, False),
+        k(0.20, tilt_r, on_gun(cyl, "pistol_mag"), False),
+        k(0.36, tilt_r, on_gun(cyl, "pistol_mag"), True, "out"),
+        k(0.55, up_r, on_gun(cyl, "pistol_mag"), True, "in"),    # muzzle up: the empties drop out
+        k(0.70, tilt_r, away, True),
+        k(1.10, tilt_r, on_gun(_add(cyl, (0.0, 0.0, 0.10)), "pistol_mag"), True, "out"),
+        k(1.28, tilt_r, on_gun(cyl, "pistol_mag"), True, "in"),
+        k(1.45, tilt_r, on_gun(cyl, "pistol_mag"), False, "in"),
+        k(1.70, rest_r, rest_l, False),
+        k(2.0, rest_r, rest_l, False),
+    ]
+    return lambda t: keyed(t, keys)

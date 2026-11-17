@@ -33,7 +33,12 @@ const ENGAGE_RANGE := 45.0
 ## in, the sniper rifle keeps its distance.
 ## Melee weapons run straight in and swing once in reach.
 const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rifle": [8.0, 22.0, 999.0],
-	"sniper": [16.0, 36.0, 999.0], "sword": [0.0, 1.6, 3.1], "hammer": [0.0, 1.8, 3.3], "dagger": [0.0, 1.3, 2.6]}
+	"sniper": [16.0, 36.0, 999.0], "sword": [0.0, 1.6, 3.1], "hammer": [0.0, 1.8, 3.3], "dagger": [0.0, 1.3, 2.6],
+	"revolver": [8.0, 20.0, 999.0], "machine_pistol": [3.0, 9.0, 30.0], "break_action": [2.0, 6.0, 16.0],
+	"smg": [3.5, 11.0, 40.0], "burst_rifle": [9.0, 24.0, 999.0], "lmg": [8.0, 22.0, 999.0],
+	"lever_action": [10.0, 26.0, 999.0], "bolt_action": [14.0, 32.0, 999.0], "railgun": [14.0, 34.0, 999.0],
+	"rocket_launcher": [8.0, 18.0, 60.0], "grenade_launcher": [7.0, 15.0, 35.0],
+	"brass_knuckles": [0.0, 1.1, 2.1], "spear": [0.0, 2.6, 4.1], "axe": [0.0, 1.7, 3.0], "bat": [0.0, 1.7, 3.0]}
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
 const PRONE_AIM := 0.4     ## aim height at someone belly-sliding (they are lying flat)
@@ -81,6 +86,7 @@ var _burst := 0.0                # automatic gun: seconds left of the burst it i
 var NEAR := 7.0
 var FAR := 18.0
 var _reach := 999.0
+var _lob := Vector3.INF          # rockets and grenades: the point it is really aiming at (led, low, lobbed)
 var _melee := false              # carrying a blade or hammer: rush in instead of keeping distance
 var _stuck_time := 0.0
 var _escape_dir := Vector3.ZERO
@@ -104,14 +110,20 @@ func _init(player: Player, level: int) -> void:
 	me = player
 	d = BotDifficulty.make(level)
 	input = player.input
-	var r: Array = RANGES.get(player.weapon.data.id if player.weapon else "pistol", RANGES.pistol)
-	NEAR = r[0]
-	FAR = r[1]
-	_reach = r[2]
-	_melee = player.weapon != null and player.weapon.data.is_melee()
+	weapon_changed()
 	_rng.randomize()
 	Match.player_hit.connect(_on_hit)
 	Match.shot_fired.connect(_on_shot)
+
+
+## Fight the way the gun in its hands likes (Gun Game swaps it mid-match).
+func weapon_changed() -> void:
+	var r: Array = RANGES.get(me.weapon.data.id if me.weapon else "pistol", RANGES.pistol)
+	NEAR = r[0]
+	FAR = r[1]
+	_reach = r[2]
+	_melee = me.weapon != null and me.weapon.data.is_melee()
+	_burst = 0.0
 
 
 ## Fill in this frame's input.
@@ -739,6 +751,19 @@ func _aim(delta: float, perceived: Array, move_dir: Vector3) -> void:
 		var vel: Vector3 = perceived[2]
 		point += vel * d.reaction_time * d.lead   # guess where you are now
 		var dist := eye.distance_to(point)
+		var w: WeaponData = me.weapon.data if me.weapon else null
+		if w and w.is_projectile():
+			# Rockets and grenades: lead by the flight time, aim low (the blast does the rest), and lob grenades.
+			var flight := dist / w.projectile_speed
+			point += vel * flight * d.lead
+			point.y -= 0.7 if point.y - 0.7 > me.global_position.y - 1.0 else 0.0
+			if w.projectile_gravity > 0.0:
+				var s2 := w.projectile_speed * w.projectile_speed
+				var flat := Vector2(point.x - eye.x, point.z - eye.z).length()
+				var k := clampf(w.projectile_gravity * flat / s2, 0.0, 0.99)
+				point.y += flat * tan(0.5 * asin(k))
+			dist = eye.distance_to(point)
+			_lob = point
 		_error += Vector3(_rng.randfn(), _rng.randfn() * 0.6, _rng.randfn()) * delta * 2.0
 		_error = _error.limit_length(1.0)
 		target = point + _error * dist * tan(deg_to_rad(d.aim_error))
@@ -773,6 +798,10 @@ func _fire(delta: float, perceived: Array) -> void:
 	var dist := want.length()
 	if dist > _reach:
 		return   # a shotgun does not waste shells at long range
+	if w.data.is_projectile() and dist < w.data.splash_radius * 0.9:
+		return   # too close: it would blow itself up
+	if w.data.is_projectile() and _lob != Vector3.INF:
+		want = _lob - eye   # it aims off you on purpose: judge the aim against that point
 	var off := me.aim_forward().angle_to(want)
 	if w.data.is_melee():
 		# In reach and roughly facing you: swing.
@@ -782,7 +811,7 @@ func _fire(delta: float, perceived: Array) -> void:
 			_fire_wait = d.fire_gap * _rng.randf_range(0.3, 0.7)
 		return
 	var allowed: float = max(atan(0.35 / max(dist, 0.1)), deg_to_rad(1.0))
-	if w.data.id == "sniper":
+	if w.data.id in ["sniper", "bolt_action", "railgun"]:
 		allowed *= 0.6   # waits for a clean shot
 	var on_target := off < allowed + deg_to_rad(d.aim_error) * 0.5
 	if w.data.automatic:

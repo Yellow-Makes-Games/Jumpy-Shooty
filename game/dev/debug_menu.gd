@@ -159,9 +159,12 @@ func _build() -> void:
 	robot.select(ids.find(Net.player_character(Net.my_id())))
 	robot.item_selected.connect(func(i): _set_loadout("character", ids[i]))
 	_col.add_child(robot)
-	var guns := WeaponData.IDS.map(func(g): return WeaponData.by_id(g).short_name)
-	UiKit.segmented(_col, guns, WeaponData.IDS.find(Net.player_weapon(Net.my_id())),
-		func(i): _set_loadout("weapon", WeaponData.IDS[i]))
+	var gun := OptionButton.new()   # too many weapons for a row of buttons
+	for g in WeaponData.IDS:
+		gun.add_item(WeaponData.by_id(g).display_name)
+	gun.select(WeaponData.IDS.find(Net.player_weapon(Net.my_id())))
+	gun.item_selected.connect(func(i): _set_loadout("weapon", WeaponData.IDS[i]))
+	_col.add_child(gun)
 
 	UiKit.section(_col, "Bots")
 	UiKit.segmented(_col, BotDifficulty.NAMES, _difficulty, func(i): _difficulty = i)
