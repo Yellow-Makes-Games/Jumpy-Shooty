@@ -8,7 +8,7 @@ extends Node
 ## --port=PORT         Host only: port to listen on (default 24680).
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.
-## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit) without changing the saved choice.
+## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit, templar) without changing the saved choice.
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).

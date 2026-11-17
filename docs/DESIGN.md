@@ -38,6 +38,11 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
   hard hat, camera-lens eye, hazard stripes, tank backpack), **Specter** (stealth: hood
   with a V visor, trailing scarf, blade fins) and **Orbit** (glowing orb head in gimbal
   rings, glowing chest core). The bot named Rivet became Gizmo so names do not clash.
+- **Templar** (2026-11-17): a crusader knight built the same way: a flat-topped great
+  helm with a glowing eye slit behind a cross of trim, a white surcoat with a red cross
+  front and back over chain mail, round shoulder plates, elbow and knee plates, a split
+  surcoat skirt and steel sabatons. The red cross stays red; the player colour shows on
+  the helm's cross, the sword belt, the shoulder bands and the surcoat hems.
 - Characters are looks only (2026-11-16): same hitbox, same movement, same animations.
   You pick yours before the round: on the Practice and Vs Bots pages, or in the lobby.
   The choice is remembered. In a 1v1 the bot plays the robot after yours in the list, never your own.
