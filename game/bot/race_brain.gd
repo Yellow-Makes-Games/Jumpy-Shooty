@@ -18,7 +18,9 @@ const TURN := 14.0           ## how quickly it turns to face where it runs (per 
 const STUCK_TIME := 5.0      ## seconds without getting closer to its next point before it resets
 const LOST_DROP := 4.0       ## standing this far below its next point (and not on its way down to it): it fell
 ## [hesitation before a hard move (s), chance to fluff a trick] for Easy .. Expert
-const JUMPS := [A.JUMP, A.LONG_JUMP, A.DIVE_JUMP, A.FLIP_DIVE]
+const JUMPS := [A.JUMP, A.LONG_JUMP, A.DIVE_JUMP, A.FLIP_DIVE, A.BOOST_JUMP, A.FLOAT_JUMP]
+## How far up a BOOST_JUMP tips the rocket boots (1 = as far up as forward).
+const BOOST_TILT := 0.45
 ## Speed on the plain stretches between obstacles (run-ups to jumps stay flat out).
 const PACE := [0.72, 0.82, 0.92, 1.0]
 const SKILL := [[0.7, 0.12], [0.35, 0.05], [0.12, 0.0], [0.0, 0.0]]
@@ -72,6 +74,8 @@ func _setup() -> void:
 				best = i
 		_gate_index.append(best)
 	_idx = _nearest_ahead(0)
+	if me.is_local and not me.is_bot and not DevArgs.spawn.is_empty():
+		_idx = _nearest_to_here()   # autopilot from a --spawn part way round (screenshots)
 
 
 func update(delta: float) -> void:
@@ -124,6 +128,8 @@ func _check_reached() -> void:
 		return   # still swinging: the next point counts once it lets go
 	if _act in [A.WAIT_GROUND, A.WAIT_CLEAR] and _phase == 0:
 		return   # still waiting for its moment
+	if _act in [A.BOOST_JUMP, A.BOOST_UP] and _phase == 0:
+		return   # waiting for its boots to charge
 	var guard := 0
 	while _idx < _route.size() and guard < 4 and _reached(_idx):
 		guard += 1
@@ -161,6 +167,25 @@ func _nearest_ahead(from: int) -> int:
 	return clampi(from, 0, maxi(_route.size() - 1, 0))
 
 
+## The route point to head for from where it stands: the closest one, or the one after
+## it if it is already past that.
+func _nearest_to_here() -> int:
+	var pos := me.global_position
+	var best := 0
+	var best_d := INF
+	for i in _route.size():
+		var d := pos.distance_to(_route[i].pos)
+		if d < best_d:
+			best_d = d
+			best = i
+	if best + 1 < _route.size():
+		var a: Vector3 = _route[best].pos
+		var b: Vector3 = _route[best + 1].pos
+		if (pos - a).dot(b - a) > 0.0:
+			best += 1
+	return best
+
+
 func _on_sent_back(id: int, _reason: String) -> void:
 	if id != me.peer_id or _route.is_empty():
 		return
@@ -184,7 +209,8 @@ func _start_action(i: int) -> void:
 		print("RACER %d reached %d %s at %s" % [me.peer_id, i, A.keys()[p.action], me.global_position.snappedf(0.1)])
 	_phase = 0
 	_seen_blocked = false
-	var hard: bool = _act in [A.LONG_JUMP, A.DIVE_JUMP, A.FLIP_DIVE, A.WALL_RUN, A.CHIMNEY, A.GRAPPLE, A.WAIT_GROUND]
+	var hard: bool = _act in [A.LONG_JUMP, A.DIVE_JUMP, A.FLIP_DIVE, A.WALL_RUN, A.CHIMNEY, A.GRAPPLE, A.WAIT_GROUND,
+		A.BOOST_JUMP, A.BOOST_UP, A.FLOAT_JUMP]
 	# It sizes up standing starts (a chimney, a moving platform); a running jump
 	# keeps its run-up.
 	_wait = SKILL[level][0] * _rng.randf_range(0.5, 1.0) if _act in [A.CHIMNEY, A.WAIT_GROUND] and me.is_on_floor() else 0.0
@@ -233,6 +259,62 @@ func _do_action(delta: float, dir: Vector3, target: Dictionary) -> void:
 			elif _phase == 2 and _act == A.FLIP_DIVE and not grounded and _last_jump > 0.3 and vy < 1.0:
 				input.dive_pressed = true
 				_phase = 3
+		A.BOOST_JUMP:
+			move = _line_dir(target.pos)
+			look = move
+			if _phase == 0:
+				# Boots still charging: wait at the edge rather than jump short.
+				if me.motor.boost_readiness() < 1.0 and grounded:
+					_hold_at(_route[_act_from].pos, target.pos, delta)
+					return
+				var hvel := Vector3(me.velocity.x, 0.0, me.velocity.z)
+				if not (grounded and _act_time < 0.1 and hvel.length() > 1.0 and hvel.normalized().dot(move) < 0.985):
+					if grounded or _act_time < 0.15:
+						_jump()
+					_phase = 1
+			elif _phase == 1 and not grounded and _last_jump > (0.25 if _fluff else 0.08):
+				input.boost_pressed = true
+				input.boost_dir = (move + Vector3.UP * BOOST_TILT).normalized()
+				_phase = 2
+			elif _phase == 2 and not grounded and vy < 0.5 and not _carries_to(target.pos) and me.motor.dive_readiness() >= 1.0:
+				input.dive_pressed = true   # still short: stretch it with a dive
+				_phase = 3
+		A.BOOST_UP:
+			move = dir
+			if _phase == 0:
+				if me.motor.boost_readiness() < 1.0 and grounded:
+					_hold_at(_route[_act_from].pos, target.pos, delta)
+					return
+				if grounded or _act_time < 0.15:
+					_jump()
+				_phase = 1
+			elif _phase == 1 and not grounded and _last_jump > 0.06:
+				input.boost_pressed = true
+				input.boost_dir = (Vector3(dir.x, 0.0, dir.z) * 0.25 + Vector3.UP).normalized()
+				_phase = 2
+		A.FLOAT_JUMP:
+			move = _line_dir(target.pos)
+			look = move
+			if _phase == 0:
+				var hvel := Vector3(me.velocity.x, 0.0, me.velocity.z)
+				if not (grounded and _act_time < 0.1 and hvel.length() > 1.0 and hvel.normalized().dot(move) < 0.985):
+					if grounded or _act_time < 0.15:
+						_jump()
+					_phase = 1
+			elif _phase == 1 and not grounded and vy < (-1.5 if _fluff else 0.6) and _last_jump > 0.15:
+				if _carries_to(target.pos) and not _route_boost():
+					_phase = 4
+				else:
+					input.yaw = atan2(-move.x, -move.z)   # floats go the way it faces: face down the course first
+					input.float_pressed = true
+					_phase = 2
+			elif _phase == 2 and _route_boost() and _act_time > 0.2 and me.motor.state == MovementController.State.FLOAT \
+					and me.motor.boost_readiness() >= 1.0:
+				input.boost_pressed = true
+				input.boost_dir = move
+				_phase = 3
+			if _phase in [2, 3] and me.motor.state == MovementController.State.FLOAT:
+				move = Vector3.ZERO   # no steering while floating anyway
 		A.SLIDE:
 			input.crouch = true
 			if _phase == 0:
@@ -315,6 +397,11 @@ func _do_action(delta: float, dir: Vector3, target: Dictionary) -> void:
 					if past > 1.0 and (vy >= 0.8 * hv or vy < 0.0):
 						input.grapple = false
 						_phase = 3
+						if _route_boost() and me.motor.boost_readiness() >= 1.0:
+							# Let go with a rocket burst on toward the next point.
+							var on := Vector3(dir.x, 0.0, dir.z).normalized()
+							input.boost_pressed = true
+							input.boost_dir = (on + Vector3.UP * 0.35).normalized()
 					elif _act_time > 4.0:
 						input.grapple = false
 						_phase = 3
@@ -362,7 +449,7 @@ func _do_action(delta: float, dir: Vector3, target: Dictionary) -> void:
 	var hvel := Vector3(me.velocity.x, 0.0, me.velocity.z)
 	var flat_move := Vector3(move.x, 0.0, move.z)
 	var on_line := hvel.length() > 12.5 and flat_move.length() > 0.01 and hvel.normalized().dot(flat_move.normalized()) > 0.97
-	if on_line and not grounded and (_act == A.JUMP or _phase == 4):
+	if on_line and not grounded and (_act == A.JUMP or _phase == 4 or (_act == A.BOOST_JUMP and _phase >= 2)):
 		move = Vector3.ZERO
 	elif grounded and _act == A.RUN and int(target.action) not in JUMPS and int(target.action) != A.WALL_RUN and _pace < 1.0:
 		move = move.normalized() * _pace
@@ -372,6 +459,11 @@ func _do_action(delta: float, dir: Vector3, target: Dictionary) -> void:
 		var cos_a := hvel.normalized().dot(flat_move.normalized())
 		move = move.normalized() * clampf(hvel.length() * cos_a / 11.5 - 0.1, 0.3, 0.9)
 	_steer(move)
+
+
+## Does the point it is acting on ask for the rocket boots too?
+func _route_boost() -> bool:
+	return _act_from >= 0 and bool((_route[_act_from] as Dictionary).get("boost", false))
 
 
 ## Which way to run for `goal`: along the line from the last point to it, aiming a

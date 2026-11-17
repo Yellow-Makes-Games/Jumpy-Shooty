@@ -9,7 +9,7 @@ static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits:
 	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
 		return
 	var flash: float = {"shotgun": 0.2, "rifle": 0.11, "sniper": 0.22, "break_action": 0.24, "revolver": 0.16,
-		"lever_action": 0.16, "bolt_action": 0.2, "railgun": 0.26, "lmg": 0.13, "smg": 0.09, "machine_pistol": 0.08}.get(weapon, 0.12)
+		"lever_action": 0.16, "bolt_action": 0.2, "railgun": 0.26, "lmg": 0.13, "smg": 0.09, "machine_pistol": 0.08, "akimbo": 0.1}.get(weapon, 0.12)
 	var width: float = {"shotgun": 0.009, "break_action": 0.009, "sniper": 0.028, "bolt_action": 0.022,
 		"railgun": 0.05}.get(weapon, 0.015)
 	var color := Color(1.0, 0.85, 0.5)

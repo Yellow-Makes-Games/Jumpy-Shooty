@@ -86,6 +86,8 @@ var _tug_fresh := false
 var _flame: Node3D                # rocket-boot flames under the feet
 var _flame_t := 0.0
 var _burst_left := 0              # local: rounds of a burst still to fire
+var _akimbo_shots := 0            # akimbo: shots so far (yours, or seen); odd ones leave the left gun
+var _akimbo_left := false         # akimbo: the last shot came from the left gun
 var _burst_wait := 0.0            # local: seconds until the next round of the burst
 var _float_t := 0.0               # local: seconds into the current float (0 = not floating)
 var _spin_hit := {}               # local: ids the whirling legs have already hit in this float
@@ -448,13 +450,14 @@ func _update_weapon(delta: float) -> void:
 ## One round leaves the gun (a shot, or a rocket or grenade): sound, recoil, and the
 ## host is asked what it hit.
 func _fire_round() -> void:
+	_next_gun()
 	Sound.gun_fire(weapon.data.id, muzzle_position(), sounds.own)
 	sounds.fired()
-	animator.fire()
+	animator.fire(_akimbo_left)
 	if DevArgs.sync_log:
 		print("ANIM FIRE %d" % peer_id)
 	if view:
-		view.fire()
+		view.fire(_akimbo_left)
 	var eye := eye_position()
 	if weapon.data.is_projectile():
 		Match.request_projectile(eye, _aim_direction(eye), peer_id)
@@ -994,9 +997,17 @@ func _aim_direction(eye: Vector3) -> Vector3:
 
 
 func muzzle_position() -> Vector3:
+	var data := WeaponData.by_id(robot.weapon)
+	var bone := data.muzzle_bone_left if _akimbo_left and data.is_akimbo() else data.muzzle_bone
 	if view and not rig.is_third_person():
-		return view.marker(WeaponData.by_id(robot.weapon).muzzle_bone)
-	return robot.muzzle()
+		return view.marker(bone)
+	return robot.marker(bone)
+
+
+## Akimbo: which gun this shot leaves from. They take turns, right first.
+func _next_gun() -> void:
+	_akimbo_left = WeaponData.by_id(robot.weapon).is_akimbo() and _akimbo_shots % 2 == 1
+	_akimbo_shots += 1
 
 
 ## Where the grapple rope leaves the robot: the launcher on its left wrist.
@@ -1008,7 +1019,8 @@ func rope_origin() -> Vector3:
 
 ## Another player's shot, as told by the host: kick their gun.
 func show_shot() -> void:
-	animator.fire()
+	_next_gun()
+	animator.fire(_akimbo_left)
 	Sound.gun_fire(robot.weapon, muzzle_position(), false)
 	sounds.fired()
 	if DevArgs.sync_log:
@@ -1113,6 +1125,8 @@ func change_weapon(gun: String) -> void:
 	_strike_left = -1.0
 	_charge = -1.0
 	_burst_left = 0
+	_akimbo_shots = 0
+	_akimbo_left = false
 	if is_local:
 		weapon = _make_weapon(gun)
 		if weapon and _ammo.has(gun):

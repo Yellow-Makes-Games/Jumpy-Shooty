@@ -90,6 +90,8 @@ var _aim_r := 1.0
 var _aim_l := 1.0
 var _torso := 1.0
 var _recoil := 0.0
+var _recoil_l := 0.0      # akimbo: the left gun's own kick (_recoil is the right's)
+var _akimbo := false      # a pistol in each hand: each arm kicks on its own shots
 var _since_fire := 99.0
 var _reload_t := -1.0
 var _reload_w := 0.0
@@ -139,7 +141,7 @@ func _init(robot: RobotModel) -> void:
 	_aim = rig.new_pose()
 	_b = rig.bones
 	_arm_r = _bones(["upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag"])
-	_arm_l = _bones(["upper_arm_l", "forearm_l", "hand_l"])
+	_arm_l = _bones(["upper_arm_l", "forearm_l", "hand_l", "pistol_l", "pistol_l_slide", "pistol_l_mag"])
 	_legs_core = _bones(["hips", "spine", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r"])
 	for i in rig.bone_names.size():
 		if not (i in _arm_r or i in _arm_l):
@@ -155,6 +157,7 @@ func set_weapon(id: String) -> void:
 	_kick = data.kick
 	_loop_reload = data.reload_per_round
 	_melee = data.is_melee()
+	_akimbo = data.is_akimbo()
 	if _melee:
 		_swing.set_weapon(weapon)
 	if rig.has_clip(clip("aim")):
@@ -178,9 +181,12 @@ func _bones(names: Array) -> PackedInt32Array:
 	return out
 
 
-## A shot was fired: kick the gun.
-func fire() -> void:
-	_recoil = _kick
+## A shot was fired: kick the gun (akimbo: the one in the left hand when `left`).
+func fire(left: bool = false) -> void:
+	if _akimbo and left:
+		_recoil_l = _kick
+	else:
+		_recoil = _kick
 	_since_fire = 0.0
 	if rig.has_clip("fire_" + weapon):
 		_fire_t = 0.0
@@ -428,16 +434,21 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var chest_fwd := chest_rot * Vector3.FORWARD
 	var chest_pitch := asin(clampf(chest_fwd.y, -1.0, 1.0))
 	_recoil = _recoil * exp(-delta * 16.0)
-	var lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7) + minf(_recoil, 1.5) * 0.2
+	_recoil_l = _recoil_l * exp(-delta * 16.0)
+	var aim_lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7)
+	var lift := aim_lift + minf(_recoil, 1.5) * 0.2
+	var lift_l := aim_lift + minf(_recoil_l if _akimbo else _recoil, 1.5) * 0.2
 	var up_r: int = _b["upper_arm_r"]
 	var up_l: int = _b["upper_arm_l"]
 	var w_r := maxf(_aim_r, _reload_w)
 	var w_l := maxf(_aim_l, _reload_w)
 	var across := twist.inverse() * Vector3.RIGHT   # the body's left-right axis, seen from the turned chest
 	_pose.rot[up_r] = Quaternion(across, lift * w_r) * _pose.rot[up_r]
-	_pose.rot[up_l] = Quaternion(across, lift * w_l) * _pose.rot[up_l]
-	if _b.has("pistol_slide") and weapon == "pistol":
+	_pose.rot[up_l] = Quaternion(across, lift_l * w_l) * _pose.rot[up_l]
+	if _b.has("pistol_slide") and (weapon == "pistol" or _akimbo):
 		_pose.pos[_b["pistol_slide"]] += Vector3(0.0, 0.035 * _recoil, 0.0)
+	if _akimbo and _b.has("pistol_l_slide"):
+		_pose.pos[_b["pistol_l_slide"]] += Vector3(0.0, 0.035 * _recoil_l, 0.0)
 	if _melee and _hold > 0.0:
 		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
 		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed, clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8, _hold, _hold)

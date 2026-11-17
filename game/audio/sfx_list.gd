@@ -30,6 +30,7 @@ const VOLUME := {
 	"kick": -9.0, "flying_kick": -6.0, "rocket_boost": -7.0, "float": -9.0,
 	"break_concrete": -4.0, "break_wood": -5.0, "break_glass": -6.0,
 	# The newer weapons
+	"fire_akimbo": -5.5, "far_akimbo": -9.5, "fire_akimbo_fp": -5.5, "equip_akimbo": -10.0,
 	"fire_revolver": -3.5, "fire_machine_pistol": -6.5, "fire_break_action": -3.0, "fire_smg": -7.0,
 	"fire_burst_rifle": -6.0, "fire_lmg": -6.0, "fire_lever_action": -3.5, "fire_bolt_action": -3.0,
 	"fire_railgun": -3.0, "fire_rocket_launcher": -3.0, "fire_grenade_launcher": -4.0,
@@ -63,6 +64,7 @@ const RELOAD_STEPS := {
 		[1.82, "bolt_fwd"], [2.02, "bolt_down"]],
 	"shotgun": [[0.255, "shell_in"]],   # one shell; repeats until the tube is full
 	"revolver": [[0.33, "cylinder_open"], [0.52, "empties_out"], [1.2, "speedloader"], [1.42, "cylinder_close"]],
+	"akimbo": [[0.27, "mag_out"], [0.45, "mag_out"], [0.98, "mag_in"], [1.04, "mag_in"], [1.57, "slide_fwd"]],
 	"machine_pistol": [[0.26, "mag_out"], [0.845, "mag_in"], [1.077, "slide_back"], [1.18, "slide_fwd"]],
 	"break_action": [[0.32, "break_open"], [0.93, "shells_in"], [1.35, "break_close"]],
 	"smg": [[0.236, "mag_out_rifle"], [0.796, "mag_in_rifle"], [1.153, "charge_back"], [1.259, "charge_fwd"]],

@@ -18,7 +18,7 @@ OUT=tests/out
 mkdir -p "$OUT"
 rm -f "$OUT"/race_*.log
 RUN=(--headless --fixed-fps 60 --path . --)
-MAPS=(rooftop_run foundry sky_ruins)
+MAPS=(rooftop_run foundry sky_ruins summit_plunge)
 
 for map in "${MAPS[@]}"; do
   timeout 400 "$GODOT" "${RUN[@]}" --bot=1 --bots=4 --map="$map" --autopilot --bot-level=3 --sync-log --game-clock \

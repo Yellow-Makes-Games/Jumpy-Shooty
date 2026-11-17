@@ -14074,6 +14074,11 @@ script = ExtResource("4_sxplk")
 
 [node name="WeaponSpawns" type="Node3D" parent="." unique_id=933488051]
 
+[node name="Akimbo" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.08, 0, -11.67)
+script = ExtResource("90_wpnsp")
+weapon = "akimbo"
+
 [node name="Shotgun1" type="Marker3D" parent="WeaponSpawns" unique_id=377164336]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.17, 0, -0.67)
 script = ExtResource("90_wpnsp")

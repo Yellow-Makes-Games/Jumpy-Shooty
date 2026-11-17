@@ -21,6 +21,9 @@ enum Action {
 	WAIT_GROUND, ## wait until there is something to stand on at Aim (a moving platform), then jump
 	WAIT_CLEAR,  ## wait until no hazard is near Aim (a press, a sweeper), then run on
 	WALK,        ## go to the next point without sprinting (careful footing)
+	BOOST_JUMP,  ## jump, then fire the rocket boots forward (tipped up): gaps too long for any jump
+	BOOST_UP,    ## jump at a high wall, fire the boots upward and climb onto the ledge at the next point
+	FLOAT_JUMP,  ## jump, then float (Shift) at the top of the jump toward the next point
 }
 
 @export var action := Action.RUN:
@@ -34,6 +37,9 @@ enum Action {
 		update_gizmos()
 ## How close (flat) the bot must get for this point to count as reached.
 @export var radius := 1.2
+## Also fire the rocket boots toward the next point: GRAPPLE (as it lets go of the
+## rope) and FLOAT_JUMP (while floating, which sends the float on much faster).
+@export var boost := false
 
 var _figure: MeshInstance3D
 

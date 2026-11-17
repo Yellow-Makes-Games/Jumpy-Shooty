@@ -8,7 +8,7 @@ const VISOR_ENERGY := 1.6
 ## Left out of the body you see in first person: the camera sits inside the head,
 ## and the arms and gun are drawn by ViewModel.
 const VIEW_HIDDEN := ["head", "upper_arm_l", "forearm_l", "hand_l", "grapple", "upper_arm_r",
-	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "muzzle"]
+	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "pistol_l", "pistol_l_slide", "pistol_l_mag"]
 
 static var _view_meshes := {}     # body mesh -> the mesh without VIEW_HIDDEN
 static var _gun_meshes := {}      # [model file, gun] -> [the mesh with only that gun, which surface of the full mesh each surface was]

@@ -75,7 +75,7 @@ var weapon_spawns: Array = []
 ## Race maps, filled in by build(). Checkpoints: {number, finish, xf, opening},
 ## sorted by number. Hazards: {xf, size, shape, mover} (mover = index into movers,
 ## or -1). Movers: {node: MapMover, base: Transform3D, body: AnimatableBody3D}.
-## Route: {pos, action, aim, radius} in running order.
+## Route: {pos, action, aim, radius, boost} in running order.
 var checkpoints: Array = []
 var hazards: Array = []
 var movers: Array = []
@@ -201,7 +201,7 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 				"xf": Transform3D(at.basis.orthonormalized(), at.origin)})
 		elif child is MapRoutePoint:
 			var r := child as MapRoutePoint
-			route.append({"pos": at.origin, "action": r.action, "aim": r.aim, "radius": r.radius})
+			route.append({"pos": at.origin, "action": r.action, "aim": r.aim, "radius": r.radius, "boost": r.boost})
 		_collect(child, at, pieces, spawn_list, mover)
 
 
