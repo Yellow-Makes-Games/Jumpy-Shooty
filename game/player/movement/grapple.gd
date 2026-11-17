@@ -157,6 +157,30 @@ func pull(body: Node3D, vel: Vector3, delta: float) -> Vector3:
 	return _add_toward(body, vel, tuning.grapple_pull_accel * delta)
 
 
+## Extra upward kick when the hook catches somewhere above you (not a player).
+func yank_lift(body: Node3D, vel: Vector3) -> Vector3:
+	if target or anchor.y <= rope_origin(body).y:
+		return vel
+	if vel.y < tuning.grapple_lift_max:
+		vel.y = minf(vel.y + tuning.grapple_yank_lift, tuning.grapple_lift_max)
+	return vel
+
+
+## While hooked somewhere above you, an extra upward pull on top of the reel-in,
+## so grappling carries you higher. It fades out near the hook like the pull does,
+## and stops adding once you are rising grapple_lift_max fast.
+func lift(body: Node3D, vel: Vector3, delta: float) -> Vector3:
+	if target:
+		return vel
+	var to := anchor - rope_origin(body)
+	if to.y <= 0.0 or vel.y >= tuning.grapple_lift_max:
+		return vel
+	var dist := to.length()
+	var fade := clampf((dist - tuning.grapple_min_length) / maxf(tuning.grapple_pull_stop - tuning.grapple_min_length, 0.01), 0.0, 1.0)
+	vel.y = minf(vel.y + tuning.grapple_pull_lift * fade * delta, tuning.grapple_lift_max)
+	return vel
+
+
 ## Hooked to a player: straight toward them, hard, up to tether_pull_speed. Speed
 ## you have sideways is kept, so you can curve in.
 func _reel_to_player(body: Node3D, vel: Vector3, delta: float) -> Vector3:

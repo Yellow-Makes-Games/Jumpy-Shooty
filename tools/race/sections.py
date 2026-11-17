@@ -134,7 +134,8 @@ def wallrun(c, T, side=-1, panels=2, name="WallRun", run_in=8.0):
         T.panel_dressing(c, g, f0, f1, sd)
     end = spans[-1][1]
     land0 = end + 2
-    floor(c, T, g, land0, land0 + 14)   # room to straighten up after the kick-off
+    # Long and wide: the last kick carries you well out sideways and forwards.
+    floor(c, T, g, land0, land0 + 20, width=c.W + 4)
     c.point(-0.6, 0, s * 0.8, "WALL_RUN", radius=0.7)   # line up with the wall before the edge
     c.point(3.5, 0.5, s * 1.55, "RUN", radius=1.0)
     if panels > 1:
@@ -142,8 +143,8 @@ def wallrun(c, T, side=-1, panels=2, name="WallRun", run_in=8.0):
         c.point(24.0, 0.5, -s * 1.55, "WALL_JUMP", radius=1.0)
     else:
         c.point(14.5, 0.5, s * 1.55, "WALL_JUMP", radius=1.0)
-    c.point(land0 + 5, 0, 0, "RUN", radius=2.0)
-    c.advance(land0 + 14)
+    c.point(land0 + 8, 0, 0, "RUN", radius=2.0)
+    c.advance(land0 + 20)
 
 
 def chimney(c, T, h=8.0, side=1, name="Chimney"):

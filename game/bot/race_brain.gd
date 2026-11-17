@@ -488,9 +488,22 @@ func _pursue(goal: Vector3) -> Vector3:
 	# Close to a take-off: run parallel to the line, so it leaves the edge going
 	# straight (sideways speed only bleeds off with friction, which takes a moment).
 	if int(_route[_idx].action) in JUMPS and length - s < 4.5:
-		return along
+		return _against_drift(along)
 	var ahead := a + along * minf(maxf(s, 0.0) + 7.0, length)
-	return Vector3(ahead.x - pos.x, 0.0, ahead.z - pos.z).normalized()
+	return _against_drift(Vector3(ahead.x - pos.x, 0.0, ahead.z - pos.z).normalized())
+
+
+## On the ground, lean against sideways speed (left over from a wall kick or a
+## swing) so it bleeds off quickly: when you are faster than you can run, steering
+## straight ahead adds nothing, and only friction would take it away.
+func _against_drift(d: Vector3) -> Vector3:
+	if not me.is_on_floor():
+		return d
+	var h := Vector3(me.velocity.x, 0.0, me.velocity.z)
+	var side := h - d * h.dot(d)
+	if side.length() < 1.0:
+		return d
+	return (d - side.normalized() * minf(side.length() / 4.0, 1.0)).normalized()
 
 
 ## The way the route runs into `goal` (from the point before it).

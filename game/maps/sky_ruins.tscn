@@ -40,7 +40,7 @@ script = ExtResource("1_root")
 palette = ExtResource("pal")
 face_shade = Vector3(0.93, 0.84, 0.66)
 kill_height = -21.8
-bounds = Rect2(-234, -263, 491, 303)
+bounds = Rect2(-234, -263, 497, 303)
 swing_point = Vector3(0, 10, 0)
 
 [node name="Environment" type="WorldEnvironment" parent="."]
@@ -635,27 +635,33 @@ kind = "rune"
 solid = false
 
 [node name="Deck2" type="Node3D" parent="Course/WallRun"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 202, -0.6, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 205, -0.6, 0)
 script = ExtResource("2_block")
-size = Vector3(8, 1.2, 14)
+size = Vector3(12, 1.2, 20)
 kind = "grass"
 
 [node name="Rock3" type="Node3D" parent="Course/WallRun"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 202, -2.45, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 205, -2.45, 0)
 script = ExtResource("2_block")
-size = Vector3(7.4, 2.5, 12.2)
+size = Vector3(11.4, 2.5, 18.2)
 kind = "earth"
 
 [node name="Rock4" type="Node3D" parent="Course/WallRun"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 202, -5.2, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 205, -5.2, 0)
 script = ExtResource("2_block")
-size = Vector3(4.8, 3, 9.6)
+size = Vector3(8.8, 3, 15.6)
+kind = "stone_dark"
+
+[node name="Rock5" type="Node3D" parent="Course/WallRun"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 205, -8.45, 0)
+script = ExtResource("2_block")
+size = Vector3(5.4, 3.5, 12.2)
 kind = "stone_dark"
 
 [node name="Rim2" type="Node3D" parent="Course/WallRun"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 202, -1.5, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 205, -1.5, 0)
 script = ExtResource("2_block")
-size = Vector3(8.8, 0.6, 14)
+size = Vector3(12.8, 0.6, 20)
 kind = "stone"
 
 [node name="P17_wall_run" type="Marker3D" parent="BotRoute"]
@@ -683,7 +689,7 @@ action = 8
 radius = 1
 
 [node name="P21_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 200, 0, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 203, 0, 0)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -692,31 +698,31 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Corner"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 213, -0.6, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 219, -0.6, 0)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 8)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/Corner"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 213, -2.45, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 219, -2.45, 0)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 6.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/Corner"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 213, -5.2, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 219, -5.2, 0)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 3.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/Corner"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 213, -1.5, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 219, -1.5, 0)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 8)
 kind = "stone"
 
 [node name="P22_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 213, 0, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 219, 0, 0)
 script = ExtResource("5_route")
 action = 0
 radius = 2.6
@@ -725,43 +731,43 @@ radius = 2.6
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -0.6, -10)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -0.6, -10)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 12)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/CheckpointPad3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -2.45, -10)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -2.45, -10)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 10.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/CheckpointPad3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.2, -10)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.2, -10)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 7.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/CheckpointPad3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -1.5, -10)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -1.5, -10)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 12)
 kind = "stone"
 
 [node name="Checkpoint3" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -8)
 script = ExtResource("6_checkpoint")
 number = 3
 opening = Vector2(12.4, 6)
 
 [node name="P23_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -12)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -12)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_RingArches" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 5, -20)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 5, -20)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -773,119 +779,119 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Lintel" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 12.05, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 12.05, -26)
 script = ExtResource("2_block")
 size = Vector3(16, 1.1, 1.4)
 kind = "stone_light"
 
 [node name="Rune" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 11.54, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 11.54, -26)
 script = ExtResource("2_block")
 size = Vector3(4, 0.12, 1.44)
 kind = "rune"
 solid = false
 
 [node name="Pillar" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 205.7, 4.75, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 211.7, 4.75, -26)
 script = ExtResource("2_block")
 size = Vector3(1.4, 13.5, 1.4)
 kind = "stone"
 
 [node name="Base" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 205.7, -3.5, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 211.7, -3.5, -26)
 script = ExtResource("2_block")
 size = Vector3(3.4, 3, 4)
 kind = "stone_dark"
 
 [node name="Pillar2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 220.3, 4.75, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 226.3, 4.75, -26)
 script = ExtResource("2_block")
 size = Vector3(1.4, 13.5, 1.4)
 kind = "stone"
 
 [node name="Base2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 220.3, -3.5, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 226.3, -3.5, -26)
 script = ExtResource("2_block")
 size = Vector3(3.4, 3, 4)
 kind = "stone_dark"
 
 [node name="Lintel2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 13.05, -46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 13.05, -46)
 script = ExtResource("2_block")
 size = Vector3(16, 1.1, 1.4)
 kind = "stone_light"
 
 [node name="Rune2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 12.54, -46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 12.54, -46)
 script = ExtResource("2_block")
 size = Vector3(4, 0.12, 1.44)
 kind = "rune"
 solid = false
 
 [node name="Pillar3" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 205.7, 5.75, -46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 211.7, 5.75, -46)
 script = ExtResource("2_block")
 size = Vector3(1.4, 13.5, 1.4)
 kind = "stone"
 
 [node name="Base3" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 205.7, -2.5, -46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 211.7, -2.5, -46)
 script = ExtResource("2_block")
 size = Vector3(3.4, 3, 4)
 kind = "stone_dark"
 
 [node name="Pillar4" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 220.3, 5.75, -46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 226.3, 5.75, -46)
 script = ExtResource("2_block")
 size = Vector3(1.4, 13.5, 1.4)
 kind = "stone"
 
 [node name="Base4" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 220.3, -2.5, -46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 226.3, -2.5, -46)
 script = ExtResource("2_block")
 size = Vector3(3.4, 3, 4)
 kind = "stone_dark"
 
 [node name="Deck" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -0.6, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -0.6, -61)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 14)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -2.45, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -2.45, -61)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 12.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.2, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.2, -61)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 9.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -1.5, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -1.5, -61)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 14)
 kind = "stone"
 
 [node name="P24_grapple" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -15.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -15.2)
 script = ExtResource("5_route")
 action = 10
 aim = Vector3(0, 11.5, -10.8)
 radius = 0.6
 
 [node name="P25_grapple" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 2.5, -27.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 2.5, -27.5)
 script = ExtResource("5_route")
 action = 10
 aim = Vector3(0, 10, -18.5)
 radius = 2.5
 
 [node name="P26_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -58)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -58)
 script = ExtResource("5_route")
 action = 0
 radius = 2.2
@@ -894,70 +900,70 @@ radius = 2.2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -0.6, -88)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -0.6, -88)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 40)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -2.45, -88)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -2.45, -88)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 38.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.2, -88)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.2, -88)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 35.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -1.5, -88)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -1.5, -88)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 40)
 kind = "stone"
 
 [node name="Live" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0.175, -73)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0.175, -73)
 script = ExtResource("3_hazard")
 size = Vector3(8, 0.35, 2)
 kind = "energy"
 solid = false
 
 [node name="P27_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -70.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -70.5)
 script = ExtResource("5_route")
 action = 1
 radius = 0.55
 
 [node name="Live2" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0.175, -85)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0.175, -85)
 script = ExtResource("3_hazard")
 size = Vector3(8, 0.35, 2)
 kind = "energy"
 solid = false
 
 [node name="P28_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -82.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -82.5)
 script = ExtResource("5_route")
 action = 1
 radius = 0.55
 
 [node name="Live3" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0.175, -97)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0.175, -97)
 script = ExtResource("3_hazard")
 size = Vector3(8, 0.35, 2)
 kind = "energy"
 solid = false
 
 [node name="P29_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -94.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -94.5)
 script = ExtResource("5_route")
 action = 1
 radius = 0.55
 
 [node name="P30_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -107)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -107)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -966,37 +972,37 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="P31_long_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -107.55)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -107.55)
 script = ExtResource("5_route")
 action = 2
 radius = 0.55
 
 [node name="Deck" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -0.6, -119)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -0.6, -119)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 10)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -2.45, -119)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -2.45, -119)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 8.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.2, -119)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.2, -119)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 5.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -1.5, -119)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -1.5, -119)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 10)
 kind = "stone"
 
 [node name="P32_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -117)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -117)
 script = ExtResource("5_route")
 action = 0
 radius = 1.8
@@ -1005,43 +1011,43 @@ radius = 1.8
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad4"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -0.6, -130)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -0.6, -130)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 12)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/CheckpointPad4"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -2.45, -130)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -2.45, -130)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 10.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/CheckpointPad4"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.2, -130)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.2, -130)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 7.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/CheckpointPad4"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -1.5, -130)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -1.5, -130)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 12)
 kind = "stone"
 
 [node name="Checkpoint4" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -128)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -128)
 script = ExtResource("6_checkpoint")
 number = 4
 opening = Vector2(12.4, 6)
 
 [node name="P33_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -132)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -132)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_SunkenTemple" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 5, -140)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 5, -140)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -1053,84 +1059,84 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -0.6, -144.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -0.6, -144.5)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 17)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -2.45, -144.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -2.45, -144.5)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 15.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.2, -144.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.2, -144.5)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 12.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -1.5, -144.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -1.5, -144.5)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 17)
 kind = "stone"
 
 [node name="Side" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 208.7, 1.6, -144.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 214.7, 1.6, -144.75)
 script = ExtResource("2_block")
 size = Vector3(0.6, 3.2, 9.5)
 kind = "stone"
 
 [node name="Side2" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 217.3, 1.6, -144.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 223.3, 1.6, -144.75)
 script = ExtResource("2_block")
 size = Vector3(0.6, 3.2, 9.5)
 kind = "stone"
 
 [node name="Low" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 1.9, -141.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 1.9, -141.8)
 script = ExtResource("2_block")
 size = Vector3(8, 1, 0.6)
 kind = "stone_dark"
 
 [node name="Low2" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 2.8, -141.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 2.8, -141.8)
 script = ExtResource("2_block")
 size = Vector3(8, 0.8, 0.8)
 kind = "stone"
 
 [node name="Low3" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 1.9, -144)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 1.9, -144)
 script = ExtResource("2_block")
 size = Vector3(8, 1, 0.6)
 kind = "stone_dark"
 
 [node name="Low4" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 2.8, -144)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 2.8, -144)
 script = ExtResource("2_block")
 size = Vector3(8, 0.8, 0.8)
 kind = "stone"
 
 [node name="Low5" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 1.9, -146.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 1.9, -146.2)
 script = ExtResource("2_block")
 size = Vector3(8, 1, 0.6)
 kind = "stone_dark"
 
 [node name="Low6" type="Node3D" parent="Course/SlideUnder"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 2.8, -146.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 2.8, -146.2)
 script = ExtResource("2_block")
 size = Vector3(8, 0.8, 0.8)
 kind = "stone"
 
 [node name="P34_slide" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -137.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -137.2)
 script = ExtResource("5_route")
 action = 5
 
 [node name="P35_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -150.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -150.5)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -1139,115 +1145,115 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -0.6, -159)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -0.6, -159)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 12)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -2.45, -159)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -2.45, -159)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 10.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.2, -159)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.2, -159)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 7.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -1.5, -159)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -1.5, -159)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 12)
 kind = "stone"
 
 [node name="Ramp" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 213, -3.5789, -175.8421)
+transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 219, -3.5789, -175.8421)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 22.8035)
 kind = "stone_light"
 
 [node name="Wall" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 208.7, -3.0753, -175.8158)
+transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 214.7, -3.0753, -175.8158)
 script = ExtResource("2_block")
 size = Vector3(0.6, 1.4, 22.8035)
 kind = "stone"
 
 [node name="Wall2" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 217.3, -3.0753, -175.8158)
+transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 223.3, -3.0753, -175.8158)
 script = ExtResource("2_block")
 size = Vector3(0.6, 1.4, 22.8035)
 kind = "stone"
 
 [node name="Roof" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 213, -1.572, -175.8948)
+transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 219, -1.572, -175.8948)
 script = ExtResource("2_block")
 size = Vector3(8, 0.8, 22.8035)
 kind = "stone_dark"
 
 [node name="Side" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 210.2, -1.8612, -175.7106)
+transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 216.2, -1.8612, -175.7106)
 script = ExtResource("2_block")
 size = Vector3(2.4, 2.2, 22.8035)
 kind = "stone"
 
 [node name="Side2" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 215.8, -1.8612, -175.7106)
+transform = Transform3D(1, 0, 0, 0, 0.9648, 0.2631, 0, -0.2631, 0.9648, 221.8, -1.8612, -175.7106)
 script = ExtResource("2_block")
 size = Vector3(2.4, 2.2, 22.8035)
 kind = "stone"
 
 [node name="Mouth" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 210.2, 1.2, -165)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 216.2, 1.2, -165)
 script = ExtResource("2_block")
 size = Vector3(2.4, 2.4, 0.6)
 kind = "stone"
 
 [node name="Mouth2" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 215.8, 1.2, -165)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 221.8, 1.2, -165)
 script = ExtResource("2_block")
 size = Vector3(2.4, 2.4, 0.6)
 kind = "stone"
 
 [node name="Lintel" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 1.675, -165)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 1.675, -165)
 script = ExtResource("2_block")
 size = Vector3(3.2, 1.45, 0.6)
 kind = "jet"
 
 [node name="Deck2" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -6.6, -194)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -6.6, -194)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 14)
 kind = "grass"
 
 [node name="Rock3" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -8.45, -194)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -8.45, -194)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 12.2)
 kind = "earth"
 
 [node name="Rock4" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -11.2, -194)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -11.2, -194)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 9.6)
 kind = "stone_dark"
 
 [node name="Rim2" type="Node3D" parent="Course/BellyChute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -7.5, -194)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -7.5, -194)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 14)
 kind = "stone"
 
 [node name="P36_crawl" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, 0, -154)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, 0, -154)
 script = ExtResource("5_route")
 action = 6
 radius = 1
 
 [node name="P37_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -6, -193)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -6, -193)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -1256,43 +1262,43 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Vaults"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -6.6, -208)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -6.6, -208)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 14)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/Vaults"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -8.45, -208)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -8.45, -208)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 12.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/Vaults"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -11.2, -208)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -11.2, -208)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 9.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/Vaults"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -7.5, -208)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -7.5, -208)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 14)
 kind = "stone"
 
 [node name="Low" type="Node3D" parent="Course/Vaults"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.5, -204.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.5, -204.3)
 script = ExtResource("2_block")
 size = Vector3(8, 1, 0.6)
 kind = "rubble"
 
 [node name="Low2" type="Node3D" parent="Course/Vaults"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -5.5, -209.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -5.5, -209.3)
 script = ExtResource("2_block")
 size = Vector3(8, 1, 0.6)
 kind = "rubble"
 
 [node name="P38_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -6, -214)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -6, -214)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -1301,31 +1307,31 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -6.6, -219)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -6.6, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 8)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -8.45, -219)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -8.45, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 6.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -11.2, -219)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -11.2, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 3.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -7.5, -219)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -7.5, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 8)
 kind = "stone"
 
 [node name="P39_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213, -6, -219)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219, -6, -219)
 script = ExtResource("5_route")
 action = 0
 radius = 2.6
@@ -1334,43 +1340,43 @@ radius = 2.6
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 203, -6.6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 209, -6.6, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 12)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 203, -8.45, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 209, -8.45, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 10.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 203, -11.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 209, -11.2, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 7.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 203, -7.5, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 209, -7.5, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 12)
 kind = "stone"
 
 [node name="Checkpoint5" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 205, -6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 211, -6, -219)
 script = ExtResource("6_checkpoint")
 number = 5
 opening = Vector2(12.4, 6)
 
 [node name="P40_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 201, -6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 207, -6, -219)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_TheSpire" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 193, -1, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 199, -1, -219)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -1382,37 +1388,37 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Climb"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 194, -6.6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, -6.6, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 6)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/Climb"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 194, -8.45, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, -8.45, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 4.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/Climb"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 194, -11.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, -11.2, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 1.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/Climb"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 194, -7.5, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, -7.5, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 6)
 kind = "stone"
 
 [node name="P41_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 192, -6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 198, -6, -219)
 script = ExtResource("5_route")
 action = 1
 radius = 0.6
 
 [node name="Ledge" type="Node3D" parent="Course/Climb"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 190.5, -6.1, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 196.5, -6.1, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 2.2, 1)
 kind = "stone"
@@ -1421,37 +1427,37 @@ kind = "stone"
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Climb2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 187.5, -4.4, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 193.5, -4.4, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 7)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/Climb2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 187.5, -6.25, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 193.5, -6.25, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 5.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/Climb2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 187.5, -9, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 193.5, -9, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 2.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/Climb2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 187.5, -5.3, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 193.5, -5.3, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 7)
 kind = "stone"
 
 [node name="P42_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 187, -3.8, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 193, -3.8, -219)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_BoostUpJumpE" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 180, -0.3, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 186, -0.3, -219)
 pixel_size = 0.01
 modulate = Color(0.45, 0.9, 1, 1)
 outline_size = 16
@@ -1463,66 +1469,66 @@ font_size = 60
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 178, -4.4, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 184, -4.4, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 12)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 178, -6.25, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 184, -6.25, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 10.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 178, -9, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 184, -9, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 7.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 178, -5.3, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 184, -5.3, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 12)
 kind = "stone"
 
 [node name="Chevron" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, 0.5646, 174.7, -3.785, -218)
+transform = Transform3D(0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, 0.5646, 180.7, -3.785, -218)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(-0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, -0.5646, 174.7, -3.785, -220)
+transform = Transform3D(-0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, -0.5646, 180.7, -3.785, -220)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, 0.5646, 176.1, -3.785, -218)
+transform = Transform3D(0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, 0.5646, 182.1, -3.785, -218)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(-0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, -0.5646, 176.1, -3.785, -220)
+transform = Transform3D(-0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, -0.5646, 182.1, -3.785, -220)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
 [node name="Chevron5" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, 0.5646, 177.5, -3.785, -218)
+transform = Transform3D(0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, 0.5646, 183.5, -3.785, -218)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
 [node name="Chevron6" type="Node3D" parent="Course/BoostWall"]
-transform = Transform3D(-0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, -0.5646, 177.5, -3.785, -220)
+transform = Transform3D(-0.5646, 0, 0.8253, 0, 1, 0, -0.8253, 0, -0.5646, 183.5, -3.785, -220)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
@@ -1532,49 +1538,49 @@ solid = false
 metadata/_edit_group_ = true
 
 [node name="Tower" type="Node3D" parent="Course/BoostWallTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 167, -0.8, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 173, -0.8, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 8, 10)
 kind = "stone"
 
 [node name="Deck" type="Node3D" parent="Course/BoostWallTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 167, 2.6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 173, 2.6, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 10)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/BoostWallTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 167, 0.75, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 173, 0.75, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 8.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/BoostWallTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 167, -2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 173, -2, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 5.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/BoostWallTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 167, 1.7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 173, 1.7, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 10)
 kind = "stone"
 
 [node name="P43_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 181, -3.8, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 187, -3.8, -219)
 script = ExtResource("5_route")
 action = 0
 radius = 1.5
 
 [node name="P44_boost_up" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 173.4, -3.8, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 179.4, -3.8, -219)
 script = ExtResource("5_route")
 action = 15
 radius = 0.7
 
 [node name="P45_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 167.5, 3.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 173.5, 3.2, -219)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -1583,49 +1589,49 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Chimney"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 157.5, 2.6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 163.5, 2.6, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 9)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/Chimney"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 157.5, 0.75, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 163.5, 0.75, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 7.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/Chimney"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 157.5, -2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 163.5, -2, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 4.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/Chimney"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 157.5, 1.7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 163.5, 1.7, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 9)
 kind = "stone"
 
 [node name="Wall" type="Node3D" parent="Course/Chimney"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155.5, 8.45, -217)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 161.5, 8.45, -217)
 script = ExtResource("2_block")
 size = Vector3(1, 10.5, 5)
 kind = "slab"
 
 [node name="Wall2" type="Node3D" parent="Course/Chimney"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155.5, 8.45, -221)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 161.5, 8.45, -221)
 script = ExtResource("2_block")
 size = Vector3(1, 10.5, 5)
 kind = "slab"
 
 [node name="Back" type="Node3D" parent="Course/Chimney"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 158.5, 8.45, -217)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 164.5, 8.45, -217)
 script = ExtResource("2_block")
 size = Vector3(1, 10.5, 1)
 kind = "slab"
 
 [node name="Back2" type="Node3D" parent="Course/Chimney"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 158.5, 8.45, -221)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 164.5, 8.45, -221)
 script = ExtResource("2_block")
 size = Vector3(1, 10.5, 1)
 kind = "slab"
@@ -1634,43 +1640,43 @@ kind = "slab"
 metadata/_edit_group_ = true
 
 [node name="Tower" type="Node3D" parent="Course/ChimneyTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 149, 7.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155, 7.2, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 10, 8)
 kind = "stone"
 
 [node name="Deck" type="Node3D" parent="Course/ChimneyTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 149, 11.6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155, 11.6, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 8)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/ChimneyTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 149, 9.75, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155, 9.75, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 6.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/ChimneyTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 149, 7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155, 7, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 3.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/ChimneyTop"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 149, 10.7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155, 10.7, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 8)
 kind = "stone"
 
 [node name="P46_chimney" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155.2, 3.2, -220.05)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 161.2, 3.2, -220.05)
 script = ExtResource("5_route")
 action = 9
 radius = 0.5
 
 [node name="P47_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 149.5, 12.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 155.5, 12.2, -219)
 script = ExtResource("5_route")
 action = 0
 radius = 1.8
@@ -1679,43 +1685,43 @@ radius = 1.8
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 139, 11.6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 145, 11.6, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 12)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 139, 9.75, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 145, 9.75, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 10.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 139, 7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 145, 7, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 7.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 139, 10.7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 145, 10.7, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 12)
 kind = "stone"
 
 [node name="Checkpoint6" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 141, 12.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 147, 12.2, -219)
 script = ExtResource("6_checkpoint")
 number = 6
 opening = Vector2(12.4, 6)
 
 [node name="P48_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 137, 12.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 143, 12.2, -219)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_HighWinds" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 129, 17.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 135, 17.2, -219)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -1727,111 +1733,117 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 129, 11.6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 135, 11.6, -219)
 script = ExtResource("2_block")
 size = Vector3(8, 1.2, 8)
 kind = "grass"
 
 [node name="Rock" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 129, 9.75, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 135, 9.75, -219)
 script = ExtResource("2_block")
 size = Vector3(7.4, 2.5, 6.2)
 kind = "earth"
 
 [node name="Rock2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 129, 7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 135, 7, -219)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 3.6)
 kind = "stone_dark"
 
 [node name="Rim" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 129, 10.7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 135, 10.7, -219)
 script = ExtResource("2_block")
 size = Vector3(8.8, 0.6, 8)
 kind = "stone"
 
 [node name="P49_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 131, 12.2, -219.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 137, 12.2, -219.5)
 script = ExtResource("5_route")
 action = 0
 radius = 1
 
 [node name="Panel" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 116, 12.7, -216.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 122, 12.7, -216.5)
 script = ExtResource("2_block")
 size = Vector3(1, 9, 16)
 kind = "slab"
 
 [node name="Rune" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 116, 13.75, -217.015)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 122, 13.75, -217.015)
 script = ExtResource("2_block")
 size = Vector3(0.03, 0.3, 12)
 kind = "rune"
 solid = false
 
 [node name="Panel2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 104, 12.7, -221.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 110, 12.7, -221.5)
 script = ExtResource("2_block")
 size = Vector3(1, 9, 12)
 kind = "slab"
 
 [node name="Rune2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 104, 13.75, -220.985)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 110, 13.75, -220.985)
 script = ExtResource("2_block")
 size = Vector3(0.03, 0.3, 8)
 kind = "rune"
 solid = false
 
 [node name="Deck2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 89, 11.6, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 92, 11.6, -219)
 script = ExtResource("2_block")
-size = Vector3(8, 1.2, 14)
+size = Vector3(12, 1.2, 20)
 kind = "grass"
 
 [node name="Rock3" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 89, 9.75, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 92, 9.75, -219)
 script = ExtResource("2_block")
-size = Vector3(7.4, 2.5, 12.2)
+size = Vector3(11.4, 2.5, 18.2)
 kind = "earth"
 
 [node name="Rock4" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 89, 7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 92, 7, -219)
 script = ExtResource("2_block")
-size = Vector3(4.8, 3, 9.6)
+size = Vector3(8.8, 3, 15.6)
+kind = "stone_dark"
+
+[node name="Rock5" type="Node3D" parent="Course/WallRun2"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 92, 3.75, -219)
+script = ExtResource("2_block")
+size = Vector3(5.4, 3.5, 12.2)
 kind = "stone_dark"
 
 [node name="Rim2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 89, 10.7, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 92, 10.7, -219)
 script = ExtResource("2_block")
-size = Vector3(8.8, 0.6, 14)
+size = Vector3(12.8, 0.6, 20)
 kind = "stone"
 
 [node name="P50_wall_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 125.6, 12.2, -218.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 131.6, 12.2, -218.2)
 script = ExtResource("5_route")
 action = 7
 radius = 0.7
 
 [node name="P51_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 121.5, 12.7, -217.45)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 127.5, 12.7, -217.45)
 script = ExtResource("5_route")
 action = 0
 radius = 1
 
 [node name="P52_wall_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 111.5, 12.7, -217.45)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 117.5, 12.7, -217.45)
 script = ExtResource("5_route")
 action = 8
 radius = 1
 
 [node name="P53_wall_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 101, 12.7, -220.55)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 107, 12.7, -220.55)
 script = ExtResource("5_route")
 action = 8
 radius = 1
 
 [node name="P54_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 91, 12.2, -219)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 94, 12.2, -219)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -2543,476 +2555,476 @@ sides = 20
 metadata/_edit_group_ = true
 
 [node name="Cloud" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.6913, -72.2842, -88.6072)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.977, -72.2842, -88.6072)
 script = ExtResource("2_block")
 size = Vector3(36.2978, 5.0314, 30.9413)
 kind = "cloud"
 solid = false
 
 [node name="Cloud2" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -168.5589, -66.3977, -106.939)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -167.451, -66.3977, -106.939)
 script = ExtResource("2_block")
 size = Vector3(47.7542, 3.3765, 32.5703)
 kind = "cloud"
 solid = false
 
 [node name="Cloud3" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -222.2271, -67.6688, 7.0939)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -221.6831, -67.6688, 7.0939)
 script = ExtResource("2_block")
 size = Vector3(21.4658, 6.9288, 23.1585)
 kind = "cloud"
 solid = false
 
 [node name="Cloud4" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99.3898, -56.9499, -67.2395)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.3133, -56.9499, -67.2395)
 script = ExtResource("2_block")
 size = Vector3(20.525, 5.1135, 10.9959)
 kind = "cloud"
 solid = false
 
 [node name="Cloud5" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -165.3911, -54.4017, -210.3358)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -164.2498, -54.4017, -210.3358)
 script = ExtResource("2_block")
 size = Vector3(36.2377, 4.7621, 36.4354)
 kind = "cloud"
 solid = false
 
 [node name="Cloud6" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.4199, -63.7955, -57.7683)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.5346, -63.7955, -57.7683)
 script = ExtResource("2_block")
 size = Vector3(43.1857, 4.8293, 28.8005)
 kind = "cloud"
 solid = false
 
 [node name="Cloud7" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 295.6617, -70.6043, 78.3499)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 301.6476, -70.6043, 78.3499)
 script = ExtResource("2_block")
 size = Vector3(44.7733, 4.2611, 28.5564)
 kind = "cloud"
 solid = false
 
 [node name="Cloud8" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -108.9582, -69.1258, -276.1044)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -107.224, -69.1258, -276.1044)
 script = ExtResource("2_block")
 size = Vector3(34.014, 6.3863, 24.8951)
 kind = "cloud"
 solid = false
 
 [node name="Cloud9" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 273.0422, -53.8109, 21.5196)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 278.7905, -53.8109, 21.5196)
 script = ExtResource("2_block")
 size = Vector3(27.3401, 6.6411, 21.3798)
 kind = "cloud"
 solid = false
 
 [node name="Cloud10" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 285.785, -55.2608, -150.7865)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 291.6671, -55.2608, -150.7865)
 script = ExtResource("2_block")
 size = Vector3(42.0309, 6.114, 27.8188)
 kind = "cloud"
 solid = false
 
 [node name="Cloud11" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -224.2407, -73.0815, -175.6197)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -223.7178, -73.0815, -175.6197)
 script = ExtResource("2_block")
 size = Vector3(46.5314, 3.472, 30.1446)
 kind = "cloud"
 solid = false
 
 [node name="Cloud12" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -216.3026, -69.7404, -280.0608)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -215.6963, -69.7404, -280.0608)
 script = ExtResource("2_block")
 size = Vector3(26.2187, 5.2372, 20.1479)
 kind = "cloud"
 solid = false
 
 [node name="Cloud13" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -165.1192, -56.4193, -22.6845)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -163.9751, -56.4193, -22.6845)
 script = ExtResource("2_block")
 size = Vector3(42.53, 3.466, 32.0019)
 kind = "cloud"
 solid = false
 
 [node name="Cloud14" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -152.4537, -73.2186, -199.6685)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -151.1765, -73.2186, -199.6685)
 script = ExtResource("2_block")
 size = Vector3(48.1194, 4.2166, 49.6072)
 kind = "cloud"
 solid = false
 
 [node name="Cloud15" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -153.6845, -70.8875, -151.9928)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -152.4202, -70.8875, -151.9928)
 script = ExtResource("2_block")
 size = Vector3(42.4642, 3.4013, 46.4381)
 kind = "cloud"
 solid = false
 
 [node name="Cloud16" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -152.238, -69.2538, -204.0797)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -150.9586, -69.2538, -204.0797)
 script = ExtResource("2_block")
 size = Vector3(31.5134, 4.1853, 17.1445)
 kind = "cloud"
 solid = false
 
 [node name="Cloud17" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -222.5431, -58.6603, -79.8126)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -222.0024, -58.6603, -79.8126)
 script = ExtResource("2_block")
 size = Vector3(41.0449, 4.4868, 31.6836)
 kind = "cloud"
 solid = false
 
 [node name="Cloud18" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 273.6659, -65.2914, -117.7335)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 279.4207, -65.2914, -117.7335)
 script = ExtResource("2_block")
 size = Vector3(50.3284, 3.7313, 29.8186)
 kind = "cloud"
 solid = false
 
 [node name="Cloud19" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 244.71, -58.79, 10.2181)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 250.1605, -58.79, 10.2181)
 script = ExtResource("2_block")
 size = Vector3(26.643, 5.9577, 28.3546)
 kind = "cloud"
 solid = false
 
 [node name="Cloud20" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -161.7472, -71.4438, 60.902)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -160.5677, -71.4438, 60.902)
 script = ExtResource("2_block")
 size = Vector3(41.1237, 4.6858, 23.124)
 kind = "cloud"
 solid = false
 
 [node name="Cloud21" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -251.9043, -58.5681, 65.707)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -251.6721, -58.5681, 65.707)
 script = ExtResource("2_block")
 size = Vector3(44.6603, 4.0279, 44.4026)
 kind = "cloud"
 solid = false
 
 [node name="Cloud22" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.5823, -57.3087, -190.6143)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 70.1611, -57.3087, -190.6143)
 script = ExtResource("2_block")
 size = Vector3(45.2124, 3.2751, 28.802)
 kind = "cloud"
 solid = false
 
 [node name="Cloud23" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.3982, -66.0861, 23.4692)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.7544, -66.0861, 23.4692)
 script = ExtResource("2_block")
 size = Vector3(29.8077, 6.6694, 18.5519)
 kind = "cloud"
 solid = false
 
 [node name="Cloud24" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -264.5358, -62.7141, -199.8987)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -264.4363, -62.7141, -199.8987)
 script = ExtResource("2_block")
 size = Vector3(22.1159, 3.705, 15.9516)
 kind = "cloud"
 solid = false
 
 [node name="Cloud25" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.7087, -61.0429, -252.6054)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.1418, -61.0429, -252.6054)
 script = ExtResource("2_block")
 size = Vector3(51.1829, 6.922, 45.7657)
 kind = "cloud"
 solid = false
 
 [node name="Cloud26" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.6875, -56.6069, -79.1594)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.8349, -56.6069, -79.1594)
 script = ExtResource("2_block")
 size = Vector3(21.2278, 3.0716, 22.207)
 kind = "cloud"
 solid = false
 
 [node name="Cloud27" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.2539, -54.2252, 65.7413)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.4597, -54.2252, 65.7413)
 script = ExtResource("2_block")
 size = Vector3(42.2665, 4.9289, 39.6586)
 kind = "cloud"
 solid = false
 
 [node name="Cloud28" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.9055, -55.3053, 79.754)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.9921, -55.3053, 79.754)
 script = ExtResource("2_block")
 size = Vector3(39.1133, 5.948, 40.6825)
 kind = "cloud"
 solid = false
 
 [node name="Cloud29" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 146.8773, -69.6653, -33.4865)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 151.2999, -69.6653, -33.4865)
 script = ExtResource("2_block")
 size = Vector3(52.0251, 4.4073, 47.3994)
 kind = "cloud"
 solid = false
 
 [node name="Cloud30" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 240.3773, -62.1431, 30.6318)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 245.7823, -62.1431, 30.6318)
 script = ExtResource("2_block")
 size = Vector3(47.6686, 6.4539, 40.2173)
 kind = "cloud"
 solid = false
 
 [node name="Cloud31" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.8525, -65.4536, -156.5663)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86.6022, -65.4536, -156.5663)
 script = ExtResource("2_block")
 size = Vector3(41.3103, 3.3208, 36.5036)
 kind = "cloud"
 solid = false
 
 [node name="Cloud32" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 293.187, -68.3641, 33.9603)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 299.1469, -68.3641, 33.9603)
 script = ExtResource("2_block")
 size = Vector3(33.5953, 5.9402, 28.508)
 kind = "cloud"
 solid = false
 
 [node name="Cloud33" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.4617, -55.4756, 18.0957)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.8185, -55.4756, 18.0957)
 script = ExtResource("2_block")
 size = Vector3(46.2574, 3.1192, 39.817)
 kind = "cloud"
 solid = false
 
 [node name="Cloud34" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6263, -67.7667, -214.8251)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5121, -67.7667, -214.8251)
 script = ExtResource("2_block")
 size = Vector3(37.4038, 5.458, 39.3592)
 kind = "cloud"
 solid = false
 
 [node name="Cloud35" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -127.9209, -59.8207, -298.6693)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -126.386, -59.8207, -298.6693)
 script = ExtResource("2_block")
 size = Vector3(43.7348, 3.8103, 26.318)
 kind = "cloud"
 solid = false
 
 [node name="Cloud36" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 243.167, -62.6386, -50.2238)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 248.6014, -62.6386, -50.2238)
 script = ExtResource("2_block")
 size = Vector3(51.2104, 4.3078, 46.0658)
 kind = "cloud"
 solid = false
 
 [node name="Cloud37" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -160.6532, -69.9198, -137.9671)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -159.4622, -69.9198, -137.9671)
 script = ExtResource("2_block")
 size = Vector3(51.9977, 6.5211, 37.9922)
 kind = "cloud"
 solid = false
 
 [node name="Cloud38" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.9542, -56.5235, -181.7855)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.4528, -56.5235, -181.7855)
 script = ExtResource("2_block")
 size = Vector3(37.3763, 6.3484, 37.7214)
 kind = "cloud"
 solid = false
 
 [node name="Cloud39" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 132.1053, -59.3359, 60.8501)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 136.3726, -59.3359, 60.8501)
 script = ExtResource("2_block")
 size = Vector3(25.9195, 4.8026, 17.239)
 kind = "cloud"
 solid = false
 
 [node name="Cloud40" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -151.7601, -66.3147, -144.4438)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -150.4756, -66.3147, -144.4438)
 script = ExtResource("2_block")
 size = Vector3(37.2856, 4.2615, 37.4151)
 kind = "cloud"
 solid = false
 
 [node name="Cloud41" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 286.7428, -55.2936, -129.7012)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 292.6351, -55.2936, -129.7012)
 script = ExtResource("2_block")
 size = Vector3(21.102, 6.4913, 11.0763)
 kind = "cloud"
 solid = false
 
 [node name="Cloud42" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 130.6283, -59.9806, -84.4671)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 134.88, -59.9806, -84.4671)
 script = ExtResource("2_block")
 size = Vector3(47.703, 3.0765, 27.7406)
 kind = "cloud"
 solid = false
 
 [node name="Cloud43" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.2907, -70.3934, -293.5297)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.5617, -70.3934, -293.5297)
 script = ExtResource("2_block")
 size = Vector3(28.3093, 3.5635, 14.952)
 kind = "cloud"
 solid = false
 
 [node name="Cloud44" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.262, -66.3993, -131.9979)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 89.037, -66.3993, -131.9979)
 script = ExtResource("2_block")
 size = Vector3(42.9265, 6.2295, 46.1493)
 kind = "cloud"
 solid = false
 
 [node name="Cloud45" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 116.8454, -63.3028, -226.6522)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.9523, -63.3028, -226.6522)
 script = ExtResource("2_block")
 size = Vector3(26.254, 3.0431, 20.5653)
 kind = "cloud"
 solid = false
 
 [node name="Cloud46" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.7916, -59.2471, -234.4052)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 138.0766, -59.2471, -234.4052)
 script = ExtResource("2_block")
 size = Vector3(32.1009, 5.7892, 26.0741)
 kind = "cloud"
 solid = false
 
 [node name="Cloud47" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 76.8496, -61.6703, -13.3728)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80.5363, -61.6703, -13.3728)
 script = ExtResource("2_block")
 size = Vector3(47.7176, 6.6249, 26.3557)
 kind = "cloud"
 solid = false
 
 [node name="Cloud48" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 258.5168, -56.3982, -26.3295)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 264.1124, -56.3982, -26.3295)
 script = ExtResource("2_block")
 size = Vector3(35.8738, 5.5022, 37.5232)
 kind = "cloud"
 solid = false
 
 [node name="Cloud49" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58.8456, -71.3864, -85.1442)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.5848, -71.3864, -85.1442)
 script = ExtResource("2_block")
 size = Vector3(47.8869, 6.777, 37.2667)
 kind = "cloud"
 solid = false
 
 [node name="Cloud50" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 97.9052, -68.2387, -224.5255)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 101.8131, -68.2387, -224.5255)
 script = ExtResource("2_block")
 size = Vector3(48.6421, 5.5665, 45.2662)
 kind = "cloud"
 solid = false
 
 [node name="Cloud51" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -152.2077, -73.4099, 41.6938)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -150.9279, -73.4099, 41.6938)
 script = ExtResource("2_block")
 size = Vector3(54.2075, 5.1478, 52.8238)
 kind = "cloud"
 solid = false
 
 [node name="Cloud52" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -91.0546, -70.9157, 45.5261)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -89.1322, -70.9157, 45.5261)
 script = ExtResource("2_block")
 size = Vector3(32.1977, 3.3311, 24.6165)
 kind = "cloud"
 solid = false
 
 [node name="Cloud53" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.2224, -63.5489, -8.7666)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.5242, -63.5489, -8.7666)
 script = ExtResource("2_block")
 size = Vector3(20.9944, 6.2366, 11.3041)
 kind = "cloud"
 solid = false
 
 [node name="Cloud54" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 182.72, -60.5001, -236.7807)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 187.5191, -60.5001, -236.7807)
 script = ExtResource("2_block")
 size = Vector3(47.5767, 3.562, 28.0324)
 kind = "cloud"
 solid = false
 
 [node name="Cloud55" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.9357, -70.5995, -25.8741)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.0349, -70.5995, -25.8741)
 script = ExtResource("2_block")
 size = Vector3(44.128, 6.783, 35.106)
 kind = "cloud"
 solid = false
 
 [node name="Cloud56" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 267.9671, -58.2283, -270.053)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 273.6621, -58.2283, -270.053)
 script = ExtResource("2_block")
 size = Vector3(38.4332, 4.1607, 36.0237)
 kind = "cloud"
 solid = false
 
 [node name="Cloud57" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90.7954, -70.6725, -102.7742)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 94.6286, -70.6725, -102.7742)
 script = ExtResource("2_block")
 size = Vector3(39.599, 4.2468, 28.857)
 kind = "cloud"
 solid = false
 
 [node name="Cloud58" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 208.6438, -57.9648, 41.9011)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 213.7153, -57.9648, 41.9011)
 script = ExtResource("2_block")
 size = Vector3(49.777, 6.8738, 40.5451)
 kind = "cloud"
 solid = false
 
 [node name="Cloud59" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.1768, -64.5181, -226.0296)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.6147, -64.5181, -226.0296)
 script = ExtResource("2_block")
 size = Vector3(37.6111, 5.4209, 19.4319)
 kind = "cloud"
 solid = false
 
 [node name="Cloud60" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 279.5302, -61.8117, -105.3652)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 285.3466, -61.8117, -105.3652)
 script = ExtResource("2_block")
 size = Vector3(48.0374, 5.2515, 38.1717)
 kind = "cloud"
 solid = false
 
 [node name="FarIsle" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 116.7337, 2.3615, -269.0782)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.8796, 2.3615, -269.0782)
 script = ExtResource("2_block")
 size = Vector3(11.7928, 2, 9.4343)
 kind = "grass"
 solid = false
 
 [node name="FarRock" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 116.7337, -1.6385, -269.0782)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.8796, -1.6385, -269.0782)
 script = ExtResource("2_block")
 size = Vector3(8.8446, 6, 7.0757)
 kind = "stone_dark"
 solid = false
 
 [node name="FarIsle2" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 263.2327, -5.7236, 42.201)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 268.9738, -5.7236, 42.201)
 script = ExtResource("2_block")
 size = Vector3(12.6243, 2, 10.0994)
 kind = "grass"
 solid = false
 
 [node name="FarRock2" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 263.2327, -9.7236, 42.201)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 268.9738, -9.7236, 42.201)
 script = ExtResource("2_block")
 size = Vector3(9.4682, 6, 7.5746)
 kind = "stone_dark"
 solid = false
 
 [node name="FarIsle3" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 185.4601, 0.496, 33.9016)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 190.3544, 0.496, 33.9016)
 script = ExtResource("2_block")
 size = Vector3(10.441, 2, 8.3528)
 kind = "grass"
 solid = false
 
 [node name="FarRock3" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 185.4601, -3.504, 33.9016)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 190.3544, -3.504, 33.9016)
 script = ExtResource("2_block")
 size = Vector3(7.8308, 6, 6.2646)
 kind = "stone_dark"
 solid = false
 
 [node name="FarIsle4" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 245.8241, 9.5787, -246.0055)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 251.3758, 9.5787, -246.0055)
 script = ExtResource("2_block")
 size = Vector3(6.319, 2, 5.0552)
 kind = "grass"
 solid = false
 
 [node name="FarRock4" type="Node3D" parent="Scenery/Clouds"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 245.8241, 5.5787, -246.0055)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 251.3758, 5.5787, -246.0055)
 script = ExtResource("2_block")
 size = Vector3(4.7393, 6, 3.7914)
 kind = "stone_dark"

@@ -291,9 +291,11 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# Reel in: a yank when the hook catches, then a steady pull toward it.
 		if hooked_now:
 			vel = grapple.yank(body, vel)
+			vel = grapple.yank_lift(body, vel)
 			if grounded and (grapple.target != null or grapple.anchor.y > grapple.rope_origin(body).y):
 				vel.y = max(vel.y, t.grapple_hop)   # pop off the floor instead of dragging along it
 		vel = grapple.pull(body, vel, delta)
+		vel = grapple.lift(body, vel, delta)
 		vel = grapple.constrain_velocity(body, vel, delta)
 		if grounded and state != State.BELLY_SLIDE:
 			state = State.GRAPPLE if vel.y > 0.1 else State.GROUND
@@ -602,6 +604,13 @@ func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 	var into := h.dot(n)
 	if into < 0.0:
 		h -= n * into
+	# Carry on the way you were running, a little faster (chained kicks don't stack
+	# past wall_jump_forward_max).
+	var along := h - n * h.dot(n)
+	var speed := along.length()
+	if speed > 1.0:
+		var faster := maxf(speed, minf(speed + t.wall_jump_forward, t.wall_jump_forward_max))
+		h += along / speed * (faster - speed)
 	h += n * t.wall_jump_push
 	return Vector3(h.x, max(vel.y, t.wall_jump_up), h.z)
 
