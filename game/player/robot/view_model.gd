@@ -17,6 +17,25 @@ const CRAWL_PERIOD := 0.9              ## seconds for one crawl cycle at crawlin
 const LOOK_DOWN_FROM := 35.0            ## degrees of down pitch where the arms start moving out of the way...
 const LOOK_DOWN_FULL := 80.0
 const LOOK_DOWN_SHIFT := Vector3(0.05, -0.08, 0.0)   ## ...of your own body below you, ending this far over
+## A melee weapon (see MeleeSwing): the hands are held this much higher and further out
+## than the body holds them, so the weapon is in view, and the shoulders turn with
+## this much of the body's wind-up, so a wound-up weapon is still on screen (just).
+const MELEE_SHIFT := Vector3(0.05, 0.11, -0.04)
+const MELEE_TURN := 0.3
+## ...and the whole arms model sits this much further out and lower, so the weapon is
+## not right under your nose.
+const MELEE_VIEW := Vector3(0.03, -0.03, -0.14)
+const MELEE_VIEW_YAW := -0.2   ## and turned a little to the right: the weapon rests right of centre
+## The weapons swung flat from the side: at rest the blade leans in across the view
+## (clear of the crosshair), and wound up it is raised by the right shoulder, where
+## you can still see it. Directions in the hold frame (see MeleeSwing).
+const MELEE_CUT_TILT := 0.22   ## radians the blow is tipped up, so it sweeps across the crosshair and not under it
+const MELEE_SWUNG := ["sword", "hammer", "axe", "bat"]
+const MELEE_REST_BLADE := Vector3(-0.1, 0.86, -0.5)
+const MELEE_WOUND_BLADE := Vector3(0.42, 0.85, 0.3)
+const MELEE_WOUND_SHIFT := Vector3(-0.04, 0.06, -0.06)   ## wound up, the hands come up and forward into view
+## In these the hands are busy (climbing, tucked): the weapon is not held up.
+const MELEE_BUSY := ["fp_mantle", "fp_tuck", "fp_dive"]
 
 var model: RobotModel
 var rig: RobotRig
@@ -51,6 +70,9 @@ var _data: WeaponData
 var _fire_t := -1.0
 var _swing := MeleeSwing.new()
 var _swing_view := Vector2.ZERO   # the swing's chest turn and lean, felt as a turn of the whole view model
+var _hold := 1.0                  # how much the arms hold the melee weapon up
+var _rest := 1.0                  # how much the blade is in its resting lean (0 while winding up or swinging)
+var _cut := 0.0                   # in a blow: the cut is tipped up to cross the middle of the view
 
 
 func setup(player: Player, color: Color) -> void:
@@ -71,6 +93,8 @@ func setup(player: Player, color: Color) -> void:
 		_arm_l.append(rig.bones[n])
 	_last_yaw = player.input.yaw
 	_last_pitch = player.input.pitch
+	if _data.is_melee():
+		_swing.set_weapon(_weapon)
 	rig.sample(_pose, clip("fp_idle"), 0.0)
 	_pose.apply(model.skeleton)
 
@@ -88,10 +112,17 @@ func fire() -> void:
 		_fire_t = 0.0
 
 
-## A melee swing started (count: the swing number, so swings alternate sides).
-func swing(count: int) -> void:
+## Winding a melee swing up, this frame: `charge` 0..1 is how far.
+func wind(charge: float) -> void:
 	if _data.is_melee():
-		_swing.start(_weapon, count)
+		_swing.wind(charge)
+		_since_fire = 0.0
+
+
+## The swing was let go, `power` 0..1 wound up.
+func swing(power: float) -> void:
+	if _data.is_melee():
+		_swing.swing(power)
 		_since_fire = 0.0
 
 
@@ -203,21 +234,26 @@ func update(delta: float) -> void:
 		_pose.rot[rig.bones["hand_l"]] = _pose.rot[rig.bones["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
 
 	if _data.is_melee():
-		# One-handed, held off to the right so the blade never hides what you aim at;
-		# the left arm drops out of view.
-		_pose.rot[rig.bones["upper_arm_l"]] = Quaternion(Vector3.RIGHT, -1.4) * _pose.rot[rig.bones["upper_arm_l"]]
-		MeleeSwing.apply(_pose, rig.bones, [-0.28, -0.12, -0.25, 0.0, 0.0], 1.0, 0.0)
-		var grip: int = rig.bones["pistol"]
-		_pose.rot[grip] = _pose.rot[grip] * Quaternion(Vector3.UP, -0.55)   # lean the blade out to the right
-		if _swing.active():
-			var s := _swing.sample(delta)
-			s[0] = s[0] * 0.3 + 0.12   # a smaller sweep than the body's, so the blade crosses the view instead of leaving it
-			s[1] *= 0.45
-			MeleeSwing.apply(_pose, rig.bones, s, 1.0, 0.0)
-			_pose.rot[grip] = _pose.rot[grip] * Quaternion(Vector3.UP, 0.55 * smoothstep(0.0, 0.6, -s[2]))   # level the blade into the blow
-			_swing_view = Vector2(s[3] * 0.4, s[4])
-		else:
-			_swing_view = Vector2.ZERO
+		# The same hold and swing as the body's, with the shoulders turning less so the
+		# weapon stays on screen: winding up draws it back to the right edge of the
+		# view, and the blow sweeps it across.
+		var k := _swing.sample(delta)
+		var shift := MELEE_SHIFT
+		if _weapon in MELEE_SWUNG:
+			if _swing.winding():
+				shift += MELEE_WOUND_SHIFT * clampf(-_swing.coil(), 0.0, 1.0)
+			_rest = move_toward(_rest, 0.0 if _swing.active() else 1.0, delta * (12.0 if _swing.active() else 5.0))
+			var blade: Vector3 = k[MeleeSwing.BLADE]
+			blade = blade.slerp(MELEE_REST_BLADE.normalized(), smoothstep(0.0, 1.0, _rest))
+			if _swing.winding():
+				blade = blade.slerp(MELEE_WOUND_BLADE.normalized(), 0.75 * clampf(-_swing.coil(), 0.0, 1.0))
+			k[MeleeSwing.BLADE] = blade
+		_hold = move_toward(_hold, 0.0 if key in MELEE_BUSY and not _swing.active() else 1.0, delta * 9.0)
+		var chest: int = rig.bones["chest"]
+		_pose.rot[chest] = Quaternion(Vector3.UP, k[MeleeSwing.TURN] * MELEE_TURN * _hold) * _pose.rot[chest]
+		_cut = move_toward(_cut, 1.0 if _swing.active() and not _swing.winding() else 0.0, delta * 14.0)
+		MeleeSwing.hold(_pose, rig, k, _swing.two_handed, MELEE_CUT_TILT * _cut, _hold, _hold * (1.0 - _grapple_w), shift)
+		_swing_view = Vector2(k[MeleeSwing.TURN] * 0.4, k[MeleeSwing.LEAN]) * _hold
 
 	_recoil *= exp(-delta * 18.0)
 	if _weapon == "pistol":
@@ -255,9 +291,13 @@ func update(delta: float) -> void:
 
 	var kick := minf(_recoil, 1.6)
 	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, kick * 0.035)
+	if _data.is_melee():
+		position += MELEE_VIEW
 	position += LOOK_DOWN_SHIFT * smoothstep(deg_to_rad(LOOK_DOWN_FROM), deg_to_rad(LOOK_DOWN_FULL), -pitch)
 	rotation = Vector3(-_sway.y * 0.5 + kick * 0.07 + _dip * 0.8 - _swing_view.y * 0.25,
 		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3, _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2)
+	if _data.is_melee():
+		rotation.y += MELEE_VIEW_YAW
 
 
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:

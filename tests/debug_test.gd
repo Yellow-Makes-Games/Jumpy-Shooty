@@ -7,6 +7,8 @@ extends SceneTree
 ## damage knocks it down, and it gets back up with full health.
 ## Cheats: god mode stops damage; infinite ammo keeps the magazine full; bots can be
 ## added and removed mid-match; the robot and gun can be changed on the spot.
+## Melee: a tap is a weak blow; holding the button winds the swing up (and coils the
+## body), and letting go of a full wind-up hits much harder.
 ## Online: every cheat is off and the menu will not open, even for the host.
 
 func _init() -> void:

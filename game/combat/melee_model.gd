@@ -1,11 +1,13 @@
 class_name MeleeModel
 extends RefCounted
-## The melee weapons' looks (sword, hammer, dagger, brass knuckles, spear, axe, bat), built from simple shapes and
+## The melee weapons' looks (longsword, hammer, dagger, brass knuckles, spear, axe, bat), built from simple shapes and
 ## carried in the robot's fist on its "pistol" bone (the grip). The guns live in the
 ## robot model files; the blades are made here so they need no new model files.
 ##
-## Built in weapon space: the grip at the origin, the blade or shaft up +Y, the
-## robot's forward -Z (with the arm held out in the aim pose).
+## Built in weapon space: the right hand's grip at the origin, the blade or shaft up
+## +Y, the edge (or the hammer's face) toward -Z. The two-handed ones have handle
+## below the origin for the left hand (the spear: above it). MeleeSwing says where
+## the weapon is and bends the arms to hold it.
 
 const STEEL := Color(0.78, 0.8, 0.83)
 const DARK := Color(0.16, 0.17, 0.19)
@@ -13,10 +15,12 @@ const GRIP := Color(0.1, 0.1, 0.11)
 const VIEW_SHADER := "res://game/player/robot/viewmodel.gdshader"
 ## From weapon space to the grip bone's space: its -Z is up and -Y forward in the aim pose.
 const TO_BONE := Basis(Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0))
-## The blade leans forward a little in the ready stance.
+## The blade leans forward a little in the fist.
 const READY_TILT := -0.45
+## From weapon space to the grip bone's space, lean and all.
+const HOLD := TO_BONE * Basis(Vector3.RIGHT, READY_TILT)
 ## How far up the weapon its cutting edge runs (from, to), in metres from the grip.
-const EDGES := {"sword": [0.3, 1.0], "hammer": [0.55, 0.9], "dagger": [0.12, 0.45],
+const EDGES := {"sword": [0.3, 1.27], "hammer": [0.55, 0.9], "dagger": [0.12, 0.45],
 	"brass_knuckles": [0.0, 0.1], "spear": [0.95, 1.5], "axe": [0.52, 0.8], "bat": [0.35, 0.86]}
 const WOOD := Color(0.45, 0.28, 0.15)
 
@@ -28,7 +32,7 @@ static func attach(model: RobotModel, id: String, trim: Color, viewmodel: bool) 
 	at.bone_name = "pistol"
 	model.skeleton.add_child(at)
 	var holder := Node3D.new()
-	holder.transform = Transform3D(TO_BONE * Basis(Vector3.RIGHT, READY_TILT), Vector3.ZERO)
+	holder.transform = Transform3D(HOLD, Vector3.ZERO)
 	at.add_child(holder)
 	for part in parts(id):
 		var mi := MeshInstance3D.new()
@@ -96,8 +100,9 @@ static func parts(id: String) -> Array:
 			]
 		"axe":
 			return [
-				[_cyl(0.022, 0.8), _at(0, 0.28), "wood"],
-				[_cyl(0.027, 0.13), _at(0, -0.06), "grip"],
+				[_cyl(0.022, 0.98), _at(0, 0.19), "wood"],
+				[_cyl(0.027, 0.3), _at(0, -0.1), "grip"],
+				[_cyl(0.03, 0.03), _at(0, -0.31), "dark"],
 				[_box(0.04, 0.12, 0.1), _at(0, 0.66, 0.0), "dark"],
 				[_box(0.022, 0.24, 0.16), _at(0, 0.66, -0.12), "steel"],
 				[_box(0.026, 0.27, 0.025), _at(0, 0.66, -0.205), "edge"],
@@ -106,15 +111,15 @@ static func parts(id: String) -> Array:
 		"bat":
 			return [
 				[_cone(0.022, 0.05, 0.7), _at(0, 0.5), "wood"],
-				[_cyl(0.022, 0.24), _at(0, 0.03), "grip"],
-				[_cyl(0.032, 0.03), _at(0, -0.1), "dark"],
+				[_cyl(0.022, 0.36), _at(0, -0.03), "grip"],
+				[_cyl(0.032, 0.03), _at(0, -0.22), "dark"],
 				[_cyl(0.052, 0.025), _at(0, 0.72), "edge"],
 				[_cyl(0.05, 0.03), _at(0, 0.86), "dark"],
 			]
 		"hammer":
 			return [
-				[_cyl(0.026, 0.8), _at(0, 0.24), "grip"],
-				[_cyl(0.034, 0.12), _at(0, -0.18), "dark"],
+				[_cyl(0.026, 1.0), _at(0, 0.14), "grip"],
+				[_cyl(0.034, 0.1), _at(0, -0.38), "dark"],
 				[_box(0.17, 0.17, 0.38), _at(0, 0.7), "steel"],
 				[_box(0.18, 0.18, 0.045), _at(0, 0.7, -0.15), "edge"],
 				[_box(0.18, 0.18, 0.045), _at(0, 0.7, 0.15), "edge"],
@@ -130,13 +135,14 @@ static func parts(id: String) -> Array:
 				[_box(0.008, 0.26, 0.012), _at(0, 0.22), "edge"],
 				[_sphere(0.026), _at(0, -0.085), "dark"],
 			]
-	return [   # sword
-		[_cyl(0.022, 0.2), _at(0, -0.01), "grip"],
-		[_sphere(0.032), _at(0, -0.125), "dark"],
-		[_box(0.24, 0.035, 0.055), _at(0, 0.1), "dark"],
-		[_box(0.06, 0.78, 0.014), _at(0, 0.505), "steel"],
-		[_tip(0.06, 0.13, 0.014), _at(0, 0.96), "steel"],
-		[_box(0.012, 0.72, 0.017), _at(0, 0.49), "edge"],
+	return [   # longsword: a grip for two hands, a wide crossguard, a long blade
+		[_cyl(0.022, 0.36), _at(0, -0.07), "grip"],
+		[_sphere(0.036), _at(0, -0.27), "dark"],
+		[_box(0.34, 0.035, 0.055), _at(0, 0.125), "dark"],
+		[_box(0.07, 0.1, 0.03), _at(0, 0.19), "dark"],
+		[_box(0.064, 0.98, 0.014), _at(0, 0.63), "steel"],
+		[_tip(0.064, 0.15, 0.014), _at(0, 1.195), "steel"],
+		[_box(0.012, 0.94, 0.017), _at(0, 0.62), "edge"],
 	]
 
 

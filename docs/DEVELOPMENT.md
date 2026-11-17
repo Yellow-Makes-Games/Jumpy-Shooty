@@ -59,7 +59,12 @@ or WSL; I run these on every change anyway):
   the hitbox (`tests/robot_test.gd`); every gun has its muzzle bone and its own aim,
   carry, reload and first-person clips;
 - weapons: damage and falloff (a close shotgun blast and a sniper headshot kill, the
-  rifle never one-shots), whole-magazine and shell-by-shell reloads (`tests/weapon_test.gd`);
+  rifle never one-shots), whole-magazine and shell-by-shell reloads; melee: a tap is
+  weak, a full wind-up hits and shoves much harder but never kills outright (the
+  hammer and bat kill by the wall), the body coils with the wind-up, and the left hand
+  stays on a two-handed weapon's handle through the whole swing (`tests/weapon_test.gd`);
+  in a real Practice match, tapping and then holding the button on a target dummy
+  (`tests/debug_test.gd`);
 - the Testing Grounds practice courses and the Construction Site routes: a scripted
   player runs each one (`tests/course_test.gd`, `tests/site_test.gd`). The site test also
   checks the spawn points and that a bot can walk to every level. To run one route and

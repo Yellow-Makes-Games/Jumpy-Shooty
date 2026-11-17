@@ -12,7 +12,7 @@ const TABS := ["Controls", "Camera & HUD", "Audio", "Graphics"]
 const KEYS := [
 	["W A S D", "Move"], ["Shift", "Sprint"], ["Space", "Jump; again in mid-air to flip"],
 	["Ctrl / C", "Crouch; slide when moving fast"], ["Q / Alt", "Dive (keep holding to land in a belly slide)"], ["Right mouse", "Grapple"],
-	["Left mouse", "Shoot"], ["R", "Reload"], ["V", "First / third person"], ["Tab", "Scoreboard"],
+	["Left mouse", "Shoot; melee: hold to wind up, let go to swing"], ["R", "Reload"], ["V", "First / third person"], ["Tab", "Scoreboard"],
 	["F1", "Debug menu (Practice and Vs Bots)"],
 ]
 

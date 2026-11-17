@@ -11,6 +11,8 @@ extends RefCounted
 ##  5. Legs turn at the waist to face the way the robot is moving (it can strafe
 ##     and back-pedal while the upper body keeps aiming).
 ##  6. Recoil, and the left arm reaching for the grapple anchor.
+## A melee weapon has no clips: MeleeSwing says where the weapon is (ready, wound up,
+## mid-blow) and bends the arms to hold it, in both hands where the weapon allows.
 ## The clips come from the model file; see tools/robot/animations.py. A long gun has its
 ## own version of the clips where the hands hold the gun ("aim_rifle", "reload_shotgun";
 ## tools/robot/weapon_anims.py), used instead of the plain (pistol) ones. Long guns also
@@ -100,8 +102,10 @@ var _carry_pose: RobotPose
 var _fire_t := -1.0       # time into the gun's fire clip (pump, bolt), or -1
 var _kick := 1.0
 var _loop_reload := false
-var _melee := false       # a sword, hammer or dagger: one hand on it, swings instead of shots
+var _melee := false       # a melee weapon: held and swung by MeleeSwing, not by clips
 var _swing := MeleeSwing.new()
+var _hold := 1.0          # how much the arms hold the weapon up (0 in a flip, a roll, a climb)
+var _swing_key: Array = []   # the swing's pose this frame
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
@@ -139,6 +143,8 @@ func set_weapon(id: String) -> void:
 	_kick = data.kick
 	_loop_reload = data.reload_per_round
 	_melee = data.is_melee()
+	if _melee:
+		_swing.set_weapon(weapon)
 	if rig.has_clip(clip("aim")):
 		rig.sample(_aim, clip("aim"), 0.0)
 	_stance = _aim.rot[_b["chest"]].normalized()
@@ -168,10 +174,16 @@ func fire() -> void:
 		_fire_t = 0.0
 
 
-## A melee swing started (count: the swing number, so swings alternate sides).
-func swing(count: int) -> void:
+## Winding a melee swing up, this frame: `charge` 0..1 is how far (the body coils with it).
+func wind(charge: float) -> void:
 	if _melee:
-		_swing.start(weapon, count)
+		_swing.wind(charge)
+
+
+## The swing was let go, `power` 0..1 wound up.
+func swing(power: float) -> void:
+	if _melee:
+		_swing.swing(power)
 		_since_fire = 0.0
 
 
@@ -249,6 +261,7 @@ func cutting() -> bool:
 ## Back to life: play the boot-up over whatever the body is doing.
 func respawn() -> void:
 	_respawn_t = 0.0
+	_swing.stop()
 	_dead_time = -1.0
 	_reload_t = -1.0
 	_land = 0.0
@@ -372,11 +385,15 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_pose.blend_bones(_tmp, fw * minf(_aim_l, _aim_r), _arm_l)
 			_fire_t += delta
 
-	# A melee swing over the top
-	if _swing.active():
-		MeleeSwing.apply(_pose, _b, _swing.sample(delta) if inp.alive else MeleeSwing.REST)
+	# A melee weapon: the body turns and leans with the wind-up and the blow (the arms
+	# are bent to hold the weapon once the chest is where it will be, below).
+	if _melee:
 		if not inp.alive:
 			_swing.stop()
+		_swing_key = _swing.sample(delta)
+		var busy := _swing.active() and inp.alive
+		_hold = move_toward(_hold, 1.0 if busy or (want[0] > 0.0 and inp.alive and _respawn_t < 0.0) else 0.0, delta * 9.0)
+		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
 	_apply_kick(delta, inp.alive)
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward
@@ -409,6 +426,9 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	_pose.rot[up_l] = Quaternion(across, lift * w_l) * _pose.rot[up_l]
 	if _b.has("pistol_slide") and weapon == "pistol":
 		_pose.pos[_b["pistol_slide"]] += Vector3(0.0, 0.035 * _recoil, 0.0)
+	if _melee and _hold > 0.0:
+		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
+		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed, clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8, _hold, _hold)
 
 	# --- 6 (before the waist turn, which must not move the chest). Grapple arm
 	_grapple_w = move_toward(_grapple_w, 1.0 if (inp.grapple_on and inp.alive) else 0.0, delta * 10.0)

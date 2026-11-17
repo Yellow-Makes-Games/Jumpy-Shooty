@@ -18,6 +18,7 @@ var dodge_chance: float      ## 0..1: chance to dive or flip away when it gets h
 var grapples: bool           ## uses the grapple to close distance or reach high ground
 var belly_slides: bool       ## holds its dives into a belly slide (Hard and Expert)
 var sprint: bool
+var level := 0               ## EASY..EXPERT
 ## What it can notice. It never sees through walls: it has to look at you, hear you
 ## or be shot by you, and when it loses you it searches where you were.
 var view_angle: float        ## degrees either side of where it looks that it can see
@@ -41,6 +42,7 @@ static func make(level: int) -> BotDifficulty:
 			d._fill(0.14, 1.2, 800.0, 0.18, 1.0, 0.55, 1.0, 0.45, true, 0.65, true, true)
 	d.belly_slides = level >= HARD
 	var i := clampi(level, EASY, EXPERT)
+	d.level = i
 	d.view_angle = [50.0, 60.0, 70.0, 80.0][i]
 	d.hear_range = [25.0, 35.0, 50.0, 65.0][i]
 	d.step_range = [5.0, 7.0, 10.0, 13.0][i]

@@ -7,10 +7,14 @@ extends Resource
 ## Vs Bots pages) and can swap it while waiting to respawn. All numbers are first
 ## guesses for playtesting. Damage is per pellet; a full-health player has 100.
 ##
-## Melee weapons (Kind.MELEE) swing instead of shooting: a swing winds up for
-## `windup` seconds, then hits everyone within `max_range` metres and `arc_degrees`
-## of where you look. They have no ammo. Every hit, gun or blade, shoves the target
-## (`knockback`), and a hard enough shove into a wall hurts too (see Match).
+## Melee weapons (Kind.MELEE) swing instead of shooting, and every swing is charged:
+## hold the button to wind up (the body coils; there is no meter), let go to swing.
+## The blow hits everyone within `max_range` metres and `arc_degrees` of where you
+## look. A tap is weak (`damage`, `knockback`); a full wind-up of `charge_time`
+## seconds hits for `charge_damage` and shoves far harder (`charge_knockback`).
+## No blow kills a healthy player by itself: the kill is the wall you knock them
+## into (see Match: a hard enough shove into a wall hurts). They have no ammo.
+## Every hit, gun or blade, shoves the target.
 
 enum Kind { HITSCAN, MELEE, PROJECTILE }
 
@@ -79,9 +83,14 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol"]
 @export var self_damage := 0.4
 @export var fuse := 6.0               ## seconds before it blows up in mid-air anyway
 @export_group("Melee")
-@export var windup := 0.0            ## seconds from the click to the blow landing
+@export var windup := 0.0            ## the shortest wind-up: a tap still draws back this long before it swings
+@export var charge_time := 0.8       ## seconds of holding the button for a full wind-up
+@export var charge_damage := 0.0     ## damage of a fully wound-up blow (`damage` is a tap's)
+@export var charge_knockback := 0.0  ## knockback of a fully wound-up blow (`knockback` is a tap's)
+@export var charge_knockback_up := 0.0
+@export var two_handed := false      ## both hands on the grip (everything but the dagger and the knuckles)
 @export var arc_degrees := 0.0       ## hits anyone within this angle of where you look
-@export var lunge := 0.0             ## forward speed a swing gives you (closes the gap)
+@export var lunge := 0.0             ## forward speed a fully wound-up swing gives you (a tap: 40% of it)
 @export var backstab_multiplier := 1.0  ## damage from behind
 @export var move_bonus := 1.0        ## running speed while carrying it (light blades are quicker)
 
@@ -183,55 +192,70 @@ static func _melee(id: String, display: String) -> WeaponData:
 	return w
 
 
-## Two hits kill. Every swing lunges forward a little, so you can chase.
+## The longsword: both hands, a long flat cut from the side. The all-rounder.
 static func sword() -> WeaponData:
-	var w := _melee("sword", "Sword")
-	w.blurb = "Two slashes kill. Each swing lunges you forward. Hold to keep swinging."
-	w.damage = 50.0
+	var w := _melee("sword", "Longsword")
+	w.short_name = "Sword"
+	w.blurb = "Two-handed. Hold to wind up, let go to cut: a full swing hits hard and throws them at the nearest wall."
+	w.two_handed = true
+	w.damage = 16.0
+	w.charge_damage = 50.0
 	w.structure_damage = 1.5
-	w.fire_interval = 0.55
-	w.windup = 0.12
-	w.max_range = 2.9
-	w.arc_degrees = 55.0
+	w.fire_interval = 0.6
+	w.windup = 0.1
+	w.charge_time = 0.8
+	w.max_range = 3.3
+	w.arc_degrees = 60.0
 	w.lunge = 5.0
-	w.knockback = 9.0
-	w.knockback_up = 3.5
-	w.kick = 1.0
-	w.move_bonus = 1.08
+	w.knockback = 4.0
+	w.knockback_up = 1.5
+	w.charge_knockback = 30.0
+	w.charge_knockback_up = 6.0
+	w.kick = 1.2
+	w.move_bonus = 1.04
 	return w
 
 
-## Slow and brutal: sends people flying, and into walls hard enough to hurt.
+## Slow and brutal: the longest wind-up, and it sends people flying into walls.
 static func hammer() -> WeaponData:
 	var w := _melee("hammer", "Hammer")
-	w.blurb = "Slow, huge knockback. Smash people into walls, or smash through them."
-	w.damage = 65.0
-	w.structure_damage = 3.0   # knocks holes in walls in two blows
-	w.fire_interval = 1.05
-	w.windup = 0.32
+	w.blurb = "Two-handed, the slowest wind-up and the biggest shove. Smash people into walls, or smash through them."
+	w.two_handed = true
+	w.damage = 15.0
+	w.charge_damage = 45.0
+	w.structure_damage = 4.0   # a full swing knocks a hole in a wall
+	w.fire_interval = 0.9
+	w.windup = 0.14
+	w.charge_time = 1.2
 	w.max_range = 3.1
 	w.arc_degrees = 65.0
-	w.lunge = 2.0
-	w.knockback = 24.0
-	w.knockback_up = 6.5
+	w.lunge = 3.0
+	w.knockback = 6.0
+	w.knockback_up = 2.0
+	w.charge_knockback = 37.0
+	w.charge_knockback_up = 7.5
 	w.kick = 2.0
 	w.move_bonus = 1.0
 	return w
 
 
-## Quick jabs, and a stab in the back kills outright.
+## Quick slashes, and a wound-up stab in the back all but kills.
 static func dagger() -> WeaponData:
 	var w := _melee("dagger", "Dagger")
-	w.blurb = "Fast jabs, fastest on your feet. A stab in the back kills."
-	w.damage = 26.0
+	w.blurb = "One hand, quick to wind up, fastest on your feet. Triple damage in the back."
+	w.damage = 10.0
+	w.charge_damage = 30.0
 	w.fire_interval = 0.3
 	w.windup = 0.06
+	w.charge_time = 0.45
 	w.max_range = 2.4
 	w.arc_degrees = 40.0
-	w.lunge = 3.0
-	w.knockback = 4.0
-	w.knockback_up = 1.5
-	w.backstab_multiplier = 4.0
+	w.lunge = 4.0
+	w.knockback = 2.0
+	w.knockback_up = 1.0
+	w.charge_knockback = 12.0
+	w.charge_knockback_up = 3.0
+	w.backstab_multiplier = 3.0
 	w.kick = 0.6
 	w.move_bonus = 1.15
 	return w
@@ -478,54 +502,68 @@ static func grenade_launcher() -> WeaponData:
 	return w
 
 
-## Fists with brass on: the fastest hits there are, left-right-left.
+## Fists with brass on: the quickest wind-up there is, a hook from the side.
 static func brass_knuckles() -> WeaponData:
 	var w := _melee("brass_knuckles", "Brass Knuckles")
 	w.short_name = "Knuckles"
-	w.blurb = "Quick punches, three to kill. Fastest on your feet of anything."
-	w.damage = 34.0
+	w.blurb = "Hooks from the side with the quickest wind-up. Fastest on your feet of anything."
+	w.damage = 12.0
+	w.charge_damage = 32.0
 	w.fire_interval = 0.3
 	w.windup = 0.05
+	w.charge_time = 0.4
 	w.max_range = 2.2
 	w.arc_degrees = 45.0
-	w.lunge = 3.5
-	w.knockback = 6.0
-	w.knockback_up = 1.5
+	w.lunge = 4.5
+	w.knockback = 3.0
+	w.knockback_up = 1.0
+	w.charge_knockback = 17.0
+	w.charge_knockback_up = 3.5
 	w.kick = 0.7
 	w.move_bonus = 1.18
 	return w
 
 
-## The longest reach: a straight thrust that carries you with it.
+## The longest reach: a two-handed thrust, drawn back at the hip, that carries you with it.
 static func spear() -> WeaponData:
 	var w := _melee("spear", "Spear")
-	w.blurb = "The longest reach. A straight thrust that lunges you a long way. Narrow: aim it."
-	w.damage = 50.0
+	w.blurb = "Two-handed, the longest reach. Draw it back and thrust: it lunges you a long way. Narrow: aim it."
+	w.two_handed = true
+	w.damage = 15.0
+	w.charge_damage = 45.0
 	w.fire_interval = 0.7
-	w.windup = 0.15
+	w.windup = 0.1
+	w.charge_time = 0.8
 	w.max_range = 4.2
 	w.arc_degrees = 22.0
-	w.lunge = 7.0
-	w.knockback = 11.0
-	w.knockback_up = 2.0
+	w.lunge = 8.0
+	w.knockback = 5.0
+	w.knockback_up = 1.0
+	w.charge_knockback = 27.0
+	w.charge_knockback_up = 4.0
 	w.kick = 1.2
 	w.move_bonus = 1.04
 	return w
 
 
-## Heavier than the sword, lighter than the hammer. Chops through walls.
+## The most damage, and it chops through walls.
 static func axe() -> WeaponData:
 	var w := _melee("axe", "Axe")
-	w.blurb = "A heavy diagonal chop: two kill, and it bites through walls."
-	w.damage = 60.0
+	w.blurb = "Two-handed. The most damage of any blade, and it bites through walls."
+	w.two_handed = true
+	w.damage = 18.0
+	w.charge_damage = 58.0
 	w.structure_damage = 3.5
-	w.fire_interval = 0.85
-	w.windup = 0.2
+	w.fire_interval = 0.8
+	w.windup = 0.12
+	w.charge_time = 1.0
 	w.max_range = 3.0
 	w.arc_degrees = 55.0
-	w.lunge = 3.0
-	w.knockback = 13.0
-	w.knockback_up = 4.5
+	w.lunge = 3.5
+	w.knockback = 5.0
+	w.knockback_up = 2.0
+	w.charge_knockback = 25.0
+	w.charge_knockback_up = 5.5
 	w.kick = 1.6
 	return w
 
@@ -533,21 +571,46 @@ static func axe() -> WeaponData:
 ## A wide swing that sends people further than anything else.
 static func bat() -> WeaponData:
 	var w := _melee("bat", "Bat")
-	w.blurb = "A wide, flat swing. Light damage, but the hardest knockback of all: home runs into walls."
-	w.damage = 40.0
+	w.blurb = "Two-handed, a wide flat swing. Light damage, but a full wind-up is a home run into the wall."
+	w.two_handed = true
+	w.damage = 10.0
+	w.charge_damage = 30.0
 	w.fire_interval = 0.75
-	w.windup = 0.2
+	w.windup = 0.12
+	w.charge_time = 0.9
 	w.max_range = 3.0
 	w.arc_degrees = 75.0
-	w.lunge = 2.5
-	w.knockback = 29.0
-	w.knockback_up = 9.0
+	w.lunge = 3.0
+	w.knockback = 8.0
+	w.knockback_up = 3.0
+	w.charge_knockback = 41.0
+	w.charge_knockback_up = 10.0
 	w.kick = 1.8
 	return w
 
 
 func is_melee() -> bool:
 	return kind == Kind.MELEE
+
+
+## Melee: how wound up a swing is after holding the button for `held` seconds, 0..1.
+## The first `windup` seconds are the draw-back every swing has, so a tap is 0.
+func charge_of(held: float) -> float:
+	return clampf((held - windup) / maxf(charge_time - windup, 0.01), 0.0, 1.0)
+
+
+## Melee: damage of a blow wound up to `charge` (0 = a tap, 1 = a full wind-up).
+func melee_damage(charge: float) -> float:
+	return lerpf(damage, maxf(charge_damage, damage), clampf(charge, 0.0, 1.0))
+
+
+## Melee: the shove of a blow wound up to `charge`: [along the blow, upward].
+## It grows faster than the damage toward the end of the wind-up: the last of the
+## charge is what sends people into walls.
+func melee_knockback(charge: float) -> Array:
+	var u := clampf(charge, 0.0, 1.0)
+	u = u * (0.6 + 0.4 * u)
+	return [lerpf(knockback, maxf(charge_knockback, knockback), u), lerpf(knockback_up, maxf(charge_knockback_up, knockback_up), u)]
 
 
 func is_projectile() -> bool:

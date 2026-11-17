@@ -63,6 +63,9 @@ var _flying := false              # local: the debug menu's noclip is on
 var _swings := 0                  # local: melee swings so far (travels in snapshots, wrapping at 4)
 var _seen_swings := -1            # the swing count last shown (starts the swing animation and sound)
 var _strike_left := -1.0          # local: seconds until the current swing's blow lands
+var _charge := -1.0               # local: seconds the swing button has been held (winding up), or -1
+var _swing_power := 0.0           # local: how wound up the swing in flight is, 0..1
+var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
 var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
@@ -247,7 +250,7 @@ func _process(delta: float) -> void:
 		_anim.flags = _my_anim_flags()
 		_anim.grapple_on = g.attached
 		_anim.grapple_anchor = g.anchor
-		_watch_swings()
+		_watch_swings(delta)
 		_watch_kicks()
 		_animate(delta)
 		sounds.update(delta, _anim, true)
@@ -275,7 +278,7 @@ func _process(delta: float) -> void:
 	_anim.flags = s[5]
 	_anim.grapple_on = _rope_on
 	_anim.grapple_anchor = _rope_anchor
-	_watch_swings()
+	_watch_swings(delta)
 	_watch_kicks()
 	_animate(delta)
 	sounds.update(delta, _anim, visual.visible)
@@ -473,8 +476,10 @@ func _fire_round() -> void:
 # ---------------------------------------------------------------------------
 # Melee
 
-## Swinging a blade or hammer: the click starts the swing (and a small lunge), and
-## the blow lands after the weapon's wind-up. The host decides what it hit.
+## Swinging a melee weapon: holding the button winds the swing up (the body coils;
+## there is no meter), letting go swings. The longer the wind-up, up to the weapon's
+## charge_time, the harder the blow and the further it lunges you. A tap still draws
+## back for the weapon's `windup` first. The host decides what it hit.
 func _update_melee(delta: float) -> void:
 	var data := weapon.data
 	if _strike_left >= 0.0:
@@ -482,58 +487,102 @@ func _update_melee(delta: float) -> void:
 		if _strike_left < 0.0:
 			_strike()
 	if motor.grapple.hooked_player() or _fly_kick > 0.0:
+		_charge = -1.0
 		return   # a player on your hook: the swing button is a flying kick (see _update_kick)
+	if _charge >= 0.0:
+		_charge += delta
+		if not Match.running:
+			_charge = -1.0
+		elif not input.fire and _charge >= data.windup:
+			_swing()
+		return
 	var wants := input.fire or _fire_buffer > 0.0
-	if not wants or not Match.running or _strike_left >= 0.0 or not weapon.fire():
+	if not wants or not Match.running or _strike_left >= 0.0 or not weapon.can_fire():
 		return
 	_fire_buffer = 0.0
+	_charge = 0.0
+	if DevArgs.sync_log:
+		print("ANIM WIND %d" % peer_id)
+
+
+## Let go: the swing starts from however far it was wound up.
+func _swing() -> void:
+	var data := weapon.data
+	weapon.fire()
+	_swing_power = data.charge_of(_charge)
+	_charge = -1.0
 	_swings += 1
 	_strike_left = MeleeSwing.impact_time(data.id)   # when the blade is mid-blow on screen
 	# Lunge toward where you look (never past a sprinting dive's speed).
 	var ahead := Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
 	var along := velocity.dot(ahead)
-	if data.lunge > 0.0 and along < 14.0:
-		motor.knock(ahead * minf(data.lunge, 14.0 - along))
+	var lunge := data.lunge * lerpf(0.4, 1.0, _swing_power)
+	if lunge > 0.0 and along < 14.0:
+		motor.knock(ahead * minf(lunge, 14.0 - along))
 	if DevArgs.sync_log:
-		print("ANIM SWING %d" % peer_id)
+		print("ANIM SWING %d %.2f" % [peer_id, _swing_power])
+
+
+## How wound up your swing is right now, 0..1 (0 when not winding up).
+func melee_charge() -> float:
+	return weapon.data.charge_of(_charge) if weapon != null and _charge >= 0.0 else 0.0
+
+
+## Holding a wind-up (the bots ask).
+func winding_up() -> bool:
+	return _charge >= 0.0
 
 
 func _strike() -> void:
 	if not alive:
 		return
-	if rig:   # your own blow: the view jolts the way the blade travels
-		var straight := robot.weapon in ["hammer", "spear", "bat"]   # one way every time
-		var side := 0.0 if straight else (1.0 if _swings % 2 == 1 else -1.0)
-		if robot.weapon == "bat":
-			side = 1.0
-		_punch += Vector2(side * 0.035, -0.03 if robot.weapon in ["hammer", "axe"] else -0.012)
-		_punch_roll += side * 0.03
+	if rig:   # your own blow: the view jolts the way the blade travels (right to left), harder the more it was wound up
+		var side := 0.0 if robot.weapon == "spear" else 1.0
+		var weight := lerpf(0.5, 1.4, _swing_power)
+		_punch += Vector2(side * 0.035, -0.012) * weight
+		_punch_roll += side * 0.03 * weight
 	var eye := eye_position()
 	var view_times := {}
 	for p in get_parent().get_children():
 		if p != self and p is Player and p.last_render_time >= 0.0:
 			view_times[p.peer_id] = p.last_render_time
-	Match.request_melee(eye, aim_forward(), view_times, peer_id)
+	Match.request_melee(eye, aim_forward(), view_times, _swing_power, peer_id)
 
 
-## A new swing (yours, or one seen in someone's snapshots): animation and whoosh.
-func _watch_swings() -> void:
+## A wind-up or a new swing (yours, or one seen in someone's snapshots): the body
+## coils while the swing is held, then the swing itself and its whoosh. For other
+## players only "winding up" travels; how far is worked out from how long it has
+## been seen, at the weapon's pace.
+func _watch_swings(delta: float) -> void:
 	var count := _swings & 3 if is_local else RobotAnimInput.swings_of(_anim.flags)
+	var melee := alive and robot.weapon != "none" and WeaponData.melee(robot.weapon)
+	var winding := melee and (_charge >= 0.0 if is_local else RobotAnimInput.winding_of(_anim.flags))
+	if winding:
+		_seen_wind = _charge if is_local else maxf(_seen_wind, 0.0) + delta
+		var held := WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
+		animator.wind(held)
+		if view:
+			view.wind(held)
 	if _seen_swings < 0:
 		_seen_swings = count   # just appeared: no swing to replay
 		return
-	if count == _seen_swings:
-		return
-	_seen_swings = count
-	if not alive or robot.weapon == "none" or not WeaponData.melee(robot.weapon):
-		return
-	animator.swing(count)
-	if view:
-		view.swing(count)
-	if sounds.own:
-		Sound.play("swing_" + robot.weapon, 0.0, 0.05)
-	elif visual.visible:
-		Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", 0.0, 0.05)
+	if count != _seen_swings:
+		_seen_swings = count
+		if melee:
+			var power := _swing_power if is_local else WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
+			if DevArgs.sync_log and not is_local:
+				print("ANIM SWUNG %d %d %.2f" % [Net.my_id(), peer_id, power])
+			animator.swing(power)
+			if view:
+				view.swing(power)
+			var loud := lerpf(-5.0, 2.0, power)   # a wound-up swing whooshes louder
+			if sounds.own:
+				Sound.play("swing_" + robot.weapon, loud, 0.05)
+			elif visual.visible:
+				Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", loud, 0.05)
+		_seen_wind = -1.0
+	elif not winding:
+		_seen_wind = -1.0
 
 
 ## A blow landed somewhere. Ours: the swing freezes for a moment (hit-stop) and the view jolts harder.
@@ -923,6 +972,7 @@ func dev_swap_after_death() -> void:
 
 func set_dead() -> void:
 	alive = false
+	_charge = -1.0
 	_fly_kick = 0.0
 	_tug_by = 0
 	_flame_t = 0.0
@@ -958,6 +1008,8 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	if weapon:
 		weapon.reset()
 	_strike_left = -1.0
+	_charge = -1.0
+	_seen_wind = -1.0
 	_kick_strike = -1.0
 	_kick_cool = 0.0
 	_fly_kick = 0.0
@@ -999,7 +1051,9 @@ func change_weapon(gun: String) -> void:
 	animator = RobotAnimator.new(robot)
 	sounds = PlayerSounds.new(self, is_local and not is_bot, gun)
 	_seen_swings = -1
+	_seen_wind = -1.0
 	_strike_left = -1.0
+	_charge = -1.0
 	_burst_left = 0
 	if is_local:
 		weapon = _make_weapon(gun)
@@ -1175,7 +1229,7 @@ func _my_anim_flags() -> int:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
-		_kicks, _fly_kick > 0.0, motor.boosts)
+		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive)
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -1316,7 +1370,9 @@ func _scripted_input(delta: float) -> void:
 			if weapon and weapon.data.is_melee():
 				input.move = Vector2(0.0, 1.0)   # a blade: run straight at them
 			input.fire = true
-			if fmod(t, 0.2) < delta:
+			if weapon and weapon.data.is_melee():
+				input.fire = fmod(t, 1.6) < 1.1   # wind a swing up for a second, then let go
+			if fmod(t, 0.2) < delta and input.fire:
 				input.fire_pressed = true  # click about 5 times a second
 		if fmod(t, 6.0) < delta and weapon:
 			weapon.start_reload()  # top up now and then (tests the reload animation online)
