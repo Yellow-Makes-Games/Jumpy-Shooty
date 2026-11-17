@@ -131,7 +131,8 @@ func set_layer(layer: int) -> void:
 	mesh.layers = 1 << (layer - 1)
 	if melee:
 		for c in melee.get_child(0).get_children():
-			(c as MeshInstance3D).layers = mesh.layers
+			if c is MeshInstance3D:
+				c.layers = mesh.layers
 
 
 ## Where a bone is in the model's own space (x right, y up, -z forward).

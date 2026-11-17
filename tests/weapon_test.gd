@@ -97,7 +97,7 @@ func _init() -> void:
 			var last := []
 			for i in 120:
 				last = anim.sample(1.0 / 60.0)
-			_check(not anim.active() and last == [0.0, 0.0, 0.0, 0.0], "%s: swing %d ends back at rest" % [id, count])
+			_check(not anim.active() and last == MeleeSwing.REST, "%s: swing %d ends back at rest" % [id, count])
 
 	print("WEAPON TEST PASSED" if _ok else "WEAPON TEST FAILED")
 	quit(0 if _ok else 1)

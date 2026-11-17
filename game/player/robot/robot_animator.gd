@@ -172,6 +172,16 @@ func swing(count: int) -> void:
 		_since_fire = 0.0
 
 
+## The blow landed: freeze the swing for a moment so the hit has weight.
+func hit_stop() -> void:
+	_swing.hit_stop()
+
+
+## In the middle of a blow (the swing trail is drawn).
+func cutting() -> bool:
+	return _swing.active() and _swing.cutting()
+
+
 ## Back to life: play the boot-up over whatever the body is doing.
 func respawn() -> void:
 	_respawn_t = 0.0
@@ -298,7 +308,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	# A melee swing over the top
 	if _swing.active():
-		MeleeSwing.apply(_pose, _b, _swing.sample(delta) if inp.alive else [0.0, 0.0, 0.0, 0.0])
+		MeleeSwing.apply(_pose, _b, _swing.sample(delta) if inp.alive else MeleeSwing.REST)
 		if not inp.alive:
 			_swing.stop()
 

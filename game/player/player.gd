@@ -60,6 +60,9 @@ var _swings := 0                  # local: melee swings so far (travels in snaps
 var _seen_swings := -1            # the swing count last shown (starts the swing animation and sound)
 var _strike_left := -1.0          # local: seconds until the current swing's blow lands
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
+var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
+var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
+var _punch_roll := 0.0
 
 
 func _init() -> void:
@@ -132,6 +135,10 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		view.setup(self, Net.player_color(id))
 		view.visible = not racing   # no gun to hold in a race: you see your body, not arms
 	_build_rope()
+	if WeaponData.melee(robot.weapon):
+		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
+		add_child(_trail)
+		Match.melee_landed.connect(_on_melee_landed)
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +203,10 @@ func _process(delta: float) -> void:
 	if is_local:
 		if rig:
 			_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
-			rig.set_view(input.yaw, input.pitch, motor.eye_height, _roll)
+			_punch = _punch.lerp(Vector2.ZERO, 1.0 - exp(-delta * 14.0))
+			_punch_roll = lerpf(_punch_roll, 0.0, 1.0 - exp(-delta * 12.0))
+			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
+				motor.eye_height, _roll + _punch_roll)
 		var g := motor.grapple
 		_anim.state = motor.state
 		_anim.crouched = motor.crouched
@@ -211,6 +221,7 @@ func _process(delta: float) -> void:
 		if view:
 			view.update(delta)
 		_draw_rope(g.attached and alive, g.anchor)
+		_update_trail(delta)
 		return
 	if not buffer.has_data():
 		return
@@ -240,6 +251,7 @@ func _process(delta: float) -> void:
 		if DevArgs.sync_log:
 			print("ROPE SEEN %d %d %s" % [Net.my_id(), peer_id, "on" if _rope_on else "off"])
 	_draw_rope(_rope_on and alive and not _awaiting_respawn, _rope_anchor)
+	_update_trail(delta)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
 		var sp: Vector3 = s[0]
 		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, sp.x, sp.y, sp.z, delta])
@@ -399,7 +411,7 @@ func _update_melee(delta: float) -> void:
 		return
 	_fire_buffer = 0.0
 	_swings += 1
-	_strike_left = data.windup
+	_strike_left = MeleeSwing.impact_time(data.id)   # when the blade is mid-blow on screen
 	# Lunge toward where you look (never past a sprinting dive's speed).
 	var ahead := Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
 	var along := velocity.dot(ahead)
@@ -412,6 +424,10 @@ func _update_melee(delta: float) -> void:
 func _strike() -> void:
 	if not alive:
 		return
+	if rig:   # your own blow: the view jolts the way the blade travels
+		var side := 0.0 if robot.weapon == "hammer" else (1.0 if _swings % 2 == 1 else -1.0)
+		_punch += Vector2(side * 0.035, -0.03 if robot.weapon == "hammer" else -0.012)
+		_punch_roll += side * 0.03
 	var eye := eye_position()
 	var view_times := {}
 	for p in get_parent().get_children():
@@ -438,6 +454,32 @@ func _watch_swings() -> void:
 		Sound.play("swing_" + robot.weapon, 0.0, 0.05)
 	elif visual.visible:
 		Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", 0.0, 0.05)
+
+
+## A blow landed somewhere. Ours: the swing freezes for a moment (hit-stop) and the view jolts harder.
+func _on_melee_landed(attacker: int, _weapon_id: String, points: PackedVector3Array) -> void:
+	if attacker != peer_id or points.is_empty():
+		return
+	animator.hit_stop()
+	if view:
+		view.hit_stop()
+	if rig:
+		_punch += Vector2(randf_range(-0.012, 0.012), -0.02)
+
+
+## The glowing trail behind the blade while it cuts: on your first-person arms
+## when you are looking through them, otherwise on the body.
+func _update_trail(delta: float) -> void:
+	if _trail == null:
+		return
+	var own_view := view != null and rig != null and not rig.is_third_person()
+	if own_view and view.visible and view.cutting():
+		var e := view.edge()
+		_trail.add(e[0], e[1])
+	elif not own_view and alive and visual.visible and animator.cutting() and robot.melee:
+		var e := MeleeModel.edge(robot.melee)
+		_trail.add(e[0], e[1])
+	_trail.tick(delta)
 
 
 ## A hit or shove from the host: knocked along, and off your feet if it lifts you.

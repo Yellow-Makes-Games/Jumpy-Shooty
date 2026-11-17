@@ -15,6 +15,8 @@ const VIEW_SHADER := "res://game/player/robot/viewmodel.gdshader"
 const TO_BONE := Basis(Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0))
 ## The blade leans forward a little in the ready stance.
 const READY_TILT := -0.45
+## How far up the weapon its cutting edge runs (from, to), in metres from the grip.
+const EDGES := {"sword": [0.3, 1.0], "hammer": [0.55, 0.9], "dagger": [0.12, 0.45]}
 
 
 ## Adds the weapon to `model` (a RobotModel). `viewmodel`: first-person arms (own shader).
@@ -54,7 +56,20 @@ static func attach(model: RobotModel, id: String, trim: Color, viewmodel: bool) 
 				m.emission_energy_multiplier = energy
 			mi.material_override = m
 		holder.add_child(mi)
+	# Where the cutting edge starts and ends: the swing trail is drawn between them.
+	var edge: Array = EDGES.get(id, EDGES.sword)
+	for i in 2:
+		var marker := Node3D.new()
+		marker.name = "EdgeBase" if i == 0 else "EdgeTip"
+		marker.position = Vector3(0, edge[i], 0)
+		holder.add_child(marker)
 	return at
+
+
+## The edge's base and tip in the world right now.
+static func edge(melee: Node3D) -> Array:
+	var holder := melee.get_child(0)
+	return [(holder.get_node("EdgeBase") as Node3D).global_position, (holder.get_node("EdgeTip") as Node3D).global_position]
 
 
 ## [mesh, transform, material kind] for each piece of a weapon.

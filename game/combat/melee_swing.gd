@@ -1,29 +1,44 @@
 class_name MeleeSwing
 extends RefCounted
-## The swing of a melee weapon, laid over the arms' pose. Shared by the body
-## everyone sees (RobotAnimator) and your own first-person arms (ViewModel).
+## The swing of a melee weapon, laid over the pose. Shared by the body everyone
+## sees (RobotAnimator) and your own first-person arms (ViewModel).
 ##
-## A swing has three parts: the wind-up (the weapon's `windup` seconds), the blow
-## (STRIKE seconds: the blade sweeps across, or the hammer comes down) and the
-## recovery back to the ready stance. Swings alternate: a forehand slash, then a
-## backhand. The hammer always comes down overhead; the dagger jabs.
+## Built to read clearly from across the arena, like an arcade sword fight:
+##  - a wind-up that coils the whole body (the weapon's `windup` seconds), then a
+##    short hold at the top so you can see what is coming;
+##  - a fast blow (STRIKE seconds) where the arm sweeps through a wide arc, the
+##    chest turns and the robot leans into it;
+##  - a follow-through that carries on past the target, then a slower recovery.
+## Swings alternate: a forehand slash, then a backhand. The hammer always comes
+## down overhead from high above the head; the dagger jabs. A blow that lands
+## freezes the swing for a moment (hit_stop) so the hit has weight.
 
-const STRIKE := 0.14
-const RECOVER := 0.22
+const HOLD := 0.045
+const STRIKE := 0.12
+const FOLLOW := 0.1
+const RECOVER := 0.26
 
-## [arm turn (radians, + = toward the left), arm lift (+ = up), wrist tilt (- = point forward)]
-## at the start of the swing, end of the wind-up, end of the blow.
+## Each key: [arm turn (+ = toward the left), arm lift (+ = up), wrist tilt
+## (- = blade points forward), chest turn (+ = left), lean (+ = forward)].
+## Keys: rest, top of the wind-up, end of the blow, end of the follow-through.
 const KEYS := {
-	"sword": [[0.0, 0.0, 0.0], [-1.0, 0.35, -0.3], [0.9, -0.25, -1.25]],
-	"sword_back": [[0.0, 0.0, 0.0], [0.75, 0.3, -0.3], [-1.0, -0.15, -1.25]],
-	"hammer": [[0.0, 0.0, 0.0], [-0.15, 1.25, 0.9], [0.05, -0.55, -1.35]],
-	"dagger": [[0.0, 0.0, 0.0], [-0.25, 0.05, -0.9], [0.1, -0.05, -1.55]],
-	"dagger_back": [[0.0, 0.0, 0.0], [0.2, 0.15, -0.9], [-0.1, -0.1, -1.55]],
+	"sword": [[0, 0, 0, 0, 0], [-1.25, 0.55, 0.15, -0.55, -0.08], [0.75, -0.2, -1.35, 0.5, 0.22], [1.15, -0.4, -1.1, 0.65, 0.18]],
+	"sword_back": [[0, 0, 0, 0, 0], [0.95, 0.5, 0.1, 0.5, -0.08], [-0.9, -0.15, -1.35, -0.5, 0.22], [-1.3, -0.3, -1.1, -0.65, 0.18]],
+	"hammer": [[0, 0, 0, 0, 0], [-0.2, 1.7, 1.2, -0.25, -0.22], [0.05, -0.55, -1.45, 0.1, 0.45], [0.1, -0.85, -1.2, 0.15, 0.5]],
+	"dagger": [[0, 0, 0, 0, 0], [-0.35, 0.1, -0.7, -0.3, -0.05], [0.12, -0.05, -1.6, 0.25, 0.2], [0.2, -0.1, -1.55, 0.3, 0.15]],
+	"dagger_back": [[0, 0, 0, 0, 0], [0.3, 0.2, -0.7, 0.3, -0.05], [-0.15, -0.1, -1.6, -0.25, 0.2], [-0.25, -0.15, -1.55, -0.3, 0.15]],
 }
+const REST := [0.0, 0.0, 0.0, 0.0, 0.0]
+## How long the blow, follow-through and recovery take, against the sword's.
+const PACE := {"sword": 1.0, "hammer": 1.3, "dagger": 0.6}
 
 var t := -1.0         ## seconds into the swing, or -1 between swings
 var keys: Array = []
 var windup := 0.1
+var _stop := 0.0      # hit-stop left: the swing is frozen
+var _pace := 1.0
+var _from: Array = REST.duplicate()   # where the wind-up starts (a swing can start before the last one has settled)
+var _last: Array = REST.duplicate()
 
 
 func start(weapon_id: String, count: int) -> void:
@@ -32,7 +47,10 @@ func start(weapon_id: String, count: int) -> void:
 		name += "_back"
 	keys = KEYS.get(name, KEYS.sword)
 	windup = maxf(WeaponData.by_id(weapon_id).windup, 0.05)
+	_pace = PACE.get(weapon_id, 1.0)
+	_from = _last.duplicate() if t >= 0.0 else REST.duplicate()
 	t = 0.0
+	_stop = 0.0
 
 
 func active() -> bool:
@@ -41,50 +59,95 @@ func active() -> bool:
 
 func stop() -> void:
 	t = -1.0
+	_last = REST.duplicate()
 
 
-## [turn, lift, tilt, chest turn] right now; advances the clock by delta.
+## Seconds from the click to the middle of the blow: when it should hit.
+static func impact_time(weapon_id: String) -> float:
+	return maxf(WeaponData.by_id(weapon_id).windup, 0.05) + HOLD + STRIKE * PACE.get(weapon_id, 1.0) * 0.5
+
+
+## The blow landed: hold the swing still for a moment.
+func hit_stop(seconds: float = 0.07) -> void:
+	if t >= 0.0:
+		_stop = seconds
+
+
+## In the blow or its follow-through: the blade is cutting (draw its trail).
+func cutting() -> bool:
+	var s := windup + HOLD
+	return t >= s - 0.01 and t < s + (STRIKE + FOLLOW) * _pace
+
+
+func length() -> float:
+	return windup + HOLD + (STRIKE + FOLLOW + RECOVER) * _pace
+
+
+## [turn, lift, tilt, chest turn, lean] right now; advances the clock by delta.
 func sample(delta: float) -> Array:
 	if t < 0.0:
-		return [0.0, 0.0, 0.0, 0.0]
+		return REST.duplicate()
 	var a: Array
 	var b: Array
 	var u: float
+	var strike_at := windup + HOLD
+	var strike := STRIKE * _pace
+	var follow := FOLLOW * _pace
 	if t < windup:
-		a = keys[0]
+		a = _from
 		b = keys[1]
 		u = _ease_out(t / windup)
-	elif t < windup + STRIKE:
+	elif t < strike_at:
+		a = keys[1]
+		b = keys[1]
+		u = 0.0
+	elif t < strike_at + strike:
 		a = keys[1]
 		b = keys[2]
-		u = _ease_in_out((t - windup) / STRIKE)
-	else:
+		u = _ease_in((t - strike_at) / strike)
+	elif t < strike_at + strike + follow:
 		a = keys[2]
+		b = keys[3]
+		u = _ease_out((t - strike_at - strike) / follow)
+	else:
+		a = keys[3]
 		b = keys[0]
-		u = smoothstep(0.0, 1.0, (t - windup - STRIKE) / RECOVER)
+		u = smoothstep(0.0, 1.0, (t - strike_at - strike - follow) / (RECOVER * _pace))
 	var out := []
-	for i in 3:
+	for i in 5:
 		out.append(lerpf(a[i], b[i], u))
-	out.append(out[0] * 0.35)
-	t += delta
-	if t >= windup + STRIKE + RECOVER:
+	if _stop > 0.0:
+		_stop -= delta
+	else:
+		t += delta
+	if t >= length():
 		t = -1.0
+		out = REST.duplicate()
+	_last = out
 	return out
 
 
-## Lays the swing over a pose: turns and lifts the right arm at the shoulder, tilts
-## the weapon in the fist, and turns the chest a little with the blow.
-static func apply(pose: RobotPose, bones: Dictionary, s: Array, weight: float = 1.0) -> void:
-	if weight <= 0.0 or (s[0] == 0.0 and s[1] == 0.0 and s[2] == 0.0):
+## Lays the swing over a pose: turns and lifts the right arm at the shoulder,
+## tilts the weapon in the fist, and turns and leans the upper body with the blow.
+static func apply(pose: RobotPose, bones: Dictionary, s: Array, weight: float = 1.0, body: float = 1.0) -> void:
+	if weight <= 0.0:
 		return
 	var up_r: int = bones["upper_arm_r"]
 	pose.rot[up_r] = Quaternion(Vector3.UP, s[0] * weight) * Quaternion(Vector3.RIGHT, s[1] * weight) * pose.rot[up_r]
 	if bones.has("pistol"):
 		var g: int = bones["pistol"]
 		pose.rot[g] = pose.rot[g] * Quaternion(Vector3.RIGHT, s[2] * weight)
+	if body <= 0.0:
+		return
 	if bones.has("chest"):
 		var c: int = bones["chest"]
-		pose.rot[c] = Quaternion(Vector3.UP, s[3] * weight) * pose.rot[c]
+		pose.rot[c] = Quaternion(Vector3.UP, s[3] * weight * body) * pose.rot[c]
+	if bones.has("spine"):
+		var sp: int = bones["spine"]
+		pose.rot[sp] = Quaternion(Vector3.UP, s[3] * 0.5 * weight * body) * Quaternion(Vector3.RIGHT, -s[4] * weight * body) * pose.rot[sp]
+	if bones.has("head"):   # the head keeps looking ahead
+		var h: int = bones["head"]
+		pose.rot[h] = Quaternion(Vector3.UP, -s[3] * 0.9 * weight * body) * pose.rot[h]
 
 
 static func _ease_out(u: float) -> float:
@@ -92,5 +155,7 @@ static func _ease_out(u: float) -> float:
 	return 1.0 - (1.0 - u) * (1.0 - u)
 
 
-static func _ease_in_out(u: float) -> float:
-	return smoothstep(0.0, 1.0, clampf(u, 0.0, 1.0))
+## Slow to start, then fast: a blow that whips through.
+static func _ease_in(u: float) -> float:
+	u = clampf(u, 0.0, 1.0)
+	return u * u * (2.0 - u) * 0.5 + u * u * 0.5
