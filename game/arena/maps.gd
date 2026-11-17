@@ -26,6 +26,7 @@ const LIST := [
 	{"id": "rooftop_run", "name": "Rooftop Run", "scene": "res://game/maps/rooftop_run.tscn", "dev": false, "game": "race"},
 	{"id": "foundry", "name": "Foundry", "scene": "res://game/maps/foundry.tscn", "dev": false, "game": "race"},
 	{"id": "sky_ruins", "name": "Sky Ruins", "scene": "res://game/maps/sky_ruins.tscn", "dev": false, "game": "race"},
+	{"id": "summit_plunge", "name": "Summit Plunge", "scene": "res://game/maps/summit_plunge.tscn", "dev": false, "game": "race"},
 ]
 
 

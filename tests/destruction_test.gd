@@ -106,7 +106,7 @@ func _run() -> void:
 		_check((snap[0] as PackedInt32Array).size() >= 2, "%s: the snapshot for late joiners lists the broken cells" % id)
 		map.queue_free()
 		await process_frame
-	for id in ["rooftop_run", "foundry", "sky_ruins"]:
+	for id in ["rooftop_run", "foundry", "sky_ruins", "summit_plunge"]:
 		var map := _make(id)
 		_check(map.destruction == null, "%s (race): nothing breaks" % id)
 		map.queue_free()
