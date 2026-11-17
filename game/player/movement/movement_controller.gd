@@ -233,7 +233,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var hspeed := Vector2(vel.x, vel.z).length()
 	if wall_jump:
 		state = State.AIR
-		vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+		vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 	elif state == State.WALL_RUN:
 		vel = _wall_run(vel, delta)
 	elif state == State.FLOAT:
@@ -241,7 +241,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	elif state == State.DIVE:
 		if not diving_now:
 			vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.dive_air_accel, delta)
-			vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+			vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 	elif state == State.ROLL:
 		vel = _roll(vel, wish, delta)
 	elif state == State.BELLY_SLIDE:
@@ -251,7 +251,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# the rope removes any motion that would stretch it.
 		state = State.GRAPPLE
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.grapple_air_accel, delta)
-		vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+		vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 	elif grounded and not jumping:
 		var just_landed := state not in [State.GROUND, State.CROUCH, State.SLIDE]
 		if state == State.SLIDE and (not crouched or hspeed < t.slide_end_speed):
@@ -274,7 +274,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		state = State.FLIP if _flip_left > 0.0 else State.AIR
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.air_accel, delta)
 		if not grounded:
-			vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+			vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 
 	if jumping:
 		vel.y = t.jump_velocity
@@ -507,7 +507,7 @@ func _slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, delta: float) ->
 	var t := tuning
 	var n := body.get_floor_normal()
 	# Gravity along the floor: zero on flat ground, speeds you up downhill.
-	var downhill := Vector3(0, -t.gravity, 0)
+	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
 	var h := Vector3(vel.x, 0, vel.z)
@@ -587,7 +587,7 @@ func _wall_run(vel: Vector3, delta: float) -> Vector3:
 	if speed < t.wall_run_speed:
 		speed = min(speed + t.wall_run_accel * delta, t.wall_run_speed)
 	h = dir * speed - n * t.wall_stick
-	var y: float = max(vel.y - t.wall_run_gravity * delta, -t.max_fall_speed)
+	var y: float = max(vel.y - t.wall_run_gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 	return Vector3(h.x, y, h.z)
 
 
@@ -704,7 +704,7 @@ func _belly_slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, input: Pla
 		vel = _apply_friction(vel, top, delta)
 		vel = _accelerate(vel, wish, top, t.ground_accel, delta)
 		return Vector3(vel.x, min(vel.y, 0.0), vel.z)
-	var downhill := Vector3(0, -t.gravity, 0)
+	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
 	h = Vector3(vel.x, 0, vel.z)
@@ -758,7 +758,7 @@ func _float(vel: Vector3, delta: float) -> Vector3:
 	_float_left -= delta
 	if _float_left <= 0.0:
 		state = State.AIR
-	return Vector3(vel.x, maxf(minf(vel.y, 0.0) - t.float_gravity * delta, -t.float_fall_speed), vel.z)
+	return Vector3(vel.x, maxf(minf(vel.y, 0.0) - t.float_gravity * WorldGravity.scale * delta, -t.float_fall_speed), vel.z)
 
 
 ## Rocket boots while floating: the burst turns the whole float the way you press

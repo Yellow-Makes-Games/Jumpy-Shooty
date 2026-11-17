@@ -15,7 +15,7 @@ extends Node
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
 ## --practice           Skip the menus and drop into the arena alone.
-## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, testing_grounds, or a race map
+## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
 ## --race               With --practice, --bot or --host and no --map: race on the first race map.
 ## --game=GAME          ffa or dm (Deathmatch: start unarmed, pick weapons up off the map), with --practice, --bot or --host.
@@ -30,6 +30,10 @@ extends Node
 ## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
 ##                      P percent of movement packets lost (incoming, this copy only).
 ## --scripted-fire     With --scripted-input: aim at the nearest opponent and shoot.
+## --map-event=SEC     Start the map's events (Halcyon's low gravity) SEC seconds after start, as if a terminal
+##                      had fired them (host, practice and bot matches; tests and screenshots).
+## --eager-terminal    Bots go for a map terminal whenever one is ready and they have nobody to fight (tests;
+##                      normally they only try now and then).
 ## --rules=kills:N | time:MINUTES | gungame  Set the win condition (Gun Game also works with --bot).
 ## --kill-target=N      Host only: override the kill target for this match.
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
@@ -68,6 +72,8 @@ var scripted_input := false
 var sync_log := false
 var sound_log := false
 var scripted_fire := false
+var eager_terminal := false
+var map_event_at := -1.0     # --map-event: seconds after start (-1 = never)
 ## With --scripted-input: also hook the nearest opponent now and then and flying-kick
 ## them, kick anyone close, and fire the rocket boots every few seconds (tests).
 var scripted_kicks := false
@@ -143,6 +149,8 @@ func _ready() -> void:
 			"--sync-log": sync_log = true
 			"--sound-log": sound_log = true
 			"--scripted-fire": scripted_fire = true
+			"--eager-terminal": eager_terminal = true
+			"--map-event": map_event_at = float(value)
 			"--scripted-kicks": scripted_kicks = true
 			"--auto-return": auto_return = true
 			"--menu": menu = value
@@ -226,6 +234,10 @@ func _process(delta: float) -> void:
 				ev.pressed = down
 				Input.parse_input_event(ev)
 			print("[dev] pressed: %s" % press[1])
+	if map_event_at >= 0.0 and elapsed >= map_event_at and Net.arena:
+		map_event_at = -1.0
+		for e in get_tree().get_nodes_in_group(MapEvent.GROUP):
+			(e as MapEvent).host_start()
 	for look in looks.duplicate():
 		if elapsed >= look[0]:
 			looks.erase(look)

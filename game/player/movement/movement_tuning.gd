@@ -18,7 +18,7 @@ const BODY_RADIUS := 0.4
 @export_group("Air")
 @export var air_accel := 3.0          ## steering strength in the air
 @export var air_speed := 8.0          ## air steering can push you up to this speed, never slows you down
-@export var gravity := 22.0
+@export var gravity := 22.0             ## (a map event can scale this for a while: see WorldGravity)
 @export var max_fall_speed := 55.0
 
 @export_group("Jump")

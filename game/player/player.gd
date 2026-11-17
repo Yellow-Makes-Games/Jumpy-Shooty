@@ -363,6 +363,7 @@ func read_local_input() -> void:
 		input.fire = false
 		input.grapple = false
 		input.dive = false
+		input.interact = false
 		return
 	if Input.is_action_just_pressed("kick"):
 		input.kick_pressed = true
@@ -374,6 +375,7 @@ func read_local_input() -> void:
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"))
 	input.sprint = Input.is_action_pressed("sprint")
+	input.interact = Input.is_action_pressed("interact")
 	input.crouch = Input.is_action_pressed("crouch")
 	if Input.is_action_just_pressed("crouch"):
 		input.crouch_pressed = true
