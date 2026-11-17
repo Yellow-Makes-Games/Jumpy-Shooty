@@ -82,6 +82,7 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - The host picks the map in the lobby; practice and the bot menu have a map picker too.
 - Maps are scenes edited in the Godot editor (2026-11-15): every piece is a node you can select, move and resize, and the game merges them into a few meshes when a match starts. Decided before making more maps.
 - Themes: different arenas can use different themes.
+- Melee weapon looks (2026-11-17): robot-tech, made in the same factory as the robots: solid metal with glowing edges and inlays (not energy blades), gunmetal and armour plate with the player's colour as the only colour, faceted, about 15-20% oversized, no wood. One design per weapon for every robot. Code-built, no outside assets. At rest in first person a weapon covers no more of the view than before. The glowing parts can be dimmed or brightened (`MeleeModel.set_glow`); whether they brighten with the wind-up is for the animation pass, as are moving parts and where the hands hold each weapon.
 
 ## Match rules
 

@@ -164,24 +164,5 @@ func _add_blade(model: Node3D) -> void:
 	var holder := Node3D.new()
 	holder.rotation = Vector3(0, 0, PI * 0.5)   # blade along the ground, like a gun
 	model.add_child(holder)
-	var parts := MeleeModel.parts(weapon)
-	var top := 0.0
-	for part in parts:
-		top = maxf(top, (part[1] as Transform3D).origin.y)
-	holder.position.x = top * 0.5   # turn about its middle, not the grip
-	for part in parts:
-		var mi := MeshInstance3D.new()
-		mi.mesh = part[0]
-		mi.transform = part[1]
-		var kind: String = part[2]
-		var m := StandardMaterial3D.new()
-		m.albedo_color = {"steel": MeleeModel.STEEL, "dark": MeleeModel.DARK, "grip": MeleeModel.GRIP, "edge": GLOW,
-			"wood": MeleeModel.WOOD}.get(kind, MeleeModel.DARK)
-		m.roughness = 0.25 if kind == "steel" else 0.6
-		m.metallic = 0.9 if kind == "steel" else 0.3
-		if kind == "edge":
-			m.emission_enabled = true
-			m.emission = GLOW
-			m.emission_energy_multiplier = 1.4
-		mi.material_override = m
-		holder.add_child(mi)
+	holder.position.x = float(MeleeModel.EDGES.get(weapon, MeleeModel.EDGES.sword)[1]) * 0.5   # turn about its middle, not the grip
+	holder.add_child(MeleeModel.build(weapon, GLOW))

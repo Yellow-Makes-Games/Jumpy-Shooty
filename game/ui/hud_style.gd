@@ -178,17 +178,23 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			shapes = [[Vector2(0, 2), Vector2(8, 1), Vector2(26, 1), Vector2(44, 1.5), Vector2(44, 3), Vector2(26, 3.5),
 				Vector2(24, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 6)],
 				[Vector2(11, -3), Vector2(23, -3), Vector2(23, 0), Vector2(11, 0)]]
-		"sword":   # blade to the right
-			shapes = [[Vector2(0, 3), Vector2(8, 3), Vector2(8, 5), Vector2(0, 5)],
-				[Vector2(8, -1), Vector2(10, -1), Vector2(10, 9), Vector2(8, 9)],
-				[Vector2(10, 2.5), Vector2(36, 2.5), Vector2(40, 4), Vector2(36, 5.5), Vector2(10, 5.5)]]
-		"hammer":
+		"sword":   # blade to the right, the guard's wings swept toward the point
+			shapes = [[Vector2(0, 3), Vector2(9, 3), Vector2(9, 5), Vector2(0, 5)],
+				[Vector2(-2, 2.4), Vector2(0, 2.4), Vector2(0, 5.6), Vector2(-2, 5.6)],
+				[Vector2(8, 2.5), Vector2(9, -1.5), Vector2(12.5, -3), Vector2(11, 0), Vector2(10.5, 2.5)],
+				[Vector2(8, 5.5), Vector2(10.5, 5.5), Vector2(11, 8), Vector2(12.5, 11), Vector2(9, 9.5)],
+				[Vector2(10.5, 2), Vector2(13, 1.2), Vector2(34, 1.8), Vector2(40, 4), Vector2(34, 6.2), Vector2(13, 6.8), Vector2(10.5, 6)]]
+		"hammer":   # a block of a head with a strike face at each end
 			shapes = [[Vector2(0, 3), Vector2(24, 3), Vector2(24, 5), Vector2(0, 5)],
-				[Vector2(22, -3), Vector2(32, -3), Vector2(32, 11), Vector2(22, 11)]]
-		"dagger":
-			shapes = [[Vector2(0, 3), Vector2(6, 3), Vector2(6, 5), Vector2(0, 5)],
-				[Vector2(6, 0), Vector2(8, 0), Vector2(8, 8), Vector2(6, 8)],
-				[Vector2(8, 2.5), Vector2(20, 2.5), Vector2(24, 4), Vector2(20, 5.5), Vector2(8, 5.5)]]
+				[Vector2(-1.5, 2.2), Vector2(0, 2.2), Vector2(0, 5.8), Vector2(-1.5, 5.8)],
+				[Vector2(23, -1), Vector2(31, -1), Vector2(31, 9), Vector2(23, 9)],
+				[Vector2(22, -4.5), Vector2(32, -4.5), Vector2(32, -1.8), Vector2(22, -1.8)],
+				[Vector2(22, 9.8), Vector2(32, 9.8), Vector2(32, 12.5), Vector2(22, 12.5)]]
+		"dagger":   # a wide clipped blade, the edge and the knuckle bow underneath
+			shapes = [[Vector2(0, 3), Vector2(7, 3), Vector2(7, 5), Vector2(0, 5)],
+				[Vector2(-1.5, 2.4), Vector2(0, 2.4), Vector2(0, 5.6), Vector2(-1.5, 5.6)],
+				[Vector2(7, 1.5), Vector2(8.5, 1.5), Vector2(8.5, 7.5), Vector2(7, 9), Vector2(1, 9), Vector2(1, 7.6), Vector2(6.4, 7.6), Vector2(7, 7)],
+				[Vector2(8.5, 1.5), Vector2(20, 1.2), Vector2(26.5, 6.6), Vector2(20, 7.6), Vector2(8.5, 7)]]
 		"revolver":
 			shapes = [[Vector2(0, 1), Vector2(26, 1), Vector2(26, 3.5), Vector2(11, 3.5), Vector2(10, 5),
 				Vector2(5, 10), Vector2(1, 10), Vector2(3, 4), Vector2(0, 4)], [Vector2(6, 0), Vector2(12, 0), Vector2(12, 5), Vector2(6, 5)]]
@@ -235,12 +241,18 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			shapes = [[Vector2(0, 0), Vector2(18, 0), Vector2(18, 4), Vector2(0, 4)], [Vector2(1, 4), Vector2(17, 4), Vector2(14, 9), Vector2(4, 9)],
 				[Vector2(1, -3), Vector2(4, -3), Vector2(4, 0), Vector2(1, 0)], [Vector2(5.5, -3), Vector2(8.5, -3), Vector2(8.5, 0), Vector2(5.5, 0)],
 				[Vector2(10, -3), Vector2(13, -3), Vector2(13, 0), Vector2(10, 0)], [Vector2(14.5, -3), Vector2(17.5, -3), Vector2(17.5, 0), Vector2(14.5, 0)]]
-		"spear":
-			shapes = [[Vector2(0, 3.2), Vector2(40, 3.2), Vector2(40, 4.8), Vector2(0, 4.8)],
-				[Vector2(40, 1.5), Vector2(46, 1.5), Vector2(52, 4), Vector2(46, 6.5), Vector2(40, 6.5)]]
-		"axe":
-			shapes = [[Vector2(0, 3), Vector2(30, 3), Vector2(30, 5), Vector2(0, 5)],
-				[Vector2(24, 1), Vector2(30, 1), Vector2(33, -4), Vector2(33, 12), Vector2(30, 7), Vector2(24, 7)]]
+		"spear":   # a leaf of a head, two fins swept back under it
+			shapes = [[Vector2(0, 3.2), Vector2(41, 3.2), Vector2(41, 4.8), Vector2(0, 4.8)],
+				[Vector2(-3, 4), Vector2(0, 2.6), Vector2(0, 5.4)],
+				[Vector2(41.5, 3.2), Vector2(37, 1.8), Vector2(32.5, -1), Vector2(36, 0), Vector2(40, 2)],
+				[Vector2(41.5, 4.8), Vector2(40, 6), Vector2(36, 8), Vector2(32.5, 9), Vector2(37, 6.2)],
+				[Vector2(41, 3), Vector2(45, 0.8), Vector2(47.5, 1.2), Vector2(54, 4), Vector2(47.5, 6.8), Vector2(45, 7.2), Vector2(41, 5)]]
+		"axe":   # a crescent blade above, a spike on the back
+			shapes = [[Vector2(0, 3), Vector2(31, 3), Vector2(31, 5), Vector2(0, 5)],
+				[Vector2(31, 2.8), Vector2(34, 4), Vector2(31, 5.2)],
+				[Vector2(24, 3), Vector2(23, -1), Vector2(20, -5.5), Vector2(24.5, -7.5), Vector2(29, -7.5), Vector2(33.5, -5.5),
+					Vector2(30.5, -1), Vector2(29.5, 3)],
+				[Vector2(25, 5), Vector2(28.5, 5), Vector2(26.75, 9.5)]]
 		"bat":
 			shapes = [[Vector2(0, 3), Vector2(10, 3), Vector2(34, 1.5), Vector2(38, 2.5), Vector2(38, 5.5), Vector2(34, 6.5),
 				Vector2(10, 5), Vector2(0, 5)], [Vector2(-1.5, 2), Vector2(0.5, 2), Vector2(0.5, 6), Vector2(-1.5, 6)]]
@@ -262,10 +274,10 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 
 ## How wide a weapon's icon is at size 1 (to centre it).
 static func weapon_width(id: String) -> float:
-	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0, "sword": 40.0, "hammer": 32.0, "dagger": 24.0,
+	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0, "sword": 40.0, "hammer": 32.0, "dagger": 26.5,
 		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "break_action": 40.0, "smg": 28.0, "burst_rifle": 38.0, "lmg": 46.0,
 		"lever_action": 42.0, "bolt_action": 44.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
-		"brass_knuckles": 18.0, "spear": 52.0, "axe": 33.0, "bat": 38.0}.get(id, 22.0)
+		"brass_knuckles": 18.0, "spear": 54.0, "axe": 34.0, "bat": 38.0}.get(id, 22.0)
 
 
 static func health_color(hp: float) -> Color:
