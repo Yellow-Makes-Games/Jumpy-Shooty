@@ -125,9 +125,11 @@ func _initialize() -> void:
 				_expect_true("faster than the 9 m/s it started with (%.2f)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > 10.5)],
 		["with the pull off, the rope swings like a pendulum", 2.6,
 			func():
-				_data["pull_was"] = [t.grapple_pull_accel, t.grapple_yank]
+				_data["pull_was"] = [t.grapple_pull_accel, t.grapple_yank, t.grapple_pull_lift, t.grapple_yank_lift]
 				t.grapple_pull_accel = 0.0   # check the rope on its own
 				t.grapple_yank = 0.0
+				t.grapple_pull_lift = 0.0
+				t.grapple_yank_lift = 0.0
 				_start_swing()
 				_data["swing"] = {"max_speed": 0.0, "max_stretch": 0.0, "lowest": 999.0},
 			func():
@@ -143,6 +145,8 @@ func _initialize() -> void:
 				_expect_near("lowest point is a rope's length below the anchor", g.anchor.y - d["lowest"], g.length, 0.2)
 				t.grapple_pull_accel = _data["pull_was"][0]
 				t.grapple_yank = _data["pull_was"][1]
+				t.grapple_pull_lift = _data["pull_was"][2]
+				t.grapple_yank_lift = _data["pull_was"][3]
 				_data.erase("pull_was")],
 		["grapple yanks you toward the hook the moment it catches", 1.0 / Engine.physics_ticks_per_second,
 			func(): _start_swing(),

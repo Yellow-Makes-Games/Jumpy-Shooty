@@ -33,12 +33,15 @@ const BODY_RADIUS := 0.4
 @export var grapple_attach_height := 1.2  ## where the rope meets the body (chest height)
 @export var grapple_air_accel := 6.0      ## steering strength while swinging (lets you pump the swing)
 @export var grapple_reel_speed := 0.0     ## metres per second the rope shortens on its own (0 = never)
-@export var grapple_jump_boost := 4.5     ## upward kick when you jump off the rope
+@export var grapple_jump_boost := 5.5     ## upward kick when you jump off the rope
 @export var grapple_pull_accel := 34.0    ## how hard the rope reels you in (gravity is 22, so it lifts you)
 @export var grapple_pull_speed := 16.0    ## the pull speeds you toward the hook up to this, never past it
 @export var grapple_yank := 7.0           ## instant speed toward the hook when it catches
 @export var grapple_hop := 4.0            ## hooking from the ground pops you off the floor this fast
 @export var grapple_pull_stop := 4.0      ## the pull stops this close to the hook, so you coast in or fly past
+@export var grapple_yank_lift := 2.5      ## extra upward speed when the hook catches above you
+@export var grapple_pull_lift := 9.0      ## extra upward pull while the hook is above you (fades near the hook)
+@export var grapple_lift_max := 14.0      ## the extra lift stops once you rise this fast
 ## Hooking another player: the rope reels you both together (they get pulled too,
 ## see Player.tug), harder than a wall hook, and lets go once you meet.
 @export var tether_pull_accel := 46.0
@@ -79,7 +82,9 @@ const BODY_RADIUS := 0.4
 @export var wall_run_max_rise := 4.0      ## upward speed is capped to this when a wall run starts
 @export var wall_stick := 1.0             ## small push into the wall so you stay on it
 @export var wall_jump_push := 7.0         ## sideways push off the wall
-@export var wall_jump_up := 7.2           ## upward speed of a wall jump
+@export var wall_jump_up := 8.2           ## upward speed of a wall jump
+@export var wall_jump_forward := 2.5      ## extra speed the way you were running along the wall...
+@export var wall_jump_forward_max := 13.0 ## ...but never past this along the wall (so chained kicks don't stack)
 @export var wall_jump_grace := 0.15       ## you can still wall-jump this long after leaving a wall
 
 @export_group("Vault and ledges")
