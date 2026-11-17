@@ -8,6 +8,8 @@ extends Node3D
 ##  - MapSpawn nodes: where players appear.
 ##  - MapDummy nodes: target dummies to shoot at (test maps).
 ##  - MapWeaponSpawn nodes (under "WeaponSpawns"): Deathmatch weapon pickups.
+##  - MapGrapplePoint nodes: glowing spots the grappling hook snaps to when you aim
+##    near them (any map, any mode).
 ##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
 ##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint

@@ -16,6 +16,7 @@ echo "== Importing project"
 # Each quick check: "name|args". Logs go to tests/out/check_<name>.log.
 CHECKS=(
   "movement|--fixed-fps 60 --script tests/movement_test.gd"
+  "grapple_points|--script tests/grapple_point_test.gd"
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
   "weapons|--script tests/weapon_test.gd"
   "audio|--script tests/audio_test.gd"
