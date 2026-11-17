@@ -66,6 +66,12 @@ func has_data() -> bool:
 	return not snaps.is_empty()
 
 
+## How far behind the newest data we are drawing (seconds), not counting the trip
+## the data took to get here.
+func delay() -> float:
+	return _delay
+
+
 ## The time, on the sender's clock, that we should be showing right now.
 ## Call once per frame. The delay eases toward its target so time never jumps.
 func render_time(local_time: float, delta: float = 0.016) -> float:

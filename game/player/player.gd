@@ -1321,6 +1321,23 @@ func _target_roll() -> float:
 	return -motor.wall_normal.dot(right) * deg_to_rad(7.0)
 
 
+## What this copy of the game draws for this player right now, for the killcam's
+## recording (see Killcam): [feet, velocity, yaw, pitch, pose, animation flags,
+## rope on, rope anchor, alive, drawn, eye height above the feet, weapon in hand].
+func shown_state() -> Array:
+	var pose := _my_pose() if is_local and motor else _remote_state
+	var eye := motor.eye_height if is_local and motor else eye_for_pose(pose) - tuck_offset(pose)   # (a remote body is drawn lifted by its tuck)
+	return [global_position, velocity, _visual_yaw, _anim.pitch, pose, _anim.flags, _anim.grapple_on and alive,
+		_anim.grapple_anchor, alive, visual.visible and not _awaiting_respawn, eye, robot.weapon if robot else "none"]
+
+
+## Eye height above the feet for a pose (as sent in snapshots).
+static func eye_for_pose(pose: int) -> float:
+	if pose_state(pose) == MovementController.State.BELLY_SLIDE:
+		return 0.55
+	return 1.0 if pose_crouched(pose) else CameraRig.EYE_HEIGHT
+
+
 ## Where this player's feet were at time t (on this player's clock).
 func position_at(t: float) -> Vector3:
 	if not buffer.has_data():

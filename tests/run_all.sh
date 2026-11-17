@@ -33,6 +33,7 @@ CHECKS=(
   "construction_site|--fixed-fps 60 --script tests/site_test.gd"
   "office|--fixed-fps 60 --script tests/office_test.gd"
   "debug|--script tests/debug_test.gd"
+  "killcam|--script tests/killcam_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
@@ -70,4 +71,6 @@ echo "== Halcyon online and with bots: a client fires the terminal, a late joine
 tests/run_gravity_test.sh
 echo "== Race mode: bots finish a race, fail conditions, results"
 tests/run_race_test.sh
+echo "== Killcam: Vs Bots (watch, skip), online host and laggy client agree on the best kills, results screen plays them"
+tests/run_killcam_test.sh
 echo "ALL TESTS PASSED"
