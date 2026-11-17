@@ -217,7 +217,7 @@ const ACTIONS := [
 	["move_right", "Move right", ["key:%d" % KEY_D]],
 	["jump", "Jump (again in mid-air to flip)", ["key:%d" % KEY_SPACE]],
 	["sprint", "Sprint", ["key:%d" % KEY_SHIFT]],
-	["float", "Float (in mid-air)", ["key:%d" % KEY_SHIFT]],
+	["glide", "Glide (hold in mid-air)", ["key:%d" % KEY_SHIFT]],
 	["crouch", "Crouch / slide", ["key:%d" % KEY_CTRL, "key:%d" % KEY_C]],
 	["dive", "Dive", ["key:%d" % KEY_Q, "key:%d" % KEY_ALT]],
 	["kick", "Kick", ["key:%d" % KEY_F]],
@@ -240,8 +240,8 @@ const ACTIONS := [
 ]
 const MAX_BINDS := 2
 ## Pairs of actions that may share a key without it counting as a conflict
-## (sprint is for the ground, float for the air).
-const CAN_SHARE := [["sprint", "float"]]
+## (sprint is for the ground, glide for the air).
+const CAN_SHARE := [["sprint", "glide"]]
 
 ## Not rebindable: Esc always opens the menu (and cancels a rebind).
 const FIXED_BINDINGS := {"pause": ["key:%d" % KEY_ESCAPE]}
@@ -279,6 +279,8 @@ func _apply_bindings() -> void:
 func _load_bindings(cfg: ConfigFile) -> void:
 	for a in ACTIONS:
 		var saved = cfg.get_value("bindings", a[0]) if cfg.has_section_key("bindings", a[0]) else null
+		if saved == null and a[0] == "glide" and cfg.has_section_key("bindings", "float"):
+			saved = cfg.get_value("bindings", "float")   # the glide used to be the float: keep a key chosen for it
 		if saved is Array:
 			var list := []
 			for b in saved:
