@@ -27,10 +27,20 @@ const KEYS := {
 	"hammer": [[0, 0, 0, 0, 0], [-0.2, 1.7, 1.2, -0.25, -0.22], [0.05, -0.55, -1.45, 0.1, 0.45], [0.1, -0.85, -1.2, 0.15, 0.5]],
 	"dagger": [[0, 0, 0, 0, 0], [-0.35, 0.1, -0.7, -0.3, -0.05], [0.12, -0.05, -1.6, 0.25, 0.2], [0.2, -0.1, -1.55, 0.3, 0.15]],
 	"dagger_back": [[0, 0, 0, 0, 0], [0.3, 0.2, -0.7, 0.3, -0.05], [-0.15, -0.1, -1.6, -0.25, 0.2], [-0.25, -0.15, -1.55, -0.3, 0.15]],
+	# Brass knuckles: a straight jab, then a hook from the outside.
+	"brass_knuckles": [[0, 0, 0, 0, 0], [-0.2, -0.15, 0.35, -0.45, -0.1], [0.08, 0.05, -0.15, 0.5, 0.38], [0.12, 0.02, -0.2, 0.55, 0.32]],
+	"brass_knuckles_back": [[0, 0, 0, 0, 0], [-0.8, 0.25, 0.2, -0.6, -0.05], [0.55, 0.1, -0.35, 0.45, 0.3], [0.8, 0.0, -0.3, 0.6, 0.25]],
+	# The spear thrusts straight out: the point comes down level and drives forward.
+	"spear": [[0, 0, 0, 0, 0], [-0.15, 0.15, -0.9, -0.35, -0.18], [0.02, 0.02, -1.6, 0.18, 0.42], [0.04, 0.0, -1.62, 0.2, 0.46]],
+	# The axe chops down across the body from up over the right shoulder.
+	"axe": [[0, 0, 0, 0, 0], [-0.75, 1.35, 1.0, -0.45, -0.18], [0.45, -0.5, -1.4, 0.4, 0.4], [0.6, -0.8, -1.2, 0.5, 0.45]],
+	"axe_back": [[0, 0, 0, 0, 0], [0.7, 1.3, 0.9, 0.4, -0.18], [-0.45, -0.45, -1.4, -0.4, 0.4], [-0.65, -0.75, -1.2, -0.5, 0.45]],
+	# The bat: a big flat swing, wound up far behind, finished all the way round.
+	"bat": [[0, 0, 0, 0, 0], [-1.55, 0.6, 0.35, -0.75, -0.12], [0.95, -0.1, -1.35, 0.65, 0.2], [1.45, -0.3, -1.0, 0.85, 0.15]],
 }
 const REST := [0.0, 0.0, 0.0, 0.0, 0.0]
 ## How long the blow, follow-through and recovery take, against the sword's.
-const PACE := {"sword": 1.0, "hammer": 1.3, "dagger": 0.6}
+const PACE := {"sword": 1.0, "hammer": 1.3, "dagger": 0.6, "brass_knuckles": 0.55, "spear": 0.85, "axe": 1.2, "bat": 1.15}
 
 var t := -1.0         ## seconds into the swing, or -1 between swings
 var keys: Array = []

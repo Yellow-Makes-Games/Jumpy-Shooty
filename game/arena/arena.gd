@@ -48,6 +48,8 @@ func _ready() -> void:
 	Match.player_died.connect(_on_player_died)
 	Match.player_respawned.connect(_on_player_respawned)
 	Match.shot_fired.connect(_on_shot_fired)
+	Match.projectile_fired.connect(_on_projectile_fired)
+	Match.exploded.connect(_on_exploded)
 	_sync_players()
 	_capture_mouse(true)
 	if layout.destruction:
@@ -135,6 +137,33 @@ func _on_player_respawned(id: int, _spawn_index: int) -> void:
 		p.expect_respawn()
 
 
+## A rocket or grenade is on its way: draw it (and, for someone else's, their gun firing).
+func _on_projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3) -> void:
+	var p := get_player(shooter)
+	var muzzle := Vector3.INF
+	var color := Color(1.0, 0.6, 0.3)
+	if p:
+		muzzle = p.muzzle_position()
+		color = RobotModel.trim_color(Net.player_color(shooter))
+		if shooter != Net.my_id() and not p.is_local:
+			p.show_shot()
+	add_child(Projectile.make(id, WeaponData.by_id(weapon_id), origin, direction, muzzle, color))
+
+
+func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
+	var node := get_node_or_null("Projectile_%d" % id)
+	if node:
+		node.queue_free()
+	var w := WeaponData.by_id(weapon_id)
+	ShotFx.explosion(self, at, w.splash_radius)
+	Sound.play_at("explosion", at, "fire", 0.0, 0.05)
+	var d := at.distance_to(Sound.listener_position())
+	if d > 40.0 and d < INF:
+		Sound.play_at("explosion_far", at, "far", 0.0, 0.05)
+	if local_player and local_player.rig:
+		local_player.shake(clampf(1.0 - d / (w.splash_radius * 5.0), 0.0, 1.0))
+
+
 func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array) -> void:
 	var p := get_player(shooter)
 	if shooter == Net.my_id() or (p and p.is_local):
@@ -168,7 +197,10 @@ func _sync_players() -> void:
 			# Swapped weapons while waiting to respawn: rebuilt holding the new one.
 			var p := get_player(id)
 			if not p.racing and p.robot.weapon != Net.player_weapon(id):
-				rebuild_player(id)
+				if p.alive and Match.is_alive(id):
+					p.change_weapon(Net.player_weapon(id))   # Gun Game: a kill hands you the next weapon now
+				else:
+					rebuild_player(id)
 	for p in players_root.get_children():
 		if not Net.players.has((p as Player).peer_id):
 			p.queue_free()

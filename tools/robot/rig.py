@@ -78,7 +78,12 @@ BODY = Skeleton([
 ])
 
 # Where each long gun's shots leave its barrel, in gun space (x, up, back). The pistol's is "muzzle".
-MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565), "sniper": (0.0, 0.058, -0.86)}
+MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565), "sniper": (0.0, 0.058, -0.86),
+           "revolver": (0.0, 0.066, -0.285), "machine_pistol": (0.0, 0.064, -0.235),
+           "break_action": (0.0, 0.066, -0.66), "smg": (0.0, 0.052, -0.47), "burst_rifle": (0.0, 0.056, -0.62),
+           "lmg": (0.0, 0.060, -0.80), "lever_action": (0.0, 0.066, -0.78), "bolt_action": (0.0, 0.060, -0.80),
+           "railgun": (0.0, 0.062, -0.80), "rocket_launcher": (0.0, 0.115, -0.70),
+           "grenade_launcher": (0.0, 0.070, -0.52)}
 
 
 def _with_muzzles(skel_spec):
@@ -269,8 +274,13 @@ def _place_gun(skel, spec, place):
           skel.offset("pistol") + GUN_REST @ np.array(gun.get("pos", ZERO), dtype=float))
     # The slide moves back along the barrel; a bolt can also turn about the bore ("slide_turn",
     # degrees, about a line "slide_axis" metres above the grip).
-    turn = rz(spec.get("slide_turn", 0.0))
-    axis = v(0.0, spec.get("slide_axis", 0.0), 0.0)
+    # A lever (or a top cover) swings about a sideways line instead ("slide_pitch", degrees,
+    # about the point "slide_pivot": (up, forward) of the grip).
+    turn = rz(spec.get("slide_turn", 0.0)) @ rx(spec.get("slide_pitch", 0.0))
+    if "slide_pivot" in spec:
+        axis = v(0.0, spec["slide_pivot"][0], -spec["slide_pivot"][1])
+    else:
+        axis = v(0.0, spec.get("slide_axis", 0.0), 0.0)
     place("pistol_slide", GUN_REST @ turn @ GUN_REST.T, GUN_REST @ (v(0, 0, spec.get("slide", 0.0)) + axis - turn @ axis))
     place("pistol_mag", GUN_REST @ euler(spec.get("mag_rot", ZERO)) @ GUN_REST.T,
           GUN_REST @ np.array(spec.get("mag", ZERO), dtype=float))

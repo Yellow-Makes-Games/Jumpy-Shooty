@@ -1,7 +1,7 @@
 class_name WeaponPicker
 extends VBoxContainer
-## "Weapon" chooser for the menus: one button per weapon (guns on one row, melee
-## weapons on the next), a line about it and four bars (damage, fire rate, range,
+## "Weapon" chooser for the menus: one button per weapon, in their groups (sidearms,
+## shotguns, rifles, marksman rifles, explosives, melee), a line about it and four bars (damage, fire rate, range,
 ## magazine; for melee: damage, swing speed, reach, knockback) to compare them at a glance.
 ##
 ## Like CharacterPicker it only reports the choice; the screen decides what to do
@@ -22,22 +22,25 @@ func _init(start: String = "") -> void:
 	add_theme_constant_override("separation", 8)
 	UiKit.section(self, "Weapon")
 	var group := ButtonGroup.new()
-	var row: HBoxContainer
-	for id in WeaponData.IDS:
-		if id == WeaponData.GUNS[0] or id == WeaponData.MELEE[0]:   # guns on one row, melee on the next
-			row = HBoxContainer.new()
+	var grid := VBoxContainer.new()
+	grid.add_theme_constant_override("separation", 4)
+	add_child(grid)
+	for g in WeaponData.GROUPS:
+		var ids: Array = g[1]
+		for from in range(0, ids.size(), 4):   # at most four to a row
+			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 6)
-			add_child(row)
-		var b := Button.new()
-		b.text = WeaponData.by_id(id).short_name
-		b.toggle_mode = true
-		b.button_group = group
-		b.custom_minimum_size = Vector2(0, 44)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.pressed.connect(_on_pressed.bind(id))
-		b.set_meta("sfx", "none")   # picking a gun plays the gun being readied instead
-		row.add_child(b)
-		_buttons[id] = b
+			grid.add_child(row)
+			var tag := UiKit.label(row, String(g[0]).to_upper() if from == 0 else "", false, 12)
+			tag.custom_minimum_size = Vector2(92, 0)
+			tag.modulate = Color(1, 1, 1, 0.6)
+			for i in range(from, mini(from + 4, ids.size())):
+				_add_button(row, ids[i], group)
+			for i in 4 - mini(4, ids.size() - from):   # keep the columns lined up
+				var pad := Control.new()
+				pad.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				pad.custom_minimum_size = Vector2(0, 34)
+				row.add_child(pad)
 	_blurb = UiKit.label(self, "", true, 15)
 	_blurb.custom_minimum_size = Vector2(0, 40)
 	_bars = Control.new()
@@ -45,6 +48,20 @@ func _init(start: String = "") -> void:
 	_bars.draw.connect(_draw_bars)
 	add_child(_bars)
 	select(WeaponData.valid(start))
+
+
+func _add_button(row: HBoxContainer, id: String, group: ButtonGroup) -> void:
+	var b := Button.new()
+	b.text = WeaponData.by_id(id).short_name
+	b.toggle_mode = true
+	b.button_group = group
+	b.custom_minimum_size = Vector2(0, 34)
+	b.clip_text = true
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.pressed.connect(_on_pressed.bind(id))
+	b.set_meta("sfx", "none")   # picking a gun plays the gun being readied instead
+	row.add_child(b)
+	_buttons[id] = b
 
 
 ## Show `id` as the picked gun without reporting it.
@@ -78,13 +95,20 @@ static func ratings(w: WeaponData) -> Array:
 			["REACH", clampf(w.max_range / 3.2, 0.05, 1.0)],
 			["KNOCKBACK", clampf(w.knockback / 24.0, 0.05, 1.0)],
 		]
-	var shot := w.damage * w.pellets
+	if w.is_projectile():
+		return [
+			["DAMAGE", clampf(w.damage / 110.0, 0.05, 1.0)],
+			["FIRE RATE", clampf(1.0 / w.fire_interval / 10.0, 0.05, 1.0)],
+			["BLAST", clampf(w.splash_radius / 5.0, 0.05, 1.0)],
+			["MAGAZINE", clampf(w.magazine / 30.0, 0.05, 1.0)],
+		]
+	var shot := w.damage * w.pellets * w.burst
 	var per_second := 1.0 / w.fire_interval
 	var reach := w.falloff_end if w.falloff_end < 500.0 else 120.0
 	return [
 		["DAMAGE", clampf(shot / 110.0, 0.05, 1.0)],
 		["FIRE RATE", clampf(per_second / 10.0, 0.05, 1.0)],
-		["RANGE", clampf(reach / 120.0, 0.05, 1.0) if w.id != "sniper" else 1.0],
+		["RANGE", clampf(reach / 120.0, 0.05, 1.0) if w.falloff_end < 500.0 or w.id in ["pistol"] else (1.0 if w.max_range >= 250.0 else 0.8)],
 		["MAGAZINE", clampf(w.magazine / 30.0, 0.05, 1.0)],
 	]
 

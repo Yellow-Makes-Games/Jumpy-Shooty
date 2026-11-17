@@ -213,8 +213,8 @@ func _gun(a: RobotAnimInput, delta: float) -> void:
 		while _reload_next < steps.size() and _reload_t >= steps[_reload_next][0]:
 			_play_gun(steps[_reload_next][1])
 			_reload_next += 1
-		if weapon_id == "shotgun" and _reload_next >= steps.size():
-			var shell := WeaponData.by_id("shotgun").reload_time
+		if WeaponData.has(weapon_id) and WeaponData.by_id(weapon_id).reload_per_round and _reload_next >= steps.size():
+			var shell := WeaponData.by_id(weapon_id).reload_time
 			if _reload_t >= shell:   # next shell
 				_reload_t -= shell
 				_reload_next = 0
