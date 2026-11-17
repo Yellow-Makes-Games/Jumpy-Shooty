@@ -29,7 +29,7 @@ Last updated: no name tags over players, and bots no longer see through walls. D
 | Player leaves mid-match | working | Their character disappears for everyone |
 | Host leaves: match ends, everyone back to menu | working | Covered by the sync test |
 | Rejoin a match in progress | rough | Joining mid-match drops you into the arena; a rejoining player starts at 0 kills |
-| Internet play between two PCs | not started | Needs Steam, or router port forwarding for direct IP |
+| Internet play between two PCs | working | Not yet verified on real PCs. Hosting asks the router to open the port (UPnP) and the lobby shows the public address with a Copy button; otherwise forward UDP 24680 by hand |
 | Hit detection (host decides with rewind) | working | Laggy-network test: 90% of aimed shots hit with rewind vs 37% without |
 | Headshots | working | 1.5x damage above the shoulders (lower when crouched). Yellow hit marker |
 | Character sync | working | Every copy shows each player as the robot they picked, including a new pick made in the lobby between matches. Checked by the sync and match tests |

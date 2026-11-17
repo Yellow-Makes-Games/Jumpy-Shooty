@@ -8,6 +8,7 @@ var _list: VBoxContainer
 var _start: Button
 var _waiting: Label
 var _info: Label
+var _copy: Button   # copies the host's internet address
 var _rules_label: Label
 var _host_rules: HBoxContainer
 var _mode_pick: OptionButton
@@ -25,7 +26,15 @@ var _updating := false   # true while we fill the controls from settings (ignore
 func _ready() -> void:
 	var page := UiKit.screen(self, 900)
 	UiKit.title(page, "Lobby", 36)
-	_info = UiKit.label(page, "", true, 16)
+	var info_row := HBoxContainer.new()
+	info_row.add_theme_constant_override("separation", 12)
+	page.add_child(info_row)
+	_info = UiKit.label(info_row, "", true, 16)
+	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_copy = UiKit.button(info_row, "Copy address", func():
+		DisplayServer.clipboard_set(_public_address())
+		_copy.text = "Copied")
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 32)
 	page.add_child(columns)
@@ -58,6 +67,7 @@ func _ready() -> void:
 	_start = UiKit.primary_button(buttons, "Start match", Net.host_start_match)
 	_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	Net.players_changed.connect(_refresh)
+	Net.internet_changed.connect(_refresh)
 	_refresh()
 	# Dev/test: the host starts the next match on its own.
 	if DevArgs.autostart > 0 and Net.is_host() and Net.players.size() >= DevArgs.autostart:
@@ -76,8 +86,15 @@ func _refresh() -> void:
 	_waiting.visible = not Net.is_host()
 	_start.disabled = Net.players.size() < 1
 	var where := ""
+	_copy.visible = Net.is_host() and Net.internet_state == "open"
 	if Net.is_host():
-		where = "Friends on your network can join at %s (port %d)." % [_local_ip(), Net.port]
+		match Net.internet_state:
+			"open":
+				where = "Friends anywhere can join at %s." % _public_address()
+			"checking":
+				where = "Opening your router for internet play..."
+			_:
+				where = "Your router would not open port %d, so only friends on your network can join (at %s)." % [Net.port, _local_ip()]
 	else:
 		where = "The host picks the map and rules and starts the match."
 	_info.text = "%d of %d players.  %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
@@ -278,6 +295,11 @@ func _refresh_rules() -> void:
 		_amount.set_value_no_signal(s.minutes)
 		_amount_unit.text = "minutes"
 	_updating = false
+
+
+## What friends type to join over the internet (the port only if it isn't the usual one).
+func _public_address() -> String:
+	return Net.public_ip if Net.port == Net.DEFAULT_PORT else "%s:%d" % [Net.public_ip, Net.port]
 
 
 func _local_ip() -> String:

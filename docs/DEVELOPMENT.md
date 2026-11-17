@@ -35,10 +35,12 @@ one and **Multiplayer → Join lobby** with address `127.0.0.1` in the other.
 
 - **Same home network:** host with **Create lobby**. The lobby shows your local address
   (for example `192.168.1.20`). Your friend types that into **Join lobby**.
-- **Over the internet:** direct IP needs the host's router to forward **UDP port 24680**
-  to the host's PC, and your friend joins using your public IP address. This is fiddly
-  and is exactly what Steam will remove. If you want to try it before Steam is ready,
-  ask me and I will walk you through your router.
+- **Over the internet:** when you create a lobby, the game asks your router to open
+  UDP port 24680 (UPnP) and the lobby shows your public address with a **Copy address**
+  button. Send that to friends; they type it into **Join lobby**. If the lobby says the
+  router would not open the port, forward UDP 24680 to your PC by hand in the router's
+  settings (or UPnP is switched off there, or your provider shares one address between
+  homes, which no router setting fixes).
 
 Windows may ask whether to allow Godot through the firewall the first time you host.
 Allow it on private networks.
