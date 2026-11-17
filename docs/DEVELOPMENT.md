@@ -235,7 +235,14 @@ Colours live in the palette (`game/maps/palettes/*.tres`): change one there and 
 block of that kind changes. To add a kind, add an entry to the palette's Colors, then
 type its name into a block's Kind. A colour whose alpha is below 1 makes the kind
 see-through (Halcyon's dome and windows): you look through it, but it is as solid as
-any block. The MapRoot's inspector also has the map's rules:
+any block. The palette's **Surface** list gives a kind a pattern drawn on every surface
+of that kind with no extra blocks (Halcyon): `panels` (seams on walls, now and then a
+hatch or vent slots), `panels_plain`, `tiles`, `plates` (rivets), `grating`, `slats`
+(a vent), `hazard` (slanted stripes), `treads` (grip lines across a ramp) and
+`corrugated` (shipping containers). The patterns are settings of one shader,
+`game/arena/map_surface.gdshader`, listed in `MapScenery.SURFACES`; they are measured
+in metres from where the surface is in the map, so they line up from block to block. A
+kind that glows or is see-through takes no pattern. The MapRoot's inspector also has the map's rules:
 **Bounds** (leave it and you are out; drawn as a red rectangle), **Kill Height** and the
 **Swing Point** the test player hooks.
 
@@ -281,6 +288,7 @@ The scripts behind this:
 | `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
 | `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players hold Interact at, the event it fires, and the one gravity multiplier all movement reads |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
+| `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
 | `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline |
 
 To render pictures of a map without opening the game:
@@ -333,6 +341,13 @@ Things to keep true when editing it:
   a little short of the lintel above.
 - In low gravity a jump reaches 3 m. Every room has a ceiling and the hull has no gaps,
   so nobody gets out; keep it that way when you open a wall.
+- Wall and floor details (each place's "Details" group: ribs, vents, wall displays,
+  conduits, ceiling beams, floor lines, grates, hazard stripes) are drawn only: Solid
+  is off on every one, and none stands more than 0.3 m off its surface, so nothing
+  snags a wall run, a slide or a swing. Keep new ones the same. Panel seams, tiles,
+  grating and stripes are not blocks at all: the palette's Surface list draws them.
+- Words on a floor are Label3D nodes lying flat with Shaded on, so they take the
+  room's light (and go blue with it in low gravity).
 - No spawn point or weapon in the Control Room, and no spawn point that can see the dais.
 - Lighting is the ambient light, a soft shadowless "sun" and the glowing kinds (each
   room has its own accent kind: `accent_cyan` and so on). There are no light nodes, so

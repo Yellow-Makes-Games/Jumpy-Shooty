@@ -12,6 +12,7 @@ colors = Dictionary[String, Color]({
 "accent_white": Color(0.85, 0.92, 1, 1),
 "accent_yellow": Color(1, 0.84, 0.16, 1),
 "bunk": Color(0.3, 0.36, 0.5, 1),
+"cable": Color(0.2, 0.2, 0.25, 1),
 "catwalk": Color(0.38, 0.4, 0.46, 1),
 "console": Color(0.18, 0.2, 0.25, 1),
 "container_blue": Color(0.2, 0.42, 0.66, 1),
@@ -29,7 +30,9 @@ colors = Dictionary[String, Color]({
 "girder": Color(0.32, 0.34, 0.4, 1),
 "glass_hull": Color(0.62, 0.82, 1, 0.14),
 "glass_pane": Color(0.7, 0.92, 1, 0.3),
+"grate": Color(0.3, 0.31, 0.36, 1),
 "grow_light": Color(1, 0.72, 0.95, 1),
+"hazard": Color(0.96, 0.76, 0.1, 1),
 "holo": Color(0.3, 0.6, 1, 1),
 "hull": Color(0.84, 0.86, 0.89, 1),
 "hull_dark": Color(0.4, 0.42, 0.48, 1),
@@ -51,9 +54,11 @@ colors = Dictionary[String, Color]({
 "rail": Color(0.22, 0.23, 0.27, 1),
 "reactor": Color(1, 0.42, 0.08, 1),
 "reactor_core": Color(1, 0.7, 0.3, 1),
+"rib": Color(0.36, 0.38, 0.44, 1),
 "ring": Color(0.72, 0.75, 0.82, 1),
 "ring_dark": Color(0.28, 0.31, 0.38, 1),
 "ring_light": Color(0.8, 0.94, 1, 1),
+"screen": Color(0.07, 0.09, 0.13, 1),
 "seat": Color(0.25, 0.44, 0.68, 1),
 "shuttle": Color(0.92, 0.93, 0.95, 1),
 "shuttle_dark": Color(0.2, 0.22, 0.27, 1),
@@ -62,7 +67,8 @@ colors = Dictionary[String, Color]({
 "stair": Color(0.46, 0.48, 0.53, 1),
 "table": Color(0.8, 0.81, 0.85, 1),
 "tank": Color(0.62, 0.72, 0.74, 1),
-"trim": Color(0.15, 0.16, 0.19, 1)
+"trim": Color(0.15, 0.16, 0.19, 1),
+"vent": Color(0.24, 0.25, 0.3, 1)
 })
 glow = Dictionary[String, float]({
 "accent_cyan": 2.0,
@@ -82,6 +88,25 @@ glow = Dictionary[String, float]({
 "reactor": 1.1,
 "reactor_core": 1.8,
 "ring_light": 2.6
+})
+surface = Dictionary[String, String]({
+"catwalk": "grating",
+"container_blue": "corrugated",
+"container_grey": "corrugated",
+"container_orange": "corrugated",
+"container_teal": "corrugated",
+"container_yellow": "corrugated",
+"floor": "tiles",
+"floor_dark": "plates",
+"grate": "grating",
+"hazard": "hazard",
+"hull": "panels",
+"hull_dark": "plates",
+"hull_ext": "panels",
+"hull_white": "panels_plain",
+"shuttle": "panels_plain",
+"stair": "treads",
+"vent": "slats"
 })
 roughness = 0.8
 breakable = Dictionary[String, float]({
