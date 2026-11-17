@@ -2,11 +2,13 @@ class_name Grapple
 extends RefCounted
 ## Momentum-based grappling hook.
 ##
-## The hook does NOT pull you in. It works like a rope: when it catches a surface,
-## the rope's length is set to your current distance, and the rope only stops you
-## from moving further away than that. It takes up slack as you move closer (so it
-## is always tight), but it never pulls you in. Gravity and your speed do the rest, so you
-## swing like a pendulum around the anchor:
+## When it catches a surface it yanks you toward it, then keeps reeling you in,
+## speeding you up toward the hook (up to grapple_pull_speed). The pull only adds
+## speed along the rope: whatever sideways speed you had is kept, so hooking a point
+## off to one side while running pulls you into a fast, tightening swing. Close to
+## the hook the pull stops and you coast in on your own momentum. It is also a rope:
+## it never lets you move further away than its length, and takes up slack as you
+## get closer. Gravity and your speed do the rest:
 ##  - swinging down converts height into speed;
 ##  - steering in the air (WASD) at the right moment pumps the swing higher;
 ##  - letting go keeps all your velocity, so releasing at the bottom or on the
@@ -19,6 +21,11 @@ var attached := false
 var anchor := Vector3.ZERO
 var length := 0.0
 var cooldown_left := 0.0
+## The pull never takes you faster than this: the pull's top speed, or the speed you
+## hooked on at if that was faster. Past it, the pull turns your speed toward the
+## hook instead of adding to it, so hooking a nearby point at speed doesn't spin
+## you round it ever faster. Gravity can still add speed on a swing.
+var speed_cap := 0.0
 
 
 func _init(t: MovementTuning) -> void:
@@ -84,12 +91,44 @@ func release() -> void:
 		cooldown_left = tuning.grapple_cooldown
 
 
+## The kick the hook gives the moment it catches: speed toward the hook, never
+## past the pull's top speed.
+func yank(body: Node3D, vel: Vector3) -> Vector3:
+	speed_cap = maxf(vel.length(), tuning.grapple_pull_speed)
+	return _add_toward(body, vel, tuning.grapple_yank)
+
+
+## Reels you in: speeds you up toward the hook, up to grapple_pull_speed. Speed you
+## already have toward it beyond that (falling, swinging) is kept, never taken away.
+## Fades out near the hook so you arrive on your own momentum instead of being
+## pinned to the wall.
+func pull(body: Node3D, vel: Vector3, delta: float) -> Vector3:
+	return _add_toward(body, vel, tuning.grapple_pull_accel * delta)
+
+
+func _add_toward(body: Node3D, vel: Vector3, amount: float) -> Vector3:
+	var to := anchor - rope_origin(body)
+	var dist := to.length()
+	if dist < 0.01 or amount <= 0.0:
+		return vel
+	var dir := to / dist
+	var fade := clampf((dist - tuning.grapple_min_length) / maxf(tuning.grapple_pull_stop - tuning.grapple_min_length, 0.01), 0.0, 1.0)
+	var room := tuning.grapple_pull_speed * fade - vel.dot(dir)
+	if room <= 0.0:
+		return vel
+	var out := vel + dir * minf(amount, room)
+	var top := maxf(speed_cap, vel.length())
+	if out.length() > top:
+		out = out.normalized() * top   # turn toward the hook rather than speed up
+	return out
+
+
 ## Removes any velocity that would stretch the rope. Velocity along the swing is
-## untouched, which is what makes this a pendulum rather than a pull.
+## untouched, which is what lets you swing around the hook.
 func constrain_velocity(body: Node3D, vel: Vector3, delta: float) -> Vector3:
 	# The rope takes up its own slack: if you move closer to the anchor it gets
 	# shorter and stays tight, so you never free-fall on a loose rope and then get
-	# jerked to a stop. It never pulls you in, though.
+	# jerked to a stop.
 	var current := rope_origin(body).distance_to(anchor)
 	length = clamp(min(length - tuning.grapple_reel_speed * delta, current), tuning.grapple_min_length, length)
 	var predicted := rope_origin(body) + vel * delta

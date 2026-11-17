@@ -34,6 +34,11 @@ const BODY_RADIUS := 0.4
 @export var grapple_air_accel := 6.0      ## steering strength while swinging (lets you pump the swing)
 @export var grapple_reel_speed := 0.0     ## metres per second the rope shortens on its own (0 = never)
 @export var grapple_jump_boost := 4.5     ## upward kick when you jump off the rope
+@export var grapple_pull_accel := 34.0    ## how hard the rope reels you in (gravity is 22, so it lifts you)
+@export var grapple_pull_speed := 16.0    ## the pull speeds you toward the hook up to this, never past it
+@export var grapple_yank := 7.0           ## instant speed toward the hook when it catches
+@export var grapple_hop := 4.0            ## hooking from the ground pops you off the floor this fast
+@export var grapple_pull_stop := 4.0      ## the pull stops this close to the hook, so you coast in or fly past
 
 @export_group("Crouch and slide")
 @export var stand_height := 1.8           ## body height standing

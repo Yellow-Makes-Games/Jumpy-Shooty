@@ -52,7 +52,7 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - No fall damage.
 - Grapple: short cooldown, attaches to any surface.
 - Flips (2026-11-16): an air flip dodge. Press jump again in mid-air to flip toward your WASD direction with a small burst, once per jump.
-- Grapple rope takes up its own slack (always tight, never pulls you in), so swings keep their momentum.
+- Grapple pulls you in: a yank when it catches, then a steady reel toward the hook that only adds speed along the rope (sideways speed is kept, so pulls turn into swings). The rope takes up its own slack, so it is always tight, and letting go keeps every bit of speed.
 
 ## Maps
 
