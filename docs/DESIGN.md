@@ -52,7 +52,7 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - No fall damage.
 - Grapple: short cooldown, attaches to any surface.
 - Flips (2026-11-16): an air flip dodge. Press jump again in mid-air to flip toward your WASD direction with a small burst, once per jump.
-- Float (2026-11-17): Shift in mid-air cancels your up-and-down speed and glides you level, in a straight line the way you face, at the speed you had, for a few seconds. It pairs with every other move (they take over from it), so it doubles as a vertical cancel, and it is a steadier way to shoot from the air. Legs out to the sides and spinning at half a flip's speed. (A rocket booster out of the seat was tried and dropped: it looked goofy.)
+- Float (2026-11-17): Shift in mid-air cancels your up-and-down speed and glides you in a straight line the way you face, at the speed you had, sinking slowly, for about a second (2.5 s was tried and was far too long). It pairs with every other move (they take over from it), so it doubles as a vertical cancel, and it is a steadier way to shoot from the air. Rocket boots are the exception: used while floating they turn the float the way you press, so it can change direction. Legs out to the sides, whirling like a helicopter's rotor (the first try, half a flip's speed, was too slow), and they hurt and shove anyone they touch. (A rocket booster out of the seat was tried and dropped: it looked goofy.)
 - Grapple pulls you in: a yank when it catches, then a steady reel toward the hook that only adds speed along the rope (sideways speed is kept, so pulls turn into swings). The rope takes up its own slack, so it is always tight, and letting go keeps every bit of speed.
 
 ## Maps

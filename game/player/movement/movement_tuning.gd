@@ -110,7 +110,9 @@ const BODY_RADIUS := 0.4
 @export var belly_crawl_speed := 2.0      ## once the slide runs out (dive still held), you can crawl this fast
 
 @export_group("Float")
-@export var float_time := 2.5             ## press Shift in mid-air: you glide level for this long
+@export var float_fall_speed := 2.0       ## while floating you sink this fast, no faster
+@export var float_gravity := 5.0          ## how quickly you reach that sinking speed (normal gravity is 22)
+@export var float_time := 1.0             ## press Shift in mid-air: you float for this long
 @export var float_min_speed := 5.0        ## a float carries you the way you face at least this fast (otherwise at the speed you had)
 @export var float_min_height := 0.5       ## no float this close above the floor (Shift there is just sprint)
 

@@ -178,10 +178,11 @@ func _check_character() -> void:
 	_expect("floating: legs straight out to the sides",
 		Vector2(leg_l.x, leg_l.z).length() > 0.65 and Vector2(leg_r.x, leg_r.z).length() > 0.65 and leg_l.dot(leg_r) < 0.0,
 		"%s %s" % [leg_l, leg_r])
-	_run(floating, RobotAnimator.FLOAT_SPIN_TIME * 0.25)
+	_run(floating, 2.5 / 60.0)   # three frames
 	var later := robot.bone_position("foot_l") - robot.bone_position("hips")
 	var turned := rad_to_deg(absf(Vector2(leg_l.x, leg_l.z).angle_to(Vector2(later.x, later.z))))
-	_near("floating: the legs turn a quarter circle in a quarter of the spin time (degrees)", turned, 90.0, 8.0)
+	_near("floating: the legs whirl round at the spin speed (degrees in three frames)", turned,
+		360.0 * 0.05 / RobotAnimator.FLOAT_SPIN_TIME, 5.0)
 	_expect("floating: the gun stays on target while they turn", robot.bone_position("muzzle").distance_to(held) < 0.03,
 		"%.3f m" % robot.bone_position("muzzle").distance_to(held))
 

@@ -18,11 +18,13 @@ extends RefCounted
 ##   FLIP      press jump again in mid-air: a flip toward your WASD direction with a
 ##             small burst, once per jump (a dodge)
 ##   FLOAT     press Shift in mid-air: your up-and-down speed is cancelled and you
-##             glide level, in a straight line the way you face, at the speed you
-##             had, for float_time seconds. Once per jump. Any other move takes over
-##             from it (flip, dive, grapple, rocket boots, a wall), so it works as a
+##             glide in a straight line the way you face, at the speed you had,
+##             sinking slowly, for float_time seconds. Once per jump. Any other move
+##             takes over from it (flip, dive, grapple, a wall), so it works as a
 ##             way to stop rising or falling before the next move; Shift again
-##             drops you out early.
+##             drops you out early. Rocket boots do not end it: they send the
+##             float off the way you press instead (see _float_boost). The legs
+##             whirl round and hit anyone they reach (see FloatSpin).
 ##
 ## Rocket boots (E): a burst of speed toward your WASD direction as seen from
 ## where you look (straight where you look if you hold no direction), so you can
@@ -322,6 +324,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 ## Rocket boots: a burst toward where you push (see the top of this file).
 func _boost(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
 	var t := tuning
+	if state == State.FLOAT:
+		return _float_boost(vel, input)
 	var dir := input.boost_dir
 	if dir == Vector3.ZERO:
 		var look := Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0))
@@ -338,7 +342,7 @@ func _boost(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
 	vel += dir * t.boost_speed
 	since_boost = 0.0
 	boosts += 1
-	if state in [State.MANTLE, State.ROLL, State.BELLY_SLIDE, State.WALL_RUN, State.FLOAT]:
+	if state in [State.MANTLE, State.ROLL, State.BELLY_SLIDE, State.WALL_RUN]:
 		if state == State.WALL_RUN:
 			_end_wall_run()
 		state = State.AIR
@@ -731,6 +735,7 @@ func _can_float(body: CharacterBody3D, grounded: bool) -> bool:
 
 
 ## Up-and-down speed goes; the speed you had over the ground now carries you the way you face.
+## (From there you sink slowly: see _float.)
 func _start_float(vel: Vector3, input: PlayerInput) -> Vector3:
 	var t := tuning
 	if state == State.WALL_RUN:
@@ -743,13 +748,31 @@ func _start_float(vel: Vector3, input: PlayerInput) -> Vector3:
 	return _facing(input) * speed
 
 
-## Floating: no gravity and no steering, so you hold your line and your speed
-## (whatever a wall you brush leaves you with) until the time runs out.
+## Floating: no steering, so you hold your line and your speed (whatever a wall
+## you brush leaves you with) until the time runs out, sinking slowly as you go.
 func _float(vel: Vector3, delta: float) -> Vector3:
+	var t := tuning
 	_float_left -= delta
 	if _float_left <= 0.0:
 		state = State.AIR
-	return Vector3(vel.x, 0.0, vel.z)
+	return Vector3(vel.x, maxf(minf(vel.y, 0.0) - t.float_gravity * delta, -t.float_fall_speed), vel.z)
+
+
+## Rocket boots while floating: the burst turns the whole float the way you press
+## (WASD as seen from the way you face; forward if you hold nothing), carrying
+## all the speed you had plus the burst's. You keep floating.
+func _float_boost(vel: Vector3, input: PlayerInput) -> Vector3:
+	var t := tuning
+	var dir := Vector3(input.boost_dir.x, 0.0, input.boost_dir.z)   # a bot's aim, kept level
+	if dir.length_squared() < 0.0001:
+		dir = _wish_dir(input)
+	if dir.length_squared() < 0.0001:
+		dir = _facing(input)
+	dir = dir.normalized()
+	var speed := Vector2(vel.x, vel.z).length() + t.boost_speed
+	since_boost = 0.0
+	boosts += 1
+	return Vector3(dir.x * speed, vel.y, dir.z * speed)
 
 
 # ---------------------------------------------------------------------------

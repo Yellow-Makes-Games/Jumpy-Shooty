@@ -512,14 +512,14 @@ func _initialize() -> void:
 				_data.erase("flip_watch")
 				_expect_true("no flip", not _data["states"].has(MovementController.State.FLIP))
 				_expect_true("jumped on landing", _data.get("rebounded", false))],
-		["Shift in mid-air floats: level, the way you face, at the speed you had", 1.0,
+		["Shift in mid-air floats: the way you face, at the speed you had, sinking slowly", t.float_time * 0.4,
 			func():
 				motor.reset()
 				_teleport(Vector3(-30, 40, 180))
 				_clear_input()
 				body.velocity = Vector3(6, -9, -15)   # falling fast, drifting right
 				input.yaw = 0.0
-				input.pitch = deg_to_rad(-30.0)   # looking down changes nothing: a float is level
+				input.pitch = deg_to_rad(-30.0)   # looking down changes nothing: a float goes the way you face over the ground
 				input.float_pressed = true
 				_data["float_from"] = body.global_position,
 			func():
@@ -527,19 +527,22 @@ func _initialize() -> void:
 				_data.erase("float_from")
 				var p := body.global_position
 				_expect_true("state is Float", motor.state == MovementController.State.FLOAT)
-				_expect_near("height kept", p.y, from.y, 0.02)
+				var sunk := from.y - p.y
+				_expect_true("the fall is stopped: sunk only a little (%.2f m)" % sunk, sunk > 0.02 and sunk < t.float_fall_speed * t.float_time * 0.4)
+				_expect_true("sinking, no faster than the float's fall speed (%.2f m/s)" % body.velocity.y,
+					body.velocity.y < -0.3 and body.velocity.y >= -t.float_fall_speed - 0.001)
 				_expect_near("speed kept", motor.horizontal_speed(body), Vector2(6, 15).length(), 0.05)
 				_expect_near("going the way you face (sideways speed)", body.velocity.x, 0.0, 0.05)
-				_expect_near("distance covered in 1 s", from.z - p.z, Vector2(6, 15).length(), 0.3)
-				_expect_near("HUD: part of the float left", motor.float_readiness(), 1.0 - 1.0 / t.float_time, 0.02)],
-		["steering does nothing while floating", 0.5,
+				_expect_near("distance covered", from.z - p.z, Vector2(6, 15).length() * t.float_time * 0.4, 0.3)
+				_expect_near("HUD: part of the float left", motor.float_readiness(), 0.6, 0.02)],
+		["steering does nothing while floating", t.float_time * 0.3,
 			func(): input.move = Vector2(1, -1),
 			func():
 				_expect_near("still straight (sideways speed)", body.velocity.x, 0.0, 0.05)
 				_expect_near("speed kept", motor.horizontal_speed(body), Vector2(6, 15).length(), 0.05)
 				input.move = Vector2.ZERO],
-		["the float runs out and you fall on, keeping your speed", 0.2,
-			func(): _steps[_scenario][1] = t.float_time - 1.5 + 0.2,
+		["the float runs out and you fall on, keeping your speed", t.float_time * 0.3 + 0.2,
+			func(): pass,
 			func():
 				_expect_true("falling again (%s, %.1f m/s)" % [MovementController.State.keys()[motor.state], body.velocity.y],
 					motor.state == MovementController.State.AIR and body.velocity.y < -2.0)
@@ -563,7 +566,7 @@ func _initialize() -> void:
 			func():
 				_data.erase("float_again")
 				_expect_true("stopped rising, drifting the way you face (%s)" % _data["float_vel"],
-					absf(_data["float_vel"].y) < 0.01 and absf(_data["float_vel"].x + t.float_min_speed) < 0.05)
+					_data["float_vel"].y <= 0.0 and _data["float_vel"].y >= -t.float_fall_speed and absf(_data["float_vel"].x + t.float_min_speed) < 0.05)
 				_expect_true("dropped out (%s, %.1f m/s)" % [MovementController.State.keys()[motor.state], body.velocity.y],
 					motor.state == MovementController.State.AIR and body.velocity.y < -1.0)
 				_data.erase("float_vel")],
@@ -583,15 +586,28 @@ func _initialize() -> void:
 			func():
 				_expect_true("state is Dive", motor.state == MovementController.State.DIVE)
 				_expect_true("faster forward (%.1f m/s)" % -body.velocity.z, -body.velocity.z > 12.0 + t.dive_boost * 0.9)],
-		["rocket boots take over from a float", 0.05,
+		["rocket boots turn a float the way you press, and you keep floating", 0.05,
 			func():
-				_start_float(Vector3(0, -6, -12))
-				input.jump_held = true   # tips the burst upward
+				_start_float(Vector3(0, -6, -12))   # floating toward -z at 12 m/s
+				input.move = Vector2(1, 0)          # pressing right
+				input.jump_held = true              # (tips a normal burst upward: not a float's)
 				input.boost_pressed = true,
 			func():
 				input.jump_held = false
-				_expect_true("no longer floating", motor.state == MovementController.State.AIR)
-				_expect_true("boosted forward and up (%s)" % body.velocity, -body.velocity.z > 20.0 and body.velocity.y > 3.0)],
+				input.move = Vector2.ZERO
+				_expect_true("still floating", motor.state == MovementController.State.FLOAT)
+				_expect_near("all the speed, plus the burst, now goes right", body.velocity.x, 12.0 + t.boost_speed, 0.1)
+				_expect_near("none of it forward any more", body.velocity.z, 0.0, 0.1)
+				_expect_true("still only sinking slowly (%.2f m/s)" % body.velocity.y, body.velocity.y <= 0.0 and body.velocity.y >= -t.float_fall_speed)
+				_expect_true("the boots are spent", motor.boost_readiness() < 0.1)],
+		["rocket boots with nothing pressed push a float on the way you face", 0.05,
+			func():
+				_start_float(Vector3(0, -6, -12))
+				input.yaw = PI   # turned right round since the float began
+				input.boost_pressed = true,
+			func():
+				_expect_true("still floating", motor.state == MovementController.State.FLOAT)
+				_expect_near("now going the other way, faster", body.velocity.z, 12.0 + t.boost_speed, 0.1)],
 		["the grapple takes over from a float, and gives it back", 0.3,
 			func():
 				_start_swing()
@@ -623,8 +639,8 @@ func _initialize() -> void:
 			func():
 				var n: Array = _data["nudged"]
 				_data.erase("nudged")
-				_expect_true("nudged: still floating level, a little faster (%s)" % n[1],
-					n[0] == MovementController.State.FLOAT and absf(n[1].y) < 0.01 and absf(n[1].z + 14.0) < 0.05)
+				_expect_true("nudged: still floating, not lifted, a little faster (%s)" % n[1],
+					n[0] == MovementController.State.FLOAT and n[1].y <= 0.0 and n[1].y > -0.5 and absf(n[1].z + 14.0) < 0.05)
 				_expect_true("shoved: falling (%s)" % MovementController.State.keys()[motor.state], motor.state == MovementController.State.AIR)],
 		["no float on the floor: Shift there is still sprint", 1.5,
 			func():
