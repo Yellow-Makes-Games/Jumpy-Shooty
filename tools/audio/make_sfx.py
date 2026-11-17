@@ -268,6 +268,10 @@ GUNS = {
     "bolt_action": dict(crack=(1950, 0.6, 0.015), blast=(2050, 0.038, 1.25), boom=(0.18, 0.55),
                         thump=(98, 38, 0.09, 0.6), mech=([660, 1110, 1750], 0.015), slide_at=None,
                         tail=(1.7, 0.65, 1900), drive=3.4),
+    # Akimbo: a lighter, snappier pistol (two of them, firing in turn)
+    "akimbo": dict(crack=(1850, 0.75, 0.01), blast=(2600, 0.019, 0.95), boom=(0.06, 0.55),
+                   thump=(140, 54, 0.045, 0.65), mech=([1040, 1720, 2600], 0.009), slide_at=0.026,
+                   tail=(0.7, 0.42, 2250), drive=2.7),
 }
 
 
@@ -477,7 +481,9 @@ def handling(name, rng):
 
 def equip(name):
     """Bringing the gun up (on spawn, or picking it in a menu): a whoosh and a latch."""
-    rng = np.random.default_rng(4000 + (list(GUNS) + list(SPECIAL_FIRE)).index(name))
+    # (Akimbo was added later: it goes last, so the others keep their seeds and sounds.)
+    order = [g for g in GUNS if g != "akimbo"] + list(SPECIAL_FIRE) + ["akimbo"]
+    rng = np.random.default_rng(4000 + order.index(name))
     whoosh = sweep_bp(noise(rng, 0.22), 500, 2200, 1.5) * bell_env(0.22, 0.55, 1.5) * 0.6
     parts = [whoosh, (metal_clack(rng, 1.0, 0.8, 0.6) * 0.8, 0.17)]
     if name == "pistol":
@@ -487,6 +493,9 @@ def equip(name):
     elif name == "shotgun":
         parts += [(metal_slide(rng, 0.08, 900, 2.2), 0.24), (metal_clack(rng, 0.7, 1.3, 1.2), 0.32),
                   (metal_slide(rng, 0.06, 1500, 0.6) * 0.8, 0.40), (metal_clack(rng, 0.62, 1.6, 1.5), 0.46)]
+    elif name == "akimbo":   # both slides racked, one after the other
+        parts += [(metal_slide(rng, 0.05, 2700, 1.5) * 0.7, 0.22), (metal_clack(rng, 1.0, 1.0, 0.9), 0.27),
+                  (metal_slide(rng, 0.05, 2500, 1.5) * 0.7, 0.36), (metal_clack(rng, 0.95, 1.1, 1.0), 0.41)]
     elif name in ("revolver",):
         parts += [(metal_clack(rng, 1.4, 0.5, 0.2) * 0.8, 0.24), (metal_clack(rng, 1.1, 0.8, 0.5), 0.3)]
     elif name in ("machine_pistol", "smg", "burst_rifle", "lmg"):

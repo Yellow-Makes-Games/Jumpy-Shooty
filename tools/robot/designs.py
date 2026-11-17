@@ -502,7 +502,7 @@ def orbit():
 
 
 ARM_BONES = ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
-             "pistol", "pistol_slide", "pistol_mag")  # what the first-person view shows (every gun rides on the last three)
+             "pistol", "pistol_slide", "pistol_mag", "pistol_l", "pistol_l_slide", "pistol_l_mag")  # what the first-person view shows (every gun rides on the last three)
 
 DESIGNS = {"vanguard": vanguard, "brick": brick, "needle": needle, "kestrel": kestrel, "bulwark": bulwark,
            "rivet": rivet, "specter": specter, "orbit": orbit}

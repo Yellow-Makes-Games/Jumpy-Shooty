@@ -9,7 +9,7 @@ extends RefCounted
 
 const LADDER := ["smg", "rifle", "burst_rifle", "lmg", "shotgun", "break_action", "lever_action",
 	"bolt_action", "sniper", "railgun", "rocket_launcher", "grenade_launcher", "machine_pistol",
-	"revolver", "pistol", "brass_knuckles"]
+	"akimbo", "revolver", "pistol", "brass_knuckles"]
 const TIME_LIMIT := 20.0 * 60.0   ## seconds; if nobody finishes, the furthest along wins
 
 

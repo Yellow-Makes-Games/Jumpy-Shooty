@@ -15,7 +15,7 @@ from kit import Part, loft, rect, box, prism, ball
 from rig import BODY, GUN_REST
 
 IDS = ("pistol", "shotgun", "rifle", "sniper", "revolver", "machine_pistol", "break_action", "smg",
-       "burst_rifle", "lmg", "lever_action", "bolt_action", "railgun", "rocket_launcher", "grenade_launcher")
+       "burst_rifle", "lmg", "lever_action", "bolt_action", "railgun", "rocket_launcher", "grenade_launcher", "akimbo")
 
 # Where the left fist holds each gun (gun space), and on which bone: the shotgun's
 # hand rides on the pump. The pistol is held in both hands round the grip instead.
@@ -48,8 +48,8 @@ def materials():
     return {"%s.%s" % (g, k): dict(m) for g in IDS for k, m in KINDS.items()}
 
 
-def _place(part):
-    o = BODY.bone("pistol").pos
+def _place(part, bone="pistol"):
+    o = BODY.bone(bone).pos
     return Part(part.t @ GUN_REST.T + o)
 
 
@@ -69,7 +69,8 @@ def _tube(r, back, front, y, sides=8, x=0.0):
 
 
 def _add(mesh, gun, kind, bone, part):
-    mesh.add(_place(part), "%s.%s" % (gun, kind), bone)
+    # The akimbo pair's left gun rides on its own bones ("pistol_l", "pistol_l_slide"...).
+    mesh.add(_place(part, "pistol_l" if bone.startswith("pistol_l") else "pistol"), "%s.%s" % (gun, kind), bone)
 
 
 # ---------------------------------------------------------------------------
@@ -437,10 +438,38 @@ def grenade_launcher(mesh):
     _add(mesh, g, "gun", "pistol_slide", box(0.03, 0.03, 0.02).move(0, 0.06, 0.02))   # the hammer
 
 
+def akimbo(mesh):
+    """Akimbo: a matched pair of compact pistols, one in each fist. Slimmer than the
+    pistol, with a ported slide, a muzzle brake and an extended magazine. The same gun
+    is built twice: on the right-hand gun bones and on the left ("pistol_l"...)."""
+    g = "akimbo"
+    for side in ("", "_l"):
+        frame_b, slide_b, mag_b = "pistol" + side, "pistol" + side + "_slide", "pistol" + side + "_mag"
+        grip = box(0.032, 0.11, 0.046, 0.008).rot(pitch=-12).move(0, -0.034, 0.016)
+        frame = loft([rect(0.032, 0.18, 0.022, 0.006, cz=-0.055), rect(0.032, 0.19, 0.048, 0.006, cz=-0.055)])
+        guard = box(0.012, 0.011, 0.06).move(0, -0.012, -0.042) + box(0.012, 0.038, 0.011).move(0, 0.004, -0.074)
+        _add(mesh, g, "gun", frame_b, grip + frame + guard)
+        _add(mesh, g, "detail", frame_b, box(0.026, 0.018, 0.06).move(0, 0.014, -0.115))   # rail under the barrel
+        slide = loft([rect(0.036, 0.215, 0.048, 0.007, cz=-0.055), rect(0.036, 0.215, 0.074, 0.011, cz=-0.055),
+                      rect(0.026, 0.215, 0.084, 0.006, cz=-0.055)])
+        _add(mesh, g, "gun", slide_b, slide)
+        # Ports cut along the slide (lighter strips), and a stripe in the player's colour.
+        ports = Part([])
+        for i in range(3):
+            ports = ports + box(0.038, 0.012, 0.016).move(0, 0.072, -0.11 - i * 0.03)
+        _add(mesh, g, "detail", slide_b, ports)
+        _add(mesh, g, "accent", slide_b, box(0.038, 0.007, 0.07).move(0, 0.064, -0.0))
+        _add(mesh, g, "detail", slide_b, box(0.03, 0.03, 0.03, 0.006).move(0, 0.062, -0.18))   # muzzle brake
+        _add(mesh, g, "gun", slide_b, box(0.008, 0.012, 0.012).move(0, 0.09, -0.15))          # front sight
+        _add(mesh, g, "lens", frame_b, prism(6, 0.009, 0.02).rot(pitch=90).move(0, 0.062, -0.197))
+        _add(mesh, g, "detail", mag_b, box(0.024, 0.13, 0.03).rot(pitch=-12).move(0, -0.05, 0.02))
+        _add(mesh, g, "accent", mag_b, box(0.03, 0.014, 0.036).rot(pitch=-12).move(0, -0.115, 0.034))   # base pad
+
+
 BUILD = {"pistol": pistol, "shotgun": shotgun, "rifle": rifle, "sniper": sniper, "revolver": revolver,
          "machine_pistol": machine_pistol, "break_action": break_action, "smg": smg, "burst_rifle": burst_rifle,
          "lmg": lmg, "lever_action": lever_action, "bolt_action": bolt_action, "railgun": railgun,
-         "rocket_launcher": rocket_launcher, "grenade_launcher": grenade_launcher}
+         "rocket_launcher": rocket_launcher, "grenade_launcher": grenade_launcher, "akimbo": akimbo}
 
 
 def add_all(mesh):

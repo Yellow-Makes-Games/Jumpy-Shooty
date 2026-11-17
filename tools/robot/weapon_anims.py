@@ -449,6 +449,7 @@ def body_clips():
         if gun in FIRE:
             out.append(Clip("fire_" + gun, FIRE[gun], fire_clip(gun, False)))
     out += [Clip("reload_" + g, RELOAD[g], sidearm_reload(g, False)) for g in SIDEARMS]
+    out += akimbo_body_clips()
     return out
 
 
@@ -492,6 +493,7 @@ def arms_clips():
     for gun in LONG:
         out += fp_clips_for(gun)
     out += [Clip("fp_reload_" + g, RELOAD[g], sidearm_reload(g, True)) for g in SIDEARMS]
+    out += akimbo_arms_clips()
     return out
 
 
@@ -541,3 +543,113 @@ def _revolver_reload(fp):
         k(2.0, rest_r, rest_l, False),
     ]
     return lambda t: keyed(t, keys)
+
+
+# ---------------------------------------------------------------------------
+# Akimbo: a pistol in each fist. The left gun rides on its own bones ("pistol_l"...),
+# so every pose here sets both arms out front, mirror images of each other. Shots
+# alternate between the guns; the game kicks whichever arm fired (no fire clip).
+
+AKIMBO = "akimbo"
+AKIMBO_RELOAD = 2.0   # WeaponData.akimbo().reload_time
+
+
+def _mirror_arm(arm):
+    """The left arm as the mirror image of a right-arm spec."""
+    out = dict(arm)
+    out["ik"] = (-arm["ik"][0], arm["ik"][1], arm["ik"][2])
+    out["pole"] = (-arm["pole"][0], arm["pole"][1], arm["pole"][2])
+    if "hand" in arm:
+        out["hand"] = (arm["hand"][0], -arm["hand"][1], -arm["hand"][2])
+    out["cant"] = -arm.get("cant", 0.0)
+    return out
+
+
+def _pair(right_arm, **more):
+    spec = {"arm_r": right_arm, "arm_l": _mirror_arm(right_arm),
+            "slide": 0.0, "mag": (0.0, 0.0, 0.0), "slide_l": 0.0, "mag_l": (0.0, 0.0, 0.0)}
+    spec.update(more)
+    return spec
+
+
+def _ak_arm(fp, pos, hand=(90.0, 0.0, 0.0), cant=0.0):
+    return A.fp_arm_r(*pos, hand=hand, cant=cant) if fp else A._arm("r", pos, hand, cant)
+
+
+# Where the right fist holds its gun: third person in chest space, first person from the camera.
+AK_AIM = {False: ((0.125, 0.25, -0.445), (90.0, 5.0, 0.0), -8.0),
+          True: ((0.155, -0.16, -0.42), (90.0, 4.0, 0.0), -6.0)}
+
+
+def akimbo_rest(fp, offset=(0.0, 0.0, 0.0), hand=None, cant=None, **more):
+    pos, h, c = AK_AIM[fp]
+    return _pair(_ak_arm(fp, _add(pos, offset), hand if hand is not None else h, c if cant is None else cant), **more)
+
+
+def akimbo_reload(fp):
+    """Both guns tip up and the empty magazines drop out (the slides locked back),
+    the fists drop to the hips and push both guns down onto fresh magazines on the
+    belt, then up again: the slides slam home together."""
+    rest = akimbo_rest(fp)
+    if fp:
+        tilt_arm = _ak_arm(fp, (0.16, -0.19, -0.34), (122.0, 20.0, 0.0), 22.0)
+        low_arm = _ak_arm(fp, (0.20, -0.56, -0.22), (40.0, 0.0, 0.0), -10.0)
+        push_arm = _ak_arm(fp, (0.20, -0.60, -0.20), (40.0, 0.0, 0.0), -10.0)
+    else:
+        tilt_arm = _ak_arm(fp, (0.11, 0.21, -0.36), (122.0, 12.0, 0.0), 30.0)
+        low_arm = _ak_arm(fp, (0.20, -0.20, -0.16), (40.0, 0.0, 0.0), -10.0)
+        push_arm = _ak_arm(fp, (0.20, -0.24, -0.15), (40.0, 0.0, 0.0), -10.0)
+    back = 0.04            # a slide locked back on an empty gun
+    out_mag = (0.0, -0.03, 0.0)
+    gone = (0.0, -0.75, 0.05)
+    belt = (0.0, -0.10, 0.0)   # the fresh magazine, waiting in its pouch under the grip
+
+    def k(t, arm, slide, mag, ease="smooth"):
+        return (t, _pair(arm, slide=slide, slide_l=slide, mag=mag, mag_l=mag), ease)
+    keys = [
+        (0.0, rest),
+        k(0.20, tilt_arm, back, (0.0, 0.0, 0.0)),
+        k(0.26, tilt_arm, back, out_mag, "out"),
+        k(0.46, tilt_arm, back, gone, "in"),
+        k(0.84, low_arm, back, gone),
+        k(0.86, low_arm, back, belt, "linear"),
+        k(1.02, push_arm, back, (0.0, 0.0, 0.0), "out"),
+        k(1.12, low_arm, back, (0.0, 0.0, 0.0), "in"),
+        k(1.50, tilt_arm, back, (0.0, 0.0, 0.0)),
+        k(1.58, tilt_arm, 0.0, (0.0, 0.0, 0.0), "out"),
+        k(1.80, AK_REST_ARM[fp], 0.0, (0.0, 0.0, 0.0)),
+        k(2.00, AK_REST_ARM[fp], 0.0, (0.0, 0.0, 0.0)),
+    ]
+    return _scaled(keys, AKIMBO_RELOAD)
+
+
+AK_REST_ARM = {fp: akimbo_rest(fp)["arm_r"] for fp in (False, True)}
+
+
+def akimbo_body_clips():
+    return [
+        Clip("aim_akimbo", 1 / 30, lambda t: akimbo_rest(False)),
+        Clip("reload_akimbo", AKIMBO_RELOAD, akimbo_reload(False)),
+    ]
+
+
+def akimbo_arms_clips():
+    idle = akimbo_rest(True)
+    down = akimbo_rest(True, offset=(0.02, -0.25, 0.18), hand=(60.0, 10.0, 0.0))
+    sprint = akimbo_rest(True, offset=(0.045, -0.13, 0.12), hand=(125.0, 18.0, 0.0), cant=-18.0)
+    one = dict(akimbo_rest(True, offset=(0.02, 0.0, 0.0)), arm_l=A.FP_L_AWAY)
+    wall_r = dict(akimbo_rest(True, offset=(0.02, 0.0, 0.0), cant=-16.0))
+    wall_r["arm_l"] = AK_REST_ARM_L_FP
+    dive = akimbo_rest(True, offset=(-0.02, 0.045, -0.08))
+    return [
+        Clip("fp_idle_akimbo", 1 / 30, lambda t: idle),
+        Clip("fp_sprint_akimbo", 1 / 30, lambda t: sprint),
+        Clip("fp_one_hand_akimbo", 1 / 30, lambda t: one),
+        Clip("fp_wall_r_akimbo", 1 / 30, lambda t: wall_r),
+        Clip("fp_dive_akimbo", 1 / 30, lambda t: dive),
+        Clip("fp_raise_akimbo", 0.4, lambda t: keyed(t, [(0.0, down), (0.1, down), (0.4, idle, "out")])),
+        Clip("fp_reload_akimbo", AKIMBO_RELOAD, akimbo_reload(True)),
+    ]
+
+
+AK_REST_ARM_L_FP = akimbo_rest(True)["arm_l"]
