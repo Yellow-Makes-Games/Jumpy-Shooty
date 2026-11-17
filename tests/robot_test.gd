@@ -22,14 +22,19 @@ const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const BODY_BONES := ["root", "hips", "spine", "chest", "head", "upper_arm_l", "forearm_l", "hand_l",
 	"upper_arm_r", "forearm_r", "hand_r", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r",
-	"foot_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper"]
+	"foot_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo", "muzzle_akimbo_l"]
 const LONG_GUNS := ["shotgun", "rifle", "sniper"]
 ## Each long gun's own versions of these (e.g. "aim_rifle"); the pump and bolt guns also have "fire".
 const GUN_BODY_CLIPS := ["aim", "carry", "reload", "respawn"]
 const GUN_ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
-	"pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple"]
+	"pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo_l"]
+## Akimbo (a pistol in each hand) has its own aim and reload, and first-person poses.
+const AKIMBO_BODY_CLIPS := ["aim_akimbo", "reload_akimbo"]
+const AKIMBO_ARM_CLIPS := ["fp_idle_akimbo", "fp_sprint_akimbo", "fp_one_hand_akimbo", "fp_wall_r_akimbo",
+	"fp_dive_akimbo", "fp_raise_akimbo", "fp_reload_akimbo"]
 
 var failures := 0
 var robot: RobotModel
@@ -66,6 +71,8 @@ func _checks() -> void:
 			if gun != "rifle":
 				body_clips.append("fire_" + gun)
 				arm_clips.append("fp_fire_" + gun)
+		body_clips.append_array(AKIMBO_BODY_CLIPS)
+		arm_clips.append_array(AKIMBO_ARM_CLIPS)
 		_check_file(Characters.body(id), BODY_BONES, body_clips)
 		_check_file(Characters.arms(id), ARM_BONES, arm_clips)
 		var rig := RobotRig.open(Characters.body(id))
@@ -92,6 +99,42 @@ func _checks() -> void:
 			_drop_robot()
 			_check_gun(gun)
 		_drop_robot()
+		_check_akimbo()
+		_drop_robot()
+
+
+## Akimbo: a pistol in each fist, both pointing ahead, and each arm kicks only on its own shots.
+func _check_akimbo() -> void:
+	print("%s: akimbo pistols" % Characters.name_of(_character))
+	_weapon = "akimbo"
+	_fresh()
+	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
+	var right := robot.marker("muzzle_akimbo")
+	var left := robot.marker("muzzle_akimbo_l")
+	_expect("both guns out in front at chest height", right.z < -0.5 and left.z < -0.5 and right.y > 1.2 and left.y > 1.2,
+		"%s %s" % [right, left])
+	_expect("one gun in each hand", right.x > 0.05 and left.x < -0.05, "%s %s" % [right, left])
+	for g in [["", "muzzle_akimbo"], ["_l", "muzzle_akimbo_l"]]:
+		var dir := (robot.marker(g[1]) - robot.marker("pistol" + g[0])).normalized()
+		_expect("the %s gun points forward" % ("left" if g[0] != "" else "right"), dir.dot(Vector3.FORWARD) > 0.9, str(dir))
+	animator.fire(true)
+	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 2.0 / 60.0)
+	var kick_l := robot.marker("muzzle_akimbo_l").y - left.y
+	var kick_r := robot.marker("muzzle_akimbo").y - right.y
+	_expect("a left-hand shot kicks the left gun, not the right", kick_l > 0.01 and absf(kick_r) < kick_l * 0.3, "%.3f vs %.3f" % [kick_l, kick_r])
+	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 1.0)
+	animator.fire(false)
+	_run(_input(S.GROUND, Vector3.ZERO, 0.0), 2.0 / 60.0)
+	kick_l = robot.marker("muzzle_akimbo_l").y - left.y
+	kick_r = robot.marker("muzzle_akimbo").y - right.y
+	_expect("and a right-hand shot the right", kick_r > 0.01 and absf(kick_l) < kick_r * 0.3, "%.3f vs %.3f" % [kick_r, kick_l])
+	_fresh()
+	var reloading := _input(S.GROUND, Vector3.ZERO, 0.0)
+	reloading.flags = RobotAnimInput.make_flags(false, false, true, 0, 0)
+	_run(reloading, 0.6)
+	_expect("reloading: both magazines drop out", robot.marker("pistol_l_mag").distance_to(robot.marker("pistol_l")) > 0.3
+		and robot.marker("pistol_mag").distance_to(robot.marker("pistol")) > 0.3)
+	_weapon = "pistol"
 
 
 func _check_character() -> void:

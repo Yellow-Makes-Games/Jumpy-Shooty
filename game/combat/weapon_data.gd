@@ -21,7 +21,7 @@ enum Kind { HITSCAN, MELEE, PROJECTILE }
 ## The weapons in groups, as the pickers show them (and the number keys pick them while
 ## you wait to respawn: 1 for sidearms, 2 for shotguns... pressing again goes through the group).
 const GROUPS := [
-	["Sidearms", ["pistol", "revolver", "machine_pistol"]],
+	["Sidearms", ["pistol", "revolver", "machine_pistol", "akimbo"]],
 	["Shotguns", ["shotgun", "break_action"]],
 	["Rifles", ["smg", "rifle", "burst_rifle", "lmg"]],
 	["Marksman", ["lever_action", "bolt_action", "sniper", "railgun"]],
@@ -29,11 +29,11 @@ const GROUPS := [
 	["Melee", ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat"]],
 ]
 ## Every weapon a player can pick, in the order the pickers show them.
-const IDS := ["pistol", "revolver", "machine_pistol", "shotgun", "break_action", "smg", "rifle", "burst_rifle", "lmg",
+const IDS := ["pistol", "revolver", "machine_pistol", "akimbo", "shotgun", "break_action", "smg", "rifle", "burst_rifle", "lmg",
 	"lever_action", "bolt_action", "sniper", "railgun", "rocket_launcher", "grenade_launcher",
 	"sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat"]
 const MELEE := ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat"]
-const GUNS := ["pistol", "revolver", "machine_pistol", "shotgun", "break_action", "smg", "rifle", "burst_rifle", "lmg",
+const GUNS := ["pistol", "revolver", "machine_pistol", "akimbo", "shotgun", "break_action", "smg", "rifle", "burst_rifle", "lmg",
 	"lever_action", "bolt_action", "sniper", "railgun", "rocket_launcher", "grenade_launcher"]
 ## Guns held like the pistol (in both hands round the grip, no stock): they use the
 ## pistol's poses, with their own reload and firing clips.
@@ -71,6 +71,9 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol"]
 @export var burst_gap := 0.0
 ## A shot that goes through everyone in its path (the railgun), not just the first.
 @export var pierce := false
+## Akimbo: a gun in each hand. The shots take turns, right then left; the left gun's
+## leave from this marker bone (and kick the left arm).
+@export var muzzle_bone_left := ""
 @export_group("Projectile")
 ## Kind.PROJECTILE: a rocket or grenade that flies (the host follows it) and blows up
 ## where it lands: full `damage` within `splash_inner` metres, falling to nothing at
@@ -308,6 +311,27 @@ static func machine_pistol() -> WeaponData:
 	w.kick = 0.35
 	w.knockback = 0.6
 	w.move_bonus = 1.05
+	return w
+
+
+## A pistol in each hand: one trigger, and the shots alternate right, left, right...
+## Twice the pistol's rate of fire, a little less damage and a lot less accuracy.
+static func akimbo() -> WeaponData:
+	var w := _gun("akimbo", "Akimbo Pistols", "Akimbo")
+	w.blurb = "A pistol in each hand. Click as fast as you like: the shots alternate left and right. 24 rounds, wild at range."
+	w.damage = 20.0
+	w.fire_interval = 0.11
+	w.magazine = 24
+	w.reload_time = 2.0
+	w.spread_degrees = 0.9
+	w.falloff_start = 18.0
+	w.falloff_end = 40.0
+	w.falloff_min = 0.6
+	w.headshot_multiplier = 1.5
+	w.muzzle_bone_left = "muzzle_akimbo_l"
+	w.kick = 1.1
+	w.knockback = 1.6
+	w.move_bonus = 1.03
 	return w
 
 
@@ -613,6 +637,11 @@ func melee_knockback(charge: float) -> Array:
 	return [lerpf(knockback, maxf(charge_knockback, knockback), u), lerpf(knockback_up, maxf(charge_knockback_up, knockback_up), u)]
 
 
+## A gun in each hand, firing in turn.
+func is_akimbo() -> bool:
+	return muzzle_bone_left != ""
+
+
 func is_projectile() -> bool:
 	return kind == Kind.PROJECTILE
 
@@ -648,6 +677,7 @@ static func _make(weapon_id: String) -> WeaponData:
 		"dagger": return dagger()
 		"revolver": return revolver()
 		"machine_pistol": return machine_pistol()
+		"akimbo": return akimbo()
 		"break_action": return break_action()
 		"smg": return smg()
 		"burst_rifle": return burst_rifle()

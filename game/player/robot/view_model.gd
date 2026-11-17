@@ -49,6 +49,8 @@ var _tmp: RobotPose
 var _fade := 1.0
 var _time := 0.0
 var _recoil := 0.0
+var _recoil_l := 0.0      # akimbo: the left gun's kick (_recoil is the right's)
+var _kick_side := 0.0     # akimbo: which way the last shot rolls the view (+1 right gun, -1 left)
 var _since_fire := 99.0
 var _reload_w := 0.0
 var _raise_t := -1.0
@@ -105,8 +107,15 @@ func clip(base: String) -> String:
 	return own if rig.has_clip(own) else base
 
 
-func fire() -> void:
-	_recoil = _data.kick
+func fire(left: bool = false) -> void:
+	if _data.is_akimbo():
+		if left:
+			_recoil_l = _data.kick
+		else:
+			_recoil = _data.kick
+		_kick_side = -1.0 if left else 1.0
+	else:
+		_recoil = _data.kick
 	_since_fire = 0.0
 	if rig.has_clip("fp_fire_" + _weapon):
 		_fire_t = 0.0
@@ -256,8 +265,18 @@ func update(delta: float) -> void:
 		_swing_view = Vector2(k[MeleeSwing.TURN] * 0.4, k[MeleeSwing.LEAN]) * _hold
 
 	_recoil *= exp(-delta * 18.0)
-	if _weapon == "pistol":
+	_recoil_l *= exp(-delta * 18.0)
+	if _weapon == "pistol" or _data.is_akimbo():
 		_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
+	if _data.is_akimbo():
+		# Each gun flips up in its own hand, and its slide snaps back.
+		_pose.pos[rig.bones["pistol_l_slide"]] += Vector3(0.0, 0.04 * _recoil_l, 0.0)
+		for side in [["upper_arm_r", _recoil], ["upper_arm_l", _recoil_l]]:
+			var b: int = rig.bones[side[0]]
+			_pose.rot[b] = Quaternion(Vector3.RIGHT, minf(side[1], 1.6) * 0.13) * _pose.rot[b]
+		for side in [["hand_r", _recoil], ["hand_l", _recoil_l]]:
+			var b: int = rig.bones[side[0]]
+			_pose.rot[b] = Quaternion(Vector3.RIGHT, minf(side[1], 1.6) * 0.25) * _pose.rot[b]
 	_pose.apply(model.skeleton)
 
 	# --- Whole-view movement: sway, bob, landing dip, recoil
@@ -289,13 +308,17 @@ func update(delta: float) -> void:
 	_dip += _dip_vel * delta
 	var fall := clampf(-vel.y * 0.0012, -0.012, 0.02) if not grounded else 0.0
 
-	var kick := minf(_recoil, 1.6)
+	var kick := minf(maxf(_recoil, _recoil_l), 1.6)
+	if _data.is_akimbo():
+		kick *= 0.5   # the arms take most of it (above); the view only nudges, toward the gun that fired
 	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, kick * 0.035)
 	if _data.is_melee():
 		position += MELEE_VIEW
 	position += LOOK_DOWN_SHIFT * smoothstep(deg_to_rad(LOOK_DOWN_FROM), deg_to_rad(LOOK_DOWN_FULL), -pitch)
 	rotation = Vector3(-_sway.y * 0.5 + kick * 0.07 + _dip * 0.8 - _swing_view.y * 0.25,
 		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3, _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2)
+	if _data.is_akimbo():
+		rotation.z -= _kick_side * kick * 0.02
 	if _data.is_melee():
 		rotation.y += MELEE_VIEW_YAW
 

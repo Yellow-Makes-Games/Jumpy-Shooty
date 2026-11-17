@@ -479,7 +479,11 @@ mesh parts (the materials are named `GUN.KIND`, e.g. `rifle.accent`). A long gun
 are the base name plus the gun (`aim_rifle`, `fp_reload_shotgun`, `fire_sniper`); the
 game falls back to the plain (pistol) clip when a gun has no version of one. Each gun's
 shots leave from its own marker bone (`muzzle_shotgun`, ...). The numbers for every gun
-are in `game/combat/weapon_data.gd`. A model made in Blender later can
+are in `game/combat/weapon_data.gd`. The akimbo pistols are the one weapon in two hands:
+the left gun rides on its own bones in the left fist (`pistol_l`, `pistol_l_slide`,
+`pistol_l_mag`, `muzzle_akimbo_l`; pose specs move them with `pistol_l`, `slide_l` and
+`mag_l`), the shots alternate between `muzzle_akimbo` and `muzzle_akimbo_l`
+(`WeaponData.muzzle_bone_left`), and `fire(left)` kicks only the arm that fired. A model made in Blender later can
 replace the .glb files as long as it keeps the same bone and clip names.
 
 **Your own body in first person.** The arms and gun you see are the separate arms

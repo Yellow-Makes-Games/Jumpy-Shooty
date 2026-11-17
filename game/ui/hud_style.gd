@@ -117,6 +117,10 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 		"machine_pistol":
 			shapes = [[Vector2(0, 0), Vector2(21, 0), Vector2(21, 4), Vector2(9, 4), Vector2(8, 15), Vector2(5, 15),
 				Vector2(5, 4), Vector2(0, 4)], [Vector2(15, 4), Vector2(17, 4), Vector2(17, 8), Vector2(15, 8)]]
+		"akimbo":   # two pistols, one behind and above the other
+			for off in [Vector2(6, -5), Vector2(0, 0)]:
+				shapes.append([Vector2(0, 0) + off, Vector2(18, 0) + off, Vector2(18, 4) + off, Vector2(9.5, 4) + off,
+					Vector2(8.5, 9) + off, Vector2(5, 9) + off, Vector2(5.5, 4) + off, Vector2(0, 4) + off])
 		"break_action":
 			shapes = [[Vector2(0, 2), Vector2(10, 1), Vector2(40, 0), Vector2(40, 3.5), Vector2(14, 4), Vector2(12, 9),
 				Vector2(9, 9), Vector2(10, 4.5), Vector2(0, 7)], [Vector2(15, 3.5), Vector2(28, 3.5), Vector2(28, 6), Vector2(15, 6)]]
@@ -181,7 +185,7 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 ## How wide a weapon's icon is at size 1 (to centre it).
 static func weapon_width(id: String) -> float:
 	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0, "sword": 40.0, "hammer": 32.0, "dagger": 24.0,
-		"revolver": 26.0, "machine_pistol": 21.0, "break_action": 40.0, "smg": 28.0, "burst_rifle": 38.0, "lmg": 46.0,
+		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "break_action": 40.0, "smg": 28.0, "burst_rifle": 38.0, "lmg": 46.0,
 		"lever_action": 42.0, "bolt_action": 44.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
 		"brass_knuckles": 18.0, "spear": 52.0, "axe": 33.0, "bat": 38.0}.get(id, 22.0)
 
