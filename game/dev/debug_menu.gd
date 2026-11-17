@@ -124,7 +124,7 @@ func _build() -> void:
 	UiKit.section(_col, "Cheats")
 	_toggle("God mode (no damage from shots)", Cheats.god, func(v): Cheats.god = v)
 	_toggle("Infinite ammo", Cheats.infinite_ammo, func(v): Cheats.infinite_ammo = v)
-	_toggle("No cooldowns (grapple, dive, slide boost)", Cheats.no_cooldowns, func(v): Cheats.no_cooldowns = v)
+	_toggle("No cooldowns (grapple, dive, slide boost, rocket boots)", Cheats.no_cooldowns, func(v): Cheats.no_cooldowns = v)
 	_toggle("Noclip: fly (Space up, Ctrl down, Shift fast)", Cheats.noclip, func(v): Cheats.noclip = v)
 	var row := _row()
 	_small_button(row, "Full health", func(): Match.host_heal(Net.my_id()))

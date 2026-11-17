@@ -32,7 +32,7 @@ class View:
 	var character := ""
 	var speed := 0.0            ## horizontal, m/s
 	var move_state := ""
-	## [label, key, readiness 0..1, active] for grapple, dive, flip, slide
+	## [label, key, readiness 0..1, active] for grapple, dive, flip, slide, rocket boots, kick
 	var moves: Array = []
 	var race := false           ## a race: no health or ammo to show
 	var melee := false          ## a sword, hammer or dagger: no ammo, a swing that recharges
@@ -185,7 +185,10 @@ func update_local(p: Player) -> void:
 		["DIVE", "Q", p.motor.dive_readiness(), false],
 		["FLIP", "SPACE", p.motor.flip_readiness(), false],
 		["SLIDE", "C", p.motor.slide_boost_readiness(), false],
+		["BOOST", "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3],
 	]
+	if not Race.active:
+		v.moves.append(["KICK", "F", p.kick_readiness(), p.flying_kick()])
 
 	_age(delta)
 	if _respawn_left > 0.0:
@@ -621,6 +624,8 @@ func _refresh_scoreboard() -> void:
 		title += "  ·  Ping %d ms" % ping
 	_score_title.text = title
 	UiKit.clear(_score_grid)
+	# A full 16-player lobby: tighter rows so the board still fits the screen.
+	_score_grid.add_theme_constant_override("v_separation", 8 if Net.players.size() <= 8 else 1)
 	var dim := Color(1, 1, 1, 0.6)
 	for h in ["", "PLAYER", "ROBOT  ·  WEAPON", "KILLS", "DEATHS"]:
 		var l := _cell(_score_grid, h, 12, dim, false, h in ["KILLS", "DEATHS"])

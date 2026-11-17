@@ -802,6 +802,34 @@ def equip_melee(name):
     return finish(mix(draw, (w, 0.05), (ring, 0.2 if name == "sword" else 0.12)))
 
 
+def kick():
+    """A front kick: a short, low whoosh with a servo snap and a stamp of the knee joint."""
+    rng = np.random.default_rng(9600)
+    w = whoosh(rng, 0.2, 300, 1900, 1.4, 0.4)
+    snap = servo(rng, 0.12, 420, 980, 0.25)
+    joint = metal_clack(rng, 0.7, 0.8, 0.9) * 0.35
+    return finish(mix(w, snap, (joint, 0.02)))
+
+
+def flying_kick():
+    """Launching a flying kick: a rising rush of air and a hard servo lock."""
+    rng = np.random.default_rng(9610)
+    w = whoosh(rng, 0.5, 220, 2600, 1.2, 0.35) * 1.1
+    body = lp(noise(rng, 0.5), 500) * bell_env(0.5, 0.3, 1.3) * 0.5
+    lock = metal_clack(rng, 0.6, 1.4, 1.2) * 0.5
+    return finish(mix(w, body, servo(rng, 0.3, 300, 1200, 0.25), (lock, 0.05)))
+
+
+def rocket_boost():
+    """Rocket boots: a sharp ignition pop, then a short roaring jet that dies away."""
+    rng = np.random.default_rng(9700)
+    pop = sat(sine_sweep(0.12, 160, 60, 0.02) * env(0.12, 0.03) * 1.4, 1.8)
+    roar = lp(noise(rng, 0.6), 1400) * bell_env(0.6, 0.12, 1.1) * 1.0
+    hiss = sweep_bp(noise(rng, 0.55), 2600, 900, 1.2) * bell_env(0.55, 0.15, 1.4) * 0.5
+    rumble = lp(noise(rng, 0.6), 180) * bell_env(0.6, 0.2, 1.2) * 0.9
+    return finish(mix(click(rng, 0.008, 0.0006, 2500) * 0.5, pop, sat(roar, 1.5), hiss, rumble))
+
+
 # ---------------------------------------------------------------------------
 
 def recipes():
@@ -862,6 +890,9 @@ def recipes():
     for i in range(3):
         r["melee_hit_%d" % (i + 1)] = lambda i=i: melee_hit(i)
     r["hammer_hit"] = hammer_hit
+    r["kick"] = kick
+    r["flying_kick"] = flying_kick
+    r["rocket_boost"] = rocket_boost
     for i in range(2):
         r["slam_%d" % (i + 1)] = lambda i=i: slam(i)
     for mat in ["concrete", "wood", "glass"]:

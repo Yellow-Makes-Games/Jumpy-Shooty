@@ -18,6 +18,12 @@ extends RefCounted
 ##   FLIP      press jump again in mid-air: a flip toward your WASD direction with a
 ##             small burst, once per jump (a dodge)
 ##
+## Rocket boots (E): a burst of speed toward your WASD direction as seen from
+## where you look (straight where you look if you hold no direction), so you can
+## boost up, down, sideways or back, on the ground, in the air or mid-swing. It
+## adds to the speed you have, so a burst along a grapple swing whips you round
+## much faster. It recharges over boost_cooldown seconds.
+##
 ## Crouching in the air tucks your legs up (head stays put), which helps you clear
 ## edges. Wall jumps work from a wall run or any wall you are touching in the air.
 
@@ -46,6 +52,9 @@ var kick_wall := Vector3.ZERO
 ## into it (m/s) and where. Landing on the floor does not count. See Player._check_slam().
 var impact_speed := 0.0
 var impact_point := Vector3.ZERO
+## Rocket-boot bursts so far (for the flame and sound others see), and seconds since the last.
+var boosts := 0
+var since_boost := 99.0
 
 var _knock := Vector3.ZERO   # knockback waiting to be added on the next step
 
@@ -93,7 +102,9 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	_since_wall += delta
 	_since_dive += delta
 	_flip_left = max(_flip_left - delta, 0.0)
+	since_boost += delta
 	grapple.update(delta)
+	grapple.follow_target(body, delta)
 
 	if state == State.MANTLE:
 		_step_mantle(body, delta)
@@ -254,7 +265,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# Reel in: a yank when the hook catches, then a steady pull toward it.
 		if hooked_now:
 			vel = grapple.yank(body, vel)
-			if grounded and grapple.anchor.y > grapple.rope_origin(body).y:
+			if grounded and (grapple.target != null or grapple.anchor.y > grapple.rope_origin(body).y):
 				vel.y = max(vel.y, t.grapple_hop)   # pop off the floor instead of dragging along it
 		vel = grapple.pull(body, vel, delta)
 		vel = grapple.constrain_velocity(body, vel, delta)
@@ -262,6 +273,9 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			state = State.GRAPPLE if vel.y > 0.1 else State.GROUND
 			if vel.y > 0.1:
 				_since_ground = t.coyote_time + 1.0   # pulled off the floor
+
+	if input.boost_pressed and since_boost >= t.boost_cooldown:
+		vel = _boost(vel, input, grounded)
 
 	if _knock != Vector3.ZERO:
 		vel += _knock
@@ -275,6 +289,40 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	if grapple.attached:
 		grapple.correct_position(body)
 	_ease_eye(delta)
+
+
+## Rocket boots: a burst toward where you push (see the top of this file).
+func _boost(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
+	var t := tuning
+	var dir := input.boost_dir
+	if dir == Vector3.ZERO:
+		var look := Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0))
+		dir = look * Vector3(input.move.x, 0.0, -input.move.y) if input.move.length() > 0.2 else look * Vector3.FORWARD
+		if input.jump_held:
+			dir += Vector3.UP * 0.6   # holding jump tips the burst upward
+	if dir.length_squared() < 0.0001:
+		return vel
+	dir = dir.normalized()
+	# Fighting your own momentum? The burst first cancels what you have the other way.
+	var against := vel.dot(dir)
+	if against < 0.0:
+		vel -= dir * maxf(against, -t.boost_speed * 0.5)
+	vel += dir * t.boost_speed
+	since_boost = 0.0
+	boosts += 1
+	if state in [State.MANTLE, State.ROLL, State.BELLY_SLIDE, State.WALL_RUN]:
+		if state == State.WALL_RUN:
+			_end_wall_run()
+		state = State.AIR
+	if grounded:
+		vel.y = maxf(vel.y, t.boost_ground_lift)   # off the floor, so friction doesn't eat it
+		state = State.AIR
+		_since_ground = t.coyote_time + 1.0
+	return vel
+
+
+func boost_readiness() -> float:
+	return clampf(since_boost / tuning.boost_cooldown, 0.0, 1.0)
 
 
 ## A hit or a shove: added to your speed on the next step (and lifts you off the
@@ -319,6 +367,7 @@ func reset() -> void:
 	_mantle = {}
 	_jump_buffer = 0.0
 	_since_dive = 99.0
+	since_boost = 99.0
 	_air_dive_used = false
 	_flip_used = false
 	_roll_left = 0.0
@@ -528,6 +577,7 @@ func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 ## Debug menu ("No cooldowns"): the grapple, dive and slide boost are ready again.
 func clear_cooldowns() -> void:
 	grapple.cooldown_left = 0.0
+	since_boost = 99.0
 	_since_dive = 99.0
 	_since_slide_boost = 99.0
 

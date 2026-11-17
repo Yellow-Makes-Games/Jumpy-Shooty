@@ -339,7 +339,7 @@ func _show_multiplayer() -> void:
 	var join := _box(row)
 	UiKit.section(join, "Join")
 	UiKit.label(join, "Type the host's address (direct IP; Steam invites come next).", true, 15)
-	_address_edit = UiKit.line_edit(join, "127.0.0.1", "")
+	_address_edit = UiKit.line_edit(join, "127.0.0.1", Settings.last_address)   # the last address you joined
 	UiKit.button(join, "Join lobby", _on_join)
 	_status = UiKit.label(_col, "", true, 16)
 	_back_row(_show_main)
@@ -384,7 +384,11 @@ func _on_create() -> void:
 
 func _on_join() -> void:
 	_save_name()
-	var err := Game.join_online(_address_edit.text.strip_edges())
+	var address := _address_edit.text.strip_edges()
+	if address != "" and address != Settings.last_address:
+		Settings.last_address = address
+		Settings.save_settings()
+	var err := Game.join_online(address)
 	if err != OK:
 		_status.text = "Could not start joining (%s)." % error_string(err)
 	else:

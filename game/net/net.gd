@@ -19,10 +19,15 @@ signal internet_changed                 # host only: internet_state / public_ip 
 
 const DEFAULT_PORT := 24680
 const BOT_ID_BASE := 9001
-const MAX_PLAYERS := 5
+const MAX_PLAYERS := 16
+## One colour per player, all different (the first five are the originals).
 const PLAYER_COLORS := [
 	Color(0.95, 0.35, 0.25), Color(0.25, 0.65, 0.95), Color(0.40, 0.85, 0.35),
-	Color(0.95, 0.80, 0.25), Color(0.75, 0.40, 0.95),
+	Color(0.95, 0.80, 0.25), Color(0.75, 0.40, 0.95), Color(0.20, 0.90, 0.85),
+	Color(1.00, 0.55, 0.75), Color(0.98, 0.58, 0.15), Color(0.60, 0.95, 0.20),
+	Color(0.30, 0.35, 0.95), Color(0.92, 0.92, 0.95), Color(0.65, 0.25, 0.30),
+	Color(0.55, 0.75, 0.55), Color(0.95, 0.95, 0.45), Color(0.45, 0.45, 0.50),
+	Color(0.70, 0.50, 0.30),
 ]
 
 ## peer id -> { "name": String, "color": int, "character": String (see Characters),
@@ -242,7 +247,7 @@ func _on_peer_connected(id: int) -> void:
 
 
 ## ENet normally starts dropping unreliable packets when ping wobbles ("throttling").
-## For a 5-player game that bandwidth saving isn't needed, and the dropped movement
+## For a game of up to 16 players that bandwidth saving isn't needed, and the dropped movement
 ## updates make players stutter, so we switch throttling off.
 func _tune_link(id: int) -> void:
 	var peer := multiplayer.multiplayer_peer

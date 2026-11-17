@@ -1,12 +1,12 @@
 # Jumpy Shooty
 
 A fast, high-mobility 3D multiplayer arena shooter: grapple, wall-run, slide, dive and
-fight in free-for-all matches of up to 5 players, or offline against 1 to 4 bots. Or put
+fight in free-for-all matches of up to 16 players, or offline against 1 to 4 bots. Or put
 the guns away and **race**: run an obstacle course against friends or bots, from
 checkpoint to checkpoint, to the finish.
 
 Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player hosts and
-up to 4 friends connect to them. Today that works over direct IP; Steam invites and
+up to 15 friends connect to them. Today that works over direct IP; Steam invites and
 relays are next.
 
 **Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site and Office maps, the Testing Grounds test map and offline bot matches (1v1, or a free-for-all against up to 4 bots) work, with sound effects for every gun, hit, move and menu; Steam is next. See [docs/FEATURES.md](docs/FEATURES.md)
@@ -30,6 +30,8 @@ More detail, including how to play with a friend and run several copies on one P
 | Jump | Space |
 | Shoot (or swing a melee weapon; hold to keep swinging) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
+| Kick (any weapon; with a player on your grapple: flying kick) | F |
+| Rocket boots (a burst toward WASD as you look; hold Space to tip it up) | E |
 | Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |
 | Scoreboard | Tab (hold) |
