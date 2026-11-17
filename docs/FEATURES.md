@@ -14,8 +14,8 @@ Last updated: float (Shift in mid-air). Decisions are in [DESIGN.md](DESIGN.md).
 | Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
 | Character select | working | Seven robots (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit), with a live preview. On the Practice and Vs Bots pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
 | Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
-| Settings menu (mouse, camera, HUD, audio, graphics) | working | Tabs: Controls (with the key list), Camera & HUD, Audio, Graphics. Switches and sliders apply at once. Audio: Master, Music (nothing plays on it yet) and Effects. Graphics: fullscreen, V-Sync, resolution (window size, or the 3D render resolution in fullscreen) and a frame rate cap (or match the monitor) |
-| Pause menu in match | working | Resume, settings, leave, controls list; host can end the match early |
+| Settings menu (mouse, camera, HUD, audio, graphics) | working | Tabs: Controls (rebind any key but Esc to a key or mouse button, two per action; a key taken from another action is moved, with a note; per-action and full reset to defaults; saved in settings.cfg), Camera & HUD, Audio, Graphics. Switches and sliders apply at once. Audio: Master, Music (nothing plays on it yet) and Effects. Graphics: fullscreen, V-Sync, resolution (window size, or the 3D render resolution in fullscreen) and a frame rate cap (or match the monitor) |
+| Pause menu in match | working | Resume, settings, leave, controls list (shows your current bindings); host can end the match early |
 | Match results screen | working | Rankings, kills, deaths; return to lobby or main menu |
 | Return to lobby and play again | working | Tested: two matches back to back |
 

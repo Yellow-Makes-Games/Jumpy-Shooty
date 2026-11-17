@@ -19,6 +19,8 @@ echo "== Weapons: damage, falloff and reloading"
 run_script tests/weapon_test.gd
 echo "== Map scenes: every map loads and builds; blocks and resize handles"
 run_script tests/map_scene_test.gd
+echo "== Controls: rebinding, conflicts, saving and reset"
+run_script tests/controls_check.gd
 echo "== Main menu: the mode switch refills the map list"
 run_script tests/menu_mode_test.gd
 echo "== Deathmatch: maps, weapon pickups, inventory rules, pause menu loadout"

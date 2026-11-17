@@ -36,7 +36,7 @@ func _show_main() -> void:
 	grid.add_theme_constant_override("h_separation", 18)
 	grid.add_theme_constant_override("v_separation", 6)
 	_col.add_child(grid)
-	for k in SettingsPanel.KEYS:
+	for k in SettingsPanel.cheat_sheet():
 		UiKit.key_row(grid, k[0], k[1].get_slice(";", 0))
 
 
