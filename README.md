@@ -28,7 +28,8 @@ More detail, including how to play with a friend and run several copies on one P
 | Move | W A S D |
 | Sprint | Shift |
 | Jump | Space |
-| Shoot | Left mouse |
+| Shoot (or swing a melee weapon; hold to keep swinging) | Left mouse |
+| Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
 | Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |
 | Scoreboard | Tab (hold) |

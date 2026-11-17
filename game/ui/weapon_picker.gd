@@ -1,7 +1,8 @@
 class_name WeaponPicker
 extends VBoxContainer
-## "Weapon" chooser for the menus: one button per gun, a line about it and four
-## bars (damage, fire rate, range, magazine) to compare them at a glance.
+## "Weapon" chooser for the menus: one button per weapon (guns on one row, melee
+## weapons on the next), a line about it and four bars (damage, fire rate, range,
+## magazine; for melee: damage, swing speed, reach, knockback) to compare them at a glance.
 ##
 ## Like CharacterPicker it only reports the choice; the screen decides what to do
 ## with it (save it, tell the lobby, show it in the robot preview's hands).
@@ -20,11 +21,13 @@ var _bars: Control
 func _init(start: String = "") -> void:
 	add_theme_constant_override("separation", 8)
 	UiKit.section(self, "Weapon")
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	add_child(row)
 	var group := ButtonGroup.new()
+	var row: HBoxContainer
 	for id in WeaponData.IDS:
+		if id == WeaponData.GUNS[0] or id == WeaponData.MELEE[0]:   # guns on one row, melee on the next
+			row = HBoxContainer.new()
+			row.add_theme_constant_override("separation", 6)
+			add_child(row)
 		var b := Button.new()
 		b.text = WeaponData.by_id(id).short_name
 		b.toggle_mode = true
@@ -68,6 +71,13 @@ func _on_pressed(id: String) -> void:
 
 ## 0..1 ratings, against the best gun at each.
 static func ratings(w: WeaponData) -> Array:
+	if w.is_melee():
+		return [
+			["DAMAGE", clampf(w.damage / 110.0, 0.05, 1.0)],
+			["SWING", clampf(0.3 / w.fire_interval, 0.05, 1.0)],
+			["REACH", clampf(w.max_range / 3.2, 0.05, 1.0)],
+			["KNOCKBACK", clampf(w.knockback / 24.0, 0.05, 1.0)],
+		]
 	var shot := w.damage * w.pellets
 	var per_second := 1.0 / w.fire_interval
 	var reach := w.falloff_end if w.falloff_end < 500.0 else 120.0

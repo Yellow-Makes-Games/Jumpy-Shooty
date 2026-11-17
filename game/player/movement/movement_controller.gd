@@ -42,6 +42,12 @@ var flip_dir := Vector2.ZERO
 ## Wall jumps so far, and the wall last kicked off. For animation.
 var wall_jumps := 0
 var kick_wall := Vector3.ZERO
+## The hardest hit against a wall, ceiling or prop in the last step: speed straight
+## into it (m/s) and where. Landing on the floor does not count. See Player._check_slam().
+var impact_speed := 0.0
+var impact_point := Vector3.ZERO
+
+var _knock := Vector3.ZERO   # knockback waiting to be added on the next step
 
 var _since_ground := 0.0   # seconds since we last stood on the floor
 var _jump_buffer := 0.0    # seconds left on a buffered jump press
@@ -248,11 +254,37 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		if grounded and state != State.BELLY_SLIDE:
 			state = State.GRAPPLE if vel.y > 0.1 else State.GROUND
 
+	if _knock != Vector3.ZERO:
+		vel += _knock
+		if _knock.y > 0.5 and state in [State.GROUND, State.CROUCH, State.SLIDE, State.ROLL, State.BELLY_SLIDE]:
+			state = State.AIR   # knocked off your feet
+			_since_ground = t.coyote_time + 1.0
+		_knock = Vector3.ZERO
 	body.velocity = vel
 	body.move_and_slide()
+	_measure_impact(body, vel)
 	if grapple.attached:
 		grapple.correct_position(body)
 	_ease_eye(delta)
+
+
+## A hit or a shove: added to your speed on the next step (and lifts you off the
+## ground if it pushes upward at all), so it carries through every move.
+func knock(push: Vector3) -> void:
+	_knock += push
+
+
+func _measure_impact(body: CharacterBody3D, vel: Vector3) -> void:
+	impact_speed = 0.0
+	for i in body.get_slide_collision_count():
+		var c := body.get_slide_collision(i)
+		var normal := c.get_normal()
+		if normal.y > 0.7 or c.get_collider() is CharacterBody3D:
+			continue   # a floor (landing), or another player
+		var into := -vel.dot(normal)
+		if into > impact_speed:
+			impact_speed = into
+			impact_point = c.get_position()
 
 
 func horizontal_speed(body: CharacterBody3D) -> float:
@@ -268,6 +300,8 @@ func is_low() -> bool:
 ## Forget everything in progress (respawn, teleport).
 func reset() -> void:
 	grapple.reset()
+	_knock = Vector3.ZERO
+	impact_speed = 0.0
 	state = State.AIR
 	wall_normal = Vector3.ZERO
 	_used_wall = Vector3.ZERO

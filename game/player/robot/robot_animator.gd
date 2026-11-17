@@ -100,6 +100,8 @@ var _carry_pose: RobotPose
 var _fire_t := -1.0       # time into the gun's fire clip (pump, bolt), or -1
 var _kick := 1.0
 var _loop_reload := false
+var _melee := false       # a sword, hammer or dagger: one hand on it, swings instead of shots
+var _swing := MeleeSwing.new()
 
 var _b := {}                      # bone name -> index
 var _arm_r: PackedInt32Array
@@ -133,6 +135,7 @@ func set_weapon(id: String) -> void:
 	var data := WeaponData.by_id(weapon)
 	_kick = data.kick
 	_loop_reload = data.reload_per_round
+	_melee = data.is_melee()
 	if rig.has_clip(clip("aim")):
 		rig.sample(_aim, clip("aim"), 0.0)
 	_stance = _aim.rot[_b["chest"]].normalized()
@@ -160,6 +163,13 @@ func fire() -> void:
 	_since_fire = 0.0
 	if rig.has_clip("fire_" + weapon):
 		_fire_t = 0.0
+
+
+## A melee swing started (count: the swing number, so swings alternate sides).
+func swing(count: int) -> void:
+	if _melee:
+		_swing.start(weapon, count)
+		_since_fire = 0.0
 
 
 ## Back to life: play the boot-up over whatever the body is doing.
@@ -233,7 +243,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	_since_fire += delta
 	var want: Array = AIM_WEIGHTS.get(key, [0.0, 0.0, 0.0])
 	var want_r: float = want[0]
-	var want_l: float = want[1]
+	var want_l: float = want[1] if not _melee else 0.0   # a melee weapon is held in one hand
 	var sprinting := key == "loco" and speed > RUN_SPEED + 1.0 and _since_fire > 0.7 and _reload_t < 0.0
 	if sprinting:
 		want_r = 0.0   # sprinting: arms pump (a long gun is carried across the chest), until you shoot
@@ -285,6 +295,12 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_pose.blend_bones(_tmp, fw * _aim_r, _arm_r)
 			_pose.blend_bones(_tmp, fw * minf(_aim_l, _aim_r), _arm_l)
 			_fire_t += delta
+
+	# A melee swing over the top
+	if _swing.active():
+		MeleeSwing.apply(_pose, _b, _swing.sample(delta) if inp.alive else [0.0, 0.0, 0.0, 0.0])
+		if not inp.alive:
+			_swing.stop()
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward
 	var stance := maxf(_aim_r, _reload_w)

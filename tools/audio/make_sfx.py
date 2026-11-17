@@ -707,6 +707,70 @@ def match_end():
 
 
 # ---------------------------------------------------------------------------
+# Melee: swings, blows, crashing into walls
+
+def swing(name):
+    """A blade or hammer cutting the air: a fast whoosh (deeper and longer for the hammer) and a servo."""
+    rng = np.random.default_rng(9100 + ["sword", "hammer", "dagger"].index(name))
+    if name == "hammer":
+        w = whoosh(rng, 0.42, 160, 1300, 1.0, 0.65) * 1.2
+        body = lp(noise(rng, 0.42), 380) * bell_env(0.42, 0.6, 1.4) * 0.7
+        return finish(mix(servo(rng, 0.3, 200, 520, 0.22), w, body))
+    if name == "dagger":
+        return finish(mix(whoosh(rng, 0.16, 900, 4200, 1.8, 0.45), servo(rng, 0.1, 500, 900, 0.12)))
+    ring = modal(rng, 0.3, [2950, 4400], [0.05, 0.03], [0.05, 0.03])
+    return finish(mix(whoosh(rng, 0.26, 500, 3600, 1.5, 0.5) * 1.1, servo(rng, 0.16, 360, 800, 0.15), (ring, 0.05)))
+
+
+def melee_hit(seed):
+    """A blade striking robot armour: a hard metal clang with a crunch under it."""
+    rng = np.random.default_rng(9200 + seed)
+    k = rng.uniform(0.9, 1.1)
+    clang = modal(rng, 0.5, [410 * k, 790 * k, 1310 * k, 2240 * k, 3500 * k], [0.09, 0.06, 0.04, 0.025, 0.015],
+                  [0.35, 0.3, 0.2, 0.12, 0.06], 0.03)
+    crunch = bp(noise(rng, 0.12), 1500, 0.7) * env(0.12, 0.018, 0.0002) * 1.1
+    thud = sat(sine_sweep(0.25, 150, 55, 0.02) * env(0.25, 0.05) * 1.2, 1.6) * 0.7
+    dry = sat(mix(click(rng, 0.01, 0.0005, 3000), crunch, thud, clang), 1.4)
+    return finish(mix(dry, fftconv(lp(dry, 3000), room_ir(rng, 0.5, 3000)) * 0.18))
+
+
+def hammer_hit():
+    """The hammer landing: a heavy, low metal crash."""
+    rng = np.random.default_rng(9300)
+    boom = sat(sine_sweep(0.5, 110, 40, 0.04) * env(0.5, 0.12, 0.001) * 1.8, 2.2)
+    clang = modal(rng, 0.6, [260, 520, 870, 1450], [0.12, 0.08, 0.05, 0.03], [0.35, 0.25, 0.15, 0.08], 0.05)
+    crunch = bp(noise(rng, 0.2), 900, 0.6) * env(0.2, 0.04, 0.0003) * 1.4
+    dry = mix(click(rng, 0.012, 0.0008, 2000), boom, crunch, clang)
+    return finish(mix(dry, fftconv(lp(dry, 2500), room_ir(rng, 0.7, 2500)) * 0.25))
+
+
+def slam(seed):
+    """A robot crashing into a wall: a heavy body thump, buckling metal and debris."""
+    rng = np.random.default_rng(9400 + seed)
+    thump = sat(sine_sweep(0.45, 95, 38, 0.05) * env(0.45, 0.1, 0.001) * 2.0, 2.5)
+    buckle = mix(metal_clack(rng, 0.55, 2.0, 1.5), (metal_clack(rng, 0.8, 1.5, 0.8) * 0.6, 0.03))
+    debris = np.zeros(n(0.5))
+    for _ in range(rng.integers(8, 14)):
+        at = n(rng.uniform(0.02, 0.4))
+        d = lp(click(rng, 0.01, 0.0008, 1800), 3000) * rng.uniform(0.1, 0.35)
+        debris[at:at + len(d)] += d[: len(debris) - at]
+    grit = bp(noise(rng, 0.4), 700, 0.6) * env(0.4, 0.08, 0.001) * 1.2
+    dry = mix(thump, buckle, grit, debris)
+    return finish(mix(dry, fftconv(lp(dry, 2200), room_ir(rng, 0.8, 2200)) * 0.25))
+
+
+def equip_melee(name):
+    """Drawing a blade or hefting the hammer: a whoosh and a ring of steel (a clunk for the hammer)."""
+    rng = np.random.default_rng(9500 + ["sword", "hammer", "dagger"].index(name))
+    draw = metal_slide(rng, 0.28 if name == "sword" else 0.16, 3200, 1.6) * 0.8
+    w = sweep_bp(noise(rng, 0.22), 500, 2200, 1.5) * bell_env(0.22, 0.55, 1.5) * 0.5
+    if name == "hammer":
+        return finish(mix(w, (metal_clack(rng, 0.5, 1.8, 1.6), 0.18), (metal_clack(rng, 0.7, 1.2, 0.8) * 0.5, 0.24)))
+    ring = modal(rng, 0.6, [2400, 3600, 5100], [0.15, 0.1, 0.06], [0.12, 0.08, 0.05])
+    return finish(mix(draw, (w, 0.05), (ring, 0.2 if name == "sword" else 0.12)))
+
+
+# ---------------------------------------------------------------------------
 
 def recipes():
     r = {}
@@ -760,6 +824,14 @@ def recipes():
         r[u] = lambda u=u: ui(u)
     r["match_start"] = match_start
     r["match_end"] = match_end
+    for m in ["sword", "hammer", "dagger"]:
+        r["swing_" + m] = lambda m=m: swing(m)
+        r["equip_" + m] = lambda m=m: equip_melee(m)
+    for i in range(3):
+        r["melee_hit_%d" % (i + 1)] = lambda i=i: melee_hit(i)
+    r["hammer_hit"] = hammer_hit
+    for i in range(2):
+        r["slam_%d" % (i + 1)] = lambda i=i: slam(i)
     return r
 
 

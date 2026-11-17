@@ -107,6 +107,8 @@ func _on_player_died(victim: int, _killer: int) -> void:
 	var p := get_player(victim)
 	if p:
 		p.set_dead()
+		if DevArgs.swap_on_death and p == local_player and not p.racing:
+			p.dev_swap_after_death()
 
 
 func _on_player_respawned(id: int, _spawn_index: int) -> void:
@@ -149,6 +151,11 @@ func _sync_players() -> void:
 	for id in Net.players:
 		if not players_root.has_node("Player_%d" % id):
 			_spawn(id)
+		else:
+			# Swapped weapons while waiting to respawn: rebuilt holding the new one.
+			var p := get_player(id)
+			if not p.racing and p.robot.weapon != Net.player_weapon(id):
+				rebuild_player(id)
 	for p in players_root.get_children():
 		if not Net.players.has((p as Player).peer_id):
 			p.queue_free()
@@ -208,15 +215,21 @@ func rebuild_player(id: int) -> void:
 	var pos := old.global_position
 	var yaw := old.input.yaw
 	var pitch := old.input.pitch
+	var respawns := old.respawn_count()
 	players_root.remove_child(old)
 	old.queue_free()
 	_spawn(id)
 	var p := get_player(id)
-	if p and p.is_local:
+	if p == null:
+		return
+	p.set_respawn_count(respawns)   # so the next respawn still reads as one everywhere
+	if p.is_local:
 		p.teleport(pos, yaw)
 		p.input.pitch = pitch
-	if p and not Match.is_alive(id):
+	if not Match.is_alive(id):
 		p.set_dead()
+		if not p.is_local:
+			p.expect_dead()
 
 
 func _spawn_dummies() -> void:

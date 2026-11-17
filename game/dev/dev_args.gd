@@ -13,6 +13,7 @@ extends Node
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
+## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
 ## --practice           Skip the menus and drop into the arena alone.
 ## --map=ID             Which map to play: construction_site, office, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins: that makes it a race) (host, practice and bot).
@@ -54,6 +55,7 @@ var switch_character := false
 var weapon := ""
 var bot_weapon := ""
 var switch_weapon := false
+var swap_on_death := false
 var map := ""
 var race := false
 var autopilot := false
@@ -116,6 +118,7 @@ func _ready() -> void:
 				else:
 					push_warning("Unknown weapon: %s (weapons: %s)" % [value, ", ".join(WeaponData.IDS)])
 			"--switch-weapon": switch_weapon = true
+			"--swap-on-death": swap_on_death = true
 			"--map":
 				if Maps.has(value):
 					map = value

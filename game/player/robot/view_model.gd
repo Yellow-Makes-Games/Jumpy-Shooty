@@ -49,6 +49,7 @@ var _arm_l: PackedInt32Array
 var _weapon := "pistol"
 var _data: WeaponData
 var _fire_t := -1.0
+var _swing := MeleeSwing.new()
 
 
 func setup(player: Player, color: Color) -> void:
@@ -84,6 +85,13 @@ func fire() -> void:
 	_since_fire = 0.0
 	if rig.has_clip("fp_fire_" + _weapon):
 		_fire_t = 0.0
+
+
+## A melee swing started (count: the swing number, so swings alternate sides).
+func swing(count: int) -> void:
+	if _data.is_melee():
+		_swing.start(_weapon, count)
+		_since_fire = 0.0
 
 
 func respawn() -> void:
@@ -169,6 +177,21 @@ func update(delta: float) -> void:
 		_pose.rot[up_l] = _pose.rot[up_l].slerp(Quaternion(Vector3.DOWN, dir), _grapple_w)
 		_pose.rot[rig.bones["forearm_l"]] = _pose.rot[rig.bones["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.1), _grapple_w)
 		_pose.rot[rig.bones["hand_l"]] = _pose.rot[rig.bones["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
+
+	if _data.is_melee():
+		# One-handed, held off to the right so the blade never hides what you aim at;
+		# the left arm drops out of view.
+		_pose.rot[rig.bones["upper_arm_l"]] = Quaternion(Vector3.RIGHT, -1.4) * _pose.rot[rig.bones["upper_arm_l"]]
+		MeleeSwing.apply(_pose, rig.bones, [-0.28, -0.12, -0.25, 0.0])
+		var grip: int = rig.bones["pistol"]
+		_pose.rot[grip] = _pose.rot[grip] * Quaternion(Vector3.UP, -0.55)   # lean the blade out to the right
+		if _swing.active():
+			var s := _swing.sample(delta)
+			s[1] *= 0.5
+			s[0] *= 0.5   # a smaller sweep than the body's, so the blade crosses the view instead of leaving it
+			s[3] = 0.0
+			MeleeSwing.apply(_pose, rig.bones, s)
+			_pose.rot[grip] = _pose.rot[grip] * Quaternion(Vector3.UP, 0.55 * smoothstep(0.0, 0.6, -s[2]))   # level the blade into the blow
 
 	_recoil *= exp(-delta * 18.0)
 	if _weapon == "pistol":

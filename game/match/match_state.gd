@@ -18,12 +18,23 @@ signal player_respawned(id: int, spawn_index: int)
 signal dummy_hit(shooter: int, dummy: int, damage: float, headshot: bool, killed: bool)
 signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array)  ## one end per pellet
 signal match_over(results: Array)
+## A melee swing landed: who swung, with what, and where each blow struck (for sounds and sparks).
+signal melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array)
+## Someone hit a wall hard enough to hurt (for the crash sound everyone hears).
+signal slammed(id: int, where: Vector3, speed: float)
 
 const MAX_HEALTH := 100.0
 const RESPAWN_DELAY := 3.0
 const MAX_REWIND := 0.6           ## seconds; older views are clamped (anti-abuse)
 const HIT_FORGIVENESS := 0.08     ## metres added to player radius when checking hits
 const HEAD_HEIGHT := 1.45         ## a hit above this height (from the feet) is a headshot
+## Slamming into a wall or prop: hitting it faster than this (m/s, straight into it)
+## hurts, SLAM_DAMAGE per m/s over, up to SLAM_MAX. Landings on the floor never count.
+const SLAM_SPEED := 17.5
+const SLAM_DAMAGE := 4.0
+const SLAM_MAX := 80.0
+## A crash within this many seconds of being shoved counts as the shover's hit (and kill).
+const SHOVE_CREDIT := 3.0
 ## kill_target 0 means "no kill target" (time-limit matches).
 var kill_target := 15
 var time_left := 480.0
@@ -38,6 +49,10 @@ var respawn_timers: Dictionary = {}
 var last_results: Array = []
 
 var _last_shot_time: Dictionary = {}   # host: id -> Net.now() of last accepted shot
+var _last_slam_time: Dictionary = {}   # host: id -> Net.now() of last crash that hurt
+var _last_shove: Dictionary = {}       # host: id -> [who shoved them, Net.now()]
+## How each player last died: "" (shot or cut down), "fell", or "slam" (hit a wall too hard).
+var death_cause: Dictionary = {}
 var _respawn_counter := 0
 
 
@@ -89,6 +104,9 @@ func _on_match_started() -> void:
 		health.clear()
 		respawn_timers.clear()
 		_last_shot_time.clear()
+		_last_slam_time.clear()
+		_last_shove.clear()
+		death_cause.clear()
 		for id in Net.players:
 			scores[id] = {"kills": 0, "deaths": 0}
 			health[id] = MAX_HEALTH
@@ -189,22 +207,11 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 
 	# Rewind each opponent once to what the shooter saw.
 	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
-	var bodies := []   # [id, feet, height]
-	for id in Net.players:
-		if id == shooter or not is_alive(id):
-			continue
-		var target: Player = Net.arena.get_player(id)
-		if target == null:
-			continue
-		var when := _clamped_view_time(target, view_times.get(id, -1.0))
-		bodies.append([id, target.position_at(when), Player.height_for_pose(target.pose_at(when))])  # shorter when crouched
-	# Target dummies stand still: no rewind needed.
-	for d in Net.arena.dummies:
-		if not (d as TargetDummy).is_down():
-			bodies.append([dummy_id(d.index), d.global_position, Player.CAPSULE_HEIGHT])
+	var bodies := _rewound_bodies(shooter, view_times)   # [id, feet, height, facing yaw]
 
 	var damage := {}   # target id -> total damage of this shot
 	var heads := {}    # target id -> a pellet hit the head
+	var shove := {}    # target id -> knockback of this shot (each pellet pushes along its path)
 	var ends := PackedVector3Array()
 	var hit_mask := 0
 	var log := []
@@ -241,6 +248,8 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 			hit_mask |= 1 << i
 			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0)
 			damage[best_target] = damage.get(best_target, 0.0) + dmg
+			shove[best_target] = shove.get(best_target, Vector3.ZERO) \
+				+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
 			heads[best_target] = heads.get(best_target, false) or best_head
 		ends.append(end)
 		if DevArgs.sync_log:
@@ -251,6 +260,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 			_host_dummy_damage(shooter, id, damage[id], heads[id])
 		else:
 			_host_damage(shooter, id, damage[id], heads[id])
+			_host_shove(shooter, id, shove[id])
 	if DevArgs.sync_log:
 		# One line per shot (the first pellet that hit, if any), then the gun and its pellets.
 		var first := "miss"
@@ -260,6 +270,166 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 				break
 		print("SHOT %d %s" % [shooter, first])
 		print("PELLETS %d %s %d/%d" % [shooter, weapon_id, log.size() - log.count("miss"), log.size()])
+
+
+## Everyone `attacker` could hit, each moved back to where `attacker` saw them:
+## [id, feet, height, facing yaw]. Target dummies stand still: no rewind needed.
+func _rewound_bodies(attacker: int, view_times: Dictionary) -> Array:
+	var bodies := []
+	for id in Net.players:
+		if id == attacker or not is_alive(id):
+			continue
+		var target: Player = Net.arena.get_player(id)
+		if target == null:
+			continue
+		var when := _clamped_view_time(target, view_times.get(id, -1.0))
+		bodies.append([id, target.position_at(when), Player.height_for_pose(target.pose_at(when)), target.yaw_at(when)])  # shorter when crouched
+	for d in Net.arena.dummies:
+		if not (d as TargetDummy).is_down():
+			bodies.append([dummy_id(d.index), d.global_position, Player.CAPSULE_HEIGHT, d.rotation.y])
+	return bodies
+
+
+# ---------------------------------------------------------------------------
+# Melee
+
+## Called by the local player when a swing lands (after its wind-up): from the eyes,
+## toward where it looks. Like a shot, it says when it was seeing each opponent.
+func request_melee(origin: Vector3, direction: Vector3, view_times: Dictionary, attacker: int = 0) -> void:
+	if Net.is_host():
+		_host_melee(attacker if attacker != 0 else Net.my_id(), origin, direction, view_times)
+	else:
+		_melee_request.rpc_id(1, origin, direction, view_times)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _melee_request(origin: Vector3, direction: Vector3, view_times: Dictionary) -> void:
+	if Net.is_host():
+		_host_melee(multiplayer.get_remote_sender_id(), origin, direction, view_times)
+
+
+func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times: Dictionary) -> void:
+	if not running or not is_alive(attacker) or not Net.arena or Race.active:
+		return
+	var weapon := WeaponData.by_id(Net.player_weapon(attacker))
+	if not weapon.is_melee() or direction.length_squared() < 0.0001:
+		return
+	var now := Net.now()
+	if (now - _last_shot_time.get(attacker, -10.0)) * Engine.time_scale < weapon.fire_interval * 0.7:
+		return
+	_last_shot_time[attacker] = now
+	var who: Player = Net.arena.get_player(attacker)
+	if who == null or origin.distance_to(who.latest_position() + Vector3(0, CameraRig.EYE_HEIGHT, 0)) > 3.0:
+		return
+	direction = direction.normalized()
+	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
+	var points := PackedVector3Array()
+	var hits := []   # [id, damage, shove]
+	for b in _rewound_bodies(attacker, view_times):
+		var feet: Vector3 = b[1]
+		var height: float = b[2]
+		var a := feet + Vector3(0, Player.CAPSULE_RADIUS, 0)
+		var top := feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0)
+		var near := Geometry3D.get_closest_point_to_segment(origin, a, top)
+		var to := near - origin
+		var reach := maxf(to.length() - Player.CAPSULE_RADIUS, 0.0)
+		if reach > weapon.max_range:
+			continue
+		# In front: within the arc of where you look (anyone touching you counts too).
+		if to.length() > Player.CAPSULE_RADIUS * 2.0 and rad_to_deg(direction.angle_to(to)) > weapon.arc_degrees:
+			continue
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, near, 1)).is_empty():
+			continue   # a wall in the way
+		var dmg := weapon.damage
+		var flat := Vector3(to.x, 0.0, to.z)
+		flat = flat.normalized() if flat.length_squared() > 0.0001 else Vector3(direction.x, 0.0, direction.z).normalized()
+		# From behind: the blow goes the same way they face.
+		var facing := Vector3.FORWARD.rotated(Vector3.UP, b[3])
+		if weapon.backstab_multiplier > 1.0 and facing.dot(flat) > 0.5:
+			dmg *= weapon.backstab_multiplier
+		hits.append([b[0], dmg, flat * weapon.knockback + Vector3.UP * weapon.knockback_up])
+		points.append(near.lerp(origin, Player.CAPSULE_RADIUS / maxf(to.length(), 0.01)))
+	if DevArgs.sync_log:
+		print("MELEE %d %s %d" % [attacker, weapon.id, hits.size()])
+	_melee_effect.rpc(attacker, weapon.id, points)
+	for h in hits:
+		if is_dummy(h[0]):
+			_host_dummy_damage(attacker, h[0], h[1], false)
+		else:
+			_host_damage(attacker, h[0], h[1], false)
+			_host_shove(attacker, h[0], h[2])
+
+
+@rpc("authority", "call_local", "unreliable")
+func _melee_effect(attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
+	melee_landed.emit(attacker, weapon_id, points)
+
+
+# ---------------------------------------------------------------------------
+# Knockback and crashing into walls
+
+## Push `target` (a player, not a dummy). Movement is run by whoever plays that
+## player, so the push goes to them: you, a friend, or one of the host's bots.
+func _host_shove(attacker: int, target: int, push: Vector3) -> void:
+	if push.length_squared() < 0.01 or not is_alive(target) or not Net.players.has(target):
+		return
+	if target == Net.my_id() and Cheats.god_mode():
+		return
+	_last_shove[target] = [attacker, Net.now()]
+	if target == Net.my_id() or Net.is_bot(target):
+		_apply_shove(target, push)
+	else:
+		_shove.rpc_id(target, target, push)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _shove(target: int, push: Vector3) -> void:
+	_apply_shove(target, push)
+
+
+func _apply_shove(target: int, push: Vector3) -> void:
+	var p: Player = Net.arena.get_player(target) if Net.arena else null
+	if p and p.is_local and p.alive:
+		p.knock(push)
+
+
+## The local player (or a bot) hit a wall at `speed` m/s.
+func request_slam(speed: float, where: Vector3, id: int = 0) -> void:
+	if Net.is_host():
+		_host_slam(id if id != 0 else Net.my_id(), speed, where)
+	else:
+		_slam_request.rpc_id(1, speed, where)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _slam_request(speed: float, where: Vector3) -> void:
+	if Net.is_host():
+		_host_slam(multiplayer.get_remote_sender_id(), speed, where)
+
+
+func _host_slam(id: int, speed: float, where: Vector3) -> void:
+	if not running or not is_alive(id) or Race.active or speed < SLAM_SPEED:
+		return
+	var now := Net.now()
+	if now - _last_slam_time.get(id, -10.0) < 0.5:
+		return
+	_last_slam_time[id] = now
+	var amount := minf((minf(speed, 90.0) - SLAM_SPEED) * SLAM_DAMAGE, SLAM_MAX)
+	# Shoved into it? Then whoever shoved you gets the hit (and the kill).
+	var by := id
+	var shove: Array = _last_shove.get(id, [])
+	if not shove.is_empty() and now - float(shove[1]) <= SHOVE_CREDIT and Net.players.has(shove[0]):
+		by = shove[0]
+	_slam_effect.rpc(id, where, speed)
+	if DevArgs.sync_log:
+		print("SLAM %d %.1f m/s %.0f damage by %d" % [id, speed, amount, by])
+	if amount >= 1.0:
+		_host_damage(by, id, amount, false, "slam")
+
+
+@rpc("authority", "call_local", "unreliable")
+func _slam_effect(id: int, where: Vector3, speed: float) -> void:
+	slammed.emit(id, where, speed)
 
 
 ## Keeps the rewind within limits so a slow or dishonest client cannot shoot far into the past.
@@ -281,7 +451,7 @@ func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_m
 # ---------------------------------------------------------------------------
 # Damage, death, respawn (host decides, everyone is told)
 
-func _host_damage(shooter: int, target: int, amount: float, headshot: bool = false) -> void:
+func _host_damage(shooter: int, target: int, amount: float, headshot: bool = false, cause: String = "") -> void:
 	if not is_alive(target):
 		return
 	if target == Net.my_id() and Cheats.god_mode():
@@ -289,7 +459,7 @@ func _host_damage(shooter: int, target: int, amount: float, headshot: bool = fal
 	health[target] = max(health[target] - amount, 0.0)
 	_hit.rpc(shooter, target, amount, health[target], headshot)
 	if health[target] <= 0.0:
-		_host_kill(target, shooter)
+		_host_kill(target, shooter, cause)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -359,23 +529,25 @@ func _host_fell(id: int) -> void:
 		return   # in a race you go back to your checkpoint instead (see Race)
 	if running and is_alive(id):
 		health[id] = 0.0
-		_host_kill(id, 0)
+		_host_kill(id, 0, "fell")
 
 
-func _host_kill(victim: int, killer: int) -> void:
+func _host_kill(victim: int, killer: int, cause: String = "") -> void:
 	if scores.has(victim):
 		scores[victim].deaths += 1
 	if killer != 0 and killer != victim and scores.has(killer):
 		scores[killer].kills += 1
 	respawn_timers[victim] = RESPAWN_DELAY
-	_died.rpc(victim, killer, scores)
+	_last_shove.erase(victim)
+	_died.rpc(victim, killer, scores, cause)
 	if killer != 0 and kill_target > 0 and kills(killer) >= kill_target:
 		host_end_match()
 
 
 @rpc("authority", "call_local", "reliable")
-func _died(victim: int, killer: int, new_scores: Dictionary) -> void:
+func _died(victim: int, killer: int, new_scores: Dictionary, cause: String) -> void:
 	health[victim] = 0.0
+	death_cause[victim] = cause
 	scores = new_scores
 	player_died.emit(victim, killer)
 	state_changed.emit()

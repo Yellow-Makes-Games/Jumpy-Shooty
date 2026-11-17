@@ -35,6 +35,8 @@ class View:
 	## [label, key, readiness 0..1, active] for grapple, dive, flip, slide
 	var moves: Array = []
 	var race := false           ## a race: no health or ammo to show
+	var melee := false          ## a sword, hammer or dagger: no ammo, a swing that recharges
+	var swing := 1.0            ## melee: 0..1, ready to swing again at 1
 
 enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON }
 
@@ -161,6 +163,8 @@ func update_local(p: Player) -> void:
 		var fov := cam.fov if cam else 75.0
 		v.spread_px = tan(deg_to_rad(data.spread_degrees)) / tan(deg_to_rad(fov) * 0.5) * get_viewport().get_visible_rect().size.y * 0.5
 		v.ready = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval >= 0.5 else 1.0
+		v.melee = data.is_melee()
+		v.swing = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval > 0.0 else 1.0
 	v.race = Race.active
 	v.speed = Vector2(p.velocity.x, p.velocity.z).length()
 	v.move_state = MovementController.State.keys()[p.motor.state].replace("_", " ")
@@ -250,7 +254,10 @@ func _on_dummy_hit(shooter: int, _dummy: int, _damage: float, _headshot: bool, k
 func _on_died(victim: int, killer: int) -> void:
 	var me := Net.my_id()
 	var head: bool = killer != 0 and _last_head.get(victim, false)
-	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": Net.player_weapon(killer)})
+	if killer == victim:
+		killer = 0   # crashed into a wall on their own
+	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": Net.player_weapon(killer),
+		"how": "crashed" if Match.death_cause.get(victim, "") == "slam" else "fell"})
 	while _feed.size() > FEED_MAX:
 		_feed.pop_front()
 	if killer == me and victim != me:
@@ -448,7 +455,7 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 		var victim := Net.player_name(e.victim)
 		var parts: Array = []   # [text, colour] drawn right to left
 		if e.killer == 0:
-			parts = [["fell", Color(1, 1, 1, 0.65)], [victim, Net.player_color(e.victim)]]
+			parts = [[e.how, Color(1, 1, 1, 0.65)], [victim, Net.player_color(e.victim)]]
 		else:
 			parts = [[victim, Net.player_color(e.victim)]]
 			if e.head:
@@ -479,7 +486,7 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 
 
 func _gun_width(gun: String) -> float:
-	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0}.get(gun, 22.0)
+	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0, "sword": 40.0, "hammer": 32.0, "dagger": 24.0}.get(gun, 22.0)
 
 
 ## Who got you (their robot, name, what was left of them, how), and a bar
@@ -505,6 +512,8 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
 		if _killed_by_head:
 			chips.append("HEADSHOT")
+		if Match.death_cause.get(Net.my_id(), "") == "slam":
+			chips.append("SMASHED INTO A WALL")
 		if _killer_dist >= 0.0:
 			chips.append("%d M AWAY" % roundi(_killer_dist))
 		var cx := x
@@ -515,9 +524,10 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 			HudStyle.text(ci, Vector2(cx + 9, y + 124), chip, 12, col)
 			cx += cw + 6.0
 	else:
+		var crashed: bool = Match.death_cause.get(Net.my_id(), "") == "slam"
 		HudStyle.text(ci, Vector2(x, y + 44), "ELIMINATED", 13, HudStyle.RED)
-		HudStyle.text(ci, Vector2(x, y + 82), "You fell", 38, HudStyle.WHITE)
-		HudStyle.text(ci, Vector2(x, y + 118), "Out of the arena", 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+		HudStyle.text(ci, Vector2(x, y + 82), "You crashed" if crashed else "You fell", 38, HudStyle.WHITE)
+		HudStyle.text(ci, Vector2(x, y + 118), "Hit a wall too fast" if crashed else "Out of the arena", 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
 	# Respawn countdown.
 	var progress := clampf(1.0 - _respawn_left / Match.RESPAWN_DELAY, 0.0, 1.0)
 	var bar := Rect2(card.position.x, card.end.y + 16.0, w, 6.0)
@@ -525,6 +535,31 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
 	HudStyle.text(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 13, Color(1, 1, 1, 0.8))
 	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	_draw_weapon_swap(ci, Vector2(size.x * 0.5, bar.end.y + 52.0))
+
+
+## While you wait to respawn: the weapons you can come back with, by number key.
+func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
+	var ids := WeaponData.IDS
+	var mine := Net.player_weapon(Net.my_id())
+	var cell := Vector2(84.0, 50.0)
+	var gap := 6.0
+	var total := ids.size() * cell.x + (ids.size() - 1) * gap
+	var x := at.x - total * 0.5
+	HudStyle.text(ci, Vector2(x, at.y - 10.0), "COME BACK WITH", 12, Color(1, 1, 1, 0.75))
+	HudStyle.text(ci, Vector2(x + total, at.y - 10.0), "PRESS 1-%d OR SCROLL" % ids.size(), 12, Color(1, 1, 1, 0.55), HORIZONTAL_ALIGNMENT_RIGHT)
+	for i in ids.size():
+		var id: String = ids[i]
+		var r := Rect2(x + i * (cell.x + gap), at.y, cell.x, cell.y)
+		var on := id == mine
+		HudStyle.plate(ci, r, 4.0, Color(HudStyle.ORANGE, 0.35) if on else Color(0.05, 0.06, 0.08, 0.85))
+		if on:
+			ci.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 3.0), Vector2(r.size.x, 3.0)), HudStyle.ORANGE)
+		HudStyle.text(ci, r.position + Vector2(7.0, 11.0), str(i + 1), 11, Color(1, 1, 1, 0.6))
+		var w := _gun_width(id)
+		HudStyle.weapon_icon(ci, id, r.position + Vector2((cell.x - w) * 0.5, 12.0), Color(1, 1, 1, 0.95 if on else 0.7), 1.0)
+		HudStyle.text(ci, r.position + Vector2(cell.x * 0.5, 38.0), WeaponData.by_id(id).short_name.to_upper(), 11,
+			Color(1, 1, 1, 1.0 if on else 0.7), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 # ---------------------------------------------------------------------------
@@ -587,7 +622,7 @@ func _refresh_scoreboard() -> void:
 	_score_title.text = title
 	UiKit.clear(_score_grid)
 	var dim := Color(1, 1, 1, 0.6)
-	for h in ["", "PLAYER", "ROBOT  ·  GUN", "KILLS", "DEATHS"]:
+	for h in ["", "PLAYER", "ROBOT  ·  WEAPON", "KILLS", "DEATHS"]:
 		var l := _cell(_score_grid, h, 12, dim, false, h in ["KILLS", "DEATHS"])
 		if h == "PLAYER":
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL

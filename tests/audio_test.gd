@@ -29,13 +29,19 @@ func _init() -> void:
 		_check(volume.has(sound) or volume.has(base),
 			"%s has a volume" % sound)
 
-	for id in WeaponData.IDS:
+	for id in WeaponData.GUNS:
 		for sound in ["fire_" + id, "fire_%s_fp" % id, "far_" + id, "equip_" + id]:
 			_check(_files.has(sound), "%s: %s exists" % [id, sound])
+	for id in WeaponData.MELEE:
+		for sound in ["swing_" + id, "equip_" + id]:
+			_check(_files.has(sound), "%s: %s exists" % [id, sound])
+	for sound in ["melee_hit", "slam"]:
+		_check(_exists(sound), "%s has variants" % sound)
+	_check(_exists("hammer_hit"), "hammer_hit exists")
 
 	var steps: Dictionary = SfxList.RELOAD_STEPS
 	var fire_steps: Dictionary = SfxList.FIRE_STEPS
-	for id in WeaponData.IDS:
+	for id in WeaponData.GUNS:
 		var w := WeaponData.by_id(id)
 		_check(steps.has(id), "%s: has reload sounds" % id)
 		for step in steps.get(id, []):

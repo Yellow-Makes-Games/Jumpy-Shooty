@@ -3,14 +3,21 @@ extends Resource
 ## Describes one weapon. New weapons are new WeaponData values, not new code,
 ## unless they need a new kind of behaviour (for example projectiles).
 ##
-## Every player picks one gun before the match (in the lobby, or on the Practice and
-## Vs Bots pages) and keeps it for the whole match. All numbers are first guesses for
-## playtesting. Damage is per pellet; a full-health player has 100.
+## Every player picks one weapon before the match (in the lobby, or on the Practice and
+## Vs Bots pages) and can swap it while waiting to respawn. All numbers are first
+## guesses for playtesting. Damage is per pellet; a full-health player has 100.
+##
+## Melee weapons (Kind.MELEE) swing instead of shooting: a swing winds up for
+## `windup` seconds, then hits everyone within `max_range` metres and `arc_degrees`
+## of where you look. They have no ammo. Every hit, gun or blade, shoves the target
+## (`knockback`), and a hard enough shove into a wall hurts too (see Match).
 
-enum Kind { HITSCAN }
+enum Kind { HITSCAN, MELEE }
 
-## Every gun a player can pick, in the order the pickers show them.
-const IDS := ["pistol", "shotgun", "rifle", "sniper"]
+## Every weapon a player can pick, in the order the pickers show them.
+const IDS := ["pistol", "shotgun", "rifle", "sniper", "sword", "hammer", "dagger"]
+const GUNS := ["pistol", "shotgun", "rifle", "sniper"]
+const MELEE := ["sword", "hammer", "dagger"]
 
 @export var id := "pistol"
 @export var display_name := "Pistol"
@@ -33,11 +40,22 @@ const IDS := ["pistol", "shotgun", "rifle", "sniper"]
 @export var muzzle_bone := "muzzle"  ## the marker bone in the robot model where shots leave the barrel
 @export var crosshair := "cross"     ## cross, spread (a ring the size of the cone), dot
 @export var kick := 1.0              ## how hard the gun kicks in the hands when it fires
+## Knockback: metres per second added to the target's speed, along the shot (per
+## pellet) or away from the swing, plus a little lift so it carries off the ground.
+@export var knockback := 1.5
+@export var knockback_up := 0.0
+@export_group("Melee")
+@export var windup := 0.0            ## seconds from the click to the blow landing
+@export var arc_degrees := 0.0       ## hits anyone within this angle of where you look
+@export var lunge := 0.0             ## forward speed a swing gives you (closes the gap)
+@export var backstab_multiplier := 1.0  ## damage from behind
+@export var move_bonus := 1.0        ## running speed while carrying it (light blades are quicker)
 
 
 static func pistol() -> WeaponData:
 	var w := WeaponData.new()
 	w.blurb = "Semi-auto sidearm. Accurate, quick to reload, 4 body shots."
+	w.knockback = 2.0
 	return w
 
 
@@ -64,6 +82,8 @@ static func shotgun() -> WeaponData:
 	w.muzzle_bone = "muzzle_shotgun"
 	w.crosshair = "spread"
 	w.kick = 2.2
+	w.knockback = 1.3      # per pellet: a full blast up close is a real shove
+	w.knockback_up = 0.25
 	return w
 
 
@@ -85,6 +105,7 @@ static func rifle() -> WeaponData:
 	w.falloff_min = 0.7
 	w.muzzle_bone = "muzzle_rifle"
 	w.kick = 0.55
+	w.knockback = 0.9
 	return w
 
 
@@ -105,7 +126,82 @@ static func sniper() -> WeaponData:
 	w.muzzle_bone = "muzzle_sniper"
 	w.crosshair = "dot"
 	w.kick = 2.6
+	w.knockback = 9.0
+	w.knockback_up = 2.0
 	return w
+
+
+## A melee weapon: no ammo, no spread, full damage within reach.
+static func _melee(id: String, display: String) -> WeaponData:
+	var w := WeaponData.new()
+	w.id = id
+	w.display_name = display
+	w.short_name = display
+	w.kind = Kind.MELEE
+	w.automatic = true       # hold the button to keep swinging
+	w.magazine = 0
+	w.reload_time = 0.0
+	w.spread_degrees = 0.0
+	w.headshot_multiplier = 1.0
+	w.muzzle_bone = "pistol"   # the fist: the blade rides on the grip bone
+	w.crosshair = "melee"
+	return w
+
+
+## Two hits kill. Every swing lunges forward a little, so you can chase.
+static func sword() -> WeaponData:
+	var w := _melee("sword", "Sword")
+	w.blurb = "Two slashes kill. Each swing lunges you forward. Hold to keep swinging."
+	w.damage = 50.0
+	w.fire_interval = 0.55
+	w.windup = 0.12
+	w.max_range = 2.9
+	w.arc_degrees = 55.0
+	w.lunge = 5.0
+	w.knockback = 9.0
+	w.knockback_up = 3.5
+	w.kick = 1.0
+	w.move_bonus = 1.08
+	return w
+
+
+## Slow and brutal: sends people flying, and into walls hard enough to hurt.
+static func hammer() -> WeaponData:
+	var w := _melee("hammer", "Hammer")
+	w.blurb = "Slow, huge knockback. Smash people into walls for extra damage."
+	w.damage = 65.0
+	w.fire_interval = 1.05
+	w.windup = 0.32
+	w.max_range = 3.1
+	w.arc_degrees = 65.0
+	w.lunge = 2.0
+	w.knockback = 24.0
+	w.knockback_up = 6.5
+	w.kick = 2.0
+	w.move_bonus = 1.0
+	return w
+
+
+## Quick jabs, and a stab in the back kills outright.
+static func dagger() -> WeaponData:
+	var w := _melee("dagger", "Dagger")
+	w.blurb = "Fast jabs, fastest on your feet. A stab in the back kills."
+	w.damage = 26.0
+	w.fire_interval = 0.3
+	w.windup = 0.06
+	w.max_range = 2.4
+	w.arc_degrees = 40.0
+	w.lunge = 3.0
+	w.knockback = 4.0
+	w.knockback_up = 1.5
+	w.backstab_multiplier = 4.0
+	w.kick = 0.6
+	w.move_bonus = 1.15
+	return w
+
+
+func is_melee() -> bool:
+	return kind == Kind.MELEE
 
 
 static var _cache := {}
@@ -118,6 +214,9 @@ static func by_id(weapon_id: String) -> WeaponData:
 			"shotgun": _cache[weapon_id] = shotgun()
 			"rifle": _cache[weapon_id] = rifle()
 			"sniper": _cache[weapon_id] = sniper()
+			"sword": _cache[weapon_id] = sword()
+			"hammer": _cache[weapon_id] = hammer()
+			"dagger": _cache[weapon_id] = dagger()
 			_: _cache[weapon_id] = pistol()
 	return _cache[weapon_id]
 
@@ -133,6 +232,10 @@ static func has(weapon_id: String) -> bool:
 ## `weapon_id` if it is a real weapon, otherwise the default one.
 static func valid(weapon_id: String) -> String:
 	return weapon_id if has(weapon_id) else default_id()
+
+
+static func melee(weapon_id: String) -> bool:
+	return weapon_id in MELEE
 
 
 static func name_of(weapon_id: String) -> String:

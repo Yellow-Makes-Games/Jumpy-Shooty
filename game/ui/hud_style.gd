@@ -100,6 +100,17 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			shapes = [[Vector2(0, 2), Vector2(8, 1), Vector2(26, 1), Vector2(44, 1.5), Vector2(44, 3), Vector2(26, 3.5),
 				Vector2(24, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 6)],
 				[Vector2(11, -3), Vector2(23, -3), Vector2(23, 0), Vector2(11, 0)]]
+		"sword":   # blade to the right
+			shapes = [[Vector2(0, 3), Vector2(8, 3), Vector2(8, 5), Vector2(0, 5)],
+				[Vector2(8, -1), Vector2(10, -1), Vector2(10, 9), Vector2(8, 9)],
+				[Vector2(10, 2.5), Vector2(36, 2.5), Vector2(40, 4), Vector2(36, 5.5), Vector2(10, 5.5)]]
+		"hammer":
+			shapes = [[Vector2(0, 3), Vector2(24, 3), Vector2(24, 5), Vector2(0, 5)],
+				[Vector2(22, -3), Vector2(32, -3), Vector2(32, 11), Vector2(22, 11)]]
+		"dagger":
+			shapes = [[Vector2(0, 3), Vector2(6, 3), Vector2(6, 5), Vector2(0, 5)],
+				[Vector2(6, 0), Vector2(8, 0), Vector2(8, 8), Vector2(6, 8)],
+				[Vector2(8, 2.5), Vector2(20, 2.5), Vector2(24, 4), Vector2(20, 5.5), Vector2(8, 5.5)]]
 		_:
 			pistol(ci, at, color, s)
 			return 19.0 * s
