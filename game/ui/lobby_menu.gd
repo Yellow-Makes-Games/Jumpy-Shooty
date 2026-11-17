@@ -77,7 +77,7 @@ func _refresh() -> void:
 	_start.disabled = Net.players.size() < 1
 	var where := ""
 	if Net.is_host():
-		where = "Friends on your network can join at %s (port %d)." % [_local_ip(), Net.port]
+		where = "Friends on your network can join at %s." % _join_addresses()
 	else:
 		where = "The host picks the map and rules and starts the match."
 	_info.text = "%d of %d players.  %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
@@ -280,8 +280,30 @@ func _refresh_rules() -> void:
 	_updating = false
 
 
-func _local_ip() -> String:
+## The addresses friends can type to join this lobby: home-network ones, plus a
+## Tailscale one (100.64.x.x to 100.127.x.x) if Tailscale is running. Over a
+## playit.gg tunnel friends use the tunnel's address instead (docs/ONLINE_PLAY.md).
+func _join_addresses() -> String:
+	var found: Array[String] = []
 	for ip in IP.get_local_addresses():
-		if ip.begins_with("192.168.") or ip.begins_with("10.") or ip.begins_with("172."):
-			return ip
-	return "127.0.0.1"
+		if _is_join_address(ip) and not ip in found:
+			found.append(ip)
+	if found.is_empty():
+		found.append("127.0.0.1")
+	var port_part := "" if Net.port == Net.DEFAULT_PORT else ":%d" % Net.port
+	var shown: Array[String] = []
+	for ip in found:
+		shown.append(ip + port_part)
+	return " or ".join(shown)
+
+
+static func _is_join_address(ip: String) -> bool:
+	if ip.begins_with("192.168.") or ip.begins_with("10."):
+		return true
+	var parts := ip.split(".")
+	if parts.size() != 4:
+		return false
+	var second := int(parts[1])
+	if parts[0] == "172":
+		return second >= 16 and second <= 31
+	return parts[0] == "100" and second >= 64 and second <= 127   # Tailscale

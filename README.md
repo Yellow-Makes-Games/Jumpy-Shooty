@@ -6,8 +6,9 @@ the guns away and **race**: run an obstacle course against friends or bots, from
 checkpoint to checkpoint, to the finish.
 
 Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player hosts and
-up to 4 friends connect to them. Today that works over direct IP; Steam invites and
-relays are next.
+up to 4 friends connect to them. Today that works by address (direct IP, or over the
+internet through a free tunnel: see [docs/ONLINE_PLAY.md](docs/ONLINE_PLAY.md)); Steam
+invites and relays are next.
 
 **Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site and Office maps, the Testing Grounds test map and offline bot matches (1v1, or a free-for-all against up to 4 bots) work, with sound effects for every gun, hit, move and menu; Steam is next. See [docs/FEATURES.md](docs/FEATURES.md)
 for what works and what does not yet.

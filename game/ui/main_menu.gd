@@ -338,7 +338,7 @@ func _show_multiplayer() -> void:
 	UiKit.primary_button(host, "Create lobby", _on_create)
 	var join := _box(row)
 	UiKit.section(join, "Join")
-	UiKit.label(join, "Type the host's address (direct IP; Steam invites come next).", true, 15)
+	UiKit.label(join, "Type the host's address: an IP, or a tunnel address like name.ply.gg:12345.", true, 15)
 	_address_edit = UiKit.line_edit(join, "127.0.0.1", "")
 	UiKit.button(join, "Join lobby", _on_join)
 	_status = UiKit.label(_col, "", true, 16)

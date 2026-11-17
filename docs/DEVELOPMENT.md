@@ -35,10 +35,9 @@ one and **Multiplayer → Join lobby** with address `127.0.0.1` in the other.
 
 - **Same home network:** host with **Create lobby**. The lobby shows your local address
   (for example `192.168.1.20`). Your friend types that into **Join lobby**.
-- **Over the internet:** direct IP needs the host's router to forward **UDP port 24680**
-  to the host's PC, and your friend joins using your public IP address. This is fiddly
-  and is exactly what Steam will remove. If you want to try it before Steam is ready,
-  ask me and I will walk you through your router.
+- **Over the internet:** the host runs a free playit.gg tunnel and friends type its
+  address, or everyone uses Tailscale, or the host forwards UDP port 24680. Step by
+  step, including how to export a build to send friends: [ONLINE_PLAY.md](ONLINE_PLAY.md).
 
 Windows may ask whether to allow Godot through the firewall the first time you host.
 Allow it on private networks.
