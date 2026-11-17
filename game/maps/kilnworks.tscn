@@ -55,14 +55,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 script = ExtResource("3_onmqy")
 size = Vector3(60, 1, 60)
 kind = "tile_floor"
-unbreakable = true
+breakable = 2
 
 [node name="KilnPlinth" type="Node3D" parent="Ground" unique_id=1463539810]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 script = ExtResource("3_onmqy")
 size = Vector3(20, 1.6, 20)
 kind = "flags"
-unbreakable = true
+breakable = 2
 
 [node name="PlinthEdgeNorth" type="Node3D" parent="Ground" unique_id=556617938]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.62, -9.9)
@@ -1033,14 +1033,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, 0.1, -18)
 script = ExtResource("3_onmqy")
 size = Vector3(0.7, 0.2, 8.2)
 kind = "soot"
-unbreakable = true
+breakable = 2
 
 [node name="PartitionEastBase" type="Node3D" parent="Cover" unique_id=1664356009]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 0.1, 12)
 script = ExtResource("3_onmqy")
 size = Vector3(0.7, 0.2, 8.2)
 kind = "soot"
-unbreakable = true
+breakable = 2
 
 [node name="Stack-60_-260" type="Node3D" parent="Cover" unique_id=2090257114]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 6.6, -26)
