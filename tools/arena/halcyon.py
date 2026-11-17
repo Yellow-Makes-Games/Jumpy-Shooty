@@ -231,9 +231,9 @@ class Frame:
         self.wall(g, "Rail", kind, axis, line, a, b, y, y + 1.1, 0.12, [(g0, g1, y, y + 1.1) for g0, g1 in gaps])
         for g0, g1 in gaps:   # hazard stripes on the edge wherever a railing leaves a way off
             if axis == "x":
-                self.strip(g, "GapEdge", "hazard", (g0, y, line - 0.16), (g1, y + 0.03, line + 0.16))
+                self.strip(g, "GapEdge", "hazard", (g0, y, line - 0.16), (g1, y + 0.04, line + 0.16))
             else:
-                self.strip(g, "GapEdge", "hazard", (line - 0.16, y, g0), (line + 0.16, y + 0.03, g1))
+                self.strip(g, "GapEdge", "hazard", (line - 0.16, y, g0), (line + 0.16, y + 0.04, g1))
 
     def on_wall(self, g, name, kind, axis, face, out, a, b, y0, y1, depth=0.12, lift=0.0, **kw):
         """A drawn-only box on a wall. The wall runs along `axis` ("x" or "z") with its face
@@ -265,7 +265,7 @@ class Frame:
         for turn in (-1, 1):
             a = math.radians(138.0) * turn
             bx, bz = dx * math.cos(a) - dz * math.sin(a), dx * math.sin(a) + dz * math.cos(a)
-            self.m.block(g, "Chevron", kind, (T[0] + bx * size / 2, y + 0.011, T[2] + bz * size / 2), (width, 0.022, size),
+            self.m.block(g, "Chevron", kind, (T[0] + bx * size / 2, y + 0.013, T[2] + bz * size / 2), (width, 0.026, size),
                          cols=yaw_cols(math.atan2(bx, bz)), solid=False)
 
     def deck(self, g, name, kind, x0, x1, z0, z1, top, thick=0.5, holes=(), **kw):
@@ -394,6 +394,10 @@ def control_room(m):
     g = m.group("Wall", f)
     ring(m, g, "Wall", "hull_white", HUB_R, HUB_R + 0.8, 0.0, H, 36, skip=hub_door)
     ring(m, g, "Lintel", "trim", HUB_R, HUB_R + 0.8, 5.2, H, 36, skip=lambda d: not hub_door(d))
+    # The wall, the lintels and the spokes' jambs all end at one height: one dark cap lies on
+    # top of them (cut to the wall's own outline, so none of it shows under a ceiling).
+    k = math.cos(math.pi / 36)
+    hoop(m, g, "WallCap", "trim", (HUB_R + 0.8) / k, 0.8 / k, H, H + 0.03)
     hoop(m, g, "WallLight", "accent_white", 14.98, 0.12, 5.35, 5.55)
     ring(m, g, "WallTrim", "trim", HUB_R - 0.1, HUB_R, 1.0, 1.12, 36, skip=hub_door, solid=False)   # (pieces, so it stops at the doorways)
     for deg, text in ((0, "ENGINEERING"), (90, "HYDROPONICS"), (180, "HANGAR"), (270, "CARGO BAY"), (135, "DECK 2"), (315, "DECK 2")):
@@ -443,12 +447,12 @@ def control_room(m):
     I = Frame(m)
     for deg, accent, text in ((0, "accent_orange", "ENGINEERING"), (90, "accent_green", "HYDROPONICS"),
                               (180, "accent_cyan", "HANGAR"), (270, "accent_yellow", "CARGO BAY")):
-        m.block(g, "GuideLine", accent, polar(11.7, deg, 0.01), (0.18, 0.02, 2.0), cols=yaw_cols(math.radians(deg)), solid=False)
-        I.floor_label(text, polar(13.5, deg, 0.03), (math.sin(math.radians(deg)), math.cos(math.radians(deg))), size=56)
+        m.block(g, "GuideLine", accent, polar(11.7, deg, 0.012), (0.18, 0.024, 2.0), cols=yaw_cols(math.radians(deg)), solid=False)
+        I.floor_label(text, polar(13.5, deg, 0.06), (math.sin(math.radians(deg)), math.cos(math.radians(deg))), size=56)
         for side in (-21.2, 21.2):
             m.block(g, "DoorPost", "rib", polar(14.92, deg + side, 2.6), (0.5, 5.2, 0.16), cols=yaw_cols(math.radians(deg + side)), solid=False)
     for deg in (135, 315):
-        I.floor_label("DECK 2", polar(13.5, deg, 0.03), (math.sin(math.radians(deg)), math.cos(math.radians(deg))), size=56)
+        I.floor_label("DECK 2", polar(13.5, deg, 0.06), (math.sin(math.radians(deg)), math.cos(math.radians(deg))), size=56)
         for side in (-16.2, 16.2):
             m.block(g, "DoorPost", "rib", polar(14.92, deg + side, 2.6), (0.5, 5.2, 0.16), cols=yaw_cols(math.radians(deg + side)), solid=False)
     for deg in (35, 45, 55, 215, 225, 235):   # (the middle of a wall piece, so they sit flat on it)
@@ -473,7 +477,7 @@ def control_room(m):
     hoop(m, g, "Pipe", "pipe_blue", 11.5, 0.3, -1.3, -1.0)
     ring(m, g, "LowLight", "light_dim", BAND_R - 0.06, BAND_R, -3.2, -3.0, 36, skip=lower_gap, solid=False)   # (pieces: none across an opening)
     hoop(m, g, "LowLight", "light_dim", 11.1, 0.06, -3.2, -3.0)
-    hoop(m, g, "Grate", "grate", 15.4, 1.2, LOW, LOW + 0.015)
+    hoop(m, g, "Grate", "grate", 15.4, 1.2, LOW, LOW + 0.012)
     hoop(m, g, "Cable", "cable", 15.1, 0.5, -0.72, -0.5)
     for deg in (35, 55, 105, 155, 215, 235, 285, 335):
         m.block(g, "Rib", "rib", polar(BAND_R - 0.06, deg, (LOW - 0.5) / 2.0), (0.35, 5.5, 0.14), cols=yaw_cols(math.radians(deg)), solid=False)
@@ -510,10 +514,10 @@ def stairwell(m, name, deg):
         m.box(g, "Rib", "rib", (3.86, 0, z - 0.2), (4.0, H, z + 0.2), solid=False)
     m.box(g, "Vent", "vent", (-2.9, 4.2, -32.5), (-1.1, 4.8, -32.44), solid=False)
     m.box(g, "Vent", "vent", (1.1, 0.55, -32.5), (2.9, 1.05, -32.44), solid=False)
-    m.box(g, "EdgeHazard", "hazard", (-0.4, 0, -22.5), (0.0, 0.03, -18.5), solid=False)
-    m.box(g, "RampHazard", "hazard", (0.1, 0, -28.5), (3.9, 0.03, -28.05), solid=False)
-    m.flat_sign("DECK 2", (2.0, 0.03, -29.6), ((-1, 0, 0), (0, 0, 1), (0, 1, 0)), size=56, parent=g)
-    m.flat_sign("DECK 1", (-2.0, 0.03, -24.0), ((-1, 0, 0), (0, 0, 1), (0, 1, 0)), size=56, parent=g)
+    m.box(g, "EdgeHazard", "hazard", (-0.4, 0, -22.5), (0.0, 0.04, -18.5), solid=False)
+    m.box(g, "RampHazard", "hazard", (0.1, 0, -28.5), (3.9, 0.04, -28.05), solid=False)
+    m.flat_sign("DECK 2", (2.0, 0.06, -29.6), ((-1, 0, 0), (0, 0, 1), (0, 1, 0)), size=56, parent=g)
+    m.flat_sign("DECK 1", (-2.0, 0.06, -24.0), ((-1, 0, 0), (0, 0, 1), (0, 1, 0)), size=56, parent=g)
 
 
 def spoke(m, f, k, name, room, accent):
@@ -522,9 +526,9 @@ def spoke(m, f, k, name, room, accent):
     g = m.group(name, f)
     hole = (-1.5, 1.5, -28.5, -25.5)   # a grated drop hole down to the lower deck
     F.deck(g, "Floor", "floor", -5.8, 5.8, -32.6, -14.0, 0.0, holes=[hole])
-    F.box(g, "Ceiling", "hull", (-5.8, H, -32.0), (5.8, H + 0.5, -15.2))
+    F.box(g, "Ceiling", "hull", (-5.8, H, -31.9), (5.8, H + 0.5, -15.2))   # (ends inside the room's wall, not flush with its face)
     for s in (-1, 1):
-        F.box(g, "Wall", "hull", (s * 5.0, 0, -32.0), (s * 5.8, H, -13.9))
+        F.box(g, "Wall", "hull", (s * 5.0, 0, -31.9), (s * 5.8, H, -13.9))
         F.strip(g, "Strip", accent, (s * 4.96, 2.0, -31.0), (s * 5.02, 2.22, -15.5))
         F.strip(g, "FloorTrim", "trim", (s * 4.55, 0, -31.0), (s * 5.0, 0.02, -15.5))
         F.box(g, "LowerWall", "hull_dark", (s * 3.0, LOW - 0.5, -31.0), (s * 3.6, -0.5, -18.2))
@@ -542,7 +546,7 @@ def spoke(m, f, k, name, room, accent):
         F.strip(g, "HoleRim", "accent_yellow", lo, hi)
     for i in range(3):   # what is left of the grate, hanging open
         F.strip(g, "Grate", "rail", (hx0 + 0.25 + i * 0.5, -0.45, hz0), (hx0 + 0.37 + i * 0.5, -0.38, hz1))
-    F.box(g, "LowerFloor", "floor_dark", (-3.6, LOW - 0.5, -32.6), (3.6, LOW, -18.2))
+    F.box(g, "LowerFloor", "floor_dark", (-3.6, LOW - 0.5, -31.0), (3.6, LOW, -18.2))   # (to the room's wall: its threshold carries on)
     F.sign(room, (0, 5.75, -30.94), (0, 1), size=48, pixel=0.008)
     F.sign("CONTROL ROOM", (0, 5.6, -15.86), (0, -1), size=48, pixel=0.008)
 
@@ -552,14 +556,14 @@ def spoke(m, f, k, name, room, accent):
     # where each end leads stencilled on the floor.
     for s in (-1, 1):
         face, out = s * 5.0, -s
-        F.on_wall(g, "Base", "rib", "z", face, out, -31.9, -15.4, 0.0, 0.35, 0.1)
-        F.on_wall(g, "Cornice", "rib", "z", face, out, -31.9, -15.4, 5.3, 5.5, 0.1)
+        F.on_wall(g, "Base", "rib", "z", face, out, -30.9, -15.4, 0.0, 0.35, 0.1)   # (clear of the doorway's lit frame)
+        F.on_wall(g, "Cornice", "rib", "z", face, out, -30.9, -15.4, 5.3, 5.5, 0.1)
         ribs(F, g, "z", face, out, (-30.5, -26.0, -21.5, -17.0), 0.35, 5.3)
         z_screen, z_vent = (-28.25, -19.25) if s < 0 else (-19.25, -28.25)
         screen(F, g, "z", face, out, z_screen, 2.7, accent)
         vent(F, g, "z", face, out, z_vent, 4.2)
         vent(F, g, "z", face, out, z_vent, 0.6, h=0.5)
-        F.strip(g, "CeilingPipe", "pipe" if s < 0 else "pipe_blue", (s * 4.3 - 0.18, H - 0.5, -31.9), (s * 4.3 + 0.18, H - 0.14, -15.4))
+        F.strip(g, "CeilingPipe", "pipe" if s < 0 else "pipe_blue", (s * 4.3 - 0.18, H - 0.5, -31.0), (s * 4.3 + 0.18, H - 0.14, -15.4))
         # lower deck
         lface = s * 3.0
         ribs(F, g, "z", lface, out, (-28.0, -24.5, -21.0), LOW, -0.5, width=0.3, depth=0.12, name="LowerRib")
@@ -567,16 +571,16 @@ def spoke(m, f, k, name, room, accent):
         F.strip(g, "Cable", "cable", (s * 2.1 - 0.2, -0.72, -31.0), (s * 2.1 + 0.2, -0.5, -18.6))   # (clear of the drop hole)
     for z in (-27.3, -24.3, -17.6):
         F.strip(g, "Beam", "girder", (-5.0, H - 0.35, z - 0.25), (5.0, H, z + 0.25))
-    F.strip(g, "GuideLine", accent, (-0.08, 0, -31.0), (0.08, 0.02, -29.4))
-    F.strip(g, "GuideLine", accent, (-0.08, 0, -24.6), (0.08, 0.02, -18.0))
+    F.strip(g, "GuideLine", accent, (-0.08, 0, -31.0), (0.08, 0.024, -29.4))
+    F.strip(g, "GuideLine", accent, (-0.08, 0, -24.6), (0.08, 0.024, -18.0))
     for z in (-23.6, -20.6):
         F.chevron(g, accent, (0, z), (0, -1), 0.0)
-    F.strip(g, "Grate", "grate", (-4.5, 0, -31.8), (4.5, 0.015, -31.0))
-    F.strip(g, "Grate", "grate", (-4.5, 0, -16.0), (4.5, 0.015, -15.2))
+    F.strip(g, "Grate", "grate", (-4.5, 0, -31.8), (4.5, 0.012, -31.0))
+    F.strip(g, "Grate", "grate", (-4.5, 0, -16.0), (4.5, 0.012, -15.2))
     hole_hazard(F, g, hole, 0.0)
-    F.floor_label(room, (0, 0.03, -30.2), (0, -1))
-    F.floor_label("CONTROL ROOM", (0, 0.03, -17.0), (0, 1))
-    F.strip(g, "LowerGrate", "grate", (-0.6, LOW, -31.0), (0.6, LOW + 0.015, -18.6))
+    F.floor_label(room, (0, 0.06, -30.2), (0, -1))
+    F.floor_label("CONTROL ROOM", (0, 0.06, -17.0), (0, 1))
+    F.strip(g, "LowerGrate", "grate", (-0.6, LOW, -31.0), (0.6, LOW + 0.012, -18.6))
     hole_hazard(F, g, (hole[0] + 0.5, hole[1] - 0.5, hole[2] + 0.5, hole[3] - 0.5), LOW, inner=0.5, wide=0.4)   # where you land
 
 
@@ -585,14 +589,24 @@ def spoke(m, f, k, name, room, accent):
 
 def shell(F, g, x0, x1, z0, z1, top, tint, holes, floor_holes=(), floor="floor"):
     """The box a tall room sits in: floor at the lower deck, 1 m walls with openings
-    (holes: side -> [(from, to, bottom, top)]), and a ceiling."""
+    (holes: side -> [(from, to, bottom, top)]), and a ceiling. Under an opening that
+    starts at the floor (a doorway) the wall has no sill and the room's floor stops at
+    the wall: the doorway's own threshold (see doorway()) is the only floor there, so
+    no two floors lie in the same plane and flicker."""
     F.holes = holes   # (noted on the frame: strips along this room's walls stop at its openings)
-    F.deck(g, "Floor", floor, x0 - 1, x1 + 1, z0 - 1, z1 + 1, LOW, holes=floor_holes)
+    cut = list(floor_holes)
+    walls = {}
+    for side in "nswe":
+        walls[side] = [(h0, h1, LOW - 0.5 if hb <= LOW else hb, ht) for h0, h1, hb, ht in holes.get(side, ())]
+        for h0, h1, hb, ht in holes.get(side, ()):
+            if hb <= LOW:
+                cut.append({"n": (h0, h1, z0 - 1, z0), "s": (h0, h1, z1, z1 + 1), "w": (x0 - 1, x0, h0, h1), "e": (x1, x1 + 1, h0, h1)}[side])
+    F.deck(g, "Floor", floor, x0 - 1, x1 + 1, z0 - 1, z1 + 1, LOW, holes=cut)
     F.box(g, "Ceiling", "hull", (x0 - 1, top, z0 - 1), (x1 + 1, top + 0.5, z1 + 1))
-    F.wall(g, "WallN", "hull", "x", z0 - 0.5, x0 - 1, x1 + 1, LOW - 0.5, top, 1.0, holes.get("n", ()), tint=tint)
-    F.wall(g, "WallS", "hull", "x", z1 + 0.5, x0 - 1, x1 + 1, LOW - 0.5, top, 1.0, holes.get("s", ()), tint=tint)
-    F.wall(g, "WallW", "hull", "z", x0 - 0.5, z0, z1, LOW - 0.5, top, 1.0, holes.get("w", ()), tint=tint)
-    F.wall(g, "WallE", "hull", "z", x1 + 0.5, z0, z1, LOW - 0.5, top, 1.0, holes.get("e", ()), tint=tint)
+    F.wall(g, "WallN", "hull", "x", z0 - 0.5, x0 - 1, x1 + 1, LOW - 0.5, top, 1.0, walls["n"], tint=tint)
+    F.wall(g, "WallS", "hull", "x", z1 + 0.5, x0 - 1, x1 + 1, LOW - 0.5, top, 1.0, walls["s"], tint=tint)
+    F.wall(g, "WallW", "hull", "z", x0 - 0.5, z0, z1, LOW - 0.5, top, 1.0, walls["w"], tint=tint)
+    F.wall(g, "WallE", "hull", "z", x1 + 0.5, z0, z1, LOW - 0.5, top, 1.0, walls["e"], tint=tint)
     for side, axis, face, out, a, b in (("n", "x", z0, 1, x0, x1), ("s", "x", z1, -1, x0, x1),
                                         ("w", "z", x0, 1, z0, z1), ("e", "z", x1, -1, z0, z1)):
         wall_band(F, g, "Base", "rib", axis, face, out, a, b, LOW, LOW + 0.4, 0.1, holes.get(side, ()))
@@ -689,6 +703,11 @@ def wall_ribs(F, g, x0, x1, z0, z1, top, skip=(), step=8.0):
 
 
 # ---------------------------------------------------------------------------
+# Two surfaces of different colours in the same plane flicker, so nothing here shares a
+# height with anything else it overlaps. Paint on a floor goes in layers: grates 12 mm
+# thick, lines 24 mm (the first pass's trims are 20 mm), hole rims 30 mm, hazard
+# stripes 40 mm, words 60 mm up. Wall pieces differ in how far they stand off the wall.
+#
 # Wall and floor details. The surface shader draws the panel seams, tiles, grating and
 # stripes (SURFACE above); these are the pieces that stand out from a wall or lie on a
 # floor. All of them are drawn only, never solid, and none stands more than 0.3 m off
@@ -735,7 +754,7 @@ def hole_hazard(F, g, hole, y, inner=0.3, wide=0.45):
     a, b = inner, inner + wide
     for lo, hi in (((hx0 - b, hz0 - b), (hx1 + b, hz0 - a)), ((hx0 - b, hz1 + a), (hx1 + b, hz1 + b)),
                    ((hx0 - b, hz0 - a), (hx0 - a, hz1 + a)), ((hx1 + a, hz0 - a), (hx1 + b, hz1 + a))):
-        F.strip(g, "HoleHazard", "hazard", (lo[0], y, lo[1]), (hi[0], y + 0.03, hi[1]))
+        F.strip(g, "HoleHazard", "hazard", (lo[0], y, lo[1]), (hi[0], y + 0.04, hi[1]))
 
 
 def corner_pipes(F, g, corners, top):
@@ -811,10 +830,10 @@ def hangar(m):
     F.rail(g, "x", -48, -26, 26, 14.0, gaps=[(-14, -10), (10, 14)])
     for x in (-24, -8, 8, 24):
         for z in (-52.2, -47.8):
-            F.box(g, "Hanger", "girder", (x - 0.2, 14, z - 0.2), (x + 0.2, 26.5, z + 0.2))
+            F.box(g, "Hanger", "girder", (x - 0.2, 13.7, z - 0.2), (x + 0.2, 26.5, z + 0.2))
     for s in (-1, 1):
         F.box(g, "LaunchRail", "girder", (s * 12 - 0.4, 12.9, -64), (s * 12 + 0.4, 13.7, -40.5))
-        F.strip(g, "RailLight", A, (s * 12 - 0.42, 13.1, -64), (s * 12 + 0.42, 13.25, -40.5))
+        F.strip(g, "RailLight", A, (s * 12 - 0.42, 13.1, -63.95), (s * 12 + 0.42, 13.25, -40.55))
         F.box(g, "Clamp", "crane", (s * 12 - 1.0, 10.9, -58), (s * 12 + 1.0, 12.9, -56))
     F.box(g, "Perch", "catwalk", (26, 19.7, -58), (X1, 20, -50))
     F.box(g, "PerchBrace", "girder", (26, 19.0, -54.3), (X1, 19.7, -53.7))
@@ -834,8 +853,8 @@ def hangar(m):
                                   (-21, -63.5, 2.4, 2.4, 2.0, "crate")):
         F.box(g, "Crate", kind, (x - w / 2, LOW, z - d / 2), (x + w / 2, LOW + h, z + d / 2))
     F.sign("HANGAR", (0, 8.6, Z1 - 0.06), (0, -1), size=120, pixel=0.014, col=(0.5, 0.9, 1, 1))
-    F.floor_label("BAY 1", (-8, LOW + 0.03, -45.6), (0, -1), size=96, pixel=0.02, col=(0.5, 0.9, 1, 0.8))
-    F.floor_label("BAY 2", (9.5, LOW + 0.03, -46.6), (0, -1), size=96, pixel=0.02, col=(0.5, 0.9, 1, 0.8))
+    F.floor_label("BAY 1", (-8, LOW + 0.06, -45.6), (0, -1), size=96, pixel=0.02, col=(0.5, 0.9, 1, 0.8))
+    F.floor_label("BAY 2", (9.5, LOW + 0.06, -46.6), (0, -1), size=96, pixel=0.02, col=(0.5, 0.9, 1, 0.8))
     g = m.group("Details", f)
     corner_pipes(F, g, ((X0, Z1, 1, -1), (X1, Z1, -1, -1)), TOP)
     for x in (-10.0, 10.0):
@@ -844,10 +863,10 @@ def hangar(m):
     for x in (-27.0, -18.0, 18.0, 27.0):
         vent(F, g, "x", Z1, -1, x, -5.3)
     for s in (-1, 1):
-        F.strip(g, "RampHazard", "hazard", (s * 18.5 - 2.5, LOW, -51.6), (s * 18.5 + 2.5, LOW + 0.03, -51.05))
+        F.strip(g, "RampHazard", "hazard", (s * 18.5 - 2.5, LOW, -51.6), (s * 18.5 + 2.5, LOW + 0.04, -51.05))
         ribs(F, g, "x", Z1, -1, (s * 6.2, s * 14.0, s * 22.0), 0.0, 6.2)
-    F.strip(g, "ViewportHazard", "hazard", (-24, LOW, Z0 + 0.1), (24, LOW + 0.03, Z0 + 0.7))
-    F.strip(g, "Grate", "grate", (-24, LOW, -42.2), (24, LOW + 0.015, -41.4))
+    F.strip(g, "ViewportHazard", "hazard", (-24, LOW, Z0 + 0.1), (24, LOW + 0.04, Z0 + 0.7))
+    F.strip(g, "Grate", "grate", (-24, LOW, -42.2), (24, LOW + 0.012, -41.4))
 
 
 def shuttle(m, f, name, at, yaw):
@@ -925,7 +944,7 @@ def engineering(m):
     g = m.group("Catwalks", f)
     for y in (0.0, 8.0, 16.0):
         ring(m, g, "Ring", "catwalk", 5.0, 8.0, y - 0.3, y, 16, c=C)
-        hoop(m, g, "RingLight", A, 8.1, 0.12, y - 0.3, y - 0.1, c=C, sides=16)
+        hoop(m, g, "RingLight", A, 8.1, 0.12, y - 0.34, y - 0.08, c=C, sides=16)   # (not level with the catwalk's underside)
     F.box(g, "Bridge", "catwalk", (-1.5, -0.3, 37), (1.5, 0, 41.3))
     F.box(g, "Bridge", "catwalk", (-1.5, -0.3, 56.7), (1.5, 0, 60))
     F.box(g, "Bridge", "catwalk", (7.7, -0.3, 47.5), (19, 0, 50.5))
@@ -985,10 +1004,10 @@ def engineering(m):
         vent(F, g, "z", s * 24.0, -s, 50.0, -5.3)
     # The pit again: hazard stripes right round it, outside the glowing edge.
     hole_hazard(F, g, (-8, 8, 41, 57), LOW, inner=0.6, wide=0.6)
-    F.strip(g, "RampHazard", "hazard", (12.0, LOW, 48.05), (17.0, LOW + 0.03, 48.6))
-    F.strip(g, "RampHazard", "hazard", (-17.0, LOW, 48.4), (-12.0, LOW + 0.03, 48.95))
-    F.floor_label("REACTOR PIT", (0, LOW + 0.03, 38.7), (0, 1), size=72, col=(1, 0.7, 0.3, 0.85))
-    F.floor_label("REACTOR PIT", (0, LOW + 0.03, 59.3), (0, -1), size=72, col=(1, 0.7, 0.3, 0.85))
+    F.strip(g, "RampHazard", "hazard", (12.0, LOW, 48.05), (17.0, LOW + 0.04, 48.6))
+    F.strip(g, "RampHazard", "hazard", (-17.0, LOW, 48.4), (-12.0, LOW + 0.04, 48.95))
+    F.floor_label("REACTOR PIT", (0, LOW + 0.06, 38.7), (0, 1), size=72, col=(1, 0.7, 0.3, 0.85))
+    F.floor_label("REACTOR PIT", (0, LOW + 0.06, 59.3), (0, -1), size=72, col=(1, 0.7, 0.3, 0.85))
     
 
 
@@ -1088,11 +1107,11 @@ def cargo(m):
     for s in (-1, 1):
         ribs(F, g, "z", X1, -1, (s * 6.2, s * 14.0, s * 20.0), 0.0, 6.2)
         vent(F, g, "z", X1, -1, s * 8.0, -5.3)
-        F.strip(g, "RampHazard", "hazard", (-49.6, LOW, s * 14.5 - 2.5), (-49.05, LOW + 0.03, s * 14.5 + 2.5))
+        F.strip(g, "RampHazard", "hazard", (-49.6, LOW, s * 14.5 - 2.5), (-49.05, LOW + 0.04, s * 14.5 + 2.5))
     for i, x in enumerate((-47.7, -53.7, -59.7)):   # the lanes between the stacks
-        F.floor_label("LANE %d" % (i + 1), (x, LOW + 0.03, 12.6), (0, -1), size=56, col=(1, 0.9, 0.4, 0.8))
-        F.strip(g, "LaneLine", A, (x - 0.06, LOW, -9.5), (x + 0.06, LOW + 0.02, 10.5))
-    F.strip(g, "Grate", "grate", (-42.4, LOW, -20), (-41.6, LOW + 0.015, 20))
+        F.floor_label("LANE %d" % (i + 1), (x, LOW + 0.06, 12.6), (0, -1), size=56, col=(1, 0.9, 0.4, 0.8))
+        F.strip(g, "LaneLine", A, (x - 0.06, LOW, -9.5), (x + 0.06, LOW + 0.0244, 10.5))
+    F.strip(g, "Grate", "grate", (-42.4, LOW, -20), (-41.6, LOW + 0.012, 20))
 
 
 # ---------------------------------------------------------------------------
@@ -1146,7 +1165,7 @@ def hydroponics(m):
     F.slab(g, "Ramp", "stair", (53.6, 0, -13.5), (53.6, 6, -1.5), 2.8, thick=0.35)
     F.box(g, "RampTop", "catwalk", (52.2, 5.7, -1.5), (55, 6, 1.5))
     for y, x0 in ((6, 55), (12, 59), (18, 62.5)):
-        F.strip(g, "TerraceLight", A, (x0 - 0.04, y - 0.3, -14), (x0 + 0.02, y - 0.1, 14))
+        F.strip(g, "TerraceLight", A, (x0 - 0.04, y - 0.33, -14), (x0 + 0.02, y - 0.1, 14))
     # Planting beds on every step (and in front of the terrace).
     for (x0, x1, y, zs) in ((50.6, 52.0, 0, ((-18.5, -15), (3, 12.5), (15, 18.5))), (56.6, 58.4, 6, ((-13, -6), (3.5, 13))),
                             (60.4, 62.0, 12, ((-13, -4), (-1, 5), (8, 13))), (64.0, 65.5, 18, ((-13, -8), (4, 13)))):
@@ -1201,10 +1220,10 @@ def hydroponics(m):
     for s in (-1, 1):
         ribs(F, g, "z", X0, 1, (s * 6.2, s * 14.5, s * 20.0), 0.0, 5.7)
         vent(F, g, "z", X0, 1, s * 8.0, -5.3)
-        F.strip(g, "Drain", "grate", (40.8, LOW, s * 5.6 - 0.4), (49.8, LOW + 0.015, s * 5.6 + 0.4))   # irrigation drains
-    F.strip(g, "RampHazard", "hazard", (40.0, LOW, -7.95), (44.0, LOW + 0.03, -7.4))
-    F.strip(g, "RampHazard", "hazard", (44.0, LOW, 7.4), (48.0, LOW + 0.03, 7.95))
-    F.floor_label("IRRIGATION", (45.3, LOW + 0.03, 0), (1, 0), size=56, col=(0.55, 1, 0.6, 0.8))
+        F.strip(g, "Drain", "grate", (40.8, LOW, s * 5.6 - 0.4), (49.8, LOW + 0.012, s * 5.6 + 0.4))   # irrigation drains
+    F.strip(g, "RampHazard", "hazard", (40.0, LOW, -7.95), (44.0, LOW + 0.04, -7.4))
+    F.strip(g, "RampHazard", "hazard", (44.0, LOW, 7.4), (48.0, LOW + 0.04, 7.95))
+    F.floor_label("IRRIGATION", (45.3, LOW + 0.06, 0), (1, 0), size=56, col=(0.55, 1, 0.6, 0.8))
 
 
 # ---------------------------------------------------------------------------
@@ -1278,7 +1297,7 @@ def corner(m, f, name, mat, room, x_start, accent_h, accent_v, room_h, room_v):
     F.box(g, "LowerWall", "hull_dark", (x_start, LOW - 0.5, -62.8), (62.8, -0.5, -62))
     F.box(g, "LowerWall", "hull_dark", (62, LOW - 0.5, -62), (62.8, -0.5, -25))
     F.box(g, "LowerWall", "hull_dark", (x_start, LOW - 0.5, -56), (56, -0.5, -55.2))
-    F.wall(g, "LowerWall", "hull_dark", "z", 55.6, -56, -25, LOW - 0.5, -0.5, 0.8, [(-31, -27, LOW, -1.5)])
+    F.wall(g, "LowerWall", "hull_dark", "z", 55.6, -56, -25, LOW - 0.5, -0.5, 0.8, [(-31, -27, LOW - 0.5, -1.5)])   # (no sill: the floors run through)
     F.strip(g, "Pipe", "pipe", (x_start, -1.7, -61.98), (61.7, -1.35, -61.66))
     F.strip(g, "Pipe", "pipe_blue", (61.66, -1.2, -61.7), (61.98, -0.85, -25.5))
     F.strip(g, "Pipe", "pipe", (x_start, -2.4, -56.34), (55.5, -2.05, -56.02))
@@ -1294,12 +1313,13 @@ def corner_details(F, g, x_start, accent_h, accent_v, room_h, room_v, hole):
     the room at the end of the first leg and its colour; room_v, accent_v: the second leg's."""
     # Main deck, hull side: a base and cornice, ribs between the windows, vents under
     # them and a conduit under the ceiling.
-    F.on_wall(g, "Base", "rib", "x", -66, 1, x_start, 66, 0.0, 0.35, 0.1)
-    F.on_wall(g, "Base", "rib", "z", 66, -1, -66, -25, 0.0, 0.35, 0.1)
-    F.on_wall(g, "Cornice", "rib", "x", -66, 1, x_start, 66, 4.5, 4.7, 0.1)
-    F.on_wall(g, "Cornice", "rib", "z", 66, -1, -66, -25, 4.5, 4.7, 0.1)
-    F.on_wall(g, "Conduit", "pipe", "x", -66, 1, x_start, 65.7, 5.6, 5.85, 0.25)
-    F.on_wall(g, "Conduit", "pipe_blue", "z", 66, -1, -65.7, -25, 5.6, 5.85, 0.25)
+    xa, zb = x_start + 0.08, -25.08   # (clear of the lit frames of the rooms' doorways)
+    F.on_wall(g, "Base", "rib", "x", -66, 1, xa, 66, 0.0, 0.35, 0.1)
+    F.on_wall(g, "Base", "rib", "z", 66, -1, -66, zb, 0.0, 0.35, 0.1)
+    F.on_wall(g, "Cornice", "rib", "x", -66, 1, xa, 66, 4.5, 4.7, 0.1)
+    F.on_wall(g, "Cornice", "rib", "z", 66, -1, -66, zb, 4.5, 4.7, 0.1)
+    F.on_wall(g, "Conduit", "pipe", "x", -66, 1, xa, 65.7, 5.6, 5.85, 0.25)
+    F.on_wall(g, "Conduit", "pipe_blue", "z", 66, -1, -65.7, zb, 5.6, 5.85, 0.25)
     ribs(F, g, "x", -66, 1, [x_start + 1.2, 53.0, 65.0] + ([29.5] if x_start < 28 else []), 0.35, 4.5)
     ribs(F, g, "z", 66, -1, (-65.0, -55.5, -27.0), 0.35, 4.5)
     for x in (38.0, 48.0, 59.0):
@@ -1307,8 +1327,8 @@ def corner_details(F, g, x_start, accent_h, accent_v, room_h, room_v, hole):
     for z in (-61.0, -47.0, -35.0):
         vent(F, g, "z", 66, -1, z, 0.55, h=0.5)
     # Inner walls: ribs, a display on each leg, vents.
-    wall_band(F, g, "Base", "rib", "x", -56, -1, x_start, 56, 0.0, 0.35, 0.1, [(35.5, 39.5, 0, 4.0), (47, 55, 0, 5.0)])
-    wall_band(F, g, "Base", "rib", "z", 56, 1, -56, -25, 0.0, 0.35, 0.1, [(-55, -47, 0, 5.0), (-46, -42, 0, 4.5)])
+    wall_band(F, g, "Base", "rib", "x", -56, -1, xa, 56, 0.0, 0.35, 0.1, [(35.5, 39.5, 0, 4.0), (47, 55, 0, 5.0)])
+    wall_band(F, g, "Base", "rib", "z", 56, 1, -56, zb, 0.0, 0.35, 0.1, [(-55, -47, 0, 5.0), (-46, -42, 0, 4.5)])
     ribs(F, g, "x", -56, -1, [x_start + 1.2, 40.6, 46.1] + ([30.5] if x_start < 28 else []), 0.35, H)
     ribs(F, g, "z", 56, 1, (-41.3, -36.2, -30.2, -25.6), 0.35, H)
     screen(F, g, "x", -56, -1, 43.35, 2.7, accent_h)
@@ -1328,16 +1348,16 @@ def corner_details(F, g, x_start, accent_h, accent_v, room_h, room_v, hole):
     F.strip(g, "Beam", "girder", (55.35, H - 0.35, -66), (55.85, H, -56))
     # Floor: two lines to follow, one in each room's colour; grates where the corridor
     # meets each room; hazard stripes round the drop hole.
-    F.strip(g, "GuideLine", accent_h, (x_start + 0.5, 0, -57.58), (57.58, 0.02, -57.42))
-    F.strip(g, "GuideLine", accent_h, (57.42, 0, -57.42), (57.58, 0.02, -25.5))
-    F.strip(g, "GuideLine", accent_v, (x_start + 0.5, 0, -57.18), (57.18, 0.02, -57.02))
-    F.strip(g, "GuideLine", accent_v, (57.02, 0, -57.02), (57.18, 0.02, -25.5))
+    F.strip(g, "GuideLine", accent_h, (x_start + 0.5, 0, -57.58), (57.58, 0.024, -57.42))
+    F.strip(g, "GuideLine", accent_h, (57.42, 0, -57.42), (57.58, 0.024, -25.5))
+    F.strip(g, "GuideLine", accent_v, (x_start + 0.5, 0, -57.18), (57.18, 0.024, -57.02))
+    F.strip(g, "GuideLine", accent_v, (57.02, 0, -57.02), (57.18, 0.024, -25.5))
     F.chevron(g, accent_h, (x_start + 3.0, -58.3), (-1, 0), 0.0, size=0.7)
     F.chevron(g, accent_v, (58.3, -28.0), (0, 1), 0.0, size=0.7)
-    F.strip(g, "Grate", "grate", (x_start + 0.6, 0, -65.5), (x_start + 1.4, 0.015, -56.5))
-    F.strip(g, "Grate", "grate", (56.5, 0, -26.4), (65.5, 0.015, -25.6))
+    F.strip(g, "Grate", "grate", (x_start + 0.6, 0, -65.5), (x_start + 1.4, 0.012, -56.5))
+    F.strip(g, "Grate", "grate", (56.5, 0, -26.4), (65.5, 0.012, -25.6))
     hole_hazard(F, g, hole, 0.0)
-    F.floor_label("DECK 1", (61.5, 0.03, -61.5), (1, 0))
+    F.floor_label("DECK 1", (61.5, 0.06, -61.5), (1, 0))
     F.way_sign(room_v, (65.9, 5.08, -61.0), (-1, 0), (0, 1), size=44, pixel=0.008)
     F.way_sign(room_h, (61.0, 5.08, -65.9), (0, 1), (-1, 0), size=44, pixel=0.008)
     # Lower deck: ribs, junction boxes, cables overhead, a grate down the middle, and
@@ -1349,12 +1369,12 @@ def corner_details(F, g, x_start, accent_h, accent_v, room_h, room_v, hole):
     junction_box(F, g, "z", 56, 1, -40.0, -5.0, accent_v)
     F.strip(g, "Cable", "cable", (x_start, -0.72, -59.3), (59.3, -0.5, -58.7))
     F.strip(g, "Cable", "cable", (58.7, -0.72, -59.3), (59.3, -0.5, -25.0))
-    F.strip(g, "LowerGrate", "grate", (x_start + 0.5, LOW, -59.5), (59.5, LOW + 0.015, -58.5))
-    F.strip(g, "LowerGrate", "grate", (58.5, LOW, -58.5), (59.5, LOW + 0.015, -25.5))
-    F.strip(g, "LandingHazard", "hazard", (hole[0] - 0.5, LOW, -62.0), (hole[0], LOW + 0.03, -59.0))
-    F.strip(g, "LandingHazard", "hazard", (hole[1], LOW, -62.0), (hole[1] + 0.5, LOW + 0.03, -59.0))
-    F.strip(g, "LandingHazard", "hazard", (hole[0], LOW, -59.5), (hole[1], LOW + 0.03, -59.0))
-    F.floor_label("DECK 2", (59.0, LOW + 0.03, -60.6), (1, 0), size=56)
+    F.strip(g, "LowerGrate", "grate", (x_start + 0.5, LOW, -59.5), (59.5, LOW + 0.012, -58.5))
+    F.strip(g, "LowerGrate", "grate", (58.5, LOW, -58.5), (59.5, LOW + 0.012, -25.5))
+    F.strip(g, "LandingHazard", "hazard", (hole[0] - 0.5, LOW, -62.0), (hole[0], LOW + 0.04, -59.0))
+    F.strip(g, "LandingHazard", "hazard", (hole[1], LOW, -62.0), (hole[1] + 0.5, LOW + 0.04, -59.0))
+    F.strip(g, "LandingHazard", "hazard", (hole[0], LOW, -59.5), (hole[1], LOW + 0.04, -59.0))
+    F.floor_label("DECK 2", (59.0, LOW + 0.06, -60.6), (1, 0), size=56)
 
 
 def side_room(F, g, kind):
@@ -1439,10 +1459,10 @@ def cryo(m):
     # Details, as in the other corners of the ring (the cargo bay's and engineering's
     # colours lead out of here).
     g = m.group("Details", f)
-    F.on_wall(g, "Base", "rib", "z", -66, 1, 25, 66, 0.0, 0.3, 0.1)
-    F.on_wall(g, "Base", "rib", "x", 66, -1, -66, -25, 0.0, 0.3, 0.1)
-    F.on_wall(g, "Conduit", "pipe_blue", "z", -66, 1, 25, 65.7, 4.55, 4.8, 0.25)
-    F.on_wall(g, "Conduit", "pipe", "x", 66, -1, -65.7, -25, 4.55, 4.8, 0.25)
+    F.on_wall(g, "Base", "rib", "z", -66, 1, 25.08, 66, 0.0, 0.3, 0.1)   # (25.08: clear of the lit frames of the rooms' doorways)
+    F.on_wall(g, "Base", "rib", "x", 66, -1, -66, -25.08, 0.0, 0.3, 0.1)
+    F.on_wall(g, "Conduit", "pipe_blue", "z", -66, 1, 25.08, 65.7, 4.55, 4.8, 0.25)
+    F.on_wall(g, "Conduit", "pipe", "x", 66, -1, -65.7, -25.08, 4.55, 4.8, 0.25)
     ribs(F, g, "z", -66, 1, (27.5, 46.0, 59.5), 0.3, 4.55)
     ribs(F, g, "x", 66, -1, (-59.5, -42.0, -27.5), 0.3, 4.55)
     for z in (33.5, 40.5, 53.0):
@@ -1455,16 +1475,16 @@ def cryo(m):
         F.strip(g, "Beam", "girder", (-66, CH - 0.3, z - 0.2), (-60, CH, z + 0.2))
     for x in (-50.5, -43.0, -35.5, -27.6):
         F.strip(g, "Beam", "girder", (x - 0.2, CH - 0.3, 60), (x + 0.2, CH, 66))
-    F.strip(g, "GuideLine", "accent_yellow", (-61.58, 0, 25.5), (-61.42, 0.02, 61.58))
-    F.strip(g, "GuideLine", "accent_yellow", (-61.42, 0, 61.42), (-25.5, 0.02, 61.58))
-    F.strip(g, "GuideLine", "accent_orange", (-61.18, 0, 25.5), (-61.02, 0.02, 61.18))
-    F.strip(g, "GuideLine", "accent_orange", (-61.02, 0, 61.02), (-25.5, 0.02, 61.18))
+    F.strip(g, "GuideLine", "accent_yellow", (-61.58, 0, 25.5), (-61.42, 0.024, 61.58))
+    F.strip(g, "GuideLine", "accent_yellow", (-61.42, 0, 61.42), (-25.5, 0.024, 61.58))
+    F.strip(g, "GuideLine", "accent_orange", (-61.18, 0, 25.5), (-61.02, 0.024, 61.18))
+    F.strip(g, "GuideLine", "accent_orange", (-61.02, 0, 61.02), (-25.5, 0.024, 61.18))
     F.chevron(g, "accent_yellow", (-62.3, 28.0), (0, -1), 0.0, size=0.7)
     F.chevron(g, "accent_orange", (-28.0, 62.3), (1, 0), 0.0, size=0.7)
-    F.strip(g, "Grate", "grate", (-65.5, 0, 25.6), (-60.5, 0.015, 26.4))
-    F.strip(g, "Grate", "grate", (-26.4, 0, 60.5), (-25.6, 0.015, 65.5))
+    F.strip(g, "Grate", "grate", (-65.5, 0, 25.6), (-60.5, 0.012, 26.4))
+    F.strip(g, "Grate", "grate", (-26.4, 0, 60.5), (-25.6, 0.012, 65.5))
     hole_hazard(F, g, hole, 0.0, wide=0.35)
-    F.floor_label("DECK 1", (-63.2, 0.03, 58.6), (0, 1))
+    F.floor_label("DECK 1", (-63.2, 0.06, 58.6), (0, 1))
     F.way_sign("ENGINEERING", (-63.0, 4.2, 65.9), (0, -1), (1, 0), size=40, pixel=0.008)
     F.way_sign("CARGO BAY", (-65.9, 4.2, 63.0), (1, 0), (0, -1), size=40, pixel=0.008)
     # Lower deck
@@ -1474,10 +1494,10 @@ def cryo(m):
     junction_box(F, g, "x", 60, 1, -40.0, -5.0, A)
     F.strip(g, "Cable", "cable", (-61.3, -0.72, 25.0), (-60.7, -0.5, 61.3))   # (clear of the drop hole)
     F.strip(g, "Cable", "cable", (-61.3, -0.72, 60.7), (-25.0, -0.5, 61.3))
-    F.strip(g, "LowerGrate", "grate", (-63.5, LOW, 25.5), (-62.5, LOW + 0.015, 60.5))
-    F.strip(g, "LowerGrate", "grate", (-62.5, LOW, 62.5), (-25.5, LOW + 0.015, 63.5))
+    F.strip(g, "LowerGrate", "grate", (-63.5, LOW, 25.5), (-62.5, LOW + 0.012, 60.5))
+    F.strip(g, "LowerGrate", "grate", (-62.5, LOW, 62.5), (-25.5, LOW + 0.012, 63.5))
     hole_hazard(F, g, (hole[0] + 0.5, hole[1] - 0.5, hole[2] + 0.5, hole[3] - 0.5), LOW, inner=0.5, wide=0.4)
-    F.floor_label("DECK 2", (-56.0, LOW + 0.03, 63.0), (1, 0), size=56)
+    F.floor_label("DECK 2", (-56.0, LOW + 0.06, 63.0), (1, 0), size=56)
 
     # The pod bay: rows of pods with narrow aisles between them.
     g = m.group("PodBay", f)
@@ -1502,8 +1522,8 @@ def cryo(m):
             F.strip(g, "PodGlow", "pod_glow", (front - 0.03, 0.7, z + 0.3), (front + 0.03, 2.1, z + 1.3))
     lights(F, g, -57, -43.5, 36, 57, 4.4, 3, 3, kind="light_dim", size=(1.0, 3.0))
     for i, x in enumerate((-56.4, -50.6, -44.8)):   # the aisles: a line down each and its letter at the end
-        F.strip(g, "AisleLine", A, (x - 0.06, 0, 36.6), (x + 0.06, 0.02, 58.6))
-        F.floor_label("ROW " + "ABC"[i], (x, 0.03, 35.4), (0, 1), size=48, col=(0.75, 0.9, 1, 0.8))
+        F.strip(g, "AisleLine", A, (x - 0.06, 0, 36.6), (x + 0.06, 0.024, 58.6))
+        F.floor_label("ROW " + "ABC"[i], (x, 0.06, 35.4), (0, 1), size=48, col=(0.75, 0.9, 1, 0.8))
         vent(F, g, "x", 33.8, 1, x, 3.4, w=1.6, h=0.5)
 
     # Crew mess and bunks.

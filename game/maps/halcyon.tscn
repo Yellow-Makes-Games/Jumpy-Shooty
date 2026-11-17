@@ -782,6 +782,16 @@ script = ExtResource("2_block")
 size = Vector3(2.7846, 0.8, 0.8)
 kind = "trim"
 
+[node name="WallCap" type="Node3D" parent="ControlRoom/Wall"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.015, 0)
+script = ExtResource("2_block")
+shape = 2
+size = Vector3(31.7207, 0.03, 31.7207)
+kind = "trim"
+solid = false
+sides = 36
+inner = 30.1146
+
 [node name="WallLight" type="Node3D" parent="ControlRoom/Wall"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.45, 0)
 script = ExtResource("2_block")
@@ -1532,14 +1542,14 @@ event = NodePath("../../../LowGravity")
 metadata/_edit_group_ = true
 
 [node name="GuideLine" type="Node3D" parent="ControlRoom/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 11.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, 11.7)
 script = ExtResource("2_block")
-size = Vector3(0.18, 0.02, 2)
+size = Vector3(0.18, 0.024, 2)
 kind = "accent_orange"
 solid = false
 
 [node name="Paint_Engineering" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0.03, 13.5)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0.06, 13.5)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -1562,14 +1572,14 @@ kind = "rib"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="ControlRoom/Details"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 11.7, 0.01, 0)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 11.7, 0.012, 0)
 script = ExtResource("2_block")
-size = Vector3(0.18, 0.02, 2)
+size = Vector3(0.18, 0.024, 2)
 kind = "accent_green"
 solid = false
 
 [node name="Paint_Hydroponics" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 13.5, 0.03, 0)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 13.5, 0.06, 0)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -1592,14 +1602,14 @@ kind = "rib"
 solid = false
 
 [node name="GuideLine3" type="Node3D" parent="ControlRoom/Details"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0.01, -11.7)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0.012, -11.7)
 script = ExtResource("2_block")
-size = Vector3(0.18, 0.02, 2)
+size = Vector3(0.18, 0.024, 2)
 kind = "accent_cyan"
 solid = false
 
 [node name="Paint_Hangar" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0.03, -13.5)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0.06, -13.5)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -1622,14 +1632,14 @@ kind = "rib"
 solid = false
 
 [node name="GuideLine4" type="Node3D" parent="ControlRoom/Details"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -11.7, 0.01, 0)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -11.7, 0.012, 0)
 script = ExtResource("2_block")
-size = Vector3(0.18, 0.02, 2)
+size = Vector3(0.18, 0.024, 2)
 kind = "accent_yellow"
 solid = false
 
 [node name="Paint_CargoBay" type="Label3D" parent="Signs"]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -13.5, 0.03, 0)
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -13.5, 0.06, 0)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -1652,7 +1662,7 @@ kind = "rib"
 solid = false
 
 [node name="Paint_Deck2_" type="Label3D" parent="Signs"]
-transform = Transform3D(0.7071, 0.7071, 0, 0, 0, 1, 0.7071, -0.7071, 0, 9.5459, 0.03, -9.5459)
+transform = Transform3D(0.7071, 0.7071, 0, 0, 0, 1, 0.7071, -0.7071, 0, 9.5459, 0.06, -9.5459)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -1675,7 +1685,7 @@ kind = "rib"
 solid = false
 
 [node name="Paint_Deck2_2" type="Label3D" parent="Signs"]
-transform = Transform3D(-0.7071, -0.7071, 0, 0, 0, 1, -0.7071, 0.7071, 0, -9.5459, 0.03, 9.5459)
+transform = Transform3D(-0.7071, -0.7071, 0, 0, 0, 1, -0.7071, 0.7071, 0, -9.5459, 0.06, 9.5459)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -2717,10 +2727,10 @@ sides = 36
 inner = 22.08
 
 [node name="Grate" type="Node3D" parent="ControlRoom/LowerRing"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.9925, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.994, 0)
 script = ExtResource("2_block")
 shape = 2
-size = Vector3(30.8, 0.015, 30.8)
+size = Vector3(30.8, 0.012, 30.8)
 kind = "grate"
 solid = false
 sides = 36
@@ -2946,21 +2956,21 @@ kind = "vent"
 solid = false
 
 [node name="EdgeHazard" type="Node3D" parent="StairwellNE"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0.015, -20.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0.02, -20.5)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 4)
+size = Vector3(0.4, 0.04, 4)
 kind = "hazard"
 solid = false
 
 [node name="RampHazard" type="Node3D" parent="StairwellNE"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.015, -28.275)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.02, -28.275)
 script = ExtResource("2_block")
-size = Vector3(3.8, 0.03, 0.45)
+size = Vector3(3.8, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck2_" type="Label3D" parent="StairwellNE"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 2, 0.03, -29.6)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 2, 0.06, -29.6)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -2969,7 +2979,7 @@ text = "DECK 2"
 font_size = 56
 
 [node name="Paint_Deck1_" type="Label3D" parent="StairwellNE"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -2, 0.03, -24)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -2, 0.06, -24)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -3131,21 +3141,21 @@ kind = "vent"
 solid = false
 
 [node name="EdgeHazard" type="Node3D" parent="StairwellSW"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0.015, -20.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2, 0.02, -20.5)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 4)
+size = Vector3(0.4, 0.04, 4)
 kind = "hazard"
 solid = false
 
 [node name="RampHazard" type="Node3D" parent="StairwellSW"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.015, -28.275)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.02, -28.275)
 script = ExtResource("2_block")
-size = Vector3(3.8, 0.03, 0.45)
+size = Vector3(3.8, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck2_" type="Label3D" parent="StairwellSW"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 2, 0.03, -29.6)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 2, 0.06, -29.6)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -3154,7 +3164,7 @@ text = "DECK 2"
 font_size = 56
 
 [node name="Paint_Deck1_" type="Label3D" parent="StairwellSW"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -2, 0.03, -24)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -2, 0.06, -24)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -3192,15 +3202,15 @@ size = Vector3(3, 0.5, 11.5)
 kind = "floor"
 
 [node name="Ceiling" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.25, -23.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.25, -23.55)
 script = ExtResource("2_block")
-size = Vector3(11.6, 0.5, 16.8)
+size = Vector3(11.6, 0.5, 16.7)
 kind = "hull"
 
 [node name="Wall" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 3, -22.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 3, -22.9)
 script = ExtResource("2_block")
-size = Vector3(0.8, 6, 18.1)
+size = Vector3(0.8, 6, 18)
 kind = "hull"
 
 [node name="Strip" type="Node3D" parent="Spokes/SpokeNorth"]
@@ -3238,9 +3248,9 @@ kind = "light_dim"
 solid = false
 
 [node name="Wall2" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 3, -22.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 3, -22.9)
 script = ExtResource("2_block")
-size = Vector3(0.8, 6, 18.1)
+size = Vector3(0.8, 6, 18)
 kind = "hull"
 
 [node name="Strip2" type="Node3D" parent="Spokes/SpokeNorth"]
@@ -3367,9 +3377,9 @@ kind = "rail"
 solid = false
 
 [node name="LowerFloor" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, -25.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, -24.6)
 script = ExtResource("2_block")
-size = Vector3(7.2, 0.5, 14.4)
+size = Vector3(7.2, 0.5, 12.8)
 kind = "floor_dark"
 
 [node name="Sign_Hangar2" type="Label3D" parent="Signs"]
@@ -3391,16 +3401,16 @@ text = "CONTROL ROOM"
 font_size = 48
 
 [node name="Base" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.95, 0.175, -23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.95, 0.175, -23.15)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 16.5)
+size = Vector3(0.1, 0.35, 15.5)
 kind = "rib"
 solid = false
 
 [node name="Cornice" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.95, 5.4, -23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.95, 5.4, -23.15)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.2, 16.5)
+size = Vector3(0.1, 0.2, 15.5)
 kind = "rib"
 solid = false
 
@@ -3475,9 +3485,9 @@ kind = "vent"
 solid = false
 
 [node name="CeilingPipe" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3, 5.68, -23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3, 5.68, -23.2)
 script = ExtResource("2_block")
-size = Vector3(0.36, 0.36, 16.5)
+size = Vector3(0.36, 0.36, 15.6)
 kind = "pipe"
 solid = false
 
@@ -3524,16 +3534,16 @@ kind = "cable"
 solid = false
 
 [node name="Base2" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 0.175, -23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 0.175, -23.15)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 16.5)
+size = Vector3(0.1, 0.35, 15.5)
 kind = "rib"
 solid = false
 
 [node name="Cornice2" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 5.4, -23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 5.4, -23.15)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.2, 16.5)
+size = Vector3(0.1, 0.2, 15.5)
 kind = "rib"
 solid = false
 
@@ -3608,9 +3618,9 @@ kind = "vent"
 solid = false
 
 [node name="CeilingPipe2" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.3, 5.68, -23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.3, 5.68, -23.2)
 script = ExtResource("2_block")
-size = Vector3(0.36, 0.36, 16.5)
+size = Vector3(0.36, 0.36, 15.6)
 kind = "pipe_blue"
 solid = false
 
@@ -3678,91 +3688,91 @@ kind = "girder"
 solid = false
 
 [node name="GuideLine" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -30.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -30.2)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 1.6)
+size = Vector3(0.16, 0.024, 1.6)
 kind = "accent_cyan"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, -21.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, -21.3)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 6.6)
+size = Vector3(0.16, 0.024, 6.6)
 kind = "accent_cyan"
 solid = false
 
 [node name="Chevron" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, 0.7431, -0.3011, 0.011, -23.2656)
+transform = Transform3D(0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, 0.7431, -0.3011, 0.013, -23.2656)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_cyan"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, 0.7431, 0.3011, 0.011, -23.2656)
+transform = Transform3D(0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, 0.7431, 0.3011, 0.013, -23.2656)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_cyan"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, 0.7431, -0.3011, 0.011, -20.2656)
+transform = Transform3D(0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, 0.7431, -0.3011, 0.013, -20.2656)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_cyan"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, 0.7431, 0.3011, 0.011, -20.2656)
+transform = Transform3D(0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, 0.7431, 0.3011, 0.013, -20.2656)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_cyan"
 solid = false
 
 [node name="Grate4" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0075, -31.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.006, -31.4)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="Grate5" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0075, -15.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.006, -15.6)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, -29.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -29.025)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, -24.975)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, -24.975)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.025, 0.015, -27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.025, 0.02, -27)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.025, 0.015, -27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.025, 0.02, -27)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Hangar2" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0.03, -30.2)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0.06, -30.2)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -3771,7 +3781,7 @@ text = "HANGAR"
 font_size = 64
 
 [node name="Paint_ControlRoom" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0.03, -17)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0.06, -17)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -3780,37 +3790,37 @@ text = "CONTROL ROOM"
 font_size = 64
 
 [node name="LowerGrate" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.9925, -24.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.994, -24.8)
 script = ExtResource("2_block")
-size = Vector3(1.2, 0.015, 12.4)
+size = Vector3(1.2, 0.012, 12.4)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard5" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.985, -28.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.98, -28.7)
 script = ExtResource("2_block")
-size = Vector3(3.8, 0.03, 0.4)
+size = Vector3(3.8, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard6" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.985, -25.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.98, -25.3)
 script = ExtResource("2_block")
-size = Vector3(3.8, 0.03, 0.4)
+size = Vector3(3.8, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard7" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, -5.985, -27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, -5.98, -27)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3)
+size = Vector3(0.4, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard8" type="Node3D" parent="Spokes/SpokeNorth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, -5.985, -27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, -5.98, -27)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3)
+size = Vector3(0.4, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -3842,15 +3852,15 @@ size = Vector3(11.5, 0.5, 3)
 kind = "floor"
 
 [node name="Ceiling" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.6, 6.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.55, 6.25, 0)
 script = ExtResource("2_block")
-size = Vector3(16.8, 0.5, 11.6)
+size = Vector3(16.7, 0.5, 11.6)
 kind = "hull"
 
 [node name="Wall" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.95, 3, -5.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.9, 3, -5.4)
 script = ExtResource("2_block")
-size = Vector3(18.1, 6, 0.8)
+size = Vector3(18, 6, 0.8)
 kind = "hull"
 
 [node name="Strip" type="Node3D" parent="Spokes/SpokeEast"]
@@ -3888,9 +3898,9 @@ kind = "light_dim"
 solid = false
 
 [node name="Wall2" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.95, 3, 5.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.9, 3, 5.4)
 script = ExtResource("2_block")
-size = Vector3(18.1, 6, 0.8)
+size = Vector3(18, 6, 0.8)
 kind = "hull"
 
 [node name="Strip2" type="Node3D" parent="Spokes/SpokeEast"]
@@ -4017,9 +4027,9 @@ kind = "rail"
 solid = false
 
 [node name="LowerFloor" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.4, -6.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.6, -6.25, 0)
 script = ExtResource("2_block")
-size = Vector3(14.4, 0.5, 7.2)
+size = Vector3(12.8, 0.5, 7.2)
 kind = "floor_dark"
 
 [node name="Sign_Hydroponics2" type="Label3D" parent="Signs"]
@@ -4041,16 +4051,16 @@ text = "CONTROL ROOM"
 font_size = 48
 
 [node name="Base" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.65, 0.175, -4.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.15, 0.175, -4.95)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.35, 0.1)
+size = Vector3(15.5, 0.35, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Cornice" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.65, 5.4, -4.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.15, 5.4, -4.95)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.2, 0.1)
+size = Vector3(15.5, 0.2, 0.1)
 kind = "rib"
 solid = false
 
@@ -4125,9 +4135,9 @@ kind = "vent"
 solid = false
 
 [node name="CeilingPipe" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.65, 5.68, -4.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.2, 5.68, -4.3)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.36, 0.36)
+size = Vector3(15.6, 0.36, 0.36)
 kind = "pipe"
 solid = false
 
@@ -4174,16 +4184,16 @@ kind = "cable"
 solid = false
 
 [node name="Base2" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.65, 0.175, 4.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.15, 0.175, 4.95)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.35, 0.1)
+size = Vector3(15.5, 0.35, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Cornice2" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.65, 5.4, 4.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.15, 5.4, 4.95)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.2, 0.1)
+size = Vector3(15.5, 0.2, 0.1)
 kind = "rib"
 solid = false
 
@@ -4258,9 +4268,9 @@ kind = "vent"
 solid = false
 
 [node name="CeilingPipe2" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.65, 5.68, 4.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.2, 5.68, 4.3)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.36, 0.36)
+size = Vector3(15.6, 0.36, 0.36)
 kind = "pipe_blue"
 solid = false
 
@@ -4328,91 +4338,91 @@ kind = "girder"
 solid = false
 
 [node name="GuideLine" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.2, 0.01, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.2, 0.012, 0)
 script = ExtResource("2_block")
-size = Vector3(1.6, 0.02, 0.16)
+size = Vector3(1.6, 0.024, 0.16)
 kind = "accent_green"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.3, 0.01, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.3, 0.012, 0)
 script = ExtResource("2_block")
-size = Vector3(6.6, 0.02, 0.16)
+size = Vector3(6.6, 0.024, 0.16)
 kind = "accent_green"
 solid = false
 
 [node name="Chevron" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(-0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, -0.6691, 23.2656, 0.011, -0.3011)
+transform = Transform3D(-0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, -0.6691, 23.2656, 0.013, -0.3011)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_green"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, 0.6691, 23.2656, 0.011, 0.3011)
+transform = Transform3D(0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, 0.6691, 23.2656, 0.013, 0.3011)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_green"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(-0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, -0.6691, 20.2656, 0.011, -0.3011)
+transform = Transform3D(-0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, -0.6691, 20.2656, 0.013, -0.3011)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_green"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, 0.6691, 20.2656, 0.011, 0.3011)
+transform = Transform3D(0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, 0.6691, 20.2656, 0.013, 0.3011)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_green"
 solid = false
 
 [node name="Grate4" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.4, 0.0075, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.4, 0.006, 0)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 9)
+size = Vector3(0.8, 0.012, 9)
 kind = "grate"
 solid = false
 
 [node name="Grate5" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.6, 0.0075, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.6, 0.006, 0)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 9)
+size = Vector3(0.8, 0.012, 9)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.025, 0.015, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.025, 0.02, 0)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 4.5)
+size = Vector3(0.45, 0.04, 4.5)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.975, 0.015, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.975, 0.02, 0)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 4.5)
+size = Vector3(0.45, 0.04, 4.5)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 0.015, -2.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 0.02, -2.025)
 script = ExtResource("2_block")
-size = Vector3(3.6, 0.03, 0.45)
+size = Vector3(3.6, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 0.015, 2.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 0.02, 2.025)
 script = ExtResource("2_block")
-size = Vector3(3.6, 0.03, 0.45)
+size = Vector3(3.6, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Hydroponics2" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 30.2, 0.03, 0)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 30.2, 0.06, 0)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -4421,7 +4431,7 @@ text = "HYDROPONICS"
 font_size = 64
 
 [node name="Paint_ControlRoom2" type="Label3D" parent="Signs"]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 17, 0.03, 0)
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, 17, 0.06, 0)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -4430,37 +4440,37 @@ text = "CONTROL ROOM"
 font_size = 64
 
 [node name="LowerGrate" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.8, -5.9925, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.8, -5.994, 0)
 script = ExtResource("2_block")
-size = Vector3(12.4, 0.015, 1.2)
+size = Vector3(12.4, 0.012, 1.2)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard5" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.7, -5.985, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.7, -5.98, 0)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3.8)
+size = Vector3(0.4, 0.04, 3.8)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard6" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.3, -5.985, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.3, -5.98, 0)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3.8)
+size = Vector3(0.4, 0.04, 3.8)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard7" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, -5.985, -1.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, -5.98, -1.7)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.4)
+size = Vector3(3, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard8" type="Node3D" parent="Spokes/SpokeEast"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, -5.985, 1.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, -5.98, 1.7)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.4)
+size = Vector3(3, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
@@ -4492,15 +4502,15 @@ size = Vector3(3, 0.5, 11.5)
 kind = "floor"
 
 [node name="Ceiling" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.25, 23.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.25, 23.55)
 script = ExtResource("2_block")
-size = Vector3(11.6, 0.5, 16.8)
+size = Vector3(11.6, 0.5, 16.7)
 kind = "hull"
 
 [node name="Wall" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 3, 22.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.4, 3, 22.9)
 script = ExtResource("2_block")
-size = Vector3(0.8, 6, 18.1)
+size = Vector3(0.8, 6, 18)
 kind = "hull"
 
 [node name="Strip" type="Node3D" parent="Spokes/SpokeSouth"]
@@ -4538,9 +4548,9 @@ kind = "light_dim"
 solid = false
 
 [node name="Wall2" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 3, 22.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 3, 22.9)
 script = ExtResource("2_block")
-size = Vector3(0.8, 6, 18.1)
+size = Vector3(0.8, 6, 18)
 kind = "hull"
 
 [node name="Strip2" type="Node3D" parent="Spokes/SpokeSouth"]
@@ -4667,9 +4677,9 @@ kind = "rail"
 solid = false
 
 [node name="LowerFloor" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, 25.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, 24.6)
 script = ExtResource("2_block")
-size = Vector3(7.2, 0.5, 14.4)
+size = Vector3(7.2, 0.5, 12.8)
 kind = "floor_dark"
 
 [node name="Sign_Engineering2" type="Label3D" parent="Signs"]
@@ -4691,16 +4701,16 @@ text = "CONTROL ROOM"
 font_size = 48
 
 [node name="Base" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 0.175, 23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 0.175, 23.15)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 16.5)
+size = Vector3(0.1, 0.35, 15.5)
 kind = "rib"
 solid = false
 
 [node name="Cornice" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 5.4, 23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.95, 5.4, 23.15)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.2, 16.5)
+size = Vector3(0.1, 0.2, 15.5)
 kind = "rib"
 solid = false
 
@@ -4775,9 +4785,9 @@ kind = "vent"
 solid = false
 
 [node name="CeilingPipe" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.3, 5.68, 23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.3, 5.68, 23.2)
 script = ExtResource("2_block")
-size = Vector3(0.36, 0.36, 16.5)
+size = Vector3(0.36, 0.36, 15.6)
 kind = "pipe"
 solid = false
 
@@ -4824,16 +4834,16 @@ kind = "cable"
 solid = false
 
 [node name="Base2" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.95, 0.175, 23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.95, 0.175, 23.15)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 16.5)
+size = Vector3(0.1, 0.35, 15.5)
 kind = "rib"
 solid = false
 
 [node name="Cornice2" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.95, 5.4, 23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.95, 5.4, 23.15)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.2, 16.5)
+size = Vector3(0.1, 0.2, 15.5)
 kind = "rib"
 solid = false
 
@@ -4908,9 +4918,9 @@ kind = "vent"
 solid = false
 
 [node name="CeilingPipe2" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3, 5.68, 23.65)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3, 5.68, 23.2)
 script = ExtResource("2_block")
-size = Vector3(0.36, 0.36, 16.5)
+size = Vector3(0.36, 0.36, 15.6)
 kind = "pipe_blue"
 solid = false
 
@@ -4978,91 +4988,91 @@ kind = "girder"
 solid = false
 
 [node name="GuideLine" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 30.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, 30.2)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 1.6)
+size = Vector3(0.16, 0.024, 1.6)
 kind = "accent_orange"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 21.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.012, 21.3)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 6.6)
+size = Vector3(0.16, 0.024, 6.6)
 kind = "accent_orange"
 solid = false
 
 [node name="Chevron" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(-0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, -0.7431, 0.3011, 0.011, 23.2656)
+transform = Transform3D(-0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, -0.7431, 0.3011, 0.013, 23.2656)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_orange"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(-0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, -0.7431, -0.3011, 0.011, 23.2656)
+transform = Transform3D(-0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, -0.7431, -0.3011, 0.013, 23.2656)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_orange"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(-0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, -0.7431, 0.3011, 0.011, 20.2656)
+transform = Transform3D(-0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, -0.7431, 0.3011, 0.013, 20.2656)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_orange"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(-0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, -0.7431, -0.3011, 0.011, 20.2656)
+transform = Transform3D(-0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, -0.7431, -0.3011, 0.013, 20.2656)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_orange"
 solid = false
 
 [node name="Grate4" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0075, 31.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.006, 31.4)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="Grate5" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.0075, 15.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.006, 15.6)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, 29.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 29.025)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, 24.975)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 24.975)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.025, 0.015, 27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.025, 0.02, 27)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.025, 0.015, 27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.025, 0.02, 27)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Engineering2" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0.03, 30.2)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0.06, 30.2)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -5071,7 +5081,7 @@ text = "ENGINEERING"
 font_size = 64
 
 [node name="Paint_ControlRoom3" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0.03, 17)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0.06, 17)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -5080,37 +5090,37 @@ text = "CONTROL ROOM"
 font_size = 64
 
 [node name="LowerGrate" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.9925, 24.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.994, 24.8)
 script = ExtResource("2_block")
-size = Vector3(1.2, 0.015, 12.4)
+size = Vector3(1.2, 0.012, 12.4)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard5" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.985, 28.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.98, 28.7)
 script = ExtResource("2_block")
-size = Vector3(3.8, 0.03, 0.4)
+size = Vector3(3.8, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard6" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.985, 25.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.98, 25.3)
 script = ExtResource("2_block")
-size = Vector3(3.8, 0.03, 0.4)
+size = Vector3(3.8, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard7" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, -5.985, 27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, -5.98, 27)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3)
+size = Vector3(0.4, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard8" type="Node3D" parent="Spokes/SpokeSouth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, -5.985, 27)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, -5.98, 27)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3)
+size = Vector3(0.4, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -5142,15 +5152,15 @@ size = Vector3(11.5, 0.5, 3)
 kind = "floor"
 
 [node name="Ceiling" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.6, 6.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.55, 6.25, 0)
 script = ExtResource("2_block")
-size = Vector3(16.8, 0.5, 11.6)
+size = Vector3(16.7, 0.5, 11.6)
 kind = "hull"
 
 [node name="Wall" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.95, 3, 5.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.9, 3, 5.4)
 script = ExtResource("2_block")
-size = Vector3(18.1, 6, 0.8)
+size = Vector3(18, 6, 0.8)
 kind = "hull"
 
 [node name="Strip" type="Node3D" parent="Spokes/SpokeWest"]
@@ -5188,9 +5198,9 @@ kind = "light_dim"
 solid = false
 
 [node name="Wall2" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.95, 3, -5.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.9, 3, -5.4)
 script = ExtResource("2_block")
-size = Vector3(18.1, 6, 0.8)
+size = Vector3(18, 6, 0.8)
 kind = "hull"
 
 [node name="Strip2" type="Node3D" parent="Spokes/SpokeWest"]
@@ -5317,9 +5327,9 @@ kind = "rail"
 solid = false
 
 [node name="LowerFloor" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.4, -6.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.6, -6.25, 0)
 script = ExtResource("2_block")
-size = Vector3(14.4, 0.5, 7.2)
+size = Vector3(12.8, 0.5, 7.2)
 kind = "floor_dark"
 
 [node name="Sign_CargoBay2" type="Label3D" parent="Signs"]
@@ -5341,16 +5351,16 @@ text = "CONTROL ROOM"
 font_size = 48
 
 [node name="Base" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.65, 0.175, 4.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.15, 0.175, 4.95)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.35, 0.1)
+size = Vector3(15.5, 0.35, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Cornice" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.65, 5.4, 4.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.15, 5.4, 4.95)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.2, 0.1)
+size = Vector3(15.5, 0.2, 0.1)
 kind = "rib"
 solid = false
 
@@ -5425,9 +5435,9 @@ kind = "vent"
 solid = false
 
 [node name="CeilingPipe" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.65, 5.68, 4.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.2, 5.68, 4.3)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.36, 0.36)
+size = Vector3(15.6, 0.36, 0.36)
 kind = "pipe"
 solid = false
 
@@ -5474,16 +5484,16 @@ kind = "cable"
 solid = false
 
 [node name="Base2" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.65, 0.175, -4.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.15, 0.175, -4.95)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.35, 0.1)
+size = Vector3(15.5, 0.35, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Cornice2" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.65, 5.4, -4.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.15, 5.4, -4.95)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.2, 0.1)
+size = Vector3(15.5, 0.2, 0.1)
 kind = "rib"
 solid = false
 
@@ -5558,9 +5568,9 @@ kind = "vent"
 solid = false
 
 [node name="CeilingPipe2" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.65, 5.68, -4.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.2, 5.68, -4.3)
 script = ExtResource("2_block")
-size = Vector3(16.5, 0.36, 0.36)
+size = Vector3(15.6, 0.36, 0.36)
 kind = "pipe_blue"
 solid = false
 
@@ -5628,91 +5638,91 @@ kind = "girder"
 solid = false
 
 [node name="GuideLine" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.2, 0.01, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.2, 0.012, 0)
 script = ExtResource("2_block")
-size = Vector3(1.6, 0.02, 0.16)
+size = Vector3(1.6, 0.024, 0.16)
 kind = "accent_yellow"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.3, 0.01, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.3, 0.012, 0)
 script = ExtResource("2_block")
-size = Vector3(6.6, 0.02, 0.16)
+size = Vector3(6.6, 0.024, 0.16)
 kind = "accent_yellow"
 solid = false
 
 [node name="Chevron" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, 0.6691, -23.2656, 0.011, 0.3011)
+transform = Transform3D(0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, 0.6691, -23.2656, 0.013, 0.3011)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_yellow"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(-0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, -0.6691, -23.2656, 0.011, -0.3011)
+transform = Transform3D(-0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, -0.6691, -23.2656, 0.013, -0.3011)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_yellow"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, 0.6691, -20.2656, 0.011, 0.3011)
+transform = Transform3D(0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, 0.6691, -20.2656, 0.013, 0.3011)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_yellow"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(-0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, -0.6691, -20.2656, 0.011, -0.3011)
+transform = Transform3D(-0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, -0.6691, -20.2656, 0.013, -0.3011)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.9)
+size = Vector3(0.16, 0.026, 0.9)
 kind = "accent_yellow"
 solid = false
 
 [node name="Grate4" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.4, 0.0075, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.4, 0.006, 0)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 9)
+size = Vector3(0.8, 0.012, 9)
 kind = "grate"
 solid = false
 
 [node name="Grate5" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.6, 0.0075, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.6, 0.006, 0)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 9)
+size = Vector3(0.8, 0.012, 9)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.025, 0.015, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.025, 0.02, 0)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 4.5)
+size = Vector3(0.45, 0.04, 4.5)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.975, 0.015, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.975, 0.02, 0)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 4.5)
+size = Vector3(0.45, 0.04, 4.5)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 0.015, 2.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 0.02, 2.025)
 script = ExtResource("2_block")
-size = Vector3(3.6, 0.03, 0.45)
+size = Vector3(3.6, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 0.015, -2.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 0.02, -2.025)
 script = ExtResource("2_block")
-size = Vector3(3.6, 0.03, 0.45)
+size = Vector3(3.6, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="Paint_CargoBay2" type="Label3D" parent="Signs"]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -30.2, 0.03, 0)
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -30.2, 0.06, 0)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -5721,7 +5731,7 @@ text = "CARGO BAY"
 font_size = 64
 
 [node name="Paint_ControlRoom4" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, -17, 0.03, 0)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, -17, 0.06, 0)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -5730,37 +5740,37 @@ text = "CONTROL ROOM"
 font_size = 64
 
 [node name="LowerGrate" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.8, -5.9925, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.8, -5.994, 0)
 script = ExtResource("2_block")
-size = Vector3(12.4, 0.015, 1.2)
+size = Vector3(12.4, 0.012, 1.2)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard5" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.7, -5.985, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.7, -5.98, 0)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3.8)
+size = Vector3(0.4, 0.04, 3.8)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard6" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.3, -5.985, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.3, -5.98, 0)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3.8)
+size = Vector3(0.4, 0.04, 3.8)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard7" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, -5.985, 1.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, -5.98, 1.7)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.4)
+size = Vector3(3, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard8" type="Node3D" parent="Spokes/SpokeWest"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, -5.985, -1.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, -5.98, -1.7)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.4)
+size = Vector3(3, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
@@ -5770,9 +5780,45 @@ solid = false
 metadata/_edit_group_ = true
 
 [node name="Floor" type="Node3D" parent="Hangar/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, -49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.5, -6.25, -49)
 script = ExtResource("2_block")
-size = Vector3(62, 0.5, 36)
+size = Vector3(25, 0.5, 36)
+kind = "floor"
+
+[node name="Floor2" type="Node3D" parent="Hangar/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.5, -6.25, -66.5)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 1)
+kind = "floor"
+
+[node name="Floor3" type="Node3D" parent="Hangar/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.5, -6.25, -43.5)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 25)
+kind = "floor"
+
+[node name="Floor4" type="Node3D" parent="Hangar/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.5, -6.25, -49)
+script = ExtResource("2_block")
+size = Vector3(25, 0.5, 36)
+kind = "floor"
+
+[node name="Floor5" type="Node3D" parent="Hangar/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.5, -6.25, -66.5)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 1)
+kind = "floor"
+
+[node name="Floor6" type="Node3D" parent="Hangar/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.5, -6.25, -43.5)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 25)
+kind = "floor"
+
+[node name="Floor7" type="Node3D" parent="Hangar/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, -49.5)
+script = ExtResource("2_block")
+size = Vector3(10, 0.5, 35)
 kind = "floor"
 
 [node name="Ceiling" type="Node3D" parent="Hangar/Shell"]
@@ -5816,13 +5862,6 @@ size = Vector3(26, 36.5, 1)
 kind = "hull"
 tint = Color(0.9, 0.97, 1, 1)
 
-[node name="WallSSill" type="Node3D" parent="Hangar/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, -31.5)
-script = ExtResource("2_block")
-size = Vector3(10, 0.5, 1)
-kind = "hull"
-tint = Color(0.9, 0.97, 1, 1)
-
 [node name="WallSLintel" type="Node3D" parent="Hangar/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 17.75, -31.5)
 script = ExtResource("2_block")
@@ -5837,13 +5876,6 @@ size = Vector3(26, 36.5, 1)
 kind = "hull"
 tint = Color(0.9, 0.97, 1, 1)
 
-[node name="WallWSill" type="Node3D" parent="Hangar/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.5, -6.25, -61)
-script = ExtResource("2_block")
-size = Vector3(1, 0.5, 10)
-kind = "hull"
-tint = Color(0.9, 0.97, 1, 1)
-
 [node name="WallWLintel" type="Node3D" parent="Hangar/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.5, 17.75, -61)
 script = ExtResource("2_block")
@@ -5855,13 +5887,6 @@ tint = Color(0.9, 0.97, 1, 1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30.5, 11.75, -44)
 script = ExtResource("2_block")
 size = Vector3(1, 36.5, 24)
-kind = "hull"
-tint = Color(0.9, 0.97, 1, 1)
-
-[node name="WallESill" type="Node3D" parent="Hangar/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.5, -6.25, -61)
-script = ExtResource("2_block")
-size = Vector3(1, 0.5, 10)
 kind = "hull"
 tint = Color(0.9, 0.97, 1, 1)
 
@@ -6580,16 +6605,16 @@ size = Vector3(3, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="Hangar/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.5, 0.015, -40)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.5, 0.02, -40)
 script = ExtResource("2_block")
-size = Vector3(5, 0.03, 0.32)
+size = Vector3(5, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge2" type="Node3D" parent="Hangar/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5, 0.015, -40)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5, 0.02, -40)
 script = ExtResource("2_block")
-size = Vector3(5, 0.03, 0.32)
+size = Vector3(5, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -6668,9 +6693,9 @@ size = Vector3(17.8, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="Hangar/Booth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28, 7.015, -35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28, 7.02, -35)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.32)
+size = Vector3(4, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -6746,9 +6771,9 @@ size = Vector3(22, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14.015, -52)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14.02, -52)
 script = ExtResource("2_block")
-size = Vector3(8, 0.03, 0.32)
+size = Vector3(8, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -6771,65 +6796,65 @@ size = Vector3(12, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge2" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 14.015, -48)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 14.02, -48)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.32)
+size = Vector3(4, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge3" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 14.015, -48)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 14.02, -48)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.32)
+size = Vector3(4, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
 [node name="Hanger" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 20.25, -52.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 20.1, -52.2)
 script = ExtResource("2_block")
-size = Vector3(0.4, 12.5, 0.4)
+size = Vector3(0.4, 12.8, 0.4)
 kind = "girder"
 
 [node name="Hanger2" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 20.25, -47.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 20.1, -47.8)
 script = ExtResource("2_block")
-size = Vector3(0.4, 12.5, 0.4)
+size = Vector3(0.4, 12.8, 0.4)
 kind = "girder"
 
 [node name="Hanger3" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 20.25, -52.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 20.1, -52.2)
 script = ExtResource("2_block")
-size = Vector3(0.4, 12.5, 0.4)
+size = Vector3(0.4, 12.8, 0.4)
 kind = "girder"
 
 [node name="Hanger4" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 20.25, -47.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 20.1, -47.8)
 script = ExtResource("2_block")
-size = Vector3(0.4, 12.5, 0.4)
+size = Vector3(0.4, 12.8, 0.4)
 kind = "girder"
 
 [node name="Hanger5" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 20.25, -52.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 20.1, -52.2)
 script = ExtResource("2_block")
-size = Vector3(0.4, 12.5, 0.4)
+size = Vector3(0.4, 12.8, 0.4)
 kind = "girder"
 
 [node name="Hanger6" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 20.25, -47.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 20.1, -47.8)
 script = ExtResource("2_block")
-size = Vector3(0.4, 12.5, 0.4)
+size = Vector3(0.4, 12.8, 0.4)
 kind = "girder"
 
 [node name="Hanger7" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 20.25, -52.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 20.1, -52.2)
 script = ExtResource("2_block")
-size = Vector3(0.4, 12.5, 0.4)
+size = Vector3(0.4, 12.8, 0.4)
 kind = "girder"
 
 [node name="Hanger8" type="Node3D" parent="Hangar/Gantry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 20.25, -47.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 20.1, -47.8)
 script = ExtResource("2_block")
-size = Vector3(0.4, 12.5, 0.4)
+size = Vector3(0.4, 12.8, 0.4)
 kind = "girder"
 
 [node name="LaunchRail" type="Node3D" parent="Hangar/Gantry"]
@@ -6841,7 +6866,7 @@ kind = "girder"
 [node name="RailLight" type="Node3D" parent="Hangar/Gantry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 13.175, -52.25)
 script = ExtResource("2_block")
-size = Vector3(0.84, 0.15, 23.5)
+size = Vector3(0.84, 0.15, 23.4)
 kind = "accent_cyan"
 solid = false
 
@@ -6860,7 +6885,7 @@ kind = "girder"
 [node name="RailLight2" type="Node3D" parent="Hangar/Gantry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 13.175, -52.25)
 script = ExtResource("2_block")
-size = Vector3(0.84, 0.15, 23.5)
+size = Vector3(0.84, 0.15, 23.4)
 kind = "accent_cyan"
 solid = false
 
@@ -7230,7 +7255,7 @@ text = "HANGAR"
 font_size = 120
 
 [node name="Paint_Bay1_" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -8, -5.97, -45.6)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -8, -5.94, -45.6)
 pixel_size = 0.02
 modulate = Color(0.5, 0.9, 1, 0.8)
 outline_size = 0
@@ -7239,7 +7264,7 @@ text = "BAY 1"
 font_size = 96
 
 [node name="Paint_Bay2_" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 9.5, -5.97, -46.6)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 9.5, -5.94, -46.6)
 pixel_size = 0.02
 modulate = Color(0.5, 0.9, 1, 0.8)
 outline_size = 0
@@ -7385,9 +7410,9 @@ kind = "vent"
 solid = false
 
 [node name="RampHazard" type="Node3D" parent="Hangar/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.5, -5.985, -51.325)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.5, -5.98, -51.325)
 script = ExtResource("2_block")
-size = Vector3(5, 0.03, 0.55)
+size = Vector3(5, 0.04, 0.55)
 kind = "hazard"
 solid = false
 
@@ -7413,9 +7438,9 @@ kind = "rib"
 solid = false
 
 [node name="RampHazard2" type="Node3D" parent="Hangar/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5, -5.985, -51.325)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5, -5.98, -51.325)
 script = ExtResource("2_block")
-size = Vector3(5, 0.03, 0.55)
+size = Vector3(5, 0.04, 0.55)
 kind = "hazard"
 solid = false
 
@@ -7441,16 +7466,16 @@ kind = "rib"
 solid = false
 
 [node name="ViewportHazard" type="Node3D" parent="Hangar/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.985, -65.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.98, -65.6)
 script = ExtResource("2_block")
-size = Vector3(48, 0.03, 0.6)
+size = Vector3(48, 0.04, 0.6)
 kind = "hazard"
 solid = false
 
 [node name="Grate" type="Node3D" parent="Hangar/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.9925, -41.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.994, -41.8)
 script = ExtResource("2_block")
-size = Vector3(48, 0.015, 0.8)
+size = Vector3(48, 0.012, 0.8)
 kind = "grate"
 solid = false
 
@@ -7460,24 +7485,60 @@ solid = false
 metadata/_edit_group_ = true
 
 [node name="Floor" type="Node3D" parent="Engineering/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.5, -6.25, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, -6.25, 49)
 script = ExtResource("2_block")
-size = Vector3(17, 0.5, 36)
+size = Vector3(16, 0.5, 36)
 kind = "floor"
 
 [node name="Floor2" type="Node3D" parent="Engineering/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.5, -6.25, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, -6.25, 45.5)
 script = ExtResource("2_block")
-size = Vector3(17, 0.5, 36)
+size = Vector3(1, 0.5, 29)
 kind = "floor"
 
 [node name="Floor3" type="Node3D" parent="Engineering/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, 36)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, -6.25, 66.5)
 script = ExtResource("2_block")
-size = Vector3(16, 0.5, 10)
+size = Vector3(1, 0.5, 1)
 kind = "floor"
 
 [node name="Floor4" type="Node3D" parent="Engineering/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, -6.25, 49)
+script = ExtResource("2_block")
+size = Vector3(16, 0.5, 36)
+kind = "floor"
+
+[node name="Floor5" type="Node3D" parent="Engineering/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, -6.25, 43.5)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 25)
+kind = "floor"
+
+[node name="Floor6" type="Node3D" parent="Engineering/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, -6.25, 66.5)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 1)
+kind = "floor"
+
+[node name="Floor7" type="Node3D" parent="Engineering/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5, -6.25, 36)
+script = ExtResource("2_block")
+size = Vector3(3, 0.5, 10)
+kind = "floor"
+
+[node name="Floor8" type="Node3D" parent="Engineering/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, -6.25, 36)
+script = ExtResource("2_block")
+size = Vector3(3, 0.5, 10)
+kind = "floor"
+
+[node name="Floor9" type="Node3D" parent="Engineering/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, 36.5)
+script = ExtResource("2_block")
+size = Vector3(10, 0.5, 9)
+kind = "floor"
+
+[node name="Floor10" type="Node3D" parent="Engineering/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, 62)
 script = ExtResource("2_block")
 size = Vector3(16, 0.5, 10)
@@ -7493,13 +7554,6 @@ kind = "hull"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 10.75, 31.5)
 script = ExtResource("2_block")
 size = Vector3(20, 34.5, 1)
-kind = "hull"
-tint = Color(1, 0.95, 0.88, 1)
-
-[node name="WallNSill" type="Node3D" parent="Engineering/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6.25, 31.5)
-script = ExtResource("2_block")
-size = Vector3(10, 0.5, 1)
 kind = "hull"
 tint = Color(1, 0.95, 0.88, 1)
 
@@ -7573,13 +7627,6 @@ size = Vector3(1, 34.5, 28)
 kind = "hull"
 tint = Color(1, 0.95, 0.88, 1)
 
-[node name="WallWSill" type="Node3D" parent="Engineering/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, -6.25, 63)
-script = ExtResource("2_block")
-size = Vector3(1, 0.5, 6)
-kind = "hull"
-tint = Color(1, 0.95, 0.88, 1)
-
 [node name="WallWLintel" type="Node3D" parent="Engineering/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, 16.75, 63)
 script = ExtResource("2_block")
@@ -7591,13 +7638,6 @@ tint = Color(1, 0.95, 0.88, 1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 10.75, 44)
 script = ExtResource("2_block")
 size = Vector3(1, 34.5, 24)
-kind = "hull"
-tint = Color(1, 0.95, 0.88, 1)
-
-[node name="WallESill" type="Node3D" parent="Engineering/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, -6.25, 61)
-script = ExtResource("2_block")
-size = Vector3(1, 0.5, 10)
 kind = "hull"
 tint = Color(1, 0.95, 0.88, 1)
 
@@ -8345,16 +8385,16 @@ size = Vector3(2, 1.1, 0.12)
 kind = "accent_orange"
 
 [node name="GapEdge" type="Node3D" parent="Engineering/ReactorPit"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -5.985, 40.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -5.98, 40.7)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.32)
+size = Vector3(3, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge2" type="Node3D" parent="Engineering/ReactorPit"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -5.985, 40.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -5.98, 40.7)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.32)
+size = Vector3(3, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -8377,16 +8417,16 @@ size = Vector3(2, 1.1, 0.12)
 kind = "accent_orange"
 
 [node name="GapEdge3" type="Node3D" parent="Engineering/ReactorPit"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -5.985, 57.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, -5.98, 57.3)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.32)
+size = Vector3(3, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge4" type="Node3D" parent="Engineering/ReactorPit"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -5.985, 57.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, -5.98, 57.3)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.32)
+size = Vector3(3, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -8409,16 +8449,16 @@ size = Vector3(0.12, 1.1, 2)
 kind = "accent_orange"
 
 [node name="GapEdge5" type="Node3D" parent="Engineering/ReactorPit"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3, -5.985, 44.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3, -5.98, 44.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge6" type="Node3D" parent="Engineering/ReactorPit"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3, -5.985, 53.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3, -5.98, 53.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -8441,16 +8481,16 @@ size = Vector3(0.12, 1.1, 2)
 kind = "accent_orange"
 
 [node name="GapEdge7" type="Node3D" parent="Engineering/ReactorPit"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.3, -5.985, 44.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.3, -5.98, 44.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge8" type="Node3D" parent="Engineering/ReactorPit"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.3, -5.985, 53.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.3, -5.98, 53.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -8623,10 +8663,10 @@ size = Vector3(3.2026, 0.3, 3)
 kind = "catwalk"
 
 [node name="RingLight" type="Node3D" parent="Engineering/Catwalks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.21, 49)
 script = ExtResource("2_block")
 shape = 2
-size = Vector3(16.2, 0.2, 16.2)
+size = Vector3(16.2, 0.26, 16.2)
 kind = "accent_orange"
 solid = false
 sides = 16
@@ -8729,10 +8769,10 @@ size = Vector3(3.2026, 0.3, 3)
 kind = "catwalk"
 
 [node name="RingLight2" type="Node3D" parent="Engineering/Catwalks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.8, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.79, 49)
 script = ExtResource("2_block")
 shape = 2
-size = Vector3(16.2, 0.2, 16.2)
+size = Vector3(16.2, 0.26, 16.2)
 kind = "accent_orange"
 solid = false
 sides = 16
@@ -8835,10 +8875,10 @@ size = Vector3(3.2026, 0.3, 3)
 kind = "catwalk"
 
 [node name="RingLight3" type="Node3D" parent="Engineering/Catwalks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 15.8, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 15.79, 49)
 script = ExtResource("2_block")
 shape = 2
-size = Vector3(16.2, 0.2, 16.2)
+size = Vector3(16.2, 0.26, 16.2)
 kind = "accent_orange"
 solid = false
 sides = 16
@@ -8983,9 +9023,9 @@ size = Vector3(18.5, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="Engineering/Catwalks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 8.015, 62.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 8.02, 62.5)
 script = ExtResource("2_block")
-size = Vector3(1.5, 0.03, 0.32)
+size = Vector3(1.5, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -9059,16 +9099,16 @@ size = Vector3(2, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="Engineering/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, 37)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 37)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.32)
+size = Vector3(3, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge2" type="Node3D" parent="Engineering/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5, 0.015, 37)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5, 0.02, 37)
 script = ExtResource("2_block")
-size = Vector3(5, 0.03, 0.32)
+size = Vector3(5, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -9091,16 +9131,16 @@ size = Vector3(17.5, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge3" type="Node3D" parent="Engineering/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, 60)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.02, 60)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.32)
+size = Vector3(3, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge4" type="Node3D" parent="Engineering/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.5, 0.015, 60)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.5, 0.02, 60)
 script = ExtResource("2_block")
-size = Vector3(5, 0.03, 0.32)
+size = Vector3(5, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -9117,9 +9157,9 @@ size = Vector3(0.12, 1.1, 9.5)
 kind = "rail"
 
 [node name="GapEdge5" type="Node3D" parent="Engineering/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 0.015, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 0.02, 49)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -9136,9 +9176,9 @@ size = Vector3(0.12, 1.1, 9.5)
 kind = "rail"
 
 [node name="GapEdge6" type="Node3D" parent="Engineering/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 0.015, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 0.02, 49)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -9504,49 +9544,49 @@ kind = "vent"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="Engineering/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.985, 40.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.98, 40.1)
 script = ExtResource("2_block")
-size = Vector3(18.4, 0.03, 0.6)
+size = Vector3(18.4, 0.04, 0.6)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="Engineering/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.985, 57.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.98, 57.9)
 script = ExtResource("2_block")
-size = Vector3(18.4, 0.03, 0.6)
+size = Vector3(18.4, 0.04, 0.6)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="Engineering/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.9, -5.985, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.9, -5.98, 49)
 script = ExtResource("2_block")
-size = Vector3(0.6, 0.03, 17.2)
+size = Vector3(0.6, 0.04, 17.2)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="Engineering/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.9, -5.985, 49)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.9, -5.98, 49)
 script = ExtResource("2_block")
-size = Vector3(0.6, 0.03, 17.2)
+size = Vector3(0.6, 0.04, 17.2)
 kind = "hazard"
 solid = false
 
 [node name="RampHazard" type="Node3D" parent="Engineering/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5, -5.985, 48.325)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5, -5.98, 48.325)
 script = ExtResource("2_block")
-size = Vector3(5, 0.03, 0.55)
+size = Vector3(5, 0.04, 0.55)
 kind = "hazard"
 solid = false
 
 [node name="RampHazard2" type="Node3D" parent="Engineering/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.5, -5.985, 48.675)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.5, -5.98, 48.675)
 script = ExtResource("2_block")
-size = Vector3(5, 0.03, 0.55)
+size = Vector3(5, 0.04, 0.55)
 kind = "hazard"
 solid = false
 
 [node name="Paint_ReactorPit" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 0, -5.97, 38.7)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, 0, -5.94, 38.7)
 pixel_size = 0.012
 modulate = Color(1, 0.7, 0.3, 0.85)
 outline_size = 0
@@ -9555,7 +9595,7 @@ text = "REACTOR PIT"
 font_size = 72
 
 [node name="Paint_ReactorPit2" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, -5.97, 59.3)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, -5.94, 59.3)
 pixel_size = 0.012
 modulate = Color(1, 0.7, 0.3, 0.85)
 outline_size = 0
@@ -9569,9 +9609,39 @@ font_size = 72
 metadata/_edit_group_ = true
 
 [node name="Floor" type="Node3D" parent="CargoBay/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -49, -6.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, -6.25, 0)
 script = ExtResource("2_block")
-size = Vector3(36, 0.5, 50)
+size = Vector3(1, 0.5, 50)
+kind = "floor"
+
+[node name="Floor2" type="Node3D" parent="CargoBay/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44, -6.25, 0)
+script = ExtResource("2_block")
+size = Vector3(24, 0.5, 50)
+kind = "floor"
+
+[node name="Floor3" type="Node3D" parent="CargoBay/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.5, -6.25, -15)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 20)
+kind = "floor"
+
+[node name="Floor4" type="Node3D" parent="CargoBay/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.5, -6.25, 15)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 20)
+kind = "floor"
+
+[node name="Floor5" type="Node3D" parent="CargoBay/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58, -6.25, 0.5)
+script = ExtResource("2_block")
+size = Vector3(4, 0.5, 49)
+kind = "floor"
+
+[node name="Floor6" type="Node3D" parent="CargoBay/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, -6.25, 0)
+script = ExtResource("2_block")
+size = Vector3(6, 0.5, 48)
 kind = "floor"
 
 [node name="Ceiling" type="Node3D" parent="CargoBay/Shell"]
@@ -9584,13 +9654,6 @@ kind = "hull"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, 9.75, -24.5)
 script = ExtResource("2_block")
 size = Vector3(1, 32.5, 1)
-kind = "hull"
-tint = Color(1, 0.98, 0.87, 1)
-
-[node name="WallNSill" type="Node3D" parent="CargoBay/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61, -6.25, -24.5)
-script = ExtResource("2_block")
-size = Vector3(10, 0.5, 1)
 kind = "hull"
 tint = Color(1, 0.98, 0.87, 1)
 
@@ -9612,13 +9675,6 @@ tint = Color(1, 0.98, 0.87, 1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, 9.75, 24.5)
 script = ExtResource("2_block")
 size = Vector3(1, 32.5, 1)
-kind = "hull"
-tint = Color(1, 0.98, 0.87, 1)
-
-[node name="WallSSill" type="Node3D" parent="CargoBay/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, -6.25, 24.5)
-script = ExtResource("2_block")
-size = Vector3(6, 0.5, 1)
 kind = "hull"
 tint = Color(1, 0.98, 0.87, 1)
 
@@ -9689,13 +9745,6 @@ tint = Color(1, 0.98, 0.87, 1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.5, 9.75, -14.5)
 script = ExtResource("2_block")
 size = Vector3(1, 32.5, 19)
-kind = "hull"
-tint = Color(1, 0.98, 0.87, 1)
-
-[node name="WallESill" type="Node3D" parent="CargoBay/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.5, -6.25, 0)
-script = ExtResource("2_block")
-size = Vector3(1, 0.5, 10)
 kind = "hull"
 tint = Color(1, 0.98, 0.87, 1)
 
@@ -10230,9 +10279,9 @@ size = Vector3(10, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="CargoBay/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 0.015, -18)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 0.02, -18)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.32)
+size = Vector3(4, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -10273,9 +10322,9 @@ size = Vector3(10, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge2" type="Node3D" parent="CargoBay/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 0.015, 18)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 0.02, 18)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.32)
+size = Vector3(4, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -10322,23 +10371,23 @@ size = Vector3(0.12, 1.1, 1)
 kind = "rail"
 
 [node name="GapEdge3" type="Node3D" parent="CargoBay/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38, 0.015, -14.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38, 0.02, -14.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 5)
+size = Vector3(0.32, 0.04, 5)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge4" type="Node3D" parent="CargoBay/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38, 0.015, 14.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38, 0.02, 14.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 5)
+size = Vector3(0.32, 0.04, 5)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge5" type="Node3D" parent="CargoBay/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38, 0.015, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38, 0.02, 0)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 4)
+size = Vector3(0.32, 0.04, 4)
 kind = "hazard"
 solid = false
 
@@ -10785,9 +10834,9 @@ size = Vector3(0.12, 1.1, 10)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="CargoBay/Catwalks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.5, 8.015, 9.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -62.5, 8.02, 9.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -10804,9 +10853,9 @@ size = Vector3(9, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge2" type="Node3D" parent="CargoBay/Catwalks"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50.5, 8.015, 21)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50.5, 8.02, 21)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.32)
+size = Vector3(3, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -11095,9 +11144,9 @@ kind = "vent"
 solid = false
 
 [node name="RampHazard" type="Node3D" parent="CargoBay/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -49.325, -5.985, -14.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -49.325, -5.98, -14.5)
 script = ExtResource("2_block")
-size = Vector3(0.55, 0.03, 5)
+size = Vector3(0.55, 0.04, 5)
 kind = "hazard"
 solid = false
 
@@ -11130,14 +11179,14 @@ kind = "vent"
 solid = false
 
 [node name="RampHazard2" type="Node3D" parent="CargoBay/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -49.325, -5.985, 14.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -49.325, -5.98, 14.5)
 script = ExtResource("2_block")
-size = Vector3(0.55, 0.03, 5)
+size = Vector3(0.55, 0.04, 5)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Lane1_" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -47.7, -5.97, 12.6)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -47.7, -5.94, 12.6)
 pixel_size = 0.012
 modulate = Color(1, 0.9, 0.4, 0.8)
 outline_size = 0
@@ -11146,14 +11195,14 @@ text = "LANE 1"
 font_size = 56
 
 [node name="LaneLine" type="Node3D" parent="CargoBay/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -47.7, -5.99, 0.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -47.7, -5.9878, 0.5)
 script = ExtResource("2_block")
-size = Vector3(0.12, 0.02, 20)
+size = Vector3(0.12, 0.0244, 20)
 kind = "accent_yellow"
 solid = false
 
 [node name="Paint_Lane2_" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -53.7, -5.97, 12.6)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -53.7, -5.94, 12.6)
 pixel_size = 0.012
 modulate = Color(1, 0.9, 0.4, 0.8)
 outline_size = 0
@@ -11162,14 +11211,14 @@ text = "LANE 2"
 font_size = 56
 
 [node name="LaneLine2" type="Node3D" parent="CargoBay/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53.7, -5.99, 0.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53.7, -5.9878, 0.5)
 script = ExtResource("2_block")
-size = Vector3(0.12, 0.02, 20)
+size = Vector3(0.12, 0.0244, 20)
 kind = "accent_yellow"
 solid = false
 
 [node name="Paint_Lane3_" type="Label3D" parent="Signs"]
-transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -59.7, -5.97, 12.6)
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, -59.7, -5.94, 12.6)
 pixel_size = 0.012
 modulate = Color(1, 0.9, 0.4, 0.8)
 outline_size = 0
@@ -11178,16 +11227,16 @@ text = "LANE 3"
 font_size = 56
 
 [node name="LaneLine3" type="Node3D" parent="CargoBay/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.7, -5.99, 0.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.7, -5.9878, 0.5)
 script = ExtResource("2_block")
-size = Vector3(0.12, 0.02, 20)
+size = Vector3(0.12, 0.0244, 20)
 kind = "accent_yellow"
 solid = false
 
 [node name="Grate" type="Node3D" parent="CargoBay/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42, -5.9925, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42, -5.994, 0)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 40)
+size = Vector3(0.8, 0.012, 40)
 kind = "grate"
 solid = false
 
@@ -11197,9 +11246,33 @@ solid = false
 metadata/_edit_group_ = true
 
 [node name="Floor" type="Node3D" parent="Hydroponics/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49, -6.25, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, -6.25, 0)
 script = ExtResource("2_block")
-size = Vector3(36, 0.5, 50)
+size = Vector3(24, 0.5, 50)
+kind = "floor"
+
+[node name="Floor2" type="Node3D" parent="Hydroponics/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, -6.25, -15)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 20)
+kind = "floor"
+
+[node name="Floor3" type="Node3D" parent="Hydroponics/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, -6.25, 15)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 20)
+kind = "floor"
+
+[node name="Floor4" type="Node3D" parent="Hydroponics/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.5, -6.25, 0)
+script = ExtResource("2_block")
+size = Vector3(1, 0.5, 50)
+kind = "floor"
+
+[node name="Floor5" type="Node3D" parent="Hydroponics/Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, -6.25, 0)
+script = ExtResource("2_block")
+size = Vector3(10, 0.5, 48)
 kind = "floor"
 
 [node name="Ceiling" type="Node3D" parent="Hydroponics/Shell"]
@@ -11212,13 +11285,6 @@ kind = "hull"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.5, 10.75, -24.5)
 script = ExtResource("2_block")
 size = Vector3(25, 34.5, 1)
-kind = "hull"
-tint = Color(0.91, 1, 0.92, 1)
-
-[node name="WallNSill" type="Node3D" parent="Hydroponics/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, -6.25, -24.5)
-script = ExtResource("2_block")
-size = Vector3(10, 0.5, 1)
 kind = "hull"
 tint = Color(0.91, 1, 0.92, 1)
 
@@ -11243,13 +11309,6 @@ size = Vector3(25, 34.5, 1)
 kind = "hull"
 tint = Color(0.91, 1, 0.92, 1)
 
-[node name="WallSSill" type="Node3D" parent="Hydroponics/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, -6.25, 24.5)
-script = ExtResource("2_block")
-size = Vector3(10, 0.5, 1)
-kind = "hull"
-tint = Color(0.91, 1, 0.92, 1)
-
 [node name="WallSLintel" type="Node3D" parent="Hydroponics/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, 16.75, 24.5)
 script = ExtResource("2_block")
@@ -11268,13 +11327,6 @@ tint = Color(0.91, 1, 0.92, 1)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, 10.75, -14.5)
 script = ExtResource("2_block")
 size = Vector3(1, 34.5, 19)
-kind = "hull"
-tint = Color(0.91, 1, 0.92, 1)
-
-[node name="WallWSill" type="Node3D" parent="Hydroponics/Shell"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, -6.25, 0)
-script = ExtResource("2_block")
-size = Vector3(1, 0.5, 10)
 kind = "hull"
 tint = Color(0.91, 1, 0.92, 1)
 
@@ -11858,9 +11910,9 @@ size = Vector3(6, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="Hydroponics/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 0.015, -19)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 0.02, -19)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.32)
+size = Vector3(4, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -11883,9 +11935,9 @@ size = Vector3(2, 1.1, 0.12)
 kind = "rail"
 
 [node name="GapEdge2" type="Node3D" parent="Hydroponics/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46, 0.015, 19)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46, 0.02, 19)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.32)
+size = Vector3(4, 0.04, 0.32)
 kind = "hazard"
 solid = false
 
@@ -11914,9 +11966,9 @@ size = Vector3(0.12, 1.1, 17.5)
 kind = "rail"
 
 [node name="GapEdge3" type="Node3D" parent="Hydroponics/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38, 0.015, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38, 0.02, 0)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -11939,16 +11991,16 @@ size = Vector3(0.12, 1.1, 10)
 kind = "rail"
 
 [node name="GapEdge4" type="Node3D" parent="Hydroponics/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 0.015, -7.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 0.02, -7.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge5" type="Node3D" parent="Hydroponics/Balcony"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 0.015, 7.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 0.02, 7.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -12128,23 +12180,23 @@ size = Vector3(2.8, 0.3, 3)
 kind = "catwalk"
 
 [node name="TerraceLight" type="Node3D" parent="Hydroponics/Terraces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.99, 5.8, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.99, 5.785, 0)
 script = ExtResource("2_block")
-size = Vector3(0.06, 0.2, 28)
+size = Vector3(0.06, 0.23, 28)
 kind = "accent_green"
 solid = false
 
 [node name="TerraceLight2" type="Node3D" parent="Hydroponics/Terraces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.99, 11.8, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.99, 11.785, 0)
 script = ExtResource("2_block")
-size = Vector3(0.06, 0.2, 28)
+size = Vector3(0.06, 0.23, 28)
 kind = "accent_green"
 solid = false
 
 [node name="TerraceLight3" type="Node3D" parent="Hydroponics/Terraces"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.49, 17.8, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 62.49, 17.785, 0)
 script = ExtResource("2_block")
-size = Vector3(0.06, 0.2, 28)
+size = Vector3(0.06, 0.23, 28)
 kind = "accent_green"
 solid = false
 
@@ -12458,16 +12510,16 @@ size = Vector3(0.12, 1.1, 8.5)
 kind = "rail"
 
 [node name="GapEdge" type="Node3D" parent="Hydroponics/Crossings"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 6.015, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 6.02, 0)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="GapEdge2" type="Node3D" parent="Hydroponics/Crossings"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 6.015, -6.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 6.02, -6.5)
 script = ExtResource("2_block")
-size = Vector3(0.32, 0.03, 3)
+size = Vector3(0.32, 0.04, 3)
 kind = "hazard"
 solid = false
 
@@ -12920,9 +12972,9 @@ kind = "vent"
 solid = false
 
 [node name="Drain" type="Node3D" parent="Hydroponics/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.3, -5.9925, -5.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.3, -5.994, -5.6)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
@@ -12955,28 +13007,28 @@ kind = "vent"
 solid = false
 
 [node name="Drain2" type="Node3D" parent="Hydroponics/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.3, -5.9925, 5.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.3, -5.994, 5.6)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="RampHazard" type="Node3D" parent="Hydroponics/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, -5.985, -7.675)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, -5.98, -7.675)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.55)
+size = Vector3(4, 0.04, 0.55)
 kind = "hazard"
 solid = false
 
 [node name="RampHazard2" type="Node3D" parent="Hydroponics/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46, -5.985, 7.675)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46, -5.98, 7.675)
 script = ExtResource("2_block")
-size = Vector3(4, 0.03, 0.55)
+size = Vector3(4, 0.04, 0.55)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Irrigation" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 45.3, -5.97, 0)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 45.3, -5.94, 0)
 pixel_size = 0.012
 modulate = Color(0.55, 1, 0.6, 0.8)
 outline_size = 0
@@ -13558,12 +13610,6 @@ script = ExtResource("2_block")
 size = Vector3(0.8, 6, 25)
 kind = "hull_dark"
 
-[node name="LowerWallSill" type="Node3D" parent="OuterRing/RingNE"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55.6, -6.25, -29)
-script = ExtResource("2_block")
-size = Vector3(0.8, 0.5, 4)
-kind = "hull_dark"
-
 [node name="LowerWallLintel" type="Node3D" parent="OuterRing/RingNE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55.6, -1, -29)
 script = ExtResource("2_block")
@@ -13627,44 +13673,44 @@ kind = "machine"
 metadata/_edit_group_ = true
 
 [node name="Base" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.5, 0.175, -65.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.54, 0.175, -65.95)
 script = ExtResource("2_block")
-size = Vector3(35, 0.35, 0.1)
+size = Vector3(34.92, 0.35, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Base2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.95, 0.175, -45.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.95, 0.175, -45.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 41)
+size = Vector3(0.1, 0.35, 40.92)
 kind = "rib"
 solid = false
 
 [node name="Cornice" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.5, 4.6, -65.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.54, 4.6, -65.95)
 script = ExtResource("2_block")
-size = Vector3(35, 0.2, 0.1)
+size = Vector3(34.92, 0.2, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Cornice2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.95, 4.6, -45.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.95, 4.6, -45.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.2, 41)
+size = Vector3(0.1, 0.2, 40.92)
 kind = "rib"
 solid = false
 
 [node name="Conduit" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.35, 5.725, -65.875)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.39, 5.725, -65.875)
 script = ExtResource("2_block")
-size = Vector3(34.7, 0.25, 0.25)
+size = Vector3(34.62, 0.25, 0.25)
 kind = "pipe"
 solid = false
 
 [node name="Conduit2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.875, 5.725, -45.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.875, 5.725, -45.39)
 script = ExtResource("2_block")
-size = Vector3(0.25, 0.25, 40.7)
+size = Vector3(0.25, 0.25, 40.62)
 kind = "pipe_blue"
 solid = false
 
@@ -13753,9 +13799,9 @@ kind = "vent"
 solid = false
 
 [node name="Base3" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.25, 0.175, -56.05)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.29, 0.175, -56.05)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.35, 0.1)
+size = Vector3(4.42, 0.35, 0.1)
 kind = "rib"
 solid = false
 
@@ -13788,9 +13834,9 @@ kind = "rib"
 solid = false
 
 [node name="Base8" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.05, 0.175, -33.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.05, 0.175, -33.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 17)
+size = Vector3(0.1, 0.35, 16.92)
 kind = "rib"
 solid = false
 
@@ -13970,105 +14016,105 @@ kind = "girder"
 solid = false
 
 [node name="GuideLine" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.54, 0.01, -57.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.54, 0.012, -57.5)
 script = ExtResource("2_block")
-size = Vector3(26.08, 0.02, 0.16)
+size = Vector3(26.08, 0.024, 0.16)
 kind = "accent_cyan"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.5, 0.01, -41.46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.5, 0.012, -41.46)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 31.92)
+size = Vector3(0.16, 0.024, 31.92)
 kind = "accent_cyan"
 solid = false
 
 [node name="GuideLine3" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.34, 0.01, -57.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.34, 0.012, -57.1)
 script = ExtResource("2_block")
-size = Vector3(25.68, 0.02, 0.16)
+size = Vector3(25.68, 0.024, 0.16)
 kind = "accent_green"
 solid = false
 
 [node name="GuideLine4" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.1, 0.01, -41.26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.1, 0.012, -41.26)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 31.52)
+size = Vector3(0.16, 0.024, 31.52)
 kind = "accent_green"
 solid = false
 
 [node name="Chevron" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, 0.6691, 34.2601, 0.011, -58.0658)
+transform = Transform3D(0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, 0.6691, 34.2601, 0.013, -58.0658)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_cyan"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(-0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, -0.6691, 34.2601, 0.011, -58.5342)
+transform = Transform3D(-0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, -0.6691, 34.2601, 0.013, -58.5342)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_cyan"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(-0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, -0.7431, 58.5342, 0.011, -28.2601)
+transform = Transform3D(-0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, -0.7431, 58.5342, 0.013, -28.2601)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_green"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(-0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, -0.7431, 58.0658, 0.011, -28.2601)
+transform = Transform3D(-0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, -0.7431, 58.0658, 0.013, -28.2601)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_green"
 solid = false
 
 [node name="Grate" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, 0.0075, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32, 0.006, -61)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 9)
+size = Vector3(0.8, 0.012, 9)
 kind = "grate"
 solid = false
 
 [node name="Grate2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, 0.0075, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, 0.006, -26)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 0.015, -63.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 0.02, -63.025)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 0.015, -58.975)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 0.02, -58.975)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.475, 0.015, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.475, 0.02, -61)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.525, 0.015, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.525, 0.02, -61)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck1_" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 61.5, 0.03, -61.5)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 61.5, 0.06, -61.5)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -14221,42 +14267,42 @@ kind = "cable"
 solid = false
 
 [node name="LowerGrate" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.5, -5.9925, -59)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.5, -5.994, -59)
 script = ExtResource("2_block")
-size = Vector3(28, 0.015, 1)
+size = Vector3(28, 0.012, 1)
 kind = "grate"
 solid = false
 
 [node name="LowerGrate2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, -5.9925, -42)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, -5.994, -42)
 script = ExtResource("2_block")
-size = Vector3(1, 0.015, 33)
+size = Vector3(1, 0.012, 33)
 kind = "grate"
 solid = false
 
 [node name="LandingHazard" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.75, -5.985, -60.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.75, -5.98, -60.5)
 script = ExtResource("2_block")
-size = Vector3(0.5, 0.03, 3)
+size = Vector3(0.5, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="LandingHazard2" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.25, -5.985, -60.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.25, -5.98, -60.5)
 script = ExtResource("2_block")
-size = Vector3(0.5, 0.03, 3)
+size = Vector3(0.5, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="LandingHazard3" type="Node3D" parent="OuterRing/RingNE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, -5.985, -59.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, -5.98, -59.25)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.5)
+size = Vector3(3, 0.04, 0.5)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck2_3" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 59, -5.97, -60.6)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 59, -5.94, -60.6)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -14829,12 +14875,6 @@ script = ExtResource("2_block")
 size = Vector3(0.8, 6, 25)
 kind = "hull_dark"
 
-[node name="LowerWallSill" type="Node3D" parent="OuterRing/RingNW"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -55.6, -6.25, -29)
-script = ExtResource("2_block")
-size = Vector3(0.8, 0.5, 4)
-kind = "hull_dark"
-
 [node name="LowerWallLintel" type="Node3D" parent="OuterRing/RingNW"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -55.6, -1, -29)
 script = ExtResource("2_block")
@@ -14898,44 +14938,44 @@ kind = "machine"
 metadata/_edit_group_ = true
 
 [node name="Base" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -48.5, 0.175, -65.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -48.54, 0.175, -65.95)
 script = ExtResource("2_block")
-size = Vector3(35, 0.35, 0.1)
+size = Vector3(34.92, 0.35, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Base2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.95, 0.175, -45.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.95, 0.175, -45.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 41)
+size = Vector3(0.1, 0.35, 40.92)
 kind = "rib"
 solid = false
 
 [node name="Cornice" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -48.5, 4.6, -65.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -48.54, 4.6, -65.95)
 script = ExtResource("2_block")
-size = Vector3(35, 0.2, 0.1)
+size = Vector3(34.92, 0.2, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Cornice2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.95, 4.6, -45.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.95, 4.6, -45.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.2, 41)
+size = Vector3(0.1, 0.2, 40.92)
 kind = "rib"
 solid = false
 
 [node name="Conduit" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -48.35, 5.725, -65.875)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -48.39, 5.725, -65.875)
 script = ExtResource("2_block")
-size = Vector3(34.7, 0.25, 0.25)
+size = Vector3(34.62, 0.25, 0.25)
 kind = "pipe"
 solid = false
 
 [node name="Conduit2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.875, 5.725, -45.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.875, 5.725, -45.39)
 script = ExtResource("2_block")
-size = Vector3(0.25, 0.25, 40.7)
+size = Vector3(0.25, 0.25, 40.62)
 kind = "pipe_blue"
 solid = false
 
@@ -15024,9 +15064,9 @@ kind = "vent"
 solid = false
 
 [node name="Base3" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.25, 0.175, -56.05)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.29, 0.175, -56.05)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.35, 0.1)
+size = Vector3(4.42, 0.35, 0.1)
 kind = "rib"
 solid = false
 
@@ -15059,9 +15099,9 @@ kind = "rib"
 solid = false
 
 [node name="Base8" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.05, 0.175, -33.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.05, 0.175, -33.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 17)
+size = Vector3(0.1, 0.35, 16.92)
 kind = "rib"
 solid = false
 
@@ -15241,105 +15281,105 @@ kind = "girder"
 solid = false
 
 [node name="GuideLine" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.54, 0.01, -57.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.54, 0.012, -57.5)
 script = ExtResource("2_block")
-size = Vector3(26.08, 0.02, 0.16)
+size = Vector3(26.08, 0.024, 0.16)
 kind = "accent_cyan"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.5, 0.01, -41.46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.5, 0.012, -41.46)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 31.92)
+size = Vector3(0.16, 0.024, 31.92)
 kind = "accent_cyan"
 solid = false
 
 [node name="GuideLine3" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.34, 0.01, -57.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.34, 0.012, -57.1)
 script = ExtResource("2_block")
-size = Vector3(25.68, 0.02, 0.16)
+size = Vector3(25.68, 0.024, 0.16)
 kind = "accent_yellow"
 solid = false
 
 [node name="GuideLine4" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.1, 0.01, -41.26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.1, 0.012, -41.26)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 31.52)
+size = Vector3(0.16, 0.024, 31.52)
 kind = "accent_yellow"
 solid = false
 
 [node name="Chevron" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(-0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, -0.6691, -34.2601, 0.011, -58.5342)
+transform = Transform3D(-0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, -0.6691, -34.2601, 0.013, -58.5342)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_cyan"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, 0.6691, -34.2601, 0.011, -58.0658)
+transform = Transform3D(0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, 0.6691, -34.2601, 0.013, -58.0658)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_cyan"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(-0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, -0.7431, -58.0658, 0.011, -28.2601)
+transform = Transform3D(-0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, -0.7431, -58.0658, 0.013, -28.2601)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_yellow"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(-0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, -0.7431, -58.5342, 0.011, -28.2601)
+transform = Transform3D(-0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, -0.7431, -58.5342, 0.013, -28.2601)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_yellow"
 solid = false
 
 [node name="Grate" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32, 0.0075, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32, 0.006, -61)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 9)
+size = Vector3(0.8, 0.012, 9)
 kind = "grate"
 solid = false
 
 [node name="Grate2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61, 0.0075, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61, 0.006, -26)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.5, 0.015, -63.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.5, 0.02, -63.025)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.5, 0.015, -58.975)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.5, 0.02, -58.975)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.475, 0.015, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.475, 0.02, -61)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.525, 0.015, -61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.525, 0.02, -61)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck1_2" type="Label3D" parent="Signs"]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -61.5, 0.03, -61.5)
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -61.5, 0.06, -61.5)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -15492,42 +15532,42 @@ kind = "cable"
 solid = false
 
 [node name="LowerGrate" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.5, -5.9925, -59)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.5, -5.994, -59)
 script = ExtResource("2_block")
-size = Vector3(28, 0.015, 1)
+size = Vector3(28, 0.012, 1)
 kind = "grate"
 solid = false
 
 [node name="LowerGrate2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59, -5.9925, -42)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59, -5.994, -42)
 script = ExtResource("2_block")
-size = Vector3(1, 0.015, 33)
+size = Vector3(1, 0.012, 33)
 kind = "grate"
 solid = false
 
 [node name="LandingHazard" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.75, -5.985, -60.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.75, -5.98, -60.5)
 script = ExtResource("2_block")
-size = Vector3(0.5, 0.03, 3)
+size = Vector3(0.5, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="LandingHazard2" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.25, -5.985, -60.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.25, -5.98, -60.5)
 script = ExtResource("2_block")
-size = Vector3(0.5, 0.03, 3)
+size = Vector3(0.5, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="LandingHazard3" type="Node3D" parent="OuterRing/RingNW/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.5, -5.985, -59.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.5, -5.98, -59.25)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.5)
+size = Vector3(3, 0.04, 0.5)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck2_4" type="Label3D" parent="Signs"]
-transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -59, -5.97, -60.6)
+transform = Transform3D(0, -1, 0, 0, 0, 1, -1, 0, 0, -59, -5.94, -60.6)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -16115,12 +16155,6 @@ script = ExtResource("2_block")
 size = Vector3(0.8, 6, 25)
 kind = "hull_dark"
 
-[node name="LowerWallSill" type="Node3D" parent="OuterRing/RingSE"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55.6, -6.25, 29)
-script = ExtResource("2_block")
-size = Vector3(0.8, 0.5, 4)
-kind = "hull_dark"
-
 [node name="LowerWallLintel" type="Node3D" parent="OuterRing/RingSE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55.6, -1, 29)
 script = ExtResource("2_block")
@@ -16184,44 +16218,44 @@ kind = "machine"
 metadata/_edit_group_ = true
 
 [node name="Base" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.5, 0.175, 65.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.54, 0.175, 65.95)
 script = ExtResource("2_block")
-size = Vector3(41, 0.35, 0.1)
+size = Vector3(40.92, 0.35, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Base2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.95, 0.175, 45.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.95, 0.175, 45.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 41)
+size = Vector3(0.1, 0.35, 40.92)
 kind = "rib"
 solid = false
 
 [node name="Cornice" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.5, 4.6, 65.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.54, 4.6, 65.95)
 script = ExtResource("2_block")
-size = Vector3(41, 0.2, 0.1)
+size = Vector3(40.92, 0.2, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Cornice2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.95, 4.6, 45.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.95, 4.6, 45.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.2, 41)
+size = Vector3(0.1, 0.2, 40.92)
 kind = "rib"
 solid = false
 
 [node name="Conduit" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.35, 5.725, 65.875)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.39, 5.725, 65.875)
 script = ExtResource("2_block")
-size = Vector3(40.7, 0.25, 0.25)
+size = Vector3(40.62, 0.25, 0.25)
 kind = "pipe"
 solid = false
 
 [node name="Conduit2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.875, 5.725, 45.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 65.875, 5.725, 45.39)
 script = ExtResource("2_block")
-size = Vector3(0.25, 0.25, 40.7)
+size = Vector3(0.25, 0.25, 40.62)
 kind = "pipe_blue"
 solid = false
 
@@ -16317,9 +16351,9 @@ kind = "vent"
 solid = false
 
 [node name="Base3" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.25, 0.175, 56.05)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.29, 0.175, 56.05)
 script = ExtResource("2_block")
-size = Vector3(10.5, 0.35, 0.1)
+size = Vector3(10.42, 0.35, 0.1)
 kind = "rib"
 solid = false
 
@@ -16352,9 +16386,9 @@ kind = "rib"
 solid = false
 
 [node name="Base8" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.05, 0.175, 33.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.05, 0.175, 33.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.35, 17)
+size = Vector3(0.1, 0.35, 16.92)
 kind = "rib"
 solid = false
 
@@ -16548,105 +16582,105 @@ kind = "girder"
 solid = false
 
 [node name="GuideLine" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.54, 0.01, 57.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.54, 0.012, 57.5)
 script = ExtResource("2_block")
-size = Vector3(32.08, 0.02, 0.16)
+size = Vector3(32.08, 0.024, 0.16)
 kind = "accent_orange"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.5, 0.01, 41.46)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.5, 0.012, 41.46)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 31.92)
+size = Vector3(0.16, 0.024, 31.92)
 kind = "accent_orange"
 solid = false
 
 [node name="GuideLine3" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.34, 0.01, 57.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.34, 0.012, 57.1)
 script = ExtResource("2_block")
-size = Vector3(31.68, 0.02, 0.16)
+size = Vector3(31.68, 0.024, 0.16)
 kind = "accent_green"
 solid = false
 
 [node name="GuideLine4" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.1, 0.01, 41.26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.1, 0.012, 41.26)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 31.52)
+size = Vector3(0.16, 0.024, 31.52)
 kind = "accent_green"
 solid = false
 
 [node name="Chevron" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, 0.6691, 28.2601, 0.011, 58.5342)
+transform = Transform3D(0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, 0.6691, 28.2601, 0.013, 58.5342)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_orange"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(-0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, -0.6691, 28.2601, 0.011, 58.0658)
+transform = Transform3D(-0.6691, 0, 0.7431, 0, 1, 0, -0.7431, 0, -0.6691, 28.2601, 0.013, 58.0658)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_orange"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, 0.7431, 58.0658, 0.011, 28.2601)
+transform = Transform3D(0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, 0.7431, 58.0658, 0.013, 28.2601)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_green"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, 0.7431, 58.5342, 0.011, 28.2601)
+transform = Transform3D(0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, 0.7431, 58.5342, 0.013, 28.2601)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_green"
 solid = false
 
 [node name="Grate" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0.0075, 61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0.006, 61)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 9)
+size = Vector3(0.8, 0.012, 9)
 kind = "grate"
 solid = false
 
 [node name="Grate2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, 0.0075, 26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, 0.006, 26)
 script = ExtResource("2_block")
-size = Vector3(9, 0.015, 0.8)
+size = Vector3(9, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 0.015, 63.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 0.02, 63.025)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 0.015, 58.975)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 0.02, 58.975)
 script = ExtResource("2_block")
-size = Vector3(4.5, 0.03, 0.45)
+size = Vector3(4.5, 0.04, 0.45)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.475, 0.015, 61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.475, 0.02, 61)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.525, 0.015, 61)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.525, 0.02, 61)
 script = ExtResource("2_block")
-size = Vector3(0.45, 0.03, 3.6)
+size = Vector3(0.45, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck1_3" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 61.5, 0.03, 61.5)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 61.5, 0.06, 61.5)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -16806,42 +16840,42 @@ kind = "cable"
 solid = false
 
 [node name="LowerGrate" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.5, -5.9925, 59)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.5, -5.994, 59)
 script = ExtResource("2_block")
-size = Vector3(34, 0.015, 1)
+size = Vector3(34, 0.012, 1)
 kind = "grate"
 solid = false
 
 [node name="LowerGrate2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, -5.9925, 42)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, -5.994, 42)
 script = ExtResource("2_block")
-size = Vector3(1, 0.015, 33)
+size = Vector3(1, 0.012, 33)
 kind = "grate"
 solid = false
 
 [node name="LandingHazard" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.75, -5.985, 60.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.75, -5.98, 60.5)
 script = ExtResource("2_block")
-size = Vector3(0.5, 0.03, 3)
+size = Vector3(0.5, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="LandingHazard2" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.25, -5.985, 60.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.25, -5.98, 60.5)
 script = ExtResource("2_block")
-size = Vector3(0.5, 0.03, 3)
+size = Vector3(0.5, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="LandingHazard3" type="Node3D" parent="OuterRing/RingSE/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, -5.985, 59.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, -5.98, 59.25)
 script = ExtResource("2_block")
-size = Vector3(3, 0.03, 0.5)
+size = Vector3(3, 0.04, 0.5)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck2_5" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 59, -5.97, 60.6)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, 59, -5.94, 60.6)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -17428,30 +17462,30 @@ font_size = 56
 metadata/_edit_group_ = true
 
 [node name="Base" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.95, 0.15, 45.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.95, 0.15, 45.54)
 script = ExtResource("2_block")
-size = Vector3(0.1, 0.3, 41)
+size = Vector3(0.1, 0.3, 40.92)
 kind = "rib"
 solid = false
 
 [node name="Base2" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.5, 0.15, 65.95)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.54, 0.15, 65.95)
 script = ExtResource("2_block")
-size = Vector3(41, 0.3, 0.1)
+size = Vector3(40.92, 0.3, 0.1)
 kind = "rib"
 solid = false
 
 [node name="Conduit" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.875, 4.675, 45.35)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.875, 4.675, 45.39)
 script = ExtResource("2_block")
-size = Vector3(0.25, 0.25, 40.7)
+size = Vector3(0.25, 0.25, 40.62)
 kind = "pipe_blue"
 solid = false
 
 [node name="Conduit2" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.35, 4.675, 65.875)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.39, 4.675, 65.875)
 script = ExtResource("2_block")
-size = Vector3(40.7, 0.25, 0.25)
+size = Vector3(40.62, 0.25, 0.25)
 kind = "pipe"
 solid = false
 
@@ -17673,105 +17707,105 @@ kind = "girder"
 solid = false
 
 [node name="GuideLine" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.5, 0.01, 43.54)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.5, 0.012, 43.54)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 36.08)
+size = Vector3(0.16, 0.024, 36.08)
 kind = "accent_yellow"
 solid = false
 
 [node name="GuideLine2" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.46, 0.01, 61.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.46, 0.012, 61.5)
 script = ExtResource("2_block")
-size = Vector3(35.92, 0.02, 0.16)
+size = Vector3(35.92, 0.024, 0.16)
 kind = "accent_yellow"
 solid = false
 
 [node name="GuideLine3" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.1, 0.01, 43.34)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.1, 0.012, 43.34)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.02, 35.68)
+size = Vector3(0.16, 0.024, 35.68)
 kind = "accent_orange"
 solid = false
 
 [node name="GuideLine4" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.26, 0.01, 61.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.26, 0.012, 61.1)
 script = ExtResource("2_block")
-size = Vector3(35.52, 0.02, 0.16)
+size = Vector3(35.52, 0.024, 0.16)
 kind = "accent_orange"
 solid = false
 
 [node name="Chevron" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, 0.7431, -62.5342, 0.011, 28.2601)
+transform = Transform3D(0.7431, 0, -0.6691, 0, 1, 0, 0.6691, 0, 0.7431, -62.5342, 0.013, 28.2601)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_yellow"
 solid = false
 
 [node name="Chevron2" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, 0.7431, -62.0658, 0.011, 28.2601)
+transform = Transform3D(0.7431, 0, 0.6691, 0, 1, 0, -0.6691, 0, 0.7431, -62.0658, 0.013, 28.2601)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_yellow"
 solid = false
 
 [node name="Chevron3" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(-0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, -0.6691, -28.2601, 0.011, 62.0658)
+transform = Transform3D(-0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, -0.6691, -28.2601, 0.013, 62.0658)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_orange"
 solid = false
 
 [node name="Chevron4" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, 0.6691, -28.2601, 0.011, 62.5342)
+transform = Transform3D(0.6691, 0, -0.7431, 0, 1, 0, 0.7431, 0, 0.6691, -28.2601, 0.013, 62.5342)
 script = ExtResource("2_block")
-size = Vector3(0.16, 0.022, 0.7)
+size = Vector3(0.16, 0.026, 0.7)
 kind = "accent_orange"
 solid = false
 
 [node name="Grate" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, 0.0075, 26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, 0.006, 26)
 script = ExtResource("2_block")
-size = Vector3(5, 0.015, 0.8)
+size = Vector3(5, 0.012, 0.8)
 kind = "grate"
 solid = false
 
 [node name="Grate2" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 0.0075, 63)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 0.006, 63)
 script = ExtResource("2_block")
-size = Vector3(0.8, 0.015, 5)
+size = Vector3(0.8, 0.012, 5)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.5, 0.015, 61.025)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.5, 0.02, 61.025)
 script = ExtResource("2_block")
-size = Vector3(4.3, 0.03, 0.35)
+size = Vector3(4.3, 0.04, 0.35)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard2" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.5, 0.015, 64.975)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.5, 0.02, 64.975)
 script = ExtResource("2_block")
-size = Vector3(4.3, 0.03, 0.35)
+size = Vector3(4.3, 0.04, 0.35)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard3" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.475, 0.015, 63)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.475, 0.02, 63)
 script = ExtResource("2_block")
-size = Vector3(0.35, 0.03, 3.6)
+size = Vector3(0.35, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard4" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.525, 0.015, 63)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.525, 0.02, 63)
 script = ExtResource("2_block")
-size = Vector3(0.35, 0.03, 3.6)
+size = Vector3(0.35, 0.04, 3.6)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck1_4" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -63.2, 0.03, 58.6)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -63.2, 0.06, 58.6)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -17910,49 +17944,49 @@ kind = "cable"
 solid = false
 
 [node name="LowerGrate" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, -5.9925, 43)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, -5.994, 43)
 script = ExtResource("2_block")
-size = Vector3(1, 0.015, 35)
+size = Vector3(1, 0.012, 35)
 kind = "grate"
 solid = false
 
 [node name="LowerGrate2" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44, -5.9925, 63)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44, -5.994, 63)
 script = ExtResource("2_block")
-size = Vector3(37, 0.015, 1)
+size = Vector3(37, 0.012, 1)
 kind = "grate"
 solid = false
 
 [node name="HoleHazard5" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.5, -5.985, 61.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.5, -5.98, 61.3)
 script = ExtResource("2_block")
-size = Vector3(3.8, 0.03, 0.4)
+size = Vector3(3.8, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard6" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.5, -5.985, 64.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63.5, -5.98, 64.7)
 script = ExtResource("2_block")
-size = Vector3(3.8, 0.03, 0.4)
+size = Vector3(3.8, 0.04, 0.4)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard7" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.2, -5.985, 63)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.2, -5.98, 63)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3)
+size = Vector3(0.4, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="HoleHazard8" type="Node3D" parent="Cryo/Details"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.8, -5.985, 63)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.8, -5.98, 63)
 script = ExtResource("2_block")
-size = Vector3(0.4, 0.03, 3)
+size = Vector3(0.4, 0.04, 3)
 kind = "hazard"
 solid = false
 
 [node name="Paint_Deck2_6" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, -56, -5.97, 63)
+transform = Transform3D(0, 1, 0, 0, 0, 1, 1, 0, 0, -56, -5.94, 63)
 pixel_size = 0.012
 modulate = Color(1, 1, 1, 0.5)
 outline_size = 0
@@ -18932,14 +18966,14 @@ kind = "light_dim"
 solid = false
 
 [node name="AisleLine" type="Node3D" parent="Cryo/PodBay"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.4, 0.01, 47.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -56.4, 0.012, 47.6)
 script = ExtResource("2_block")
-size = Vector3(0.12, 0.02, 22)
+size = Vector3(0.12, 0.024, 22)
 kind = "accent_ice"
 solid = false
 
 [node name="Paint_RowA" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -56.4, 0.03, 35.4)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -56.4, 0.06, 35.4)
 pixel_size = 0.012
 modulate = Color(0.75, 0.9, 1, 0.8)
 outline_size = 0
@@ -18955,14 +18989,14 @@ kind = "vent"
 solid = false
 
 [node name="AisleLine2" type="Node3D" parent="Cryo/PodBay"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50.6, 0.01, 47.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50.6, 0.012, 47.6)
 script = ExtResource("2_block")
-size = Vector3(0.12, 0.02, 22)
+size = Vector3(0.12, 0.024, 22)
 kind = "accent_ice"
 solid = false
 
 [node name="Paint_RowB" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -50.6, 0.03, 35.4)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -50.6, 0.06, 35.4)
 pixel_size = 0.012
 modulate = Color(0.75, 0.9, 1, 0.8)
 outline_size = 0
@@ -18978,14 +19012,14 @@ kind = "vent"
 solid = false
 
 [node name="AisleLine3" type="Node3D" parent="Cryo/PodBay"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.8, 0.01, 47.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.8, 0.012, 47.6)
 script = ExtResource("2_block")
-size = Vector3(0.12, 0.02, 22)
+size = Vector3(0.12, 0.024, 22)
 kind = "accent_ice"
 solid = false
 
 [node name="Paint_RowC" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -44.8, 0.03, 35.4)
+transform = Transform3D(-1, 0, 0, 0, 0, 1, 0, 1, 0, -44.8, 0.06, 35.4)
 pixel_size = 0.012
 modulate = Color(0.75, 0.9, 1, 0.8)
 outline_size = 0

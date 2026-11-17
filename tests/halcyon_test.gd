@@ -75,6 +75,7 @@ func _run() -> void:
 	_objects()
 	_glass()
 	_strips()
+	_flicker()
 	_pit()
 	_sealed()
 	await _routes()
@@ -269,6 +270,63 @@ func _strips() -> void:
 		if hanging >= 2:
 			loose.append("%s near %s" % [piece.kind, where.snappedf(0.1)])
 	_expect(loose.is_empty(), "none of the %d lit strips hangs across a doorway or in mid-air %s" % [checked, loose.slice(0, 6)])
+
+
+## Two surfaces of different colours in exactly the same plane flicker (the renderer
+## cannot tell which is in front). This looks at every flat top in the map, floors and
+## the paint on them: no two of different kind or tint may share a height where they
+## overlap, unless something covers the spot or it is out on the roof.
+func _flicker() -> void:
+	print("  flicker")
+	var tops := []   # [top height, Rect2 (x, z), look, lowest point, index]
+	var boxes := []  # every drawn upright box as an AABB, to tell what is covered
+	for piece in map.collect_pieces():
+		if piece.get("hidden", false) or piece.shape != "box":
+			continue
+		var xf: Transform3D = piece.xf
+		if not xf.basis.y.is_equal_approx(Vector3.UP):
+			continue
+		var bx := xf.basis.x
+		var along_x := absf(absf(bx.x) - 1.0) < 0.001
+		if not along_x and absf(absf(bx.z) - 1.0) > 0.001:
+			continue   # turned to some other angle (the round rooms' pieces)
+		var size: Vector3 = piece.size
+		var half := Vector3(size.x if along_x else size.z, size.y, size.z if along_x else size.x) * 0.5
+		var box := AABB(xf.origin - half, half * 2.0)
+		boxes.append(box)
+		tops.append([box.end.y, Rect2(box.position.x, box.position.z, box.size.x, box.size.z),
+			"%s %s" % [piece.kind, piece.get("tint", Color.WHITE)], boxes.size() - 1])
+	tops.sort_custom(func(a, b): return a[0] < b[0])
+	var probe := PhysicsPointQueryParameters3D.new()
+	var clashes := []
+	for i in tops.size():
+		var a: Array = tops[i]
+		for j in range(i + 1, tops.size()):
+			var b: Array = tops[j]
+			if b[0] - a[0] > 0.004:
+				break
+			if a[2] == b[2]:
+				continue
+			var both: Rect2 = (a[1] as Rect2).intersection(b[1])
+			if both.size.x < 0.05 or both.size.y < 0.05 or both.get_area() < 0.05:
+				continue
+			# Can it be seen? Look at a few spots just above it.
+			for f in [Vector2(0.5, 0.5), Vector2(0.15, 0.15), Vector2(0.85, 0.85), Vector2(0.15, 0.85), Vector2(0.85, 0.15)]:
+				var at := Vector3(both.position.x + both.size.x * f.x, a[0] + 0.03, both.position.y + both.size.y * f.y)
+				var covered := false
+				for k in boxes.size():
+					if k != a[3] and k != b[3] and (boxes[k] as AABB).has_point(at):
+						covered = true
+						break
+				probe.position = at
+				if covered or not space.intersect_point(probe, 1).is_empty():
+					continue
+				var up := PhysicsRayQueryParameters3D.create(at, at + Vector3.UP * 60.0)
+				if space.intersect_ray(up).is_empty():
+					continue   # nothing overhead: on a roof, outside the ship
+				clashes.append("%s and %s at %s" % [(a[2] as String).get_slice(" ", 0), (b[2] as String).get_slice(" ", 0), at.snappedf(0.1)])
+				break
+	_expect(clashes.is_empty(), "no two floors or floor markings of different colours share a height where they overlap (%d tops) %s" % [tops.size(), clashes.slice(0, 6)])
 
 
 func _pit() -> void:

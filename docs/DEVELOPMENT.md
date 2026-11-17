@@ -129,7 +129,8 @@ The sync, match and bot tests take a map and a player count, for example
   navigation mesh, every room and level reached from the dais and back, both decks
   joined, and the Control Room entered by each of its six doorways; the dome and the
   floor glass cannot break and nothing gets out of the hull; no lit strip hangs across
-  a doorway or in mid-air; the reactor pit kills;
+  a doorway or in mid-air; no two floors or floor markings of different colours share a
+  height where they overlap (that flickers); the reactor pit kills;
 - the map terminal (`tests/terminal_test.gd`): one press in range fires its event; a
   press from out of range, or during the event or the cooldown, does nothing, and a key
   kept down does not fire it again; and for a terminal set to need a hold: a 2 s hold
@@ -392,6 +393,13 @@ Things to keep true when editing it:
 - A light bar or colour band along a wall stops at every doorway and window (in a
   round room it is made of straight pieces, one per wall piece, for that reason). The
   Halcyon test fails if one hangs across an opening.
+- Two surfaces of different kinds (or tints) in exactly the same plane flicker. So a
+  room's floor stops at its wall under a doorway (the doorway's threshold is the floor
+  there), a wall has no sill under an opening that starts at the floor, and corridor
+  walls end inside a room's wall, not flush with its face. Paint on a floor goes in
+  layers so no two share a height: grates 12 mm thick, lines 20 to 24 mm, hole rims
+  30 mm, hazard stripes 40 mm, words 60 mm up. Wall pieces differ in how far they stand
+  off the wall. The Halcyon test checks the floors.
 - Words on a floor are Label3D nodes lying flat with Shaded on, so they take the
   room's light (and go blue with it in low gravity).
 - No spawn point or weapon in the Control Room, and no spawn point that can see the dais.
