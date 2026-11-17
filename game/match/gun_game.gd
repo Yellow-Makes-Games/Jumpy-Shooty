@@ -33,7 +33,7 @@ static func weapon_at(level: int) -> String:
 # "gungame"); Deathmatch is a game of its own ("dm", on the arenas with weapon pickups).
 
 const MODES := ["ffa", "gungame", "dm", "race"]
-const MODE_LABELS := ["Shoot-out (FFA / 1v1)", "Gun Game", "Deathmatch", "Race"]
+const MODE_LABELS := ["Shoot-out", "Gun Game", "Deathmatch", "Race"]
 
 
 ## Which of MODES these match settings are.

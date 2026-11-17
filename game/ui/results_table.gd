@@ -69,15 +69,9 @@ static func _build_race(list: VBoxContainer, rows: Array) -> void:
 
 static func _row(list: Node, bg: Color, stripe: Color) -> HBoxContainer:
 	var p := PanelContainer.new()
-	var s := StyleBoxFlat.new()
-	s.bg_color = bg
-	s.set_corner_radius_all(6)
+	var s := UiKit.cut_box(bg, 9, 16, 7)
 	s.border_width_left = 5
 	s.border_color = stripe
-	s.content_margin_left = 14
-	s.content_margin_right = 18
-	s.content_margin_top = 8
-	s.content_margin_bottom = 8
 	p.add_theme_stylebox_override("panel", s)
 	list.add_child(p)
 	var h := HBoxContainer.new()

@@ -1,15 +1,17 @@
 class_name CharacterPicker
 extends VBoxContainer
-## "Character" chooser for the menus: one button per robot, with a live preview of
-## the one picked (standing in its idle pose, turning slowly, in your colour).
+## "Robot" chooser for the menus: the robot you have picked stands on a lit stage
+## (in its idle pose, turning slowly, in your colour, holding your weapon) with its
+## name over it and arrows either side to step through the others; under the stage,
+## a button for every robot and a line about the one picked.
 ##
 ## The picker only reports the choice; the screen using it decides what to do with
 ## it (save it, tell the lobby).
 
 signal picked(id: String)
 
-const PREVIEW_SMALL := Vector2(150, 190)   # beside the buttons (menu pages)
-const PREVIEW_TALL := Vector2(230, 280)    # above the buttons (the lobby's side column)
+const STAGE := Vector2(360, 292)
+const COLUMNS := 4
 
 var current := ""
 
@@ -17,47 +19,101 @@ var _color := Color.WHITE
 var _weapon := "pistol"
 var _buttons := {}                 # character id -> Button
 var _blurb: Label
+var _stage: Control
 var _preview: RobotPreview
+var _time := 0.0
 
 
-## tall: put the preview above the buttons (for a narrow column) instead of beside them.
-func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], tall: bool = false, gun: String = "pistol") -> void:
+func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: String = "pistol") -> void:
 	_color = player_color
 	_weapon = WeaponData.valid(gun)
-	add_theme_constant_override("separation", 6)
+	add_theme_constant_override("separation", 8)
+	custom_minimum_size = Vector2(STAGE.x, 0)
 	UiKit.section(self, "Robot")
-	var box: BoxContainer = VBoxContainer.new() if tall else HBoxContainer.new()
-	box.add_theme_constant_override("separation", 10 if tall else 14)
-	add_child(box)
-	_preview = RobotPreview.new(PREVIEW_TALL if tall else PREVIEW_SMALL)
-	_preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	box.add_child(_preview)
-	var side := VBoxContainer.new()
-	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	side.alignment = BoxContainer.ALIGNMENT_CENTER
-	side.add_theme_constant_override("separation", 8)
-	box.add_child(side)
+	_stage = Control.new()
+	_stage.custom_minimum_size = STAGE
+	_stage.clip_contents = true
+	_stage.draw.connect(_draw_stage)
+	add_child(_stage)
+	_preview = RobotPreview.new(STAGE)
+	_preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_stage.add_child(_preview)
+	_arrow("<", Control.PRESET_CENTER_LEFT, -1)
+	_arrow(">", Control.PRESET_CENTER_RIGHT, 1)
 	# A grid, so the buttons stay compact however many robots there are.
 	var buttons := GridContainer.new()
-	buttons.columns = 3 if tall else 2
-	buttons.add_theme_constant_override("h_separation", 8)
-	buttons.add_theme_constant_override("v_separation", 8)
-	side.add_child(buttons)
+	buttons.columns = COLUMNS
+	buttons.add_theme_constant_override("h_separation", 6)
+	buttons.add_theme_constant_override("v_separation", 6)
+	add_child(buttons)
 	var group := ButtonGroup.new()
 	for c in Characters.LIST:
 		var b := Button.new()
 		b.text = c.name
 		b.toggle_mode = true
 		b.button_group = group
-		b.custom_minimum_size = Vector2(0, 40)
+		b.theme_type_variation = "Chip"
+		b.custom_minimum_size = Vector2(0, 36)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.clip_text = true
+		b.add_theme_font_size_override("font_size", 14)
 		b.pressed.connect(_on_pressed.bind(c.id))
 		b.set_meta("sfx", "select")
 		buttons.add_child(b)
 		_buttons[c.id] = b
-	_blurb = UiKit.label(side, "", true, 16)
+	_blurb = UiKit.label(self, "", true, 15)
 	_blurb.custom_minimum_size = Vector2(0, 40)
 	select(Characters.valid(start))
+
+
+## An arrow at the side of the stage that steps to the next or the last robot.
+func _arrow(text: String, side: Control.LayoutPreset, step: int) -> void:
+	var b := Button.new()
+	b.text = text
+	b.theme_type_variation = "Chip"
+	b.custom_minimum_size = Vector2(36, 60)
+	b.focus_mode = Control.FOCUS_NONE
+	b.tooltip_text = "Next robot" if step > 0 else "Previous robot"
+	b.set_meta("sfx", "select")
+	b.pressed.connect(func():
+		var ids := Characters.ids()
+		_on_pressed(ids[posmod(ids.find(current) + step, ids.size())]))
+	_stage.add_child(b)
+	b.set_anchors_and_offsets_preset(side, Control.PRESET_MODE_MINSIZE, 8)
+
+
+func _process(delta: float) -> void:
+	_time += delta
+	if is_visible_in_tree():
+		_stage.queue_redraw()
+
+
+## The stage behind the robot: a dark plate, a cone of light in your colour, rings
+## on the floor under its feet, and its name in the corner.
+func _draw_stage() -> void:
+	var s := _stage.size
+	var r := Rect2(Vector2.ZERO, s)
+	HudStyle.framed_plate(_stage, r.grow(-1.0), 18.0, Color(0.02, 0.03, 0.05, 0.75), Color(UiKit.LINE, 0.22))
+	var glow := _color.lerp(Color.WHITE, 0.15)
+	var floor_c := Vector2(s.x * 0.5, s.y * 0.86)
+	# A cone of light down onto the floor.
+	_stage.draw_polygon(PackedVector2Array([Vector2(s.x * 0.5 - 30, 0), Vector2(s.x * 0.5 + 30, 0),
+			floor_c + Vector2(120, 0), floor_c - Vector2(120, 0)]),
+		PackedColorArray([Color(glow, 0.0), Color(glow, 0.0), Color(glow, 0.13), Color(glow, 0.13)]))
+	# Rings on the floor: flat circles, the outer one turning slowly.
+	_stage.draw_set_transform(floor_c, 0.0, Vector2(1.0, 0.26))
+	_stage.draw_circle(Vector2.ZERO, 112.0, Color(glow, 0.10))
+	_stage.draw_arc(Vector2.ZERO, 112.0, 0.0, TAU, 64, Color(glow, 0.75), 2.0, true)
+	_stage.draw_arc(Vector2.ZERO, 84.0, 0.0, TAU, 48, Color(glow, 0.3), 1.5, true)
+	for i in 6:
+		var a := _time * 0.5 + i * TAU / 6.0
+		_stage.draw_arc(Vector2.ZERO, 132.0, a, a + 0.5, 12, Color(UiKit.CYAN, 0.55), 3.0, true)
+	_stage.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	# Its name and where it is in the list.
+	var ids := Characters.ids()
+	HudStyle.label(_stage, Vector2(16, 20), "UNIT %d / %d" % [ids.find(current) + 1, ids.size()], 11, Color(UiKit.CYAN, 0.9))
+	HudStyle.text(_stage, Vector2(16, 44), Characters.name_of(current).to_upper(), 28, Color.WHITE)
+	HudStyle.brackets(_stage, r.grow(-8.0), 12.0, Color(1, 1, 1, 0.25), 1.5)
 
 
 ## Show `id` as the picked character without reporting it (for example when the

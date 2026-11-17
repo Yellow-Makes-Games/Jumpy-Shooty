@@ -7,6 +7,10 @@ extends CanvasLayer
 ## markers and damage numbers, damage direction arrows, the low-health edge, the
 ## kill confirmation, the death screen and the Tab scoreboard.
 ## Drawn in code; see HudArcs and HudClean for the layouts and HudStyle for the look.
+##
+## While you wait to respawn the screen has two columns that cannot overlap: who got
+## you, the countdown and the weapons to come back with on the left, the scoreboard
+## on the right.
 
 const FEED_LIFETIME := 6.0
 const FEED_MAX := 5
@@ -15,6 +19,10 @@ const KILL_HIT_TIME := 0.4
 const NUMBER_TIME := 0.8
 const ARROW_TIME := 1.6
 const CONFIRM_TIME := 1.8
+const DEATH_W := 600.0          ## the death screen's left column
+const BOARD_W := 680.0          ## the scoreboard
+const DEATH_GAP := 36.0
+const DEATH_TOP := 104.0
 
 ## Everything the layouts show about the local player, filled in once per frame.
 class View:
@@ -52,7 +60,7 @@ var _vignette: TextureRect
 var _layout: Control
 var _overlay: Control
 var _scoreboard: PanelContainer
-var _score_grid: GridContainer
+var _score_rows: VBoxContainer
 var _score_title: Label
 
 var _feed: Array = []           # {killer, victim, head, age}
@@ -206,6 +214,7 @@ func update_local(p: Player) -> void:
 		_respawn_left = maxf(_respawn_left - delta, 0.0)
 	_scoreboard.visible = Input.is_action_pressed("scoreboard") or _dead
 	if _scoreboard.visible:
+		_place_scoreboard()
 		_board_age += delta
 		if _board_age > 0.5:   # keeps the clock and ping in its title current
 			_board_age = 0.0
@@ -463,19 +472,19 @@ func _draw_score_bar(ci: CanvasItem, size: Vector2) -> void:
 	var mine := "YOU %d" % Match.kills(me)
 	if gun_game:   # how far along the ladder: weapon 5 of 16
 		mine = "YOU %d/%d" % [Match.level(me) + 1, GunGame.steps()]
-	_pill(ci, Vector2(cx - gap - (HudStyle.text_width(mine, 22) + 28.0) * 0.5, y), mine, 22, HudStyle.ORANGE)
+	_pill(ci, Vector2(cx - gap - (HudStyle.text_width(mine, 22) + 32.0) * 0.5, y), mine, 22, HudStyle.ORANGE)
 	if best_id != 0:
 		var theirs := "%s %d" % [Net.player_name(best_id).to_upper(), Match.kills(best_id)]
 		if gun_game:
 			theirs = "%s %d/%d" % [Net.player_name(best_id).to_upper(), Match.level(best_id) + 1, GunGame.steps()]
-		_pill(ci, Vector2(cx + gap + (HudStyle.text_width(theirs, 22) + 28.0) * 0.5, y), theirs, 22, HudStyle.WHITE)
+		_pill(ci, Vector2(cx + gap + (HudStyle.text_width(theirs, 22) + 32.0) * 0.5, y), theirs, 22, HudStyle.WHITE)
 	var sub := "FIRST TO %d" % Match.kill_target if Match.kill_target > 0 and timed else ("MOST KILLS WINS" if timed else "")
 	if gun_game:
 		var lv := Match.level(me)
 		sub = "GUN GAME  ·  LAST WEAPON: GET A KILL TO WIN" if lv >= GunGame.steps() - 1 \
 			else "GUN GAME  ·  NEXT: %s" % WeaponData.name_of(GunGame.weapon_at(lv + 1)).to_upper()
 	if sub != "":
-		HudStyle.text(ci, Vector2(cx, y + 32.0), sub, 12, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER, false)
+		HudStyle.label(ci, Vector2(cx, y + 34.0), sub, 10, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 ## A rounded plate with text in it, centred on `at`. Returns its width.
@@ -484,9 +493,13 @@ func pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> fl
 
 
 func _pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> float:
-	var w := HudStyle.text_width(s, size) + 28.0
-	var h := size + 12.0
-	HudStyle.plate(ci, Rect2(at.x - w * 0.5, at.y - h * 0.5, w, h), h * 0.5)
+	var w := HudStyle.text_width(s, size) + 32.0
+	var h := size + 14.0
+	var r := Rect2(at.x - w * 0.5, at.y - h * 0.5, w, h)
+	HudStyle.framed_plate(ci, r, 8.0, Color(0.03, 0.045, 0.07, 0.72), Color(HudStyle.LINE, 0.3))
+	# A coloured line along the bottom: orange under yours, cool blue under the rest.
+	var line := color if color != HudStyle.WHITE else Color(HudStyle.CYAN, 0.7)
+	ci.draw_rect(Rect2(r.position.x, r.end.y - 2.0, w - 8.0, 2.0), line)
 	HudStyle.text(ci, at, s, size, color, HORIZONTAL_ALIGNMENT_CENTER)
 	return w
 
@@ -536,23 +549,31 @@ func _gun_width(gun: String) -> float:
 	return HudStyle.weapon_width(gun)
 
 
-## Who got you (their robot, name, what was left of them, how), and a bar
-## counting down to your respawn. The scoreboard shows underneath.
+## Where the death screen's left column starts: it and the scoreboard sit side by
+## side, centred as a pair.
+func _death_left(size: Vector2) -> float:
+	return maxf(20.0, (size.x - (DEATH_W + DEATH_GAP + BOARD_W)) * 0.5)
+
+
+## Who got you (their robot, name, what was left of them, how), a bar counting down
+## to your respawn, and the weapons you can come back with. The scoreboard shows
+## beside it (see _place_scoreboard).
 func _draw_death(ci: CanvasItem, size: Vector2) -> void:
-	ci.draw_rect(Rect2(Vector2.ZERO, size), Color(0.03, 0.04, 0.06, 0.62))
-	var top := Color(0.55, 0.05, 0.05, 0.35)
+	ci.draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.03, 0.05, 0.66))
+	var top := Color(0.6, 0.05, 0.05, 0.38)
 	ci.draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, 260), Vector2(0, 260)]),
 		PackedColorArray([top, top, Color(top, 0), Color(top, 0)]))
-	var w := 560.0
-	var card := Rect2(size.x * 0.5 - w * 0.5, 104.0, w, 164.0)
+	var w := DEATH_W
+	var card := Rect2(_death_left(size), DEATH_TOP, w, 164.0)
 	var stripe := Net.player_color(_killer) if _killer != 0 else Color(1, 1, 1, 0.4)
-	HudStyle.plate(ci, card, 8.0, Color(0.05, 0.06, 0.08, 0.85))
-	ci.draw_rect(Rect2(card.position, Vector2(5, card.size.y)), stripe)
+	HudStyle.framed_plate(ci, card, 18.0, Color(0.03, 0.045, 0.07, 0.9), Color(HudStyle.RED, 0.55))
+	ci.draw_rect(Rect2(card.position + Vector2(0, 18), Vector2(5, card.size.y - 18)), stripe)
+	HudStyle.brackets(ci, card.grow(7.0), 16.0, Color(HudStyle.RED, 0.7), 2.0)
 	var x := card.position.x + (176.0 if _killer != 0 else 30.0)
 	var y := card.position.y
 	if _killer != 0:
 		_killer_view.position = card.position + Vector2(18, -26)
-		HudStyle.text(ci, Vector2(x, y + 30), "ELIMINATED BY", 13, HudStyle.RED)
+		HudStyle.label(ci, Vector2(x, y + 30), "ELIMINATED BY", 12, HudStyle.RED)
 		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
 		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), (WeaponData.name_of(Net.player_weapon(_killer)) if Net.player_weapon(_killer) != "none" else "Bare feet")]
 		HudStyle.text(ci, Vector2(x, y + 92), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
@@ -567,26 +588,28 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 		for chip in chips:
 			var cw := HudStyle.text_width(chip, 12) + 18.0
 			var col: Color = HudStyle.YELLOW if chip == "HEADSHOT" else Color(1, 1, 1, 0.85)
-			HudStyle.plate(ci, Rect2(cx, y + 112, cw, 24), 3.0, Color(1, 1, 1, 0.08))
+			HudStyle.plate(ci, Rect2(cx, y + 112, cw, 24), 6.0, Color(1, 1, 1, 0.09))
 			HudStyle.text(ci, Vector2(cx + 9, y + 124), chip, 12, col)
 			cx += cw + 6.0
 	else:
 		var crashed: bool = Match.death_cause.get(Net.my_id(), "") == "slam"
-		HudStyle.text(ci, Vector2(x, y + 44), "ELIMINATED", 13, HudStyle.RED)
+		HudStyle.label(ci, Vector2(x, y + 44), "ELIMINATED", 12, HudStyle.RED)
 		HudStyle.text(ci, Vector2(x, y + 82), "You crashed" if crashed else "You fell", 38, HudStyle.WHITE)
 		HudStyle.text(ci, Vector2(x, y + 118), "Hit a wall too fast" if crashed else "Out of the arena", 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
 	# Respawn countdown.
 	var progress := clampf(1.0 - _respawn_left / Match.RESPAWN_DELAY, 0.0, 1.0)
-	var bar := Rect2(card.position.x, card.end.y + 16.0, w, 6.0)
+	var bar := Rect2(card.position.x, card.end.y + 18.0, w, 6.0)
 	ci.draw_rect(bar, Color(1, 1, 1, 0.15))
 	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
-	HudStyle.text(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 13, Color(1, 1, 1, 0.8))
+	ci.draw_rect(Rect2(bar.position.x + w * progress - 2.0, bar.position.y - 3.0, 4.0, 12.0), Color.WHITE)
+	HudStyle.label(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
 	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	var mid := card.position.x + w * 0.5
 	if Net.is_deathmatch():
-		HudStyle.text(ci, Vector2(size.x * 0.5, bar.end.y + 52.0), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 12,
-			Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_CENTER)
+		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
+			Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 	else:
-		_draw_weapon_swap(ci, Vector2(size.x * 0.5, bar.end.y + 52.0))
+		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0))
 
 
 ## Deathmatch: your two weapon slots (keys 1 and 2), each with its weapon's name
@@ -639,25 +662,28 @@ func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
 				Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
 		return
 	var groups := WeaponData.GROUPS
-	var cell := Vector2(118.0, 24.0)
 	var gap := 6.0
-	var total := groups.size() * cell.x + (groups.size() - 1) * gap
+	var total := DEATH_W
+	var cell := Vector2((total - (groups.size() - 1) * gap) / groups.size(), 25.0)
 	var x := at.x - total * 0.5
-	HudStyle.text(ci, Vector2(x, at.y - 10.0), "COME BACK WITH", 12, Color(1, 1, 1, 0.75))
-	HudStyle.text(ci, Vector2(x + total, at.y - 10.0), "PRESS 1-%d OR SCROLL" % groups.size(), 12, Color(1, 1, 1, 0.55), HORIZONTAL_ALIGNMENT_RIGHT)
+	HudStyle.label(ci, Vector2(x, at.y - 10.0), "COME BACK WITH", 11, Color(1, 1, 1, 0.85))
+	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), "PRESS 1-%d OR SCROLL" % groups.size(), 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	for g in groups.size():
 		var gx := x + g * (cell.x + gap)
-		HudStyle.text(ci, Vector2(gx, at.y + 10.0), "%d  %s" % [g + 1, String(groups[g][0]).to_upper()], 11, Color(1, 1, 1, 0.6))
 		var list: Array = groups[g][1]
+		var has_mine := mine in list
+		ci.draw_rect(Rect2(gx, at.y + 4.0, cell.x, 2.0), HudStyle.ORANGE if has_mine else Color(HudStyle.CYAN, 0.45))
+		HudStyle.text(ci, Vector2(gx + 2.0, at.y + 17.0), str(g + 1), 12, HudStyle.ORANGE if has_mine else Color(1, 1, 1, 0.85))
+		HudStyle.label(ci, Vector2(gx + 16.0, at.y + 17.0), String(groups[g][0]).to_upper(), 9, Color(1, 1, 1, 0.7))
 		for i in list.size():
 			var id: String = list[i]
-			var r := Rect2(gx, at.y + 18.0 + i * (cell.y + 3.0), cell.x, cell.y)
+			var r := Rect2(gx, at.y + 28.0 + i * (cell.y + 3.0), cell.x, cell.y)
 			var on := id == mine
-			HudStyle.plate(ci, r, 4.0, Color(HudStyle.ORANGE, 0.35) if on else Color(0.05, 0.06, 0.08, 0.85))
-			if on:
-				ci.draw_rect(Rect2(r.position, Vector2(3.0, r.size.y)), HudStyle.ORANGE)
-			HudStyle.text(ci, r.position + Vector2(9.0, 16.0), WeaponData.by_id(id).short_name.to_upper(), 11,
-				Color(1, 1, 1, 1.0 if on else 0.7))
+			HudStyle.plate(ci, r, 6.0, Color(HudStyle.ORANGE, 0.9) if on else Color(0.04, 0.055, 0.085, 0.88))
+			var name := WeaponData.by_id(id).short_name.to_upper()
+			var col := Color(0.08, 0.06, 0.04) if on else Color(1, 1, 1, 0.78)
+			var fs := 11 if name.length() <= 11 else 10
+			ci.draw_string(HudStyle.font(true), r.position + Vector2(9.0, 17.0), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
 # ---------------------------------------------------------------------------
@@ -665,28 +691,42 @@ func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
 
 func _build_scoreboard() -> void:
 	_scoreboard = PanelContainer.new()
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.04, 0.05, 0.07, 0.88)
-	box.set_corner_radius_all(14)
-	box.set_content_margin_all(18)
+	var box := UiKit.cut_box(Color(0.03, 0.045, 0.07, 0.9), 18, 18, 14)
+	box.set_border_width_all(1)
+	box.border_color = Color(HudStyle.LINE, 0.3)
 	_scoreboard.add_theme_stylebox_override("panel", box)
-	_scoreboard.set_anchors_and_offsets_preset(Control.PRESET_CENTER, Control.PRESET_MODE_MINSIZE)
-	_scoreboard.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	_scoreboard.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_scoreboard.custom_minimum_size = Vector2(640, 0)
-	_scoreboard.position.y += 110.0
+	_scoreboard.custom_minimum_size = Vector2(BOARD_W, 0)
 	_scoreboard.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scoreboard.visible = false
 	_root.add_child(_scoreboard)
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
+	col.add_theme_constant_override("separation", 8)
 	_scoreboard.add_child(col)
-	_score_title = _cell(col, "", 15, Color(1, 1, 1, 0.85), false)
-	_score_grid = GridContainer.new()
-	_score_grid.columns = 5
-	_score_grid.add_theme_constant_override("h_separation", 28)
-	_score_grid.add_theme_constant_override("v_separation", 8)
-	col.add_child(_score_grid)
+	_score_title = _cell(col, "", 12, HudStyle.CYAN.lerp(Color.WHITE, 0.3), true)
+	_score_title.add_theme_font_override("font", HudStyle.font_spaced(1))
+	_score_title.clip_text = true   # one line: a long title is trimmed, never taller
+	_score_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	var rule := ColorRect.new()
+	rule.color = Color(HudStyle.LINE, 0.25)
+	rule.custom_minimum_size = Vector2(0, 1)
+	col.add_child(rule)
+	_score_rows = VBoxContainer.new()
+	_score_rows.add_theme_constant_override("separation", 3)
+	col.add_child(_score_rows)
+
+
+## Where the scoreboard goes: beside the death screen's left column while you wait
+## to respawn, otherwise (Tab) in the middle of the screen. Never off the screen.
+func _place_scoreboard() -> void:
+	_scoreboard.reset_size()
+	var view := _root.size
+	var board := _scoreboard.size
+	var at := (view - board) * 0.5
+	if _dead and not Race.active:
+		at = Vector2(_death_left(view) + DEATH_W + DEATH_GAP, DEATH_TOP)
+	at.x = clampf(at.x, 12.0, maxf(view.x - board.x - 12.0, 12.0))
+	at.y = clampf(at.y, 12.0 if _dead else 84.0, maxf(view.y - board.y - 12.0, 12.0))
+	_scoreboard.position = at
 
 
 func _cell(parent: Node, text: String, size: int, color: Color, bold: bool = true, right: bool = false) -> Label:
@@ -695,19 +735,43 @@ func _cell(parent: Node, text: String, size: int, color: Color, bold: bool = tru
 	l.add_theme_font_override("font", HudStyle.font(bold))
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
+	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	if right:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	parent.add_child(l)
 	return l
 
 
+## One line of the scoreboard: a plate with the player's colour down its left edge
+## (yours tinted orange). `cells`: [text, width (0 = takes what is left), size,
+## colour, bold, right-aligned]. `tight`: a full lobby, so thinner rows.
+func _board_row(cells: Array, stripe: Color, mine: bool = false, heading: bool = false, tight: bool = false) -> void:
+	var p := PanelContainer.new()
+	var pad := 0 if heading else (1 if tight else 5)
+	var box := UiKit.cut_box(Color(0, 0, 0, 0) if heading else (Color(HudStyle.ORANGE, 0.2) if mine else Color(1, 1, 1, 0.05)), 7, 12, pad)
+	box.border_width_left = 4
+	box.border_color = stripe
+	p.add_theme_stylebox_override("panel", box)
+	_score_rows.add_child(p)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	p.add_child(row)
+	for c in cells:
+		var l := _cell(row, c[0], c[2], c[3], c[4], c[5])
+		if c[1] > 0.0:
+			l.custom_minimum_size = Vector2(c[1], 0)
+		else:
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			l.clip_text = true
+			l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+
+
 func _refresh_scoreboard() -> void:
-	if not _score_grid:
+	if not _score_rows:
 		return
 	if Race.active:
 		_refresh_race_board()
 		return
-	_score_grid.columns = 5
 	var title := Maps.name_of(Net.map_id())
 	var gun_game := GunGame.active()
 	if gun_game:
@@ -720,33 +784,25 @@ func _refresh_scoreboard() -> void:
 	var ping := _ping_ms()
 	if ping >= 0:
 		title += "  ·  Ping %d ms" % ping
-	_score_title.text = title
-	UiKit.clear(_score_grid)
+	_score_title.text = title.to_upper()
+	UiKit.clear(_score_rows)
 	# A full 16-player lobby: tighter rows so the board still fits the screen.
-	_score_grid.add_theme_constant_override("v_separation", 8 if Net.players.size() <= 8 else 1)
+	var tight := Net.players.size() > 8
 	var dim := Color(1, 1, 1, 0.6)
-	for h in ["", "PLAYER", "ROBOT  ·  WEAPON", "WEAPON #" if gun_game else "KILLS", "DEATHS"]:
-		var l := _cell(_score_grid, h, 12, dim, false, h in ["KILLS", "DEATHS", "WEAPON #"])
-		if h == "PLAYER":
-			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var none := Color(0, 0, 0, 0)
+	_board_row([["#", 22.0, 11, dim, false, false], ["PLAYER", 0.0, 11, dim, false, false],
+		["ROBOT  ·  WEAPON", 190.0, 11, dim, false, false], ["WEAPON #" if gun_game else "KILLS", 70.0, 11, dim, false, true],
+		["DEATHS", 60.0, 11, dim, false, true]], none, false, true)
 	var rank := 0
 	for row in Match.build_results():
 		rank += 1
 		var mine: bool = row.id == Net.my_id()
 		var col := HudStyle.ORANGE if mine else HudStyle.WHITE
-		_cell(_score_grid, str(rank), 16, dim)
-		var name_row := HBoxContainer.new()
-		name_row.add_theme_constant_override("separation", 10)
-		var chip := ColorRect.new()
-		chip.color = Net.player_color(row.id)
-		chip.custom_minimum_size = Vector2(12, 12)
-		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		name_row.add_child(chip)
-		_cell(name_row, row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 18, col)
-		_score_grid.add_child(name_row)
-		_cell(_score_grid, "%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), _weapon_label(row.id)], 16, Color(col, 0.75), false)
-		_cell(_score_grid, ("%d/%d" % [row.level + 1, GunGame.steps()]) if gun_game else str(row.kills), 20, col, true, true)
-		_cell(_score_grid, str(row.deaths), 16, Color(col, 0.75), false, true)
+		_board_row([[str(rank), 22.0, 15, dim, true, false],
+			[row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 0.0, 17, col, true, false],
+			["%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), _weapon_label(row.id)], 190.0, 14, Color(col, 0.75), false, false],
+			[("%d/%d" % [row.level + 1, GunGame.steps()]) if gun_game else str(row.kills), 70.0, 19, col, true, true],
+			[str(row.deaths), 60.0, 15, Color(col, 0.75), false, true]], Net.player_color(row.id), mine, false, tight)
 
 
 ## The race version: place, racer, gates passed, time (or how far along), resets.
@@ -759,33 +815,23 @@ func _refresh_race_board() -> void:
 	var ping := _ping_ms()
 	if ping >= 0:
 		title += "  ·  Ping %d ms" % ping
-	_score_title.text = title
-	UiKit.clear(_score_grid)
-	_score_grid.columns = 5
+	_score_title.text = title.to_upper()
+	UiKit.clear(_score_rows)
+	var tight := Net.players.size() > 8
 	var dim := Color(1, 1, 1, 0.6)
-	for h in ["", "RACER", "GATES", "TIME", "RESETS"]:
-		var l := _cell(_score_grid, h, 12, dim, false, h in ["GATES", "TIME", "RESETS"])
-		if h == "RACER":
-			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_board_row([["#", 22.0, 11, dim, false, false], ["RACER", 0.0, 11, dim, false, false], ["GATES", 80.0, 11, dim, false, true],
+		["TIME", 110.0, 11, dim, false, true], ["RESETS", 70.0, 11, dim, false, true]], Color(0, 0, 0, 0), false, true)
 	var rank := 0
 	for row in Race.standings():
 		rank += 1
 		var mine: bool = row.id == Net.my_id()
 		var col := HudStyle.ORANGE if mine else HudStyle.WHITE
-		_cell(_score_grid, str(rank), 16, dim)
-		var name_row := HBoxContainer.new()
-		name_row.add_theme_constant_override("separation", 10)
-		var chip := ColorRect.new()
-		chip.color = Net.player_color(row.id)
-		chip.custom_minimum_size = Vector2(12, 12)
-		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		name_row.add_child(chip)
-		_cell(name_row, row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 18, col)
-		_score_grid.add_child(name_row)
-		_cell(_score_grid, "%d / %d" % [row.cp, Race.gates], 16, Color(col, 0.75), false, true)
-		_cell(_score_grid, Race.format_time(row.time) if row.finished else "racing", 18 if row.finished else 14,
-			HudStyle.YELLOW if row.finished else Color(col, 0.6), row.finished, true)
-		_cell(_score_grid, str(row.resets), 16, Color(col, 0.75), false, true)
+		_board_row([[str(rank), 22.0, 15, dim, true, false],
+			[row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 0.0, 17, col, true, false],
+			["%d / %d" % [row.cp, Race.gates], 80.0, 15, Color(col, 0.75), false, true],
+			[Race.format_time(row.time) if row.finished else "racing", 110.0, 17 if row.finished else 14,
+				HudStyle.YELLOW if row.finished else Color(col, 0.6), row.finished, true],
+			[str(row.resets), 70.0, 15, Color(col, 0.75), false, true]], Net.player_color(row.id), mine, false, tight)
 
 
 func _ping_ms() -> int:

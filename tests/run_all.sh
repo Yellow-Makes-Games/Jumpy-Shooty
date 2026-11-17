@@ -22,6 +22,7 @@ CHECKS=(
   "maps|--script tests/map_scene_test.gd"
   "controls|--script tests/controls_check.gd"
   "menu|--script tests/menu_mode_test.gd"
+  "ui_layout|--script tests/ui_layout_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
   "arena_maps|--script tests/arena_maps_test.gd"

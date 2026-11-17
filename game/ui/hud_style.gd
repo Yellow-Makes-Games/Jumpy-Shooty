@@ -3,11 +3,13 @@ extends RefCounted
 ## Colours, font and small drawing helpers shared by every part of the in-game HUD.
 ## Everything is drawn in code (no textures), with a dark edge under each shape
 ## and each line of text so it reads on bright and dark backgrounds alike.
+## The look: plates with two corners cut off, thin lines, gauges with a soft glow.
 
 const WHITE := Color(1, 1, 1, 0.95)
 const DIM := Color(1, 1, 1, 0.25)
 const EDGE := Color(0, 0, 0, 0.45)
-const PANEL := Color(0.04, 0.05, 0.07, 0.55)
+const PANEL := Color(0.03, 0.045, 0.07, 0.62)
+const LINE := Color(0.55, 0.85, 1.0, 0.35)   ## thin lines round plates
 const CYAN := Color(0.4, 0.9, 1.0)
 const ORANGE := Color(1.0, 0.54, 0.24)
 const RED := Color(1.0, 0.29, 0.24)
@@ -44,6 +46,17 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, size: int, color: Colo
 	return w
 
 
+## The bold face with extra space between letters, for small capitals.
+static func font_spaced(extra: int = 2) -> Font:
+	var key := "Spaced%d" % extra
+	if not _fonts.has(key):
+		var v := FontVariation.new()
+		v.base_font = font(true)
+		v.spacing_glyph = extra
+		_fonts[key] = v
+	return _fonts[key]
+
+
 static func text_width(s: String, size: int, bold: bool = true) -> float:
 	return font(bold).get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 
@@ -67,12 +80,77 @@ static func edged_rect(ci: CanvasItem, r: Rect2, color: Color) -> void:
 	ci.draw_rect(r, color)
 
 
-## A rounded dark plate behind text.
+## A dark plate behind text, with two corners cut off (top left and bottom right).
+## `radius` is the size of the cut.
 static func plate(ci: CanvasItem, r: Rect2, radius: float = 4.0, color: Color = PANEL) -> void:
-	var box := StyleBoxFlat.new()
-	box.bg_color = color
-	box.set_corner_radius_all(int(radius))
-	ci.draw_style_box(box, r)
+	ci.draw_colored_polygon(cut_points(r, minf(radius, 9.0)), color)
+
+
+## The outline of a rectangle with its top-left and bottom-right corners cut off.
+static func cut_points(r: Rect2, cut: float) -> PackedVector2Array:
+	cut = minf(cut, minf(r.size.x, r.size.y) * 0.5)
+	return PackedVector2Array([
+		r.position + Vector2(cut, 0), Vector2(r.end.x, r.position.y), Vector2(r.end.x, r.end.y - cut),
+		r.end - Vector2(cut, 0), Vector2(r.position.x, r.end.y), r.position + Vector2(0, cut)])
+
+
+## A cut-corner plate with a thin line round it.
+static func framed_plate(ci: CanvasItem, r: Rect2, cut: float, fill: Color, line: Color, width: float = 1.0) -> void:
+	var pts := cut_points(r, cut)
+	ci.draw_colored_polygon(pts, fill)
+	pts.append(pts[0])
+	ci.draw_polyline(pts, line, width, true)
+
+
+## A plate leaning over: `slant` pixels further right at the top than at the bottom
+## (negative leans the other way).
+static func slant_plate(ci: CanvasItem, r: Rect2, slant: float, color: Color) -> void:
+	ci.draw_colored_polygon(PackedVector2Array([
+		r.position + Vector2(slant, 0), Vector2(r.end.x + slant, r.position.y),
+		r.end, Vector2(r.position.x, r.end.y)]), color)
+
+
+## Four corner brackets round a rectangle (a targeting frame).
+static func brackets(ci: CanvasItem, r: Rect2, arm: float, color: Color, width: float = 2.0) -> void:
+	for corner in [[r.position, Vector2(1, 1)], [Vector2(r.end.x, r.position.y), Vector2(-1, 1)],
+			[r.end, Vector2(-1, -1)], [Vector2(r.position.x, r.end.y), Vector2(1, -1)]]:
+		var p: Vector2 = corner[0]
+		var d: Vector2 = corner[1]
+		ci.draw_polyline(PackedVector2Array([p + Vector2(arm * d.x, 0), p, p + Vector2(0, arm * d.y)]), color, width, true)
+
+
+## An arc with a soft halo of its own colour under it, and a dark edge under that.
+static func glow_arc(ci: CanvasItem, c: Vector2, r: float, from_deg: float, to_deg: float, color: Color, width: float,
+		glow: Color = Color(0, 0, 0, 0)) -> void:
+	if absf(to_deg - from_deg) < 0.05:
+		return
+	if glow.a <= 0.0:
+		glow = color
+	arc(ci, c, r, from_deg, to_deg, Color(glow, 0.16 * color.a), width + 8.0)
+	arc(ci, c, r, from_deg, to_deg, Color(0, 0, 0, EDGE.a * minf(color.a / 0.95, 1.0)), width + 3.0)
+	arc(ci, c, r, from_deg, to_deg, color, width)
+
+
+## A short line across an arc at `deg` (the ends of a gauge).
+static func tick(ci: CanvasItem, c: Vector2, r0: float, r1: float, deg: float, color: Color, width: float = 1.5) -> void:
+	var d := Vector2.from_angle(deg_to_rad(deg))
+	ci.draw_line(c + d * r0, c + d * r1, color, width, true)
+
+
+## Small capitals with wide letter spacing (labels on gauges and panels).
+static func label(ci: CanvasItem, pos: Vector2, s: String, size: int = 10, color: Color = Color(1, 1, 1, 0.7),
+		align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> float:
+	var f := font_spaced()
+	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var x := pos.x
+	if align == HORIZONTAL_ALIGNMENT_CENTER:
+		x -= w * 0.5
+	elif align == HORIZONTAL_ALIGNMENT_RIGHT:
+		x -= w
+	var baseline := pos.y + (f.get_ascent(size) - f.get_descent(size)) * 0.5
+	ci.draw_string_outline(f, Vector2(x, baseline), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 3, Color(0, 0, 0, 0.55 * color.a))
+	ci.draw_string(f, Vector2(x, baseline), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+	return w
 
 
 ## A small pistol silhouette (kill feed).

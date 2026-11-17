@@ -1,6 +1,8 @@
 class_name SettingsPanel
 extends VBoxContainer
-## Settings, used from the main menu and the in-game pause menu.
+## Settings, used from the main menu and the in-game pause menu. Built in a
+## MenuFrame: the title and tabs stay at the top and Back at the bottom while the
+## tab's own controls scroll between them if the window is short.
 ## Four tabs (Controls, Camera & HUD, Audio, Graphics); every change applies at once
 ## (Controls also rebinds keys: click one, then press the new key or mouse button)
 ## and is saved when you leave, except the display settings on the Graphics tab: those
@@ -27,6 +29,7 @@ const CONFIRM_SECONDS := 15
 
 static var _last_tab := 0
 
+var _frame: MenuFrame
 var _page: VBoxContainer
 var _pending := {}       # display settings picked on the Graphics tab, not applied yet
 var _revert_to := {}     # what Revert (or running out of time) puts back
@@ -40,21 +43,29 @@ var _binds_box: VBoxContainer
 var _bind_note: Label
 
 
+## `frame`: the page this panel is built in. The title and the tabs go in its header
+## and Back in its footer, so they stay on screen while a long tab (Controls) scrolls.
+func _init(frame: MenuFrame = null) -> void:
+	_frame = frame
+
+
 func _ready() -> void:
 	add_theme_constant_override("separation", 14)
-	custom_minimum_size = Vector2(620, 0)
-	UiKit.title(self, "Settings", 34)
-	UiKit.segmented(self, TABS, _last_tab, _show_tab)
+	var top: Node = _frame.header if _frame else self
+	UiKit.title(top, "Settings", 38, false, "Options")
+	UiKit.segmented(top, TABS, _last_tab, _show_tab)
 	_page = VBoxContainer.new()
 	_page.add_theme_constant_override("separation", 12)
-	_page.custom_minimum_size = Vector2(0, 400)
 	add_child(_page)
 	_timer = Timer.new()
 	_timer.wait_time = 1.0
 	_timer.timeout.connect(_tick)
 	add_child(_timer)
 	_show_tab(_last_tab)
-	UiKit.button(self, "Back", _on_back)
+	if _frame:
+		_frame.back_button("Back", _on_back)
+	else:
+		UiKit.button(self, "Back", _on_back)
 
 
 func _show_tab(i: int) -> void:
@@ -92,6 +103,11 @@ func _on_back() -> void:
 	closed.emit()
 
 
+## Open on this tab next time (dev: screenshots of each tab).
+static func open_on_tab(i: int) -> void:
+	_last_tab = clampi(i, 0, TABS.size() - 1)
+
+
 ## Each pause-menu line: [keys, description].
 static func cheat_sheet() -> Array:
 	var rows := []
@@ -110,20 +126,14 @@ static func cheat_sheet() -> Array:
 
 func _build_bindings() -> void:
 	UiKit.section(_page, "Keys")
-	var hint := UiKit.label(_page, "Click a key, then press the new key or mouse button. Esc cancels, Backspace clears it. A key already used elsewhere moves here.", true, 15)
-	hint.custom_minimum_size.x = 600
+	UiKit.label(_page, "Click a key, then press the new key or mouse button. Esc cancels, Backspace clears it. A key already used elsewhere moves here.", true, 15)
 	_bind_note = UiKit.label(_page, "", false, 15)
 	_bind_note.add_theme_color_override("font_color", UiKit.ACCENT)
 	_bind_note.visible = false
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 300)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_page.add_child(scroll)
-	_binds_box = VBoxContainer.new()
+	_binds_box = VBoxContainer.new()   # the page's frame scrolls: no second scroll bar inside it
 	_binds_box.add_theme_constant_override("separation", 4)
 	_binds_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(_binds_box)
+	_page.add_child(_binds_box)
 	_fill_bindings()
 	UiKit.button(_page, "Reset controls to defaults", func():
 		_stop_listening()
@@ -150,9 +160,9 @@ func _fill_bindings() -> void:
 			l.add_theme_color_override("font_color", UiKit.ACCENT)
 		for slot in Settings.MAX_BINDS:
 			var b := Button.new()
+			b.theme_type_variation = "Chip"
 			b.custom_minimum_size = Vector2(150, 38)
-			b.add_theme_font_size_override("font_size", 15)
-			b.add_theme_font_override("font", HudStyle.font(true))
+			b.clip_text = true
 			b.focus_mode = Control.FOCUS_NONE   # so Space or Enter can be bound, not press it again
 			if slot < list.size():
 				b.text = Settings.binding_text(list[slot])
@@ -163,6 +173,7 @@ func _fill_bindings() -> void:
 			row.add_child(b)
 		var reset := Button.new()
 		reset.text = "↺"
+		reset.theme_type_variation = "Chip"
 		reset.tooltip_text = "Back to the default for this action"
 		reset.custom_minimum_size = Vector2(38, 38)
 		reset.focus_mode = Control.FOCUS_NONE
