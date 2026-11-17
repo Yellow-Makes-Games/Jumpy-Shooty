@@ -17,7 +17,9 @@ extends Node
 ##  - after a match the three best kills play fullscreen, counting down to the best,
 ##    from this copy's clips (saying so for one it did not see), then the results page
 ##    shows; it still fits a 1600 x 900 window without scrolling and has a button to
-##    watch each kill again (fullscreen) and one for all three, on Halcyon, whose terminal and events must not mind
+##    watch each kill again (fullscreen) and one for all three;
+##  - a killcam saved as a video: a Motion JPEG AVI with every frame and an index, the
+##    clip's length in slow motion plus a held last frame, 1280x720, named after the kill, on Halcyon, whose terminal and events must not mind
 ##    being built outside a match.
 
 var _fails: Array[String] = []
@@ -33,6 +35,7 @@ func run() -> void:
 	_offline_timing()
 	await _playback()
 	await _results_page()
+	await _video()
 	Net.leave()
 	if _fails.is_empty():
 		print("PASS: every check passed")
@@ -326,3 +329,72 @@ func _results_page() -> void:
 	Match.last_results = []
 	Killcam.clips.clear()
 	await get_tree().process_frame
+
+
+## Reads the parts of an AVI that players' video apps rely on.
+func _read_avi(bytes: PackedByteArray) -> Dictionary:
+	var out := {"riff": bytes.slice(0, 4).get_string_from_ascii(), "kind": bytes.slice(8, 12).get_string_from_ascii(),
+		"size_ok": bytes.decode_u32(4) == bytes.size() - 8, "frames": [], "index": 0}
+	var avih := _find(bytes, "avih")
+	if avih >= 0:
+		out["fps"] = roundi(1000000.0 / bytes.decode_u32(avih + 8))
+		out["total"] = bytes.decode_u32(avih + 8 + 16)
+		out["w"] = bytes.decode_u32(avih + 8 + 32)
+		out["h"] = bytes.decode_u32(avih + 8 + 36)
+	out["codec"] = bytes.slice(_find(bytes, "strh") + 12, _find(bytes, "strh") + 16).get_string_from_ascii()
+	var movi := _find(bytes, "movi")
+	var at := movi + 4
+	while at + 8 <= bytes.size() and bytes.slice(at, at + 4).get_string_from_ascii() == "00dc":
+		var n := bytes.decode_u32(at + 4)
+		(out.frames as Array).append(bytes[at + 8] == 0xFF and bytes[at + 9] == 0xD8)   # a JPEG starts FF D8
+		at += 8 + n + (n % 2)
+	var idx := _find(bytes, "idx1")
+	if idx >= 0:
+		out["index"] = bytes.decode_u32(idx + 4) / 16
+		out["index_ok"] = bytes.decode_u32(idx + 8 + 8) + movi == movi + 4   # the first entry points just past 'movi'
+	return out
+
+
+func _find(bytes: PackedByteArray, tag: String) -> int:
+	var t := tag.to_ascii_buffer()
+	for i in bytes.size() - 3:
+		if bytes[i] == t[0] and bytes[i + 1] == t[1] and bytes[i + 2] == t[2] and bytes[i + 3] == t[3]:
+			return i
+	return -1
+
+
+func _video() -> void:
+	print("  saving a killcam as a video")
+	var avi := AviWriter.new(64, 36, 30)
+	for i in 5:
+		avi.add_frame(Image.create(80 + i, 40, false, Image.FORMAT_RGBA8))   # any size and format
+	var info := _read_avi(avi.to_bytes())
+	_expect(info.riff == "RIFF" and info.kind == "AVI " and info.size_ok, "the file is a RIFF AVI with the right length")
+	_expect(info.codec == "MJPG" and info.fps == 30 and info.w == 64 and info.h == 36, "Motion JPEG, 30 frames a second, the video's size (%s, %s, %sx%s)" % [info.codec, info.fps, info.w, info.h])
+	_expect(info.total == 5 and (info.frames as Array).size() == 5 and (info.frames as Array).all(func(j): return j),
+		"every frame is there, each a JPEG (%d)" % (info.frames as Array).size())
+	_expect(info.index == 5 and info.index_ok, "the index lists every frame, so players can seek")
+	var dir := ProjectSettings.globalize_path("user://killcam_test_videos")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var export := KillcamExport.new()
+	export.into = dir
+	add_child(export)
+	var result := []
+	export.finished.connect(func(path: String, error: String): result.append_array([path, error]))
+	var clip := _test_clip()
+	clip.map = "testing_grounds"
+	export.start(clip, "BEST KILL #1")
+	for i in 600:
+		if not result.is_empty():
+			break
+		await get_tree().process_frame
+	_expect(result.size() == 2 and result[1] == "", "a killcam saves without trouble (%s)" % [result])
+	if result.size() == 2 and FileAccess.file_exists(result[0]):
+		var saved := _read_avi(FileAccess.get_file_as_bytes(result[0]))
+		var want := roundi((clip.end - clip.start + (KillcamView.SLOW_FROM + KillcamView.SLOW_UNTIL) * (1.0 / KillcamView.SLOW - 1.0) + KillcamExport.HOLD) * KillcamExport.FPS)
+		_expect(absi(int(saved.total) - want) <= 3 and saved.w == 1280 and saved.h == 720,
+			"the video is the clip in slow motion round the kill, then a second's hold: %d frames of 1280x720 (about %d)" % [saved.total, want])
+		_expect(String(result[0]).get_file().begins_with("killcam_Tester_on_Gizmo_") and String(result[0]).ends_with(".avi"),
+			"named after the killer and victim (%s)" % String(result[0]).get_file())
+		DirAccess.remove_absolute(result[0])
+	DirAccess.remove_absolute(dir)

@@ -18,6 +18,9 @@ const S := MovementController.State
 var clip: KillClip
 var slow_motion := false
 var loop := false
+## Stepped by hand (step()), rockets and all, instead of with the game's frames: for
+## saving a video at a steady frame rate however fast the computer draws.
+var manual := false
 var time := 0.0              ## where we are, on the killer's clock (see KillClip)
 var done := false
 var camera: Camera3D
@@ -113,8 +116,18 @@ func restart() -> void:
 
 
 func _process(delta: float) -> void:
+	if not manual:
+		step(delta)
+
+
+## Moves the clip on by `delta` seconds (slower round the kill in slow motion).
+func step(delta: float) -> void:
 	if done:
 		return
+	if manual:
+		for rocket in _fx.get_children():
+			if rocket is Projectile:
+				(rocket as Projectile)._physics_process(delta)
 	var rate := 1.0
 	if slow_motion and time >= clip.kill_time - SLOW_FROM and time <= clip.kill_time + SLOW_UNTIL:
 		rate = SLOW
@@ -335,7 +348,9 @@ func _play_event(e: Dictionary) -> void:
 				muzzle = (_ghosts[who] as Ghost).robot.marker(data.muzzle_bone)
 			var track: KillClip.Track = clip.tracks.get(who)
 			var color := RobotModel.trim_color(track.color if track else Color.WHITE)
-			_fx.add_child(Projectile.make(int(e.id), data, e.origin, e.direction, muzzle, color))
+			var rocket := Projectile.make(int(e.id), data, e.origin, e.direction, muzzle, color)
+			rocket.set_physics_process(not manual)   # (stepped with the clip instead)
+			_fx.add_child(rocket)
 			if mine:
 				Sound.gun_fire(data.id, camera.global_position, true)
 			elif world_sound:

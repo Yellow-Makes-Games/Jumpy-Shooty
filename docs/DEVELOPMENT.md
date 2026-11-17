@@ -96,8 +96,9 @@ Quick checks:
 - killcams (`tests/killcam_test.gd`): the kill scores and the pick of the best three,
   what travels with a death, recording and blending frames, a replay from the killer's
   eyes (camera, arms, the victim, the shot, slow motion), the best kills playing
-  fullscreen after a match (counting down to the best), and the results page with
-  them listed still fits 1600x900;
+  fullscreen after a match (counting down to the best), the results page with
+  them listed still fits 1600x900, and a killcam saved as a video is a Motion JPEG
+  AVI with every frame and an index, as long as the clip plays;
 - the game boots into practice mode on every map without script errors.
 
 Networked and bot runs (real time):
@@ -121,7 +122,7 @@ Networked and bot runs (real time):
   along the event is, and bots use the terminal and keep moving in low gravity;
 - killcams (`tests/run_killcam_test.sh`): Vs Bots (in game time), the killcam plays each
   time the bot gets you and runs until you respawn, Jump skips it, and the results
-  screen plays the best kills; online, a host and a client on a laggy network each
+  screen plays the best kills and saves the best as a video; online, a host and a client on a laggy network each
   watch their killcams, score every kill the same, pick the same best three and have
   a clip of each;
 - races (`tests/run_race_test.sh`, in game time): you and 4 bots finish Rooftop Run in
@@ -229,6 +230,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
+| `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter` or `orbit` without changing your saved choice |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
