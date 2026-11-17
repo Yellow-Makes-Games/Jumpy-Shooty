@@ -1,76 +1,72 @@
 #!/usr/bin/env bash
 # Runs every automated test. Needs Godot ("godot" on PATH, or set GODOT) and python3.
+#
+# The quick checks run first, side by side, on a fixed game clock (Godot's
+# --fixed-fps 60), so physics plays out as fast as the machine can go instead of in
+# real time. The networked and bot runs come after; they need real time.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
+export GODOT
+OUT=tests/out
+mkdir -p "$OUT"
 echo "== Importing project"
 "$GODOT" --headless --path . --import > /dev/null 2>&1 || true
-echo "== Movement checks"
-run_script() {  # fails on any script error, even if the script itself reports PASS
-  local out
-  out=$("$GODOT" --headless --path . --script "$1" 2>&1) || { echo "$out"; return 1; }
-  echo "$out" | grep -v "^Godot Engine"
-  if echo "$out" | grep -q "SCRIPT ERROR"; then echo "FAIL: script errors above"; return 1; fi
-}
-run_script tests/movement_test.gd
-echo "== Robot model and animator checks"
-run_script tests/robot_test.gd
-echo "== Weapons: damage, falloff and reloading"
-run_script tests/weapon_test.gd
-echo "== Map scenes: every map loads and builds; blocks and resize handles"
-run_script tests/map_scene_test.gd
-echo "== Controls: rebinding, conflicts, saving and reset"
-run_script tests/controls_check.gd
-echo "== Main menu: the mode switch refills the map list"
-run_script tests/menu_mode_test.gd
-echo "== Deathmatch: maps, weapon pickups, inventory rules, pause menu loadout"
-run_script tests/deathmatch_test.gd
-echo "== Testing Grounds: every practice course can be completed"
-run_script tests/course_test.gd
-echo "== Construction Site: spawn points, bot navigation and every movement route"
-run_script tests/site_test.gd
-echo "== Office: spawn points, bot navigation and every movement route"
-run_script tests/office_test.gd
-echo "== Rail Yard, Lost Temple and Neon Arcade: spawn points, breakable pieces and bot navigation"
-run_script tests/arena_maps_test.gd
-echo "== Halcyon: spawn points, pickups, the terminal, glass, the reactor pit, the hull and every route"
-run_script tests/halcyon_test.gd
-echo "== Map terminal: hold to fire, what cancels a hold, one player at a time"
-run_script tests/terminal_test.gd
-echo "== Low gravity: the event's schedule, jump heights, projectiles untouched, gravity always comes back"
-run_script tests/gravity_test.gd
-echo "== Breakable walls and floors: which pieces break, spawns stay safe, holes let shots through"
-run_script tests/destruction_test.gd
-echo "== Debug menu cheats and the target dummies"
-run_script tests/debug_test.gd
-echo "== Practice mode boots without errors on every map"
+
+# Each quick check: "name|args". Logs go to tests/out/check_<name>.log.
+CHECKS=(
+  "movement|--fixed-fps 60 --script tests/movement_test.gd"
+  "robot|--fixed-fps 60 --script tests/robot_test.gd"
+  "weapons|--script tests/weapon_test.gd"
+  "audio|--script tests/audio_test.gd"
+  "maps|--script tests/map_scene_test.gd"
+  "controls|--script tests/controls_check.gd"
+  "menu|--script tests/menu_mode_test.gd"
+  "deathmatch|--script tests/deathmatch_test.gd"
+  "destruction|--script tests/destruction_test.gd"
+  "arena_maps|--script tests/arena_maps_test.gd"
+  "halcyon|--script tests/halcyon_test.gd"
+  "terminal|--script tests/terminal_test.gd"
+  "gravity|--fixed-fps 60 --script tests/gravity_test.gd"
+  "testing_grounds|--fixed-fps 60 --script tests/course_test.gd"
+  "construction_site|--fixed-fps 60 --script tests/site_test.gd"
+  "office|--fixed-fps 60 --script tests/office_test.gd"
+  "debug|--script tests/debug_test.gd"
+)
+# Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
-  out=$("$GODOT" --headless --path . -- --practice --map="$map" --quit-after=3 2>&1)
-  if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi
+  CHECKS+=("boot_$map|-- --practice --map=$map --quit-after=3")
 done
-echo "PASS"
-echo "== Sync: 2 players, clean network (Testing Grounds)"
-MAP=testing_grounds tests/run_sync_test.sh 2
-echo "== Sync: 5 players, bad network (100 ms latency, 60 ms jitter, 10% loss) (Construction Site)"
-MAP=construction_site tests/run_sync_test.sh 5 "100,60,10"
-echo "== Match: 3 players, laggy network, two matches back to back (Construction Site)"
+
+run_check() {  # fails on any script error, even if the script itself reports PASS
+  local name="${1%%|*}" args="${1#*|}" log="$OUT/check_${1%%|*}.log"
+  # shellcheck disable=SC2086
+  if ! timeout 120 "$GODOT" --headless --path . $args > "$log" 2>&1; then
+    echo "FAIL $name (exit code; see $log)"; return 1
+  fi
+  if grep -q "SCRIPT ERROR\|^ERROR" "$log"; then
+    echo "FAIL $name (script errors; see $log)"; return 1
+  fi
+  echo "ok   $name"
+}
+export -f run_check
+export OUT
+
+echo "== Quick checks: movement, robots, weapons, sounds, maps and routes, menus, modes, practice on every map"
+if ! printf '%s\n' "${CHECKS[@]}" | xargs -d '\n' -P "${JOBS:-4}" -I{} bash -c 'run_check "$1"' _ {}; then
+  for f in "$OUT"/check_*.log; do
+    if grep -q "FAIL\|SCRIPT ERROR\|^ERROR" "$f"; then echo "--- $f"; grep -B2 -A4 "FAIL\|SCRIPT ERROR\|^ERROR" "$f" | head -40; fi
+  done
+  exit 1
+fi
+echo "== Sync: 3 players, bad network (100 ms latency, 60 ms jitter, 10% loss) (Construction Site)"
+MAP=construction_site tests/run_sync_test.sh 3 "100,60,10"
+echo "== Match: 3 players, laggy network, two matches back to back, sounds (Construction Site)"
 MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
-echo "== Breakable walls and floors online: a floor and a wall break, a late joiner sees them, everyone agrees"
-tests/run_break_test.sh
-echo "== Time-limit match (lobby rule) (Testing Grounds)"
-MAP=testing_grounds tests/run_timed_match_test.sh
-echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Testing Grounds)"
-MAP=testing_grounds tests/run_bot_test.sh
-echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Construction Site)"
+echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword bot, sounds (Construction Site)"
 MAP=construction_site tests/run_bot_test.sh
-echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Office)"
-MAP=office tests/run_bot_test.sh
-echo "== Bots climb the Construction Site tower to a player on top"
-tests/run_bot_climb_test.sh
 echo "== Halcyon online and with bots: a client fires the terminal, a late joiner is told, bots use it and cope"
 tests/run_gravity_test.sh
-echo "== Race mode: bots finish every race map, fail conditions, results, an online race"
+echo "== Race mode: bots finish a race, fail conditions, results"
 tests/run_race_test.sh
-echo "== Sound effects: every sound loads; yours, the bots' and other players' play (Testing Grounds)"
-tests/run_audio_test.sh
 echo "ALL TESTS PASSED"

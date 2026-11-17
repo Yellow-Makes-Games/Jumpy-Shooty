@@ -37,6 +37,9 @@ var _pings_left := 0
 var _drift_wait := 0.0
 var _following := false       # online as a client: the host chooses
 var _rng := RandomNumberGenerator.new()
+## Headless (tests, scripted runs): choose and sync songs as usual but play nothing. A
+## song still decoding when a quick scripted run quits is reported as a leak at exit.
+var _silent := DisplayServer.get_name() == "headless"
 
 
 func _ready() -> void:
@@ -119,6 +122,8 @@ func _mix(now: float, delta: float) -> void:
 			continue   # starts a moment from now
 		if not s.on or not p.playing:
 			s.on = true
+			if _silent:
+				continue
 			p.stream = _streams[s.i]
 			p.play(t)
 		elif check and absf(p.get_playback_position() + AudioServer.get_time_since_last_mix() - t) > DRIFT:

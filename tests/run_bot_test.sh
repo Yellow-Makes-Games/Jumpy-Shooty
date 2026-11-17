@@ -14,6 +14,8 @@
 #    each other as well as you, the robots alternate starting with the one you did
 #    not pick, and the rematch keeps all 4 bots
 #  - a melee bot (sword) rushes in winding its swing up, lands blows and knocks you back
+#  - sounds: your gun, steps, jumps and hit markers play in your head; the bot's shots,
+#    impacts and steps play placed in the world
 #  - there are no script errors
 # The 1v1 bots carry the rifle so their accuracy can be compared; the free-for-all
 # bots take any weapon at random, guns or melee.
@@ -33,18 +35,18 @@ fi
 
 for level in 0 1 2 3; do
   character=$([[ $((level % 2)) -eq 0 ]] && echo needle || echo vanguard)
-  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --bot-weapon=rifle --character="$character" --time-limit=80 --quit-after=85 \
+  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --bot-weapon=rifle --character="$character" --time-limit=45 --quit-after=50 \
     > "$OUT/bot_$level.log" 2>&1 &
 done
 # Easy against a player who stands still: even the weakest bot must land hits.
 timeout 90 "$GODOT" "${STILL[@]}" --bot=0 --bot-weapon=rifle --time-limit=40 --quit-after=45 \
   > "$OUT/bot_still.log" 2>&1 &
 # Expert again, but the player fights back; first to 2 so it ends, then rematches.
-timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --scripted-fire --kill-target=2 --time-limit=40 \
-  --auto-return --quit-after=60 > "$OUT/bot_fight.log" 2>&1 &
+timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --scripted-fire --sound-log --kill-target=2 --time-limit=40 \
+  --auto-return --quit-after=50 > "$OUT/bot_fight.log" 2>&1 &
 # Free-for-all: you plus 4 Hard bots, first to 3 kills, then a rematch.
-timeout 150 "$GODOT" "${COMMON[@]}" --bot=2 --bots=4 --character=vanguard --kill-target=3 --time-limit=60 \
-  --auto-return --quit-after=110 > "$OUT/bot_ffa.log" 2>&1 &
+timeout 150 "$GODOT" "${COMMON[@]}" --bot=2 --bots=4 --character=vanguard --kill-target=3 --time-limit=25 \
+  --auto-return --quit-after=62 > "$OUT/bot_ffa.log" 2>&1 &
 # A sword bot (Hard) against a player who moves on its own.
 timeout 90 "$GODOT" "${COMMON[@]}" --bot=2 --bot-weapon=sword --time-limit=40 --quit-after=45 \
   > "$OUT/bot_melee.log" 2>&1 &
@@ -134,6 +136,12 @@ for needed in ["slide", "dive", "grapple", "death"]:
         print(f"FAIL: no bot's body ever showed {needed}"); fail = True
 if not any(a.startswith("flip") for a in anims):
     print("FAIL: no bot's body ever showed a flip"); fail = True
+for pattern, what in [(r"^SFX fire_\w+_fp", "your own shot"), (r"^SFX step$", "your footsteps"),
+                      (r"^SFX (jump|land)", "your jumps and landings"), (r"^SFX (hitmarker|kill)", "hit markers"),
+                      (r"^SFX match_start", "the match start"), (r"^SFX3D fire_rifle ", "the bot's shots, in the world"),
+                      (r"^SFX3D impact_(wall|body)", "bullet impacts"), (r"^SFX3D step ", "the bot's footsteps, in the world")]:
+    if not re.search(pattern, log, re.M):
+        print(f"  FAIL: no sound for {what} ('{pattern}')"); fail = True
 for needed in ["SLIDE", "DIVE", "BELLY_SLIDE", "FLIP", "GRAPPLE"]:
     if needed not in moves:
         print(f"FAIL: no bot ever used {needed}"); fail = True
