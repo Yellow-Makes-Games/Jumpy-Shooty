@@ -48,10 +48,10 @@ func _show_loadout() -> void:
 	UiKit.title(_col, "Loadout", 36)
 	var me := Net.my_id()
 	var race := Race.active
-	var deathmatch := Net.is_deathmatch()
+	var deathmatch := Net.is_deathmatch() or GunGame.active()   # weapons come off the map, or from the ladder
 	var note := "Your robot changes straight away." if race else "Changes apply the next time you respawn."
 	if deathmatch:
-		note += "  Weapons are found on the map."
+		note += "  Weapons are found on the map." if Net.is_deathmatch() else "  Gun Game hands out the weapons."
 	var dead := not race and not Match.is_alive(me)
 	if dead:
 		note = "Changes apply when you respawn."
