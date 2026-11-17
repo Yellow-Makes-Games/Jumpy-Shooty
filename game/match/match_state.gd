@@ -65,6 +65,16 @@ const PICKUP_REACH := 1.4         ## metres from the pickup to the player's midd
 var pickups_taken: Dictionary = {}
 var _pickup_timers: Dictionary = {}   # host: index -> seconds until it is back
 
+## Deathmatch power-ups (see ItemPickup), by their index in the map: the ones taken
+## and not back yet. Every copy keeps this; the host decides it.
+signal item_changed(index: int, taken: bool, by: int)
+## Uber health can take you this far past MAX_HEALTH (it does not wear off).
+const MAX_OVERHEAL := 200.0
+var items_taken: Dictionary = {}
+var _item_timers: Dictionary = {}     # host: index -> seconds until it is back
+## id -> seconds of double damage left (every copy counts it down; the host decides it).
+var damage_boost: Dictionary = {}
+
 
 func _ready() -> void:
 	Net.match_started.connect(_on_match_started)
@@ -90,8 +100,11 @@ func _on_match_started() -> void:
 	running = true
 	last_results = []
 	_pickup_timers.clear()
+	_item_timers.clear()
+	damage_boost.clear()
 	if Net.is_host():
 		pickups_taken.clear()   # (a late joiner keeps what the host told it; see _pickups_sync)
+		items_taken.clear()
 		if Net.is_deathmatch():
 			for id in Net.players:
 				Net.host_clear_inventory(id, false)   # everyone starts with empty hands
@@ -142,6 +155,7 @@ func _on_players_changed() -> void:
 			changed = true
 			if Net.is_online and not Net.is_bot(id) and id != Net.my_id():
 				_pickups_sync.rpc_id(id, pickups_taken.keys())   # which weapons are gone right now
+				_items_sync.rpc_id(id, items_taken.keys(), damage_boost)
 	for id in scores.keys():
 		if not Net.players.has(id):
 			scores.erase(id)
@@ -173,6 +187,10 @@ func _process(delta: float) -> void:
 	if not running:
 		return
 	time_left = max(time_left - delta, 0.0)
+	for id in damage_boost.keys():
+		damage_boost[id] -= delta
+		if damage_boost[id] <= 0.0:
+			damage_boost.erase(id)
 	if not Net.is_host():
 		return
 	for id in respawn_timers.keys():
@@ -182,6 +200,7 @@ func _process(delta: float) -> void:
 			_host_respawn(id)
 	if Net.is_deathmatch():
 		_host_pickups(delta)
+		_host_items(delta)
 	if time_left <= 0.0:
 		host_end_match()
 
@@ -230,6 +249,80 @@ func _pickups_sync(taken: Array) -> void:
 	for i in taken:
 		pickups_taken[int(i)] = true
 		pickup_changed.emit(int(i), true, 0, "")
+
+
+# ---------------------------------------------------------------------------
+# Deathmatch power-ups (ItemPickup). Like the weapons: the host watches who walks
+# over one, applies it and tells everyone it is gone until its respawn time is up.
+# A health item stays put for someone who could not use it (full health).
+
+func _host_items(delta: float) -> void:
+	for i in _item_timers.keys():
+		_item_timers[i] -= delta
+		if _item_timers[i] <= 0.0:
+			_item_timers.erase(i)
+			_item_state.rpc(i, false, 0, health, {})
+	if Net.arena == null:
+		return
+	var items: Array = Net.arena.items
+	for i in items.size():
+		if items_taken.has(i):
+			continue
+		var item: ItemPickup = items[i]
+		for p in Net.arena.players_root.get_children():
+			var player := p as Player
+			if not player.alive or not is_alive(player.peer_id):
+				continue
+			if (player.global_position + Vector3(0, 0.9, 0)).distance_to(item.spot) > PICKUP_REACH:
+				continue
+			if not _host_apply_item(player.peer_id, item.kind):
+				continue
+			_item_timers[i] = ItemPickup.respawn_time(item.kind)
+			var boost := {}
+			if damage_boost.has(player.peer_id):
+				boost[player.peer_id] = damage_boost[player.peer_id]
+			_item_state.rpc(i, true, player.peer_id, health, boost)
+			break
+
+
+## Gives `id` what the item does; false if they cannot use it now (it stays).
+func _host_apply_item(id: int, kind: String) -> bool:
+	if kind == "damage":
+		damage_boost[id] = ItemPickup.DAMAGE_BOOST_TIME
+		return true
+	var cap := MAX_OVERHEAL if ItemPickup.overheals(kind) else MAX_HEALTH
+	var hp: float = health.get(id, MAX_HEALTH)
+	if hp >= cap:
+		return false
+	health[id] = minf(hp + ItemPickup.heal_amount(kind), cap)
+	return true
+
+
+@rpc("authority", "call_local", "reliable")
+func _item_state(index: int, taken: bool, by: int, new_health: Dictionary, boost: Dictionary) -> void:
+	if taken:
+		items_taken[index] = true
+	else:
+		items_taken.erase(index)
+	health = new_health
+	for id in boost:
+		damage_boost[id] = boost[id]
+	item_changed.emit(index, taken, by)
+	state_changed.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _items_sync(taken: Array, boost: Dictionary) -> void:
+	items_taken.clear()
+	damage_boost = boost
+	for i in taken:
+		items_taken[int(i)] = true
+		item_changed.emit(int(i), true, 0)
+
+
+## How much a hit from `shooter` is worth (double while they carry the damage boost).
+func damage_multiplier(shooter: int) -> float:
+	return ItemPickup.DAMAGE_BOOST_MULTIPLIER if damage_boost.has(shooter) else 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -728,6 +821,8 @@ func _host_damage(shooter: int, target: int, amount: float, headshot: bool = fal
 		return
 	if target == Net.my_id() and Cheats.god_mode():
 		return
+	if shooter != 0 and shooter != target and cause != "fell":
+		amount *= damage_multiplier(shooter)
 	health[target] = max(health[target] - amount, 0.0)
 	_hit.rpc(shooter, target, amount, health[target], headshot)
 	if health[target] <= 0.0:
@@ -760,6 +855,7 @@ func _host_dummy_damage(shooter: int, id: int, amount: float, headshot: bool) ->
 	var dummy: TargetDummy = Net.arena.dummies[index]
 	if dummy.is_down():
 		return
+	amount *= damage_multiplier(shooter)
 	_dummy_hit.rpc(shooter, index, amount, maxf(dummy.health - amount, 0.0), headshot)
 
 
@@ -821,6 +917,7 @@ func _host_kill(victim: int, killer: int, cause: String = "") -> void:
 @rpc("authority", "call_local", "reliable")
 func _died(victim: int, killer: int, new_scores: Dictionary, cause: String) -> void:
 	health[victim] = 0.0
+	damage_boost.erase(victim)   # power-ups end with you
 	death_cause[victim] = cause
 	scores = new_scores
 	player_died.emit(victim, killer)

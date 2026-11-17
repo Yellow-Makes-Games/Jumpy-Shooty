@@ -19,6 +19,7 @@ func run() -> void:
 	_maps()
 	await _pickup_spots()
 	_inventory()
+	_items()
 	await _loadout_menu()
 	Net.leave()
 	if _fails.is_empty():
@@ -70,6 +71,20 @@ func _pickup_spots() -> void:
 		_expect(map.weapon_spawns.size() >= 8, "%s: %d weapon pickups (8 or more)" % [id, map.weapon_spawns.size()])
 		_expect(kinds.size() == WeaponData.IDS.size(), "%s: every weapon can be found (%s)" % [id, kinds.keys()])
 		_expect(bad.is_empty(), "%s: every pickup is over a floor with room to stand %s" % [id, bad])
+		var items := {}
+		var bad_items: Array = []
+		for it in map.item_spawns:
+			var pos: Vector3 = it[0]
+			items[it[1]] = true
+			var down := space.intersect_ray(PhysicsRayQueryParameters3D.create(pos + Vector3(0, 0.5, 0), pos + Vector3(0, -0.5, 0), 1))
+			var q := PhysicsShapeQueryParameters3D.new()
+			q.shape = cap
+			q.collision_mask = 1
+			q.transform = Transform3D(Basis(), pos + Vector3(0, 1.0, 0))
+			if not down or not space.intersect_shape(q, 1).is_empty():
+				bad_items.append(pos)
+		_expect(items.size() == ItemPickup.KINDS.size(), "%s: every power-up can be found (%s)" % [id, items.keys()])
+		_expect(bad_items.is_empty(), "%s: every power-up is over a floor with room to stand %s" % [id, bad_items])
 		map.queue_free()
 		await get_tree().process_frame
 
@@ -99,6 +114,25 @@ func _inventory() -> void:
 	Net.match_settings["game"] = "ffa"
 	_expect(Net.player_weapon(1) == "sniper", "in a free-for-all you hold your chosen weapon")
 	Net.in_match = false
+
+
+func _items() -> void:
+	print("  power-ups")
+	var apply := func(k: String) -> bool: return Match.call("_host_apply_item", 1, k)
+	Match.health[1] = 60.0
+	_expect(apply.call("health_small") and Match.health[1] == 85.0, "small health gives 25")
+	_expect(apply.call("health_small") and Match.health[1] == 100.0, "small health stops at 100")
+	_expect(not apply.call("health_medium") and Match.health[1] == 100.0, "health is left for someone who needs it at full health")
+	Match.health[1] = 40.0
+	_expect(apply.call("health_medium") and Match.health[1] == 90.0, "medium health gives 50")
+	_expect(apply.call("uber") and Match.health[1] == 190.0, "uber health gives 100, past 100")
+	_expect(apply.call("uber") and Match.health[1] == Match.MAX_OVERHEAL, "uber health stops at %d" % Match.MAX_OVERHEAL)
+	_expect(not apply.call("health_small"), "no small health while overhealed")
+	_expect(Match.damage_multiplier(1) == 1.0, "normal damage without the boost")
+	_expect(apply.call("damage") and Match.damage_multiplier(1) == 2.0, "the damage boost doubles damage")
+	_expect(is_equal_approx(Match.damage_boost[1], 30.0), "the damage boost lasts 30 seconds")
+	Match.damage_boost.clear()
+	Match.health[1] = Match.MAX_HEALTH
 
 
 func _loadout_menu() -> void:

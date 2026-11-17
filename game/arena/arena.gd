@@ -14,6 +14,8 @@ var dummies: Array = []
 var gates: Array = []
 ## Deathmatch: the map's floating weapons (WeaponPickup), in the order of their index.
 var pickups: Array = []
+## Deathmatch: the map's power-ups (ItemPickup), in the order of their index.
+var items: Array = []
 ## Seconds until the bots' navigation mesh is redone after walls or floors broke.
 var _nav_rebake := 0.0
 var _nav_baking := false
@@ -36,6 +38,7 @@ func _ready() -> void:
 	_spawn_dummies()
 	if Net.is_deathmatch():
 		_spawn_pickups()
+		_spawn_items()
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
@@ -53,6 +56,7 @@ func _ready() -> void:
 	Match.player_respawned.connect(_on_player_respawned)
 	Match.shot_fired.connect(_on_shot_fired)
 	Match.pickup_changed.connect(_on_pickup_changed)
+	Match.item_changed.connect(_on_item_changed)
 	_sync_players()
 	_capture_mouse(true)
 	if layout.destruction:
@@ -63,6 +67,7 @@ func _exit_tree() -> void:
 	if Net.arena == self:
 		Net.arena = null
 	Match.pickups_taken.clear()
+	Match.items_taken.clear()
 	Engine.time_scale = 1.0   # the debug menu's slow motion ends with the match
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -309,6 +314,30 @@ func _spawn_pickups() -> void:
 		var p := WeaponPickup.make(pickups.size(), w[0], w[1])
 		root.add_child(p)
 		pickups.append(p)
+
+
+func _spawn_items() -> void:
+	var root := Node3D.new()
+	root.name = "Items"
+	add_child(root)
+	for it in layout.item_spawns:
+		var p := ItemPickup.make(items.size(), it[0], it[1])
+		root.add_child(p)
+		items.append(p)
+
+
+## The host says a power-up was taken (by `by`) or is back.
+func _on_item_changed(index: int, taken: bool, by: int) -> void:
+	if index < 0 or index >= items.size():
+		return
+	var item: ItemPickup = items[index]
+	item.set_taken(taken)
+	if not taken:
+		Sound.play_at("ui_click", item.spot, "move", -6.0)
+	elif by == Net.my_id():
+		Sound.play("ui_confirm")
+	elif by != 0:
+		Sound.play_at("ui_confirm", item.spot, "move")
 
 
 ## The host says a weapon was taken (by `by`) or is back.
