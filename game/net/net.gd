@@ -671,6 +671,90 @@ func _late_join() -> void:
 
 
 # ---------------------------------------------------------------------------
+# Map objects: terminals players hold "interact" at, and the events they set off (see
+# MapTerminal and MapEvent). A player only says when they start and stop holding; the
+# host checks range and timing, decides, and tells everyone what state things are in.
+
+## The local player `who` (you, or one of the host's bots) started or stopped holding
+## interact at terminal number `index`.
+func terminal_hold(index: int, holding: bool, who: int = 0) -> void:
+	if is_host():
+		_host_terminal_hold(index, who if who != 0 else my_id(), holding)
+	elif is_online:
+		_terminal_hold.rpc_id(1, index, holding)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _terminal_hold(index: int, holding: bool) -> void:
+	if is_host():
+		_host_terminal_hold(index, multiplayer.get_remote_sender_id(), holding)
+
+
+func _host_terminal_hold(index: int, who: int, holding: bool) -> void:
+	var terminal := MapTerminal.at(get_tree(), index)
+	if terminal:
+		terminal.host_set_holding(who, holding)
+
+
+## Host: tell everyone (or only peer `to`) what state a terminal is in.
+func send_terminal_state(index: int, phase: int, who: int, progress: float, to: int = 0) -> void:
+	if not is_host():
+		return
+	if to != 0:
+		_terminal_state.rpc_id(to, index, phase, who, progress)
+	else:
+		_terminal_state.rpc(index, phase, who, progress)
+
+
+@rpc("authority", "call_local", "reliable")
+func _terminal_state(index: int, phase: int, who: int, progress: float) -> void:
+	var terminal := MapTerminal.at(get_tree(), index)
+	if terminal:
+		terminal.apply_state(phase, who, progress)
+
+
+## Host: tell everyone (or only peer `to`) whether a map event is running and how far in.
+func send_map_event_state(index: int, running: bool, elapsed: float, to: int = 0) -> void:
+	if not is_host():
+		return
+	if to != 0:
+		_map_event_state.rpc_id(to, index, running, elapsed)
+	else:
+		_map_event_state.rpc(index, running, elapsed)
+
+
+@rpc("authority", "call_local", "reliable")
+func _map_event_state(index: int, running: bool, elapsed: float) -> void:
+	var event := MapEvent.at(get_tree(), index)
+	if event:
+		event.apply_state(running, elapsed)
+		if DevArgs.sync_log:
+			print("MAP_EVENT %d %s %.2f" % [index, "on" if running else "off", elapsed])
+
+
+## A copy that has just built the arena asks the host where the terminals and events are.
+func request_map_state() -> void:
+	if not is_host() and is_online:
+		_map_state_request.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _map_state_request() -> void:
+	if not is_host():
+		return
+	var to := multiplayer.get_remote_sender_id()
+	var events := get_tree().get_nodes_in_group(MapEvent.GROUP)
+	for i in events.size():
+		var e := events[i] as MapEvent
+		if e.running:
+			send_map_event_state(i, true, e.elapsed, to)
+	var terminals := get_tree().get_nodes_in_group(MapTerminal.GROUP)
+	for i in terminals.size():
+		var t := terminals[i] as MapTerminal
+		send_terminal_state(i, t.phase, t.channeler, t.progress, to)
+
+
+# ---------------------------------------------------------------------------
 # Player state. Each player sends its own movement snapshot ~30 times a second.
 # The host relays it to everyone else (Godot's server relay).
 

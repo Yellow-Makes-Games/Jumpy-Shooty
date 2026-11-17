@@ -25,6 +25,11 @@ extends RefCounted
 ##  - Kicks anyone right in front of it, hooks you with the grapple to reel you in
 ##    and finishes with a flying kick, and fires its rocket boots to close in, to
 ##    dodge when hit and to whip round faster on a grapple swing.
+##  - Uses a map's terminal now and then (Halcyon's low gravity): only when one is
+##    ready and close, and it has nobody in sight. It walks up, holds interact, and
+##    drops the idea the moment it sees someone. Harder bots try a little more often.
+##  - Copes with low gravity (WorldGravity): jumps carry further, so it looks further
+##    ahead for floor before it jumps, hops, dives, flips or boosts.
 ## How good it is at each of these comes from BotDifficulty.
 
 const ENGAGE_RANGE := 45.0
@@ -55,6 +60,10 @@ const SEEN_BIAS := 0.5     ## someone it can see counts as this much closer...
 const KEEP_BIAS := 0.7     ## ...its current target as this much closer...
 const REVENGE_BIAS := 0.5  ## ...and whoever shot it in the last REVENGE_TIME seconds as this much closer
 const REVENGE_TIME := 2.0
+const TERMINAL_RANGE := 40.0     ## it only bothers with a terminal this close
+const TERMINAL_THINK := 5.0      ## seconds between thinking about going for one...
+const TERMINAL_CHANCE := [0.04, 0.06, 0.08, 0.1]   ## ...and the chance it does each time (Easy to Expert)
+const TERMINAL_GIVE_UP := 14.0   ## seconds it spends getting there before it drops the idea
 
 var me: Player
 var d: BotDifficulty
@@ -107,6 +116,9 @@ var _hook_frame := false         # it has just aimed the hook at someone: don't 
 var _boost_side := 0.0           # it was just hit: boost this way (-1 left, 1 right, 0 no)
 var _last_state := -1
 var _state_seen := {}
+var _terminal: MapTerminal       # the map terminal it is walking to or holding, or null
+var _terminal_think := 0.0
+var _terminal_time := 0.0
 
 
 func _init(player: Player, level: int) -> void:
@@ -153,6 +165,7 @@ func update(delta: float) -> void:
 	input.move = Vector2.ZERO
 	input.sprint = false
 	input.fire = false
+	input.interact = false
 	input.aim_origin = Vector3.ZERO
 	input.aim_dir = Vector3.ZERO
 	if not me.alive:
@@ -180,14 +193,18 @@ func update(delta: float) -> void:
 
 	var world_dir := _choose_direction(delta, visible)
 	_hook_frame = false
-	_grapple(delta, visible)
+	if _terminal == null:
+		_grapple(delta, visible)
+	else:
+		input.grapple = false   # no swinging off while it is at (or on its way to) a terminal
 	_dodge(delta)
 	_set_move(world_dir)
 	if not _hook_frame:
 		_aim(delta, perceived, world_dir)
 	_fire(delta, perceived)
 	_kick(delta, visible)
-	_boost(delta, visible)
+	if _terminal == null:
+		_boost(delta, visible)
 	if DevArgs.sync_log:
 		if me.motor.state != _last_state:
 			_last_state = me.motor.state
@@ -219,6 +236,7 @@ func _reset() -> void:
 	_hop_time = 0.0
 	_dodge_time = 0.0
 	_grapple_time = 0.0
+	_terminal = null
 
 
 # ---------------------------------------------------------------------------
@@ -370,6 +388,18 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 	var dist := pos.distance_to(_target.global_position) if visible else INF
 	var dir := Vector3.ZERO
 	var pickup := _nearest_pickup() if me.weapon == null else Vector3.INF
+	var console := _terminal_spot(delta, visible) if pickup == Vector3.INF else Vector3.INF
+	if console != Vector3.INF:
+		# A map terminal: walk up to it, then stand there holding interact.
+		if _terminal.reaches(pos) and _flat(pos, _terminal.global_position) < _terminal.range * 0.75:
+			input.interact = true
+			return Vector3.ZERO
+		dir = _follow_path(console, delta)
+		if dir == Vector3.ZERO:
+			dir = Vector3(console.x - pos.x, 0.0, console.z - pos.z).normalized()   # the last step
+		input.sprint = d.sprint and not _corner_ahead and _flat(pos, console) > 8.0
+		_unstick(delta, dir)
+		return dir
 	if pickup != Vector3.INF and dist > 4.0:
 		# Deathmatch with empty hands: arm up first (kicking anyone who gets close).
 		dir = _follow_path(pickup, delta)
@@ -404,7 +434,7 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 			if route != Vector3.ZERO:
 				dir = route
 		input.sprint = d.sprint and dist > FAR and not _corner_ahead
-		if grounded and _rng.randf() < d.jumpiness * delta * 2.5:
+		if grounded and _rng.randf() < d.jumpiness * delta * 2.5 and (not _light() or _ground_ahead(dir, 3.0 * _air())):
 			input.jump_pressed = true
 		# At the top of a jump, flip sideways to throw off your aim.
 		if not grounded and absf(me.velocity.y) < 2.0 and _dodge_time <= 0.0 \
@@ -412,9 +442,9 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 			_dodge_side = _strafe_dir
 			_dodge_time = 0.3
 		# Close the gap fast with a dive (it dives where it looks: at you).
-		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5 and _ground_ahead(f, 8.0):
+		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5 and _ground_ahead(f, 8.0 * _air()):
 			_dive(f)
-		elif _melee and grounded and dist > 5.0 and dist < 12.0 and _rng.randf() < delta * 1.2 and _ground_ahead(f, 8.0):
+		elif _melee and grounded and dist > 5.0 and dist < 12.0 and _rng.randf() < delta * 1.2 and _ground_ahead(f, 8.0 * _air()):
 			_dive(f)   # a blade has to get close: dive in
 	else:
 		# Chase to where it last saw or heard you and search round there, or roam.
@@ -423,7 +453,7 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		_chase_tricks(delta, dir, grounded, speed)
 	if _hop_time > 0.0:
 		_hop_time -= delta
-		if not _ground_ahead(dir, 6.0):
+		if not _ground_ahead(dir, 6.0 * _air()):
 			_hop_time = 0.0             # a drop is coming up: stop hopping
 		elif grounded:
 			input.jump_pressed = true   # bunny-hop: jump again the moment it lands
@@ -464,7 +494,7 @@ func _chase_tricks(delta: float, dir: Vector3, grounded: bool, speed: float) -> 
 	if not d.slides or not grounded or speed < 9.0 or _trick_wait > 0.0 or dir.length() < 0.1:
 		return
 	_trick_wait = _rng.randf_range(0.6, 1.6)
-	if not _ground_ahead(dir, 9.0):
+	if not _ground_ahead(dir, 9.0 * _air()):
 		return   # up on a floor or a stair with an edge ahead: no tricks that carry it over
 	var facing := Vector3(me.aim_forward().x, 0.0, me.aim_forward().z).normalized()
 	var straight := facing.angle_to(dir) < deg_to_rad(15.0) and _straight_ahead(dir) > 8.0
@@ -476,6 +506,48 @@ func _chase_tricks(delta: float, dir: Vector3, grounded: bool, speed: float) -> 
 		input.crouch_pressed = true
 	elif d.jumpiness >= 0.15:
 		_hop_time = _rng.randf_range(0.8, 2.0)
+
+
+## Low gravity (a map event): everything that leaves the floor carries further.
+func _light() -> bool:
+	return WorldGravity.scale < 0.9
+
+
+## How much further ahead to look for floor before leaving it: 1 normally, up to
+## 2.5 times as far in low gravity.
+func _air() -> float:
+	return clampf(1.0 / maxf(WorldGravity.scale, 0.01), 1.0, 2.5)
+
+
+## Where to walk to use a map terminal, or INF when it is not going for one. It
+## only thinks of it now and then, with nobody in sight, when a terminal is ready
+## and close; it drops the idea when it sees someone, when someone else gets
+## there first, or when getting there takes too long.
+func _terminal_spot(delta: float, visible: bool) -> Vector3:
+	if _terminal != null:
+		var mine := is_instance_valid(_terminal) and _terminal.phase == MapTerminal.Phase.CHANNEL and _terminal.channeler == me.peer_id
+		if not mine:
+			_terminal_time += delta
+		if not is_instance_valid(_terminal) or visible or (not mine and not _terminal.ready_to_use()) or _terminal_time > TERMINAL_GIVE_UP:
+			_terminal = null
+	else:
+		_terminal_think -= delta
+		if _terminal_think <= 0.0:
+			_terminal_think = TERMINAL_THINK * _rng.randf_range(0.7, 1.3)
+			if not visible and _in_view.is_empty() and Match.running and (DevArgs.eager_terminal or _rng.randf() < TERMINAL_CHANCE[d.level]):
+				for t in me.get_tree().get_nodes_in_group(MapTerminal.GROUP):
+					var terminal := t as MapTerminal
+					if terminal.ready_to_use() and me.global_position.distance_to(terminal.global_position) < TERMINAL_RANGE \
+							and (_terminal == null or me.global_position.distance_to(terminal.global_position) < me.global_position.distance_to(_terminal.global_position)):
+						_terminal = terminal
+				_terminal_time = 0.0
+	if _terminal == null:
+		return Vector3.INF
+	# A spot beside the console, on the side it is coming from.
+	var at := _terminal.global_position
+	var from := Vector3(me.global_position.x - at.x, 0.0, me.global_position.z - at.z)
+	var beside := at + (from.normalized() if from.length() > 0.2 else Vector3.FORWARD) * 1.2
+	return NavigationServer3D.map_get_closest_point(me.get_world_3d().navigation_map, beside)
 
 
 ## Dive, and the better bots usually keep the button held to land in a belly slide
@@ -617,12 +689,15 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 				_hear(shooter, other.global_position, true)   # it knows roughly where that came from
 	if _dodge_time > 0.0:
 		return
+	var side := 1.0 if _rng.randf() < 0.5 else -1.0
+	if _light() and not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0 * _air()):
+		return   # low gravity: a dodge that way would float it off an edge
 	if _rng.randf() < d.dodge_chance * 0.5 and me.motor.boost_readiness() >= 1.0:
-		_boost_side = 1.0 if _rng.randf() < 0.5 else -1.0   # a sideways rocket burst
+		_boost_side = side   # a sideways rocket burst
 		return
 	if _rng.randf() < d.dodge_chance:
 		# Flip dodge: jump, then jump again in the air toward a side.
-		_dodge_side = 1.0 if _rng.randf() < 0.5 else -1.0
+		_dodge_side = side
 		_dodge_time = 0.45
 		if me.is_on_floor():
 			input.jump_pressed = true
@@ -758,7 +833,7 @@ func _boost(delta: float, visible: bool) -> void:
 	if visible and _target != null and not g.attached:
 		var to := _target.global_position - me.global_position
 		var far := 6.0 if _melee else FAR + 6.0
-		if to.length() > far and to.length() < 40.0 and _rng.randf() < delta * 0.35 * keen and _ground_ahead(to, 6.0):
+		if to.length() > far and to.length() < 40.0 and _rng.randf() < delta * 0.35 * keen and _ground_ahead(to, 6.0 * _air()):
 			input.boost_pressed = true   # close in
 			input.boost_dir = Vector3(to.x, 0.0, to.z).normalized() + Vector3.UP * 0.25
 

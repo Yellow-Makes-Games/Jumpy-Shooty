@@ -51,12 +51,20 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - Skill tricks welcome ("skill tricks galore"): bunny-hopping and air-strafing are intended.
 - No fall damage.
 - Grapple: short cooldown, attaches to any surface.
+- Low gravity (2026-11-17, Halcyon's event) changes players only: jumps, falls, swings, slides, wall runs and floats all go light together. Bullets, rockets and grenades do not change, so weapons stay predictable.
 - Flips (2026-11-16): an air flip dodge. Press jump again in mid-air to flip toward your WASD direction with a small burst, once per jump.
 - Float (2026-11-17): Shift in mid-air cancels your up-and-down speed and glides you in a straight line the way you face, at the speed you had, sinking slowly, for about a second (2.5 s was tried and was far too long). It pairs with every other move (they take over from it), so it doubles as a vertical cancel, and it is a steadier way to shoot from the air. Rocket boots are the exception: used while floating they turn the float the way you press, so it can change direction. Legs out to the sides, whirling like a helicopter's rotor (the first try, half a flip's speed, was too slow), and they hurt and shove anyone they touch. (A rocket booster out of the seat was tried and dropped: it looked goofy.)
 - Grapple pulls you in: a yank when it catches, then a steady reel toward the hook that only adds speed along the rope (sideways speed is kept, so pulls turn into swings). The rope takes up its own slack, so it is always tight, and letting go keeps every bit of speed.
 
 ## Maps
 
+- **Halcyon** (2026-11-17): the colony ship *Halcyon*, whose gravity comes from a huge centrifuge ring turning round its hull. The biggest and most vertical arena (140 x 140 m, up to 16 players), for free-for-all, Deathmatch and Gun Game.
+  - Tone: the inside of a capital ship in a classic sci-fi shooter (clean, cold corridors, big viewports onto space) but brighter and more hopeful, because this ship carries colonists. The feel only: nothing named or copied.
+  - Layout: hub, four spokes and an outer ring. The round Control Room in the middle (30 m across, a glass dome above and a ring of glass in the floor, the centrifuge sweeping past both), a spoke corridor to each of four tall rooms, an outer ring corridor so no room is a dead end, and a tighter lower maintenance deck under the spokes and the ring with two stairwells up into the Control Room.
+  - Rooms, one accent colour each: Hangar (cyan; the biggest volume, two shuttles, a viewport onto a planet), Hydroponics (green; terraces of planting beds, grow lights), Engineering (orange; the reactor core, ringed catwalks, and the reactor pit under it, the map's only hazard), Cargo Bay (yellow; container stacks and a gantry crane) and the Cryo/Habitat zone in the ring (pale blue; the one tight part, on purpose). Every tall room is a grapple playground, 32 to 36 m from floor to ceiling.
+  - The low gravity event, the game's first interactive map object: hold Interact (G) for 2 s at the terminal on the Control Room's dais and the centrifuge slows to half speed. Gravity eases to 40% for 30 s (a jump reaches about 3 m), then a 60 s cooldown. Taking damage does not stop the hold; being knocked out of reach does. No weapon in the Control Room: going for the event is a risk with no item reward.
+  - Its feel is blissful, not an alarm: the lights fade to a deep blue, a soft sustained chord swells in, slow motes of light drift through the big rooms. Shown, never told: nothing on the HUD, no red, no flashing.
+  - Power weapons sit up high where only the grapple takes you (the top reactor catwalk, the six-high container stack, the hangar gantry, the top terrace); the rest are in the corridors, the ring and the lower deck.
 - **Testing Grounds** (2026-11-16): the starting test map, kept long-term for testing. It is not a player-facing map.
   - The arena part (80 x 80 m) is the original combat test area.
   - The training yard (through the doorway on the east side) has practice lanes for the grapple, wall run and wall jump, slide, and vault and ledge climb.

@@ -50,6 +50,9 @@ const VOLUME := {
 	"break_open": -10.0, "break_close": -9.0, "shells_in": -11.0, "lever_down": -10.0, "lever_up": -9.0,
 	"cover_open": -11.0, "cover_close": -9.0, "box_out": -11.0, "box_in": -10.0, "cell_out": -11.0,
 	"cell_in": -10.0, "rocket_in": -9.0, "drum_turn": -11.0, "grenade_in": -11.0, "rail_vent": -11.0,
+	# Map events (both loop; MapTerminal and GravityEvent play and fade them). The chord
+	# is heard all over the map and is kept well under the fighting.
+	"terminal_hum": -9.0, "gravity_pad": -15.0,
 }
 
 ## Gun handling, in seconds from the start of the clip, matched to the animations

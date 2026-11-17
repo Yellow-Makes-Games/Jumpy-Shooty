@@ -1034,8 +1034,74 @@ def float_spin():
 
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Map events (Halcyon's terminal and its low gravity). Both of these loop: every
+# frequency in them fits a whole number of times into the file, so the end runs
+# straight into the start. They are not passed through finish(), whose trim and
+# fade would break that.
+
+def _looped(x):
+    return x * (PEAK / np.max(np.abs(x)))
+
+
+def _loop_noise(rng, seconds, shape):
+    """Noise that loops: random phases under a spectrum shaped by shape(Hz)."""
+    count = n(seconds)
+    freqs = np.fft.rfftfreq(count, 1.0 / SR)
+    spectrum = shape(freqs) * np.exp(1j * rng.uniform(0, 2 * math.pi, len(freqs)))
+    spectrum[0] = 0.0
+    x = np.fft.irfft(spectrum, count)
+    return x / np.max(np.abs(x))
+
+
+def terminal_hum():
+    """The centrifuge winding down while someone holds the terminal: a turbine's hum on
+    A (110 Hz), the low gravity chord's root, with slow beating and a breath of air. The
+    game plays it a third higher at first and lets it sink to this pitch as the hold
+    completes, so it lands on the chord that follows. Loops (2 s)."""
+    seconds = 2.0
+    rng = np.random.default_rng(7101)
+    t = tt(seconds)
+    x = np.zeros_like(t)
+    for k, gain in ((1, 1.0), (2, 0.55), (3, 0.3), (4, 0.16), (5, 0.1), (6, 0.05), (8, 0.03)):
+        for detune, share in ((0.0, 0.6), (0.5, 0.25), (-1.0, 0.15)):   # beats every 1 to 2 s
+            x += gain * share * np.sin(2 * math.pi * (110.0 * k + detune) * t + rng.uniform(0, 2 * math.pi))
+    x *= 0.82 + 0.18 * np.sin(2 * math.pi * 6.0 * t)   # the blades going round
+    air = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 900.0)) ** 2) / 0.9))
+    return _looped(x / np.max(np.abs(x)) + 0.1 * air)
+
+
+def gravity_pad():
+    """Low gravity: one soft, sustained chord, like a far-off choir. A major with an
+    added ninth, voiced wide (A2 E3 A3 C#4 E4 A4 B4 E5), every note a few slightly
+    detuned voices that swell and ebb slowly, each ear its own. Calm on purpose: no
+    attack, no pulse, nothing bright. Loops (8 s); the game fades it in and out."""
+    seconds = 8.0
+    rng = np.random.default_rng(7102)
+    t = tt(seconds)
+    step = 1.0 / seconds   # every frequency is a multiple of this, so the file loops
+    notes = ((110.0, 0.5), (164.75, 0.6), (220.0, 0.8), (277.125, 0.65), (329.625, 0.7), (440.0, 0.5), (493.875, 0.22), (659.25, 0.16))
+    chans = []
+    for ear in range(2):
+        x = np.zeros_like(t)
+        for f, gain in notes:
+            for voice in range(3):
+                fv = round((f * (1.0 + (voice - 1) * 0.0022) + rng.uniform(-0.2, 0.2)) / step) * step
+                swell = 0.72 + 0.28 * np.sin(2 * math.pi * step * rng.integers(1, 4) * t + rng.uniform(0, 2 * math.pi))
+                phase = rng.uniform(0, 2 * math.pi)
+                tone = np.sin(2 * math.pi * fv * t + phase) + 0.22 * np.sin(2 * math.pi * 2 * fv * t + 2 * phase) \
+                    + 0.07 * np.sin(2 * math.pi * 3 * fv * t)
+                x += gain * swell * tone / 3.0
+        # A breath of "ah": a little air round the voices' formants.
+        breath = _loop_noise(rng, seconds, lambda f: np.exp(-((f - 750.0) / 260.0) ** 2) + 0.6 * np.exp(-((f - 1150.0) / 300.0) ** 2))
+        chans.append(x / np.max(np.abs(x)) + 0.035 * breath)
+    return _looped(np.stack(chans, axis=1))
+
+
 def recipes():
     r = {}
+    r["terminal_hum"] = terminal_hum
+    r["gravity_pad"] = gravity_pad
     for g in GUNS:
         r["fire_" + g] = lambda g=g: gun_fire(g)
         r["fire_%s_fp" % g] = lambda g=g: gun_fire(g, stereo=True, seed=7)

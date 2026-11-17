@@ -118,10 +118,16 @@ def crawl(c, T, L=8, name="Crawl"):
     c.advance(run_in + L + 5)
 
 
-def wallrun(c, T, side=-1, panels=2, name="WallRun"):
-    """Edge, then a drop with wall panels either side: run along one, kick to the other."""
+def wallrun(c, T, side=-1, panels=2, name="WallRun", run_in=8.0):
+    """Edge, then a drop with wall panels either side: run along one, kick to the other.
+    `run_in` metres of floor first, so the way in is the same whatever came before (straight
+    off a corner, the angle in was anyone's guess, and too shallow a one misses the wall)."""
     g = c.group(name)
     s = side
+    if run_in:
+        floor(c, T, g, 0, run_in)
+        c.point(2.0, 0, -s * 0.5, "RUN", radius=1.0)   # then in at a slant, so the jump carries onto the wall
+        c.advance(run_in)
     spans = [(1, 17, s)] + ([(15, 27, -s)] if panels > 1 else [])
     for f0, f1, sd in spans:
         c.box(g, "Panel", f0, f1, sd * 2.0, sd * 3.0, -4.0, 5.0, T.panel)
@@ -276,3 +282,113 @@ def finish(c, T, name="Finish"):
     c.point(10, 0, 0, "RUN", radius=3.0)
     T.finish_dressing(c, g)
     c.advance(18)
+
+
+# ---------------------------------------------------------------------------
+# Sections built for the newer moves: rocket boots (E), float (Shift in the
+# air), the grapple's pull, and the belly slide. Measured in the game with the
+# race_lab strip (see build_race_maps.py): a flip and a dive clear 13 m on the
+# level and 19 m off a 4 m drop, but not 30 m off a ski jump at slide speed,
+# where a float clears 32; a sprinting jump with the boots fired just after
+# take-off (tipped up by holding Space) clears 20 m easily but not 40 m off a
+# 6 m drop, which a float with the boots fired in it does; the boots fired up
+# from a jump reach a ledge 7 m up (a jump and a ledge grab reach 3.5 m).
+
+def boost_gap(c, T, d=17.0, land=18, dy=0.0, name="BoostGap"):
+    """A gap no jump can clear (13 m is the most a flip and a dive manage): jump and fire the
+    rocket boots. The landing is long, because you come down fast."""
+    g = c.group(name)
+    T.takeoff(c, g, 0)
+    c.point(-0.45, 0, 0, "BOOST_JUMP", radius=0.55)
+    floor(c, T, g, d, d + land, top=dy)
+    c.point(d + land - 4, dy, 0, "RUN", radius=2.0)
+    c.advance(d + land, dy)
+
+
+def boost_wall(c, T, h=7.0, name="BoostWall"):
+    """A sheer wall too tall to climb (3.5 m is the most a jump and a ledge grab reach):
+    boost up it and climb on. A straight run at it first, so you go up and not off the side."""
+    g = c.group(name)
+    W = 12.0
+    floor(c, T, g, 0, W)
+    T.takeoff(c, g, W - 1.5, mark_only=True)
+    top = c.group(name + "Top")
+    c.box(top, "Tower", W, W + 10, -c.W / 2, c.W / 2, -1, h, T.tower)
+    floor(c, T, top, W, W + 10, top=h)
+    c.point(3.0, 0, 0, "RUN", radius=1.5)
+    c.point(W - 1.4, 0, 0, "BOOST_UP", radius=0.7)
+    c.point(W + 4.5, h, 0, "RUN", radius=2.0)
+    c.advance(W + 10, h)
+
+
+def float_gap(c, T, d=16.0, dy=-3.0, land=14, boost=False, name="FloatGap"):
+    """A long drop across: jump, then float at the top of the jump (Shift) and glide over.
+    With `boost`, so long that the float needs the boots fired in it as well."""
+    g = c.group(name)
+    T.takeoff(c, g, 0)
+    c.point(-0.45, 0, 0, "FLOAT_JUMP", radius=0.55, boost=boost)
+    floor(c, T, g, d, d + land, top=dy)
+    c.point(d + land - 4, dy, 0, "RUN", radius=2.0)
+    c.advance(d + land, dy)
+
+
+def grapple_swing(c, T, anchors, land_gap=6.0, land=14, dy=0.0, boost=False, name="GrappleSwing"):
+    """A wide drop with high anchors over it (anchors: [(f, height)], f from the edge). The
+    pull flings you toward each one; let go past it to fly on to the next, and from the last
+    one onto the landing. With `boost` the last release needs the boots too."""
+    g = c.group(name)
+    for f, hh in anchors:
+        T.beam(c, g, f, hh)
+    land0 = anchors[-1][0] + land_gap
+    floor(c, T, g, land0, land0 + land, top=dy)
+    f0, h0 = anchors[0]
+    c.point(-0.8, 0, 0, "GRAPPLE", aim=(f0 + 0.8, h0 - 0.5, 0), radius=0.6, boost=boost and len(anchors) == 1)
+    for i in range(1, len(anchors)):
+        fp, hp = anchors[i - 1]
+        f, hh = anchors[i]
+        at = fp + 1.5
+        c.point(at, hp - 9.5, 0, "GRAPPLE", aim=(f - at, hh - 0.5 - (hp - 9.5), 0), radius=2.5,
+                boost=boost and i == len(anchors) - 1)
+    c.point(land0 + 4, dy, 0, "RUN", radius=2.2)
+    c.advance(land0 + land, dy)
+
+
+def belly_chute(c, T, L=22.0, dy=-6.0, name="BellyChute"):
+    """A low, steep tunnel: dive onto your front before it and belly-slide down, picking up
+    speed. Too low to crouch through (0.95 m), so it is a crawl if you stop."""
+    g = c.group(name)
+    W = c.W
+    run_in = 12.0   # room to land the dive before the mouth, coming in fast
+    floor(c, T, g, 0, run_in)
+    c.ramp(g, run_in, 0, run_in + L, dy, T.ramp, thick=T.thick)
+    T.under_ramp_at(c, g, run_in, L, dy)
+    # The roof follows the slope 0.95 m up; walls either side.
+    roof_t = 0.8
+    a = math.atan2(dy, L)
+    lift = 0.95 / math.cos(a) + roof_t / math.cos(a)
+    c.ramp(g, run_in, lift, run_in + L, dy + lift, T.duct, thick=roof_t, width=W, name="Roof")
+    for sd in (-1, 1):
+        c.ramp(g, run_in, 2.2, run_in + L, dy + 2.2, T.wall, thick=2.2, width=(W / 2 - 1.6), r=sd * (1.6 + (W / 2 - 1.6) / 2), name="Side")
+    T.chute_mouth(c, g, run_in, 0)
+    end = run_in + L
+    floor(c, T, g, end, end + 14, top=dy)
+    c.point(1.0, 0, 0, "CRAWL", radius=1.0)
+    c.point(end + 6, dy, 0, "RUN", radius=2.0)
+    c.advance(end + 14, dy)
+
+
+def ski_jump(c, T, L=18.0, dy=-6.0, d=24.0, ddy=-4.0, land=16, action="FLOAT_JUMP", boost=False, name="SkiJump"):
+    """Slide down a slope straight off a lip and float across the drop beyond: the slide's
+    speed carries the float much further than a flip and a dive go."""
+    g = c.group(name)
+    c.ramp(g, 0, 0, L, dy, T.ramp, thick=T.thick)
+    T.under_ramp(c, g, L, dy)
+    lip = 3.0
+    floor(c, T, g, L, L + lip, top=dy)
+    T.takeoff(c, g, 0)
+    c.point(0.8, 0, 0, "SLIDE", radius=1.2)
+    c.point(L + lip - 0.45, dy, 0, action, radius=0.8, boost=boost)
+    e = L + lip
+    floor(c, T, g, e + d, e + d + land, top=dy + ddy)
+    c.point(e + d + land - 4, dy + ddy, 0, "RUN", radius=2.0)
+    c.advance(e + d + land, dy + ddy)
