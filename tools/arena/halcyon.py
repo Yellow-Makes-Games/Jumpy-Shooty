@@ -395,7 +395,7 @@ def control_room(m):
     ring(m, g, "Wall", "hull_white", HUB_R, HUB_R + 0.8, 0.0, H, 36, skip=hub_door)
     ring(m, g, "Lintel", "trim", HUB_R, HUB_R + 0.8, 5.2, H, 36, skip=lambda d: not hub_door(d))
     hoop(m, g, "WallLight", "accent_white", 14.98, 0.12, 5.35, 5.55)
-    hoop(m, g, "WallTrim", "trim", 14.98, 0.12, 1.0, 1.12)
+    ring(m, g, "WallTrim", "trim", HUB_R - 0.1, HUB_R, 1.0, 1.12, 36, skip=hub_door, solid=False)   # (pieces, so it stops at the doorways)
     for deg, text in ((0, "ENGINEERING"), (90, "HYDROPONICS"), (180, "HANGAR"), (270, "CARGO BAY"), (135, "DECK 2"), (315, "DECK 2")):
         m.sign(text, polar(14.84, deg, 5.8), yaw=math.radians(deg + 180), size=40, pixel=0.008)
 
@@ -469,9 +469,9 @@ def control_room(m):
     for y in (-2.5, -5.5, -8.5):
         hoop(m, g, "ShaftLight", "accent_white", 10.2, 0.15, y, y + 0.2)
         hoop(m, g, "ColumnTrim", "trim", 6.12, 0.12, y, y + 0.25)
-    hoop(m, g, "Pipe", "pipe", 18.45, 0.35, -1.6, -1.25)
+    hoop(m, g, "Pipe", "pipe", 18.45, 0.35, -0.86, -0.5)   # under the ceiling, so it passes over the openings
     hoop(m, g, "Pipe", "pipe_blue", 11.5, 0.3, -1.3, -1.0)
-    hoop(m, g, "LowLight", "light_dim", 18.48, 0.06, -3.2, -3.0)
+    ring(m, g, "LowLight", "light_dim", BAND_R - 0.06, BAND_R, -3.2, -3.0, 36, skip=lower_gap, solid=False)   # (pieces: none across an opening)
     hoop(m, g, "LowLight", "light_dim", 11.1, 0.06, -3.2, -3.0)
     hoop(m, g, "Grate", "grate", 15.4, 1.2, LOW, LOW + 0.015)
     hoop(m, g, "Cable", "cable", 15.1, 0.5, -0.72, -0.5)
@@ -586,6 +586,7 @@ def spoke(m, f, k, name, room, accent):
 def shell(F, g, x0, x1, z0, z1, top, tint, holes, floor_holes=(), floor="floor"):
     """The box a tall room sits in: floor at the lower deck, 1 m walls with openings
     (holes: side -> [(from, to, bottom, top)]), and a ceiling."""
+    F.holes = holes   # (noted on the frame: strips along this room's walls stop at its openings)
     F.deck(g, "Floor", floor, x0 - 1, x1 + 1, z0 - 1, z1 + 1, LOW, holes=floor_holes)
     F.box(g, "Ceiling", "hull", (x0 - 1, top, z0 - 1), (x1 + 1, top + 0.5, z1 + 1))
     F.wall(g, "WallN", "hull", "x", z0 - 0.5, x0 - 1, x1 + 1, LOW - 0.5, top, 1.0, holes.get("n", ()), tint=tint)
@@ -628,15 +629,16 @@ def lights(F, g, x0, x1, z0, z1, y, nx, nz, kind="light", size=(5.0, 2.0)):
 
 
 def wall_strips(F, g, x0, x1, z0, z1, y, accent, skip=()):
-    """A strip of the room's colour round its walls at height y (skip: sides to leave bare)."""
-    if "n" not in skip:
-        F.strip(g, "Strip", accent, (x0 + 0.5, y, z0 - 0.02), (x1 - 0.5, y + 0.3, z0 + 0.05))
-    if "s" not in skip:
-        F.strip(g, "Strip", accent, (x0 + 0.5, y, z1 - 0.05), (x1 - 0.5, y + 0.3, z1 + 0.02))
-    if "w" not in skip:
-        F.strip(g, "Strip", accent, (x0 - 0.02, y, z0 + 0.5), (x0 + 0.05, y + 0.3, z1 - 0.5))
-    if "e" not in skip:
-        F.strip(g, "Strip", accent, (x1 - 0.05, y, z0 + 0.5), (x1 + 0.02, y + 0.3, z1 - 0.5))
+    """A strip of the room's colour round its walls at height y (skip: sides to leave bare).
+    It stops short of every opening in the wall (the room's shell() noted them), so no
+    strip hangs across a doorway or a window."""
+    holes = getattr(F, "holes", {})
+    for side, axis, face, out, a, b in (("n", "x", z0, 1, x0, x1), ("s", "x", z1, -1, x0, x1),
+                                        ("w", "z", x0, 1, z0, z1), ("e", "z", x1, -1, z0, z1)):
+        if side in skip:
+            continue
+        gaps = [(h0 - 0.15, h1 + 0.15, hb, ht) for h0, h1, hb, ht in holes.get(side, ())]
+        wall_band(F, g, "Strip", accent, axis, face, out, a + 0.5, b - 0.5, y, y + 0.3, 0.05, gaps)
 
 
 def outside(F, g, side, x0, x1, z0, z1, top, accent):
@@ -1234,7 +1236,8 @@ def corner(m, f, name, mat, room, x_start, accent_h, accent_v, room_h, room_v):
     # Inner walls: the side room opens off both legs, an alcove off the first, the ramp off the second.
     F.wall(g, "Wall", "hull", "x", -55.6, x_start, 56, 0, H, 0.8, [(35.5, 39.5, 0, 4.0), (47, 55, 0, 5.0)])
     F.wall(g, "Wall", "hull", "z", 55.6, -56, -25, 0, H, 0.8, [(-55, -47, 0, 5.0), (-46, -42, 0, 4.5)])
-    F.strip(g, "Strip", accent_h, (x_start + 0.5, 2.0, -56.04), (46.5, 2.22, -55.98))
+    F.strip(g, "Strip", accent_h, (x_start + 0.5, 2.0, -56.04), (35.35, 2.22, -55.98))   # (stops at the alcove's doorway)
+    F.strip(g, "Strip", accent_h, (39.65, 2.0, -56.04), (46.5, 2.22, -55.98))
     F.strip(g, "Strip", accent_v, (55.98, 2.0, -41.5), (56.04, 2.22, -25.5))
     F.strip(g, "FloorTrim", "trim", (x_start, 0, -66.0), (66, 0.02, -65.6))
     F.strip(g, "FloorTrim", "trim", (65.6, 0, -66), (66, 0.02, -25))
