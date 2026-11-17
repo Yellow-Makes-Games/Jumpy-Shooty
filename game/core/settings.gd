@@ -27,6 +27,24 @@ var sfx_volume: float = 0.9
 # Graphics
 var fullscreen: bool = false
 var vsync: bool = true
+## Vector2i.ZERO means native: the screen's own resolution in fullscreen, and whatever
+## size the window is in windowed mode.
+var resolution: Vector2i = Vector2i.ZERO
+## Frame rate cap. 0 = no cap, -1 = match the monitor's refresh rate.
+var frame_rate: int = 0
+
+## Resolutions offered in the menu (only those that fit the screen are shown).
+const RESOLUTIONS: Array[Vector2i] = [
+	Vector2i(3840, 2160), Vector2i(3440, 1440), Vector2i(2560, 1440), Vector2i(2560, 1080),
+	Vector2i(1920, 1080), Vector2i(1680, 1050), Vector2i(1600, 900), Vector2i(1366, 768),
+	Vector2i(1280, 720),
+]
+## Frame rate caps offered in the menu, besides "no cap" and "match monitor".
+const FRAME_RATES: Array[int] = [30, 60, 75, 120, 144, 165, 240, 360]
+
+# What apply() last put on the window, so it only resizes when the resolution changes.
+var _applied_resolution := Vector2i(-1, -1)
+var _applied_fullscreen := false
 
 # Profile
 var player_name: String = ""
@@ -56,6 +74,9 @@ func load_settings() -> void:
 	sfx_volume = cfg.get_value("audio", "sfx_volume", sfx_volume)
 	fullscreen = cfg.get_value("graphics", "fullscreen", fullscreen)
 	vsync = cfg.get_value("graphics", "vsync", vsync)
+	var res = cfg.get_value("graphics", "resolution", resolution)
+	resolution = res if res is Vector2i else Vector2i.ZERO
+	frame_rate = int(cfg.get_value("graphics", "frame_rate", frame_rate))
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
@@ -75,6 +96,8 @@ func save_settings() -> void:
 	cfg.set_value("audio", "sfx_volume", sfx_volume)
 	cfg.set_value("graphics", "fullscreen", fullscreen)
 	cfg.set_value("graphics", "vsync", vsync)
+	cfg.set_value("graphics", "resolution", resolution)
+	cfg.set_value("graphics", "frame_rate", frame_rate)
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
 	cfg.set_value("profile", "weapon", weapon)
@@ -88,7 +111,67 @@ func apply() -> void:
 		if DisplayServer.window_get_mode() != mode:
 			DisplayServer.window_set_mode(mode)
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
+		_apply_resolution()
+		Engine.max_fps = monitor_refresh_rate() if frame_rate < 0 else frame_rate
 	changed.emit()   # Sound puts the volumes on the audio buses
+
+
+## Fullscreen always covers the screen at its own resolution (the game can't change the
+## monitor's mode), so there the chosen resolution sets how sharp the 3D picture is drawn
+## before it is stretched to fill the screen; menus and the HUD stay sharp. In windowed
+## mode it sets the window size.
+func _apply_resolution() -> void:
+	var screen := screen_size()
+	var res := resolution
+	if res.x > screen.x or res.y > screen.y:
+		res = Vector2i.ZERO   # saved on a bigger monitor: fall back to native
+	var root := get_tree().root if is_inside_tree() else null
+	if root:
+		root.scaling_3d_scale = clampf(float(res.y) / screen.y, 0.25, 1.0) if fullscreen and res != Vector2i.ZERO else 1.0
+	if res == _applied_resolution and fullscreen == _applied_fullscreen:
+		return
+	_applied_resolution = res
+	_applied_fullscreen = fullscreen
+	# Copies started side by side by tools/run_local keep the window --window gave them.
+	var dev_args := get_node_or_null("/root/DevArgs")
+	if fullscreen or res == Vector2i.ZERO or (dev_args and dev_args.window_rect.size != Vector2i.ZERO):
+		return
+	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
+	DisplayServer.window_set_size(res)
+	DisplayServer.window_set_position(usable.position + (usable.size - res) / 2)
+
+
+func screen_size() -> Vector2i:
+	if DisplayServer.get_name() == "headless":
+		return Vector2i(1920, 1080)
+	return DisplayServer.screen_get_size(DisplayServer.window_get_current_screen())
+
+
+## The monitor's refresh rate in Hz, rounded (60 if the system won't say).
+func monitor_refresh_rate() -> int:
+	var hz := -1.0
+	if DisplayServer.get_name() != "headless":
+		hz = DisplayServer.screen_get_refresh_rate(DisplayServer.window_get_current_screen())
+	return roundi(hz) if hz > 0.0 else 60
+
+
+## Resolution choices for the menu: stored value -> text. Only those that fit the screen.
+func resolution_choices() -> Dictionary:
+	var screen := screen_size()
+	var choices := {Vector2i.ZERO: "Native (%d x %d)" % [screen.x, screen.y]}
+	for r in RESOLUTIONS:
+		if r.x <= screen.x and r.y <= screen.y and r != screen:
+			choices[r] = "%d x %d" % [r.x, r.y]
+	return choices
+
+
+## Frame rate choices for the menu: stored value -> text.
+func frame_rate_choices() -> Dictionary:
+	var choices := {-1: "Match monitor (%d Hz)" % monitor_refresh_rate()}
+	for f in FRAME_RATES:
+		choices[f] = "%d fps" % f
+	choices[0] = "No cap"
+	return choices
 
 
 ## The HUD layout for the current camera view.
