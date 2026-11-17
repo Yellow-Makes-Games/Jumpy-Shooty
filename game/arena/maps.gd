@@ -17,6 +17,9 @@ const GAME_NAMES := {"ffa": "Free-for-all", "dm": "Deathmatch", "race": "Race"}
 const LIST := [
 	{"id": "construction_site", "name": "Construction Site", "scene": "res://game/maps/construction_site.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "office", "name": "Office", "scene": "res://game/maps/office.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
+	{"id": "rail_yard", "name": "Rail Yard", "scene": "res://game/maps/rail_yard.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
+	{"id": "lost_temple", "name": "Lost Temple", "scene": "res://game/maps/lost_temple.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
+	{"id": "neon_arcade", "name": "Neon Arcade", "scene": "res://game/maps/neon_arcade.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "testing_grounds", "name": "Testing Grounds", "scene": "res://game/maps/testing_grounds.tscn", "dev": true, "game": "ffa"},
 	{"id": "rooftop_run", "name": "Rooftop Run", "scene": "res://game/maps/rooftop_run.tscn", "dev": false, "game": "race"},
 	{"id": "foundry", "name": "Foundry", "scene": "res://game/maps/foundry.tscn", "dev": false, "game": "race"},

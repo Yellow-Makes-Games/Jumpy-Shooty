@@ -29,6 +29,8 @@ echo "== Construction Site: spawn points, bot navigation and every movement rout
 run_script tests/site_test.gd
 echo "== Office: spawn points, bot navigation and every movement route"
 run_script tests/office_test.gd
+echo "== Rail Yard, Lost Temple and Neon Arcade: spawn points, breakable pieces and bot navigation"
+run_script tests/arena_maps_test.gd
 echo "== Breakable walls and floors: which pieces break, spawns stay safe, holes let shots through"
 run_script tests/destruction_test.gd
 echo "== Debug menu cheats and the target dummies"
