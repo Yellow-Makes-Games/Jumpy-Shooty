@@ -207,7 +207,7 @@ func _build_map() -> void:
 	# Mode first: race maps only show up for a race, arena maps only for a shoot-out.
 	UiKit.section(_col, "Mode")
 	_game_label = UiKit.label(_col, "")
-	_game_row = UiKit.segmented(_col, ["Shoot-out (FFA / 1v1)", "Race"], Maps.GAMES.find(Net.game_kind()), func(i: int):
+	_game_row = UiKit.segmented(_col, ["Shoot-out (FFA / 1v1)", "Deathmatch", "Race"], Maps.GAMES.find(Net.game_kind()), func(i: int):
 		if _updating:
 			return
 		var g: String = Maps.GAMES[i]
@@ -226,7 +226,7 @@ func _build_map() -> void:
 			return
 		var s := Net.match_settings.duplicate()
 		s["map"] = Maps.picked(_map_pick)
-		Game.last_map[Maps.game_of(s.map)] = s.map
+		Game.last_map[Net.game_kind()] = s.map
 		Net.set_match_settings(s))
 
 
@@ -280,7 +280,7 @@ func _refresh_rules() -> void:
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
 	if _weapon:
-		_weapon.visible = not race   # no guns in a race
+		_weapon.visible = not race and not Net.is_deathmatch()   # no guns in a race; a Deathmatch finds them on the map
 	_rules_label.visible = not Net.is_host()
 	_host_rules.visible = Net.is_host()
 	_map_label.text = Maps.label(Net.map_id())

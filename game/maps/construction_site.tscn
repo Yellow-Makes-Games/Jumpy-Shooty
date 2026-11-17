@@ -4,6 +4,7 @@
 [ext_resource type="Resource" path="res://game/maps/palettes/construction_site.tres" id="2_rcq07"]
 [ext_resource type="Script" uid="uid://54hcvu7hy6we" path="res://game/arena/map_block.gd" id="3_ufyk6"]
 [ext_resource type="Script" uid="uid://nastdacq4avs" path="res://game/arena/map_spawn.gd" id="4_d5tru"]
+[ext_resource type="Script" path="res://game/arena/map_weapon_spawn.gd" id="90_wpnsp"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_cnng3"]
 sky_top_color = Color(0.22, 0.48, 0.86, 1)
@@ -18472,3 +18473,65 @@ script = ExtResource("4_d5tru")
 [node name="Spawn12" type="Marker3D" parent="Spawns" unique_id=53811646]
 transform = Transform3D(-0.6726728, 0, 0.73994005, 0, 1, 0, -0.73994005, 0, -0.6726728, 22, 0, -20)
 script = ExtResource("4_d5tru")
+
+[node name="WeaponSpawns" type="Node3D" parent="." unique_id=227176720]
+
+[node name="Shotgun1" type="Marker3D" parent="WeaponSpawns" unique_id=288885551]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.42, 0, -2.83)
+script = ExtResource("90_wpnsp")
+weapon = "shotgun"
+
+[node name="Sniper2" type="Marker3D" parent="WeaponSpawns" unique_id=1025999683]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.17, 24, 3.75)
+script = ExtResource("90_wpnsp")
+weapon = "sniper"
+
+[node name="Rifle3" type="Marker3D" parent="WeaponSpawns" unique_id=361234287]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, 12, -7)
+script = ExtResource("90_wpnsp")
+weapon = "rifle"
+
+[node name="Pistol4" type="Marker3D" parent="WeaponSpawns" unique_id=572740223]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.5, 0, 35.25)
+script = ExtResource("90_wpnsp")
+weapon = "pistol"
+
+[node name="Hammer5" type="Marker3D" parent="WeaponSpawns" unique_id=190611186]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34.89, -3, 26.89)
+script = ExtResource("90_wpnsp")
+weapon = "hammer"
+
+[node name="Dagger6" type="Marker3D" parent="WeaponSpawns" unique_id=30998148]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.92, 0, -35.33)
+script = ExtResource("90_wpnsp")
+weapon = "dagger"
+
+[node name="Pistol7" type="Marker3D" parent="WeaponSpawns" unique_id=515318833]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.25, 0, -31)
+script = ExtResource("90_wpnsp")
+weapon = "pistol"
+
+[node name="Shotgun8" type="Marker3D" parent="WeaponSpawns" unique_id=710231696]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 8, -12)
+script = ExtResource("90_wpnsp")
+weapon = "shotgun"
+
+[node name="Rifle9" type="Marker3D" parent="WeaponSpawns" unique_id=978888884]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.75, 16, -14.67)
+script = ExtResource("90_wpnsp")
+weapon = "rifle"
+
+[node name="Sword10" type="Marker3D" parent="WeaponSpawns" unique_id=289493395]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.58, 0, 33.75)
+script = ExtResource("90_wpnsp")
+weapon = "sword"
+
+[node name="Rifle11" type="Marker3D" parent="WeaponSpawns" unique_id=449609439]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.83, 0, -0.83)
+script = ExtResource("90_wpnsp")
+weapon = "rifle"
+
+[node name="Pistol12" type="Marker3D" parent="WeaponSpawns" unique_id=434085445]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, 4, -7)
+script = ExtResource("90_wpnsp")
+weapon = "pistol"

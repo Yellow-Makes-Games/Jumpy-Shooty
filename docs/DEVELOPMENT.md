@@ -156,6 +156,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
+| `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site` or `office`) |
 | `--autopilot` | Your own racer runs the course the way a bot does (race tests and screenshots) |
 | `--bot-level=LEVEL` | With `--autopilot`: at this bot difficulty (default 3, Expert) |
 
@@ -180,6 +181,11 @@ Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`
 - **MapDummy** nodes (under `TargetRange` in the Testing Grounds): target dummies. The
   orange figure shows which way the dummy faces; the inspector picks its robot, its gun
   and the caption over its head (the Testing Grounds ones give the distance).
+- **MapWeaponSpawn** nodes (under `WeaponSpawns`, on the Construction Site and the
+  Office): Deathmatch weapon pickups. Stand one on a floor and pick its **Weapon** in the
+  inspector; in a Deathmatch that weapon floats a metre above it, bobbing and turning,
+  until someone walks through it, and is back 10 s after (`Match.PICKUP_RESPAWN`). Other
+  games leave the spot empty. The orange ghost and label are editor-only.
 - **Label3D** nodes: signs and painted floor numbers.
 - **Environment** (sky, ambient light) and **Sun**: ordinary Godot nodes, so the editor
   shows the map lit the way the game does.
@@ -223,6 +229,9 @@ has enough spawn points.
 **A new map.** Make a scene with a MapRoot root (or duplicate an existing map and strip
 it down), give it a palette, add blocks, spawns, a WorldEnvironment and a sun. F6 plays
 it straight away. To put it in the menus, add a line to `LIST` in `game/arena/maps.gd`.
+To offer an arena for Deathmatch too, give it `"also": ["dm"]` there and add
+MapWeaponSpawn nodes; `tests/deathmatch_test.gd` checks every Deathmatch map has at
+least 8 pickups, every weapon among them, each over a floor with room to stand.
 
 The scripts behind this:
 

@@ -111,6 +111,8 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			shapes = [[Vector2(0, 3), Vector2(6, 3), Vector2(6, 5), Vector2(0, 5)],
 				[Vector2(6, 0), Vector2(8, 0), Vector2(8, 8), Vector2(6, 8)],
 				[Vector2(8, 2.5), Vector2(20, 2.5), Vector2(24, 4), Vector2(20, 5.5), Vector2(8, 5.5)]]
+		"none":   # a boot (Deathmatch: killed with a kick, or a crash, before finding a weapon)
+			shapes = [[Vector2(2, -2), Vector2(9, -2), Vector2(9, 5), Vector2(19, 6), Vector2(21, 10), Vector2(2, 10)]]
 		_:
 			pistol(ci, at, color, s)
 			return 19.0 * s

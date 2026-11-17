@@ -1,7 +1,8 @@
 # Jumpy Shooty
 
 A fast, high-mobility 3D multiplayer arena shooter: grapple, wall-run, slide, dive and
-fight in free-for-all matches of up to 16 players, or offline against 1 to 4 bots. Or put
+fight in free-for-all matches of up to 16 players, or offline against 1 to 4 bots. Play a
+**Deathmatch** where everyone starts unarmed and grabs weapons floating around the map. Or put
 the guns away and **race**: run an obstacle course against friends or bots, from
 checkpoint to checkpoint, to the finish.
 
@@ -29,13 +30,13 @@ More detail, including how to play with a friend and run several copies on one P
 | Sprint | Shift |
 | Jump | Space |
 | Shoot (or swing a melee weapon; hold to keep swinging) | Left mouse |
-| Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
+| Change weapon (while waiting to respawn; in a Deathmatch, any time, between the weapons you carry) | 1-7 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |
 | Rocket boots (a burst toward WASD as you look; hold Space to tip it up) | E |
 | Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |
 | Scoreboard | Tab (hold) |
-| Menu | Esc |
+| Menu (Loadout: change robot or weapon for your next respawn) | Esc |
 | Debug menu (Practice and Vs Bots only) | F1 |
 
 Grapple (right mouse), slide (Ctrl or C) and dive (Alt or Q) arrive in later phases.

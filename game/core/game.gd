@@ -16,12 +16,13 @@ var mode: Mode = Mode.NONE
 ## A message to show on the main menu (for example "The host left").
 var pending_notice := ""
 ## The last bot match's settings, for a rematch. "bots": how many bots (1 is a 1v1).
-## "game": "ffa" or "race" (the map decides it).
+## "game": "ffa", "dm" or "race" (one the map can host).
 var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.default_id(), "bots": 1, "game": "ffa"}
-## The map last picked for practice.
+## The map and kind of game last picked for practice.
 var last_practice_map := Maps.default_id()
+var last_practice_game := "ffa"
 ## The map last picked for each kind of game, so the menus remember both.
-var last_map := {"ffa": Maps.default_id("ffa"), "race": Maps.default_id("race")}
+var last_map := {"ffa": Maps.default_id("ffa"), "dm": Maps.default_id("dm"), "race": Maps.default_id("race")}
 
 
 func _ready() -> void:
@@ -65,30 +66,38 @@ func goto_lobby() -> void:
 	get_tree().change_scene_to_file.call_deferred(LOBBY)
 
 
-func start_practice(map: String = "") -> void:
+func start_practice(map: String = "", game: String = "") -> void:
 	mode = Mode.PRACTICE
 	if map != "":
 		last_practice_map = map
-		last_map[Maps.game_of(map)] = map
+		last_practice_game = _game_for(map, game)
+		last_map[last_practice_game] = map
 	Net.start_offline(local_name(), local_character(), local_weapon())
 	Net.match_settings["map"] = _map_choice(last_practice_map)
-	Net.match_settings["game"] = Maps.game_of(Net.match_settings.map)
+	Net.match_settings["game"] = _game_for(Net.match_settings.map, DevArgs.game if DevArgs.game != "" else last_practice_game)
 	Net.host_start_match()
+
+
+## `game` if the map can host it, else the map's own kind of game.
+func _game_for(map: String, game: String) -> String:
+	return game if game in Maps.games_of(map) else Maps.game_of(map)
 
 
 ## An offline match against computer players: a 1v1 with one bot, or a
 ## free-for-all with up to MAX_BOTS (you plus four bots is a full five).
-func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0) -> void:
+func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0, game: String = "") -> void:
 	mode = Mode.BOT
 	if bots <= 0:
 		bots = int(last_bot.get("bots", 1))
 	bots = clampi(bots, 1, MAX_BOTS)
 	var picked: String = map if map != "" else last_bot.map
-	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": Maps.game_of(picked)}
-	last_map[Maps.game_of(picked)] = picked
+	if game == "":
+		game = str(last_bot.get("game", ""))
+	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game)}
+	last_map[last_bot.game] = picked
 	Net.start_offline(local_name(), local_character(), local_weapon())
 	var playing := _map_choice(last_bot.map)
-	Net.match_settings = {"game": Maps.game_of(playing), "mode": "kills", "kills": kills_to_win, "minutes": 8,
+	Net.match_settings = {"game": _game_for(playing, DevArgs.game if DevArgs.game != "" else last_bot.game), "mode": "kills", "kills": kills_to_win, "minutes": 8,
 		"race_minutes": 10, "map": playing}
 	for i in bots:
 		Net.add_bot(difficulty, DevArgs.bot_weapon)
@@ -97,7 +106,7 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 
 ## Same bots and rules again (from the results screen).
 func rematch_bot() -> void:
-	start_bot(last_bot.difficulty, last_bot.kills, "", last_bot.bots)
+	start_bot(last_bot.difficulty, last_bot.kills, "", last_bot.bots, last_bot.game)
 
 
 ## The map to play: the one picked in the menu, unless --map=ID overrides it.
@@ -116,8 +125,13 @@ func host_online() -> Error:
 	if err == OK and (DevArgs.map != "" or DevArgs.race):
 		var with_map := Net.match_settings.duplicate()
 		with_map["map"] = _map_choice("")
-		with_map["game"] = Maps.game_of(with_map.map)
+		with_map["game"] = _game_for(with_map.map, DevArgs.game)
 		Net.set_match_settings(with_map)
+	elif err == OK and DevArgs.game != "":
+		var with_game := Net.match_settings.duplicate()
+		with_game["game"] = DevArgs.game
+		with_game["map"] = Maps.default_id(DevArgs.game)
+		Net.set_match_settings(with_game)
 	if err == OK and DevArgs.rules != "":
 		var s := Net.match_settings.duplicate()
 		var kind := DevArgs.rules.get_slice(":", 0)

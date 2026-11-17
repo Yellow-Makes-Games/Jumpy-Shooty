@@ -165,6 +165,14 @@ func update_local(p: Player) -> void:
 		v.ready = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval >= 0.5 else 1.0
 		v.melee = data.is_melee()
 		v.swing = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval > 0.0 else 1.0
+	else:   # Deathmatch, empty hands: shown like a blade (no ammo), the kick is the weapon
+		v.weapon = "Unarmed"
+		v.gun = "none"
+		v.crosshair = "dot"
+		v.melee = true
+		v.swing = p.kick_readiness()
+		v.reloading = false
+		v.ready = 1.0
 	v.race = Race.active
 	v.speed = Vector2(p.velocity.x, p.velocity.z).length()
 	v.move_state = MovementController.State.keys()[p.motor.state].replace("_", " ")
@@ -321,6 +329,8 @@ func _draw_overlay() -> void:
 		return
 	_draw_crosshair(ci, c)
 	_draw_arrows(ci, c)
+	if Net.is_deathmatch() and not Race.active:
+		_draw_inventory(ci, Vector2(c.x, size.y - 74.0))
 	for n in _numbers:
 		var t: float = n.age / NUMBER_TIME
 		var col: Color = HudStyle.YELLOW if n.head else HudStyle.WHITE
@@ -510,7 +520,7 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 		_killer_view.position = card.position + Vector2(18, -26)
 		HudStyle.text(ci, Vector2(x, y + 30), "ELIMINATED BY", 13, HudStyle.RED)
 		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
-		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), WeaponData.name_of(Net.player_weapon(_killer))]
+		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), (WeaponData.name_of(Net.player_weapon(_killer)) if Net.player_weapon(_killer) != "none" else "Bare feet")]
 		HudStyle.text(ci, Vector2(x, y + 92), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
 		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
 		if _killed_by_head:
@@ -538,7 +548,45 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
 	HudStyle.text(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 13, Color(1, 1, 1, 0.8))
 	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
-	_draw_weapon_swap(ci, Vector2(size.x * 0.5, bar.end.y + 52.0))
+	if Net.is_deathmatch():
+		HudStyle.text(ci, Vector2(size.x * 0.5, bar.end.y + 52.0), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 12,
+			Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		_draw_weapon_swap(ci, Vector2(size.x * 0.5, bar.end.y + 52.0))
+
+
+## Deathmatch: one slot per weapon (1-7). The ones you carry are lit, with their
+## rounds left; the one in your hands is underlined.
+func _draw_inventory(ci: CanvasItem, at: Vector2) -> void:
+	var me := Net.my_id()
+	var have := Net.player_inventory(me)
+	var held := Net.player_weapon(me)
+	var p: Player = Net.arena.local_player if Net.arena else null
+	var ids := WeaponData.IDS
+	var cell := Vector2(66.0, 44.0)
+	var gap := 5.0
+	var total := ids.size() * cell.x + (ids.size() - 1) * gap
+	var x := at.x - total * 0.5
+	if have.is_empty():
+		HudStyle.text(ci, Vector2(at.x, at.y - 12.0), "UNARMED  ·  WALK OVER A WEAPON TO PICK IT UP  ·  F KICK", 12,
+			Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
+	for i in ids.size():
+		var id: String = ids[i]
+		var r := Rect2(x + i * (cell.x + gap), at.y, cell.x, cell.y)
+		var owned := id in have
+		var on := id == held
+		var fill := Color(HudStyle.ORANGE, 0.35) if on else (Color(0.05, 0.06, 0.08, 0.8) if owned else Color(0.05, 0.06, 0.08, 0.35))
+		HudStyle.plate(ci, r, 4.0, fill)
+		if on:
+			ci.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 3.0), Vector2(r.size.x, 3.0)), HudStyle.ORANGE)
+		var a := 1.0 if on else (0.75 if owned else 0.2)
+		HudStyle.text(ci, r.position + Vector2(6.0, 10.0), str(i + 1), 10, Color(1, 1, 1, a * 0.8))
+		var w := _gun_width(id) * 0.8
+		HudStyle.weapon_icon(ci, id, r.position + Vector2((cell.x - w) * 0.5, 13.0), Color(1, 1, 1, a), 0.8)
+		var label := WeaponData.by_id(id).short_name.to_upper()
+		if owned and p and not WeaponData.melee(id):
+			label = "%d" % p.ammo_for(id)
+		HudStyle.text(ci, r.position + Vector2(cell.x * 0.5, 35.0), label, 10, Color(1, 1, 1, a), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 ## While you wait to respawn: the weapons you can come back with, by number key.
@@ -646,7 +694,7 @@ func _refresh_scoreboard() -> void:
 		name_row.add_child(chip)
 		_cell(name_row, row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 18, col)
 		_score_grid.add_child(name_row)
-		_cell(_score_grid, "%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), WeaponData.by_id(Net.player_weapon(row.id)).short_name], 16, Color(col, 0.75), false)
+		_cell(_score_grid, "%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), _weapon_label(row.id)], 16, Color(col, 0.75), false)
 		_cell(_score_grid, str(row.kills), 20, col, true, true)
 		_cell(_score_grid, str(row.deaths), 16, Color(col, 0.75), false, true)
 
@@ -697,3 +745,10 @@ func _ping_ms() -> int:
 		if host_peer:
 			return int(host_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
 	return -1
+
+
+## The scoreboard's weapon column: the gun's short name ("Unarmed" in a Deathmatch
+## before they find one).
+func _weapon_label(id: int) -> String:
+	var gun := Net.player_weapon(id)
+	return WeaponData.by_id(gun).short_name if gun != "none" else "Unarmed"

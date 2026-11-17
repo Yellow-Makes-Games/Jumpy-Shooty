@@ -63,7 +63,7 @@ func fired() -> void:
 func respawned() -> void:
 	_started = false
 	_quiet = 0.3
-	if own:
+	if own and weapon_id != "none":
 		Sound.play("equip_" + weapon_id)
 
 

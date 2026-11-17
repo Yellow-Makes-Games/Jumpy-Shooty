@@ -57,6 +57,14 @@ var _tethers: Dictionary = {}          # host: id -> [the player their hook is o
 var death_cause: Dictionary = {}
 var _respawn_counter := 0
 
+## Deathmatch weapon pickups (see WeaponPickup), by their index in the map: the ones
+## taken and not back yet. Every copy keeps this; the host decides it.
+signal pickup_changed(index: int, taken: bool, by: int, weapon: String)
+const PICKUP_RESPAWN := 10.0      ## seconds until a taken weapon is back
+const PICKUP_REACH := 1.4         ## metres from the pickup to the player's middle
+var pickups_taken: Dictionary = {}
+var _pickup_timers: Dictionary = {}   # host: index -> seconds until it is back
+
 
 func _ready() -> void:
 	Net.match_started.connect(_on_match_started)
@@ -81,7 +89,13 @@ func deaths(id: int) -> int:
 func _on_match_started() -> void:
 	running = true
 	last_results = []
+	_pickup_timers.clear()
 	if Net.is_host():
+		pickups_taken.clear()   # (a late joiner keeps what the host told it; see _pickups_sync)
+		if Net.is_deathmatch():
+			for id in Net.players:
+				Net.host_clear_inventory(id, false)   # everyone starts with empty hands
+			Net._players_updated()
 		# The host's lobby settings decide the win condition (dev options override them).
 		var s: Dictionary = Net.match_settings
 		if s.mode == "time":
@@ -126,6 +140,8 @@ func _on_players_changed() -> void:
 			scores[id] = {"kills": 0, "deaths": 0}
 			health[id] = MAX_HEALTH
 			changed = true
+			if Net.is_online and not Net.is_bot(id) and id != Net.my_id():
+				_pickups_sync.rpc_id(id, pickups_taken.keys())   # which weapons are gone right now
 	for id in scores.keys():
 		if not Net.players.has(id):
 			scores.erase(id)
@@ -164,8 +180,56 @@ func _process(delta: float) -> void:
 		if respawn_timers[id] <= 0.0:
 			respawn_timers.erase(id)
 			_host_respawn(id)
+	if Net.is_deathmatch():
+		_host_pickups(delta)
 	if time_left <= 0.0:
 		host_end_match()
+
+
+# ---------------------------------------------------------------------------
+# Deathmatch weapon pickups. The host watches who walks over one, gives them the
+# weapon and tells everyone the pickup is gone; PICKUP_RESPAWN seconds later it is back.
+
+func _host_pickups(delta: float) -> void:
+	for i in _pickup_timers.keys():
+		_pickup_timers[i] -= delta
+		if _pickup_timers[i] <= 0.0:
+			_pickup_timers.erase(i)
+			_pickup_state.rpc(i, false, 0, "")
+	if Net.arena == null:
+		return
+	var pickups: Array = Net.arena.pickups
+	for i in pickups.size():
+		if pickups_taken.has(i):
+			continue
+		var pickup: WeaponPickup = pickups[i]
+		for p in Net.arena.players_root.get_children():
+			var player := p as Player
+			if not player.alive or not is_alive(player.peer_id):
+				continue
+			if (player.global_position + Vector3(0, 0.9, 0)).distance_to(pickup.spot) > PICKUP_REACH:
+				continue
+			Net.host_give_weapon(player.peer_id, pickup.weapon)
+			_pickup_timers[i] = PICKUP_RESPAWN
+			_pickup_state.rpc(i, true, player.peer_id, pickup.weapon)
+			break
+
+
+@rpc("authority", "call_local", "reliable")
+func _pickup_state(index: int, taken: bool, by: int, weapon: String) -> void:
+	if taken:
+		pickups_taken[index] = true
+	else:
+		pickups_taken.erase(index)
+	pickup_changed.emit(index, taken, by, weapon)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _pickups_sync(taken: Array) -> void:
+	pickups_taken.clear()
+	for i in taken:
+		pickups_taken[int(i)] = true
+		pickup_changed.emit(int(i), true, 0, "")
 
 
 # ---------------------------------------------------------------------------
@@ -193,6 +257,8 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		return
 	# The gun is the one the shooter took into the match, whatever the message says.
 	weapon_id = Net.player_weapon(shooter)
+	if weapon_id == "none" or WeaponData.melee(weapon_id):
+		return   # Deathmatch: nothing in their hands (or a blade) can't shoot
 	var weapon := WeaponData.by_id(weapon_id)
 	var now := Net.now()
 	# Fire rate check (a little slack for network timing).
@@ -321,6 +387,8 @@ func _melee_request(origin: Vector3, direction: Vector3, view_times: Dictionary)
 
 func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times: Dictionary) -> void:
 	if not running or not is_alive(attacker) or not Net.arena or Race.active:
+		return
+	if Net.player_weapon(attacker) == "none":
 		return
 	var weapon := WeaponData.by_id(Net.player_weapon(attacker))
 	if not weapon.is_melee() or direction.length_squared() < 0.0001:
@@ -744,6 +812,8 @@ func _host_kill(victim: int, killer: int, cause: String = "") -> void:
 	respawn_timers[victim] = RESPAWN_DELAY
 	_last_shove.erase(victim)
 	_died.rpc(victim, killer, scores, cause)
+	if Net.is_deathmatch():
+		Net.host_clear_inventory(victim)   # what you picked up is gone with you
 	if killer != 0 and kill_target > 0 and kills(killer) >= kill_target:
 		host_end_match()
 

@@ -104,14 +104,37 @@ func _init(player: Player, level: int) -> void:
 	me = player
 	d = BotDifficulty.make(level)
 	input = player.input
-	var r: Array = RANGES.get(player.weapon.data.id if player.weapon else "pistol", RANGES.pistol)
-	NEAR = r[0]
-	FAR = r[1]
-	_reach = r[2]
-	_melee = player.weapon != null and player.weapon.data.is_melee()
+	refresh_weapon()
 	_rng.randomize()
 	Match.player_hit.connect(_on_hit)
 	Match.shot_fired.connect(_on_shot)
+
+
+## How to fight with the weapon in hand (called again after a Deathmatch pickup or switch).
+## Empty hands fight like a blade: run in and kick.
+func refresh_weapon() -> void:
+	var r: Array = RANGES.get(me.weapon.data.id if me.weapon else "dagger", RANGES.pistol)
+	NEAR = r[0]
+	FAR = r[1]
+	_reach = r[2]
+	_melee = me.weapon == null or me.weapon.data.is_melee()
+
+
+## Deathmatch, empty hands: the nearest weapon lying about (INF if none is there).
+func _nearest_pickup() -> Vector3:
+	if Net.arena == null:
+		return Vector3.INF
+	var best := Vector3.INF
+	var best_d := INF
+	for p in Net.arena.pickups:
+		var pickup := p as WeaponPickup
+		if pickup.is_taken():
+			continue
+		var dist := me.global_position.distance_to(pickup.global_position)
+		if dist < best_d:
+			best_d = dist
+			best = pickup.global_position
+	return best
 
 
 ## Fill in this frame's input.
@@ -336,7 +359,15 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		return _escape_dir
 	var dist := pos.distance_to(_target.global_position) if visible else INF
 	var dir := Vector3.ZERO
-	if visible and dist < maxf(ENGAGE_RANGE, FAR + 10.0):
+	var pickup := _nearest_pickup() if me.weapon == null else Vector3.INF
+	if pickup != Vector3.INF and dist > 4.0:
+		# Deathmatch with empty hands: arm up first (kicking anyone who gets close).
+		dir = _follow_path(pickup, delta)
+		if _flat(pos, pickup) < 2.5:
+			dir = Vector3(pickup.x - pos.x, 0.0, pickup.z - pos.z).normalized()   # the last step, straight over it
+		input.sprint = d.sprint and not _corner_ahead
+		_chase_tricks(delta, dir, grounded, speed)
+	elif visible and dist < maxf(ENGAGE_RANGE, FAR + 10.0):
 		# Fight: strafe side to side, keeping a comfortable distance.
 		var to := _target.global_position - pos
 		to.y = 0.0
@@ -759,6 +790,9 @@ func _aim(delta: float, perceived: Array, move_dir: Vector3) -> void:
 func _fire(delta: float, perceived: Array) -> void:
 	_fire_wait -= delta
 	var w := me.weapon
+	if w == null:
+		_burst = 0.0
+		return   # Deathmatch, empty hands: it can only kick (see _kick)
 	if w.ammo == 0 and not w.is_reloading():
 		w.start_reload()
 	# Top up a half-empty gun when nobody is in sight.

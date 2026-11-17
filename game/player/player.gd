@@ -36,6 +36,10 @@ var _remote_state := 0
 var _teleport_count := 0          # local: bumped on every respawn; remote: last seen value
 var _awaiting_respawn := false    # remote: hidden until the first post-respawn snapshot
 var robot: RobotModel             ## the body everyone sees
+var character := ""               ## the robot it was built as (an id from Characters)
+var _ammo := {}                   # local, Deathmatch: weapon id -> rounds left in the ones you are not holding
+var _move_bonus := 1.0            # the speed bonus of the weapon in hand, applied to motor.tuning
+var _pending_gun := ""            # Deathmatch: the weapon to hold once back from the dead
 var animator: RobotAnimator
 var view: ViewModel               ## first-person arms and gun (your own player only)
 var sounds: PlayerSounds          ## footsteps, jumps, reloads... (see game/audio/)
@@ -106,7 +110,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	visual = Node3D.new()
 	visual.name = "Visual"
 	add_child(visual)
-	var character := Net.player_character(id)
+	character = Net.player_character(id)
 	if DevArgs.sync_log:   # for tests/check_anim.py: which robot each copy shows for each player
 		if local:
 			print("CHAR SELF %d %s" % [id, character])
@@ -122,12 +126,12 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 	sounds = PlayerSounds.new(self, local and not bot, gun)
-	if sounds.own and not racing:
+	if sounds.own and not racing and gun != "none":
 		Sound.play("equip_" + gun)   # bringing your gun up as the match starts
 
 	if is_bot:
 		motor = MovementController.new()
-		weapon = WeaponState.new(WeaponData.by_id(Net.player_weapon(id)))
+		weapon = _make_weapon(Net.player_weapon(id))
 		_apply_move_bonus()
 		if racing:
 			brain = RaceBrain.new(self, Net.players[id].get("difficulty", 1))
@@ -135,7 +139,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 			brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
 	elif is_local:
 		motor = MovementController.new()
-		weapon = WeaponState.new(WeaponData.by_id(Net.player_weapon(id)))
+		weapon = _make_weapon(Net.player_weapon(id))
 		_apply_move_bonus()
 		if racing and DevArgs.autopilot:
 			brain = RaceBrain.new(self, DevArgs.bot_level)
@@ -206,7 +210,8 @@ func _physics_process(delta: float) -> void:
 			print("ROPE SELF %d %s" % [peer_id, "on" if motor.grapple.attached else "off"])
 		_visual_yaw = input.yaw
 		if not racing:
-			_update_weapon(delta)
+			if weapon:
+				_update_weapon(delta)   # (Deathmatch, empty hands: only the kick)
 			_update_kick(delta)
 	else:
 		velocity = Vector3.ZERO
@@ -300,7 +305,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		Race.send_back(self, "reset")   # stuck? back to your last checkpoint
 	elif event.is_action_pressed("reload") and weapon:
 		weapon.start_reload()
-	elif not alive and not racing:
+	elif racing:
+		pass
+	elif Net.is_deathmatch():
+		if alive:
+			_switch_weapon(event)   # weapons come off the map, not from a pick while dead
+	elif not alive:
 		_pick_on_death(event)
 
 
@@ -729,13 +739,113 @@ func _check_slam(delta: float) -> void:
 	Match.request_slam(motor.impact_speed, motor.impact_point, peer_id)
 
 
-## A light blade lets you run a little faster.
+## A light blade lets you run a little faster. (Takes off the old weapon's bonus
+## first, so a Deathmatch weapon switch can call it again.)
 func _apply_move_bonus() -> void:
-	var bonus := weapon.data.move_bonus if not racing else 1.0
-	if bonus != 1.0:
-		motor.tuning.run_speed *= bonus
-		motor.tuning.sprint_speed *= bonus
-		motor.tuning.air_speed *= bonus
+	var bonus := weapon.data.move_bonus if weapon and not racing else 1.0
+	if bonus != _move_bonus:
+		var k := bonus / _move_bonus
+		motor.tuning.run_speed *= k
+		motor.tuning.sprint_speed *= k
+		motor.tuning.air_speed *= k
+		_move_bonus = bonus
+
+
+## The local copy of a weapon (ammo, cooldown): null for empty hands ("none").
+func _make_weapon(gun: String) -> WeaponState:
+	return WeaponState.new(WeaponData.by_id(gun)) if WeaponData.has(gun) else null
+
+
+# ---------------------------------------------------------------------------
+# Deathmatch: carrying several weapons
+
+## Hold a different weapon (or "none": empty hands) without respawning: the body,
+## your first-person arms, the sounds and the local weapon state change in place,
+## so you keep your speed, rope and everything else. Ammo is kept per weapon.
+func equip(gun: String) -> void:
+	if racing or robot == null:
+		return
+	if not alive:
+		_pending_gun = gun   # dead: the body keeps what it fell with; the change shows on respawn
+		return
+	_pending_gun = ""
+	if robot.weapon == gun:
+		return
+	if weapon:
+		_ammo[weapon.data.id] = weapon.ammo
+	var color := Net.player_color(peer_id)
+	var was_visible := robot.visible
+	visual.remove_child(robot)
+	robot.queue_free()
+	robot = RobotModel.new().setup(Characters.body(character), color, false, gun)
+	robot.visible = was_visible
+	visual.add_child(robot)
+	animator = RobotAnimator.new(robot)
+	sounds.weapon_id = gun
+	if _trail:
+		_trail.queue_free()
+		_trail = null
+	if WeaponData.melee(gun):
+		_trail = SwingTrail.new().setup(RobotModel.trim_color(color))
+		add_child(_trail)
+	_strike_left = -1.0
+	if is_local:
+		weapon = _make_weapon(gun)
+		if weapon and _ammo.has(gun):
+			weapon.ammo = _ammo[gun]
+		_apply_move_bonus()
+		if brain and brain.has_method("refresh_weapon"):
+			brain.refresh_weapon()
+	if rig:
+		robot.set_layer(CameraRig.BODY_LAYER)
+		robot.add_view_mesh(CameraRig.VIEW_BODY_LAYER)
+		var shown := view.visible
+		rig.camera.remove_child(view)
+		view.queue_free()
+		view = ViewModel.new()
+		rig.camera.add_child(view)
+		view.setup(self, color)
+		view.visible = shown
+	if sounds.own and gun != "none":
+		Sound.play("equip_" + gun)
+	if DevArgs.sync_log:
+		print("EQUIP %s %d %d %s" % ["SELF" if is_local else "SEEN", Net.my_id(), peer_id, gun])
+
+
+## Deathmatch: walked over a weapon: a full magazine for it, carried or in hand.
+func picked_up(gun: String) -> void:
+	_ammo[gun] = WeaponData.by_id(gun).magazine
+	if weapon and weapon.data.id == gun:
+		weapon.reset()
+
+
+## Deathmatch, alive: 1-7 (or the mouse wheel) takes out a weapon you carry.
+func _switch_weapon(event: InputEvent) -> void:
+	var have := Net.player_inventory(peer_id)
+	if have.is_empty():
+		return
+	var current := robot.weapon
+	var pick := ""
+	if event is InputEventKey and event.pressed and not event.echo:
+		var k: int = event.keycode - KEY_1
+		if k >= 0 and k < WeaponData.IDS.size() and WeaponData.IDS[k] in have:
+			pick = WeaponData.IDS[k]
+	elif event is InputEventMouseButton and event.pressed:
+		var at := have.find(current)
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			pick = have[(at + 1) % have.size()]
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			pick = have[(at - 1 + have.size()) % have.size()] if at >= 0 else have[-1]
+	if pick == "" or pick == current:
+		return
+	Net.switch_my_weapon(pick)
+
+
+## The ammo you have for a weapon you carry (HUD), -1 if unknown.
+func ammo_for(gun: String) -> int:
+	if weapon and weapon.data.id == gun:
+		return weapon.ammo
+	return int(_ammo.get(gun, WeaponData.by_id(gun).magazine))
 
 
 ## The directions of one shot's pellets (one for most guns), spread at random
@@ -775,7 +885,7 @@ func _aim_direction(eye: Vector3) -> Vector3:
 		return forward
 	var cam := rig.camera.global_transform
 	var from := cam.origin
-	var to := from - cam.basis.z * weapon.data.max_range
+	var to := from - cam.basis.z * (weapon.data.max_range if weapon else 200.0)
 	var ray := PhysicsRayQueryParameters3D.create(from, to, 1 | (1 << 1), [get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(ray)
 	var target: Vector3 = hit.position if hit else to
@@ -843,6 +953,9 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	_teleport_count += 1
 	_fell_reported = false
 	alive = true
+	_ammo.clear()   # Deathmatch: what you carried went with you
+	if _pending_gun != "":
+		equip(_pending_gun)
 	visual.visible = true
 	collision_layer = 1 << 1
 	animator.respawn()
@@ -875,6 +988,8 @@ func expect_dead() -> void:
 ## Remote player: alive again, but stay hidden until their new position arrives.
 func expect_respawn() -> void:
 	alive = true
+	if _pending_gun != "":
+		equip(_pending_gun)
 	_awaiting_respawn = true
 	visual.visible = false
 	sounds.respawned()

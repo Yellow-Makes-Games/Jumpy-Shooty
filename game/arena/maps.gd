@@ -5,16 +5,18 @@ extends RefCounted
 ## listed last in the menus.
 ##
 ## Every map belongs to one kind of game: "ffa" maps (arenas for free-for-all and
-## 1v1 fights) or "race" maps (obstacle courses with checkpoints). The menus only
-## offer the maps that fit the game being set up, and the first map of each kind
-## is its default.
+## 1v1 fights) or "race" maps (obstacle courses with checkpoints). A map can also
+## be played in other kinds of game, listed in "also": the arenas with weapon
+## pickups on them (MapWeaponSpawn nodes) host "dm", Deathmatch, where everyone
+## starts unarmed and picks weapons up off the map. The menus only offer the maps
+## that fit the game being set up, and the first map of each kind is its default.
 
-const GAMES := ["ffa", "race"]
-const GAME_NAMES := {"ffa": "Free-for-all", "race": "Race"}
+const GAMES := ["ffa", "dm", "race"]
+const GAME_NAMES := {"ffa": "Free-for-all", "dm": "Deathmatch", "race": "Race"}
 
 const LIST := [
-	{"id": "construction_site", "name": "Construction Site", "scene": "res://game/maps/construction_site.tscn", "dev": false, "game": "ffa"},
-	{"id": "office", "name": "Office", "scene": "res://game/maps/office.tscn", "dev": false, "game": "ffa"},
+	{"id": "construction_site", "name": "Construction Site", "scene": "res://game/maps/construction_site.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
+	{"id": "office", "name": "Office", "scene": "res://game/maps/office.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "testing_grounds", "name": "Testing Grounds", "scene": "res://game/maps/testing_grounds.tscn", "dev": true, "game": "ffa"},
 	{"id": "rooftop_run", "name": "Rooftop Run", "scene": "res://game/maps/rooftop_run.tscn", "dev": false, "game": "race"},
 	{"id": "foundry", "name": "Foundry", "scene": "res://game/maps/foundry.tscn", "dev": false, "game": "race"},
@@ -25,9 +27,21 @@ const LIST := [
 ## The default map for a kind of game ("ffa" when not given).
 static func default_id(game: String = "ffa") -> String:
 	for m in LIST:
-		if m.game == game:
+		if game in _games(m):
 			return m.id
 	return LIST[0].id
+
+
+static func _games(m: Dictionary) -> Array:
+	return [m.game] + m.get("also", [])
+
+
+## Every kind of game a map can be played in, its own kind first.
+static func games_of(id: String) -> Array:
+	for m in LIST:
+		if m.id == id:
+			return _games(m)
+	return [game_of(id)]
 
 
 static func ids() -> Array:
@@ -36,7 +50,7 @@ static func ids() -> Array:
 
 ## The ids of the maps for one kind of game, in menu order.
 static func ids_for(game: String) -> Array:
-	return LIST.filter(func(m): return m.game == valid_game(game)).map(func(m): return m.id)
+	return LIST.filter(func(m): return valid_game(game) in _games(m)).map(func(m): return m.id)
 
 
 ## "ffa" or "race" (anything else counts as "ffa").
@@ -58,7 +72,7 @@ static func game_of(id: String) -> String:
 
 ## Can this map be played in this kind of game?
 static func fits(id: String, game: String) -> bool:
-	return has(id) and game_of(id) == valid_game(game)
+	return has(id) and valid_game(game) in games_of(id)
 
 
 ## A listed map's id, or the res:// path of a map scene (so a new map can be
