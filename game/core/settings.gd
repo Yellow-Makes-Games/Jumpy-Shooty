@@ -222,6 +222,7 @@ const ACTIONS := [
 	["dive", "Dive", ["key:%d" % KEY_Q, "key:%d" % KEY_ALT]],
 	["kick", "Kick", ["key:%d" % KEY_F]],
 	["boost", "Rocket boots", ["key:%d" % KEY_E]],
+	["interact", "Interact (hold)", ["key:%d" % KEY_G]],
 	["grapple", "Grapple", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
 	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
