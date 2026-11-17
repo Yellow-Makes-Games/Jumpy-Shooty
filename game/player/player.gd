@@ -87,6 +87,8 @@ var _flame: Node3D                # rocket-boot flames under the feet
 var _flame_t := 0.0
 var _burst_left := 0              # local: rounds of a burst still to fire
 var _burst_wait := 0.0            # local: seconds until the next round of the burst
+var _float_t := 0.0               # local: seconds into the current float (0 = not floating)
+var _spin_hit := {}               # local: ids the whirling legs have already hit in this float
 
 
 func _init() -> void:
@@ -221,6 +223,7 @@ func _physics_process(delta: float) -> void:
 			if weapon:
 				_update_weapon(delta)   # (Deathmatch, empty hands: only the kick)
 			_update_kick(delta)
+			_update_float_spin(delta)
 	else:
 		velocity = Vector3.ZERO
 		_report_tether()
@@ -592,6 +595,10 @@ func _watch_swings(delta: float) -> void:
 func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
 	if attacker != peer_id or points.is_empty():
 		return
+	if weapon_id == "float":
+		if rig:
+			_punch_roll += randf_range(-0.03, 0.03)   # your legs clipped someone: a small jolt
+		return
 	if weapon_id == "kick" or weapon_id == "flying_kick":
 		if rig:
 			_punch += Vector2(randf_range(-0.02, 0.02), -0.05 if weapon_id == "flying_kick" else -0.025)
@@ -634,6 +641,44 @@ func _update_kick(delta: float) -> void:
 		motor.knock(ahead * Kick.LUNGE)
 	if DevArgs.sync_log:
 		print("ANIM KICK %d" % peer_id)
+
+
+## Floating: your whirling legs hit anyone they reach (see FloatSpin), once each
+## per float. We only notice that someone is in reach; the host decides the hit.
+func _update_float_spin(delta: float) -> void:
+	if motor.state != MovementController.State.FLOAT:
+		_float_t = 0.0
+		_spin_hit.clear()
+		return
+	_float_t += delta
+	if _float_t < FloatSpin.SPIN_UP or not Match.running:
+		return
+	var hub := global_position + Vector3(0, FloatSpin.HEIGHT, 0)
+	var found := false
+	var view_times := {}
+	for p in get_parent().get_children():
+		if p == self or not p is Player:
+			continue
+		if p.last_render_time >= 0.0:
+			view_times[p.peer_id] = p.last_render_time
+		if p.visible_in_world() and not _spin_hit.has(p.peer_id) \
+				and _in_spin_reach(hub, p.global_position, (p._shape.shape as CapsuleShape3D).height):
+			_spin_hit[p.peer_id] = true
+			found = true
+	if Net.arena:
+		for d in Net.arena.dummies:
+			var id := Match.dummy_id(d.index)
+			if not d.is_down() and not _spin_hit.has(id) and _in_spin_reach(hub, d.global_position, CAPSULE_HEIGHT):
+				_spin_hit[id] = true
+				found = true
+	if found:
+		Match.request_float_hit(hub, view_times, peer_id)
+
+
+func _in_spin_reach(hub: Vector3, feet: Vector3, height: float) -> bool:
+	var near := Geometry3D.get_closest_point_to_segment(hub,
+		feet + Vector3(0, CAPSULE_RADIUS, 0), feet + Vector3(0, height - CAPSULE_RADIUS, 0))
+	return near.distance_to(hub) - CAPSULE_RADIUS <= FloatSpin.REACH
 
 
 func kick_readiness() -> float:

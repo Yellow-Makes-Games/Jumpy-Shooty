@@ -58,6 +58,8 @@ var _last_shot_time: Dictionary = {}   # host: id -> Net.now() of last accepted 
 var _last_slam_time: Dictionary = {}   # host: id -> Net.now() of last crash that hurt
 var _last_shove: Dictionary = {}       # host: id -> [who shoved them, Net.now()]
 var _last_kick_time: Dictionary = {}   # host: id -> Net.now() of last accepted kick
+var _last_spin_hit: Dictionary = {}    # host: "attacker:target" -> Net.now() of the last float hit on them
+var _spin_waiting: Array = []          # host: float hits asked for before we have seen that player float: [attacker, hub, view times, give up at]
 var _tethers: Dictionary = {}          # host: id -> [the player their hook is on, Net.now()]
 var _projectiles: Dictionary = {}      # host: id -> {pos, vel, shooter, weapon, t}
 var _next_projectile := 1
@@ -134,6 +136,8 @@ func _on_match_started() -> void:
 		_last_slam_time.clear()
 		_last_shove.clear()
 		_last_kick_time.clear()
+		_last_spin_hit.clear()
+		_spin_waiting.clear()
 		_tethers.clear()
 		_projectiles.clear()
 		death_cause.clear()
@@ -196,6 +200,13 @@ func _process(delta: float) -> void:
 			_host_respawn(id)
 	if Net.is_deathmatch():
 		_host_pickups(delta)
+	for w in _spin_waiting.duplicate():
+		var who: Player = Net.arena.get_player(w[0]) if Net.arena else null
+		if who == null or Net.now() > w[3]:
+			_spin_waiting.erase(w)
+		elif _floated_lately(who):
+			_spin_waiting.erase(w)
+			_host_float_hit(w[0], w[1], w[2], true)
 	if time_left <= 0.0:
 		host_end_match()
 
@@ -723,6 +734,85 @@ func _host_kick(attacker: int, origin: Vector3, direction: Vector3, view_times: 
 		else:
 			_host_damage(attacker, h[0], h[1], false, "kick")
 			_host_shove(attacker, h[0], h[2])
+
+
+# ---------------------------------------------------------------------------
+# Floating: the whirling legs hit whoever they reach (see FloatSpin)
+
+## Called by a floating local player (or bot) when someone comes within reach of
+## its legs. `hub`: the middle of the rotor (its hips).
+func request_float_hit(hub: Vector3, view_times: Dictionary, attacker: int = 0) -> void:
+	if Net.is_host():
+		_host_float_hit(attacker if attacker != 0 else Net.my_id(), hub, view_times)
+	else:
+		_float_hit_request.rpc_id(1, hub, view_times)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _float_hit_request(hub: Vector3, view_times: Dictionary) -> void:
+	if Net.is_host():
+		_host_float_hit(multiplayer.get_remote_sender_id(), hub, view_times)
+
+
+func _host_float_hit(attacker: int, hub: Vector3, view_times: Dictionary, waited: bool = false) -> void:
+	if not running or not is_alive(attacker) or not Net.arena or Race.active:
+		return
+	var who: Player = Net.arena.get_player(attacker)
+	# (A float can be fast, so their latest known position may be well behind the hub.)
+	if who == null or hub.distance_to(who.latest_position() + Vector3(0, FloatSpin.HEIGHT, 0)) > 6.0:
+		return
+	if not _floated_lately(who):
+		# The hit can get here before the snapshot that shows them floating: hold it
+		# for a moment (see _process) rather than turn it down.
+		if not waited and _spin_waiting.size() < 64:
+			_spin_waiting.append([attacker, hub, view_times, Net.now() + 0.6])
+		return
+	var now := Net.now()
+	var facing := Vector3.FORWARD.rotated(Vector3.UP, who.yaw_at(who.latest_time()))
+	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
+	var points := PackedVector3Array()
+	var hits := []   # [id, shove]
+	for b in _rewound_bodies(attacker, view_times):
+		var key := "%d:%d" % [attacker, b[0]]
+		if (now - _last_spin_hit.get(key, -10.0)) * Engine.time_scale < FloatSpin.REHIT:
+			continue
+		var feet: Vector3 = b[1]
+		var height: float = b[2]
+		var near := Geometry3D.get_closest_point_to_segment(hub,
+			feet + Vector3(0, Player.CAPSULE_RADIUS, 0), feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0))
+		var to := near - hub
+		if to.length() - Player.CAPSULE_RADIUS > FloatSpin.REACH + 0.3:   # a little slack for lag
+			continue
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(hub, near, 1)).is_empty():
+			continue   # a wall in the way
+		_last_spin_hit[key] = now
+		var flat := Vector3(to.x, 0.0, to.z)
+		flat = flat.normalized() if flat.length_squared() > 0.0001 else facing
+		hits.append([b[0], flat * FloatSpin.KNOCKBACK + Vector3.UP * FloatSpin.KNOCKBACK_UP])
+		points.append(near.lerp(hub, Player.CAPSULE_RADIUS / maxf(to.length(), 0.01)))
+	if DevArgs.sync_log:
+		print("FLOAT_HIT %d %d" % [attacker, hits.size()])
+	if hits.is_empty():
+		return
+	_melee_effect.rpc(attacker, "float", points)
+	for h in hits:
+		if is_dummy(h[0]):
+			_host_dummy_damage(attacker, h[0], FloatSpin.DAMAGE, false)
+		else:
+			_host_damage(attacker, h[0], FloatSpin.DAMAGE, false, "float")
+			_host_shove(attacker, h[0], h[1])
+
+
+## Was this player floating just now? (Their own copy if they are simulated here;
+## otherwise what their last few snapshots said.)
+func _floated_lately(who: Player) -> bool:
+	if who.is_local and who.motor:
+		return who.motor.state == MovementController.State.FLOAT
+	var t := who.latest_time()
+	for i in 7:
+		if Player.pose_state(who.pose_at(t - 0.1 * i)) == MovementController.State.FLOAT:
+			return true
+	return false
 
 
 # ---------------------------------------------------------------------------

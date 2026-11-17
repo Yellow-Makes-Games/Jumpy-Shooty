@@ -42,11 +42,11 @@ const VIEW_UPRIGHT_MAX := 0.6   ## radians of forward lean taken out, at most
 const VIEW_SIDE := 0.10         ## the body may shift this far sideways to stay under the eyes
 const VIEW_NECK_BELOW := 0.12   ## and its neck is kept at least this far below them
 const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right", "float"]
-## Floating: the legs go straight out to the sides and turn a full circle at half the
-## speed of a flip (a flip is once round in 0.45 s).
-const FLOAT_SPIN_TIME := 0.9    ## seconds per turn of the legs
+## Floating: the legs go straight out to the sides and whirl round like a
+## helicopter's rotor, four turns a second.
+const FLOAT_SPIN_TIME := 0.25   ## seconds per turn of the legs
 const FLOAT_SPREAD := 80.0      ## degrees each leg is lifted out to its side (90 = level)
-const FLOAT_SWAY := 4.0         ## degrees the legs rise and dip as they turn
+const FLOAT_SWAY := 3.0         ## degrees the rotor tilts back and forth, slowly, so it is not dead flat
 const FLOAT_KNEE := 8.0         ## degrees of bend left in the knees
 const FLOAT_TOES := 30.0        ## degrees the toes are pointed
 ## [right arm, left arm, torso]: how much each follows the aim in each source.
@@ -626,10 +626,10 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 				rig.sample(_pose, "air", 0.5 * rig.length("air"))
 
 
-## Floating: both legs straight out to the sides, toes pointed, rising and dipping
-## a little as they go round. (The turning itself is done at the waist, in update.)
+## Floating: both legs straight out to the sides, toes pointed, the pair tilting
+## a little one way and the other. (The turning itself is done at the waist, in update.)
 func _float_legs() -> void:
-	var sway := sin(_time * TAU / FLOAT_SPIN_TIME * 2.0) * FLOAT_SWAY
+	var sway := sin(_time * TAU / 0.7) * FLOAT_SWAY
 	for side: float in [-1.0, 1.0]:
 		var s := "_l" if side < 0.0 else "_r"
 		var out := deg_to_rad(FLOAT_SPREAD + sway * side) * side
