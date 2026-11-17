@@ -11,7 +11,8 @@ extends SceneTree
 ## An item can instead be driven by the game's own animator, to check blending and
 ## aiming: {"puppet": {"state": 0, "velocity": [x,y,z], "pitch": 20, "flags": 0,
 ##   "crouched": false, "grapple": [x,y,z], "alive": true, "seconds": 1.0,
-##   "fire_at": 0.9, "fire_left_at": 0.9 (akimbo), "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
+##   "fire_at": 0.9, "fire_left_at": 0.9 (akimbo), "wind": 0.5, "side": 0 (a melee swing wound up for 0.5 s then
+##   let go, a tap from the right), "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
 ## A puppet can hold any weapon: "weapon": "akimbo" (next to "puppet").
 ## A puppet with "first_person": {"pitch": -40, "eye": 1.6, "fov": 95} is seen through
 ## its own eyes (the shot's camera is ignored): the body as you see it in first person.
@@ -183,6 +184,13 @@ func _puppet(item: Dictionary) -> void:
 			if step.has("fire_left_at") and not fired_left and t >= float(step.fire_left_at):
 				animator.fire(true)
 				fired_left = true
+			if step.has("wind"):   # a melee swing: wound up for "wind" seconds, then let go
+				var data := WeaponData.by_id(robot.weapon)
+				if t < float(step.wind):
+					animator.wind(data.charge_of(t), int(step.get("side", 0)))
+				elif not fired:
+					animator.swing(data.charge_of(float(step.wind)), int(step.get("side", 0)))
+					fired = true
 			animator.update(1.0 / 60.0, inp, robot.global_transform)
 			if not first.is_empty():
 				animator.place_for_view(1.0, first.get("eye", 1.6), deg_to_rad(first.get("pitch", 0.0)))

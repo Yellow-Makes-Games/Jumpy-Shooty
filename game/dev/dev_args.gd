@@ -44,6 +44,7 @@ extends Node
 ## --fall=SEC           Your player falls out of the arena SEC seconds after start (shows the death screen; screenshots).
 ## --hud=STYLE          Use this HUD layout in both views: arcs or clean (screenshots).
 ## --third-person      Start in third-person view (not saved to settings).
+## --speed=X            Game speed (0.25: quarter speed, for filming a move in slow motion; Practice and Vs Bots).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
 ## --press=SEC:ACTION   Press an input action (e.g. toggle_camera) SEC seconds after start (repeatable).
 ## --hold=SEC:ACTION:DURATION  Hold an input action down for DURATION seconds, starting SEC seconds after start (repeatable).
@@ -188,6 +189,7 @@ func _ready() -> void:
 			"--screenshot":
 				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
 			"--game-clock": _fixed_step = true
+			"--speed": Cheats.time_scale = clampf(float(value), 0.05, 4.0)
 			"--look":
 				var l := value.get_slice(":", 1).split(",")
 				if l.size() == 2:

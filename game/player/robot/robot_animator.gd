@@ -190,16 +190,17 @@ func fire(left: bool = false) -> void:
 		_fire_t = 0.0
 
 
-## Winding a melee swing up, this frame: `charge` 0..1 is how far (the body coils with it).
-func wind(charge: float) -> void:
+## Winding a melee swing up, this frame: `charge` 0..1 is how far (the body coils with
+## it), `side` which tap is coming (see MeleeSwing).
+func wind(charge: float, side: int = 0) -> void:
 	if _melee:
-		_swing.wind(charge)
+		_swing.wind(charge, side)
 
 
 ## The swing was let go, `power` 0..1 wound up.
-func swing(power: float) -> void:
+func swing(power: float, side: int = 0) -> void:
 	if _melee:
-		_swing.swing(power)
+		_swing.swing(power, side)
 		_since_fire = 0.0
 
 
@@ -265,8 +266,13 @@ func _apply_kick(delta: float, alive: bool) -> void:
 
 
 ## The blow landed: freeze the swing for a moment so the hit has weight.
-func hit_stop() -> void:
-	_swing.hit_stop()
+func hit_stop(seconds: float = 0.07) -> void:
+	_swing.hit_stop(seconds)
+
+
+## The swing itself (its glow, its power, whether it is the heavy blow).
+func melee_swing() -> MeleeSwing:
+	return _swing
 
 
 ## In the middle of a blow (the swing trail is drawn).
@@ -410,6 +416,10 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		var busy := _swing.active() and inp.alive
 		_hold = move_toward(_hold, 1.0 if busy or (want[0] > 0.0 and inp.alive and _respawn_t < 0.0) else 0.0, delta * 9.0)
 		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
+		if model.melee:
+			MeleeModel.set_glow(model.melee, _swing.glow() if inp.alive else 0.0)
+		if model.melee_left:
+			MeleeModel.set_glow(model.melee_left, _swing.glow() if inp.alive else 0.0)
 	_apply_kick(delta, inp.alive)
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward

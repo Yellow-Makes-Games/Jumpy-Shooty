@@ -81,7 +81,7 @@ var _arm_l: PackedInt32Array
 var _weapon := "pistol"
 var _data: WeaponData
 var _fire_t := -1.0
-var _swing := MeleeSwing.new()
+var _swing := MeleeSwing.new("sword", true)
 var _swing_view := Vector2.ZERO   # the swing's chest turn and lean, felt as a turn of the whole view model
 var _hold := 1.0                  # how much the arms hold the melee weapon up
 var _rest := 1.0                  # how much the blade is in its resting lean (0 while winding up or swinging)
@@ -133,22 +133,22 @@ func fire(left: bool = false) -> void:
 
 
 ## Winding a melee swing up, this frame: `charge` 0..1 is how far.
-func wind(charge: float) -> void:
+func wind(charge: float, side: int = 0) -> void:
 	if _data.is_melee():
-		_swing.wind(charge)
+		_swing.wind(charge, side)
 		_since_fire = 0.0
 
 
 ## The swing was let go, `power` 0..1 wound up.
-func swing(power: float) -> void:
+func swing(power: float, side: int = 0) -> void:
 	if _data.is_melee():
-		_swing.swing(power)
+		_swing.swing(power, side)
 		_since_fire = 0.0
 
 
 ## The blow landed: freeze the swing for a moment so the hit has weight.
-func hit_stop() -> void:
-	_swing.hit_stop()
+func hit_stop(seconds: float = 0.07) -> void:
+	_swing.hit_stop(seconds)
 
 
 ## In the middle of a blow (the swing trail is drawn).
@@ -260,7 +260,7 @@ func update(delta: float) -> void:
 		var k := _swing.sample(delta)
 		var shift := MELEE_SHIFT
 		_rest = move_toward(_rest, 0.0 if _swing.active() else 1.0, delta * (12.0 if _swing.active() else 5.0))
-		if _weapon in MELEE_SWUNG:
+		if _weapon in MELEE_SWUNG and not MeleeSwing.MOVES.has(_weapon):   # (the weapons still on the old swing)
 			if _swing.winding():
 				shift += MELEE_WOUND_SHIFT * clampf(-_swing.coil(), 0.0, 1.0)
 			var blade: Vector3 = k[MeleeSwing.BLADE]
@@ -274,6 +274,10 @@ func update(delta: float) -> void:
 		_cut = move_toward(_cut, 1.0 if _swing.active() and not _swing.winding() else 0.0, delta * 14.0)
 		MeleeSwing.hold(_pose, rig, k, _swing.two_handed, MELEE_CUT_TILT * _cut, _hold, _hold * (1.0 - _grapple_w), shift)
 		_swing_view = Vector2(k[MeleeSwing.TURN] * 0.4, k[MeleeSwing.LEAN]) * _hold
+		if model.melee:
+			MeleeModel.set_glow(model.melee, _swing.glow())
+		if model.melee_left:
+			MeleeModel.set_glow(model.melee_left, _swing.glow())
 
 	_recoil *= exp(-delta * 18.0)
 	_recoil_l *= exp(-delta * 18.0)

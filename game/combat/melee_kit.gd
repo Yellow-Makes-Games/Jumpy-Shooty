@@ -132,7 +132,7 @@ static func cut_rect(hx: float, hy: float, cut: float, mid: Vector2 = Vector2.ZE
 
 
 ## The finished pieces: [mesh, transform, material kind], one per kind used.
-func parts() -> Array:
+func parts(xf: Transform3D = Transform3D.IDENTITY) -> Array:
 	var out := []
 	for kind in _verts:
 		var arrays := []
@@ -141,7 +141,7 @@ func parts() -> Array:
 		arrays[Mesh.ARRAY_NORMAL] = _normals[kind]
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		out.append([mesh, Transform3D.IDENTITY, kind])
+		out.append([mesh, xf, kind])
 	return out
 
 

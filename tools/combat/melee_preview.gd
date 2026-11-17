@@ -51,7 +51,7 @@ func _initialize() -> void:
 				if c is MeshInstance3D:
 					box = c.get_aabb() if box.size == Vector3.ZERO else box.merge(c.get_aabb())
 		w.position = Vector3((i - 1) * maxf(maxf(box.size.x, box.size.z) * 1.5, box.size.y * 0.3), 0, 0)
-		w.rotation_degrees.y = yaws[i]
+		w.rotation_degrees.y = yaws[i] + rad_to_deg(MeleeModel.SHOW_TURN.get(_weapon, 0.0))
 		root.add_child(w)
 	var mid := box.get_center().y
 	var far := maxf(box.size.y, 0.3)

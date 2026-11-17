@@ -66,6 +66,10 @@ var _seen_swings := -1            # the swing count last shown (starts the swing
 var _strike_left := -1.0          # local: seconds until the current swing's blow lands
 var _charge := -1.0               # local: seconds the swing button has been held (winding up), or -1
 var _swing_power := 0.0           # local: how wound up the swing in flight is, 0..1
+var _swing_side := 0              # which tap this wind-up or swing is: 0 from the right, 1 from the left (they take turns)
+var _seen_side := 1               # the side of the last swing shown
+var _since_swing := 9.0           # seconds since the last swing shown was let go
+var _shown_power := 0.0           # how wound up the last swing shown was (its hit effects go by it)
 var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
@@ -511,8 +515,14 @@ func _update_melee(delta: float) -> void:
 		return
 	_fire_buffer = 0.0
 	_charge = 0.0
+	_swing_side = _next_side()
 	if DevArgs.sync_log:
 		print("ANIM WIND %d" % peer_id)
+
+
+## Which tap comes next: taps take turns, starting from the right again after a pause.
+func _next_side() -> int:
+	return 0 if _since_swing > MeleeSwing.COMBO_RESET else 1 - _seen_side
 
 
 ## Let go: the swing starts from however far it was wound up.
@@ -522,6 +532,8 @@ func _swing() -> void:
 	_swing_power = data.charge_of(_charge)
 	_charge = -1.0
 	_swings += 1
+	if 1 - (_swings & 1) != _swing_side:
+		_swings += 1   # the count's last bit tells everyone the side: odd from the right, even from the left
 	_strike_left = MeleeSwing.impact_time(data.id)   # when the blade is mid-blow on screen
 	# Lunge toward where you look (never past a sprinting dive's speed).
 	var ahead := Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
@@ -546,11 +558,11 @@ func winding_up() -> bool:
 func _strike() -> void:
 	if not alive:
 		return
-	if rig:   # your own blow: the view jolts the way the blade travels (right to left), harder the more it was wound up
-		var side := 0.0 if robot.weapon == "spear" else 1.0
-		var weight := lerpf(0.5, 1.4, _swing_power)
-		_punch += Vector2(side * 0.035, -0.012) * weight
-		_punch_roll += side * 0.03 * weight
+	if rig:   # your own blow: the view jolts the way the blade travels, harder the more it was wound up
+		var way := animator.melee_swing().travel()
+		var weight := lerpf(0.5, 1.5, _swing_power)
+		_punch += Vector2(-way.x * 0.035, way.y * 0.02 - 0.012) * weight
+		_punch_roll += -way.x * 0.03 * weight
 	var eye := eye_position()
 	var view_times := {}
 	for p in get_parent().get_children():
@@ -567,12 +579,15 @@ func _watch_swings(delta: float) -> void:
 	var count := _swings & 3 if is_local else RobotAnimInput.swings_of(_anim.flags)
 	var melee := alive and robot.weapon != "none" and WeaponData.melee(robot.weapon)
 	var winding := melee and (_charge >= 0.0 if is_local else RobotAnimInput.winding_of(_anim.flags))
+	_since_swing += delta
 	if winding:
+		if not is_local and _seen_wind < 0.0:
+			_swing_side = _next_side()   # (a guess, for the wind-up only: the swing itself says its side)
 		_seen_wind = _charge if is_local else maxf(_seen_wind, 0.0) + delta
 		var held := WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
-		animator.wind(held)
+		animator.wind(held, _swing_side)
 		if view:
-			view.wind(held)
+			view.wind(held, _swing_side)
 	if _seen_swings < 0:
 		_seen_swings = count   # just appeared: no swing to replay
 		return
@@ -582,20 +597,36 @@ func _watch_swings(delta: float) -> void:
 			var power := _swing_power if is_local else WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
 			if DevArgs.sync_log and not is_local:
 				print("ANIM SWUNG %d %d %.2f" % [Net.my_id(), peer_id, power])
-			animator.swing(power)
+			_seen_side = 1 - (count & 1)
+			_since_swing = 0.0
+			_shown_power = power
+			animator.swing(power, _seen_side)
 			if view:
-				view.swing(power)
-			var loud := lerpf(-5.0, 2.0, power)   # a wound-up swing whooshes louder
+				view.swing(power, _seen_side)
+			if _trail:
+				_trail.power = power
+			var loud := lerpf(-5.0, 2.0, power)   # a wound-up swing whooshes louder, and the heavy blow deeper
+			var pitch := 0.84 if power >= MeleeSwing.HEAVY_AT else (1.05 if _seen_side == 0 else 1.12)
 			if sounds.own:
-				Sound.play("swing_" + robot.weapon, loud, 0.05)
+				var whoosh := Sound.play("swing_" + robot.weapon, loud, 0.05)
+				if whoosh:
+					whoosh.pitch_scale *= pitch
 			elif visual.visible:
-				Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", loud, 0.05)
+				var whoosh := Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", loud, 0.05)
+				if whoosh:
+					whoosh.pitch_scale *= pitch
 		_seen_wind = -1.0
 	elif not winding:
 		_seen_wind = -1.0
 
 
-## A blow landed somewhere. Ours: the swing freezes for a moment (hit-stop) and the view jolts harder.
+## How wound up this player's last swing was, 0..1 (the hit sound goes by it).
+func swing_power() -> float:
+	return _shown_power
+
+
+## A blow landed somewhere. Ours: the swing freezes for a moment (hit-stop), sparks fly
+## from where it struck and the view jolts harder.
 func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
 	if attacker != peer_id or points.is_empty():
 		return
@@ -604,11 +635,21 @@ func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Arr
 			_punch += Vector2(randf_range(-0.02, 0.02), -0.05 if weapon_id == "flying_kick" else -0.025)
 			_punch_roll += randf_range(-0.03, 0.03)
 		return
-	animator.hit_stop()
+	# Harder the more it was wound up: a longer freeze, more sparks, a bigger jolt.
+	var freeze := MeleeSwing.hit_stop_time(_shown_power)
+	animator.hit_stop(freeze)
 	if view:
-		view.hit_stop()
+		view.hit_stop(freeze)
+	var way := animator.melee_swing().travel()
+	if visual.visible or rig:
+		var from := global_position + Vector3(0, 1.3, 0)
+		var sweep := Vector3.RIGHT.rotated(Vector3.UP, input.yaw if is_local else _anim.yaw) * way.x + Vector3.UP * way.y
+		for i in mini(points.size(), 3):   # (into the arena, not among the players)
+			MeleeFx.hit(get_parent().get_parent(), points[i], from, RobotModel.trim_color(Net.player_color(peer_id)), _shown_power, sweep)
 	if rig:
-		_punch += Vector2(randf_range(-0.012, 0.012), -0.02)
+		var weight := lerpf(0.6, 2.2, _shown_power)
+		_punch += Vector2(-way.x * 0.02 + randf_range(-0.01, 0.01), way.y * 0.012 - 0.018) * weight
+		_punch_roll += (-way.x * 0.02 + randf_range(-0.01, 0.01)) * weight
 
 
 # ---------------------------------------------------------------------------

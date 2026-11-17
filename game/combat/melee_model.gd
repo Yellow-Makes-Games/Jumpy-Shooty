@@ -23,6 +23,8 @@ const TO_BONE := Basis(Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0))
 const READY_TILT := -0.45
 ## From weapon space to the grip bone's space, lean and all.
 const HOLD := TO_BONE * Basis(Vector3.RIGHT, READY_TILT)
+## Weapons shown lying flat (a pickup, a preview) are turned this far about their length, to show their broad side.
+const SHOW_TURN := {"sword": PI * 0.5}
 ## How far up the weapon its cutting edge runs (from, to), in metres from the grip.
 const EDGES := {"sword": [0.36, 1.48], "hammer": [0.62, 0.92], "dagger": [0.12, 0.56],
 	"brass_knuckles": [0.0, 0.1], "spear": [1.3, 2.04], "axe": [0.47, 0.93], "bat": [0.4, 1.0]}
@@ -207,7 +209,8 @@ static func _longsword() -> Array:
 	k.bar("edge", [[-0.318, 0.026], [-0.262, 0.026]], 6)
 	k.bar("detail", [[-0.296, 0.031], [-0.284, 0.031]], 6)
 	k.bar("dark", [[-0.372, 0.014], [-0.35, 0.036], [-0.326, 0.038], [-0.318, 0.03]], 6)
-	return k.parts()
+	# Drawn with its flat to the front; in the fist the edge leads (-Z), like every weapon's.
+	return k.parts(Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3.ZERO))
 
 
 ## Hammer: a blocky head like a piston, a glowing strike face at each end, vents

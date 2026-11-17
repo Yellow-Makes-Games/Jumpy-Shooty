@@ -287,11 +287,19 @@ func _on_player_died(victim: int, killer: int) -> void:
 
 
 ## A melee blow landed: a clang where each one struck (the hammer's is a heavy crash).
-func _on_melee_landed(_attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
+## The more the swing was wound up, the deeper and louder it lands, and a blow wound
+## up enough to be the weapon's heavy one has a thump under it.
+func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
+	var by: Player = Net.arena.get_player(attacker) if Net.arena else null
+	var power := by.swing_power() if by and weapon_id != "kick" and weapon_id != "flying_kick" else 0.0
 	for i in mini(points.size(), 2):
 		var hit: String = {"hammer": "hammer_hit", "flying_kick": "hammer_hit", "axe": "hammer_hit", "bat": "bat_hit",
 			"brass_knuckles": "punch_hit"}.get(weapon_id, "melee_hit")
-		play_at(hit, points[i], "body", -2.0 * i, 0.06)
+		var clang := play_at(hit, points[i], "body", -2.0 * i + lerpf(-1.5, 2.0, power), 0.06)
+		if clang:
+			clang.pitch_scale *= lerpf(1.04, 0.88, power)
+		if power >= MeleeSwing.HEAVY_AT and i == 0:
+			play_at("heavy_hit", points[i], "body", lerpf(-4.0, 0.0, power), 0.05)
 
 
 ## Someone crashed into a wall hard enough to hurt.

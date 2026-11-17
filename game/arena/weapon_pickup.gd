@@ -165,4 +165,6 @@ func _add_blade(model: Node3D) -> void:
 	holder.rotation = Vector3(0, 0, PI * 0.5)   # blade along the ground, like a gun
 	model.add_child(holder)
 	holder.position.x = float(MeleeModel.EDGES.get(weapon, MeleeModel.EDGES.sword)[1]) * 0.5   # turn about its middle, not the grip
-	holder.add_child(MeleeModel.build(weapon, GLOW))
+	var blade := MeleeModel.build(weapon, GLOW)
+	blade.rotation.y = MeleeModel.SHOW_TURN.get(weapon, 0.0)
+	holder.add_child(blade)
