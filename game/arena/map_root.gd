@@ -10,6 +10,7 @@ extends Node3D
 ##  - MapWeaponSpawn nodes (under "WeaponSpawns"): Deathmatch weapon pickups.
 ##  - MapGrapplePoint nodes: glowing spots the grappling hook snaps to when you aim
 ##    near them (any map, any mode).
+##  - MapItemSpawn nodes (under "ItemSpawns"): Deathmatch power-ups (health, damage).
 ##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
 ##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
@@ -74,6 +75,8 @@ var spawns: Array = []
 var dummies: Array = []
 ## [position, weapon id] of every Deathmatch weapon pickup (MapWeaponSpawn); filled in by build().
 var weapon_spawns: Array = []
+## [position, item kind] of every Deathmatch power-up (MapItemSpawn); filled in by build().
+var item_spawns: Array = []
 ## Race maps, filled in by build(). Checkpoints: {number, finish, xf, opening},
 ## sorted by number. Hazards: {xf, size, shape, mover} (mover = index into movers,
 ## or -1). Movers: {node: MapMover, base: Transform3D, body: AnimatableBody3D}.
@@ -269,6 +272,8 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			spawn_list.append([at.origin + Vector3(0, 0.2, 0), atan2(at.basis.z.x, at.basis.z.z)])
 		elif child is MapWeaponSpawn:
 			weapon_spawns.append([at.origin, (child as MapWeaponSpawn).weapon])
+		elif child is MapItemSpawn:
+			item_spawns.append([at.origin, (child as MapItemSpawn).item])
 		elif child is MapCheckpoint:
 			var c := child as MapCheckpoint
 			checkpoints.append({"number": c.number, "finish": c.finish, "opening": c.opening,
