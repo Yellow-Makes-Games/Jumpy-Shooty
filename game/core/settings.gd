@@ -81,6 +81,7 @@ func load_settings() -> void:
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
 	last_address = str(cfg.get_value("network", "last_address", last_address))
+	_load_bindings(cfg)
 
 
 func save_settings() -> void:
@@ -102,6 +103,7 @@ func save_settings() -> void:
 	cfg.set_value("profile", "character", character)
 	cfg.set_value("profile", "weapon", weapon)
 	cfg.set_value("network", "last_address", last_address)
+	_save_bindings(cfg)
 	cfg.save(SAVE_PATH)
 
 
@@ -202,49 +204,190 @@ func set_third_person(value: bool) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Controls. Defined in code so they are easy to read and, later, to rebind.
+# Controls. The defaults are defined in code; the Controls tab on the Settings menu
+# rebinds them, and anything changed is saved under [bindings] in settings.cfg.
+# A binding is "key:<physical keycode>" or "mouse:<button index>".
 
-const KEY_BINDINGS := {
-	"move_forward": [KEY_W],
-	"move_back": [KEY_S],
-	"move_left": [KEY_A],
-	"move_right": [KEY_D],
-	"jump": [KEY_SPACE],
-	"sprint": [KEY_SHIFT],
-	"crouch": [KEY_CTRL, KEY_C],  # slide when moving fast
-	"dive": [KEY_ALT, KEY_Q],
-	"kick": [KEY_F],
-	"boost": [KEY_E],   # rocket boots
-	"toggle_camera": [KEY_V],
-	"scoreboard": [KEY_TAB],
-	"pause": [KEY_ESCAPE],
-	"reload": [KEY_R],
-	"weapon_1": [KEY_1],
-	"weapon_2": [KEY_2],
-	"debug_menu": [KEY_F1, KEY_QUOTELEFT],  # offline only (Practice, Vs Bots)
-}
+## Rebindable actions in the order the Controls tab lists them: [action, label, defaults].
+## Each action has up to MAX_BINDS bindings.
+const ACTIONS := [
+	["move_forward", "Move forward", ["key:%d" % KEY_W]],
+	["move_back", "Move back", ["key:%d" % KEY_S]],
+	["move_left", "Move left", ["key:%d" % KEY_A]],
+	["move_right", "Move right", ["key:%d" % KEY_D]],
+	["jump", "Jump (again in mid-air to flip)", ["key:%d" % KEY_SPACE]],
+	["sprint", "Sprint", ["key:%d" % KEY_SHIFT]],
+	["float", "Float (in mid-air)", ["key:%d" % KEY_SHIFT]],
+	["crouch", "Crouch / slide", ["key:%d" % KEY_CTRL, "key:%d" % KEY_C]],
+	["dive", "Dive", ["key:%d" % KEY_Q, "key:%d" % KEY_ALT]],
+	["kick", "Kick", ["key:%d" % KEY_F]],
+	["boost", "Rocket boots", ["key:%d" % KEY_E]],
+	["grapple", "Grapple", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
+	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
+	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
+	["weapon_1", "Weapon slot 1", ["key:%d" % KEY_1]],
+	["weapon_2", "Weapon slot 2", ["key:%d" % KEY_2]],
+	["weapon_3", "Weapon group 3 (respawn pick)", ["key:%d" % KEY_3]],
+	["weapon_4", "Weapon group 4 (respawn pick)", ["key:%d" % KEY_4]],
+	["weapon_5", "Weapon group 5 (respawn pick)", ["key:%d" % KEY_5]],
+	["weapon_6", "Weapon group 6 (respawn pick)", ["key:%d" % KEY_6]],
+	["weapon_next", "Next weapon", ["mouse:%d" % MOUSE_BUTTON_WHEEL_DOWN]],
+	["weapon_prev", "Previous weapon", ["mouse:%d" % MOUSE_BUTTON_WHEEL_UP]],
+	["toggle_camera", "First / third person", ["key:%d" % KEY_V]],
+	["scoreboard", "Scoreboard (hold)", ["key:%d" % KEY_TAB]],
+	["debug_menu", "Debug menu (Practice, Vs Bots)", ["key:%d" % KEY_F1, "key:%d" % KEY_QUOTELEFT]],
+]
+const MAX_BINDS := 2
+## Pairs of actions that may share a key without it counting as a conflict
+## (sprint is for the ground, float for the air).
+const CAN_SHARE := [["sprint", "float"]]
 
-const MOUSE_BINDINGS := {
-	"fire": [MOUSE_BUTTON_LEFT],
-	"grapple": [MOUSE_BUTTON_RIGHT],
-	"weapon_next": [MOUSE_BUTTON_WHEEL_DOWN],
-	"weapon_prev": [MOUSE_BUTTON_WHEEL_UP],
-}
+## Not rebindable: Esc always opens the menu (and cancels a rebind).
+const FIXED_BINDINGS := {"pause": ["key:%d" % KEY_ESCAPE]}
+
+## The current bindings: action -> Array of binding strings.
+var bindings := {}
+
+
+func default_bindings(action: String) -> Array:
+	for a in ACTIONS:
+		if a[0] == action:
+			return (a[2] as Array).duplicate()
+	return []
 
 
 func _setup_input_map() -> void:
-	for action in KEY_BINDINGS:
+	for a in ACTIONS:
+		bindings[a[0]] = (a[2] as Array).duplicate()
+	for action in FIXED_BINDINGS:
 		_ensure_action(action)
-		for key in KEY_BINDINGS[action]:
-			var ev := InputEventKey.new()
-			ev.physical_keycode = key
-			InputMap.action_add_event(action, ev)
-	for action in MOUSE_BINDINGS:
+		for b in FIXED_BINDINGS[action]:
+			InputMap.action_add_event(action, binding_event(b))
+	_apply_bindings()
+
+
+func _apply_bindings() -> void:
+	for action in bindings:
 		_ensure_action(action)
-		for button in MOUSE_BINDINGS[action]:
-			var ev := InputEventMouseButton.new()
-			ev.button_index = button
-			InputMap.action_add_event(action, ev)
+		for b in bindings[action]:
+			var ev := binding_event(b)
+			if ev:
+				InputMap.action_add_event(action, ev)
+
+
+func _load_bindings(cfg: ConfigFile) -> void:
+	for a in ACTIONS:
+		var saved = cfg.get_value("bindings", a[0]) if cfg.has_section_key("bindings", a[0]) else null
+		if saved is Array:
+			var list := []
+			for b in saved:
+				if binding_event(str(b)) and not list.has(str(b)) and list.size() < MAX_BINDS:
+					list.append(str(b))
+			bindings[a[0]] = list
+	_apply_bindings()
+
+
+func _save_bindings(cfg: ConfigFile) -> void:
+	for a in ACTIONS:
+		if bindings[a[0]] != a[2]:
+			cfg.set_value("bindings", a[0], bindings[a[0]])
+
+
+## Puts `binding` in slot `slot` of `action` (an empty binding clears the slot). If
+## another action had it, that action loses it. Returns the labels of the actions it
+## was taken from (empty when it was free).
+func rebind(action: String, slot: int, binding: String) -> Array:
+	var taken := []
+	if binding != "":
+		if FIXED_BINDINGS.pause.has(binding):
+			return taken
+		for a in ACTIONS:
+			if a[0] != action and bindings[a[0]].has(binding) and not _can_share(action, a[0]):
+				bindings[a[0]].erase(binding)
+				taken.append(a[1])
+	var list: Array = bindings[action]
+	list.erase(binding)
+	if slot < list.size():
+		if binding == "":
+			list.remove_at(slot)
+		else:
+			list[slot] = binding
+	elif binding != "":
+		list.append(binding)
+	_apply_bindings()
+	save_settings()
+	return taken
+
+
+static func _can_share(a: String, b: String) -> bool:
+	for pair in CAN_SHARE:
+		if pair.has(a) and pair.has(b):
+			return true
+	return false
+
+
+func reset_bindings() -> void:
+	for a in ACTIONS:
+		bindings[a[0]] = (a[2] as Array).duplicate()
+	_apply_bindings()
+	save_settings()
+
+
+## The binding string for a key or mouse button press, or "" if it can't be bound.
+static func event_binding(ev: InputEvent) -> String:
+	if ev is InputEventKey:
+		var code: int = ev.physical_keycode if ev.physical_keycode != KEY_NONE else ev.keycode
+		return "key:%d" % code if code != KEY_NONE else ""
+	if ev is InputEventMouseButton and ev.button_index != MOUSE_BUTTON_NONE:
+		return "mouse:%d" % ev.button_index
+	return ""
+
+
+static func binding_event(b: String) -> InputEvent:
+	var parts := b.split(":")
+	if parts.size() != 2 or not parts[1].is_valid_int():
+		return null
+	var code := int(parts[1])
+	if parts[0] == "key" and code > 0:
+		var ev := InputEventKey.new()
+		ev.physical_keycode = code
+		return ev
+	if parts[0] == "mouse" and code > 0:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = code
+		return ev
+	return null
+
+
+const MOUSE_NAMES := {
+	MOUSE_BUTTON_LEFT: "Left mouse", MOUSE_BUTTON_RIGHT: "Right mouse", MOUSE_BUTTON_MIDDLE: "Middle mouse",
+	MOUSE_BUTTON_WHEEL_UP: "Wheel up", MOUSE_BUTTON_WHEEL_DOWN: "Wheel down",
+	MOUSE_BUTTON_WHEEL_LEFT: "Wheel left", MOUSE_BUTTON_WHEEL_RIGHT: "Wheel right",
+	MOUSE_BUTTON_XBUTTON1: "Mouse 4", MOUSE_BUTTON_XBUTTON2: "Mouse 5",
+}
+
+
+## How a binding is shown: the key as printed on your keyboard layout, or the mouse button.
+static func binding_text(b: String) -> String:
+	var ev := binding_event(b)
+	if ev is InputEventMouseButton:
+		return MOUSE_NAMES.get(ev.button_index, "Mouse %d" % ev.button_index)
+	if ev is InputEventKey:
+		var code: int = ev.physical_keycode
+		if DisplayServer.get_name() != "headless":
+			var local := DisplayServer.keyboard_get_keycode_from_physical(code)
+			if local != KEY_NONE:
+				code = local
+		return OS.get_keycode_string(code)
+	return ""
+
+
+## Everything bound to `action`, as shown in menus ("Q / Alt"); "-" when nothing is.
+func action_text(action: String) -> String:
+	var names := []
+	for b in bindings.get(action, []):
+		names.append(binding_text(b))
+	return " / ".join(names) if not names.is_empty() else "-"
 
 
 func _ensure_action(action: String) -> void:

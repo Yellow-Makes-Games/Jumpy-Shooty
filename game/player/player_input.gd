@@ -20,6 +20,7 @@ var fire := false          ## trigger held (automatic weapons)
 var fire_pressed := false  ## trigger pulled this frame (semi-automatic weapons)
 var kick_pressed := false  ## kick pressed this frame (any weapon; a flying kick while you have a player hooked)
 var boost_pressed := false ## rocket boots fired this frame
+var float_pressed := false ## float pressed this frame (Shift in mid-air; again to drop out of it)
 ## Optional: which way the rocket boots push (bots aim them). Left at zero, they push
 ## toward your WASD direction as seen from where you look, or straight where you look.
 var boost_dir := Vector3.ZERO
@@ -37,4 +38,5 @@ func clear_edges() -> void:
 	crouch_pressed = false
 	kick_pressed = false
 	boost_pressed = false
+	float_pressed = false
 	boost_dir = Vector3.ZERO

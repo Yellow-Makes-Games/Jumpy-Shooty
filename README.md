@@ -10,7 +10,7 @@ Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player ho
 up to 15 friends connect to them. Today that works over direct IP; Steam invites and
 relays are next.
 
-**Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site, Office, Rail Yard, Lost Temple and Neon Arcade maps, the Testing Grounds test map and offline bot matches (1v1, or a free-for-all against up to 4 bots) work, with sound effects for every gun, hit, move and menu; Steam is next. See [docs/FEATURES.md](docs/FEATURES.md)
+**Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site, Office, Kilnworks, Rail Yard, Lost Temple and Neon Arcade maps, the Testing Grounds test map and offline bot matches (1v1, or a free-for-all against up to 4 bots) work, with sound effects for every gun, hit, move and menu; Steam is next. See [docs/FEATURES.md](docs/FEATURES.md)
 for what works and what does not yet.
 
 ## Quick start
@@ -28,6 +28,7 @@ More detail, including how to play with a friend and run several copies on one P
 | --- | --- |
 | Move | W A S D |
 | Sprint | Shift |
+| Float (in mid-air: glide level the way you face, at the speed you had; again to drop) | Shift |
 | Jump | Space |
 | Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
@@ -40,7 +41,10 @@ More detail, including how to play with a friend and run several copies on one P
 | Menu (Loadout: change robot or weapon for your next respawn) | Esc |
 | Debug menu (Practice and Vs Bots only) | F1 |
 
-Grapple (right mouse), slide (Ctrl or C) and dive (Alt or Q) arrive in later phases.
+Grapple is right mouse, crouch / slide is Ctrl or C, dive is Q or Alt. Every key except Esc can be
+rebound under **Settings > Controls** (two bindings per action, keys or mouse buttons); a key
+you give to one action is taken off any other that had it, and **Reset controls to defaults**
+puts them all back.
 
 ## Project layout
 

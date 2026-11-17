@@ -14,6 +14,7 @@ const CROUCH_HEIGHT := 1.1
 const PRONE_HEIGHT := 0.8    ## lying on your front (belly slide)
 const TUCK_LIFT := CAPSULE_HEIGHT - CROUCH_HEIGHT
 
+var _dev_group := -1   # --swap-on-death: the weapon group to pick (see dev_swap_after_death)
 var peer_id := 1
 var is_local := false   ## simulated on this machine (you, or a bot when hosting)
 var is_bot := false
@@ -201,6 +202,8 @@ func _physics_process(delta: float) -> void:
 		else:
 			_update_tug(delta)
 			_steer_flying_kick(delta)
+			if _fly_kick > 0.0:
+				input.float_pressed = false   # mid flying kick: you are already going somewhere
 			var boosts := motor.boosts
 			motor.step(self, input, delta)
 			if hooking and not motor.grapple.attached:
@@ -327,17 +330,15 @@ func _pick_on_death(event: InputEvent) -> void:
 	var ids := WeaponData.IDS
 	var current := ids.find(Net.player_weapon(peer_id))
 	var pick := -1
-	if event is InputEventKey and event.pressed and not event.echo:
-		var k: int = event.keycode - KEY_1
-		if k >= 0 and k < WeaponData.GROUPS.size():
-			var group: Array = WeaponData.GROUPS[k][1]
-			var at := group.find(ids[current]) if current >= 0 else -1
-			pick = ids.find(group[(at + 1) % group.size()] if at >= 0 else group[0])
-	elif event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			pick = (current + 1) % ids.size()
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			pick = (current - 1 + ids.size()) % ids.size()
+	var k := _weapon_slot(event, WeaponData.GROUPS.size()) if event else _dev_group
+	if k >= 0:
+		var group: Array = WeaponData.GROUPS[k][1]
+		var at := group.find(ids[current]) if current >= 0 else -1
+		pick = ids.find(group[(at + 1) % group.size()] if at >= 0 else group[0])
+	elif event and event.is_action_pressed("weapon_next"):
+		pick = (current + 1) % ids.size()
+	elif event and event.is_action_pressed("weapon_prev"):
+		pick = (current - 1 + ids.size()) % ids.size()
 	if pick < 0 or pick == current or alive:
 		return
 	if DevArgs.sync_log:
@@ -364,6 +365,8 @@ func read_local_input() -> void:
 		input.kick_pressed = true
 	if Input.is_action_just_pressed("boost"):
 		input.boost_pressed = true
+	if Input.is_action_just_pressed("float"):
+		input.float_pressed = true
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"))
@@ -869,18 +872,26 @@ func _switch_weapon(event: InputEvent) -> void:
 	var slots := Net.player_inventory(peer_id)
 	var current := robot.weapon
 	var pick := ""
-	if event is InputEventKey and event.pressed and not event.echo:
-		var k: int = event.keycode - KEY_1
-		if k >= 0 and k < slots.size():
-			pick = slots[k]
-	elif event is InputEventMouseButton and event.pressed \
-			and event.button_index in [MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_UP]:
+	var k := _weapon_slot(event, slots.size())
+	if k >= 0:
+		pick = slots[k]
+	elif event.is_action_pressed("weapon_next") or event.is_action_pressed("weapon_prev"):
 		for w in slots:
 			if w != "" and w != current:
 				pick = w
 	if pick == "" or pick == current:
 		return
 	Net.switch_my_weapon(pick)
+
+
+## Which weapon_N action `event` presses, as an index from 0 (-1 for none or past `count`).
+func _weapon_slot(event: InputEvent, count: int) -> int:
+	if event.is_echo():
+		return -1
+	for i in count:
+		if event.is_action_pressed("weapon_%d" % (i + 1)):
+			return i
+	return -1
 
 
 ## The ammo you have for a weapon you carry (HUD), -1 if unknown.
@@ -962,12 +973,12 @@ func show_shot() -> void:
 
 ## --swap-on-death (tests): just died, so press the next weapon's number key.
 func dev_swap_after_death() -> void:
-	var key := InputEventKey.new()
-	key.pressed = true
-	key.keycode = KEY_1 + (WeaponData.group_of(Net.player_weapon(peer_id)) + 1) % WeaponData.GROUPS.size()
+	var group := (WeaponData.group_of(Net.player_weapon(peer_id)) + 1) % WeaponData.GROUPS.size()
 	get_tree().create_timer(0.5).timeout.connect(func():
 		if is_instance_valid(self) and is_inside_tree():
-			_pick_on_death(key))
+			_dev_group = group
+			_pick_on_death(null)
+			_dev_group = -1)
 
 
 func set_dead() -> void:
@@ -1328,6 +1339,7 @@ func _hold_still() -> void:
 	input.fire = false
 	input.kick_pressed = false
 	input.boost_pressed = false
+	input.float_pressed = false
 
 
 # ---------------------------------------------------------------------------
@@ -1345,6 +1357,8 @@ func _scripted_input(delta: float) -> void:
 		input.jump_pressed = true   # mid-air: flip
 	if fmod(t + 2.5, 5.3) < delta:
 		input.dive_pressed = true
+	if fmod(t + 3.1, 3.4) < delta:
+		input.float_pressed = true   # near the top of every other jump: float
 	input.dive = fmod(t + 7.8, 10.6) < 1.4   # every other dive: keep holding it, to land in a belly slide
 	# Crouch (or slide, when fast) for a moment every 7 s.
 	var was_crouching := input.crouch
@@ -1535,3 +1549,4 @@ func _update_flame(delta: float) -> void:
 		aim = visual.global_transform.basis.inverse() * -velocity.normalized()
 	var turn := Quaternion(Vector3.DOWN, aim.normalized()) if aim.normalized().dot(Vector3.UP) < 0.999 else Quaternion(Vector3.RIGHT, PI)
 	_flame.basis = Basis(turn) * Basis.from_scale(Vector3(1.0, length, 1.0))
+

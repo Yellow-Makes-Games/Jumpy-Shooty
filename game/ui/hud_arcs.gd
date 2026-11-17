@@ -5,7 +5,7 @@ extends RefCounted
 ## Left arc: health (fills from the bottom; a red chunk shows what you just lost).
 ## Right arc: one tick per round in the magazine (fills orange while reloading; a
 ## shotgun's fills shell by shell).
-## Under the crosshair: four short arcs for grapple, dive, flip and slide boost,
+## Under the crosshair: a short arc each for grapple, dive, flip, float, slide boost, rocket boots and kick,
 ## then your speed and what you are doing.
 
 const R := 92.0           ## radius of the health and ammo arcs
@@ -59,7 +59,7 @@ static func _draw_health_ammo(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 
 
 static func _draw_moves(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
-	# Moves, under the crosshair: grapple, dive, flip, slide, boots, kick (left to right).
+	# Moves, under the crosshair: grapple, dive, flip, float, slide, boots, kick (left to right).
 	for i in v.moves.size():
 		var m: Array = v.moves[i]
 		var ready: float = m[2]

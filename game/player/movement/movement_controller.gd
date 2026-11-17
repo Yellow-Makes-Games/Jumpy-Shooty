@@ -17,6 +17,12 @@ extends RefCounted
 ##             the slide runs out you can crawl until you let go.
 ##   FLIP      press jump again in mid-air: a flip toward your WASD direction with a
 ##             small burst, once per jump (a dodge)
+##   FLOAT     press Shift in mid-air: your up-and-down speed is cancelled and you
+##             glide level, in a straight line the way you face, at the speed you
+##             had, for float_time seconds. Once per jump. Any other move takes over
+##             from it (flip, dive, grapple, rocket boots, a wall), so it works as a
+##             way to stop rising or falling before the next move; Shift again
+##             drops you out early.
 ##
 ## Rocket boots (E): a burst of speed toward your WASD direction as seen from
 ## where you look (straight where you look if you hold no direction), so you can
@@ -29,7 +35,8 @@ extends RefCounted
 
 const TUCK_SETTLE_SPEED := 3.0   ## metres per second
 
-enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE }
+## New states go on the end: the numbers travel in snapshots (Player.make_pose).
+enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE, FLOAT }
 
 var tuning: MovementTuning
 var state: State = State.AIR
@@ -72,6 +79,8 @@ var _air_dive_used := false   # one dive per jump
 var _flip_used := false       # one flip per jump
 var _roll_left := 0.0
 var _flip_left := 0.0
+var _float_used := false      # one float per jump
+var _float_left := 0.0        # seconds left of the current float
 
 
 func _init(t: MovementTuning = null) -> void:
@@ -92,6 +101,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_air_dive_used = false
 		_flip_used = false
 		_flip_left = 0.0
+		_float_used = false
 	else:
 		_since_ground += delta
 	if input.jump_pressed:
@@ -130,6 +140,17 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 	if grapple.attached or state == State.WALL_RUN:
 		_flip_used = false   # swinging or wall-running gives your flip back
+		_float_used = false  # ...and your float
+
+	# --- Float: Shift in the air. Landing or catching the rope ends it; so does
+	# Shift again. Every other move below simply takes over from it.
+	if state == State.FLOAT and (grounded or grapple.attached):
+		state = State.AIR
+	if input.float_pressed:
+		if state == State.FLOAT:
+			state = State.AIR
+		elif _can_float(body, grounded):
+			vel = _start_float(vel, input)
 
 	# --- Dive (and the roll when you land from one)
 	var diving_now := false
@@ -212,6 +233,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
 	elif state == State.WALL_RUN:
 		vel = _wall_run(vel, delta)
+	elif state == State.FLOAT:
+		vel = _float(vel, delta)
 	elif state == State.DIVE:
 		if not diving_now:
 			vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.dive_air_accel, delta)
@@ -278,6 +301,11 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		vel = _boost(vel, input, grounded)
 
 	if _knock != Vector3.ZERO:
+		if state == State.FLOAT:
+			if _knock.y > 0.5:
+				state = State.AIR   # a real shove knocks you out of a float
+			else:
+				_knock.y = 0.0      # a nudge (a bullet, your own lunge) pushes you along, still level
 		vel += _knock
 		if _knock.y > 0.5 and state in [State.GROUND, State.CROUCH, State.SLIDE, State.ROLL, State.BELLY_SLIDE]:
 			state = State.AIR   # knocked off your feet
@@ -310,7 +338,7 @@ func _boost(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
 	vel += dir * t.boost_speed
 	since_boost = 0.0
 	boosts += 1
-	if state in [State.MANTLE, State.ROLL, State.BELLY_SLIDE, State.WALL_RUN]:
+	if state in [State.MANTLE, State.ROLL, State.BELLY_SLIDE, State.WALL_RUN, State.FLOAT]:
 		if state == State.WALL_RUN:
 			_end_wall_run()
 		state = State.AIR
@@ -372,6 +400,8 @@ func reset() -> void:
 	_flip_used = false
 	_roll_left = 0.0
 	_flip_left = 0.0
+	_float_used = false
+	_float_left = 0.0
 	if crouched and _shape:
 		_set_height(tuning.stand_height)
 	crouched = false
@@ -597,6 +627,13 @@ func slide_boost_readiness() -> float:
 	return clampf(_since_slide_boost / tuning.slide_boost_cooldown, 0.0, 1.0)
 
 
+## 1 = ready; while floating, how much of the float is left; 0 once it is spent, until you land.
+func float_readiness() -> float:
+	if state == State.FLOAT:
+		return clampf(_float_left / tuning.float_time, 0.0, 1.0)
+	return 0.0 if _float_used else 1.0
+
+
 func _can_dive(grounded: bool) -> bool:
 	if _since_dive < tuning.dive_cooldown or grapple.attached:
 		return false
@@ -681,6 +718,38 @@ func _flip(vel: Vector3, wish: Vector3, input: PlayerInput) -> Vector3:
 	flip_dir = input.move.limit_length(1.0).normalized() if wish != Vector3.ZERO else Vector2(0, -1)  # no direction: backflip
 	var h := Vector3(vel.x, 0, vel.z) + wish * t.flip_burst
 	return Vector3(h.x, max(vel.y, t.flip_up), h.z)
+
+
+# ---------------------------------------------------------------------------
+# Float
+
+func _can_float(body: CharacterBody3D, grounded: bool) -> bool:
+	if grounded or _float_used or grapple.attached:
+		return false
+	# Shift pressed as you leave or reach the floor is a sprint, not a float.
+	return not SurfaceProbe.floor_within(body, tuning.float_min_height)
+
+
+## Up-and-down speed goes; the speed you had over the ground now carries you the way you face.
+func _start_float(vel: Vector3, input: PlayerInput) -> Vector3:
+	var t := tuning
+	if state == State.WALL_RUN:
+		_end_wall_run()
+	state = State.FLOAT
+	_float_used = true
+	_float_left = t.float_time
+	_flip_left = 0.0   # floating out of a flip: the flip is over
+	var speed := maxf(Vector2(vel.x, vel.z).length(), t.float_min_speed)
+	return _facing(input) * speed
+
+
+## Floating: no gravity and no steering, so you hold your line and your speed
+## (whatever a wall you brush leaves you with) until the time runs out.
+func _float(vel: Vector3, delta: float) -> Vector3:
+	_float_left -= delta
+	if _float_left <= 0.0:
+		state = State.AIR
+	return Vector3(vel.x, 0.0, vel.z)
 
 
 # ---------------------------------------------------------------------------

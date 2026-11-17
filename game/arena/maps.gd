@@ -17,6 +17,7 @@ const GAME_NAMES := {"ffa": "Free-for-all", "dm": "Deathmatch", "race": "Race"}
 const LIST := [
 	{"id": "construction_site", "name": "Construction Site", "scene": "res://game/maps/construction_site.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "office", "name": "Office", "scene": "res://game/maps/office.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
+	{"id": "kilnworks", "name": "Kilnworks", "scene": "res://game/maps/kilnworks.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "rail_yard", "name": "Rail Yard", "scene": "res://game/maps/rail_yard.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "lost_temple", "name": "Lost Temple", "scene": "res://game/maps/lost_temple.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "neon_arcade", "name": "Neon Arcade", "scene": "res://game/maps/neon_arcade.tscn", "dev": false, "game": "ffa", "also": ["dm"]},

@@ -19,6 +19,8 @@ echo "== Weapons: damage, falloff and reloading"
 run_script tests/weapon_test.gd
 echo "== Map scenes: every map loads and builds; blocks and resize handles"
 run_script tests/map_scene_test.gd
+echo "== Controls: rebinding, conflicts, saving and reset"
+run_script tests/controls_check.gd
 echo "== Main menu: the mode switch refills the map list"
 run_script tests/menu_mode_test.gd
 echo "== Deathmatch: maps, weapon pickups, inventory rules, pause menu loadout"
@@ -36,7 +38,7 @@ run_script tests/destruction_test.gd
 echo "== Debug menu cheats and the target dummies"
 run_script tests/debug_test.gd
 echo "== Practice mode boots without errors on every map"
-for map in construction_site office testing_grounds rooftop_run foundry sky_ruins; do
+for map in construction_site office kilnworks testing_grounds rooftop_run foundry sky_ruins; do
   out=$("$GODOT" --headless --path . -- --practice --map="$map" --quit-after=3 2>&1)
   if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi
 done

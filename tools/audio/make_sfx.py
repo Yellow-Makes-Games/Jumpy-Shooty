@@ -1010,6 +1010,19 @@ def rocket_boost():
     return finish(mix(click(rng, 0.008, 0.0006, 2500) * 0.5, pop, sat(roar, 1.5), hiss, rumble))
 
 
+def float_spin():
+    """Floating: the legs snap out and start to turn. A servo spins up, then the air
+    beats softly as each leg comes round, thinning out over a second."""
+    rng = np.random.default_rng(9750)
+    d = 1.3
+    t = tt(d)
+    hold = np.clip(t / 0.08, 0.0, 1.0) * np.exp(-t / 0.5)
+    beat = 0.5 + 0.5 * np.sin(2 * math.pi * 2.2 * t) ** 2   # two legs, a turn every 0.9 s
+    air = sweep_bp(noise(rng, d), 350, 900, 1.0) * hold * beat * 0.9
+    return finish(mix(click(rng, 0.006, 0.0005, 3000) * 0.3, whoosh(rng, 0.3, 400, 2200, 1.3, 0.3) * 0.7, air,
+                      servo(rng, 0.7, 260, 700, 0.3), metal_clack(rng, 0.5, 1.0, 0.7) * 0.35))
+
+
 # ---------------------------------------------------------------------------
 
 def recipes():
@@ -1089,6 +1102,7 @@ def recipes():
     r["kick"] = kick
     r["flying_kick"] = flying_kick
     r["rocket_boost"] = rocket_boost
+    r["float"] = float_spin
     for i in range(2):
         r["slam_%d" % (i + 1)] = lambda i=i: slam(i)
     for mat in ["concrete", "wood", "glass"]:
