@@ -1,6 +1,10 @@
 extends SceneTree
 ## MapTerminal checks: the rules the host keeps for a terminal, stepped by hand with
 ## made-up players (no map, no arena).
+##  - one press of interact within range fires the terminal's event (the default);
+##  - a press from out of range does nothing, nor does one made while the event runs
+##    or cools down, and a key kept down does not fire it again: it takes a new press;
+## and for a terminal that asks for a hold (Channel Time above 0):
 ##  - holding interact within range for 2 s fires the terminal's event;
 ##  - letting go early cancels, and the next hold starts from nothing;
 ##  - leaving the range cancels (walking off, or knocked out of it), and so does dying;
@@ -39,11 +43,50 @@ func _run() -> void:
 	var far := Vector3(3.5, 1.2, 0)
 
 	print("  defaults")
-	_expect(is_equal_approx(terminal.channel_time, 2.0) and is_equal_approx(terminal.range, 2.0), "hold for 2 s, within 2 m")
+	_expect(is_zero_approx(terminal.channel_time) and is_equal_approx(terminal.range, 2.0), "one press, within 2 m")
 	_expect(terminal.reaches(near) and not terminal.reaches(far), "beside the console is in range, 3.5 m away is not")
 	_expect(terminal.ready_to_use(), "it starts ready")
 
-	print("  a 2 s hold in range fires the event")
+	print("  one press in range fires the event")
+	where = {1: far}
+	terminal.host_set_holding(1, true)
+	_step(0.5)
+	_expect(terminal.phase == MapTerminal.Phase.READY and not event.running, "a press from 3.5 m away does nothing")
+	terminal.host_set_holding(1, false)
+	where = {1: near}
+	terminal.host_set_holding(1, true)
+	_step(STEP)
+	_expect(event.running, "a press beside the console starts the event at once")
+	_expect(terminal.phase == MapTerminal.Phase.BUSY and not terminal.ready_to_use(), "and the terminal is locked")
+	_expect(terminal.channeler == 0 and is_zero_approx(terminal.progress), "nobody is left holding it")
+	_step(0.5)
+	terminal.host_set_holding(1, false)   # the key comes up half a second later, as a tap does
+	where = {1: near, 2: Vector3(-1.2, 1.2, 0)}
+	terminal.host_set_holding(2, true)    # someone else presses while gravity is low...
+	_advance_event(10.0)
+	_expect(event.active() and terminal.phase == MapTerminal.Phase.BUSY, "10 s in (gravity low): a press does nothing")
+	_advance_event(event.ease_time * 2.0 + event.duration + 20.0)
+	_expect(event.running and not event.active() and terminal.phase == MapTerminal.Phase.BUSY, "20 s into the cooldown: still locked")
+	_finish_event()                       # ...and keeps the key down until it is ready again
+	_step(0.5)
+	_expect(terminal.phase == MapTerminal.Phase.READY and not event.running, "ready again; the key kept down since then does not fire it")
+	terminal.host_set_holding(2, false)
+	terminal.host_set_holding(2, true)
+	_step(STEP)
+	_expect(event.running, "a new press does")
+	terminal.host_set_holding(2, false)
+	_finish_event()
+	var net0 := root.get_node_or_null("/root/Net")
+	if net0:
+		where = {7: near}
+		net0.terminal_hold(terminal.index(), true, 7)   # what a player's copy of the game sends
+		_step(STEP)
+		_expect(event.running, "a player's press reaches the host through Net")
+		net0.terminal_hold(terminal.index(), false, 7)
+		_finish_event()
+
+	print("  a terminal that asks for a hold: 2 s in range fires the event")
+	terminal.channel_time = 2.0
 	where = {1: near}
 	terminal.host_set_holding(1, true)
 	_step(1.9)

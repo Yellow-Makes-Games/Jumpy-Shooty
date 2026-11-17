@@ -21,8 +21,8 @@ extends MapEvent
 @export var duration := 30.0
 ## Seconds after gravity is back before a terminal can start it again.
 @export var cooldown := 60.0
-## Gravity while it is low, as a share of normal (0.4: a jump reaches about 3 m).
-@export_range(0.05, 1.0) var gravity_scale := 0.4
+## Gravity while it is low, as a share of normal (0.3: a jump reaches about 4 m).
+@export_range(0.05, 1.0) var gravity_scale := 0.3
 
 @export_group("Look and sound")
 ## The colour the map's light fades to.

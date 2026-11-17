@@ -1,21 +1,24 @@
 @tool
 class_name MapTerminal
 extends Node3D
-## A console players hold "interact" at to set off a map event (Halcyon's low
+## A console players press "interact" at to set off a map event (Halcyon's low
 ## gravity). Stand it on a floor in a map scene and point Event at a MapEvent node
 ## in the same map (a GravityEvent). The blue disc and label are editor-only; the
 ## console itself is whatever MapBlocks you put round it.
 ##
 ## Rules (the host decides, everyone else is shown what it says):
-##  - stand within `range` and hold interact for `channel_time` seconds;
-##  - letting go cancels, and so does leaving the range, being knocked out of it
-##    or dying. Taking damage does not;
-##  - one player at a time: while someone is at it, it is theirs;
-##  - it cannot be used while its event is running or cooling down.
+##  - stand within `range` and press interact: that is all (Channel Time 0);
+##  - it cannot be used while its event is running or cooling down, and a press
+##    made then does not count later: press again once it is ready.
+## A map can ask for a hold instead by giving Channel Time some seconds. Then:
+##  - interact must be held that long; letting go cancels, and so does leaving the
+##    range, being knocked out of it or dying. Taking damage does not;
+##  - one player at a time: while someone is at it, it is theirs.
 ##
 ## All the feedback is in the world, none on the HUD: a ring of light over the
-## console pulses gently when it is ready, fills round in blue while someone holds,
-## and sits dim while it cannot be used. A hum winds down as the ring fills.
+## console pulses gently when it is ready, flashes full when someone sets it off
+## (or fills round in blue through a hold), and sits dim while it cannot be used.
+## A hum winds down as it goes off.
 ##
 ## (Like the other map nodes, this reaches the game's autoloads by path, not by
 ## name, so a map scene still loads in the tests that run without them.)
@@ -29,8 +32,8 @@ const FOCUS_HEIGHT := 1.0   ## ...to this high above the terminal's own position
 const RING_HEIGHT := 2.75   ## the ring of light, above head height so it shows across a room
 const RING_RADIUS := 1.4
 
-## Seconds interact must be held.
-@export var channel_time := 2.0
+## Seconds interact must be held. 0 (the default): one press is enough.
+@export var channel_time := 0.0
 ## Metres from the console a player can be (and must stay within).
 @warning_ignore("shadowed_global_identifier")
 @export var range := 2.0:
@@ -55,6 +58,7 @@ var _plate: MeshInstance3D
 var _material: ShaderMaterial
 var _hum: AudioStreamPlayer3D
 var _hum_fade := 0.0     # dB per second the hum drops by once nobody is holding
+var _flash := 0.0        # 1..0: the ring lit full, fading, just after someone set it off
 var _time := 0.0
 var _glow := 0.0
 var _ghost: MeshInstance3D
@@ -135,9 +139,10 @@ func _where(id: int) -> Variant:
 # ---------------------------------------------------------------------------
 # Host
 
-## Host: player `id` says they are (or are no longer) holding interact here.
+## Host: player `id` says they are (or are no longer) holding interact here. A
+## press while it cannot be used is dropped: it takes a fresh one once it is ready.
 func host_set_holding(id: int, holding: bool) -> void:
-	if holding:
+	if holding and phase != Phase.BUSY:
 		_holding[id] = true
 	else:
 		_holding.erase(id)
@@ -159,8 +164,11 @@ func host_step(delta: float, where: Callable) -> void:
 			for id in ids:
 				var at: Variant = where.call(id)
 				if at is Vector3 and reaches(at):
-					_sync = SYNC_GAP
-					_enter(Phase.CHANNEL, id, 0.0)
+					if channel_time <= 0.0:
+						_fire(id)   # a press is enough
+					else:
+						_sync = SYNC_GAP
+						_enter(Phase.CHANNEL, id, 0.0)
 					break
 		Phase.CHANNEL:
 			var at: Variant = where.call(channeler) if _holding.has(channeler) else null
@@ -169,10 +177,7 @@ func host_step(delta: float, where: Callable) -> void:
 				return
 			progress = minf(progress + delta / maxf(channel_time, 0.01), 1.0)
 			if progress >= 1.0:
-				var by := channeler
-				_enter(Phase.BUSY, 0, 0.0)
-				if _event != null:
-					_event.host_start(by)
+				_fire(channeler)
 				return
 			_sync -= delta
 			if _sync <= 0.0:
@@ -180,11 +185,19 @@ func host_step(delta: float, where: Callable) -> void:
 				_tell(phase, channeler, progress)
 
 
+## Host: player `by` has set it off.
+func _fire(by: int) -> void:
+	_holding.clear()
+	_enter(Phase.BUSY, by, 1.0)   # (who and 1.0: every copy flashes the ring and sounds the hum)
+	if _event != null:
+		_event.host_start(by)
+
+
 func _enter(new_phase: Phase, who: int, how_far: float) -> void:
 	_tell(new_phase, who, how_far)
 	phase = new_phase
-	channeler = who
-	progress = how_far
+	channeler = who if new_phase == Phase.CHANNEL else 0
+	progress = how_far if new_phase == Phase.CHANNEL else 0.0
 
 
 func _tell(new_phase: int, who: int, how_far: float) -> void:
@@ -201,10 +214,17 @@ func apply_state(new_phase: int, who: int, how_far: float) -> void:
 	# A progress update for the hold already showing never moves the ring backwards.
 	var same_hold := was == Phase.CHANNEL and new_phase == Phase.CHANNEL and who == channeler
 	phase = new_phase as Phase
-	channeler = who
-	progress = maxf(progress, how_far) if same_hold else how_far
+	channeler = who if phase == Phase.CHANNEL else 0
+	progress = (maxf(progress, how_far) if same_hold else how_far) if phase == Phase.CHANNEL else 0.0
+	var fired := phase == Phase.BUSY and was != Phase.BUSY and who != 0   # (not: told so on joining mid-event)
+	if fired:
+		_flash = 1.0
 	if phase == Phase.CHANNEL and was != Phase.CHANNEL:
 		_start_hum()
+	elif fired and was != Phase.CHANNEL:
+		# Set off by a press: the hum sounds once, winding down into the event's own sound.
+		_start_hum(-3.0)
+		_hum_fade = 10.0
 	elif phase != Phase.CHANNEL and was == Phase.CHANNEL:
 		# Done: the hum hands over to the event's own sound. Cancelled: it just dies away.
 		_hum_fade = 14.0 if phase == Phase.BUSY else 60.0
@@ -224,6 +244,7 @@ shader_type spatial;
 render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
 uniform float progress = 0.0;   // 0..1: how much of the ring is lit
 uniform float glow = 0.0;       // 0 = dim track only, 1 = the whole ring softly lit (ready)
+uniform float flash = 0.0;      // 1..0: the whole ring lit bright, fading (someone has just set it off)
 uniform vec3 lit : source_color = vec3(0.2, 0.55, 1.0);
 uniform vec3 track : source_color = vec3(0.05, 0.09, 0.2);
 void fragment() {
@@ -233,6 +254,7 @@ void fragment() {
 	vec3 colour = track * (0.6 + 0.4 * ticks);
 	colour += lit * 0.55 * glow * ticks;
 	colour += lit * 2.6 * filled * step(0.0005, progress);
+	colour += lit * 3.0 * flash * flash;
 	ALBEDO = colour * across;
 }
 "
@@ -296,6 +318,8 @@ func _process(delta: float) -> void:
 		_glow = move_toward(_glow, want, delta * 1.5)
 		_material.set_shader_parameter("glow", _glow)
 		_material.set_shader_parameter("progress", progress if phase == Phase.CHANNEL else 0.0)
+		_flash = move_toward(_flash, 0.0, delta / 1.2)
+		_material.set_shader_parameter("flash", _flash)
 	if _hum and _hum.playing:
 		if phase == Phase.CHANNEL:
 			# A turbine winding down: the pitch sinks as the sound grows.
@@ -303,11 +327,13 @@ func _process(delta: float) -> void:
 			_hum.pitch_scale = lerpf(1.26, 1.0, progress)
 		else:
 			_hum.volume_db -= _hum_fade * delta
+			_hum.pitch_scale = move_toward(_hum.pitch_scale, 1.0, delta * 0.2)   # still winding down
 			if _hum.volume_db < -50.0:
 				_hum.stop()
 
 
-func _start_hum() -> void:
+## `gain` (dB): where it starts from, against a hold's quiet start.
+func _start_hum(gain: float = -16.0) -> void:
 	var dev := _autoload("DevArgs")
 	var sound := _autoload("Sound")
 	if sound == null:
@@ -332,7 +358,7 @@ func _start_hum() -> void:
 		_hum.max_distance = 90.0
 		_hum.position.y = FOCUS_HEIGHT
 		add_child(_hum)
-	_hum.volume_db = -16.0 + SfxList.VOLUME.get("terminal_hum", -8.0)
+	_hum.volume_db = gain + SfxList.VOLUME.get("terminal_hum", -8.0)
 	_hum.pitch_scale = 1.26
 	_hum.play()
 
@@ -369,4 +395,4 @@ func _refresh_ghost() -> void:
 
 
 func _get_configuration_warnings() -> PackedStringArray:
-	return [] if not event.is_empty() else ["Point Event at a MapEvent node in this map (a GravityEvent), or holding it does nothing."]
+	return [] if not event.is_empty() else ["Point Event at a MapEvent node in this map (a GravityEvent), or using it does nothing."]

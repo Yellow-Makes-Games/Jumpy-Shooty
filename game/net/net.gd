@@ -671,7 +671,7 @@ func _late_join() -> void:
 
 
 # ---------------------------------------------------------------------------
-# Map objects: terminals players hold "interact" at, and the events they set off (see
+# Map objects: terminals players press "interact" at, and the events they set off (see
 # MapTerminal and MapEvent). A player only says when they start and stop holding; the
 # host checks range and timing, decides, and tells everyone what state things are in.
 
