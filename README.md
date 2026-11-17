@@ -40,7 +40,10 @@ More detail, including how to play with a friend and run several copies on one P
 | Menu (Loadout: change robot or weapon for your next respawn) | Esc |
 | Debug menu (Practice and Vs Bots only) | F1 |
 
-Grapple (right mouse), slide (Ctrl or C) and dive (Alt or Q) arrive in later phases.
+Grapple is right mouse, crouch / slide is Ctrl or C, dive is Q or Alt. Every key except Esc can be
+rebound under **Settings > Controls** (two bindings per action, keys or mouse buttons); a key
+you give to one action is taken off any other that had it, and **Reset controls to defaults**
+puts them all back.
 
 ## Project layout
 
