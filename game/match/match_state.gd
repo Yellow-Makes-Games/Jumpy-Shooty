@@ -1061,7 +1061,8 @@ func level(id: int) -> int:
 
 ## Host: how good this kill looks on a killcam (see KillScore), as the few numbers
 ## that travel with the death: [seq, score, tag bits, streak, distance in decimetres,
-## weapon]. Empty when nobody else got the kill (a fall, a crash on your own).
+## weapon, killer's and victim's speed in decimetres a second, the flick in degrees].
+## Empty when nobody else got the kill (a fall, a crash on your own).
 func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool) -> Array:
 	if killer == 0 or killer == victim or not Net.players.has(killer) or Net.arena == null or Race.active:
 		return []
@@ -1079,13 +1080,17 @@ func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool) -
 		"melee": cause == "" and WeaponData.melee(weapon),
 		"streak": recent.size(),
 		"killer_hp": health.get(killer, MAX_HEALTH),
+		"killer_speed": a.buffer.speed() if a else 0.0,
+		"victim_speed": b.buffer.speed() if b else 0.0,
+		"flick": a.buffer.aim_travel(KillScore.FLICK_WINDOW) if a else 0.0,
 	}
 	recent.append(now)
 	_recent_kills[killer] = recent
 	_kill_seq += 1
 	var result := KillScore.score(facts)
 	return [_kill_seq, result[0], result[1], recent.size() - 1, roundi(float(facts.distance) * 10.0),
-		"kick" if cause == "kick" else weapon]
+		"kick" if cause == "kick" else weapon, roundi(float(facts.killer_speed) * 10.0),
+		roundi(float(facts.victim_speed) * 10.0), roundi(float(facts.flick))]
 
 
 @rpc("authority", "call_local", "reliable")
@@ -1093,11 +1098,11 @@ func _died(victim: int, killer: int, new_scores: Dictionary, cause: String, scor
 	health[victim] = 0.0
 	death_cause[victim] = cause
 	scores = new_scores
-	if scored.size() >= 6:
+	if scored.size() >= 9:
 		var info := kill_info(scored, killer, victim)
 		kill_log.append(info)
 		if DevArgs.sync_log:
-			print("KILL_SCORE %d %d %d %d %s" % [info.seq, killer, victim, info.score, ",".join(KillScore.tag_words(info.tags, info.streak, info.distance))])
+			print("KILL_SCORE %d %d %d %d %s" % [info.seq, killer, victim, info.score, ",".join(KillScore.words(info))])
 		kill_scored.emit(info)
 	player_died.emit(victim, killer)
 	state_changed.emit()
@@ -1130,17 +1135,20 @@ func host_end_match() -> void:
 	_match_over.rpc(build_results(), best)
 
 
-## A kill info as the numbers that travel: [seq, score, tags, streak, decimetres, weapon, killer, victim].
+## A kill info as the numbers that travel: [seq, score, tags, streak, decimetres, weapon,
+## killer's speed, victim's speed (decimetres a second), flick (degrees), killer, victim].
 static func pack_kill(k: Dictionary) -> Array:
-	return [k.seq, k.score, k.tags, k.streak, roundi(k.distance * 10.0), k.weapon, k.killer, k.victim]
+	return [k.seq, k.score, k.tags, k.streak, roundi(k.distance * 10.0), k.weapon,
+		roundi(k.speed * 10.0), roundi(k.target_speed * 10.0), roundi(k.flick), k.killer, k.victim]
 
 
 ## ...and back (killer and victim given, or from the end of the array).
 static func kill_info(p: Array, killer: int = 0, victim: int = 0) -> Dictionary:
 	return {"seq": int(p[0]), "score": int(p[1]), "tags": int(p[2]), "streak": int(p[3]),
 		"distance": float(p[4]) / 10.0, "weapon": str(p[5]),
-		"killer": killer if killer != 0 else (int(p[6]) if p.size() > 6 else 0),
-		"victim": victim if victim != 0 else (int(p[7]) if p.size() > 7 else 0)}
+		"speed": float(p[6]) / 10.0, "target_speed": float(p[7]) / 10.0, "flick": float(p[8]),
+		"killer": killer if killer != 0 else (int(p[9]) if p.size() > 9 else 0),
+		"victim": victim if victim != 0 else (int(p[10]) if p.size() > 10 else 0)}
 
 
 ## Rankings: most kills first, then fewest deaths. In a race: the race standings.

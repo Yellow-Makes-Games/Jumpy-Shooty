@@ -12,6 +12,9 @@ extends RefCounted
 ## are the ones that show off the movement (on the rope, off a wall, gliding, in the
 ## air) and the aim (a headshot, a long way off, a target in the air); a multikill is
 ## the classic highlight, and a kick or a crash into a wall is the game's own flourish.
+## Speed counts on both sides: the faster the killer was going, and the faster the
+## target, the better it looks; and so does a flick, the aim swinging a long way in
+## the moment before the kill.
 ## A plain kill on the ground at close range scores just the base, so it is only
 ## shown when the match had nothing better. Ties go to the earlier kill.
 
@@ -34,6 +37,20 @@ const SMASHED := 70          ## shoved or reeled into a wall
 const MELEE := 30
 const CLUTCH := 40           ## the killer had CLUTCH_HP or less left
 const CLUTCH_HP := 25.0
+## Momentum (m/s, the whole velocity). Sprinting is 11.5; a swing, a dive or a rocket
+## burst takes you past 18, and 25 and up is rare.
+const SPEED_FROM := 12.0     ## every m/s the killer was going past this is worth SPEED_PER...
+const SPEED_PER := 5.0
+const SPEED_MAX := 100       ## ...up to this many (at 32 m/s)
+const TARGET_PER := 4.0      ## the same for the victim's speed...
+const TARGET_MAX := 80       ## ...up to this many
+const FAST := 18.0           ## the "24 M/S" tags from this fast
+## The flick: how far the killer's aim swung (degrees, every turn added up) in the
+## FLICK_WINDOW seconds before the kill.
+const FLICK_WINDOW := 0.6
+const FLICK_FROM := 20.0     ## every degree past this is worth a point...
+const FLICK_MAX := 120       ## ...up to this many (at 140 degrees)
+const FLICK := 60.0          ## the "FLICK 95°" tag from this far
 
 ## Tag bits (sent with the score; every copy turns them back into words).
 const T_HEADSHOT := 1
@@ -48,6 +65,9 @@ const T_FLYING_KICK := 256
 const T_SMASHED := 512
 const T_MELEE := 1024
 const T_CLUTCH := 2048
+const T_FAST := 4096
+const T_TARGET_FAST := 8192
+const T_FLICK := 16384
 
 const S := MovementController.State
 const AIRBORNE := [S.AIR, S.GRAPPLE, S.WALL_RUN, S.FLIP, S.DIVE, S.GLIDE]
@@ -55,7 +75,7 @@ const AIRBORNE := [S.AIR, S.GRAPPLE, S.WALL_RUN, S.FLIP, S.DIVE, S.GLIDE]
 
 ## facts: {distance: metres, headshot, killer_state, victim_state (MovementController.State),
 ## cause ("", "kick", "flying_kick", "slam"), melee, streak (earlier kills in the window),
-## killer_hp}. Returns [score, tag bits].
+## killer_hp, killer_speed and victim_speed (m/s), flick (degrees)}. Returns [score, tag bits].
 static func score(facts: Dictionary) -> Array:
 	var points := BASE
 	var tags := 0
@@ -100,11 +120,29 @@ static func score(facts: Dictionary) -> Array:
 	if float(facts.get("killer_hp", 100.0)) <= CLUTCH_HP:
 		points += CLUTCH
 		tags |= T_CLUTCH
+	var speed := float(facts.get("killer_speed", 0.0))
+	points += mini(int(maxf(speed - SPEED_FROM, 0.0) * SPEED_PER), SPEED_MAX)
+	if speed >= FAST:
+		tags |= T_FAST
+	var target := float(facts.get("victim_speed", 0.0))
+	points += mini(int(maxf(target - SPEED_FROM, 0.0) * TARGET_PER), TARGET_MAX)
+	if target >= FAST:
+		tags |= T_TARGET_FAST
+	var flick := float(facts.get("flick", 0.0))
+	points += mini(int(maxf(flick - FLICK_FROM, 0.0)), FLICK_MAX)
+	if flick >= FLICK:
+		tags |= T_FLICK
 	return [points, tags]
 
 
-## The words for a kill, most telling first: ["TRIPLE KILL", "ON THE ROPE", "HEADSHOT", "42 M"].
-static func tag_words(tags: int, streak: int, distance: float) -> Array:
+## The words for a kill (see Match.kill_info), most telling first:
+## ["TRIPLE KILL", "ON THE ROPE", "HEADSHOT", "FLICK 95°", "24 M/S", "42 M"].
+static func words(info: Dictionary) -> Array:
+	return tag_words(int(info.get("tags", 0)), int(info.get("streak", 0)), float(info.get("distance", 0.0)),
+		float(info.get("speed", 0.0)), float(info.get("target_speed", 0.0)), float(info.get("flick", 0.0)))
+
+
+static func tag_words(tags: int, streak: int, distance: float, speed: float = 0.0, target: float = 0.0, flick: float = 0.0) -> Array:
 	var out: Array = []
 	if streak >= 1:
 		out.append(["DOUBLE KILL", "TRIPLE KILL", "QUAD KILL"][mini(streak, 3) - 1] if streak <= 3 else "MULTI KILL")
@@ -124,6 +162,12 @@ static func tag_words(tags: int, streak: int, distance: float) -> Array:
 		out.append("MID-AIR")
 	if tags & T_HEADSHOT:
 		out.append("HEADSHOT")
+	if tags & T_FLICK:
+		out.append("FLICK %d°" % roundi(flick))
+	if tags & T_FAST:
+		out.append("%d M/S" % roundi(speed))
+	if tags & T_TARGET_FAST:
+		out.append("TARGET AT %d M/S" % roundi(target))
 	if tags & T_AIR_SHOT:
 		out.append("AIR SHOT")
 	if tags & T_MELEE:

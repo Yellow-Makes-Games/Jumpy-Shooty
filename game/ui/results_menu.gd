@@ -93,7 +93,7 @@ func _add_killcams(row: HBoxContainer, highlights: Array) -> void:
 	UiKit.section(side, "Best kills")
 	for i in highlights.size():
 		var h: Dictionary = highlights[i]
-		var tags := KillScore.tag_words(int(h.tags), int(h.streak), float(h.distance))
+		var tags := KillScore.words(h)
 		var b := Button.new()
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.clip_text = true

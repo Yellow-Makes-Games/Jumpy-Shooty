@@ -1,7 +1,8 @@
 extends Node
 ## Killcam checks (started by tests/killcam_test.gd):
 ##  - kill scores: a plain kill scores the base; headshots, range, the rope, a wall run,
-##    a glide, an air shot, kicks, crashes, multikills and a clutch each add their bit,
+##    a glide, an air shot, kicks, crashes, multikills, a clutch, the killer's and the
+##    victim's speed and a flick of the aim each add their bit,
 ##    with the right words; the best kills are the highest scores, the earlier kill
 ##    first on a tie, never more than three;
 ##  - the numbers sent with a death and with the end of the match turn back into the
@@ -75,8 +76,27 @@ func _scores() -> void:
 	var triple := KillScore.score({"streak": 2})
 	_expect(triple[0] == KillScore.BASE + 2 * KillScore.MULTI, "a third kill in a row adds two multikill bonuses")
 	_expect(KillScore.score({"killer_hp": 10.0})[1] & KillScore.T_CLUTCH, "a kill on 10 HP is a clutch")
-	var words := KillScore.tag_words(rope[1] | KillScore.T_HEADSHOT | KillScore.T_LONG, 2, 42.4)
-	_expect(words == ["TRIPLE KILL", "ON THE ROPE", "HEADSHOT", "42 M"], "the words come most telling first (%s)" % [words])
+	var fast := KillScore.score({"killer_speed": 24.0})
+	_expect(fast[0] == KillScore.BASE + 60 and fast[1] & KillScore.T_FAST, "the killer going 24 m/s adds 5 a m/s past 12, and a speed tag (%d)" % fast[0])
+	_expect(KillScore.score({"killer_speed": 60.0})[0] == KillScore.BASE + KillScore.SPEED_MAX, "speed points stop at %d" % KillScore.SPEED_MAX)
+	_expect(KillScore.score({"killer_speed": 11.5})[0] == KillScore.BASE, "sprinting is no bonus")
+	var target := KillScore.score({"victim_speed": 22.0})
+	_expect(target[0] == KillScore.BASE + 40 and target[1] & KillScore.T_TARGET_FAST, "a victim going 22 m/s adds 4 a m/s past 12, and a tag (%d)" % target[0])
+	var flick := KillScore.score({"flick": 95.0})
+	_expect(flick[0] == KillScore.BASE + 75 and flick[1] & KillScore.T_FLICK, "a 95° flick adds a point a degree past 20, and a tag (%d)" % flick[0])
+	_expect(KillScore.score({"flick": 15.0}) == [KillScore.BASE, 0], "steady aim is no bonus")
+	_expect(KillScore.score({"flick": 400.0})[0] == KillScore.BASE + KillScore.FLICK_MAX, "flick points stop at %d" % KillScore.FLICK_MAX)
+	var words := KillScore.tag_words(rope[1] | KillScore.T_HEADSHOT | KillScore.T_LONG | KillScore.T_FLICK | KillScore.T_FAST | KillScore.T_TARGET_FAST,
+		2, 42.4, 24.2, 19.6, 95.4)
+	_expect(words == ["TRIPLE KILL", "ON THE ROPE", "HEADSHOT", "FLICK 95°", "24 M/S", "TARGET AT 20 M/S", "42 M"], "the words come most telling first (%s)" % [words])
+	print("  speed and aim from a player's recent states")
+	var buf := SnapshotBuffer.new()
+	for i in 41:   # one second at 40 a second: turning 90° over the last half, ending at 25 m/s
+		var t := i / 40.0
+		buf.push(t, t, Vector3.ZERO, Vector3(0, 0, -25.0 if i == 40 else -10.0), deg_to_rad(90.0) * clampf((t - 0.5) / 0.5, 0.0, 1.0), 0.0, 0)
+	_expect(is_equal_approx(buf.speed(), 25.0), "speed is from the newest state (%.1f)" % buf.speed())
+	_expect(absf(buf.aim_travel(KillScore.FLICK_WINDOW) - 90.0) < 0.5, "the aim swung 90° in the window (%.1f)" % buf.aim_travel(KillScore.FLICK_WINDOW))
+	_expect(absf(buf.aim_travel(0.25) - 45.0) < 0.5, "...45° in the last quarter second (%.1f)" % buf.aim_travel(0.25))
 	var kills := [
 		{"seq": 1, "score": 150}, {"seq": 2, "score": 300}, {"seq": 3, "score": 150},
 		{"seq": 4, "score": 290}, {"seq": 5, "score": 300}, {"seq": 6, "score": 100}]
@@ -90,13 +110,13 @@ func _scores() -> void:
 func _packing() -> void:
 	print("  what travels with a death")
 	var info := {"seq": 7, "score": 345, "tags": KillScore.T_ROPE | KillScore.T_MID_AIR, "streak": 1,
-		"distance": 23.4, "weapon": "sniper", "killer": 2, "victim": 9001}
+		"distance": 23.4, "weapon": "sniper", "speed": 21.7, "target_speed": 9.3, "flick": 84.0, "killer": 2, "victim": 9001}
 	var packed := Match.pack_kill(info)
-	_expect(packed.size() == 8 and packed.all(func(v): return v is int or v is String), "a kill travels as eight plain numbers and a word (%s)" % [packed])
+	_expect(packed.size() == 11 and packed.all(func(v): return v is int or v is String), "a kill travels as ten plain numbers and a word (%s)" % [packed])
 	_expect(Match.kill_info(packed) == info, "...and turns back into the same kill")
-	_expect(Match.kill_info(packed.slice(0, 6), 2, 9001) == info, "the death message carries the killer and victim already")
-	var bytes := var_to_bytes(packed).size()
-	_expect(bytes <= 80, "about %d bytes a kill" % bytes)
+	_expect(Match.kill_info(packed.slice(0, 9), 2, 9001) == info, "the death message carries the killer and victim already")
+	var bytes := var_to_bytes(packed.slice(0, 9)).size()
+	_expect(bytes <= 100, "about %d bytes a kill" % bytes)
 
 
 func _frame(pos: Vector3, yaw: float = 0.0, pitch: float = 0.0, alive: bool = true, weapon: String = "pistol") -> Array:
