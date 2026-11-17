@@ -18,6 +18,8 @@ var third_person: bool = false
 const HUD_STYLES := {"arcs": "Twin arcs (around the crosshair)", "clean": "Clean (corners)"}
 var hud_first_person: String = "arcs"
 var hud_third_person: String = "clean"
+## When you are knocked out, watch the kill again from the eyes of whoever got you.
+var killcam: bool = true
 
 # Audio (0..1)
 var master_volume: float = 0.8
@@ -69,6 +71,7 @@ func load_settings() -> void:
 	third_person = cfg.get_value("camera", "third_person", third_person)
 	hud_first_person = _hud_style(cfg.get_value("hud", "first_person", hud_first_person))
 	hud_third_person = _hud_style(cfg.get_value("hud", "third_person", hud_third_person))
+	killcam = bool(cfg.get_value("hud", "killcam", killcam))
 	master_volume = cfg.get_value("audio", "master_volume", master_volume)
 	music_volume = cfg.get_value("audio", "music_volume", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx_volume", sfx_volume)
@@ -92,6 +95,7 @@ func save_settings() -> void:
 	cfg.set_value("camera", "third_person", third_person)
 	cfg.set_value("hud", "first_person", hud_first_person)
 	cfg.set_value("hud", "third_person", hud_third_person)
+	cfg.set_value("hud", "killcam", killcam)
 	cfg.set_value("audio", "master_volume", master_volume)
 	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("audio", "sfx_volume", sfx_volume)

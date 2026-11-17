@@ -28,6 +28,9 @@ signal projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector
 signal exploded(id: int, at: Vector3, weapon_id: String)
 ## Gun Game: a player moved up (or down) the ladder to the weapon at `level`.
 signal gun_game_level(id: int, level: int)
+## A player got a kill, scored for the killcams (see KillScore); `info` is also kept in
+## `kill_log`. Sent just before player_died for the same kill.
+signal kill_scored(info: Dictionary)
 
 const MAX_HEALTH := 100.0
 const RESPAWN_DELAY := 3.0
@@ -64,6 +67,14 @@ var _next_projectile := 1
 ## How each player last died: "" (shot or cut down), "fell", or "slam" (hit a wall too hard).
 var death_cause: Dictionary = {}
 var _respawn_counter := 0
+## Every kill this match (by another player), in order, as scored by the host:
+## {seq, killer, victim, score, tags, streak, distance, weapon}. The same on every copy.
+var kill_log: Array = []
+## The match's best kills for the results screen, picked by the host (KillScore.best).
+var highlights: Array = []
+var _kill_seq := 0                     # host: kills so far this match
+var _recent_kills: Dictionary = {}     # host: killer -> [Net.now() of their recent kills]
+var _blow_flying := false              # host: the kick being dealt is a flying kick
 
 ## Deathmatch weapon pickups (see WeaponPickup), by their index in the map: the ones
 ## taken and not back yet. Every copy keeps this; the host decides it.
@@ -97,6 +108,8 @@ func deaths(id: int) -> int:
 func _on_match_started() -> void:
 	running = true
 	last_results = []
+	kill_log.clear()
+	highlights.clear()
 	_pickup_timers.clear()
 	if Net.is_host():
 		pickups_taken.clear()   # (a late joiner keeps what the host told it; see _pickups_sync)
@@ -137,6 +150,8 @@ func _on_match_started() -> void:
 		_tethers.clear()
 		_projectiles.clear()
 		death_cause.clear()
+		_kill_seq = 0
+		_recent_kills.clear()
 		for id in Net.players:
 			scores[id] = {"kills": 0, "deaths": 0, "level": 0}
 			health[id] = MAX_HEALTH
@@ -722,12 +737,14 @@ func _host_kick(attacker: int, origin: Vector3, direction: Vector3, view_times: 
 			var dmg := (Kick.FLYING_DAMAGE if flying else Kick.DAMAGE) * Kick.STRUCTURE
 			breaks.damage(breaks.cell_at(wall.collider, wall.position, wall.normal), dmg)
 			_flush_breaks()
+	_blow_flying = flying
 	for h in hits:
 		if is_dummy(h[0]):
 			_host_dummy_damage(attacker, h[0], h[1], false)
 		else:
 			_host_damage(attacker, h[0], h[1], false, "kick")
 			_host_shove(attacker, h[0], h[2])
+	_blow_flying = false
 
 
 # ---------------------------------------------------------------------------
@@ -930,7 +947,7 @@ func _host_damage(shooter: int, target: int, amount: float, headshot: bool = fal
 	health[target] = max(health[target] - amount, 0.0)
 	_hit.rpc(shooter, target, amount, health[target], headshot)
 	if health[target] <= 0.0:
-		_host_kill(target, shooter, cause)
+		_host_kill(target, shooter, cause, headshot)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -1003,7 +1020,8 @@ func _host_fell(id: int) -> void:
 		_host_kill(id, 0, "fell")
 
 
-func _host_kill(victim: int, killer: int, cause: String = "") -> void:
+func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = false) -> void:
+	var scored := _host_score_kill(victim, killer, cause, headshot)
 	if scores.has(victim):
 		scores[victim].deaths += 1
 	if killer != 0 and killer != victim and scores.has(killer):
@@ -1022,7 +1040,7 @@ func _host_kill(victim: int, killer: int, cause: String = "") -> void:
 		if cause == "kick" and scores.has(victim) and int(scores[victim].get("level", 0)) > 0:
 			scores[victim]["level"] = int(scores[victim].level) - 1   # kicked to death: back one weapon
 			moves.append([victim, scores[victim].level])
-	_died.rpc(victim, killer, scores, cause)
+	_died.rpc(victim, killer, scores, cause, scored)
 	for m in moves:
 		Net.host_set_weapon(m[0], GunGame.weapon_at(m[1]))
 		_gun_game_level.rpc(m[0], m[1])
@@ -1046,11 +1064,46 @@ func level(id: int) -> int:
 	return int(scores[id].get("level", 0)) if scores.has(id) else 0
 
 
+## Host: how good this kill looks on a killcam (see KillScore), as the few numbers
+## that travel with the death: [seq, score, tag bits, streak, distance in decimetres,
+## weapon]. Empty when nobody else got the kill (a fall, a crash on your own).
+func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool) -> Array:
+	if killer == 0 or killer == victim or not Net.players.has(killer) or Net.arena == null or Race.active:
+		return []
+	var a: Player = Net.arena.get_player(killer)
+	var b: Player = Net.arena.get_player(victim)
+	var now := Net.now()
+	var recent: Array = _recent_kills.get(killer, []).filter(func(t): return (now - float(t)) * Engine.time_scale <= KillScore.MULTI_WINDOW)
+	var weapon := Net.player_weapon(killer)
+	var facts := {
+		"distance": a.latest_position().distance_to(b.latest_position()) if a and b else 0.0,
+		"headshot": headshot,
+		"killer_state": Player.pose_state(a.pose_at(a.latest_time())) if a else 0,
+		"victim_state": Player.pose_state(b.pose_at(b.latest_time())) if b else 0,
+		"cause": "flying_kick" if cause == "kick" and _blow_flying else cause,
+		"melee": cause == "" and WeaponData.melee(weapon),
+		"streak": recent.size(),
+		"killer_hp": health.get(killer, MAX_HEALTH),
+	}
+	recent.append(now)
+	_recent_kills[killer] = recent
+	_kill_seq += 1
+	var result := KillScore.score(facts)
+	return [_kill_seq, result[0], result[1], recent.size() - 1, roundi(float(facts.distance) * 10.0),
+		"kick" if cause == "kick" else weapon]
+
+
 @rpc("authority", "call_local", "reliable")
-func _died(victim: int, killer: int, new_scores: Dictionary, cause: String) -> void:
+func _died(victim: int, killer: int, new_scores: Dictionary, cause: String, scored: Array = []) -> void:
 	health[victim] = 0.0
 	death_cause[victim] = cause
 	scores = new_scores
+	if scored.size() >= 6:
+		var info := kill_info(scored, killer, victim)
+		kill_log.append(info)
+		if DevArgs.sync_log:
+			print("KILL_SCORE %d %d %d %d %s" % [info.seq, killer, victim, info.score, ",".join(KillScore.tag_words(info.tags, info.streak, info.distance))])
+		kill_scored.emit(info)
 	player_died.emit(victim, killer)
 	state_changed.emit()
 
@@ -1076,7 +1129,23 @@ func _respawned(id: int, spawn_index: int) -> void:
 func host_end_match() -> void:
 	if not Net.is_host() or not running:
 		return
-	_match_over.rpc(build_results())
+	var best := []
+	for k in KillScore.best(kill_log, 3):
+		best.append(pack_kill(k))
+	_match_over.rpc(build_results(), best)
+
+
+## A kill info as the numbers that travel: [seq, score, tags, streak, decimetres, weapon, killer, victim].
+static func pack_kill(k: Dictionary) -> Array:
+	return [k.seq, k.score, k.tags, k.streak, roundi(k.distance * 10.0), k.weapon, k.killer, k.victim]
+
+
+## ...and back (killer and victim given, or from the end of the array).
+static func kill_info(p: Array, killer: int = 0, victim: int = 0) -> Dictionary:
+	return {"seq": int(p[0]), "score": int(p[1]), "tags": int(p[2]), "streak": int(p[3]),
+		"distance": float(p[4]) / 10.0, "weapon": str(p[5]),
+		"killer": killer if killer != 0 else (int(p[6]) if p.size() > 6 else 0),
+		"victim": victim if victim != 0 else (int(p[7]) if p.size() > 7 else 0)}
 
 
 ## Rankings: most kills first, then fewest deaths. In a race: the race standings.
@@ -1098,10 +1167,14 @@ func build_results() -> Array:
 
 
 @rpc("authority", "call_local", "reliable")
-func _match_over(results: Array) -> void:
+func _match_over(results: Array, best: Array = []) -> void:
 	running = false
 	last_results = results
 	respawn_timers.clear()
+	highlights.clear()
+	for p in best:
+		highlights.append(kill_info(p))
 	if DevArgs.sync_log:
+		print("HIGHLIGHTS %s" % " ".join(highlights.map(func(h): return "%d:%d:%d>%d" % [h.seq, h.score, h.killer, h.victim])))
 		print("MATCH_OVER %s" % JSON.stringify(results))
 	match_over.emit(results)

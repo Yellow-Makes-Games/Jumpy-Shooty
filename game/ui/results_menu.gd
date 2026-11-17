@@ -1,14 +1,22 @@
 extends Control
-## Match results: the winner's robot, the rankings, then a rematch or back to the lobby.
+## Match results: first the match's best kills, fullscreen from the killers' eyes
+## (KillcamScreen); then the winner's robot, the rankings and the best kills to watch
+## again, and a rematch or back to the lobby.
 ## Built in a MenuFrame: with 16 players the rankings scroll and the buttons stay put.
+
+const KILLCAM_LIST_W := 420.0
+
+var _show: KillcamScreen   # the best kills playing fullscreen over the page, or null
+var _next: Button
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	var frame := MenuFrame.new(1000)
-	add_child(frame)
-	var col := frame.body
 	var results: Array = Match.last_results
 	var race: bool = not results.is_empty() and results[0].get("race", false)
+	var highlights: Array = Match.highlights if not race else []
+	var frame := MenuFrame.new(1000 if highlights.is_empty() else 1240)
+	add_child(frame)
+	var col := frame.body
 	var won: bool = not results.is_empty() and results[0].id == Net.my_id() and results[0].kills > 0
 	var title := "Match over"
 	var sub := Maps.name_of(Net.map_id())
@@ -52,6 +60,8 @@ func _ready() -> void:
 	table.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(table)
 	ResultsTable.build(table, results)
+	if not highlights.is_empty():
+		_add_killcams(row, highlights)
 	var buttons := frame.footer
 	frame.back_button("Main menu", Game.leave_to_menu)
 	var next: Button = null
@@ -64,7 +74,49 @@ func _ready() -> void:
 	if next:
 		next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		next.grab_focus()
+	_next = next
+	if not highlights.is_empty():
+		watch.call_deferred([])   # the best kills first, fullscreen; then the page
 	if DevArgs.auto_return and Game.mode == Game.Mode.ONLINE:
 		get_tree().create_timer(2.0).timeout.connect(Game.goto_lobby)
 	elif DevArgs.auto_return and Game.mode == Game.Mode.BOT:
 		get_tree().create_timer(2.0).timeout.connect(Game.rematch_bot)
+
+
+## The best kills: a button for each that plays it again fullscreen, and one for all three.
+func _add_killcams(row: HBoxContainer, highlights: Array) -> void:
+	var side := VBoxContainer.new()
+	side.add_theme_constant_override("separation", 8)
+	side.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	side.custom_minimum_size = Vector2(KILLCAM_LIST_W, 0)
+	row.add_child(side)
+	UiKit.section(side, "Best kills")
+	for i in highlights.size():
+		var h: Dictionary = highlights[i]
+		var tags := KillScore.tag_words(int(h.tags), int(h.streak), float(h.distance))
+		var b := Button.new()
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		b.clip_text = true
+		b.text = "#%d   %s  >  %s" % [i + 1, Net.player_name(int(h.killer)), Net.player_name(int(h.victim))]
+		b.tooltip_text = "  ·  ".join(tags) if not tags.is_empty() else "A clean kill"
+		b.pressed.connect(func(): watch([i]))
+		side.add_child(b)
+		var line := UiKit.label(side, "  ·  ".join(tags.slice(0, 3)) if not tags.is_empty() else "A clean kill", true, 13)
+		line.autowrap_mode = TextServer.AUTOWRAP_OFF
+		line.clip_text = true
+	UiKit.button(side, "Watch all three" if highlights.size() == 3 else "Watch them all", func(): watch([]))
+
+
+## Play best kills fullscreen over the page (`which`: indexes into Match.highlights;
+## empty for all of them, counting down to the best).
+func watch(which: Array) -> void:
+	if _show and is_instance_valid(_show):
+		_show.queue_free()
+	_show = KillcamScreen.new()
+	add_child(_show)
+	_show.done.connect(func():
+		_show.queue_free()
+		_show = null
+		if _next and is_instance_valid(_next):
+			_next.grab_focus())
+	_show.play(Match.highlights, which)

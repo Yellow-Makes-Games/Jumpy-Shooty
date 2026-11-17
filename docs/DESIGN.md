@@ -9,6 +9,19 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - One player hosts; no dedicated servers. If the host leaves, the match ends (no host migration yet).
 - Hits: the host decides, with rewind to what the shooter saw.
 
+## Killcams (2026-11-17)
+
+- Asked for: when you die, watch the kill from the enemy's perspective as a short
+  replay; and the best killcam of the match, or the top three, at the end.
+- As built: the replay plays in the respawn wait (it never makes the wait longer) and
+  can be skipped or switched off. When the match ends the top three play fullscreen,
+  counting down to the best, before the results page (asked for, 2026-11-17). Replays are
+  rebuilt from what each copy already receives and draws, not video.
+- Not decided yet: the scoring rule that picks the top three (range, headshot, mid-air
+  / rope / wall run / glide, air shot, kicks, crashes, multikills, clutch; ties go to
+  the earlier kill) is a first pick, explained in `KillScore` and FEATURES.md; tune it
+  freely.
+
 ## Look and feel (2026-11-15)
 
 - Art style: clean, stylized low-poly.

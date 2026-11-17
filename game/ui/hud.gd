@@ -212,7 +212,9 @@ func update_local(p: Player) -> void:
 	_age(delta)
 	if _respawn_left > 0.0:
 		_respawn_left = maxf(_respawn_left - delta, 0.0)
-	_scoreboard.visible = Input.is_action_pressed("scoreboard") or _dead
+	var watching := _dead and Killcam.watching()   # the killcam has the screen while it plays
+	_scoreboard.visible = Input.is_action_pressed("scoreboard") or (_dead and not watching)
+	_killer_view.visible = _dead and _killer != 0 and not watching
 	if _scoreboard.visible:
 		_place_scoreboard()
 		_board_age += delta
@@ -347,7 +349,10 @@ func _draw_overlay() -> void:
 		if not _scoreboard.visible:
 			_race.draw(ci, size, self)
 	else:
-		if _dead:
+		if _dead and Killcam.watching():
+			KillcamOverlay.draw(ci, Rect2(Vector2.ZERO, size), Killcam.view, "KILLCAM",
+				"%s  SKIP   ·   BACK IN %.1f S" % [Settings.action_text("jump").to_upper(), _respawn_left])
+		elif _dead:
 			_draw_death(ci, size)
 		_draw_score_bar(ci, size)
 		_draw_feed(ci, size)
