@@ -23,8 +23,8 @@ const STRUCTURE := 1.0       ## times DAMAGE against breakable walls
 
 ## Closing speed bonus (both kicks): knockback grows by this much per m/s the kicker
 ## is moving toward the target faster than the target is moving away, up to SPEED_MAX times.
-const SPEED_KNOCKBACK := 0.08
-const SPEED_MAX := 2.5
+const SPEED_KNOCKBACK := 0.16
+const SPEED_MAX := 4.0
 
 const FLYING_DAMAGE := 60.0
 const FLYING_REACH := 3.2    ## a little longer: you are already flying at them
