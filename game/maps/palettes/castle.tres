@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_castle"]
+
+[resource]
+script = ExtResource("1_castle")
+colors = Dictionary[String, Color]({
+"banner_blue": Color(0.14, 0.21, 0.5, 1),
+"banner_red": Color(0.6, 0.12, 0.13, 1),
+"cloth": Color(0.8, 0.72, 0.55, 1),
+"cobble": Color(0.48, 0.46, 0.43, 1),
+"hay": Color(0.72, 0.63, 0.35, 1),
+"hoarding": Color(0.46, 0.34, 0.22, 1),
+"iron": Color(0.27, 0.28, 0.3, 1),
+"slate": Color(0.26, 0.28, 0.32, 1),
+"stone": Color(0.56, 0.55, 0.52, 1),
+"stone_dark": Color(0.36, 0.35, 0.34, 1),
+"stone_light": Color(0.7, 0.68, 0.63, 1),
+"torch": Color(1, 0.72, 0.36, 1),
+"water": Color(0.17, 0.3, 0.34, 1),
+"wood": Color(0.44, 0.31, 0.2, 1),
+"wood_light": Color(0.64, 0.49, 0.33, 1)
+})
+glow = Dictionary[String, float]({
+"torch": 1.5
+})
+roughness = 0.9
+breakable = Dictionary[String, float]({
+"hoarding": 90.0
+})

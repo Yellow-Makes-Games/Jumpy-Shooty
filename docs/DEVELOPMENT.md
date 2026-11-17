@@ -141,7 +141,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
-| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -161,7 +161,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
-| `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office` or `kilnworks`) |
+| `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks` or `castle`) |
 | `--autopilot` | Your own racer runs the course the way a bot does (race tests and screenshots) |
 | `--bot-level=LEVEL` | With `--autopilot`: at this bot difficulty (default 3, Expert) |
 
@@ -169,7 +169,15 @@ top of `game/dev/dev_args.gd`. The useful ones:
 
 Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`,
 `game/maps/office.tscn`, `game/maps/kilnworks.tscn`, `game/maps/rail_yard.tscn`,
-`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+
+The Castle is a good small example of a map with several height levels: a curtain
+wall with a battlement walk at 6 m, four round corner towers at 12 m reached by
+stone ramps laid along the wall walks, a gatehouse with a gate tunnel, and a
+central keep whose upper floor (6 m) is reached from a terrace ramp and from the
+west wall walk over a timber bridge, and whose roof deck (12 m) the keep stair
+climbs to. Its palette (`palettes/castle.tres`) shows a breakable kind (the wooden
+hoardings in the bailey).
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
@@ -188,7 +196,7 @@ Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`
   orange figure shows which way the dummy faces; the inspector picks its robot, its gun
   and the caption over its head (the Testing Grounds ones give the distance).
 - **MapWeaponSpawn** nodes (under `WeaponSpawns`, on the Construction Site, the
-  Office and the Kilnworks): Deathmatch weapon pickups. Stand one on a floor and pick its **Weapon** in the
+  Office, the Kilnworks and the Castle): Deathmatch weapon pickups. Stand one on a floor and pick its **Weapon** in the
   inspector; in a Deathmatch that weapon floats a metre above it, bobbing and turning,
   until someone walks through it, and is back 10 s after (`Match.PICKUP_RESPAWN`). Other
   games leave the spot empty. The orange ghost and label are editor-only.
