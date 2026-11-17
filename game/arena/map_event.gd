@@ -14,6 +14,7 @@ extends Node
 
 const GROUP := "map_events"
 const RESYNC := 5.0   ## seconds between the host's reminders of where the event is
+const DRIFT := 0.5    ## a copy this far out of step with the host is put right
 
 signal started
 signal ended
@@ -97,7 +98,10 @@ func host_start(by: int = 0) -> void:
 func apply_state(now_running: bool, at: float) -> void:
 	var was := running
 	running = now_running
-	elapsed = at if now_running else 0.0
+	if not now_running:
+		elapsed = 0.0
+	elif not was or absf(at - elapsed) > DRIFT:
+		elapsed = at   # (a reminder that only differs by the network's delay is left alone: nothing may jump)
 	_resync = RESYNC
 	if running and not was:
 		started.emit()

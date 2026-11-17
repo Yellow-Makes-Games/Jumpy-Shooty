@@ -198,9 +198,11 @@ func _tell(new_phase: int, who: int, how_far: float) -> void:
 ## Everyone: the host says what state this terminal is in.
 func apply_state(new_phase: int, who: int, how_far: float) -> void:
 	var was := phase
+	# A progress update for the hold already showing never moves the ring backwards.
+	var same_hold := was == Phase.CHANNEL and new_phase == Phase.CHANNEL and who == channeler
 	phase = new_phase as Phase
 	channeler = who
-	progress = how_far
+	progress = maxf(progress, how_far) if same_hold else how_far
 	if phase == Phase.CHANNEL and was != Phase.CHANNEL:
 		_start_hum()
 	elif phase != Phase.CHANNEL and was == Phase.CHANNEL:
