@@ -40,3 +40,11 @@ extends Resource
 	set(v):
 		breakable = v
 		emit_changed()
+
+## kind -> what it is made of (the names are in BlockMaterials.TABLE: concrete,
+## metal, wood, glass...): its footsteps and how it breaks. Leave a kind out and it
+## is guessed from the kind's name. A block's own Material Type wins over this.
+@export var material: Dictionary[String, String] = {}:
+	set(v):
+		material = v
+		emit_changed()

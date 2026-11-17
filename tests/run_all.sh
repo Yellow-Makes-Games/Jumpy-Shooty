@@ -26,6 +26,7 @@ CHECKS=(
   "ui_layout|--script tests/ui_layout_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
+  "block_settings|--script tests/block_settings_test.gd"
   "arena_maps|--script tests/arena_maps_test.gd"
   "flicker|--script tests/map_flicker_test.gd"
   "halcyon|--script tests/halcyon_test.gd"

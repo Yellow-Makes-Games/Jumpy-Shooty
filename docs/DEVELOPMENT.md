@@ -275,8 +275,9 @@ the scene as it is.
 - **MapBlock** nodes: every floor, wall, crate and girder. A block is a box, cylinder or
   tube with a **Kind** (its colour from the map's palette). Its inspector also has
   **Size**, **Solid** (off = drawn only, like paint on the floor), **Drawn** (off = an
-  invisible wall, shown in the editor as a faint blue box) and **Tint** (to make one block
-  a little lighter or darker).
+  invisible wall, shown in the editor as a faint blue box), **Tint** (to make one block
+  a little lighter or darker), **Material Type** (what it is made of: its footsteps and
+  how it breaks; see below) and a **Breaking** section (see "Breakable walls and floors").
 - Plain **Node3D** groups. Each object (a container, a staircase, the crane) is a group
   grouped the Godot way (the group icon beside it in the Scene tree), so a click in the
   3D view selects the whole object. To change one part, pick the part in the Scene
@@ -326,13 +327,33 @@ kind that glows or is see-through takes no pattern. The MapRoot's inspector also
 
 **Breakable walls and floors.** A palette's **Breakable** list names the kinds that can
 be broken and how much damage a piece of each takes (a pistol shot is 25; below 50 a
-whole pane shatters at once, for glass). Only thin walls and floors of those kinds break
-(at most 0.6 m thick, at least 7 m² of face, solid, drawn, box-shaped), and only in arena
-matches. Tick **Unbreakable** on a block to keep one that a route needs. In the game
-each breakable block is cut into about 2 m pieces. Pieces near a spawn, and pieces that
-something else rests on, hangs from or passes through, never break; thin drawn-only
-blocks lying flat on a breakable one (a ceiling under a floor, a rug, a lamp strip,
-frosting on glass) break along with it. The code is `game/arena/map_destruction.gd`.
+whole pane shatters at once, for glass). Blocks break only in arena matches, never races.
+Each block's **Breaking** section decides for that block:
+
+- **Breakable**: *Default* follows the palette, *Yes* breaks even if the kind is not in
+  the list, *No* never breaks (a landing or a floor a route needs). Maps saved with the
+  old **Unbreakable** tick load as *No*.
+- **Break Settings** (a `BlockBreakable` resource; empty = the palette's numbers, per
+  cell). **Block Health**: the damage it takes (0 = the kind's toughness, or 100 if the
+  palette has none). **Break Mode**: *Per Cell* cuts a thin wall or floor (at most 0.6 m
+  thick, at least 7 m² of face, box-shaped) into about 2 m pieces that each have that
+  health; thicker blocks set to Yes warn in the editor and stay whole. *Whole Block* gives
+  the block (any size or shape: a crate, a pillar) one pool of health and breaks it all
+  at once; what rests on it stays where it is. Save the resource as a `.tres` to share
+  it between blocks. New break settings belong in `game/arena/block_breakable.gd`.
+
+Per cell, pieces near a spawn, and pieces that something else rests on, hangs from or
+passes through, never break; thin drawn-only blocks lying flat on a breakable one (a
+ceiling under a floor, a rug, a lamp strip, frosting on glass) break along with it. A
+whole block only keeps the spawn rule. The bots' navigation mesh is not rebuilt when
+something breaks. The code is `game/arena/map_destruction.gd`.
+
+**Materials.** A block's **Material Type** (concrete, metal, wood, glass, dirt, rubber)
+sets the footsteps on it and the crash, rubble and dust when it breaks. Left blank, it
+comes from the palette's **Material** list (kind -> material), else from the kind's name
+(`glass`, `plank`/`crate` -> wood, `steel`/`girder` -> metal...). The table is
+`game/arena/block_materials.gd`: for now most materials reuse the step and break sounds
+at another pitch, so real sounds can drop in there later without touching any map.
 
 **Trying it.** With a map scene open, press **F6** (run current scene): the game starts in
 practice mode on that map. In the game, all blocks of one kind are merged into a single

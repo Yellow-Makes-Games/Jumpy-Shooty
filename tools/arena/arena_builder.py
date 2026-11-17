@@ -125,7 +125,7 @@ class Map:
         if not drawn:
             props.append(("drawn", "false"))
         if unbreakable:
-            props.append(("unbreakable", "true"))
+            props.append(("breakable", "2"))   # MapBlock.Breakable.NO
         if tint:
             props.append(("tint", color(tint)))
         if sides:

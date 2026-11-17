@@ -3051,7 +3051,7 @@ script = ExtResource("2_block")
 size = Vector3(10, 0.3, 3.3188)
 kind = "stone_trim"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Station/Hall/FrontSteps"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.17, -39.2)
@@ -3577,7 +3577,7 @@ script = ExtResource("2_block")
 size = Vector3(2.6, 0.3, 10.9772)
 kind = "stone_trim"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Station/Mezzanine/Stairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.7841, 1.125, -22.6)
@@ -4046,7 +4046,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.25, 6.35, -22.655)
 script = ExtResource("2_block")
 size = Vector3(2.5, 0.3, 2.71)
 kind = "floorboard"
-unbreakable = true
+breakable = 2
 
 [node name="LandingPost" type="Node3D" parent="Station/Mezzanine"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.25, 3.6, -21.5)
@@ -4063,7 +4063,7 @@ script = ExtResource("2_block")
 size = Vector3(2.6, 0.3, 10.9772)
 kind = "stone_trim"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Station/Mezzanine/Stairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.7841, 1.125, -22.6)
@@ -4532,7 +4532,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.25, 6.35, -22.655)
 script = ExtResource("2_block")
 size = Vector3(2.5, 0.3, 2.71)
 kind = "floorboard"
-unbreakable = true
+breakable = 2
 
 [node name="LandingPost2" type="Node3D" parent="Station/Mezzanine"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.25, 3.6, -21.5)
@@ -4675,7 +4675,7 @@ script = ExtResource("2_block")
 size = Vector3(2.4, 0.3, 13.3454)
 kind = "steel_dark"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Station/Mezzanine/RoofStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.8052, 6.6224, -34.4)
@@ -5391,7 +5391,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.3, -2)
 script = ExtResource("2_block")
 size = Vector3(4, 0.4, 44)
 kind = "steel_dark"
-unbreakable = true
+breakable = 2
 
 [node name="EastSide" type="Node3D" parent="Footbridge"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.05, 7.05, -10.85)
@@ -5606,7 +5606,7 @@ script = ExtResource("2_block")
 size = Vector3(2.4, 0.3, 11.5884)
 kind = "steel_dark"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Footbridge/StairsPlatform2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.9682, 1.125, -4.5)
@@ -6079,7 +6079,7 @@ script = ExtResource("2_block")
 size = Vector3(2.4, 0.3, 11.5884)
 kind = "steel_dark"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Footbridge/StairsPlatform3"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.9682, 1.125, 10.5)
@@ -6552,7 +6552,7 @@ script = ExtResource("2_block")
 size = Vector3(4, 0.3, 12.9495)
 kind = "steel_dark"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Footbridge/StairsYard"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.125, 30.9846)
@@ -11329,7 +11329,7 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 8.8913)
 kind = "steel_dark"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Yard/GoodsShed/OfficeStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.1, 0.2412, 27.25)
@@ -11813,7 +11813,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 3.85, 25)
 script = ExtResource("2_block")
 size = Vector3(8, 0.3, 6)
 kind = "floorboard"
-unbreakable = true
+breakable = 2
 
 [node name="Lookout" type="Node3D" parent="Yard/SignalBox"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28, 4.5, 22.1)
@@ -11890,7 +11890,7 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 8.7658)
 kind = "timber"
 drawn = false
-unbreakable = true
+breakable = 2
 
 [node name="Step" type="Node3D" parent="Yard/SignalBox/Stairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.4, 0.125, 32.1562)
