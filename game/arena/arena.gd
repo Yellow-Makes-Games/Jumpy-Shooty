@@ -21,6 +21,7 @@ const NAV_REBAKE_DELAY := 0.6
 
 
 func _ready() -> void:
+	WorldGravity.reset()   # whatever the last match's map event left behind
 	layout = Maps.make(Net.map_id())
 	layout.name = "Level"
 	add_child(layout)
@@ -59,12 +60,14 @@ func _ready() -> void:
 	_capture_mouse(true)
 	if layout.destruction:
 		Match.request_breaks()   # joining a match in progress: what is broken already
+	Net.request_map_state()      # ...and where the map's terminals and events are
 
 
 func _exit_tree() -> void:
 	if Net.arena == self:
 		Net.arena = null
 	Match.pickups_taken.clear()
+	WorldGravity.reset()      # a map event never outlives the map
 	Engine.time_scale = 1.0   # the debug menu's slow motion ends with the match
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
