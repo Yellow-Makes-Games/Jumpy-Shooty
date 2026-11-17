@@ -38,7 +38,8 @@ func _ready() -> void:
 	_spawn_dummies()
 	if Net.is_deathmatch():
 		_spawn_pickups()
-		_spawn_items()
+		if Net.powerups_on():
+			_spawn_items()
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)

@@ -51,7 +51,8 @@ var _upnp_thread: Thread = null
 ## mode: "kills" (first to `kills`) or "time" (most kills after `minutes`); free-for-all only.
 ## race_minutes: a race's time limit.
 ## map: which map to play (an id from Maps; it must be one for the game).
-var match_settings := {"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id()}
+## powerups: Deathmatch only, whether the map's power-ups (ItemPickup) are out.
+var match_settings := {"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id(), "powerups": true}
 
 ## The arena currently running, if any. It registers itself here.
 var arena: Node = null
@@ -602,6 +603,11 @@ func game_kind() -> String:
 ## Deathmatch: everyone starts unarmed and picks weapons up off the map.
 func is_deathmatch() -> bool:
 	return game_kind() == "dm"
+
+
+## Deathmatch: whether the host turned power-ups on in the lobby (on unless said otherwise).
+func powerups_on() -> bool:
+	return bool(match_settings.get("powerups", true))
 
 
 ## The id of the map being played (or about to be).
