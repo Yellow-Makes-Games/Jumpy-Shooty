@@ -84,6 +84,11 @@ Quick checks:
 - low gravity (`tests/gravity_test.gd`): the multiplier's schedule, jump heights,
   rockets and grenades fly the same path, the centrifuge slows, and gravity always
   comes back to 1.0;
+- menu layout (`tests/ui_layout_test.gd`): builds every menu page (main menu and its
+  pages, the four Settings tabs, lobby, results, pause, loadout) at 18 window sizes
+  and shapes (960x540 to 4K, 16:10, 21:9, 32:9, 4:3, 5:4, tall and tiny windows) and
+  fails if any button, text box or slider is off screen, if a robot or weapon button
+  cuts its name short, or if the death screen's two columns do not fit;
 - controls rebinding (`tests/controls_check.gd`), the main menu's mode switch
   (`tests/menu_mode_test.gd`), Deathmatch maps, pickups and inventory
   (`tests/deathmatch_test.gd`), and the debug menu and target dummies in a real
@@ -211,6 +216,10 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
+| `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics (with `--menu=settings`, or in the pause menu) |
+| `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
+| `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
+| `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter` or `orbit` without changing your saved choice |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |

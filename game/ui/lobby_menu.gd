@@ -1,14 +1,13 @@
 extends Control
 ## Multiplayer lobby: shows who is connected and who is hosting, and lets each
 ## player pick their robot and their gun. The host starts the match; anyone can leave.
+## Three columns in a MenuFrame (the match, your robot, your weapon); Leave and Start
+## stay on screen at any window size.
 
-var _col: VBoxContainer          # the left column: players, map, rules
-var _side: VBoxContainer         # the right column: your character
+var _frame: MenuFrame
+var _col: VBoxContainer          # the left column: players, mode, map, rules
 var _list: VBoxContainer
 var _list_scroll: ScrollContainer
-var _page: VBoxContainer
-var _body: ScrollContainer        # everything between the title and the buttons: scrolls if the window is too short
-var _columns: HBoxContainer
 var _start: Button
 var _waiting: Label
 var _info: Label
@@ -22,64 +21,56 @@ var _map_label: Label
 var _map_pick: OptionButton
 var _character: CharacterPicker
 var _weapon: WeaponPicker
+var _weapon_box: VBoxContainer   # the right column: your weapon, or a note when the mode has none to pick
+var _no_weapon: VBoxContainer
+var _no_weapon_note: Label
 var _game_label: Label
-var _game_row: HBoxContainer   # the host's Shoot-out / Race switch
+var _game_row: Container   # the host's mode switch
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
 
 
 func _ready() -> void:
-	var page := UiKit.screen(self, 900)
-	UiKit.title(page, "Lobby", 36)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_frame = MenuFrame.new(1460)
+	add_child(_frame)
+	_frame.title("Lobby", "Multiplayer")
 	var info_row := HBoxContainer.new()
 	info_row.add_theme_constant_override("separation", 12)
-	page.add_child(info_row)
+	_frame.header.add_child(info_row)
 	_info = UiKit.label(info_row, "", true, 16)
 	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_copy = UiKit.button(info_row, "Copy address", func():
 		DisplayServer.clipboard_set(_public_address())
 		_copy.text = "Copied")
-	_page = page
-	_body = ScrollContainer.new()
-	_body.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	page.add_child(_body)
+	_copy.custom_minimum_size = Vector2(0, 38)
+	_copy.theme_type_variation = "Chip"
+	# Three columns: the match (players, mode, map, rules), your robot, your weapon.
 	var columns := HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 32)
-	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_body.add_child(columns)
-	_columns = columns
+	columns.add_theme_constant_override("separation", 26)
+	_frame.body.add_child(columns)
 	_col = VBoxContainer.new()
-	_col.add_theme_constant_override("separation", 12)
-	_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_col.add_theme_constant_override("separation", 10)
+	_col.custom_minimum_size = Vector2(410, 0)
 	columns.add_child(_col)
-	_side = VBoxContainer.new()
-	_side.custom_minimum_size = Vector2(280, 0)
-	columns.add_child(_side)
 	UiKit.section(_col, "Players")
-	_list_scroll = ScrollContainer.new()   # 16 players don't fit: the list scrolls past 6
+	_list_scroll = ScrollContainer.new()   # 16 players don't fit: the list scrolls past 4
 	_list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	_col.add_child(_list_scroll)
 	_list = VBoxContainer.new()
-	_list.add_theme_constant_override("separation", 6)
+	_list.add_theme_constant_override("separation", 5)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list_scroll.add_child(_list)
-	UiKit.spacer(_col, 4)
 	_build_map()
 	_build_rules()
-	UiKit.spacer(_col, 4)
-	_build_character()
-	UiKit.spacer(page, 4)
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 12)
-	page.add_child(buttons)
-	var leave := UiKit.button(buttons, "Leave lobby", Game.leave_to_menu)
-	leave.custom_minimum_size = Vector2(200, 56)
-	_waiting = UiKit.label(buttons, "Waiting for the host to start...", true, 17)
+	_divider(columns)
+	_build_character(columns)
+	_frame.back_button("Leave lobby", Game.leave_to_menu)
+	_waiting = UiKit.label(_frame.footer, "Waiting for the host to start...", true, 17)
 	_waiting.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_waiting.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_start = UiKit.primary_button(buttons, "Start match", Net.host_start_match)
-	_start.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_start = _frame.main_button("Start match", Net.host_start_match)
 	Net.players_changed.connect(_refresh)
 	Net.internet_changed.connect(_refresh)
 	_refresh()
@@ -90,23 +81,18 @@ func _ready() -> void:
 				Net.host_start_match())
 
 
-## Keep the Leave and Start buttons on screen: the middle of the page takes the
-## height it needs, but never more than the window has left, and scrolls past that.
-func _process(_delta: float) -> void:
-	if _body == null:
-		return
-	var want := _columns.get_combined_minimum_size().y
-	var others := _page.get_combined_minimum_size().y - _body.custom_minimum_size.y
-	var room := get_viewport_rect().size.y - others - 90.0   # the panel's own margins and a gap above and below
-	var h := floorf(clampf(want, 120.0, maxf(room, 120.0)))
-	if not is_equal_approx(h, _body.custom_minimum_size.y):
-		_body.custom_minimum_size.y = h
+## A thin upright line between two columns.
+func _divider(row: Node) -> void:
+	var line := ColorRect.new()
+	line.color = Color(UiKit.LINE, 0.12)
+	line.custom_minimum_size = Vector2(1, 0)
+	row.add_child(line)
 
 
-## The player list grows with the players, up to about six rows, then scrolls.
+## The player list grows with the players, up to about four rows, then scrolls.
 func _fit_list() -> void:
 	if is_instance_valid(_list_scroll):
-		_list_scroll.custom_minimum_size.y = minf(_list.get_combined_minimum_size().y, 300.0)
+		_list_scroll.custom_minimum_size.y = minf(_list.get_combined_minimum_size().y, 186.0)
 
 
 func _refresh() -> void:
@@ -143,66 +129,50 @@ func _refresh() -> void:
 ## One player: colour stripe, name, HOST and YOU tags, robot and gun.
 func _player_row(id: int) -> PanelContainer:
 	var card := PanelContainer.new()
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(1, 1, 1, 0.05) if id != Net.my_id() else Color(UiKit.ACCENT, 0.12)
-	box.set_corner_radius_all(6)
-	box.border_width_left = 5
+	var box := UiKit.cut_box(Color(1, 1, 1, 0.05) if id != Net.my_id() else Color(UiKit.ACCENT, 0.14), 8, 12, 7)
+	box.border_width_left = 4
 	box.border_color = Net.player_color(id)
-	box.content_margin_left = 16
-	box.content_margin_right = 16
-	box.content_margin_top = 10
-	box.content_margin_bottom = 10
 	card.add_theme_stylebox_override("panel", box)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
+	row.add_theme_constant_override("separation", 8)
 	card.add_child(row)
-	var name_label := UiKit.label(row, Net.player_name(id), false, 20)
+	var name_label := UiKit.label(row, Net.player_name(id), false, 18)
 	name_label.add_theme_font_override("font", HudStyle.font(true))
 	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if id == Net.host_id():
-		_tag(row, "HOST", UiKit.ACCENT)
+		UiKit.tag(row, "HOST", UiKit.ACCENT)
 	if id == Net.my_id():
-		_tag(row, "YOU", Color(1, 1, 1, 0.8))
+		UiKit.tag(row, "YOU", Color(1, 1, 1, 0.85))
 	if Net.is_bot(id):
-		_tag(row, "BOT", Color(1, 1, 1, 0.6))
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(spacer)
-	var who := UiKit.label(row, "%s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name], true, 16)
+		UiKit.tag(row, "BOT", Color(1, 1, 1, 0.6))
+	var who := UiKit.label(row, "%s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name], true, 14)
 	who.autowrap_mode = TextServer.AUTOWRAP_OFF
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return card
 
 
-func _tag(parent: Node, text: String, color: Color) -> void:
-	var p := PanelContainer.new()
-	var s := StyleBoxFlat.new()
-	s.draw_center = false
-	s.set_border_width_all(1)
-	s.border_color = color
-	s.set_corner_radius_all(3)
-	s.content_margin_left = 6
-	s.content_margin_right = 6
-	p.add_theme_stylebox_override("panel", s)
-	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_override("font", HudStyle.font(true))
-	l.add_theme_font_size_override("font_size", 11)
-	l.add_theme_color_override("font_color", color)
-	p.add_child(l)
-	parent.add_child(p)
-
-
 # Character: everyone picks their own robot. Saved as your choice for next time too.
-func _build_character() -> void:
+func _build_character(columns: Node) -> void:
 	Net.confirm_my_character()
-	_character = CharacterPicker.new(Net.player_character(Net.my_id()), Net.player_color(Net.my_id()), true,
+	_character = CharacterPicker.new(Net.player_character(Net.my_id()), Net.player_color(Net.my_id()),
 		Net.player_weapon(Net.my_id()))
-	_side.add_child(_character)
-	# Your gun: in the left column, under the rules (the side column is narrow).
+	columns.add_child(_character)
+	_divider(columns)
+	# Your gun, or (in a race, Gun Game or a Deathmatch) a note saying why there is none to pick.
+	_weapon_box = VBoxContainer.new()
+	_weapon_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_weapon_box.custom_minimum_size = Vector2(520, 0)
+	columns.add_child(_weapon_box)
 	_weapon = WeaponPicker.new(Net.player_weapon(Net.my_id()))
-	_col.add_child(_weapon)
+	_weapon_box.add_child(_weapon)
+	_no_weapon = VBoxContainer.new()
+	_no_weapon.add_theme_constant_override("separation", 8)
+	_weapon_box.add_child(_no_weapon)
+	UiKit.section(_no_weapon, "Weapon")
+	_no_weapon_note = UiKit.label(UiKit.inset(_no_weapon), "", true, 17)
 	_weapon.picked.connect(func(id: String):
 		Settings.weapon = id
 		Settings.save_settings()
@@ -234,7 +204,7 @@ func _build_map() -> void:
 			return
 		var m: String = GunGame.MODES[i]
 		var g := GunGame.game_of_mode(m)
-		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))))
+		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 2)
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()
@@ -303,7 +273,12 @@ func _refresh_rules() -> void:
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
 	if _weapon:
-		_weapon.visible = not race and not gun_game and not Net.is_deathmatch()   # no guns in a race; Gun Game hands them out; a Deathmatch finds them on the map
+		# No guns in a race; Gun Game hands them out; a Deathmatch finds them on the map.
+		_weapon.visible = not race and not gun_game and not Net.is_deathmatch()
+		_no_weapon.visible = not _weapon.visible
+		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
+			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
+			else "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.")
 	_rules_label.visible = not Net.is_host() or gun_game
 	_host_rules.visible = Net.is_host() and not gun_game
 	_map_label.text = Maps.label(Net.map_id())

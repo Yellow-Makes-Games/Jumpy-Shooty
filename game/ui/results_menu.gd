@@ -1,8 +1,12 @@
 extends Control
 ## Match results: the winner's robot, the rankings, then a rematch or back to the lobby.
+## Built in a MenuFrame: with 16 players the rankings scroll and the buttons stay put.
 
 func _ready() -> void:
-	var col := UiKit.screen(self, 860)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var frame := MenuFrame.new(1000)
+	add_child(frame)
+	var col := frame.body
 	var results: Array = Match.last_results
 	var race: bool = not results.is_empty() and results[0].get("race", false)
 	var won: bool = not results.is_empty() and results[0].id == Net.my_id() and results[0].kills > 0
@@ -33,13 +37,14 @@ func _ready() -> void:
 			title = "%s wins" % results[0].name
 		if not results.is_empty():
 			sub += "  ·  %s scored %d" % ["You" if won else results[0].name, results[0].kills]
-	UiKit.title(col, title, 48)
-	UiKit.label(col, sub, true, 16)
+	frame.title(title, "Results", 48)
+	UiKit.label(frame.header, sub, true, 16)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 28)
 	col.add_child(row)
 	if not results.is_empty():
 		var winner := RobotPreview.new(Vector2(240, 300), 1.0)
+		winner.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		row.add_child(winner)
 		winner.show_robot(Net.player_character(results[0].id), Net.player_color(results[0].id))
 	var table := VBoxContainer.new()
@@ -47,11 +52,8 @@ func _ready() -> void:
 	table.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(table)
 	ResultsTable.build(table, results)
-	UiKit.spacer(col, 4)
-	var buttons := HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 12)
-	col.add_child(buttons)
-	UiKit.button(buttons, "Main menu", Game.leave_to_menu).custom_minimum_size = Vector2(200, 56)
+	var buttons := frame.footer
+	frame.back_button("Main menu", Game.leave_to_menu)
 	var next: Button = null
 	if Game.mode == Game.Mode.BOT:
 		next = UiKit.primary_button(buttons, "Race again" if race else "Rematch", Game.rematch_bot)
