@@ -27,7 +27,7 @@ const VOLUME := {
 	"swing_sword": -8.0, "swing_hammer": -7.0, "swing_dagger": -10.0,
 	"equip_sword": -10.0, "equip_hammer": -10.0, "equip_dagger": -10.0,
 	"melee_hit": -5.0, "hammer_hit": -4.0, "slam": -5.0,
-	"kick": -9.0, "flying_kick": -6.0, "rocket_boost": -7.0,
+	"kick": -9.0, "flying_kick": -6.0, "rocket_boost": -7.0, "float": -9.0,
 	"break_concrete": -4.0, "break_wood": -5.0, "break_glass": -6.0,
 	# The newer weapons
 	"fire_revolver": -3.5, "fire_machine_pistol": -6.5, "fire_break_action": -3.0, "fire_smg": -7.0,

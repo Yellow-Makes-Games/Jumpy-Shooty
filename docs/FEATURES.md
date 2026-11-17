@@ -3,7 +3,7 @@
 Status: **not started** · **rough** (exists, placeholder or partial) · **working** (done,
 tested by me) · **verified** (also checked by Austin on a real PC / with a friend).
 
-Last updated: no name tags over players, and bots no longer see through walls. Decisions are in [DESIGN.md](DESIGN.md).
+Last updated: float (Shift in mid-air). Decisions are in [DESIGN.md](DESIGN.md).
 
 ## Menus and flow
 
@@ -51,6 +51,7 @@ Last updated: no name tags over players, and bots no longer see through walls. D
 | Vault, ledge climb | working | Run into anything 0.45 to 1.25 m high and you vault it, keeping speed. Jump at a ledge up to 2.3 m and you climb up |
 | Dive and roll | working | Q (or Alt): lunge toward where you look (+4 m/s, low hitbox), from the ground or once per jump, 1 s cooldown. Landing from a dive rolls you forward keeping your speed; hold crouch to roll into a slide |
 | Belly slide | working | Keep holding dive as you land and you slide along on your front instead of rolling (+1 m/s on impact, a little less friction than a slide, weak steering, speeds up downhill). Lowest hitbox in the game (0.8 m) and you can shoot the whole way. Let go (or jump) to get up; let go while holding crouch to go straight into a slide. If the slide runs out while you are still holding dive you crawl (2 m/s). Under a gap too low to crouch in you stay down until you crawl out |
+| Float | working | Shift in mid-air: your up-and-down speed is cancelled and you glide level in a straight line the way you face, at the speed you had over the ground (at least 5 m/s), for 2.5 s; no steering, so it is a steady platform to shoot from. Once per jump (refreshed by landing, wall runs and the grapple). Any other move takes over from it (flip, dive, grapple, rocket boots, wall run, wall jump, ledge), so it also works as a way to stop rising or falling before the next move; Shift again drops you out early. Not within 0.5 m of the floor, so Shift as you land is still just sprint. A hard shove knocks you out of it; a bullet only nudges you along. Your legs go straight out to the sides and turn like a rotor (a turn every 0.9 s, half a flip's speed) while the top half keeps aiming; everyone sees and hears it. FLOAT on the HUD drains while you float. Bots do not use it yet. Numbers in movement_tuning.gd (Float) and at the top of robot_animator.gd |
 | Flips (air flip dodge) | working | Press jump again in mid-air: flip toward your WASD direction with a small burst, once per jump (refreshed by wall runs and the grapple). A jump pressed just above the floor still counts as a bunny-hop |
 
 ## Camera

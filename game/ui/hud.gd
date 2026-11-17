@@ -194,6 +194,7 @@ func update_local(p: Player) -> void:
 		["GRAPPLE", "RMB", 1.0 - grapple_cooldown if grapple == GRAPPLE_COOLING else 1.0, grapple == GRAPPLE_ON],
 		["DIVE", "Q", p.motor.dive_readiness(), false],
 		["FLIP", "SPACE", p.motor.flip_readiness(), false],
+		["FLOAT", "SHIFT", p.motor.float_readiness(), p.motor.state == MovementController.State.FLOAT],
 		["SLIDE", "C", p.motor.slide_boost_readiness(), false],
 		["BOOST", "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3],
 	]

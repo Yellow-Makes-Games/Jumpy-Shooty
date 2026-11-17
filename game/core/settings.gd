@@ -211,6 +211,7 @@ const KEY_BINDINGS := {
 	"move_right": [KEY_D],
 	"jump": [KEY_SPACE],
 	"sprint": [KEY_SHIFT],
+	"float": [KEY_SHIFT],   # in mid-air (the same key as sprint: one is for the ground, one for the air)
 	"crouch": [KEY_CTRL, KEY_C],  # slide when moving fast
 	"dive": [KEY_ALT, KEY_Q],
 	"kick": [KEY_F],

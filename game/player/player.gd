@@ -201,6 +201,8 @@ func _physics_process(delta: float) -> void:
 		else:
 			_update_tug(delta)
 			_steer_flying_kick(delta)
+			if _fly_kick > 0.0:
+				input.float_pressed = false   # mid flying kick: you are already going somewhere
 			var boosts := motor.boosts
 			motor.step(self, input, delta)
 			if hooking and not motor.grapple.attached:
@@ -364,6 +366,8 @@ func read_local_input() -> void:
 		input.kick_pressed = true
 	if Input.is_action_just_pressed("boost"):
 		input.boost_pressed = true
+	if Input.is_action_just_pressed("float"):
+		input.float_pressed = true
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"))
@@ -1328,6 +1332,7 @@ func _hold_still() -> void:
 	input.fire = false
 	input.kick_pressed = false
 	input.boost_pressed = false
+	input.float_pressed = false
 
 
 # ---------------------------------------------------------------------------
@@ -1345,6 +1350,8 @@ func _scripted_input(delta: float) -> void:
 		input.jump_pressed = true   # mid-air: flip
 	if fmod(t + 2.5, 5.3) < delta:
 		input.dive_pressed = true
+	if fmod(t + 3.1, 3.4) < delta:
+		input.float_pressed = true   # near the top of every other jump: float
 	input.dive = fmod(t + 7.8, 10.6) < 1.4   # every other dive: keep holding it, to land in a belly slide
 	# Crouch (or slide, when fast) for a moment every 7 s.
 	var was_crouching := input.crouch
@@ -1535,3 +1542,4 @@ func _update_flame(delta: float) -> void:
 		aim = visual.global_transform.basis.inverse() * -velocity.normalized()
 	var turn := Quaternion(Vector3.DOWN, aim.normalized()) if aim.normalized().dot(Vector3.UP) < 0.999 else Quaternion(Vector3.RIGHT, PI)
 	_flame.basis = Basis(turn) * Basis.from_scale(Vector3(1.0, length, 1.0))
+
