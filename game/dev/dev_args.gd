@@ -42,6 +42,8 @@ extends Node
 ## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
 ## --fall=SEC           Your player falls out of the arena SEC seconds after start (shows the death screen; screenshots).
+## --save-killcam=N     On the results screen, save best kill #N as a video straight away, into the game's
+##                      own data folder (user://killcams) rather than Videos (tests).
 ## --hud=STYLE          Use this HUD layout in both views: arcs or clean (screenshots).
 ## --third-person      Start in third-person view (not saved to settings).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
@@ -86,6 +88,7 @@ var kill_target := 0
 var rules := ""
 var time_limit := 0.0
 var quit_after := 0.0
+var save_killcam := 0
 var menu := ""
 var pause_page := ""
 var fall_at := -1.0          # --fall: seconds after start (-1 = never)
@@ -172,6 +175,7 @@ func _ready() -> void:
 			"--time-limit": time_limit = float(value)
 			"--third-person": Settings.third_person = true
 			"--quit-after": quit_after = float(value)
+			"--save-killcam": save_killcam = int(value)
 			"--net-sim":
 				var q := value.split(",")
 				net_sim_latency = float(q[0]) if q.size() > 0 else 0.0

@@ -1,7 +1,8 @@
 extends Node
 ## Killcam checks (started by tests/killcam_test.gd):
 ##  - kill scores: a plain kill scores the base; headshots, range, the rope, a wall run,
-##    a glide, an air shot, kicks, crashes, multikills and a clutch each add their bit,
+##    a glide, an air shot, kicks, crashes, multikills, a clutch, the killer's and the
+##    victim's speed and a flick of the aim each add their bit,
 ##    with the right words; the best kills are the highest scores, the earlier kill
 ##    first on a tie, never more than three;
 ##  - the numbers sent with a death and with the end of the match turn back into the
@@ -16,7 +17,9 @@ extends Node
 ##  - after a match the three best kills play fullscreen, counting down to the best,
 ##    from this copy's clips (saying so for one it did not see), then the results page
 ##    shows; it still fits a 1600 x 900 window without scrolling and has a button to
-##    watch each kill again (fullscreen) and one for all three, on Halcyon, whose terminal and events must not mind
+##    watch each kill again (fullscreen) and one for all three;
+##  - a killcam saved as a video: a Motion JPEG AVI with every frame and an index, the
+##    clip's length in slow motion plus a held last frame, 1280x720, named after the kill, on Halcyon, whose terminal and events must not mind
 ##    being built outside a match.
 
 var _fails: Array[String] = []
@@ -32,6 +35,7 @@ func run() -> void:
 	_offline_timing()
 	await _playback()
 	await _results_page()
+	await _video()
 	Net.leave()
 	if _fails.is_empty():
 		print("PASS: every check passed")
@@ -75,8 +79,27 @@ func _scores() -> void:
 	var triple := KillScore.score({"streak": 2})
 	_expect(triple[0] == KillScore.BASE + 2 * KillScore.MULTI, "a third kill in a row adds two multikill bonuses")
 	_expect(KillScore.score({"killer_hp": 10.0})[1] & KillScore.T_CLUTCH, "a kill on 10 HP is a clutch")
-	var words := KillScore.tag_words(rope[1] | KillScore.T_HEADSHOT | KillScore.T_LONG, 2, 42.4)
-	_expect(words == ["TRIPLE KILL", "ON THE ROPE", "HEADSHOT", "42 M"], "the words come most telling first (%s)" % [words])
+	var fast := KillScore.score({"killer_speed": 24.0})
+	_expect(fast[0] == KillScore.BASE + 60 and fast[1] & KillScore.T_FAST, "the killer going 24 m/s adds 5 a m/s past 12, and a speed tag (%d)" % fast[0])
+	_expect(KillScore.score({"killer_speed": 60.0})[0] == KillScore.BASE + KillScore.SPEED_MAX, "speed points stop at %d" % KillScore.SPEED_MAX)
+	_expect(KillScore.score({"killer_speed": 11.5})[0] == KillScore.BASE, "sprinting is no bonus")
+	var target := KillScore.score({"victim_speed": 22.0})
+	_expect(target[0] == KillScore.BASE + 40 and target[1] & KillScore.T_TARGET_FAST, "a victim going 22 m/s adds 4 a m/s past 12, and a tag (%d)" % target[0])
+	var flick := KillScore.score({"flick": 95.0})
+	_expect(flick[0] == KillScore.BASE + 75 and flick[1] & KillScore.T_FLICK, "a 95° flick adds a point a degree past 20, and a tag (%d)" % flick[0])
+	_expect(KillScore.score({"flick": 15.0}) == [KillScore.BASE, 0], "steady aim is no bonus")
+	_expect(KillScore.score({"flick": 400.0})[0] == KillScore.BASE + KillScore.FLICK_MAX, "flick points stop at %d" % KillScore.FLICK_MAX)
+	var words := KillScore.tag_words(rope[1] | KillScore.T_HEADSHOT | KillScore.T_LONG | KillScore.T_FLICK | KillScore.T_FAST | KillScore.T_TARGET_FAST,
+		2, 42.4, 24.2, 19.6, 95.4)
+	_expect(words == ["TRIPLE KILL", "ON THE ROPE", "HEADSHOT", "FLICK 95°", "24 M/S", "TARGET AT 20 M/S", "42 M"], "the words come most telling first (%s)" % [words])
+	print("  speed and aim from a player's recent states")
+	var buf := SnapshotBuffer.new()
+	for i in 41:   # one second at 40 a second: turning 90° over the last half, ending at 25 m/s
+		var t := i / 40.0
+		buf.push(t, t, Vector3.ZERO, Vector3(0, 0, -25.0 if i == 40 else -10.0), deg_to_rad(90.0) * clampf((t - 0.5) / 0.5, 0.0, 1.0), 0.0, 0)
+	_expect(is_equal_approx(buf.speed(), 25.0), "speed is from the newest state (%.1f)" % buf.speed())
+	_expect(absf(buf.aim_travel(KillScore.FLICK_WINDOW) - 90.0) < 0.5, "the aim swung 90° in the window (%.1f)" % buf.aim_travel(KillScore.FLICK_WINDOW))
+	_expect(absf(buf.aim_travel(0.25) - 45.0) < 0.5, "...45° in the last quarter second (%.1f)" % buf.aim_travel(0.25))
 	var kills := [
 		{"seq": 1, "score": 150}, {"seq": 2, "score": 300}, {"seq": 3, "score": 150},
 		{"seq": 4, "score": 290}, {"seq": 5, "score": 300}, {"seq": 6, "score": 100}]
@@ -90,13 +113,13 @@ func _scores() -> void:
 func _packing() -> void:
 	print("  what travels with a death")
 	var info := {"seq": 7, "score": 345, "tags": KillScore.T_ROPE | KillScore.T_MID_AIR, "streak": 1,
-		"distance": 23.4, "weapon": "sniper", "killer": 2, "victim": 9001}
+		"distance": 23.4, "weapon": "sniper", "speed": 21.7, "target_speed": 9.3, "flick": 84.0, "killer": 2, "victim": 9001}
 	var packed := Match.pack_kill(info)
-	_expect(packed.size() == 8 and packed.all(func(v): return v is int or v is String), "a kill travels as eight plain numbers and a word (%s)" % [packed])
+	_expect(packed.size() == 11 and packed.all(func(v): return v is int or v is String), "a kill travels as ten plain numbers and a word (%s)" % [packed])
 	_expect(Match.kill_info(packed) == info, "...and turns back into the same kill")
-	_expect(Match.kill_info(packed.slice(0, 6), 2, 9001) == info, "the death message carries the killer and victim already")
-	var bytes := var_to_bytes(packed).size()
-	_expect(bytes <= 80, "about %d bytes a kill" % bytes)
+	_expect(Match.kill_info(packed.slice(0, 9), 2, 9001) == info, "the death message carries the killer and victim already")
+	var bytes := var_to_bytes(packed.slice(0, 9)).size()
+	_expect(bytes <= 100, "about %d bytes a kill" % bytes)
 
 
 func _frame(pos: Vector3, yaw: float = 0.0, pitch: float = 0.0, alive: bool = true, weapon: String = "pistol") -> Array:
@@ -306,3 +329,72 @@ func _results_page() -> void:
 	Match.last_results = []
 	Killcam.clips.clear()
 	await get_tree().process_frame
+
+
+## Reads the parts of an AVI that players' video apps rely on.
+func _read_avi(bytes: PackedByteArray) -> Dictionary:
+	var out := {"riff": bytes.slice(0, 4).get_string_from_ascii(), "kind": bytes.slice(8, 12).get_string_from_ascii(),
+		"size_ok": bytes.decode_u32(4) == bytes.size() - 8, "frames": [], "index": 0}
+	var avih := _find(bytes, "avih")
+	if avih >= 0:
+		out["fps"] = roundi(1000000.0 / bytes.decode_u32(avih + 8))
+		out["total"] = bytes.decode_u32(avih + 8 + 16)
+		out["w"] = bytes.decode_u32(avih + 8 + 32)
+		out["h"] = bytes.decode_u32(avih + 8 + 36)
+	out["codec"] = bytes.slice(_find(bytes, "strh") + 12, _find(bytes, "strh") + 16).get_string_from_ascii()
+	var movi := _find(bytes, "movi")
+	var at := movi + 4
+	while at + 8 <= bytes.size() and bytes.slice(at, at + 4).get_string_from_ascii() == "00dc":
+		var n := bytes.decode_u32(at + 4)
+		(out.frames as Array).append(bytes[at + 8] == 0xFF and bytes[at + 9] == 0xD8)   # a JPEG starts FF D8
+		at += 8 + n + (n % 2)
+	var idx := _find(bytes, "idx1")
+	if idx >= 0:
+		out["index"] = bytes.decode_u32(idx + 4) / 16
+		out["index_ok"] = bytes.decode_u32(idx + 8 + 8) + movi == movi + 4   # the first entry points just past 'movi'
+	return out
+
+
+func _find(bytes: PackedByteArray, tag: String) -> int:
+	var t := tag.to_ascii_buffer()
+	for i in bytes.size() - 3:
+		if bytes[i] == t[0] and bytes[i + 1] == t[1] and bytes[i + 2] == t[2] and bytes[i + 3] == t[3]:
+			return i
+	return -1
+
+
+func _video() -> void:
+	print("  saving a killcam as a video")
+	var avi := AviWriter.new(64, 36, 30)
+	for i in 5:
+		avi.add_frame(Image.create(80 + i, 40, false, Image.FORMAT_RGBA8))   # any size and format
+	var info := _read_avi(avi.to_bytes())
+	_expect(info.riff == "RIFF" and info.kind == "AVI " and info.size_ok, "the file is a RIFF AVI with the right length")
+	_expect(info.codec == "MJPG" and info.fps == 30 and info.w == 64 and info.h == 36, "Motion JPEG, 30 frames a second, the video's size (%s, %s, %sx%s)" % [info.codec, info.fps, info.w, info.h])
+	_expect(info.total == 5 and (info.frames as Array).size() == 5 and (info.frames as Array).all(func(j): return j),
+		"every frame is there, each a JPEG (%d)" % (info.frames as Array).size())
+	_expect(info.index == 5 and info.index_ok, "the index lists every frame, so players can seek")
+	var dir := ProjectSettings.globalize_path("user://killcam_test_videos")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var export := KillcamExport.new()
+	export.into = dir
+	add_child(export)
+	var result := []
+	export.finished.connect(func(path: String, error: String): result.append_array([path, error]))
+	var clip := _test_clip()
+	clip.map = "testing_grounds"
+	export.start(clip, "BEST KILL #1")
+	for i in 600:
+		if not result.is_empty():
+			break
+		await get_tree().process_frame
+	_expect(result.size() == 2 and result[1] == "", "a killcam saves without trouble (%s)" % [result])
+	if result.size() == 2 and FileAccess.file_exists(result[0]):
+		var saved := _read_avi(FileAccess.get_file_as_bytes(result[0]))
+		var want := roundi((clip.end - clip.start + (KillcamView.SLOW_FROM + KillcamView.SLOW_UNTIL) * (1.0 / KillcamView.SLOW - 1.0) + KillcamExport.HOLD) * KillcamExport.FPS)
+		_expect(absi(int(saved.total) - want) <= 3 and saved.w == 1280 and saved.h == 720,
+			"the video is the clip in slow motion round the kill, then a second's hold: %d frames of 1280x720 (about %d)" % [saved.total, want])
+		_expect(String(result[0]).get_file().begins_with("killcam_Tester_on_Gizmo_") and String(result[0]).ends_with(".avi"),
+			"named after the killer and victim (%s)" % String(result[0]).get_file())
+		DirAccess.remove_absolute(result[0])
+	DirAccess.remove_absolute(dir)

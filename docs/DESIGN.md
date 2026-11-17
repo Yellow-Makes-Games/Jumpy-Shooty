@@ -17,10 +17,12 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
   can be skipped or switched off. When the match ends the top three play fullscreen,
   counting down to the best, before the results page (asked for, 2026-11-17). Replays are
   rebuilt from what each copy already receives and draws, not video.
-- Not decided yet: the scoring rule that picks the top three (range, headshot, mid-air
-  / rope / wall run / glide, air shot, kicks, crashes, multikills, clutch; ties go to
-  the earlier kill) is a first pick, explained in `KillScore` and FEATURES.md; tune it
-  freely.
+- The score also rewards momentum, the killer's and the victim's, and how far the
+  killer's aim moved just before the kill (asked for, 2026-11-17).
+- Not decided yet: the rest of the scoring rule that picks the top three (range,
+  headshot, mid-air / rope / wall run / glide, air shot, kicks, crashes, multikills,
+  clutch; ties go to the earlier kill) and all the point values are a first pick,
+  explained in `KillScore` and FEATURES.md; tune them freely.
 
 ## Look and feel (2026-11-15)
 

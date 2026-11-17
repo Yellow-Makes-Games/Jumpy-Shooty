@@ -29,7 +29,7 @@ static func draw(ci: CanvasItem, r: Rect2, view: KillcamView, title: String, foo
 	var victim_name: String = victim_track.name if victim_track else Net.player_name(int(clip.victim))
 	var weapon := str(info.get("weapon", ""))
 	var with := "%s  ·  on %s" % ["Bare feet" if weapon in ["kick", "none"] else WeaponData.name_of(weapon), victim_name]
-	var tags := KillScore.tag_words(int(info.get("tags", 0)), int(info.get("streak", 0)), float(info.get("distance", 0.0)))
+	var tags := KillScore.words(info)
 	# A dark plate behind the words, so they read over a bright wall or sky.
 	var block := maxf(HudStyle.text_width(killer_name, int(32 * k)), HudStyle.text_width(with, int(15 * k), false))
 	var chips := 0.0
@@ -60,7 +60,7 @@ static func draw(ci: CanvasItem, r: Rect2, view: KillcamView, title: String, foo
 		var cw := HudStyle.text_width(chip, size) + 18.0 * k
 		if cx + cw > r.end.x - pad:
 			break
-		var gold: bool = chip == "HEADSHOT" or chip.ends_with("KILL")
+		var gold: bool = chip == "HEADSHOT" or chip.ends_with("KILL") or chip.begins_with("FLICK")
 		HudStyle.plate(ci, Rect2(cx, y - 12.0 * k, cw, 24.0 * k), 6.0, Color(1, 1, 1, 0.12) if not gold else Color(HudStyle.YELLOW, 0.2))
 		HudStyle.text(ci, Vector2(cx + 9.0 * k, y), chip, size, HudStyle.YELLOW if gold else Color(1, 1, 1, 0.9))
 		cx += cw + 6.0

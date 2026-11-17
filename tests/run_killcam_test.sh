@@ -2,8 +2,8 @@
 # Killcam test: real matches, headless. Checks that:
 #  - Vs Bots: when the bot knocks you out, the killcam plays the kill from the bot's
 #    eyes with seconds of its recording, and stops when you respawn; jump skips it
-#    (and you still respawn); at the end every best kill has a clip and the results
-#    screen plays them
+#    (and you still respawn); at the end every best kill has a clip, they play, and
+#    the best saves as a video file
 #  - online, a host and a client (the client on a laggy network): each copy that is
 #    knocked out watches its killcam; both copies score every kill the same, pick the
 #    same best kills, have a clip of each, and play them on the results screen
@@ -22,7 +22,7 @@ PORT=$((25300 + RANDOM % 200))
 # busy machine plays them out the same, only slower: you run about without shooting
 # and the Expert bot gets you three times (first to 3, or the time limit).
 OFFLINE=(--fixed-fps 60 --headless --path . -- --game-clock --bot=3 --bot-weapon=rifle --map="$MAP" --scripted-input --sync-log)
-timeout 300 "$GODOT" "${OFFLINE[@]}" --kill-target=3 --time-limit=60 --quit-after=100 > "$OUT/killcam_bot.log" 2>&1 &
+timeout 300 "$GODOT" "${OFFLINE[@]}" --kill-target=3 --time-limit=60 --quit-after=100 --save-killcam=1 > "$OUT/killcam_bot.log" 2>&1 &
 # ...and once more pressing jump every half second: every killcam is skipped.
 PRESSES=()
 for s in $(seq 4 0.5 50); do PRESSES+=("--press=$s:jump"); done
@@ -106,6 +106,16 @@ if p and max(f for _, _, _, f, _, _ in p) < 60:
 if log.count("KILLCAM END 1") + log.count("KILLCAM DONE 1") < len(p) - 1:   # (the last may be cut short by the end of the match)
     bad("killcams should run until you respawn")
 check_results("Vs Bots", log)
+saved = re.findall(r"^KILLCAM_SAVED \d+ (\d+) (\d+) ([\d.]+) (\S+) (.*)$", log, re.M)
+print(f"Vs Bots: saved as a video {saved[:1]}")
+if not saved or saved[0][3] != "ok" or int(saved[0][1]) < 60 or not saved[0][4].endswith(".avi"):
+    bad("the best kill should save as a video from the results screen")
+else:
+    import os
+    if not os.path.isfile(saved[0][4]) or open(saved[0][4], "rb").read(4) != b"RIFF":
+        bad(f"the saved video is not there ({saved[0][4]})")
+    else:
+        os.remove(saved[0][4])
 
 log = read("skip")
 if "SCRIPT ERROR" in log:
