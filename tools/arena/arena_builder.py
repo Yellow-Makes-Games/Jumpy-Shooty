@@ -311,7 +311,7 @@ class Map:
         print("wrote %s: %d nodes, %d spawns, %d weapon pickups" % (path, len(self.nodes), self.spawn_count, self.weapon_count))
 
 
-def palette(path, colors, glow=None, breakable=None, roughness=0.85):
+def palette(path, colors, glow=None, breakable=None, roughness=0.85, surface=None):
     """Writes a MapPalette resource (game/maps/palettes/*.tres)."""
     out = ['[gd_resource type="Resource" script_class="MapPalette" format=3]', "",
            '[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_pal"]', "", "[resource]",
@@ -324,6 +324,8 @@ def palette(path, colors, glow=None, breakable=None, roughness=0.85):
     out.append(dict_lines("colors", "Color", colors, color))
     if glow:
         out.append(dict_lines("glow", "float", glow, lambda v: fmt(float(v)) if float(v) != int(v) else "%s.0" % int(v)))
+    if surface:
+        out.append(dict_lines("surface", "String", surface, lambda v: '"%s"' % v))
     if roughness != 0.85:
         out.append("roughness = %s" % fmt(roughness))
     if breakable:

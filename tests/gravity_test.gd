@@ -1,8 +1,8 @@
 extends SceneTree
 ## Low gravity checks (GravityEvent and WorldGravity):
-##  - the multiplier eases from 1.0 to 0.4 in 2 s, holds for 30 s, eases back in 2 s,
+##  - the multiplier eases from 1.0 to 0.3 in 2 s, holds for 30 s, eases back in 2 s,
 ##    and the event stays busy through the 60 s cooldown after;
-##  - a jump reaches about 1.2 m at normal gravity and about 3 m at 0.4, with the
+##  - a jump reaches about 1.2 m at normal gravity and about 4 m at 0.3, with the
 ##    real movement code; wall runs and floats are lighter too;
 ##  - rockets and grenades fly exactly the same path either way: the host's copy
 ##    (Match) and the one everyone sees (Projectile);
@@ -56,7 +56,7 @@ func _timeline() -> void:
 	print("  the event's schedule")
 	var e := _event()
 	_expect(is_equal_approx(e.ease_time, 2.0) and is_equal_approx(e.duration, 30.0) and is_equal_approx(e.cooldown, 60.0)
-		and is_equal_approx(e.gravity_scale, 0.4), "2 s eases, 30 s at 40%, 60 s cooldown")
+		and is_equal_approx(e.gravity_scale, 0.3), "2 s eases, 30 s at 30%, 60 s cooldown")
 	_expect(is_equal_approx(e.length(), 94.0), "94 s from start until it can be fired again")
 	_expect(is_equal_approx(WorldGravity.scale, 1.0) and not e.busy(), "before it starts: gravity 1.0")
 	e.host_start(1)
@@ -67,11 +67,11 @@ func _timeline() -> void:
 	_step(e, STEP)
 	_expect(absf(WorldGravity.scale - before) < 0.02, "it eases, it never snaps (%.3f a step)" % absf(WorldGravity.scale - before))
 	_step(e, 1.0)
-	_expect(is_equal_approx(WorldGravity.scale, 0.4), "2 s in: 0.4 (%.3f)" % WorldGravity.scale)
+	_expect(is_equal_approx(WorldGravity.scale, 0.3), "2 s in: 0.3 (%.3f)" % WorldGravity.scale)
 	_step(e, 15.0)
-	_expect(is_equal_approx(WorldGravity.scale, 0.4) and e.active(), "17 s in: still 0.4")
+	_expect(is_equal_approx(WorldGravity.scale, 0.3) and e.active(), "17 s in: still 0.3")
 	_step(e, 14.9)
-	_expect(is_equal_approx(WorldGravity.scale, 0.4), "just before 32 s: still 0.4 (%.3f)" % WorldGravity.scale)
+	_expect(is_equal_approx(WorldGravity.scale, 0.3), "just before 32 s: still 0.3 (%.3f)" % WorldGravity.scale)
 	_step(e, 1.1)
 	_expect(WorldGravity.scale > 0.45 and WorldGravity.scale < 0.95, "33 s in: easing back (%.2f)" % WorldGravity.scale)
 	_step(e, 1.1)
@@ -146,9 +146,9 @@ func _jumps() -> void:
 	body.add_child(cs)
 	root.add_child(body)
 	var normal := await _jump_height(1.0)
-	var low := await _jump_height(0.4)
+	var low := await _jump_height(0.3)
 	_expect(absf(normal - 1.2) < 0.15, "normal gravity: about 1.2 m (%.2f m)" % normal)
-	_expect(absf(low - 3.0) < 0.3, "40%% gravity: about 3 m (%.2f m)" % low)
+	_expect(absf(low - 4.0) < 0.3, "30%% gravity: about 4 m (%.2f m)" % low)
 	WorldGravity.reset()
 
 
@@ -182,7 +182,7 @@ func _light_moves() -> void:
 	_expect(is_equal_approx(t.gravity, 22.0), "the tuning's own gravity is untouched (22)")
 	# The same step of a float and of a wall run, at normal and at low gravity.
 	var falls := {}
-	for scale in [1.0, 0.4]:
+	for scale in [1.0, 0.3]:
 		WorldGravity.scale = scale
 		var m := MovementController.new()
 		m.state = MovementController.State.FLOAT
@@ -193,8 +193,8 @@ func _light_moves() -> void:
 		var ran: Vector3 = m.call("_wall_run", Vector3(0, 0, 8), 0.1)
 		falls[scale] = [floated.y, ran.y]
 	WorldGravity.reset()
-	_expect(is_equal_approx(falls[0.4][0], falls[1.0][0] * 0.4), "a float sinks 40%% as fast (%.2f against %.2f m/s after 0.1 s)" % [falls[0.4][0], falls[1.0][0]])
-	_expect(is_equal_approx(falls[0.4][1], falls[1.0][1] * 0.4), "a wall run drops 40%% as fast (%.2f against %.2f m/s)" % [falls[0.4][1], falls[1.0][1]])
+	_expect(is_equal_approx(falls[0.3][0], falls[1.0][0] * 0.3), "a float sinks 30%% as fast (%.2f against %.2f m/s after 0.1 s)" % [falls[0.3][0], falls[1.0][0]])
+	_expect(is_equal_approx(falls[0.3][1], falls[1.0][1] * 0.3), "a wall run drops 30%% as fast (%.2f against %.2f m/s)" % [falls[0.3][1], falls[1.0][1]])
 
 
 func _projectiles() -> void:
@@ -202,7 +202,7 @@ func _projectiles() -> void:
 	for id in ["grenade_launcher", "rocket_launcher"]:
 		var data := WeaponData.by_id(id)
 		var paths := {}
-		for scale in [1.0, 0.4]:
+		for scale in [1.0, 0.3]:
 			WorldGravity.scale = scale
 			var p := Projectile.make(1, data, Vector3(0, 40, 0), Vector3(1, 0.4, 0), Vector3.INF, Color.WHITE)
 			root.add_child(p)
@@ -211,7 +211,7 @@ func _projectiles() -> void:
 				p._physics_process(STEP)
 			paths[scale] = p.global_position
 			p.free()
-		_expect((paths[1.0] as Vector3).is_equal_approx(paths[0.4]), "a %s round flies the same path at 0.4 (%s)" % [data.id.replace("_", " "), paths[0.4]])
+		_expect((paths[1.0] as Vector3).is_equal_approx(paths[0.3]), "a %s round flies the same path at 0.3 (%s)" % [data.id.replace("_", " "), paths[0.3]])
 	# The host's own copy of a grenade (the one that decides where it lands).
 	var rules := root.get_node_or_null("/root/Match")
 	var net := root.get_node_or_null("/root/Net")
@@ -224,7 +224,7 @@ func _projectiles() -> void:
 	world.set_script(stand_in)
 	root.add_child(world)
 	var ends := {}
-	for scale in [1.0, 0.4]:
+	for scale in [1.0, 0.3]:
 		WorldGravity.scale = scale
 		net.arena = world
 		rules.running = true
@@ -237,7 +237,7 @@ func _projectiles() -> void:
 		rules.running = false
 		net.arena = null
 	world.free()
-	_expect(ends[1.0] != Vector3.INF and (ends[1.0] as Vector3).is_equal_approx(ends[0.4]), "the host's grenade lands the same at 0.4 (%s)" % ends[0.4])
+	_expect(ends[1.0] != Vector3.INF and (ends[1.0] as Vector3).is_equal_approx(ends[0.3]), "the host's grenade lands the same at 0.3 (%s)" % ends[0.3])
 	var drop: float = 40.0 + 8.0 * 0.5 - (ends[1.0] as Vector3).y
 	_expect(drop > 1.0, "(and it does drop by its own gravity: %.1f m in half a second)" % drop)
 	WorldGravity.reset()
@@ -250,7 +250,7 @@ func _cleanup() -> void:
 	var e := _event()
 	e.host_start()
 	_step(e, 10.0)
-	_expect(is_equal_approx(WorldGravity.scale, 0.4), "mid-event: 0.4")
+	_expect(is_equal_approx(WorldGravity.scale, 0.3), "mid-event: 0.3")
 	# (Not by emitting the real signals: the game itself would change screens on them.)
 	if rules:
 		_expect(rules.match_over.is_connected(e._on_match_over), "the event listens for the end of the match")
@@ -264,10 +264,10 @@ func _cleanup() -> void:
 	_expect(is_equal_approx(WorldGravity.scale, 1.0) and not e.running, "the next match starts: 1.0, event over")
 	e.host_start()
 	_step(e, 10.0)
-	_expect(is_equal_approx(WorldGravity.scale, 0.4), "mid-event again: 0.4")
+	_expect(is_equal_approx(WorldGravity.scale, 0.3), "mid-event again: 0.3")
 	e.free()
 	_expect(is_equal_approx(WorldGravity.scale, 1.0), "the map is unloaded mid-event: 1.0")
-	WorldGravity.scale = 0.4
+	WorldGravity.scale = 0.3
 	WorldGravity.reset()
 	_expect(is_equal_approx(WorldGravity.scale, 1.0), "(the arena's own reset puts it at 1.0 whatever it was)")
 

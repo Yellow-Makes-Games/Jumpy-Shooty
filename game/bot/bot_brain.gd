@@ -26,7 +26,7 @@ extends RefCounted
 ##    and finishes with a flying kick, and fires its rocket boots to close in, to
 ##    dodge when hit and to whip round faster on a grapple swing.
 ##  - Uses a map's terminal now and then (Halcyon's low gravity): only when one is
-##    ready and close, and it has nobody in sight. It walks up, holds interact, and
+##    ready and close, and it has nobody in sight. It walks up, presses interact, and
 ##    drops the idea the moment it sees someone. Harder bots try a little more often.
 ##  - Copes with low gravity (WorldGravity): jumps carry further, so it looks further
 ##    ahead for floor before it jumps, hops, dives, flips or boosts.
@@ -390,7 +390,7 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 	var pickup := _nearest_pickup() if me.weapon == null else Vector3.INF
 	var console := _terminal_spot(delta, visible) if pickup == Vector3.INF else Vector3.INF
 	if console != Vector3.INF:
-		# A map terminal: walk up to it, then stand there holding interact.
+		# A map terminal: walk up to it and press interact (or hold it, if the terminal asks for a hold).
 		if _terminal.reaches(pos) and _flat(pos, _terminal.global_position) < _terminal.range * 0.75:
 			input.interact = true
 			return Vector3.ZERO
@@ -516,7 +516,7 @@ func _light() -> bool:
 ## How much further ahead to look for floor before leaving it: 1 normally, up to
 ## 2.5 times as far in low gravity.
 func _air() -> float:
-	return clampf(1.0 / maxf(WorldGravity.scale, 0.01), 1.0, 2.5)
+	return clampf(1.0 / maxf(WorldGravity.scale, 0.01), 1.0, 3.4)
 
 
 ## Where to walk to use a map terminal, or INF when it is not going for one. It

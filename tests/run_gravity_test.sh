@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The map terminal and the low gravity event in real matches on Halcyon:
-#  - online, a client stands at the terminal and holds interact: the host checks it
+#  - online, a client stands at the terminal and presses interact: the host checks it
 #    and starts the event, and both copies run it from the same moment;
 #  - a client that holds from across the room starts nothing;
 #  - a player who joins while the event is running is told how far along it is;
@@ -19,11 +19,11 @@ rm -f "$OUT"/gravity_*.log
 PORT=$((25600 + RANDOM % 100))
 COMMON=(--sync-log --map=halcyon)
 
-# 1. A client fires it. P2 spawns beside the console and holds interact for 3 s.
+# 1. A client fires it. P2 spawns beside the console and presses interact (for 0.3 s).
 "$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --autostart=2 --spawn=-40,-5.8,0,0 \
   --quit-after=20 "${COMMON[@]}" > "$OUT/gravity_host.log" 2>&1 &
 sleep 1
-"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --spawn=1.3,1.3,0,90 --hold=7:interact:3 \
+"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --spawn=1.3,1.3,0,90 --hold=7:interact:0.3 \
   --quit-after=18 "${COMMON[@]}" > "$OUT/gravity_client.log" 2>&1 &
 # 2. Out of range, and a late joiner. P2 holds from the edge of the room (nothing may
 #    happen); the host starts the event itself at 9 s; P3 joins at about 13 s.
@@ -71,7 +71,7 @@ def check(cond, what):
 
 host, client = events("host"), events("client")
 started_by = [l for l in lines("host") if l.startswith("[map] LowGravity started by")]
-check(len(started_by) == 1 and "P2" in started_by[0], f"a client holding interact at the terminal starts the event on the host ({started_by})")
+check(len(started_by) == 1 and "P2" in started_by[0], f"a client pressing interact at the terminal starts the event on the host ({started_by})")
 check(bool(host) and host[0][1] and host[0][2] == 0.0, "the host runs it from the start")
 check(bool(client) and client[0][1] and client[0][2] < 0.5, "the client is told and runs it from the same moment")
 

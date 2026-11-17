@@ -74,6 +74,7 @@ func _run() -> void:
 	_pickups()
 	_objects()
 	_glass()
+	_strips()
 	_pit()
 	_sealed()
 	await _routes()
@@ -168,12 +169,12 @@ func _objects() -> void:
 		var t := terminals[0] as MapTerminal
 		var at := t.global_position
 		_expect(Vector2(at.x, at.z).length() < 1.0 and at.y > 1.0 and at.y < 1.5, "it stands on the raised dais in the middle (%s)" % at)
-		_expect(is_equal_approx(t.channel_time, 2.0) and is_equal_approx(t.range, 2.0), "hold for 2 s within 2 m")
+		_expect(is_zero_approx(t.channel_time) and is_equal_approx(t.range, 2.0), "one press within 2 m (no hold)")
 		var event := t.get_node_or_null(t.event) as GravityEvent
 		_expect(event != null, "it fires a low gravity event")
 		if event:
-			_expect(is_equal_approx(event.gravity_scale, 0.4) and is_equal_approx(event.duration, 30.0) and is_equal_approx(event.ease_time, 2.0)
-				and is_equal_approx(event.cooldown, 60.0), "40% gravity for 30 s, 2 s eases, 60 s cooldown")
+			_expect(is_equal_approx(event.gravity_scale, 0.3) and is_equal_approx(event.duration, 30.0) and is_equal_approx(event.ease_time, 2.0)
+				and is_equal_approx(event.cooldown, 60.0), "30% gravity for 30 s, 2 s eases, 60 s cooldown")
 			_expect(event.mote_volumes.size() >= 5, "motes drift in the Control Room and the four big rooms")
 		# The dais is 1 to 1.5 m up and can be stood on all round the console.
 		var top := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(2.5, 4, 0), Vector3(2.5, -1, 0)))
@@ -220,6 +221,54 @@ func _glass() -> void:
 	# Under the floor glass the shaft is open: the centrifuge shows through.
 	var shaft := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(8, -0.5, 0), Vector3(8, -60, 0)))
 	_expect(shaft.is_empty(), "the shaft under the floor glass is open all the way down")
+
+
+## No lit strip hangs in mid-air: every drawn-only block of a glowing kind (the light
+## bars and the rooms' colour bands) has something solid right behind it along its
+## whole length. One that runs across a doorway shows up here.
+func _strips() -> void:
+	print("  light strips")
+	var ball := SphereShape3D.new()
+	ball.radius = 0.45
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = ball
+	var loose := []
+	var checked := 0
+	for piece in map.collect_pieces():
+		if piece.solid or piece.get("hidden", false) or map.palette.glow.get(piece.kind, 0.0) <= 0.0:
+			continue
+		var xf: Transform3D = piece.xf
+		var points: Array[Vector3] = []
+		if piece.shape == "box":
+			var axis: int = (piece.size as Vector3).max_axis_index()
+			var length: float = piece.size[axis]
+			if length < 1.0:
+				continue
+			var n := maxi(2, int(length / 0.3))
+			for i in n + 1:
+				var q := Vector3.ZERO
+				q[axis] = -length * 0.5 + length * i / n
+				points.append(xf * q)
+		elif piece.shape == "tube":
+			var r: float = (piece.size.x + piece.get("inner", 0.0)) * 0.25
+			var n := maxi(24, int(TAU * r / 0.3))
+			for i in n:
+				points.append(xf * Vector3(cos(TAU * i / n) * r, 0.0, sin(TAU * i / n) * r))
+		else:
+			continue
+		checked += 1
+		var hanging := 0
+		var where := Vector3.ZERO
+		for p in points:
+			if p.y < map.kill_height:
+				continue   # (the glow at the bottom of the reactor pit)
+			query.transform = Transform3D(Basis(), p)
+			if space.intersect_shape(query, 1).is_empty():
+				hanging += 1
+				where = p
+		if hanging >= 2:
+			loose.append("%s near %s" % [piece.kind, where.snappedf(0.1)])
+	_expect(loose.is_empty(), "none of the %d lit strips hangs across a doorway or in mid-air %s" % [checked, loose.slice(0, 6)])
 
 
 func _pit() -> void:

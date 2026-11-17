@@ -21,7 +21,7 @@ var fire_pressed := false  ## trigger pulled this frame (semi-automatic weapons)
 var kick_pressed := false  ## kick pressed this frame (any weapon; a flying kick while you have a player hooked)
 var boost_pressed := false ## rocket boots fired this frame
 var float_pressed := false ## float pressed this frame (Shift in mid-air; again to drop out of it)
-var interact := false      ## interact held (a MapTerminal needs it held for a while)
+var interact := false      ## interact is down (a MapTerminal takes the press; some ask for a hold)
 ## Optional: which way the rocket boots push (bots aim them). Left at zero, they push
 ## toward your WASD direction as seen from where you look, or straight where you look.
 var boost_dir := Vector3.ZERO

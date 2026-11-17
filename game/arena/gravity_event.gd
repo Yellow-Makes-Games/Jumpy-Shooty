@@ -21,8 +21,8 @@ extends MapEvent
 @export var duration := 30.0
 ## Seconds after gravity is back before a terminal can start it again.
 @export var cooldown := 60.0
-## Gravity while it is low, as a share of normal (0.4: a jump reaches about 3 m).
-@export_range(0.05, 1.0) var gravity_scale := 0.4
+## Gravity while it is low, as a share of normal (0.3: a jump reaches about 4 m).
+@export_range(0.05, 1.0) var gravity_scale := 0.3
 
 @export_group("Look and sound")
 ## The colour the map's light fades to.
@@ -128,9 +128,12 @@ func _show() -> void:
 		_sun.light_energy = lerpf(_sun_base.energy, _sun_base.energy * 0.9, level)
 	var glow_to := light_color.lerp(Color(0.45, 0.7, 1.0), 0.25)
 	for m in _mats:
-		var mat: StandardMaterial3D = m[0]
 		var base: Color = m[1]
 		var cool := Color(base.r * 0.6, base.g * 0.75, minf(base.b * 1.1 + 0.05, 1.0), base.a)
+		if m[0] is ShaderMaterial:   # a patterned kind (see MapPalette.surface)
+			(m[0] as ShaderMaterial).set_shader_parameter("albedo", base.lerp(cool, level * 0.5))
+			continue
+		var mat: StandardMaterial3D = m[0]
 		mat.albedo_color = base.lerp(cool, level * 0.5)
 		if m[3]:
 			mat.emission = (m[2] as Color).lerp(glow_to, level * 0.9)
@@ -167,9 +170,12 @@ func _find_looks() -> void:
 		_sun_base = {"color": _sun.light_color, "energy": _sun.light_energy}
 	if _map.palette:
 		for kind in _map.palette.colors:
-			var mat := _map.material_for(kind) as StandardMaterial3D
+			var any := _map.material_for(kind)
+			var mat := any as StandardMaterial3D
 			if mat:
 				_mats.append([mat, mat.albedo_color, mat.emission, mat.emission_enabled])
+			elif any is ShaderMaterial and (any as ShaderMaterial).get_shader_parameter("albedo") is Color:
+				_mats.append([any, (any as ShaderMaterial).get_shader_parameter("albedo"), Color.BLACK, false])
 
 
 const MOTE_SHADER := "
