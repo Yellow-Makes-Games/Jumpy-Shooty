@@ -21,6 +21,7 @@ colors = Dictionary[String, Color]({
 "far_city": Color(0.66, 0.62, 0.62, 1),
 "far_city_b": Color(0.55, 0.56, 0.62, 1),
 "glass": Color(0.55, 0.72, 0.82, 1),
+"jet": Color(0.25, 0.85, 1, 1),
 "lamp": Color(1, 0.9, 0.7, 1),
 "live": Color(0.35, 0.75, 1, 1),
 "pad": Color(0.25, 0.27, 0.3, 1),
@@ -38,6 +39,7 @@ glow = Dictionary[String, float]({
 "billboard_b": 0.6,
 "billboard_c": 0.6,
 "fan_blade": 1.6,
+"jet": 1.6,
 "lamp": 2,
 "live": 3,
 "window_lit": 1.2

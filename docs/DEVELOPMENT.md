@@ -157,7 +157,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
-| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -393,7 +393,7 @@ the Kill Height and its decks are joined by fixed ramps.
 
 ### Race maps
 
-`game/maps/rooftop_run.tscn`, `foundry.tscn` and `sky_ruins.tscn` are ordinary maps
+`game/maps/rooftop_run.tscn`, `foundry.tscn`, `sky_ruins.tscn` and `summit_plunge.tscn` are ordinary maps
 (MapBlocks in groups, so one click picks a whole piece and F6 plays it as a race) with
 four more node types:
 
@@ -410,16 +410,23 @@ four more node types:
 - **MapRoutePoint** (under `BotRoute`, in running order): the line the bots take, and
   what they do at each point (run, jump, long jump, dive jump, flip dive, slide, crawl,
   wall run, wall jump, chimney, grapple to the point plus Aim, wait for ground, wait for a
-  clear path). If you move an obstacle, move its route points with it.
+  clear path, boost jump, boost up, float jump). **Boost** on a grapple or float-jump point
+  also fires the rocket boots toward the next point (as it lets go of the rope, or in
+  the float). If you move an obstacle, move its route points with it.
 
 Falling below **Kill Height** sends you back too. A map counts as a race map when it has
 checkpoints; `game/arena/maps.gd` lists each map with its game, `ffa` or `race`, and the
 menus only offer a map for its own game.
 
-The three courses were laid out by `tools/race/build_race_maps.py` (the sections are in
+The four courses were laid out by `tools/race/build_race_maps.py` (the sections are in
 `tools/race/sections.py`: gaps, vaults, climbs, wall runs, chimneys, grapples, pistons,
-presses, sweepers and so on). Edit a map in the editor and the change is yours to keep;
-running the script again rebuilds all three from scratch and overwrites hand edits.
+presses, sweepers, and the ones built for the newer moves: rocket gaps, boost-up walls,
+float gaps, ski jumps, grapple swings and belly-slide chutes, with the distances each
+move covers at the top of that part of the file). Edit a map in the editor and the
+change is yours to keep; running the script again rebuilds them all from scratch and
+overwrites hand edits. To try a section on its own, build the test strip
+`race_lab` (`LAB='[["boost_gap", {"d": 20}]]' python3 tools/race/build_race_maps.py race_lab`,
+any sections and arguments) and race it with `--map=res://game/maps/race_lab.tscn --autopilot`.
 After changing a course, `tests/run_race_test.sh` checks that bots still get round.
 `game/match/race_state.gd` (the `Race` autoload) runs the race rules and
 `game/bot/race_brain.gd` the race bots.

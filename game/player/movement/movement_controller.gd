@@ -36,6 +36,7 @@ extends RefCounted
 ## edges. Wall jumps work from a wall run or any wall you are touching in the air.
 
 const TUCK_SETTLE_SPEED := 3.0   ## metres per second
+const BELLY_SLOPE := 0.985       ## floor normal's y below this (about 10 degrees): a belly slide never slows to a crawl
 
 ## New states go on the end: the numbers travel in snapshots (Player.make_pose).
 enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE, FLOAT }
@@ -695,12 +696,14 @@ func _belly_slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, input: Pla
 	var t := tuning
 	var h := Vector3(vel.x, 0, vel.z)
 	var speed := h.length()
-	if speed <= t.belly_crawl_speed + 0.05:
+	var n := body.get_floor_normal()
+	# Crawling, unless the floor is steep enough to slide you off again (a belly slide
+	# down a chute that slowed to a crawl picks up speed, rather than crawling on down).
+	if speed <= t.belly_crawl_speed + 0.05 and n.y > BELLY_SLOPE:
 		var top: float = t.belly_crawl_speed * min(input.move.length(), 1.0)
 		vel = _apply_friction(vel, top, delta)
 		vel = _accelerate(vel, wish, top, t.ground_accel, delta)
 		return Vector3(vel.x, min(vel.y, 0.0), vel.z)
-	var n := body.get_floor_normal()
 	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
