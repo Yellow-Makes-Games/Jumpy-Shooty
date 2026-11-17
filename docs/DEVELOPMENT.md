@@ -447,7 +447,7 @@ How it works underneath:
 
 - `WorldGravity.scale` is the one gravity multiplier. `MovementController` and
   `Grapple` multiply by it wherever they use gravity (falling, swinging, slides
-  downhill, and the wall run's and float's own gravity, scaled the same), so the
+  downhill, and the wall run's and glide's own gravity, scaled the same), so the
   tuning resource's `gravity` (22) is never changed. Rockets and grenades do not read
   it. The arena puts it back to 1.0 when a match starts and when the map is unloaded.
 - The host owns the terminal and the event. A player's copy only says when its player
@@ -491,9 +491,9 @@ four more node types:
 - **MapRoutePoint** (under `BotRoute`, in running order): the line the bots take, and
   what they do at each point (run, jump, long jump, dive jump, flip dive, slide, crawl,
   wall run, wall jump, chimney, grapple to the point plus Aim, wait for ground, wait for a
-  clear path, boost jump, boost up, float jump). **Boost** on a grapple or float-jump point
+  clear path, boost jump, boost up, glide jump). **Boost** on a grapple or glide-jump point
   also fires the rocket boots toward the next point (as it lets go of the rope, or in
-  the float). If you move an obstacle, move its route points with it.
+  the glide). If you move an obstacle, move its route points with it.
 
 Falling below **Kill Height** sends you back too. A map counts as a race map when it has
 checkpoints; `game/arena/maps.gd` lists each map with its game, `ffa` or `race`, and the
@@ -502,7 +502,7 @@ menus only offer a map for its own game.
 The four courses were laid out by `tools/race/build_race_maps.py` (the sections are in
 `tools/race/sections.py`: gaps, vaults, climbs, wall runs, chimneys, grapples, pistons,
 presses, sweepers, and the ones built for the newer moves: rocket gaps, boost-up walls,
-float gaps, ski jumps, grapple swings and belly-slide chutes, with the distances each
+glide gaps, ski jumps, grapple swings and belly-slide chutes, with the distances each
 move covers at the top of that part of the file). Edit a map in the editor and the
 change is yours to keep; running the script again rebuilds them all from scratch and
 overwrites hand edits. To try a section on its own, build the test strip

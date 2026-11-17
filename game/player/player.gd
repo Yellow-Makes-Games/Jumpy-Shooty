@@ -89,8 +89,6 @@ var _burst_left := 0              # local: rounds of a burst still to fire
 var _akimbo_shots := 0            # akimbo: shots so far (yours, or seen); odd ones leave the left gun
 var _akimbo_left := false         # akimbo: the last shot came from the left gun
 var _burst_wait := 0.0            # local: seconds until the next round of the burst
-var _float_t := 0.0               # local: seconds into the current float (0 = not floating)
-var _spin_hit := {}               # local: ids the whirling legs have already hit in this float
 
 
 func _init() -> void:
@@ -207,7 +205,8 @@ func _physics_process(delta: float) -> void:
 			_update_tug(delta)
 			_steer_flying_kick(delta)
 			if _fly_kick > 0.0:
-				input.float_pressed = false   # mid flying kick: you are already going somewhere
+				input.glide = false   # mid flying kick: you are already going somewhere
+				input.glide_pressed = false
 			var boosts := motor.boosts
 			motor.step(self, input, delta)
 			if hooking and not motor.grapple.attached:
@@ -225,7 +224,6 @@ func _physics_process(delta: float) -> void:
 			if weapon:
 				_update_weapon(delta)   # (Deathmatch, empty hands: only the kick)
 			_update_kick(delta)
-			_update_float_spin(delta)
 	else:
 		velocity = Vector3.ZERO
 		_report_tether()
@@ -371,8 +369,9 @@ func read_local_input() -> void:
 		input.kick_pressed = true
 	if Input.is_action_just_pressed("boost"):
 		input.boost_pressed = true
-	if Input.is_action_just_pressed("float"):
-		input.float_pressed = true
+	input.glide = Input.is_action_pressed("glide")
+	if Input.is_action_just_pressed("glide"):
+		input.glide_pressed = true
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"))
@@ -462,7 +461,7 @@ func _fire_round() -> void:
 	if weapon.data.is_projectile():
 		Match.request_projectile(eye, _aim_direction(eye), peer_id)
 		return
-	var dirs := shot_directions(_aim_direction(eye), weapon.data)
+	var dirs := shot_directions(_aim_direction(eye), weapon.data, spread_scale())
 	# Show the shot straight away; the host decides whether it hit.
 	var ends := PackedVector3Array()
 	var hits := []
@@ -600,10 +599,6 @@ func _watch_swings(delta: float) -> void:
 func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
 	if attacker != peer_id or points.is_empty():
 		return
-	if weapon_id == "float":
-		if rig:
-			_punch_roll += randf_range(-0.03, 0.03)   # your legs clipped someone: a small jolt
-		return
 	if weapon_id == "kick" or weapon_id == "flying_kick":
 		if rig:
 			_punch += Vector2(randf_range(-0.02, 0.02), -0.05 if weapon_id == "flying_kick" else -0.025)
@@ -646,44 +641,6 @@ func _update_kick(delta: float) -> void:
 		motor.knock(ahead * Kick.LUNGE)
 	if DevArgs.sync_log:
 		print("ANIM KICK %d" % peer_id)
-
-
-## Floating: your whirling legs hit anyone they reach (see FloatSpin), once each
-## per float. We only notice that someone is in reach; the host decides the hit.
-func _update_float_spin(delta: float) -> void:
-	if motor.state != MovementController.State.FLOAT:
-		_float_t = 0.0
-		_spin_hit.clear()
-		return
-	_float_t += delta
-	if _float_t < FloatSpin.SPIN_UP or not Match.running:
-		return
-	var hub := global_position + Vector3(0, FloatSpin.HEIGHT, 0)
-	var found := false
-	var view_times := {}
-	for p in get_parent().get_children():
-		if p == self or not p is Player:
-			continue
-		if p.last_render_time >= 0.0:
-			view_times[p.peer_id] = p.last_render_time
-		if p.visible_in_world() and not _spin_hit.has(p.peer_id) \
-				and _in_spin_reach(hub, p.global_position, (p._shape.shape as CapsuleShape3D).height):
-			_spin_hit[p.peer_id] = true
-			found = true
-	if Net.arena:
-		for d in Net.arena.dummies:
-			var id := Match.dummy_id(d.index)
-			if not d.is_down() and not _spin_hit.has(id) and _in_spin_reach(hub, d.global_position, CAPSULE_HEIGHT):
-				_spin_hit[id] = true
-				found = true
-	if found:
-		Match.request_float_hit(hub, view_times, peer_id)
-
-
-func _in_spin_reach(hub: Vector3, feet: Vector3, height: float) -> bool:
-	var near := Geometry3D.get_closest_point_to_segment(hub,
-		feet + Vector3(0, CAPSULE_RADIUS, 0), feet + Vector3(0, height - CAPSULE_RADIUS, 0))
-	return near.distance_to(hub) - CAPSULE_RADIUS <= FloatSpin.REACH
 
 
 func kick_readiness() -> float:
@@ -951,11 +908,21 @@ func ammo_for(gun: String) -> int:
 	return int(_ammo.get(gun, WeaponData.by_id(gun).magazine))
 
 
+## Gliding steadies your aim: every gun's spread is this much of its usual size.
+const GLIDE_SPREAD := 0.5
+
+
+## How wide this player's shots scatter right now, against the gun's own spread (1 = as usual).
+func spread_scale() -> float:
+	return GLIDE_SPREAD if motor and motor.state == MovementController.State.GLIDE else 1.0
+
+
 ## The directions of one shot's pellets (one for most guns), spread at random
 ## around `aim` by the gun's spread. A shotgun's pellets fill its cone evenly.
-static func shot_directions(aim: Vector3, data: WeaponData) -> PackedVector3Array:
+## `tighten` scales the spread (see spread_scale).
+static func shot_directions(aim: Vector3, data: WeaponData, tighten: float = 1.0) -> PackedVector3Array:
 	var out := PackedVector3Array()
-	var spread := deg_to_rad(data.spread_degrees)
+	var spread := deg_to_rad(data.spread_degrees) * tighten
 	var side := aim.cross(Vector3.UP)
 	side = side.normalized() if side.length_squared() > 0.0001 else Vector3.RIGHT
 	var up := side.cross(aim).normalized()
@@ -1400,7 +1367,8 @@ func _hold_still() -> void:
 	input.fire = false
 	input.kick_pressed = false
 	input.boost_pressed = false
-	input.float_pressed = false
+	input.glide = false
+	input.glide_pressed = false
 
 
 # ---------------------------------------------------------------------------
@@ -1418,8 +1386,10 @@ func _scripted_input(delta: float) -> void:
 		input.jump_pressed = true   # mid-air: flip
 	if fmod(t + 2.5, 5.3) < delta:
 		input.dive_pressed = true
-	if fmod(t + 3.1, 3.4) < delta:
-		input.float_pressed = true   # near the top of every other jump: float
+	var glide_t := fmod(t + 3.1, 3.4)   # near the top of every other jump: glide for a moment
+	input.glide = glide_t < 0.6
+	if glide_t < delta:
+		input.glide_pressed = true
 	input.dive = fmod(t + 7.8, 10.6) < 1.4   # every other dive: keep holding it, to land in a belly slide
 	# Crouch (or slide, when fast) for a moment every 7 s.
 	var was_crouching := input.crouch

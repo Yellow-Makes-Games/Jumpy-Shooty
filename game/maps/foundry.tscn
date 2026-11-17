@@ -40,7 +40,7 @@ script = ExtResource("1_root")
 palette = ExtResource("pal")
 face_shade = Vector3(0.9, 0.8, 0.6)
 kill_height = -17
-bounds = Rect2(-327.5, -40, 509, 351)
+bounds = Rect2(-324.5, -40, 506, 351)
 swing_point = Vector3(0, 10, 0)
 
 [node name="Environment" type="WorldEnvironment" parent="."]
@@ -3041,13 +3041,13 @@ script = ExtResource("5_route")
 action = 0
 radius = 2
 
-[node name="Sign_SlideJumpFloatShift" type="Label3D" parent="Signs"]
+[node name="Sign_SlideJumpFlipDive" type="Label3D" parent="Signs"]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0.5, 14, 267)
 pixel_size = 0.01
 modulate = Color(0.45, 0.9, 1, 1)
 outline_size = 16
 outline_modulate = Color(0.05, 0.05, 0.08, 1)
-text = "SLIDE, JUMP, FLOAT: SHIFT"
+text = "SLIDE, JUMP, FLIP, DIVE"
 font_size = 60
 
 [node name="SkiJump" type="Node3D" parent="Course"]
@@ -3172,80 +3172,80 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 1.7, 10, 267)
 script = ExtResource("5_route")
 action = 5
 
-[node name="P61_float_jump" type="Marker3D" parent="BotRoute"]
+[node name="P61_flip_dive" type="Marker3D" parent="BotRoute"]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -18.05, 4, 267)
 script = ExtResource("5_route")
-action = 16
+action = 4
 radius = 0.8
 
 [node name="Deck2" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -50.5, -0.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -47.5, -0.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 16)
 kind = "grating"
 
 [node name="Post5" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -42.9, -4.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -39.9, -4.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.6, 0.4)
 kind = "steel"
 
 [node name="Post6" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -42.9, -4.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -39.9, -4.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.6, 0.4)
 kind = "steel"
 
 [node name="Post7" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -50.5, -4.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -47.5, -4.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.6, 0.4)
 kind = "steel"
 
 [node name="Post8" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -50.5, -4.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -47.5, -4.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.6, 0.4)
 kind = "steel"
 
 [node name="Post9" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -58.1, -4.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -55.1, -4.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.6, 0.4)
 kind = "steel"
 
 [node name="Post10" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -58.1, -4.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -55.1, -4.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.6, 0.4)
 kind = "steel"
 
 [node name="Rail3" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -50.5, 1, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -47.5, 1, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 16)
 kind = "rail"
 
 [node name="Toe3" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -50.5, 0.075, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -47.5, 0.075, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 16)
 kind = "steel"
 
 [node name="Rail4" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -50.5, 1, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -47.5, 1, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 16)
 kind = "rail"
 
 [node name="Toe4" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -50.5, 0.075, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -47.5, 0.075, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 16)
 kind = "steel"
 
 [node name="P62_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -54.5, 0, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -51.5, 0, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -3254,73 +3254,73 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -64.5, -0.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -61.5, -0.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 12)
 kind = "grating"
 
 [node name="Post" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -58.9, -9.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -55.9, -9.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post2" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -58.9, -9.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -55.9, -9.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post3" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -70.1, -9.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -67.1, -9.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post4" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -70.1, -9.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -67.1, -9.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Rail" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -64.5, 1, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -61.5, 1, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 12)
 kind = "rail"
 
 [node name="Toe" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -64.5, 0.075, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -61.5, 0.075, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 12)
 kind = "steel"
 
 [node name="Rail2" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -64.5, 1, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -61.5, 1, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 12)
 kind = "rail"
 
 [node name="Toe2" type="Node3D" parent="Course/CheckpointPad8"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -64.5, 0.075, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -61.5, 0.075, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 12)
 kind = "steel"
 
 [node name="Checkpoint8" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -62.5, 0, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -59.5, 0, 267)
 script = ExtResource("6_checkpoint")
 number = 8
 opening = Vector2(12.4, 6)
 
 [node name="P63_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -66.5, 0, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -63.5, 0, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_BoilerWall" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -74.5, 5, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -71.5, 5, 267)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -3332,195 +3332,195 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -74.5, -0.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -71.5, -0.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 8)
 kind = "grating"
 
 [node name="Post" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -70.9, -9.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -67.9, -9.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -70.9, -9.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -67.9, -9.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post3" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -78.1, -9.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -75.1, -9.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post4" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -78.1, -9.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -75.1, -9.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Rail" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -74.5, 1, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -71.5, 1, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 8)
 kind = "rail"
 
 [node name="Toe" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -74.5, 0.075, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -71.5, 0.075, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 8)
 kind = "steel"
 
 [node name="Rail2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -74.5, 1, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -71.5, 1, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 8)
 kind = "rail"
 
 [node name="Toe2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -74.5, 0.075, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -71.5, 0.075, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 8)
 kind = "steel"
 
 [node name="P64_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -72.5, 0, 266.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -69.5, 0, 266.5)
 script = ExtResource("5_route")
 action = 0
 radius = 1
 
 [node name="Panel" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -87.5, 0.5, 269.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -84.5, 0.5, 269.5)
 script = ExtResource("2_block")
 size = Vector3(1, 9, 16)
 kind = "tank"
 
 [node name="Band" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -87.5, 3.5, 269.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -84.5, 3.5, 269.5)
 script = ExtResource("2_block")
 size = Vector3(1.1, 0.6, 16.1)
 kind = "tank_band"
 solid = false
 
 [node name="Base" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -87.5, -11, 269.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -84.5, -11, 269.5)
 script = ExtResource("2_block")
 size = Vector3(1, 14, 16)
 kind = "tank"
 
 [node name="Panel2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -99.5, 0.5, 264.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -96.5, 0.5, 264.5)
 script = ExtResource("2_block")
 size = Vector3(1, 9, 12)
 kind = "tank"
 
 [node name="Band2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -99.5, 3.5, 264.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -96.5, 3.5, 264.5)
 script = ExtResource("2_block")
 size = Vector3(1.1, 0.6, 12.1)
 kind = "tank_band"
 solid = false
 
 [node name="Base2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -99.5, -11, 264.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -96.5, -11, 264.5)
 script = ExtResource("2_block")
 size = Vector3(1, 14, 12)
 kind = "tank"
 
 [node name="Deck2" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -117.5, -0.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -114.5, -0.2, 267)
 script = ExtResource("2_block")
 size = Vector3(12, 0.4, 20)
 kind = "grating"
 
 [node name="Post5" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -107.9, -9.2, 272.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -104.9, -9.2, 272.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post6" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -107.9, -9.2, 261.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -104.9, -9.2, 261.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post7" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -117.5, -9.2, 272.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -114.5, -9.2, 272.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post8" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -117.5, -9.2, 261.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -114.5, -9.2, 261.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post9" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -127.1, -9.2, 272.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -124.1, -9.2, 272.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post10" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -127.1, -9.2, 261.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -124.1, -9.2, 261.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Rail3" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -117.5, 1, 273)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -114.5, 1, 273)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 20)
 kind = "rail"
 
 [node name="Toe3" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -117.5, 0.075, 273)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -114.5, 0.075, 273)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 20)
 kind = "steel"
 
 [node name="Rail4" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -117.5, 1, 261)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -114.5, 1, 261)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 20)
 kind = "rail"
 
 [node name="Toe4" type="Node3D" parent="Course/WallRun2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -117.5, 0.075, 261)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -114.5, 0.075, 261)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 20)
 kind = "steel"
 
 [node name="P65_wall_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -77.9, 0, 267.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -74.9, 0, 267.8)
 script = ExtResource("5_route")
 action = 7
 radius = 0.7
 
 [node name="P66_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -82, 0.5, 268.55)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -79, 0.5, 268.55)
 script = ExtResource("5_route")
 action = 0
 radius = 1
 
 [node name="P67_wall_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -92, 0.5, 268.55)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -89, 0.5, 268.55)
 script = ExtResource("5_route")
 action = 8
 radius = 1
 
 [node name="P68_wall_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -102.5, 0.5, 265.45)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -99.5, 0.5, 265.45)
 script = ExtResource("5_route")
 action = 8
 radius = 1
 
 [node name="P69_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -115.5, 0, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -112.5, 0, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -3529,73 +3529,73 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -134.5, -0.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -131.5, -0.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 14)
 kind = "grating"
 
 [node name="Post" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -127.9, -9.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -124.9, -9.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post2" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -127.9, -9.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -124.9, -9.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post3" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -141.1, -9.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -138.1, -9.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post4" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -141.1, -9.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -138.1, -9.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Rail" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -134.5, 1, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -131.5, 1, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 14)
 kind = "rail"
 
 [node name="Toe" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -134.5, 0.075, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -131.5, 0.075, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 14)
 kind = "steel"
 
 [node name="Rail2" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -134.5, 1, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -131.5, 1, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 14)
 kind = "rail"
 
 [node name="Toe2" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -134.5, 0.075, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -131.5, 0.075, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 14)
 kind = "steel"
 
 [node name="Low" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -130.8, 0.5, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -127.8, 0.5, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 1, 0.6)
 kind = "crate"
 
 [node name="Low2" type="Node3D" parent="Course/Vaults2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -135.8, 0.5, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -132.8, 0.5, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 1, 0.6)
 kind = "crate"
 
 [node name="P70_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -140.5, 0, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -137.5, 0, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -3604,73 +3604,73 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -147.5, -0.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -144.5, -0.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 12)
 kind = "grating"
 
 [node name="Post" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -141.9, -9.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -138.9, -9.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post2" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -141.9, -9.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -138.9, -9.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post3" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -153.1, -9.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -150.1, -9.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post4" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -153.1, -9.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -150.1, -9.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Rail" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -147.5, 1, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -144.5, 1, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 12)
 kind = "rail"
 
 [node name="Toe" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -147.5, 0.075, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -144.5, 0.075, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 12)
 kind = "steel"
 
 [node name="Rail2" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -147.5, 1, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -144.5, 1, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 12)
 kind = "rail"
 
 [node name="Toe2" type="Node3D" parent="Course/CheckpointPad9"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -147.5, 0.075, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -144.5, 0.075, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 12)
 kind = "steel"
 
 [node name="Checkpoint9" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -145.5, 0, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -142.5, 0, 267)
 script = ExtResource("6_checkpoint")
 number = 9
 opening = Vector2(12.4, 6)
 
 [node name="P71_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -149.5, 0, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -146.5, 0, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_PipeAndChute" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -157.5, 5, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -154.5, 5, 267)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -3682,90 +3682,90 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Ramp" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, -0.3511, 0.9363, 0, 0.9363, 0.3511, -1, 0, 0, -165.4298, -4.6873, 267)
+transform = Transform3D(0, -0.3511, 0.9363, 0, 0.9363, 0.3511, -1, 0, 0, -162.4298, -4.6873, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 25.632)
 kind = "chute"
 
 [node name="Side" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, -0.3511, 0.9363, 0, 0.9363, 0.3511, -1, 0, 0, -165.2893, -4.2618, 271.15)
+transform = Transform3D(0, -0.3511, 0.9363, 0, 0.9363, 0.3511, -1, 0, 0, -162.2893, -4.2618, 271.15)
 script = ExtResource("2_block")
 size = Vector3(0.3, 1.2, 25.632)
 kind = "steel_dark"
 
 [node name="Side2" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, -0.3511, 0.9363, 0, 0.9363, 0.3511, -1, 0, 0, -165.2893, -4.2618, 262.85)
+transform = Transform3D(0, -0.3511, 0.9363, 0, 0.9363, 0.3511, -1, 0, 0, -162.2893, -4.2618, 262.85)
 script = ExtResource("2_block")
 size = Vector3(0.3, 1.2, 25.632)
 kind = "steel_dark"
 
 [node name="P72_slide" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -154.3, 0, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -151.3, 0, 267)
 script = ExtResource("5_route")
 action = 5
 
 [node name="Deck" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -181.5, -9.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -178.5, -9.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 8)
 kind = "grating"
 
 [node name="Post" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -177.9, -13.7, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -174.9, -13.7, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 8.6, 0.4)
 kind = "steel"
 
 [node name="Post2" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -177.9, -13.7, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -174.9, -13.7, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 8.6, 0.4)
 kind = "steel"
 
 [node name="Post3" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -185.1, -13.7, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -182.1, -13.7, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 8.6, 0.4)
 kind = "steel"
 
 [node name="Post4" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -185.1, -13.7, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -182.1, -13.7, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 8.6, 0.4)
 kind = "steel"
 
 [node name="Rail" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -181.5, -8, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -178.5, -8, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 8)
 kind = "rail"
 
 [node name="Toe" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -181.5, -8.925, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -178.5, -8.925, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 8)
 kind = "steel"
 
 [node name="Rail2" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -181.5, -8, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -178.5, -8, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 8)
 kind = "rail"
 
 [node name="Toe2" type="Node3D" parent="Course/Slope"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -181.5, -8.925, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -178.5, -8.925, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 8)
 kind = "steel"
 
 [node name="P73_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -181, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -178, -9, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 2
 
 [node name="Sign_CraneFlingLetGoE" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -187.5, -5, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -184.5, -5, 267)
 pixel_size = 0.01
 modulate = Color(0.45, 0.9, 1, 1)
 outline_size = 16
@@ -3777,86 +3777,86 @@ font_size = 60
 metadata/_edit_group_ = true
 
 [node name="CraneRail" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -197.5, 4, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -194.5, 4, 267)
 script = ExtResource("2_block")
 size = Vector3(28, 1, 1.2)
 kind = "beam"
 
 [node name="Trolley" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -197.5, 3.05, 268.5)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -194.5, 3.05, 268.5)
 script = ExtResource("2_block")
 size = Vector3(2, 0.9, 2)
 kind = "steel"
 solid = false
 
 [node name="Column" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -197.5, -9.5, 280.7)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -194.5, -9.5, 280.7)
 script = ExtResource("2_block")
 size = Vector3(1.4, 35, 1.4)
 kind = "hall_band"
 
 [node name="Column2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -197.5, -9.5, 253.3)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -194.5, -9.5, 253.3)
 script = ExtResource("2_block")
 size = Vector3(1.4, 35, 1.4)
 kind = "hall_band"
 
 [node name="Deck" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -222.5, -9.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -219.5, -9.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 14)
 kind = "grating"
 
 [node name="Post" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -215.9, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -212.9, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -215.9, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -212.9, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post3" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -229.1, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -226.1, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post4" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -229.1, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -226.1, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Rail" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -222.5, -8, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -219.5, -8, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 14)
 kind = "rail"
 
 [node name="Toe" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -222.5, -8.925, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -219.5, -8.925, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 14)
 kind = "steel"
 
 [node name="Rail2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -222.5, -8, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -219.5, -8, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 14)
 kind = "rail"
 
 [node name="Toe2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -222.5, -8.925, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -219.5, -8.925, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 14)
 kind = "steel"
 
 [node name="P74_grapple" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -184.7, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -181.7, -9, 267)
 script = ExtResource("5_route")
 action = 10
 aim = Vector3(-12.8, 12.5, 0)
@@ -3864,7 +3864,7 @@ radius = 0.6
 boost = true
 
 [node name="P75_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -219.5, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -216.5, -9, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 2.2
@@ -3873,148 +3873,148 @@ radius = 2.2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -249.5, -9.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -246.5, -9.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 40)
 kind = "grating"
 
 [node name="Post" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -229.9, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -226.9, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post2" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -229.9, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -226.9, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post3" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -237.74, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -234.74, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post4" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -237.74, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -234.74, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post5" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -245.58, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -242.58, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post6" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -245.58, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -242.58, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post7" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -253.42, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -250.42, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post8" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -253.42, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -250.42, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post9" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -261.26, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -258.26, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post10" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -261.26, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -258.26, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post11" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -269.1, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -266.1, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post12" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -269.1, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -266.1, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Rail" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -249.5, -8, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -246.5, -8, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 40)
 kind = "rail"
 
 [node name="Toe" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -249.5, -8.925, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -246.5, -8.925, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 40)
 kind = "steel"
 
 [node name="Rail2" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -249.5, -8, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -246.5, -8, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 40)
 kind = "rail"
 
 [node name="Toe2" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -249.5, -8.925, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -246.5, -8.925, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 40)
 kind = "steel"
 
 [node name="Live" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -234.5, -8.825, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -231.5, -8.825, 267)
 script = ExtResource("3_hazard")
 size = Vector3(8, 0.35, 2)
 kind = "molten"
 solid = false
 
 [node name="P76_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -232, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -229, -9, 267)
 script = ExtResource("5_route")
 action = 1
 radius = 0.55
 
 [node name="Live2" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -246.5, -8.825, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -243.5, -8.825, 267)
 script = ExtResource("3_hazard")
 size = Vector3(8, 0.35, 2)
 kind = "molten"
 solid = false
 
 [node name="P77_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -244, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -241, -9, 267)
 script = ExtResource("5_route")
 action = 1
 radius = 0.55
 
 [node name="Live3" type="Node3D" parent="Course/Strips"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -258.5, -8.825, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -255.5, -8.825, 267)
 script = ExtResource("3_hazard")
 size = Vector3(8, 0.35, 2)
 kind = "molten"
 solid = false
 
 [node name="P78_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -256, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -253, -9, 267)
 script = ExtResource("5_route")
 action = 1
 radius = 0.55
 
 [node name="P79_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -268.5, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -265.5, -9, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -4023,86 +4023,86 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -278.5, -9.2, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -9.2, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.4, 18)
 kind = "grating"
 
 [node name="Post" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -269.9, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -266.9, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -269.9, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -266.9, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post3" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -278.5, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post4" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -278.5, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post5" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -287.1, -18.2, 270.8)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -284.1, -18.2, 270.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Post6" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -287.1, -18.2, 263.2)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -284.1, -18.2, 263.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 17.6, 0.4)
 kind = "steel"
 
 [node name="Rail" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -278.5, -8, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -8, 271)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 18)
 kind = "rail"
 
 [node name="Toe" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -278.5, -8.925, 271)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -8.925, 271)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 18)
 kind = "steel"
 
 [node name="Rail2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -278.5, -8, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -8, 263)
 script = ExtResource("2_block")
 size = Vector3(0.12, 0.1, 18)
 kind = "rail"
 
 [node name="Toe2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -278.5, -8.925, 263)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -8.925, 263)
 script = ExtResource("2_block")
 size = Vector3(0.16, 0.15, 18)
 kind = "steel"
 
 [node name="Finish" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -272.5, -9, 267)
 script = ExtResource("6_checkpoint")
 number = 10
 finish = true
 opening = Vector2(12.4, 6)
 
 [node name="P80_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -279.5, -9, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -276.5, -9, 267)
 script = ExtResource("5_route")
 action = 0
 radius = 3
 
 [node name="Stripe" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -275.5, -8.99, 267)
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -272.5, -8.99, 267)
 script = ExtResource("2_block")
 size = Vector3(8, 0.02, 0.8)
 kind = "hazard_stripe"
@@ -4112,52 +4112,52 @@ solid = false
 metadata/_edit_group_ = true
 
 [node name="MoltenFloor" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, -16.5, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.5, -16.5, 135.5)
 script = ExtResource("3_hazard")
-size = Vector3(481, 1, 323)
+size = Vector3(478, 1, 323)
 kind = "molten"
 solid = false
 
 [node name="Bed" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, -19, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.5, -19, 135.5)
 script = ExtResource("2_block")
-size = Vector3(481, 2, 323)
+size = Vector3(478, 2, 323)
 kind = "steel_dark"
 
 [node name="Wall" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, 13, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.5, 13, -26)
 script = ExtResource("2_block")
-size = Vector3(481, 58, 2)
+size = Vector3(478, 58, 2)
 kind = "hall"
 
 [node name="Band" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, -2, -26)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.5, -2, -26)
 script = ExtResource("2_block")
-size = Vector3(481.2, 1.2, 2.2)
+size = Vector3(478.2, 1.2, 2.2)
 kind = "hall_band"
 solid = false
 
 [node name="Wall2" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, 13, 297)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.5, 13, 297)
 script = ExtResource("2_block")
-size = Vector3(481, 58, 2)
+size = Vector3(478, 58, 2)
 kind = "hall"
 
 [node name="Band2" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, -2, 297)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -71.5, -2, 297)
 script = ExtResource("2_block")
-size = Vector3(481.2, 1.2, 2.2)
+size = Vector3(478.2, 1.2, 2.2)
 kind = "hall_band"
 solid = false
 
 [node name="Wall3" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -313.5, 13, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -310.5, 13, 135.5)
 script = ExtResource("2_block")
 size = Vector3(2, 58, 323)
 kind = "hall"
 
 [node name="Band3" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -313.5, -2, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -310.5, -2, 135.5)
 script = ExtResource("2_block")
 size = Vector3(2.2, 1.2, 323.2)
 kind = "hall_band"
@@ -4177,699 +4177,671 @@ kind = "hall_band"
 solid = false
 
 [node name="Truss" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -313.5, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -310.5, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -313.5, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -310.5, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp2" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -313.5, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -310.5, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp3" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -313.5, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -310.5, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss2" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -293.4583, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -289.7174, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp4" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -293.4583, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -289.7174, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp5" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -293.4583, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -289.7174, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp6" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -293.4583, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -289.7174, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss3" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -273.4167, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -268.9348, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp7" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -273.4167, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -268.9348, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp8" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -273.4167, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -268.9348, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp9" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -273.4167, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -268.9348, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss4" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -253.375, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -248.1522, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp10" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -253.375, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -248.1522, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp11" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -253.375, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -248.1522, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp12" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -253.375, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -248.1522, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss5" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.3333, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.3696, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp13" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.3333, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.3696, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp14" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.3333, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.3696, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp15" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -233.3333, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -227.3696, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss6" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -213.2917, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.587, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp16" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -213.2917, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.587, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp17" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -213.2917, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.587, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp18" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -213.2917, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -206.587, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss7" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.25, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.8043, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp19" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.25, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.8043, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp20" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.25, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.8043, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp21" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.25, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.8043, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss8" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -173.2083, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -165.0217, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp22" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -173.2083, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -165.0217, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp23" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -173.2083, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -165.0217, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp24" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -173.2083, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -165.0217, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss9" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -153.1667, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -144.2391, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp25" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -153.1667, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -144.2391, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp26" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -153.1667, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -144.2391, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp27" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -153.1667, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -144.2391, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss10" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.125, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -123.4565, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp28" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.125, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -123.4565, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp29" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.125, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -123.4565, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp30" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.125, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -123.4565, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss11" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.0833, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.6739, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp31" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.0833, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.6739, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp32" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.0833, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.6739, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp33" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -113.0833, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -102.6739, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss12" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.0417, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.8913, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp34" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.0417, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.8913, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp35" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.0417, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.8913, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp36" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -93.0417, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -81.8913, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss13" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.1087, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp37" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.1087, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp38" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.1087, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp39" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61.1087, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss14" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52.9583, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.3261, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp40" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52.9583, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.3261, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp41" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52.9583, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.3261, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp42" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52.9583, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40.3261, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss15" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.9167, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.5435, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp43" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.9167, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.5435, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp44" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.9167, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.5435, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp45" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.9167, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.5435, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss16" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.875, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2391, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp46" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.875, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2391, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp47" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.875, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2391, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp48" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.875, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2391, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss17" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.1667, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.0217, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp49" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.1667, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.0217, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp50" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.1667, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.0217, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp51" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.1667, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.0217, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss18" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.2083, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.8043, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp52" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.2083, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.8043, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp53" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.2083, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.8043, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp54" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.2083, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.8043, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss19" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.25, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.587, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp55" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.25, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.587, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp56" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.25, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.587, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp57" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.25, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63.587, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss20" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.2917, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.3696, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp58" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.2917, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.3696, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp59" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.2917, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.3696, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp60" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.2917, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.3696, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss21" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.3333, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.1522, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp61" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.3333, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.1522, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp62" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.3333, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.1522, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp63" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.3333, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 105.1522, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss22" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.375, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.9348, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp64" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.375, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.9348, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp65" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.375, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.9348, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp66" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 107.375, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.9348, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss23" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.4167, 41, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 146.7174, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
 [node name="Lamp67" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.4167, 39.8, 54.75)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 146.7174, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp68" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.4167, 39.8, 135.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 146.7174, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Lamp69" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.4167, 39.8, 216.25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 146.7174, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
 [node name="Truss24" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 147.4583, 41, 135.5)
-script = ExtResource("2_block")
-size = Vector3(1, 1.6, 323)
-kind = "truss"
-solid = false
-
-[node name="Lamp70" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 147.4583, 39.8, 54.75)
-script = ExtResource("2_block")
-size = Vector3(1.2, 0.3, 1.2)
-kind = "lamp"
-solid = false
-
-[node name="Lamp71" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 147.4583, 39.8, 135.5)
-script = ExtResource("2_block")
-size = Vector3(1.2, 0.3, 1.2)
-kind = "lamp"
-solid = false
-
-[node name="Lamp72" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 147.4583, 39.8, 216.25)
-script = ExtResource("2_block")
-size = Vector3(1.2, 0.3, 1.2)
-kind = "lamp"
-solid = false
-
-[node name="Truss25" type="Node3D" parent="Scenery/Mill"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 167.5, 41, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1, 1.6, 323)
 kind = "truss"
 solid = false
 
-[node name="Lamp73" type="Node3D" parent="Scenery/Mill"]
+[node name="Lamp70" type="Node3D" parent="Scenery/Mill"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 167.5, 39.8, 54.75)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
-[node name="Lamp74" type="Node3D" parent="Scenery/Mill"]
+[node name="Lamp71" type="Node3D" parent="Scenery/Mill"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 167.5, 39.8, 135.5)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
 kind = "lamp"
 solid = false
 
-[node name="Lamp75" type="Node3D" parent="Scenery/Mill"]
+[node name="Lamp72" type="Node3D" parent="Scenery/Mill"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 167.5, 39.8, 216.25)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.3, 1.2)
@@ -4877,130 +4849,130 @@ kind = "lamp"
 solid = false
 
 [node name="Furnace" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.8946, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.6085, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.8946, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -193.6085, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace2" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52.2565, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50.8892, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth2" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52.2565, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50.8892, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace3" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.991, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -132.1009, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth3" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -133.991, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -132.1009, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace4" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.2615, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.0733, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth4" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.2615, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.0733, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace5" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.0372, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.9143, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth5" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.0372, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.9143, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace6" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -276.767, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -273.9636, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth6" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -276.767, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -273.9636, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace7" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -301.3242, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -298.3637, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth7" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -301.3242, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -298.3637, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace8" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.273, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.7606, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth8" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.273, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.7606, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace9" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.863, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -183.641, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth9" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -185.863, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -183.641, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"
 solid = false
 
 [node name="Furnace10" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.5988, -9, -23)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.3018, -9, -23)
 script = ExtResource("2_block")
 size = Vector3(8, 14, 4)
 kind = "furnace"
 
 [node name="Mouth10" type="Node3D" parent="Scenery/Mill"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -197.5988, -13, -20.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -195.3018, -13, -20.98)
 script = ExtResource("2_block")
 size = Vector3(4, 3, 0.05)
 kind = "furnace_mouth"

@@ -8,7 +8,7 @@ extends RefCounted
 ## shotgun's fills shell by shell), the count and the weapon's name.
 ## Each gauge has a hairline outside it with a tick at either end and a soft glow
 ## under the lit part.
-## Under the crosshair: a short arc each for grapple, dive, flip, float, slide boost, rocket boots and kick,
+## Under the crosshair: a short arc each for grapple, dive, flip, glide, slide boost, rocket boots and kick,
 ## then your speed and what you are doing.
 
 const R := 92.0           ## radius of the health and ammo arcs
@@ -98,7 +98,7 @@ static func _draw_ammo(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 
 
 static func _draw_moves(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
-	# Moves, under the crosshair: grapple, dive, flip, float, slide, boots, kick (left to right).
+	# Moves, under the crosshair: grapple, dive, flip, glide, slide, boots, kick (left to right).
 	for i in v.moves.size():
 		var m: Array = v.moves[i]
 		var ready: float = m[2]

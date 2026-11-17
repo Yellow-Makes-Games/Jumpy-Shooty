@@ -28,13 +28,13 @@ More detail, including how to play with a friend and run several copies on one P
 | --- | --- |
 | Move | W A S D |
 | Sprint | Shift |
-| Float (in mid-air: glide the way you face at the speed you had, sinking slowly; your whirling legs hit anyone they touch; again to drop) | Shift |
+| Glide (hold in mid-air: you carry on the way you were going, slowing and sinking gently, free to look and aim, and guns scatter less; let go to stop) | Shift |
 | Jump | Space |
 | Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
 | Deathmatch: take out the weapon in slot 1 or 2 (you carry two) | 1 / 2 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |
-| Rocket boots (a burst toward WASD as you look; hold Space to tip it up; while floating, turns the float that way) | E |
+| Rocket boots (a burst toward WASD as you look; hold Space to tip it up; while gliding, turns the glide that way) | E |
 | Interact (press at the terminal in Halcyon's Control Room: low gravity) | G |
 | Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |

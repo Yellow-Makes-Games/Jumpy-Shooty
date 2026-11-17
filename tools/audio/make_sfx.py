@@ -1019,17 +1019,19 @@ def rocket_boost():
     return finish(mix(click(rng, 0.008, 0.0006, 2500) * 0.5, pop, sat(roar, 1.5), hiss, rumble))
 
 
-def float_spin():
-    """Floating: the legs snap out and whirl like a rotor. A servo spins up, then the
-    air chops as each leg comes round, for as long as a float lasts."""
-    rng = np.random.default_rng(9750)
-    d = 1.05
+def glide_wind():
+    """Gliding: soft, steady air past you for as long as a whole glide lasts (the
+    game fades it early when you let go sooner). It comes in quickly, thins and
+    falls a little in pitch as you slow, and dies away at the end."""
+    rng = np.random.default_rng(9751)
+    d = 1.7
     t = tt(d)
-    hold = np.clip(t / 0.08, 0.0, 1.0) * np.exp(-t / 0.55)
-    beat = 0.25 + 0.75 * np.abs(np.sin(2 * math.pi * 4.0 * t)) ** 3   # two legs, four turns a second: eight chops
-    air = sweep_bp(noise(rng, d), 350, 900, 1.0) * hold * beat * 0.9
-    return finish(mix(click(rng, 0.006, 0.0005, 3000) * 0.3, whoosh(rng, 0.3, 400, 2200, 1.3, 0.3) * 0.7, air,
-                      servo(rng, 0.5, 300, 1100, 0.3), metal_clack(rng, 0.5, 1.0, 0.7) * 0.35))
+    hold = np.clip(t / 0.12, 0.0, 1.0) * np.clip((d - t) / 0.35, 0.0, 1.0) * (0.55 + 0.45 * np.exp(-t / 0.7))
+    sway = 1.0 + 0.12 * np.sin(2 * math.pi * 0.9 * t + 0.6)
+    air = sweep_bp(noise(rng, d), 900, 520, 0.8) * hold * sway
+    low = lp(noise(rng, d), 220) * hold * 0.5
+    high = bp(noise(rng, d), 2600, 0.9) * hold * 0.12
+    return finish(mix(air, low, high))
 
 
 # ---------------------------------------------------------------------------
@@ -1177,7 +1179,7 @@ def recipes():
     r["kick"] = kick
     r["flying_kick"] = flying_kick
     r["rocket_boost"] = rocket_boost
-    r["float"] = float_spin
+    r["glide"] = glide_wind
     for i in range(2):
         r["slam_%d" % (i + 1)] = lambda i=i: slam(i)
     for mat in ["concrete", "wood", "glass"]:

@@ -114,12 +114,12 @@ const BODY_RADIUS := 0.4
 @export var belly_turn_rate := 0.7        ## how quickly you can steer a belly slide (radians per second)
 @export var belly_crawl_speed := 2.0      ## once the slide runs out (dive still held), you can crawl this fast
 
-@export_group("Float")
-@export var float_fall_speed := 2.0       ## while floating you sink this fast, no faster
-@export var float_gravity := 5.0          ## how quickly you reach that sinking speed (normal gravity is 22)
-@export var float_time := 1.0             ## press Shift in mid-air: you float for this long
-@export var float_min_speed := 5.0        ## a float carries you the way you face at least this fast (otherwise at the speed you had)
-@export var float_min_height := 0.5       ## no float this close above the floor (Shift there is just sprint)
+@export_group("Glide")
+@export var glide_time := 1.5             ## hold Shift in mid-air: seconds of glide per time in the air (spend it in pieces)
+@export var glide_drag := 1.6             ## how quickly your speed bleeds off while gliding (per second; higher = sooner)
+@export var glide_drift_speed := 4.0      ## ...down to this drift, never below it (slower than this, you keep what you have)
+@export var glide_fall_speed := 2.0       ## you sink this fast by the end of the budget; hardly at all at the start
+@export var glide_min_height := 0.5       ## no glide this close above the floor (Shift there is just sprint)
 
 @export_group("Flip")
 @export var flip_burst := 4.5             ## press jump in mid-air: this much speed toward your WASD direction

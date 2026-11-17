@@ -18,7 +18,7 @@ const TURN := 14.0           ## how quickly it turns to face where it runs (per 
 const STUCK_TIME := 5.0      ## seconds without getting closer to its next point before it resets
 const LOST_DROP := 4.0       ## standing this far below its next point (and not on its way down to it): it fell
 ## [hesitation before a hard move (s), chance to fluff a trick] for Easy .. Expert
-const JUMPS := [A.JUMP, A.LONG_JUMP, A.DIVE_JUMP, A.FLIP_DIVE, A.BOOST_JUMP, A.FLOAT_JUMP]
+const JUMPS := [A.JUMP, A.LONG_JUMP, A.DIVE_JUMP, A.FLIP_DIVE, A.BOOST_JUMP, A.GLIDE_JUMP]
 ## How far up a BOOST_JUMP tips the rocket boots (1 = as far up as forward).
 const BOOST_TILT := 0.45
 ## Speed on the plain stretches between obstacles (run-ups to jumps stay flat out).
@@ -83,6 +83,7 @@ func update(delta: float) -> void:
 	input.sprint = false
 	input.crouch = false
 	input.dive = false
+	input.glide = false
 	input.grapple = false
 	input.aim_origin = Vector3.ZERO
 	input.aim_dir = Vector3.ZERO
@@ -210,7 +211,7 @@ func _start_action(i: int) -> void:
 	_phase = 0
 	_seen_blocked = false
 	var hard: bool = _act in [A.LONG_JUMP, A.DIVE_JUMP, A.FLIP_DIVE, A.WALL_RUN, A.CHIMNEY, A.GRAPPLE, A.WAIT_GROUND,
-		A.BOOST_JUMP, A.BOOST_UP, A.FLOAT_JUMP]
+		A.BOOST_JUMP, A.BOOST_UP, A.GLIDE_JUMP]
 	# It sizes up standing starts (a chimney, a moving platform); a running jump
 	# keeps its run-up.
 	_wait = SKILL[level][0] * _rng.randf_range(0.5, 1.0) if _act in [A.CHIMNEY, A.WAIT_GROUND] and me.is_on_floor() else 0.0
@@ -292,7 +293,7 @@ func _do_action(delta: float, dir: Vector3, target: Dictionary) -> void:
 				input.boost_pressed = true
 				input.boost_dir = (Vector3(dir.x, 0.0, dir.z) * 0.25 + Vector3.UP).normalized()
 				_phase = 2
-		A.FLOAT_JUMP:
+		A.GLIDE_JUMP:
 			move = _line_dir(target.pos)
 			look = move
 			if _phase == 0:
@@ -305,16 +306,22 @@ func _do_action(delta: float, dir: Vector3, target: Dictionary) -> void:
 				if _carries_to(target.pos) and not _route_boost():
 					_phase = 4
 				else:
-					input.yaw = atan2(-move.x, -move.z)   # floats go the way it faces: face down the course first
-					input.float_pressed = true
+					input.glide_pressed = true   # Shift, at the top of the jump...
 					_phase = 2
-			elif _phase == 2 and _route_boost() and _act_time > 0.2 and me.motor.state == MovementController.State.FLOAT \
+			elif _phase == 2 and _route_boost() and me.motor.state == MovementController.State.GLIDE \
 					and me.motor.boost_readiness() >= 1.0:
-				input.boost_pressed = true
+				input.boost_pressed = true   # the boots, fired in the glide, send it down the course
 				input.boost_dir = move
 				_phase = 3
-			if _phase in [2, 3] and me.motor.state == MovementController.State.FLOAT:
-				move = Vector3.ZERO   # no steering while floating anyway
+			if _phase == 2 or _phase == 3:
+				# ...and held only until it would carry there by itself: a glide holds it
+				# up but slows it, so every moment more than that costs distance.
+				var boots_to_come := _phase == 2 and _route_boost()
+				if grounded or (not boots_to_come and _carries_to(target.pos)) or me.motor.glide_readiness() <= 0.0:
+					_phase = 4
+				else:
+					input.glide = true
+					move = Vector3.ZERO   # no steering while gliding anyway
 		A.SLIDE:
 			input.crouch = true
 			if _phase == 0:

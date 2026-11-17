@@ -11,9 +11,9 @@ extends RefCounted
 ##  5. Legs turn at the waist to face the way the robot is moving (it can strafe
 ##     and back-pedal while the upper body keeps aiming).
 ##  6. Recoil, and the left arm reaching for the grapple anchor.
-## Floating has no clip either: the legs are set straight out to the sides and the
-## pelvis turns them round like a rotor (see _float_legs), while everything above
-## the waist stays put and keeps aiming.
+## Gliding has no clip either: the legs are set trailing behind the way you are
+## going (see _glide_legs, and the waist turn in update), while everything above
+## the waist keeps aiming wherever you look.
 ## A melee weapon has no clips: MeleeSwing says where the weapon is (ready, wound up,
 ## mid-blow) and bends the arms to hold it, in both hands where the weapon allows.
 ## The clips come from the model file; see tools/robot/animations.py. A long gun has its
@@ -30,7 +30,7 @@ const WALL_SPEED := 10.5
 const FADE_DEFAULT := 0.12
 const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
-	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06, "float": 0.1}
+	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06, "glide": 0.14}
 const FLIPS := ["flip_front", "flip_back", "flip_left", "flip_right"]
 const VIEW_BACK := -0.02        ## first person: the front of the chest sits this far behind the eyes (just ahead of them)...
 const VIEW_BACK_DOWN := 0.32    ## ...and this much further back when looking straight down,
@@ -41,20 +41,19 @@ const VIEW_KEEP_LEAN := ["crouch", "slide", "dive", "roll", "belly_slide", "deat
 const VIEW_UPRIGHT_MAX := 0.6   ## radians of forward lean taken out, at most
 const VIEW_SIDE := 0.10         ## the body may shift this far sideways to stay under the eyes
 const VIEW_NECK_BELOW := 0.12   ## and its neck is kept at least this far below them
-const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right", "float"]
-## Floating: the legs go straight out to the sides and whirl round like a
-## helicopter's rotor, four turns a second.
-const FLOAT_SPIN_TIME := 0.25   ## seconds per turn of the legs
-const FLOAT_SPREAD := 80.0      ## degrees each leg is lifted out to its side (90 = level)
-const FLOAT_SWAY := 3.0         ## degrees the rotor tilts back and forth, slowly, so it is not dead flat
-const FLOAT_KNEE := 8.0         ## degrees of bend left in the knees
-const FLOAT_TOES := 30.0        ## degrees the toes are pointed
+const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right", "glide"]
+## Gliding: the legs trail behind you, further back the faster you go, and the
+## hips tip forward a little into the wind.
+const GLIDE_TRAIL := 42.0       ## degrees the legs trail back at GLIDE_TRAIL_SPEED and above
+const GLIDE_HANG := 8.0         ## ...and when you are hardly moving (hanging in the air)
+const GLIDE_TRAIL_SPEED := 14.0 ## m/s
+const GLIDE_LEAN := 14.0        ## degrees the hips tip forward at that speed
 ## [right arm, left arm, torso]: how much each follows the aim in each source.
 const AIM_WEIGHTS := {
 	"loco": [1.0, 1.0, 1.0], "crouch": [1.0, 1.0, 1.0], "slide": [1.0, 0.0, 1.0],
 	"air": [1.0, 1.0, 1.0], "tuck": [1.0, 1.0, 1.0], "grapple": [1.0, 0.0, 0.6],
 	"wall_l": [1.0, 0.0, 0.7], "wall_r": [1.0, 0.0, 0.7], "belly_slide": [1.0, 1.0, 0.35],
-	"float": [1.0, 1.0, 1.0],
+	"glide": [1.0, 1.0, 1.0],
 }
 
 var model: RobotModel
@@ -122,7 +121,6 @@ var _swing_key: Array = []   # the swing's pose this frame
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
-var _spin := 0.0          # floating: how far round the legs have turned (radians)
 
 var _b := {}                      # bone name -> index
 var _arm_r: PackedInt32Array
@@ -477,21 +475,16 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		if _reverse:
 			angle -= signf(angle) * PI
 		twist_target = -angle
-	elif key not in ["loco", "crouch"]:
+	elif key == "glide":
+		_reverse = false
+		if speed > 1.0:
+			twist_target = -atan2(local_vel.x, -local_vel.z)   # the legs trail behind wherever you are going, however far round that is
+	else:
 		_reverse = false
 	_twist = lerp_angle(_twist, twist_target, 1.0 - exp(-delta * 12.0))
-	# Floating: the pelvis turns the legs round and round. Afterwards it comes
-	# back to face forward by the shorter way.
-	if key == "float":
-		_spin = fposmod(_spin + TAU * delta / FLOAT_SPIN_TIME, TAU)
-	elif _spin != 0.0:
-		_spin = lerp_angle(_spin, 0.0, 1.0 - exp(-delta * 14.0))
-		if absf(angle_difference(_spin, 0.0)) < 0.01:
-			_spin = 0.0
-	var waist := _twist + _spin
-	if absf(waist) > 0.002:
+	if absf(_twist) > 0.002:
 		var h: Quaternion = _pose.rot[hips]
-		var turned := Quaternion(Vector3.UP, waist) * h
+		var turned := Quaternion(Vector3.UP, _twist) * h
 		_pose.rot[hips] = turned
 		_pose.rot[spine] = turned.inverse() * h * _pose.rot[spine]
 
@@ -543,7 +536,7 @@ func _pick(inp: RobotAnimInput) -> String:
 		S.ROLL: return "roll"
 		S.BELLY_SLIDE: return "belly_slide"
 		S.FLIP: return FLIPS[inp.flip()]
-		S.FLOAT: return "float"
+		S.GLIDE: return "glide"
 	return "air"
 
 
@@ -607,9 +600,9 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 			rig.sample(_pose, "air", _air_t * rig.length("air"))
 		"tuck":
 			_loop("air_tuck")
-		"float":
+		"glide":
 			rig.sample(_pose, "air", 0.5 * rig.length("air"))
-			_float_legs()
+			_glide_legs(Vector2(inp.velocity.x, inp.velocity.z).length())
 		"belly_slide":
 			# Sliding: a still pose. Slowed to a crawl: the knees work, at crawling pace.
 			_loop("belly_slide")
@@ -637,18 +630,23 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 				rig.sample(_pose, "air", 0.5 * rig.length("air"))
 
 
-## Floating: both legs straight out to the sides, toes pointed, the pair tilting
-## a little one way and the other. (The turning itself is done at the waist, in update.)
-func _float_legs() -> void:
-	var sway := sin(_time * TAU / 0.7) * FLOAT_SWAY
-	for side: float in [-1.0, 1.0]:
-		var s := "_l" if side < 0.0 else "_r"
-		var out := deg_to_rad(FLOAT_SPREAD + sway * side) * side
-		_pose.rot[_b["thigh" + s]] = Quaternion(Vector3.BACK, out)
-		_pose.rot[_b["shin" + s]] = Quaternion(Vector3.RIGHT, -deg_to_rad(FLOAT_KNEE))
-		_pose.rot[_b["foot" + s]] = Quaternion(Vector3.RIGHT, -deg_to_rad(FLOAT_TOES))
-	_pose.rot[_b["hips"]] = Quaternion.IDENTITY   # level, so the legs turn in a flat circle
-	_pose.pos[_b["hips"]] += Vector3(0.0, 0.02 * sin(_time * TAU / 1.3), 0.0)
+## Gliding: both legs together, trailing back (the waist turn in update points
+## "back" away from where you are going), the back one a little straighter than
+## the front, toes pointed, drifting gently. The hips tip forward with speed.
+func _glide_legs(speed: float) -> void:
+	var fast := clampf(speed / GLIDE_TRAIL_SPEED, 0.0, 1.0)
+	var trail := deg_to_rad(lerpf(GLIDE_HANG, GLIDE_TRAIL, fast))
+	var lean := deg_to_rad(GLIDE_LEAN) * fast
+	var drift := sin(_time * TAU / 1.6) * deg_to_rad(3.0)
+	_pose.rot[_b["hips"]] = Quaternion(Vector3.RIGHT, -lean)
+	# (thigh angles are from the tipped hips: the lean is already in them)
+	_pose.rot[_b["thigh_l"]] = Quaternion(Vector3.RIGHT, -(trail - lean) - drift) * Quaternion(Vector3.BACK, -0.05)
+	_pose.rot[_b["thigh_r"]] = Quaternion(Vector3.RIGHT, -(trail - lean) * 0.55 + drift) * Quaternion(Vector3.BACK, 0.05)
+	_pose.rot[_b["shin_l"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(14.0))
+	_pose.rot[_b["shin_r"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(lerpf(22.0, 48.0, fast)))
+	_pose.rot[_b["foot_l"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(35.0))
+	_pose.rot[_b["foot_r"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(35.0))
+	_pose.pos[_b["hips"]] += Vector3(0.0, 0.015 * sin(_time * TAU / 1.6), 0.0)
 
 
 func _loop(clip: String) -> void:

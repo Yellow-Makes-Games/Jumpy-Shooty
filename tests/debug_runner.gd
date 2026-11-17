@@ -148,42 +148,20 @@ func run() -> void:
 	_check(_hits.size() == 2 and is_equal_approx(health - dummy.health, hammer.charge_damage),
 		"letting go of a full wind-up hits much harder (%.1f damage)" % (health - dummy.health))
 	_check(not me.winding_up() and me.melee_charge() == 0.0, "and the wind-up is spent")
-	# Floating into someone: the whirling legs hit them once, for FloatSpin's damage.
-	await get_tree().create_timer(3.5).timeout   # left alone, the dummy heals
-	_hits.clear()
-	health = dummy.health
-	me.teleport(dummy.global_position + Vector3(-0.95, 1.2, 0), -PI / 2)   # in the air beside it, facing it
+	# Gliding: hold Shift in the air (through the real key), and guns scatter less while you do.
+	me.teleport(dummy.global_position + Vector3(-8, 6.0, 0), -PI / 2)
 	await _frames(2)
-	Input.action_press("float")
-	await _frames(3)
-	Input.action_release("float")
-	var floated := me.motor.state == MovementController.State.FLOAT
-	await get_tree().create_timer(1.3).timeout
-	_check(floated, "Shift in the air beside the dummy floats")
-	_check(_hits.size() == 1 and is_equal_approx(health - dummy.health, FloatSpin.DAMAGE),
-		"floating into a dummy hits it once with the legs (%.1f damage, %d hits)" % [health - dummy.health, _hits.size()])
-	# And into a player (a bot, standing still): hurt once and knocked away.
-	menu._add_bot()
-	Cheats.freeze_bots = true
-	await _frames(10)
-	var bot: Player = arena.get_player(menu._bots()[0])
-	bot.teleport(dummy.global_position + Vector3(-12.0, 0.1, 6.0), 0.0)
-	await get_tree().create_timer(0.5).timeout   # settles on the floor
-	var stood := bot.global_position
-	_hits.clear()
-	me.teleport(stood + Vector3(-0.95, 1.2, 0), -PI / 2)
-	await _frames(2)
-	Input.action_press("float")
-	await _frames(3)
-	Input.action_release("float")
-	await get_tree().create_timer(0.6).timeout
-	var bot_hits := _hits.filter(func(h): return h[1] == bot.peer_id)
-	_check(bot_hits.size() == 1 and is_equal_approx(bot_hits[0][2], FloatSpin.DAMAGE) and bot_hits[0][0] == me.peer_id,
-		"floating into a player hurts them once (%s)" % str(bot_hits))
-	_check(bot.global_position.x - stood.x > 2.0, "and knocks them away from you (%.1f m)" % (bot.global_position.x - stood.x))
-	Cheats.freeze_bots = false
-	menu._remove_bots(4)
-	await _frames(5)
+	var usual := me.spread_scale()
+	Input.action_press("glide")
+	await _frames(6)
+	var glided := me.motor.state == MovementController.State.GLIDE
+	var tight := me.spread_scale()
+	Input.action_release("glide")
+	await _frames(4)
+	_check(glided, "holding Shift in the air glides")
+	_check(is_equal_approx(usual, 1.0) and is_equal_approx(tight, Player.GLIDE_SPREAD), "spread is tighter while gliding (%.2f of the usual)" % tight)
+	_check(me.motor.state != MovementController.State.GLIDE, "letting go stops the glide")
+	await get_tree().create_timer(1.0).timeout   # back on the floor
 	DevArgs.drives_keys = false
 
 	# The menu opens offline (and builds every control without errors).

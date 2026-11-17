@@ -3,7 +3,7 @@ extends SceneTree
 ##  - the multiplier eases from 1.0 to 0.3 in 2 s, holds for 30 s, eases back in 2 s,
 ##    and the event stays busy through the 60 s cooldown after;
 ##  - a jump reaches about 1.2 m at normal gravity and about 4 m at 0.3, with the
-##    real movement code; wall runs and floats are lighter too;
+##    real movement code; wall runs and glides are lighter too;
 ##  - rockets and grenades fly exactly the same path either way: the host's copy
 ##    (Match) and the one everyone sees (Projectile);
 ##  - the event turns MapSpinners (the centrifuge) down to half speed and back;
@@ -177,23 +177,23 @@ func _jump_height(scale: float) -> float:
 
 
 func _light_moves() -> void:
-	print("  wall runs and floats")
+	print("  wall runs and glides")
 	var t := MovementTuning.new()
 	_expect(is_equal_approx(t.gravity, 22.0), "the tuning's own gravity is untouched (22)")
-	# The same step of a float and of a wall run, at normal and at low gravity.
+	# The same step of a glide and of a wall run, at normal and at low gravity.
 	var falls := {}
 	for scale in [1.0, 0.3]:
 		WorldGravity.scale = scale
 		var m := MovementController.new()
-		m.state = MovementController.State.FLOAT
-		m.set("_float_left", 1.0)
-		var floated: Vector3 = m.call("_float", Vector3(5, 0, 0), 0.1)
+		m.state = MovementController.State.GLIDE
+		m.set("_glide_left", 1.0)
+		var floated: Vector3 = m.call("_glide", Vector3(5, 0, 0), 0.1)
 		m.state = MovementController.State.WALL_RUN
 		m.wall_normal = Vector3(1, 0, 0)
 		var ran: Vector3 = m.call("_wall_run", Vector3(0, 0, 8), 0.1)
 		falls[scale] = [floated.y, ran.y]
 	WorldGravity.reset()
-	_expect(is_equal_approx(falls[0.3][0], falls[1.0][0] * 0.3), "a float sinks 30%% as fast (%.2f against %.2f m/s after 0.1 s)" % [falls[0.3][0], falls[1.0][0]])
+	_expect(is_equal_approx(falls[0.3][0], falls[1.0][0] * 0.3), "a glide sinks 30%% as fast (%.2f against %.2f m/s after 0.1 s)" % [falls[0.3][0], falls[1.0][0]])
 	_expect(is_equal_approx(falls[0.3][1], falls[1.0][1] * 0.3), "a wall run drops 30%% as fast (%.2f against %.2f m/s)" % [falls[0.3][1], falls[1.0][1]])
 
 

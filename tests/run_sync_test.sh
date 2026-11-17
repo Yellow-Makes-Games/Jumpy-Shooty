@@ -47,5 +47,5 @@ echo "PASS: all clients noticed the host leaving"
 fail=0
 python3 tests/check_sync.py "$OUT"/sync_*.log || fail=1
 echo "-- Animation: every copy shows what each player is doing"
-python3 tests/check_anim.py --need=loco,air,grapple,dive,belly_slide,flip_front,float --characters=2 "$OUT"/sync_*.log || fail=1
+python3 tests/check_anim.py --need=loco,air,grapple,dive,belly_slide,flip_front,glide --characters=2 "$OUT"/sync_*.log || fail=1
 exit $fail
