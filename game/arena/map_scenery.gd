@@ -8,6 +8,34 @@ extends RefCounted
 ## region to add to the scene.
 static func bake_navigation(level: Node3D) -> NavigationRegion3D:
 	var started := Time.get_ticks_msec()
+	var nav := _nav_settings()
+	var source := NavigationMeshSourceGeometryData3D.new()
+	NavigationServer3D.parse_source_geometry_data(nav, source, level)
+	NavigationServer3D.bake_from_source_geometry_data(nav, source)
+	var region := NavigationRegion3D.new()
+	region.name = "Navigation"
+	region.navigation_mesh = nav
+	print("Navigation mesh: %d polygons in %d ms" % [nav.get_polygon_count(), Time.get_ticks_msec() - started])
+	return region
+
+
+## Redoes the navigation mesh after the level changed (walls or floors broke), baking
+## on a background thread so the game does not stall; `done` is called (with a line
+## saying how long it took) when it is in.
+static func rebake_navigation(region: NavigationRegion3D, level: Node3D, done: Callable) -> void:
+	var started := Time.get_ticks_msec()
+	var nav := _nav_settings()
+	var source := NavigationMeshSourceGeometryData3D.new()
+	NavigationServer3D.parse_source_geometry_data(nav, source, level)
+	var parsed := Time.get_ticks_msec() - started
+	NavigationServer3D.bake_from_source_geometry_data_async(nav, source, func():
+		# (May run on the baking thread: hand the result back to the main one.)
+		if is_instance_valid(region):
+			region.set_deferred("navigation_mesh", nav)
+		done.call_deferred("%d polygons, parsed in %d ms, %d ms in all" % [nav.get_polygon_count(), parsed, Time.get_ticks_msec() - started]))
+
+
+static func _nav_settings() -> NavigationMesh:
 	var nav := NavigationMesh.new()
 	nav.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nav.geometry_collision_mask = 1
@@ -17,14 +45,7 @@ static func bake_navigation(level: Node3D) -> NavigationRegion3D:
 	nav.agent_height = 1.75
 	nav.agent_max_climb = 0.25   # the body cannot walk up a kerb, so paths must not cross one
 	nav.agent_max_slope = 46.0
-	var source := NavigationMeshSourceGeometryData3D.new()
-	NavigationServer3D.parse_source_geometry_data(nav, source, level)
-	NavigationServer3D.bake_from_source_geometry_data(nav, source)
-	var region := NavigationRegion3D.new()
-	region.name = "Navigation"
-	region.navigation_mesh = nav
-	print("Navigation mesh: %d polygons in %d ms" % [nav.get_polygon_count(), Time.get_ticks_msec() - started])
-	return region
+	return nav
 
 
 ## kind -> material, for every kind in the palette.

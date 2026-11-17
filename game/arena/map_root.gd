@@ -80,6 +80,12 @@ var route: Array = []
 var clock := 0.0
 ## If set, the moving parts follow this clock (seconds) instead of counting their own.
 var clock_source: Callable
+## Set before build(): walls and floors of the palette's breakable kinds can be broken
+## (arena matches; never races). Then `destruction` holds them (see MapDestruction).
+var destructible := false
+var destruction: MapDestruction
+## build() made meshes (false in the movement tests).
+var has_meshes := true
 
 var _materials := {}
 static var _fallback := {}
@@ -118,6 +124,11 @@ func build(with_meshes: bool = true) -> void:
 	_collect_dummies(self, Transform3D.IDENTITY)
 	for i in movers.size():
 		_build_mover(i, with_meshes)
+	has_meshes = with_meshes
+	if destructible:
+		destruction = MapDestruction.new()
+		add_child(destruction)
+		pieces = destruction.setup(self, pieces, spawns)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
 	add_child(body)

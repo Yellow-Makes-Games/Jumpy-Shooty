@@ -71,6 +71,13 @@ or WSL; I run these on every change anyway):
   a bot can walk to every level. To run one route and
   print what the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless
   --path . --script tests/site_test.gd`;
+- breakable walls and floors (`tests/destruction_test.gd`): the arena maps have them and
+  race maps none, no spawn stands on floor that can break, an intact wall still collides
+  as one box, damage cracks then breaks a piece and a shot then goes through the hole;
+  online (`tests/run_break_test.sh`, laggy network) the host shoots the floor out from
+  under itself and falls through, a client breaks a wall, a player joining mid-match is
+  shown what is broken and every copy agrees; the match test also checks every copy
+  ends each match with the same broken pieces;
 - the debug menu and target dummies, in a real Practice match on the Testing Grounds:
   body shots and headshots on a dummy, it goes down and gets back up, god mode, infinite
   ammo, adding and removing bots, changing robot and gun, game speed, and that no cheat
@@ -189,6 +196,16 @@ type its name into a block's Kind. The MapRoot's inspector also has the map's ru
 **Bounds** (leave it and you are out; drawn as a red rectangle), **Kill Height** and the
 **Swing Point** the test player hooks.
 
+**Breakable walls and floors.** A palette's **Breakable** list names the kinds that can
+be broken and how much damage a piece of each takes (a pistol shot is 25; below 50 a
+whole pane shatters at once, for glass). Only thin walls and floors of those kinds break
+(at most 0.6 m thick, at least 7 m² of face, solid, drawn, box-shaped), and only in arena
+matches. Tick **Unbreakable** on a block to keep one that a route needs. In the game
+each breakable block is cut into about 2 m pieces. Pieces near a spawn, and pieces that
+something else rests on, hangs from or passes through, never break; thin drawn-only
+blocks lying flat on a breakable one (a ceiling under a floor, a rug, a lamp strip,
+frosting on glass) break along with it. The code is `game/arena/map_destruction.gd`.
+
 **Trying it.** With a map scene open, press **F6** (run current scene): the game starts in
 practice mode on that map. In the game, all blocks of one kind are merged into a single
 mesh and the bots' navigation mesh is worked out from the solid blocks, so moving
@@ -214,6 +231,7 @@ The scripts behind this:
 | `game/arena/maps.gd` | The list of maps (id, name, scene). Add a map here and it shows up in the menus |
 | `game/arena/map_root.gd`, `map_block.gd`, `map_spawn.gd`, `map_palette.gd` | The node types above; `MapRoot.build()` turns the blocks into collision and meshes |
 | `game/arena/map_mesher.gd`, `map_scenery.gd` | One merged mesh per kind, the materials, the navigation mesh |
+| `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
 | `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline |
 
 To render pictures of a map without opening the game:

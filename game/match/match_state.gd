@@ -208,6 +208,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	# Rewind each opponent once to what the shooter saw.
 	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
 	var bodies := _rewound_bodies(shooter, view_times)   # [id, feet, height, facing yaw]
+	var breaks := _breakables()
 
 	var damage := {}   # target id -> total damage of this shot
 	var heads := {}    # target id -> a pellet hit the head
@@ -220,8 +221,11 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		# How far the pellet can travel before hitting the level.
 		var end := origin + direction * weapon.max_range
 		var world_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, end, 1))  # layer 1: level only
+		var wall_cell := -1
 		if world_hit:
 			end = world_hit.position
+			if breaks:
+				wall_cell = breaks.cell_at(world_hit.collider, world_hit.position, world_hit.normal)
 		# The nearest opponent the pellet passes through.
 		var best_target := 0
 		var best_dist := INF
@@ -251,10 +255,13 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 			shove[best_target] = shove.get(best_target, Vector3.ZERO) \
 				+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
 			heads[best_target] = heads.get(best_target, false) or best_head
+		elif wall_cell >= 0:
+			breaks.damage(wall_cell, weapon.damage_at(origin.distance_to(end)) * weapon.structure_damage)
 		ends.append(end)
 		if DevArgs.sync_log:
 			log.append(("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss")
 	_shot_effect.rpc(shooter, origin, ends, hit_mask)
+	_flush_breaks()
 	for id in damage:
 		if is_dummy(id):
 			_host_dummy_damage(shooter, id, damage[id], heads[id])
@@ -354,6 +361,13 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 		# Also a SHOT line like a gun's, so the tests count blows as shots and hits.
 		print("SHOT %d %s" % [attacker, ("hit %d at melee" % hits[0][0]) if not hits.is_empty() else "miss"])
 	_melee_effect.rpc(attacker, weapon.id, points)
+	# The blow also lands on a breakable wall or floor right in front.
+	var breaks := _breakables()
+	if breaks:
+		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * (weapon.max_range + 0.5), 1))
+		if wall:
+			breaks.damage(breaks.cell_at(wall.collider, wall.position, wall.normal), weapon.damage * weapon.structure_damage)
+			_flush_breaks()
 	for h in hits:
 		if is_dummy(h[0]):
 			_host_dummy_damage(attacker, h[0], h[1], false)
@@ -365,6 +379,56 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 @rpc("authority", "call_local", "unreliable")
 func _melee_effect(attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
 	melee_landed.emit(attacker, weapon_id, points)
+
+
+# ---------------------------------------------------------------------------
+# Breakable walls and floors (see MapDestruction). The host damages them; everyone
+# is told which pieces cracked or broke.
+
+func _breakables() -> MapDestruction:
+	if Net.arena == null or Race.active:
+		return null
+	var layout: MapRoot = Net.arena.get("layout")
+	return layout.destruction if layout else null
+
+
+func _flush_breaks() -> void:
+	var d := _breakables()
+	if d == null:
+		return
+	var changed := d.flush()
+	if changed.is_empty():
+		return
+	_breaks.rpc(changed[0], changed[1])
+	if DevArgs.sync_log:
+		var broke := 0
+		for s in (changed[1] as PackedByteArray):
+			if s >= MapDestruction.BROKEN:
+				broke += 1
+		print("BREAK %d cells changed, %d broken" % [(changed[0] as PackedInt32Array).size(), broke])
+
+
+@rpc("authority", "call_local", "reliable")
+func _breaks(cells: PackedInt32Array, stages: PackedByteArray) -> void:
+	var d := _breakables()
+	if d:
+		d.apply(cells, stages)
+		if DevArgs.sync_log:
+			print("BROKEN_STATE %s" % d.state_key())
+
+
+## A copy that has just built the arena asks the host what is already broken.
+func request_breaks() -> void:
+	if not Net.is_host():
+		_breaks_request.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _breaks_request() -> void:
+	var d := _breakables()
+	if Net.is_host() and d:
+		var all := d.snapshot()
+		_breaks.rpc_id(multiplayer.get_remote_sender_id(), all[0], all[1])
 
 
 # ---------------------------------------------------------------------------

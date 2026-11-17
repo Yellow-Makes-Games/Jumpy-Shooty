@@ -759,6 +759,38 @@ def slam(seed):
     return finish(mix(dry, fftconv(lp(dry, 2200), room_ir(rng, 0.8, 2200)) * 0.25))
 
 
+def break_sound(mat, seed):
+    """A piece of wall or floor giving way: concrete crumbles with a deep crack and a
+    rattle of chunks, wood splinters and clatters, glass shatters and tinkles down."""
+    rng = np.random.default_rng(9700 + seed + {"concrete": 0, "wood": 10, "glass": 20}[mat])
+    length = 1.1 if mat != "glass" else 1.3
+    debris = np.zeros(n(length))
+    pieces = {"concrete": (14, 22), "wood": (10, 16), "glass": (26, 40)}[mat]
+    for _ in range(rng.integers(*pieces)):
+        at = n(rng.uniform(0.02, length * 0.75) ** 1.4 / length ** 0.4)
+        if mat == "glass":
+            d = modal(rng, 0.25, [rng.uniform(2500, 4200), rng.uniform(5000, 7500)], [0.04, 0.03], [0.05, 0.03]) * rng.uniform(0.15, 0.45)
+        elif mat == "wood":
+            d = bp(click(rng, 0.03, 0.002, 900), rng.uniform(500, 1100), 1.2) * rng.uniform(0.2, 0.6)
+        else:
+            d = lp(click(rng, 0.02, 0.0012, 1400), 2600) * rng.uniform(0.2, 0.55)
+        debris[at:at + len(d)] += d[: len(debris) - at]
+    if mat == "glass":
+        crack = hp(noise(rng, 0.08), 2500) * env(0.08, 0.002, 0.0001) * 1.2
+        body = modal(rng, 0.7, [1800, 3100, 4700, 6900], [0.2, 0.15, 0.1, 0.06], [0.3, 0.2, 0.12, 0.06], 0.01)
+        dry = mix(crack, body, debris)
+    elif mat == "wood":
+        crack = bp(noise(rng, 0.12), 1400, 0.9) * env(0.12, 0.004, 0.0003) * 1.6
+        groan = sat(sine_sweep(0.35, 160, 70, 0.02) * env(0.35, 0.08) * 1.4, 1.6) * 0.5
+        dry = mix(crack, groan, debris)
+    else:
+        boom = sat(sine_sweep(0.7, 90, 32, 0.03) * env(0.7, 0.18, 0.001) * 2.0, 2.4)
+        crack = lp(hp(noise(rng, 0.1), 600), 4500) * env(0.1, 0.003, 0.0002) * 1.3
+        grit = bp(noise(rng, 0.9), 650, 0.5) * env(0.9, 0.3, 0.002) * 0.9
+        dry = mix(boom, crack, grit, debris)
+    return finish(mix(dry, fftconv(lp(dry, 2400), room_ir(rng, 0.9, 2400)) * 0.3))
+
+
 def equip_melee(name):
     """Drawing a blade or hefting the hammer: a whoosh and a ring of steel (a clunk for the hammer)."""
     rng = np.random.default_rng(9500 + ["sword", "hammer", "dagger"].index(name))
@@ -832,6 +864,9 @@ def recipes():
     r["hammer_hit"] = hammer_hit
     for i in range(2):
         r["slam_%d" % (i + 1)] = lambda i=i: slam(i)
+    for mat in ["concrete", "wood", "glass"]:
+        for i in range(2):
+            r["break_%s_%d" % (mat, i + 1)] = lambda mat=mat, i=i: break_sound(mat, i)
     return r
 
 

@@ -12,13 +12,20 @@ var debug_menu: DebugMenu
 var dummies: Array = []
 ## Race maps: the drawn checkpoint gates, in the order racers pass them.
 var gates: Array = []
+## Seconds until the bots' navigation mesh is redone after walls or floors broke.
+var _nav_rebake := 0.0
+var _nav_baking := false
+const NAV_REBAKE_DELAY := 0.6
 
 
 func _ready() -> void:
 	layout = Maps.make(Net.map_id())
 	layout.name = "Level"
 	add_child(layout)
+	layout.destructible = not Race.active and Maps.game_of(Net.map_id()) != "race"
 	layout.build()
+	if layout.destruction:
+		layout.destruction.cells_changed.connect(_on_cells_changed)
 	if Race.active:
 		layout.clock_source = func(): return Race.time + Race.COUNTDOWN   # moving parts in step on every copy
 		_build_gates()
@@ -43,6 +50,8 @@ func _ready() -> void:
 	Match.shot_fired.connect(_on_shot_fired)
 	_sync_players()
 	_capture_mouse(true)
+	if layout.destruction:
+		Match.request_breaks()   # joining a match in progress: what is broken already
 
 
 func _exit_tree() -> void:
@@ -72,7 +81,11 @@ func _physics_process(_delta: float) -> void:
 			(p as Player).report_fell_once()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if _nav_rebake > 0.0:
+		_nav_rebake -= delta
+		if _nav_rebake <= 0.0:
+			_rebake_navigation()
 	if local_player:
 		hud.update_local(local_player)
 		if Race.active:
@@ -204,6 +217,41 @@ func _menu_open() -> bool:
 func ensure_navigation() -> void:
 	if not has_node("Navigation"):
 		add_child(MapScenery.bake_navigation(layout))
+
+
+## Walls or floors cracked or broke: let go of ropes hooked onto the broken bits, and
+## (host, with bots) redo the bots' map of where they can walk.
+func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void:
+	var gone: Array = []
+	for i in cells.size():
+		if stages[i] >= MapDestruction.BROKEN:
+			gone.append(layout.destruction.cell_box(cells[i]).grow(0.15))
+	if gone.is_empty():
+		return
+	for p in players_root.get_children():
+		var player := p as Player
+		if not player.is_local or player.motor == null or not player.motor.grapple.attached:
+			continue
+		for box in gone:
+			if (box as AABB).has_point(player.motor.grapple.anchor):
+				player.motor.grapple.release()
+				break
+	if Net.is_host() and has_node("Navigation"):
+		_nav_rebake = NAV_REBAKE_DELAY   # a burst of breaks is redone once
+
+
+func _rebake_navigation() -> void:
+	if _nav_baking:
+		_nav_rebake = NAV_REBAKE_DELAY   # still busy with the last one: go again after
+		return
+	var region := get_node_or_null("Navigation") as NavigationRegion3D
+	if region == null:
+		return
+	_nav_baking = true
+	MapScenery.rebake_navigation(region, layout, func(info: String):
+		_nav_baking = false
+		if DevArgs.sync_log:
+			print("NAV_REBAKE " + info))
 
 
 ## Debug menu: rebuilds a player from Net.players (after changing their robot or
