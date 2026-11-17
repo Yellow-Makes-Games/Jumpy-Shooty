@@ -211,10 +211,30 @@ func _steps(a: RobotAnimInput, state: int, speed: float, delta: float) -> void:
 	_stride += speed * delta
 	if _stride >= stride:
 		_stride = 0.0
+		# What you are standing on changes the step (see BlockMaterials). A wall run
+		# keeps the plain step: the wall is beside you, not under you.
+		var pitch := 1.0
+		if state != S.WALL_RUN:
+			var info := BlockMaterials.info(surface())
+			if sound == "step":
+				sound = info.step
+			pitch = info.step_pitch
+			vol += info.step_db
+		var p: Node
 		if own:
-			Sound.play(sound, vol, 0.07)
+			p = Sound.play(sound, vol, 0.07)
 		else:
-			Sound.play_at(sound, player.global_position, "step", vol, 0.07)
+			p = Sound.play_at(sound, player.global_position, "step", vol, 0.07)
+		if p:
+			p.pitch_scale *= pitch
+
+
+## What this player is standing on (a BlockMaterials name).
+func surface() -> String:
+	var map := MapRoot.current
+	if map == null or not is_instance_valid(map):
+		return BlockMaterials.DEFAULT
+	return map.material_at(player.global_position)
 
 
 func _gun(a: RobotAnimInput, delta: float) -> void:

@@ -8,6 +8,9 @@ extends Node3D
 ##  - MapSpawn nodes: where players appear.
 ##  - MapDummy nodes: target dummies to shoot at (test maps).
 ##  - MapWeaponSpawn nodes (under "WeaponSpawns"): Deathmatch weapon pickups.
+##  - MapGrapplePoint nodes: glowing spots the grappling hook snaps to when you aim
+##    near them (any map, any mode).
+##  - MapItemSpawn nodes (under "ItemSpawns"): Deathmatch power-ups (health, damage).
 ##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
 ##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
@@ -72,6 +75,8 @@ var spawns: Array = []
 var dummies: Array = []
 ## [position, weapon id] of every Deathmatch weapon pickup (MapWeaponSpawn); filled in by build().
 var weapon_spawns: Array = []
+## [position, item kind] of every Deathmatch power-up (MapItemSpawn); filled in by build().
+var item_spawns: Array = []
 ## Race maps, filled in by build(). Checkpoints: {number, finish, xf, opening},
 ## sorted by number. Hazards: {xf, size, shape, mover} (mover = index into movers,
 ## or -1). Movers: {node: MapMover, base: Transform3D, body: AnimatableBody3D}.
@@ -136,6 +141,8 @@ func build(with_meshes: bool = true) -> void:
 	for i in movers.size():
 		_build_mover(i, with_meshes)
 	has_meshes = with_meshes
+	_index_surfaces(pieces)
+	current = self
 	if destructible:
 		destruction = MapDestruction.new()
 		add_child(destruction)
@@ -158,6 +165,76 @@ func build(with_meshes: bool = true) -> void:
 		mesh.mesh = meshes[kind]
 		mesh.material_override = material_for(kind)
 		add_child(mesh)
+
+
+const SURFACE_BUCKET := 4.0
+
+## The map being played (set by build()), for things that ask about the ground,
+## like footsteps. Null between matches.
+static var current: MapRoot
+
+var _surfaces := {}   # Vector2i bucket -> [{inv: Transform3D, half: Vector3, round: bool, top: float, material}]
+
+
+## Files every solid block by where it is (flat, on the ground plan) with what it
+## is made of, so material_at() only looks at the blocks near a point.
+func _index_surfaces(pieces: Array) -> void:
+	_surfaces = {}
+	for p in pieces:
+		if not p.solid:
+			continue
+		var xf: Transform3D = p.xf
+		var half: Vector3 = p.size * 0.5
+		var box: AABB = xf * AABB(-half, p.size)
+		var lo := Vector2i(floori(box.position.x / SURFACE_BUCKET), floori(box.position.z / SURFACE_BUCKET))
+		var hi := Vector2i(floori(box.end.x / SURFACE_BUCKET), floori(box.end.z / SURFACE_BUCKET))
+		if (hi - lo).length() > 30:
+			continue   # the ground or a sky box: answered by the fallback below
+		var mat: String = p.get("material", "")
+		if not BlockMaterials.TABLE.has(mat):
+			mat = BlockMaterials.for_kind(p.kind, palette)
+		var entry := {"inv": xf.affine_inverse(), "half": half, "round": p.shape != "box", "top": box.end.y, "material": mat}
+		for x in range(lo.x, hi.x + 1):
+			for z in range(lo.y, hi.y + 1):
+				var key := Vector2i(x, z)
+				if not _surfaces.has(key):
+					_surfaces[key] = []
+				_surfaces[key].append(entry)
+	_ground_material = ""
+	var biggest := 0.0
+	for p in pieces:   # the biggest flat solid block is "the ground"
+		if p.solid and p.size.x * p.size.z > biggest:
+			biggest = p.size.x * p.size.z
+			var m: String = p.get("material", "")
+			_ground_material = m if BlockMaterials.TABLE.has(m) else BlockMaterials.for_kind(p.kind, palette)
+
+
+var _ground_material := ""
+
+
+## What the block at `point` (or just under it, within `below` metres) is made of:
+## a BlockMaterials name. The highest such block wins. Feet on the ground: pass
+## the player's position.
+func material_at(point: Vector3, below: float = 0.25) -> String:
+	var best := ""
+	var best_top := -INF
+	var key := Vector2i(floori(point.x / SURFACE_BUCKET), floori(point.z / SURFACE_BUCKET))
+	for e in _surfaces.get(key, []):
+		var local: Vector3 = (e.inv as Transform3D) * point
+		var half: Vector3 = e.half
+		if local.y < -half.y or local.y > half.y + below:
+			continue
+		if e.round:
+			if Vector2(local.x, local.z).length() > half.x:
+				continue
+		elif absf(local.x) > half.x or absf(local.z) > half.z:
+			continue
+		if e.top > best_top:
+			best_top = e.top
+			best = e.material
+	if best == "":
+		best = _ground_material if _ground_material != "" else BlockMaterials.DEFAULT
+	return best
 
 
 ## Every visible block as a piece (see MapBlock.to_piece), in the map's frame.
@@ -195,6 +272,8 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			spawn_list.append([at.origin + Vector3(0, 0.2, 0), atan2(at.basis.z.x, at.basis.z.z)])
 		elif child is MapWeaponSpawn:
 			weapon_spawns.append([at.origin, (child as MapWeaponSpawn).weapon])
+		elif child is MapItemSpawn:
+			item_spawns.append([at.origin, (child as MapItemSpawn).item])
 		elif child is MapCheckpoint:
 			var c := child as MapCheckpoint
 			checkpoints.append({"number": c.number, "finish": c.finish, "opening": c.opening,

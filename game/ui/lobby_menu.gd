@@ -17,6 +17,7 @@ var _host_rules: HBoxContainer
 var _mode_pick: OptionButton
 var _amount: SpinBox
 var _amount_unit: Label
+var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
 var _map_label: Label
 var _map_pick: OptionButton
 var _character: CharacterPicker
@@ -256,6 +257,17 @@ func _build_rules() -> void:
 			s.minutes = int(v)
 		if s != Net.match_settings:
 			Net.set_match_settings(s))
+	# Deathmatch only: power-ups (health, uber health, double damage) on the map or not.
+	_powerups = CheckButton.new()
+	_powerups.text = "Power-ups (health, uber, double damage)"
+	_powerups.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(_powerups)
+	_powerups.toggled.connect(func(on: bool):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["powerups"] = on
+		Net.set_match_settings(s))
 
 
 func _refresh_rules() -> void:
@@ -289,6 +301,9 @@ func _refresh_rules() -> void:
 		(_game_row.get_child(i) as Button).set_pressed_no_signal(GunGame.MODES[i] == GunGame.mode_of(s))
 	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
 	_mode_pick.select(0 if kills_mode else 1)
+	_powerups.visible = Net.is_deathmatch()
+	_powerups.disabled = not Net.is_host()   # everyone else just sees the host's choice
+	_powerups.set_pressed_no_signal(Net.powerups_on())
 	if race:
 		_amount.min_value = 2
 		_amount.max_value = 30

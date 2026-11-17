@@ -39,9 +39,32 @@ enum Shape { BOX, CYLINDER, TUBE }
 		drawn = v
 		_changed()
 
-## Never breaks, even if its kind can (see the palette's Breakable list). For a
-## landing or a floor a route needs.
-@export var unbreakable := false
+## What it is made of: its footsteps and how it breaks (see BlockMaterials).
+## Blank = from its kind (the palette's Material list, else guessed from the name).
+@export var material_type := "":
+	set(v):
+		material_type = v
+		_changed()
+
+enum Breakable { DEFAULT, YES, NO }
+
+@export_group("Breaking")
+## Default: breaks if its kind is in the palette's Breakable list. Yes: breaks even
+## if its kind is not. No: never breaks (a landing or a floor a route needs).
+## Only in arena matches, never races.
+@export var breakable := Breakable.DEFAULT:
+	set(v):
+		breakable = v
+		notify_property_list_changed()
+		_changed()
+
+## How it breaks: health, and per cell or whole block (see BlockBreakable). Empty =
+## the kind's toughness from the palette, broken per cell.
+@export var break_settings: BlockBreakable:
+	set(v):
+		break_settings = v
+		_changed()
+@export_group("")
 
 ## Multiplied into the kind's colour, to make one block a little lighter or darker.
 @export var tint := Color.WHITE:
@@ -80,8 +103,13 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["hidden"] = true
 	if tint != Color.WHITE:
 		piece["tint"] = tint
-	if unbreakable:
-		piece["unbreakable"] = true
+	if breakable != Breakable.DEFAULT:
+		piece["breakable"] = breakable == Breakable.YES
+	if break_settings:
+		piece["health"] = break_settings.block_health
+		piece["break_mode"] = BlockBreakable.MODE_NAMES[break_settings.break_mode]
+	if material_type != "":
+		piece["material"] = material_type
 	if shape != Shape.BOX:
 		piece["sides"] = sides
 	if shape == Shape.TUBE:
@@ -161,8 +189,23 @@ func preview_triangles() -> TriangleMesh:
 	return _triangles
 
 
+## Maps saved before Breakable existed say "unbreakable = true".
+func _set(property: StringName, value: Variant) -> bool:
+	if property == &"unbreakable":
+		if value:
+			breakable = Breakable.NO
+		return true
+	return false
+
+
 func _validate_property(property: Dictionary) -> void:
 	match property.name:
+		"material_type":
+			property.hint = PROPERTY_HINT_ENUM_SUGGESTION
+			property.hint_string = ",".join(BlockMaterials.names())
+		"break_settings":
+			if breakable == Breakable.NO:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"kind":
 			var root := MapRoot.of(self) if is_inside_tree() else null
 			if root and root.palette:
@@ -180,6 +223,12 @@ func _get_configuration_warnings() -> PackedStringArray:
 	var root := MapRoot.of(self)
 	if root == null:
 		return ["A map block only shows up in the game inside a map (a scene whose root is a MapRoot)."]
+	var warnings := PackedStringArray()
 	if root.palette and not root.palette.colors.has(kind):
-		return ["The map's palette has no colour for \"%s\"." % kind]
-	return []
+		warnings.append("The map's palette has no colour for \"%s\"." % kind)
+	if material_type != "" and not BlockMaterials.TABLE.has(material_type):
+		warnings.append("\"%s\" is not a material (see BlockMaterials); it will sound like %s." % [material_type, BlockMaterials.DEFAULT])
+	var whole := break_settings != null and break_settings.break_mode == BlockBreakable.Mode.WHOLE_BLOCK
+	if breakable == Breakable.YES and not whole and not MapDestruction.thin_enough(shape, size):
+		warnings.append("Only thin walls and floors (a box at most %.1f m thick and %d m² across) break per cell. Set Break Settings to Whole Block to break this one." % [MapDestruction.MAX_THICKNESS, int(MapDestruction.MIN_AREA)])
+	return warnings

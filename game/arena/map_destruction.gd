@@ -2,11 +2,16 @@ class_name MapDestruction
 extends Node3D
 ## Walls and floors you can shoot or smash through (arena maps only, never races).
 ##
-## Which pieces break: a block whose kind is listed in the palette's `breakable`
-## (with how much damage it takes), that is a thin wall or floor (one side at most
-## MAX_THICKNESS, the face at least MIN_AREA square metres), solid and drawn, and not
-## ticked `unbreakable`. Each such "panel" is cut into cells of about CELL metres
-## (glass and other weak kinds break as one pane). A cell takes the kind's damage,
+## Which pieces break: solid, drawn blocks whose Breakable is Yes, or Default with
+## their kind in the palette's `breakable` list (never No). Health is the block's
+## Break Settings health, else the kind's toughness. Two ways to break:
+##  - Per cell (the usual): only a thin wall or floor (a box, one side at most
+##    MAX_THICKNESS, the face at least MIN_AREA square metres). Each such "panel" is
+##    cut into cells of about CELL metres (glass and other weak kinds break as one
+##    pane), each with that health.
+##  - Whole block: any block, one "panel" of one cell that has all the health and
+##    goes at once. What rests on it stays where it is.
+## A cell takes damage,
 ## cracks (darkens) at two thirds and one third left, then breaks: its collision and
 ## drawing go, rubble falls and a crash plays. It stays broken until the match ends.
 ##
@@ -51,10 +56,9 @@ func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
 	root = map
 	name = "Breakables"
 	var table: Dictionary = map.palette.breakable if map.palette else {}
-	if table.is_empty():
-		return pieces
 	var keep := []
 	var panel_pieces := []
+	var whole_pieces := []
 	var seen := {}
 	for piece in pieces:
 		if _can_break(piece, table):
@@ -69,13 +73,18 @@ func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
 		return pieces
 	# Thin drawn-only pieces lying flat on a panel go with it (cut cell by cell).
 	var skin_of := {}   # index in keep -> panel index
-	for i in panel_pieces.size():
-		_add_panel(panel_pieces[i], float(table[panel_pieces[i].kind]))
+	for piece in panel_pieces:
+		var whole: bool = piece.get("break_mode", "cell") == "whole"
+		_add_panel(piece, health_of(piece, table), whole)
+		if whole:
+			whole_pieces.append(piece)
 	for k in keep.size():
 		var p: Dictionary = keep[k]
 		if p.solid or p.get("hidden", false) or p.shape != "box":
 			continue
 		for i in panels.size():
+			if panels[i].whole:
+				continue
 			var box := _skin_box(panels[i], p)
 			if box.has_volume():
 				panels[i].skins.append({"kind": p.kind, "tint": p.get("tint", Color.WHITE), "box": box})
@@ -85,37 +94,65 @@ func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
 	for k in keep.size():
 		if not skin_of.has(k):
 			rest.append(keep[k])
-	_protect(rest, spawn_points)
+	# Whole blocks count as things resting on a floor: a floor under a crate holds.
+	_protect(rest + whole_pieces, spawn_points)
 	for i in panels.size():
 		_rebuild_panel(i)
 	return rest
 
 
 func _can_break(piece: Dictionary, table: Dictionary) -> bool:
-	if not table.has(piece.kind) or not piece.solid or piece.get("hidden", false) or piece.get("unbreakable", false):
+	if not piece.solid or piece.get("hidden", false):
 		return false
-	if piece.shape != "box":
+	if not piece.get("breakable", table.has(piece.kind)):
 		return false
-	var s: Vector3 = piece.size
+	if piece.get("break_mode", "cell") == "whole":
+		return true
+	return thin_enough_piece(piece)
+
+
+static func thin_enough_piece(piece: Dictionary) -> bool:
+	return piece.shape == "box" and _thin(piece.size)
+
+
+## Can a block of this shape and size break per cell? (MapBlock's warning asks.)
+static func thin_enough(shape: int, size: Vector3) -> bool:
+	return shape == MapBlock.Shape.BOX and _thin(size)
+
+
+static func _thin(s: Vector3) -> bool:
 	var dims := [s.x, s.y, s.z]
 	dims.sort()
 	return dims[0] <= MAX_THICKNESS and dims[1] * dims[2] >= MIN_AREA
 
 
-func _add_panel(piece: Dictionary, toughness: float) -> void:
+## How much damage a cell of this piece takes: its own health, else its kind's
+## toughness from the palette, else BlockBreakable.DEFAULT_HEALTH.
+static func health_of(piece: Dictionary, table: Dictionary) -> float:
+	var own: float = piece.get("health", 0.0)
+	if own > 0.0:
+		return own
+	var kind_health: float = float(table.get(piece.kind, 0.0))
+	return kind_health if kind_health > 0.0 else BlockBreakable.DEFAULT_HEALTH
+
+
+func _add_panel(piece: Dictionary, toughness: float, whole: bool = false) -> void:
 	var s: Vector3 = piece.size
 	var thin := 0
 	for a in 3:
 		if s[a] < s[thin]:
 			thin = a
 	var n := Vector3i.ONE
-	if toughness >= ONE_PIECE_BELOW:
+	if toughness >= ONE_PIECE_BELOW and not whole:
 		for a in 3:
 			if a != thin:
 				n[a] = maxi(1, roundi(s[a] / CELL))
+	var mat: String = piece.get("material", "")
+	if not BlockMaterials.TABLE.has(mat):
+		mat = BlockMaterials.for_kind(piece.kind, root.palette)
 	var panel := {"xf": piece.xf, "size": s, "kind": piece.kind, "tint": piece.get("tint", Color.WHITE),
 		"n": n, "cell": Vector3(s.x / n.x, s.y / n.y, s.z / n.z), "first": cells.size(), "thin": thin,
-		"skins": [], "body": null, "meshes": null}
+		"skins": [], "body": null, "meshes": null, "whole": whole, "piece": piece, "material": mat}
 	var index := panels.size()
 	panels.append(panel)
 	for k in n.z:
@@ -190,8 +227,8 @@ func _protect(others: Array, spawn_points: Array) -> void:
 			var flat := Vector2(clampf(at.x, box.position.x, box.end.x) - at.x, clampf(at.z, box.position.z, box.end.z) - at.z)
 			if flat.length() < SPAWN_GUARD and box.end.y > at.y - 1.5 and box.position.y < at.y + 3.0:
 				cell.protected = true
-		if cell.protected:
-			continue
+		if cell.protected or panels[cell.panel].whole:
+			continue   # (a whole block breaks even with things on it: they stay put)
 		var lo := Vector3i((box.position / bucket).floor())
 		var hi := Vector3i((box.end / bucket).floor())
 		var floor_panel: bool = panels[cell.panel].thin == 1
@@ -256,15 +293,9 @@ func cell_at(body: Object, point: Vector3, normal: Vector3) -> int:
 	return panel.first + i.x + n.x * (i.y + n.y * i.z)
 
 
-## A panel kind's name for sounds and rubble: "glass", "wood" or "concrete".
+## What a cell is made of, for sounds and rubble (a BlockMaterials name).
 func material_of(c: int) -> String:
-	var kind: String = panels[cells[c].panel].kind
-	if "glass" in kind:
-		return "glass"
-	for w in ["plank", "ply", "partition", "board", "wood", "desk", "crate"]:
-		if w in kind:
-			return "wood"
-	return "concrete"
+	return panels[cells[c].panel].material
 
 
 # ---------------------------------------------------------------------------
@@ -383,6 +414,9 @@ func _rebuild_panel(index: int) -> void:
 		body.remove_child(child)
 		child.free()
 	var first: int = panel.first
+	if panel.whole:
+		_rebuild_whole(panel)
+		return
 	var solid := func(c: int) -> int: return 0 if cells[first + c].stage >= BROKEN else 1
 	for box in _merge(panel.n, solid):
 		var shape := CollisionShape3D.new()
@@ -412,6 +446,35 @@ func _rebuild_panel(index: int) -> void:
 				pieces.append({"xf": (panel.xf as Transform3D) * Transform3D(Basis(), clipped.get_center()), "size": clipped.size,
 					"kind": skin.kind, "shape": "box", "tint": skin.tint})
 	var meshes := MapMesher.build(pieces, root.face_shade)
+	for kind in meshes:
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = meshes[kind]
+		mesh.material_override = root.material_for(kind)
+		holder.add_child(mesh)
+
+
+## A whole-block panel: its own shape while it stands (darker as it cracks), nothing
+## once broken. (Its children were cleared by _rebuild_panel.)
+func _rebuild_whole(panel: Dictionary) -> void:
+	var holder: Node3D = panel.meshes
+	for child in holder.get_children():
+		holder.remove_child(child)
+		child.free()
+	var cell: Dictionary = cells[panel.first]
+	if cell.stage >= BROKEN:
+		return
+	var piece: Dictionary = (panel.piece as Dictionary).duplicate()
+	piece.xf = Transform3D.IDENTITY   # the body sits where the block does
+	var shape := CollisionShape3D.new()
+	shape.shape = root._collision_shape(piece)
+	(panel.body as StaticBody3D).add_child(shape)
+	if DisplayServer.get_name() == "headless" and not root.has_meshes:
+		return
+	var shade: float = CRACK_SHADE[cell.stage]
+	var tint: Color = panel.tint
+	piece.xf = panel.xf
+	piece.tint = Color(tint.r * shade, tint.g * shade, tint.b * shade, tint.a)
+	var meshes := MapMesher.build([piece], root.face_shade)
 	for kind in meshes:
 		var mesh := MeshInstance3D.new()
 		mesh.mesh = meshes[kind]
@@ -508,8 +571,11 @@ func _break_effects(broke: PackedInt32Array) -> void:
 		var at := cell_center(c)
 		var mat := material_of(c)
 		var sound := get_node_or_null("/root/Sound")   # (not there in map-only tests)
+		var info := BlockMaterials.info(mat)
 		if sound:
-			sound.play_at("break_" + mat, at, "body", 0.0, 0.08)
+			var p = sound.play_at(info.break, at, "body", 0.0, 0.08)
+			if p:
+				p.pitch_scale *= info.break_pitch
 		if DisplayServer.get_name() == "headless":
 			continue
 		_rubble(c, mat)
@@ -518,7 +584,10 @@ func _break_effects(broke: PackedInt32Array) -> void:
 func _rubble(c: int, mat: String) -> void:
 	var panel: Dictionary = panels[cells[c].panel]
 	var box := cell_box(c)
-	var count := 8 if mat == "glass" else 10
+	var info := BlockMaterials.info(mat)
+	var shards: bool = info.shards
+	# A whole block can be much bigger than a cell: more bits, up to three times.
+	var count := int(info.debris * clampf(box.get_volume() / (CELL * CELL * 0.3), 1.0, 3.0))
 	var material := root.material_for(panel.kind)
 	for i in count:
 		if _debris >= MAX_DEBRIS:
@@ -531,7 +600,7 @@ func _rubble(c: int, mat: String) -> void:
 		var thick: float = (panel.size as Vector3)[panel.thin]
 		var s := randf_range(0.07, 0.2) * CELL
 		shape.size = Vector3(s, s, s) * Vector3(randf_range(0.5, 1.0), randf_range(0.5, 1.0), randf_range(0.5, 1.0))
-		if mat == "glass":
+		if shards:
 			shape.size.y = maxf(thick, 0.03)   # flat shards
 		else:
 			shape.size = shape.size.min(Vector3.ONE * maxf(thick, 0.1) * 1.5)
@@ -569,7 +638,7 @@ func _dust(at: Vector3, mat: String) -> void:
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.albedo_color = Color(0.8, 0.9, 1.0, 0.35) if mat == "glass" else Color(0.72, 0.68, 0.62, 0.4)
+	m.albedo_color = BlockMaterials.info(mat).dust
 	puff.material_override = m
 	puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(puff)

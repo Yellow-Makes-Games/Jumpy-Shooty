@@ -366,6 +366,10 @@ func _draw_overlay() -> void:
 		HudStyle.text(ci, Vector2(c.x, c.y + 176.0), _promo.sub, 13, Color(1, 1, 1, 0.8 * pa), HORIZONTAL_ALIGNMENT_CENTER)
 	if Net.is_deathmatch() and not Race.active:
 		_draw_inventory(ci, Vector2(c.x, size.y - 74.0))
+		var boost: float = Match.damage_boost.get(Net.my_id(), 0.0)
+		if boost > 0.0:
+			HudStyle.text(ci, Vector2(c.x, size.y - 104.0), "2× DAMAGE  %d" % ceili(boost), 16,
+				Color(1.0, 0.3, 0.35), HORIZONTAL_ALIGNMENT_CENTER)
 	for n in _numbers:
 		var t: float = n.age / NUMBER_TIME
 		var col: Color = HudStyle.YELLOW if n.head else HudStyle.WHITE
