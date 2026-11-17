@@ -24,6 +24,9 @@ const VOLUME := {
 	"ui_hover": -20.0, "ui_click": -12.0, "ui_confirm": -10.0, "ui_back": -12.0,
 	"ui_toggle": -13.0, "ui_tick": -20.0, "ui_select": -12.0,
 	"match_start": -6.0, "match_end": -6.0,
+	"swing_sword": -8.0, "swing_hammer": -7.0, "swing_dagger": -10.0,
+	"equip_sword": -10.0, "equip_hammer": -10.0, "equip_dagger": -10.0,
+	"melee_hit": -5.0, "hammer_hit": -4.0, "slam": -5.0,
 }
 
 ## Gun handling, in seconds from the start of the clip, matched to the animations

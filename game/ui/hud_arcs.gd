@@ -31,6 +31,14 @@ static func _draw_health_ammo(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 	HudStyle.arc(ci, c, R, lo, lo + hp_a, hp_col, 7.0)
 	HudStyle.text(ci, c + Vector2(-R - 16.0, 0), str(ceili(v.hp)), 22, hp_col, HORIZONTAL_ALIGNMENT_RIGHT)
 
+	# Melee, right: one arc that refills after each swing, and the weapon's name.
+	if v.melee:
+		var low := SPAN * 0.5
+		HudStyle.edged_arc(ci, c, R, -low, low, HudStyle.DIM, 7.0)
+		HudStyle.arc(ci, c, R, low - SPAN * clampf(v.swing, 0.0, 1.0), low, HudStyle.WHITE if v.swing >= 1.0 else HudStyle.ORANGE, 7.0)
+		HudStyle.text(ci, c + Vector2(R + 16.0, 0), v.weapon.to_upper(), 16, HudStyle.WHITE)
+		return
+
 	# Ammo, right: rounds from 35 deg (lower right) up to -35 deg (upper right).
 	var n := clampi(v.magazine, 1, 30)
 	var step := SPAN / n

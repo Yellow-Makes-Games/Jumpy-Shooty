@@ -53,6 +53,8 @@ func cooldown() -> float:
 
 
 func can_fire() -> bool:
+	if data.is_melee():
+		return _cooldown <= 0.0   # a blade never runs dry
 	if _cooldown > 0.0 or ammo <= 0:
 		return false
 	return data.reload_per_round or not is_reloading()
@@ -64,6 +66,9 @@ func fire() -> bool:
 		if ammo <= 0:
 			start_reload()
 		return false
+	if data.is_melee():
+		_cooldown = data.fire_interval
+		return true
 	_reload_left = 0.0   # a shell-by-shell reload stops for the shot
 	ammo -= 1
 	_cooldown = data.fire_interval
@@ -73,7 +78,7 @@ func fire() -> bool:
 
 
 func start_reload() -> void:
-	if is_reloading() or ammo >= data.magazine:
+	if data.is_melee() or is_reloading() or ammo >= data.magazine:
 		return
 	_reload_left = data.reload_time
 

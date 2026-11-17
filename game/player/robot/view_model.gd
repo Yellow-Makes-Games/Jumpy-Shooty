@@ -49,6 +49,8 @@ var _arm_l: PackedInt32Array
 var _weapon := "pistol"
 var _data: WeaponData
 var _fire_t := -1.0
+var _swing := MeleeSwing.new()
+var _swing_view := Vector2.ZERO   # the swing's chest turn and lean, felt as a turn of the whole view model
 
 
 func setup(player: Player, color: Color) -> void:
@@ -84,6 +86,36 @@ func fire() -> void:
 	_since_fire = 0.0
 	if rig.has_clip("fp_fire_" + _weapon):
 		_fire_t = 0.0
+
+
+## A melee swing started (count: the swing number, so swings alternate sides).
+func swing(count: int) -> void:
+	if _data.is_melee():
+		_swing.start(_weapon, count)
+		_since_fire = 0.0
+
+
+## The blow landed: freeze the swing for a moment so the hit has weight.
+func hit_stop() -> void:
+	_swing.hit_stop()
+
+
+## In the middle of a blow (the swing trail is drawn).
+func cutting() -> bool:
+	return _swing.active() and _swing.cutting()
+
+
+## The blade's edge, base and tip, as world positions that line up on screen.
+func edge() -> Array:
+	var e := MeleeModel.edge(model.melee)
+	return [_on_screen(e[0]), _on_screen(e[1])]
+
+
+func _on_screen(world: Vector3) -> Vector3:
+	var cam := get_parent() as Camera3D
+	var p := cam.global_transform.affine_inverse() * world
+	var r := tan(deg_to_rad(cam.fov) * 0.5) / tan(deg_to_rad(VIEW_FOV) * 0.5)
+	return cam.global_transform * Vector3(p.x * r, p.y * r, p.z)
 
 
 func respawn() -> void:
@@ -170,6 +202,23 @@ func update(delta: float) -> void:
 		_pose.rot[rig.bones["forearm_l"]] = _pose.rot[rig.bones["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.1), _grapple_w)
 		_pose.rot[rig.bones["hand_l"]] = _pose.rot[rig.bones["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
 
+	if _data.is_melee():
+		# One-handed, held off to the right so the blade never hides what you aim at;
+		# the left arm drops out of view.
+		_pose.rot[rig.bones["upper_arm_l"]] = Quaternion(Vector3.RIGHT, -1.4) * _pose.rot[rig.bones["upper_arm_l"]]
+		MeleeSwing.apply(_pose, rig.bones, [-0.28, -0.12, -0.25, 0.0, 0.0], 1.0, 0.0)
+		var grip: int = rig.bones["pistol"]
+		_pose.rot[grip] = _pose.rot[grip] * Quaternion(Vector3.UP, -0.55)   # lean the blade out to the right
+		if _swing.active():
+			var s := _swing.sample(delta)
+			s[0] = s[0] * 0.3 + 0.12   # a smaller sweep than the body's, so the blade crosses the view instead of leaving it
+			s[1] *= 0.45
+			MeleeSwing.apply(_pose, rig.bones, s, 1.0, 0.0)
+			_pose.rot[grip] = _pose.rot[grip] * Quaternion(Vector3.UP, 0.55 * smoothstep(0.0, 0.6, -s[2]))   # level the blade into the blow
+			_swing_view = Vector2(s[3] * 0.4, s[4])
+		else:
+			_swing_view = Vector2.ZERO
+
 	_recoil *= exp(-delta * 18.0)
 	if _weapon == "pistol":
 		_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
@@ -207,7 +256,8 @@ func update(delta: float) -> void:
 	var kick := minf(_recoil, 1.6)
 	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, kick * 0.035)
 	position += LOOK_DOWN_SHIFT * smoothstep(deg_to_rad(LOOK_DOWN_FROM), deg_to_rad(LOOK_DOWN_FULL), -pitch)
-	rotation = Vector3(-_sway.y * 0.5 + kick * 0.07 + _dip * 0.8, _sway.x * 0.6 + crawl * 0.03, _sway.x * 0.5 - crawl * 0.05)
+	rotation = Vector3(-_sway.y * 0.5 + kick * 0.07 + _dip * 0.8 - _swing_view.y * 0.25,
+		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3, _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2)
 
 
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:

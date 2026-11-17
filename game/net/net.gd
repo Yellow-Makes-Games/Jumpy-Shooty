@@ -330,8 +330,9 @@ func _apply_character(id: int, character: String) -> void:
 		players_changed.emit()
 
 
-## Pick the gun you take into the match (an id from WeaponData). Like the robot: works
-## in the lobby, and a pick made once the match has started applies from the next lobby.
+## Pick the weapon you take into the match (an id from WeaponData). Works in the lobby,
+## and during a fight while you are dead (you come back with it). A pick made while
+## you are alive is ignored, and confirm_my_character() sends it again in the next lobby.
 func set_my_weapon(weapon: String) -> void:
 	_local_weapon = WeaponData.valid(weapon)
 	if is_host():
@@ -347,8 +348,10 @@ func _choose_weapon(weapon: String) -> void:
 
 
 func _apply_weapon(id: int, weapon: String) -> void:
-	if in_match or not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
+	if not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
 		return
+	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
+		return   # mid-fight you can only swap while waiting to respawn
 	players[id]["weapon"] = WeaponData.valid(weapon)
 	print("[net] %d took the %s" % [id, players[id].weapon])
 	if is_online:

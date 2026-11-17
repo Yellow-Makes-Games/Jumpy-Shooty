@@ -56,6 +56,13 @@ var _shape: CollisionShape3D
 var _height := CAPSULE_HEIGHT     # remote: collision shape height for the pose we draw
 var _visual_yaw := 0.0
 var _flying := false              # local: the debug menu's noclip is on
+var _swings := 0                  # local: melee swings so far (travels in snapshots, wrapping at 4)
+var _seen_swings := -1            # the swing count last shown (starts the swing animation and sound)
+var _strike_left := -1.0          # local: seconds until the current swing's blow lands
+var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
+var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
+var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
+var _punch_roll := 0.0
 
 
 func _init() -> void:
@@ -107,6 +114,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	if is_bot:
 		motor = MovementController.new()
 		weapon = WeaponState.new(WeaponData.by_id(Net.player_weapon(id)))
+		_apply_move_bonus()
 		if racing:
 			brain = RaceBrain.new(self, Net.players[id].get("difficulty", 1))
 		else:
@@ -114,6 +122,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	elif is_local:
 		motor = MovementController.new()
 		weapon = WeaponState.new(WeaponData.by_id(Net.player_weapon(id)))
+		_apply_move_bonus()
 		if racing and DevArgs.autopilot:
 			brain = RaceBrain.new(self, DevArgs.bot_level)
 		rig = CameraRig.new()
@@ -126,6 +135,10 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		view.setup(self, Net.player_color(id))
 		view.visible = not racing   # no gun to hold in a race: you see your body, not arms
 	_build_rope()
+	if WeaponData.melee(robot.weapon):
+		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
+		add_child(_trail)
+		Match.melee_landed.connect(_on_melee_landed)
 
 
 # ---------------------------------------------------------------------------
@@ -163,6 +176,7 @@ func _physics_process(delta: float) -> void:
 			motor.step(self, input, delta)
 			if hooking and not motor.grapple.attached:
 				sounds.grapple_missed()   # nothing in range to hook
+			_check_slam(delta)
 		if Cheats.cooldowns_off() and not is_bot:
 			motor.clear_cooldowns()
 		if DevArgs.sync_log and motor.grapple.attached != was_on:
@@ -189,7 +203,10 @@ func _process(delta: float) -> void:
 	if is_local:
 		if rig:
 			_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
-			rig.set_view(input.yaw, input.pitch, motor.eye_height, _roll)
+			_punch = _punch.lerp(Vector2.ZERO, 1.0 - exp(-delta * 14.0))
+			_punch_roll = lerpf(_punch_roll, 0.0, 1.0 - exp(-delta * 12.0))
+			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
+				motor.eye_height, _roll + _punch_roll)
 		var g := motor.grapple
 		_anim.state = motor.state
 		_anim.crouched = motor.crouched
@@ -198,11 +215,13 @@ func _process(delta: float) -> void:
 		_anim.flags = _my_anim_flags()
 		_anim.grapple_on = g.attached
 		_anim.grapple_anchor = g.anchor
+		_watch_swings()
 		_animate(delta)
 		sounds.update(delta, _anim, true)
 		if view:
 			view.update(delta)
 		_draw_rope(g.attached and alive, g.anchor)
+		_update_trail(delta)
 		return
 	if not buffer.has_data():
 		return
@@ -222,6 +241,7 @@ func _process(delta: float) -> void:
 	_anim.flags = s[5]
 	_anim.grapple_on = _rope_on
 	_anim.grapple_anchor = _rope_anchor
+	_watch_swings()
 	_animate(delta)
 	sounds.update(delta, _anim, visual.visible)
 	while not _rope_events.is_empty() and _rope_events[0][0] <= rt:
@@ -231,6 +251,7 @@ func _process(delta: float) -> void:
 		if DevArgs.sync_log:
 			print("ROPE SEEN %d %d %s" % [Net.my_id(), peer_id, "on" if _rope_on else "off"])
 	_draw_rope(_rope_on and alive and not _awaiting_respawn, _rope_anchor)
+	_update_trail(delta)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
 		var sp: Vector3 = s[0]
 		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, sp.x, sp.y, sp.z, delta])
@@ -250,6 +271,33 @@ func _unhandled_input(event: InputEvent) -> void:
 		Race.send_back(self, "reset")   # stuck? back to your last checkpoint
 	elif event.is_action_pressed("reload") and weapon:
 		weapon.start_reload()
+	elif not alive and not racing:
+		_pick_on_death(event)
+
+
+## Waiting to respawn: 1-7 (or the mouse wheel) picks the weapon you come back with.
+func _pick_on_death(event: InputEvent) -> void:
+	var ids := WeaponData.IDS
+	var current := ids.find(Net.player_weapon(peer_id))
+	var pick := -1
+	if event is InputEventKey and event.pressed and not event.echo:
+		var k: int = event.keycode - KEY_1
+		if k >= 0 and k < ids.size():
+			pick = k
+	elif event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			pick = (current + 1) % ids.size()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			pick = (current - 1 + ids.size()) % ids.size()
+	if pick < 0 or pick == current or alive:
+		return
+	if DevArgs.sync_log:
+		print("SWAP %d %s" % [peer_id, ids[pick]])
+	if not DevArgs.swap_on_death:
+		Settings.weapon = ids[pick]
+		Settings.save_settings()
+	Sound.play("equip_" + ids[pick])
+	Net.set_my_weapon(ids[pick])
 
 
 ## Reads keyboard and mouse into `input`. Mouse look arrives in _unhandled_input.
@@ -306,6 +354,9 @@ func _update_weapon(delta: float) -> void:
 		_fire_buffer = 0.1
 	else:
 		_fire_buffer = max(_fire_buffer - delta, 0.0)
+	if weapon.data.is_melee():
+		_update_melee(delta)
+		return
 	var wants: bool = input.fire if weapon.data.automatic else _fire_buffer > 0.0
 	if not wants or not Match.running:
 		return
@@ -342,6 +393,119 @@ func _update_weapon(delta: float) -> void:
 		if p != self and p is Player and p.last_render_time >= 0.0:
 			view_times[p.peer_id] = p.last_render_time
 	Match.request_shot(eye, dirs, view_times, weapon.data.id, peer_id)
+
+
+# ---------------------------------------------------------------------------
+# Melee
+
+## Swinging a blade or hammer: the click starts the swing (and a small lunge), and
+## the blow lands after the weapon's wind-up. The host decides what it hit.
+func _update_melee(delta: float) -> void:
+	var data := weapon.data
+	if _strike_left >= 0.0:
+		_strike_left -= delta
+		if _strike_left < 0.0:
+			_strike()
+	var wants := input.fire or _fire_buffer > 0.0
+	if not wants or not Match.running or _strike_left >= 0.0 or not weapon.fire():
+		return
+	_fire_buffer = 0.0
+	_swings += 1
+	_strike_left = MeleeSwing.impact_time(data.id)   # when the blade is mid-blow on screen
+	# Lunge toward where you look (never past a sprinting dive's speed).
+	var ahead := Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
+	var along := velocity.dot(ahead)
+	if data.lunge > 0.0 and along < 14.0:
+		motor.knock(ahead * minf(data.lunge, 14.0 - along))
+	if DevArgs.sync_log:
+		print("ANIM SWING %d" % peer_id)
+
+
+func _strike() -> void:
+	if not alive:
+		return
+	if rig:   # your own blow: the view jolts the way the blade travels
+		var side := 0.0 if robot.weapon == "hammer" else (1.0 if _swings % 2 == 1 else -1.0)
+		_punch += Vector2(side * 0.035, -0.03 if robot.weapon == "hammer" else -0.012)
+		_punch_roll += side * 0.03
+	var eye := eye_position()
+	var view_times := {}
+	for p in get_parent().get_children():
+		if p != self and p is Player and p.last_render_time >= 0.0:
+			view_times[p.peer_id] = p.last_render_time
+	Match.request_melee(eye, aim_forward(), view_times, peer_id)
+
+
+## A new swing (yours, or one seen in someone's snapshots): animation and whoosh.
+func _watch_swings() -> void:
+	var count := _swings & 3 if is_local else RobotAnimInput.swings_of(_anim.flags)
+	if _seen_swings < 0:
+		_seen_swings = count   # just appeared: no swing to replay
+		return
+	if count == _seen_swings:
+		return
+	_seen_swings = count
+	if not alive or robot.weapon == "none" or not WeaponData.melee(robot.weapon):
+		return
+	animator.swing(count)
+	if view:
+		view.swing(count)
+	if sounds.own:
+		Sound.play("swing_" + robot.weapon, 0.0, 0.05)
+	elif visual.visible:
+		Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", 0.0, 0.05)
+
+
+## A blow landed somewhere. Ours: the swing freezes for a moment (hit-stop) and the view jolts harder.
+func _on_melee_landed(attacker: int, _weapon_id: String, points: PackedVector3Array) -> void:
+	if attacker != peer_id or points.is_empty():
+		return
+	animator.hit_stop()
+	if view:
+		view.hit_stop()
+	if rig:
+		_punch += Vector2(randf_range(-0.012, 0.012), -0.02)
+
+
+## The glowing trail behind the blade while it cuts: on your first-person arms
+## when you are looking through them, otherwise on the body.
+func _update_trail(delta: float) -> void:
+	if _trail == null:
+		return
+	var own_view := view != null and rig != null and not rig.is_third_person()
+	if own_view and view.visible and view.cutting():
+		var e := view.edge()
+		_trail.add(e[0], e[1])
+	elif not own_view and alive and visual.visible and animator.cutting() and robot.melee:
+		var e := MeleeModel.edge(robot.melee)
+		_trail.add(e[0], e[1])
+	_trail.tick(delta)
+
+
+## A hit or shove from the host: knocked along, and off your feet if it lifts you.
+func knock(push: Vector3) -> void:
+	if motor and alive and not _flying:
+		motor.knock(push)
+		if DevArgs.sync_log:
+			print("KNOCK %d %.1f" % [peer_id, push.length()])
+
+
+## Hit a wall or prop too fast? The host decides how much it hurts.
+func _check_slam(delta: float) -> void:
+	_slam_wait = maxf(_slam_wait - delta, 0.0)
+	if racing or _slam_wait > 0.0 or motor.impact_speed < Match.SLAM_SPEED or not Match.running:
+		return
+	_slam_wait = 0.5
+	Match.request_slam(motor.impact_speed, motor.impact_point, peer_id)
+
+
+## A light blade lets you run a little faster.
+func _apply_move_bonus() -> void:
+	var bonus := weapon.data.move_bonus if not racing else 1.0
+	if bonus != 1.0:
+		motor.tuning.run_speed *= bonus
+		motor.tuning.sprint_speed *= bonus
+		motor.tuning.air_speed *= bonus
 
 
 ## The directions of one shot's pellets (one for most guns), spread at random
@@ -414,6 +578,16 @@ func show_shot() -> void:
 # ---------------------------------------------------------------------------
 # Life and death
 
+## --swap-on-death (tests): just died, so press the next weapon's number key.
+func dev_swap_after_death() -> void:
+	var key := InputEventKey.new()
+	key.pressed = true
+	key.keycode = KEY_1 + (WeaponData.IDS.find(Net.player_weapon(peer_id)) + 1) % WeaponData.IDS.size()
+	get_tree().create_timer(0.5).timeout.connect(func():
+		if is_instance_valid(self) and is_inside_tree():
+			_pick_on_death(key))
+
+
 func set_dead() -> void:
 	alive = false
 	if motor:
@@ -444,7 +618,21 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 		view.respawn()
 	if weapon:
 		weapon.reset()
+	_strike_left = -1.0
 	_send_timer = 0.0  # tell everyone at once
+
+
+func respawn_count() -> int:
+	return _teleport_count
+
+
+func set_respawn_count(n: int) -> void:
+	_teleport_count = n
+
+
+## Remote player rebuilt while dead (they swapped weapons): hidden until they respawn.
+func expect_dead() -> void:
+	visual.visible = false
 
 
 ## Remote player: alive again, but stay hidden until their new position arrives.
@@ -551,6 +739,11 @@ static func height_for_pose(pose: int) -> float:
 	return CROUCH_HEIGHT if pose_crouched(pose) else CAPSULE_HEIGHT
 
 
+## Which way this player faced at time t (on this player's clock): for stabs in the back.
+func yaw_at(t: float) -> float:
+	return buffer.sample(t)[2] if buffer.has_data() else input.yaw
+
+
 ## Was this player crouched at time t (on this player's clock)?
 func pose_at(t: float) -> int:
 	return buffer.sample(t)[4] if buffer.has_data() else (_my_pose() if motor else 0)
@@ -577,7 +770,7 @@ func _my_anim_flags() -> int:
 	elif f.y > 0.0:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
-		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps)
+		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings)
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -711,6 +904,8 @@ func _scripted_input(delta: float) -> void:
 			input.yaw = atan2(-to.x, -to.z)
 			input.pitch = atan2(to.y, Vector2(to.x, to.z).length())
 			input.move = Vector2(1.0 if fmod(t, 3.0) < 1.5 else -1.0, 0.3)  # strafe while shooting
+			if weapon and weapon.data.is_melee():
+				input.move = Vector2(0.0, 1.0)   # a blade: run straight at them
 			input.fire = true
 			if fmod(t, 0.2) < delta:
 				input.fire_pressed = true  # click about 5 times a second

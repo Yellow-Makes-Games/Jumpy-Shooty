@@ -59,8 +59,21 @@ static func _draw_rest(ci: CanvasItem, c: Vector2, v: Hud.View, size: Vector2, b
 	if v.race:
 		HudStyle.text(ci, c + Vector2(0, 40), "%s  ·  %.1f m/s" % [v.move_state, v.speed], 13, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
 		return
-	# Ammo: count, magazine, a tick per round, weapon.
+	# Ammo: count, magazine, a tick per round, weapon. Melee: the weapon and a swing bar.
 	var right := size.x - MARGIN
+	if v.melee:
+		HudStyle.text(ci, Vector2(right, bottom - 50.0), v.weapon.to_upper(), 40, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+		var bar := Rect2(right - 150.0, bottom - 32.0, 150.0, 8.0)
+		HudStyle.edged_rect(ci, bar, HudStyle.DIM)
+		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(v.swing, 0.0, 1.0), bar.size.y)), HudStyle.WHITE if v.swing >= 1.0 else HudStyle.ORANGE)
+		HudStyle.text(ci, Vector2(right, bottom - 6.0), "LMB  SWING", 12, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_RIGHT)
+	else:
+		_draw_ammo(ci, v, right, bottom)
+	var speed := "%s  ·  %.1f m/s" % [v.move_state, v.speed]
+	HudStyle.text(ci, c + Vector2(0, 40), speed, 13, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
+
+
+static func _draw_ammo(ci: CanvasItem, v: Hud.View, right: float, bottom: float) -> void:
 	var ticks := clampi(v.magazine, 1, 30)
 	for i in ticks:
 		var col := HudStyle.WHITE if i < v.ammo and not v.reloading else HudStyle.DIM
@@ -74,6 +87,3 @@ static func _draw_rest(ci: CanvasItem, c: Vector2, v: Hud.View, size: Vector2, b
 		var mw := HudStyle.text(ci, Vector2(right, bottom - 62.0), "/ %d" % v.magazine, 22, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 		HudStyle.text(ci, Vector2(right - mw - 8.0, bottom - 70.0), str(v.ammo), 52, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	HudStyle.text(ci, Vector2(right, bottom - 6.0), v.weapon.to_upper() + "  ·  R RELOAD", 12, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_RIGHT)
-
-	var speed := "%s  ·  %.1f m/s" % [v.move_state, v.speed]
-	HudStyle.text(ci, c + Vector2(0, 40), speed, 13, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)

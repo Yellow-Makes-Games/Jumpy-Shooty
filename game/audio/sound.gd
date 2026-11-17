@@ -70,6 +70,8 @@ func _ready() -> void:
 	Match.player_hit.connect(_on_player_hit)
 	Match.player_died.connect(_on_player_died)
 	Match.player_respawned.connect(_on_player_respawned)
+	Match.melee_landed.connect(_on_melee_landed)
+	Match.slammed.connect(_on_slammed)
 
 
 # ---------------------------------------------------------------------------
@@ -282,6 +284,21 @@ func _on_player_died(victim: int, killer: int) -> void:
 		var p: Player = Net.arena.get_player(victim)
 		if p:
 			play_at("death", p.global_position + Vector3(0, 1.0, 0), "body", -2.0, 0.05)
+
+
+## A melee blow landed: a clang where each one struck (the hammer's is a heavy crash).
+func _on_melee_landed(_attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
+	for i in mini(points.size(), 2):
+		play_at("hammer_hit" if weapon_id == "hammer" else "melee_hit", points[i], "body", -2.0 * i, 0.06)
+
+
+## Someone crashed into a wall hard enough to hurt.
+func _on_slammed(id: int, where: Vector3, speed: float) -> void:
+	var loud := clampf((speed - Match.SLAM_SPEED) / 12.0, 0.0, 1.0)
+	if id == Net.my_id():
+		play("slam", lerpf(-5.0, 0.0, loud), 0.05)
+	else:
+		play_at("slam", where, "body", lerpf(-5.0, 0.0, loud), 0.05)
 
 
 func _on_player_respawned(id: int, _spawn: int) -> void:

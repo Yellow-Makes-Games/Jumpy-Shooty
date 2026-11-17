@@ -21,6 +21,7 @@ var skeleton: Skeleton3D
 var mesh: MeshInstance3D
 var view_mesh: MeshInstance3D     ## the same body without head and arms (first person only)
 var chest_front := 0.12           ## how far the chest sticks out in front of the neck (set by add_view_mesh)
+var melee: Node3D                 ## the sword, hammer or dagger in the fist (see MeleeModel), if any
 
 var _glow_materials: Array = []   # [material, is_shader]
 var _glow_color := Color.WHITE
@@ -45,8 +46,11 @@ func setup(path: String, player_color: Color, viewmodel: bool = false, gun: Stri
 		if c is MeshInstance3D:
 			mesh = c
 	weapon = gun if gun == "none" else WeaponData.valid(gun)   # "none": empty hands (races)
-	mesh.mesh = _with_gun(path, mesh.mesh, weapon)
+	# A melee weapon is not in the model file: empty hands, then the blade in the fist.
+	mesh.mesh = _with_gun(path, mesh.mesh, "none" if WeaponData.melee(weapon) else weapon)
 	var trim := trim_color(player_color)
+	if WeaponData.melee(weapon):
+		melee = MeleeModel.attach(self, weapon, trim, viewmodel)
 	_glow_color = trim
 	for i in mesh.mesh.get_surface_count():
 		var base: StandardMaterial3D = mesh.mesh.surface_get_material(i)
@@ -125,6 +129,10 @@ func set_power(power: float) -> void:
 
 func set_layer(layer: int) -> void:
 	mesh.layers = 1 << (layer - 1)
+	if melee:
+		for c in melee.get_child(0).get_children():
+			if c is MeshInstance3D:
+				c.layers = mesh.layers
 
 
 ## Where a bone is in the model's own space (x right, y up, -z forward).

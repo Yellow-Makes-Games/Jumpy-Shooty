@@ -28,8 +28,9 @@ const ENGAGE_RANGE := 45.0
 ## The distances each gun likes to fight at: [closer than this it backs off a little,
 ## further than this it closes in, it does not shoot beyond this]. The shotgun rushes
 ## in, the sniper rifle keeps its distance.
+## Melee weapons run straight in and swing once in reach.
 const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rifle": [8.0, 22.0, 999.0],
-	"sniper": [16.0, 36.0, 999.0]}
+	"sniper": [16.0, 36.0, 999.0], "sword": [0.0, 1.6, 3.1], "hammer": [0.0, 1.8, 3.3], "dagger": [0.0, 1.3, 2.6]}
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
 const PRONE_AIM := 0.4     ## aim height at someone belly-sliding (they are lying flat)
@@ -77,6 +78,7 @@ var _burst := 0.0                # automatic gun: seconds left of the burst it i
 var NEAR := 7.0
 var FAR := 18.0
 var _reach := 999.0
+var _melee := false              # carrying a blade or hammer: rush in instead of keeping distance
 var _stuck_time := 0.0
 var _escape_dir := Vector3.ZERO
 var _escape_time := 0.0
@@ -101,6 +103,7 @@ func _init(player: Player, level: int) -> void:
 	NEAR = r[0]
 	FAR = r[1]
 	_reach = r[2]
+	_melee = player.weapon != null and player.weapon.data.is_melee()
 	_rng.randomize()
 	Match.player_hit.connect(_on_hit)
 	Match.shot_fired.connect(_on_shot)
@@ -335,6 +338,8 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 			if _rng.randf() < 0.75:
 				_strafe_dir = -_strafe_dir
 		var approach := 1.0 if dist > FAR else (-0.6 if dist < NEAR else 0.0)
+		if _melee and dist > FAR:
+			approach = 2.5   # straight at you, weaving a little
 		dir = f.cross(Vector3.UP) * _strafe_dir * d.strafe + f * approach
 		if _blocked(dir) or not _ground_ahead(dir, 1.5):
 			_strafe_dir = -_strafe_dir
@@ -359,6 +364,8 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		# Close the gap fast with a dive (it dives where it looks: at you).
 		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5 and _ground_ahead(f, 8.0):
 			_dive(f)
+		elif _melee and grounded and dist > 5.0 and dist < 12.0 and _rng.randf() < delta * 1.2 and _ground_ahead(f, 8.0):
+			_dive(f)   # a blade has to get close: dive in
 	else:
 		# Chase to where it last saw or heard you and search round there, or roam.
 		dir = _follow_path(_hunt_goal(delta), delta)
@@ -672,6 +679,13 @@ func _fire(delta: float, perceived: Array) -> void:
 	if dist > _reach:
 		return   # a shotgun does not waste shells at long range
 	var off := me.aim_forward().angle_to(want)
+	if w.data.is_melee():
+		# In reach and roughly facing you: swing.
+		if off < deg_to_rad(w.data.arc_degrees * 0.7) and w.can_fire() and _fire_wait <= 0.0:
+			input.fire_pressed = true
+			input.fire = true
+			_fire_wait = d.fire_gap * _rng.randf_range(0.3, 0.7)
+		return
 	var allowed: float = max(atan(0.35 / max(dist, 0.1)), deg_to_rad(1.0))
 	if w.data.id == "sniper":
 		allowed *= 0.6   # waits for a clean shot

@@ -26,9 +26,14 @@ const FLIP_RIGHT := 3
 ## bit 2     reloading
 ## bits 3-4  flip direction (front, back, left, right)
 ## bits 5-6  wall-jump counter (goes up by one, wrapping, on every wall jump)
-static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int) -> int:
+## bits 7-8  melee swing counter (goes up by one, wrapping, on every swing)
+static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int, swings: int = 0) -> int:
 	return (1 if wall_right else 0) | (2 if vaulting else 0) | (4 if reloading else 0) \
-		| ((flip & 3) << 3) | ((wall_jumps & 3) << 5)
+		| ((flip & 3) << 3) | ((wall_jumps & 3) << 5) | ((swings & 3) << 7)
+
+
+static func swings_of(f: int) -> int:
+	return (f >> 7) & 3
 
 
 func wall_right() -> bool:
