@@ -36,7 +36,7 @@ run_script tests/destruction_test.gd
 echo "== Debug menu cheats and the target dummies"
 run_script tests/debug_test.gd
 echo "== Practice mode boots without errors on every map"
-for map in construction_site office testing_grounds rooftop_run foundry sky_ruins; do
+for map in construction_site office kilnworks testing_grounds rooftop_run foundry sky_ruins; do
   out=$("$GODOT" --headless --path . -- --practice --map="$map" --quit-after=3 2>&1)
   if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi
 done

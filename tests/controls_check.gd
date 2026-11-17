@@ -22,6 +22,8 @@ func _initialize() -> void:
 	S.reset_bindings()
 	_ok(InputMap.action_has_event("kick", _key(KEY_F)), "F kicks by default")
 	_ok(S.action_text("dive") == "Q / Alt", "dive shows Q / Alt: " + S.action_text("dive"))
+	_ok(InputMap.action_has_event("float", _key(KEY_SHIFT)) and InputMap.action_has_event("sprint", _key(KEY_SHIFT)), "sprint and float share Shift")
+	_ok(S.rebind("float", 1, "key:%d" % KEY_SHIFT).is_empty() and S.bindings.sprint.size() == 1, "sharing Shift is not a conflict")
 	var taken: Array = S.rebind("boost", 0, "key:%d" % KEY_F)
 	_ok(taken == ["Kick"], "F taken from Kick")
 	_ok(InputMap.action_has_event("boost", _key(KEY_F)) and not InputMap.action_has_event("kick", _key(KEY_F)), "F boosts, no longer kicks")
@@ -46,14 +48,18 @@ func _initialize() -> void:
 	await process_frame
 	var box: VBoxContainer = panel._binds_box
 	_ok(box.get_child_count() == S.ACTIONS.size(), "one row per action")
-	var kick_row: Node = box.get_child(8)
+	var kick_i := -1
+	for i in S.ACTIONS.size():
+		if S.ACTIONS[i][0] == "kick":
+			kick_i = i
+	var kick_row: Node = box.get_child(kick_i)
 	(kick_row.get_child(1) as Button).emit_signal("pressed")
 	_ok(panel._listen == ["kick", 0], "listening for Kick")
 	Input.parse_input_event(_key(KEY_G))
 	await process_frame
 	await process_frame
 	_ok(S.bindings.kick == ["key:%d" % KEY_G], "Kick rebound to G in the menu")
-	(box.get_child(8).get_child(2) as Button).emit_signal("pressed")
+	(box.get_child(kick_i).get_child(2) as Button).emit_signal("pressed")
 	var m := InputEventMouseButton.new()
 	m.button_index = MOUSE_BUTTON_MIDDLE
 	m.pressed = true

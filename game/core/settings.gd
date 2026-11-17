@@ -217,6 +217,7 @@ const ACTIONS := [
 	["move_right", "Move right", ["key:%d" % KEY_D]],
 	["jump", "Jump (again in mid-air to flip)", ["key:%d" % KEY_SPACE]],
 	["sprint", "Sprint", ["key:%d" % KEY_SHIFT]],
+	["float", "Float (in mid-air)", ["key:%d" % KEY_SHIFT]],
 	["crouch", "Crouch / slide", ["key:%d" % KEY_CTRL, "key:%d" % KEY_C]],
 	["dive", "Dive", ["key:%d" % KEY_Q, "key:%d" % KEY_ALT]],
 	["kick", "Kick", ["key:%d" % KEY_F]],
@@ -237,6 +238,9 @@ const ACTIONS := [
 	["debug_menu", "Debug menu (Practice, Vs Bots)", ["key:%d" % KEY_F1, "key:%d" % KEY_QUOTELEFT]],
 ]
 const MAX_BINDS := 2
+## Pairs of actions that may share a key without it counting as a conflict
+## (sprint is for the ground, float for the air).
+const CAN_SHARE := [["sprint", "float"]]
 
 ## Not rebindable: Esc always opens the menu (and cancels a rebind).
 const FIXED_BINDINGS := {"pause": ["key:%d" % KEY_ESCAPE]}
@@ -298,7 +302,7 @@ func rebind(action: String, slot: int, binding: String) -> Array:
 		if FIXED_BINDINGS.pause.has(binding):
 			return taken
 		for a in ACTIONS:
-			if a[0] != action and bindings[a[0]].has(binding):
+			if a[0] != action and bindings[a[0]].has(binding) and not _can_share(action, a[0]):
 				bindings[a[0]].erase(binding)
 				taken.append(a[1])
 	var list: Array = bindings[action]
@@ -313,6 +317,13 @@ func rebind(action: String, slot: int, binding: String) -> Array:
 	_apply_bindings()
 	save_settings()
 	return taken
+
+
+static func _can_share(a: String, b: String) -> bool:
+	for pair in CAN_SHARE:
+		if pair.has(a) and pair.has(b):
+			return true
+	return false
 
 
 func reset_bindings() -> void:

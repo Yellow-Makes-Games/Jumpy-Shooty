@@ -28,6 +28,7 @@ More detail, including how to play with a friend and run several copies on one P
 | --- | --- |
 | Move | W A S D |
 | Sprint | Shift |
+| Float (in mid-air: glide level the way you face, at the speed you had; again to drop) | Shift |
 | Jump | Space |
 | Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |

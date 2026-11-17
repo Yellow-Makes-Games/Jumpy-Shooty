@@ -512,6 +512,148 @@ func _initialize() -> void:
 				_data.erase("flip_watch")
 				_expect_true("no flip", not _data["states"].has(MovementController.State.FLIP))
 				_expect_true("jumped on landing", _data.get("rebounded", false))],
+		["Shift in mid-air floats: level, the way you face, at the speed you had", 1.0,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 40, 180))
+				_clear_input()
+				body.velocity = Vector3(6, -9, -15)   # falling fast, drifting right
+				input.yaw = 0.0
+				input.pitch = deg_to_rad(-30.0)   # looking down changes nothing: a float is level
+				input.float_pressed = true
+				_data["float_from"] = body.global_position,
+			func():
+				var from: Vector3 = _data["float_from"]
+				_data.erase("float_from")
+				var p := body.global_position
+				_expect_true("state is Float", motor.state == MovementController.State.FLOAT)
+				_expect_near("height kept", p.y, from.y, 0.02)
+				_expect_near("speed kept", motor.horizontal_speed(body), Vector2(6, 15).length(), 0.05)
+				_expect_near("going the way you face (sideways speed)", body.velocity.x, 0.0, 0.05)
+				_expect_near("distance covered in 1 s", from.z - p.z, Vector2(6, 15).length(), 0.3)
+				_expect_near("HUD: part of the float left", motor.float_readiness(), 1.0 - 1.0 / t.float_time, 0.02)],
+		["steering does nothing while floating", 0.5,
+			func(): input.move = Vector2(1, -1),
+			func():
+				_expect_near("still straight (sideways speed)", body.velocity.x, 0.0, 0.05)
+				_expect_near("speed kept", motor.horizontal_speed(body), Vector2(6, 15).length(), 0.05)
+				input.move = Vector2.ZERO],
+		["the float runs out and you fall on, keeping your speed", 0.2,
+			func(): _steps[_scenario][1] = t.float_time - 1.5 + 0.2,
+			func():
+				_expect_true("falling again (%s, %.1f m/s)" % [MovementController.State.keys()[motor.state], body.velocity.y],
+					motor.state == MovementController.State.AIR and body.velocity.y < -2.0)
+				_expect_near("speed kept", motor.horizontal_speed(body), Vector2(6, 15).length(), 0.05)
+				_expect_near("HUD: float spent", motor.float_readiness(), 0.0, 0.001)],
+		["only one float per jump", 0.2,
+			func():
+				_data["vy"] = body.velocity.y
+				input.float_pressed = true,
+			func(): _expect_true("second float did nothing (still falling: %.1f m/s)" % body.velocity.y,
+					motor.state == MovementController.State.AIR and body.velocity.y < _data["vy"] - 3.0)],
+		["floating from a standstill drifts you forward; Shift again drops you out", 0.4,
+			func():
+				motor.reset()
+				_teleport(Vector3(-30, 40, 180))
+				_clear_input()
+				body.velocity = Vector3(0, 6, 0)   # going straight up
+				input.yaw = PI * 0.5               # facing -x
+				input.float_pressed = true
+				_data["float_again"] = 36,
+			func():
+				_data.erase("float_again")
+				_expect_true("stopped rising, drifting the way you face (%s)" % _data["float_vel"],
+					absf(_data["float_vel"].y) < 0.01 and absf(_data["float_vel"].x + t.float_min_speed) < 0.05)
+				_expect_true("dropped out (%s, %.1f m/s)" % [MovementController.State.keys()[motor.state], body.velocity.y],
+					motor.state == MovementController.State.AIR and body.velocity.y < -1.0)
+				_data.erase("float_vel")],
+		["a flip takes over from a float", 0.05,
+			func():
+				_start_float(Vector3(0, -6, -12))
+				input.move = Vector2(0, 1)
+				input.jump_pressed = true,
+			func():
+				_expect_true("state is Flip", motor.state == MovementController.State.FLIP)
+				_expect_true("going up (%.1f m/s)" % body.velocity.y, body.velocity.y > t.flip_up - 1.5)
+				_expect_true("faster forward (%.1f m/s)" % -body.velocity.z, -body.velocity.z > 12.0 + t.flip_burst * 0.9)],
+		["a dive takes over from a float", 0.05,
+			func():
+				_start_float(Vector3(0, -6, -12))
+				input.dive_pressed = true,
+			func():
+				_expect_true("state is Dive", motor.state == MovementController.State.DIVE)
+				_expect_true("faster forward (%.1f m/s)" % -body.velocity.z, -body.velocity.z > 12.0 + t.dive_boost * 0.9)],
+		["rocket boots take over from a float", 0.05,
+			func():
+				_start_float(Vector3(0, -6, -12))
+				input.jump_held = true   # tips the burst upward
+				input.boost_pressed = true,
+			func():
+				input.jump_held = false
+				_expect_true("no longer floating", motor.state == MovementController.State.AIR)
+				_expect_true("boosted forward and up (%s)" % body.velocity, -body.velocity.z > 20.0 and body.velocity.y > 3.0)],
+		["the grapple takes over from a float, and gives it back", 0.3,
+			func():
+				_start_swing()
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)
+				input.grapple = false   # let go: in the air, off the rope
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)
+				input.float_pressed = true
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)
+				input.clear_edges()
+				_data["was_floating"] = motor.state == MovementController.State.FLOAT
+				motor.grapple.cooldown_left = 0.0
+				_aim_at(ANCHOR)
+				input.grapple = true
+				input.grapple_pressed = true,
+			func():
+				_expect_true("floated off the rope", _data["was_floating"])
+				_data.erase("was_floating")
+				_expect_true("hooked on, swinging (%s)" % MovementController.State.keys()[motor.state],
+					motor.grapple.attached and motor.state == MovementController.State.GRAPPLE)
+				_expect_near("HUD: float ready again", motor.float_readiness(), 1.0, 0.001)
+				input.grapple = false],
+		["a small nudge keeps you floating level; a real shove knocks you out of it", 0.1,
+			func():
+				_start_float(Vector3(0, -6, -12))
+				motor.knock(Vector3(0, 0.3, -2.0))
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)
+				_data["nudged"] = [motor.state, body.velocity]
+				motor.knock(Vector3(0, 2.0, -9.0)),
+			func():
+				var n: Array = _data["nudged"]
+				_data.erase("nudged")
+				_expect_true("nudged: still floating level, a little faster (%s)" % n[1],
+					n[0] == MovementController.State.FLOAT and absf(n[1].y) < 0.01 and absf(n[1].z + 14.0) < 0.05)
+				_expect_true("shoved: falling (%s)" % MovementController.State.keys()[motor.state], motor.state == MovementController.State.AIR)],
+		["no float on the floor: Shift there is still sprint", 1.5,
+			func():
+				motor.reset()
+				_teleport(Vector3(0, 0.05, 0))
+				_clear_input()
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)   # settle on the floor
+				input.yaw = 0.0
+				input.move = Vector2(0, 1)
+				input.sprint = true
+				input.float_pressed = true
+				_data["states"] = {},
+			func():
+				_expect_true("never floated", not _data["states"].has(MovementController.State.FLOAT))
+				_expect_near("sprint speed", motor.horizontal_speed(body), t.sprint_speed, 0.3)
+				input.sprint = false
+				input.move = Vector2.ZERO],
+		["no float just above the floor either (Shift as you land is a sprint)", 0.5,
+			func():
+				motor.reset()
+				_teleport(Vector3(0, 0.35, 0))
+				_clear_input()
+				body.velocity = Vector3(0, -1, -8)
+				input.float_pressed = true
+				_data["states"] = {},
+			func():
+				_expect_true("never floated", not _data["states"].has(MovementController.State.FLOAT))
+				_expect_true("landed", body.is_on_floor())
+				_data.erase("states")],
 	]
 	print("Movement checks")
 
@@ -584,6 +726,11 @@ func _tick() -> void:
 		_data["dive_again"] += 1
 		if _data["dive_again"] == 30:
 			input.dive_pressed = true   # try again in the same jump
+	if _data.has("float_again"):
+		_data["float_again"] -= 1
+		if _data["float_again"] == 0:
+			_data["float_vel"] = body.velocity
+			input.float_pressed = true   # Shift again
 	if _data.has("flip_watch") and not body.is_on_floor() and body.velocity.y < 0.0 and body.global_position.y < 0.6 and not _data.has("pressed"):
 		input.jump_pressed = true   # just above the floor
 		_data["pressed"] = true
@@ -618,6 +765,21 @@ func _start_swing() -> void:
 	input.sprint = false
 	input.grapple = true
 	input.grapple_pressed = true
+
+
+## High in the air with this velocity, facing -z, and Shift pressed: one step later, floating.
+func _start_float(vel: Vector3) -> void:
+	motor.reset()
+	_teleport(Vector3(-30, 40, 180))
+	_clear_input()
+	body.velocity = vel
+	input.yaw = 0.0
+	input.pitch = 0.0
+	input.float_pressed = true
+	motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)
+	input.clear_edges()
+	if motor.state != MovementController.State.FLOAT:
+		_report(false, "set-up: floating (%s)" % MovementController.State.keys()[motor.state])
 
 
 func _box(pos: Vector3, size: Vector3) -> StaticBody3D:

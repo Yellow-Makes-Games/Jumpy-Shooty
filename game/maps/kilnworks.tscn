@@ -1,0 +1,1305 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_root.gd" id="1_5ob1m"]
+[ext_resource type="Resource" path="res://game/maps/palettes/kilnworks.tres" id="2_0lg47"]
+[ext_resource type="Script" path="res://game/arena/map_block.gd" id="3_onmqy"]
+[ext_resource type="Script" path="res://game/arena/map_spawn.gd" id="4_fo7xq"]
+[ext_resource type="Script" path="res://game/arena/map_weapon_spawn.gd" id="5_hcpj5"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_f8gvf"]
+sky_top_color = Color(0.24, 0.42, 0.72, 1)
+sky_horizon_color = Color(0.87, 0.76, 0.64, 1)
+ground_bottom_color = Color(0.42, 0.34, 0.28, 1)
+ground_horizon_color = Color(0.7, 0.6, 0.5, 1)
+
+[sub_resource type="Sky" id="Sky_cpbhd"]
+sky_material = SubResource("ProceduralSkyMaterial_f8gvf")
+
+[sub_resource type="Environment" id="Environment_hsi0g"]
+background_mode = 2
+sky = SubResource("Sky_cpbhd")
+ambient_light_source = 2
+ambient_light_color = Color(0.86, 0.8, 0.72, 1)
+ambient_light_energy = 0.9
+tonemap_mode = 2
+tonemap_white = 2.6
+ssao_enabled = true
+glow_enabled = true
+fog_enabled = true
+fog_light_color = Color(0.84, 0.74, 0.62, 1)
+fog_density = 0.0035
+
+[node name="Kilnworks" type="Node3D" unique_id=210289457]
+script = ExtResource("1_5ob1m")
+palette = ExtResource("2_0lg47")
+face_shade = Vector3(0.92, 0.84, 0.68)
+kill_height = -20.0
+bounds = Rect2(-30, -30, 60, 60)
+swing_point = Vector3(0, 13.5, 0)
+
+[node name="Environment" type="WorldEnvironment" parent="." unique_id=47805606]
+environment = SubResource("Environment_hsi0g")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=2038825205]
+transform = Transform3D(0.8290376, -0.4022497, 0.38844803, 0, 0.6946584, 0.7193398, -0.5591929, -0.5963597, 0.57589793, 0, 0, 0)
+light_color = Color(1, 0.94, 0.83, 1)
+light_energy = 1.05
+shadow_enabled = true
+directional_shadow_max_distance = 170.0
+
+[node name="Ground" type="Node3D" parent="." unique_id=1550080299]
+metadata/_edit_group_ = true
+
+[node name="Floor" type="Node3D" parent="Ground" unique_id=567740941]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(60, 1, 60)
+kind = "tile_floor"
+unbreakable = true
+
+[node name="KilnPlinth" type="Node3D" parent="Ground" unique_id=1463539810]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(20, 1.6, 20)
+kind = "flags"
+unbreakable = true
+
+[node name="PlinthEdgeNorth" type="Node3D" parent="Ground" unique_id=556617938]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.62, -9.9)
+script = ExtResource("3_onmqy")
+size = Vector3(20, 0.12, 0.5)
+kind = "brick_light"
+solid = false
+
+[node name="PlinthEdgeSouth" type="Node3D" parent="Ground" unique_id=378385023]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.62, 9.9)
+script = ExtResource("3_onmqy")
+size = Vector3(20, 0.12, 0.5)
+kind = "brick_light"
+solid = false
+
+[node name="PlinthEdgeWest" type="Node3D" parent="Ground" unique_id=1172123033]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.9, 1.62, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.5, 0.12, 20)
+kind = "brick_light"
+solid = false
+
+[node name="PlinthEdgeEast" type="Node3D" parent="Ground" unique_id=1694959666]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.9, 1.62, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.5, 0.12, 20)
+kind = "brick_light"
+solid = false
+
+[node name="PlinthRampNorth" type="Node3D" parent="Ground" unique_id=278713476]
+transform = Transform3D(1, 0, 0, 0, 0.9216354, 0.388057, 0, -0.388057, 0.9216354, 0, 0.61567295, -11.822389)
+script = ExtResource("3_onmqy")
+size = Vector3(3.5, 0.4, 4.123106)
+kind = "flags"
+
+[node name="PlinthRampSouth" type="Node3D" parent="Ground" unique_id=684278963]
+transform = Transform3D(-1, 3.392502e-08, -8.057192e-08, 0, 0.9216354, 0.388057, 8.742278e-08, 0.388057, -0.9216354, -6.785004e-09, 0.61567295, 11.822389)
+script = ExtResource("3_onmqy")
+size = Vector3(3.5, 0.4, 4.123106)
+kind = "flags"
+
+[node name="Walls" type="Node3D" parent="." unique_id=1493556235]
+metadata/_edit_group_ = true
+
+[node name="WallNorth" type="Node3D" parent="Walls" unique_id=1234975547]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, -30)
+script = ExtResource("3_onmqy")
+size = Vector3(60, 14, 2)
+kind = "brick"
+
+[node name="WallSouth" type="Node3D" parent="Walls" unique_id=1225523697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, 30)
+script = ExtResource("3_onmqy")
+size = Vector3(60, 14, 2)
+kind = "brick"
+
+[node name="WallWest" type="Node3D" parent="Walls" unique_id=1713569938]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 7, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(2, 14, 60)
+kind = "brick"
+
+[node name="WallEast" type="Node3D" parent="Walls" unique_id=2139171163]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 7, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(2, 14, 60)
+kind = "brick"
+
+[node name="RibN-20" type="Node3D" parent="Walls" unique_id=1834117799]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 7, -28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibS-20" type="Node3D" parent="Walls" unique_id=253537925]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 7, 28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibN-10" type="Node3D" parent="Walls" unique_id=1154503045]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 7, -28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibS-10" type="Node3D" parent="Walls" unique_id=1607482341]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 7, 28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibN0" type="Node3D" parent="Walls" unique_id=401483246]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, -28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibS0" type="Node3D" parent="Walls" unique_id=28302286]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, 28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibN10" type="Node3D" parent="Walls" unique_id=1431598489]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 7, -28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibS10" type="Node3D" parent="Walls" unique_id=416985608]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 7, 28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibN20" type="Node3D" parent="Walls" unique_id=45913834]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 7, -28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibS20" type="Node3D" parent="Walls" unique_id=1905583243]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 7, 28.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibW-20" type="Node3D" parent="Walls" unique_id=1341266859]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.7, 7, -20)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibE-20" type="Node3D" parent="Walls" unique_id=756122730]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.7, 7, -20)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibW-10" type="Node3D" parent="Walls" unique_id=198701009]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.7, 7, -10)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibE-10" type="Node3D" parent="Walls" unique_id=753107545]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.7, 7, -10)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibW0" type="Node3D" parent="Walls" unique_id=544845932]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.7, 7, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibE0" type="Node3D" parent="Walls" unique_id=740937543]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.7, 7, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibW10" type="Node3D" parent="Walls" unique_id=982244332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.7, 7, 10)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibE10" type="Node3D" parent="Walls" unique_id=1669177504]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.7, 7, 10)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibW20" type="Node3D" parent="Walls" unique_id=748940601]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.7, 7, 20)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="RibE20" type="Node3D" parent="Walls" unique_id=705013920]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.7, 7, 20)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 14, 1.2)
+kind = "brick_light"
+
+[node name="TileBandNorth" type="Node3D" parent="Walls" unique_id=301827478]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -29.95)
+script = ExtResource("3_onmqy")
+size = Vector3(60, 2.2, 0.12)
+kind = "tile_teal"
+solid = false
+
+[node name="TileBandSouth" type="Node3D" parent="Walls" unique_id=1070605419]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 29.95)
+script = ExtResource("3_onmqy")
+size = Vector3(60, 2.2, 0.12)
+kind = "tile_teal"
+solid = false
+
+[node name="TileBandWest" type="Node3D" parent="Walls" unique_id=1779936614]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.95, 1.1, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.12, 2.2, 60)
+kind = "tile_teal"
+solid = false
+
+[node name="TileBandEast" type="Node3D" parent="Walls" unique_id=19589201]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.95, 1.1, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.12, 2.2, 60)
+kind = "tile_teal"
+solid = false
+
+[node name="Kilns" type="Node3D" parent="." unique_id=2061109746]
+metadata/_edit_group_ = true
+
+[node name="KilnWN" type="Node3D" parent="Kilns" unique_id=996314770]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 5.35, -4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(6.4, 7.5, 6.4)
+kind = "brick_dark"
+sides = 20
+
+[node name="KilnCapWN" type="Node3D" parent="Kilns" unique_id=1388528855]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 9.3, -4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(6.9, 0.4, 6.9)
+kind = "soot"
+sides = 20
+
+[node name="KilnLidWN" type="Node3D" parent="Kilns" unique_id=2132988762]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 9.6, -4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(2.2, 0.5, 2.2)
+kind = "steel"
+
+[node name="MouthXWN" type="Node3D" parent="Kilns" unique_id=1558512399]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.7, 2.7, -4.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.3, 1.8, 1.8)
+kind = "kiln_glow"
+
+[node name="MouthZWN" type="Node3D" parent="Kilns" unique_id=1545043481]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 2.7, -7.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.8, 1.8, 0.3)
+kind = "kiln_glow"
+
+[node name="MouthHoodXWN" type="Node3D" parent="Kilns" unique_id=401658796]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.55, 3.85, -4.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.7, 0.25, 2.4)
+kind = "brick_light"
+
+[node name="MouthHoodZWN" type="Node3D" parent="Kilns" unique_id=299373978]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 3.85, -7.55)
+script = ExtResource("3_onmqy")
+size = Vector3(2.4, 0.25, 0.7)
+kind = "brick_light"
+
+[node name="KilnWS" type="Node3D" parent="Kilns" unique_id=183089790]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 5.35, 4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(6.4, 7.5, 6.4)
+kind = "brick_dark"
+sides = 20
+
+[node name="KilnCapWS" type="Node3D" parent="Kilns" unique_id=188421233]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 9.3, 4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(6.9, 0.4, 6.9)
+kind = "soot"
+sides = 20
+
+[node name="KilnLidWS" type="Node3D" parent="Kilns" unique_id=797201808]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 9.6, 4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(2.2, 0.5, 2.2)
+kind = "steel"
+
+[node name="MouthXWS" type="Node3D" parent="Kilns" unique_id=1759254415]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.7, 2.7, 4.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.3, 1.8, 1.8)
+kind = "kiln_glow"
+
+[node name="MouthZWS" type="Node3D" parent="Kilns" unique_id=1925985291]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 2.7, 7.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.8, 1.8, 0.3)
+kind = "kiln_glow"
+
+[node name="MouthHoodXWS" type="Node3D" parent="Kilns" unique_id=1687149193]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.55, 3.85, 4.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.7, 0.25, 2.4)
+kind = "brick_light"
+
+[node name="MouthHoodZWS" type="Node3D" parent="Kilns" unique_id=116928910]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 3.85, 7.55)
+script = ExtResource("3_onmqy")
+size = Vector3(2.4, 0.25, 0.7)
+kind = "brick_light"
+
+[node name="KilnEN" type="Node3D" parent="Kilns" unique_id=57334761]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 5.35, -4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(6.4, 7.5, 6.4)
+kind = "brick_dark"
+sides = 20
+
+[node name="KilnCapEN" type="Node3D" parent="Kilns" unique_id=978311238]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 9.3, -4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(6.9, 0.4, 6.9)
+kind = "soot"
+sides = 20
+
+[node name="KilnLidEN" type="Node3D" parent="Kilns" unique_id=1889067853]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 9.6, -4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(2.2, 0.5, 2.2)
+kind = "steel"
+
+[node name="MouthXEN" type="Node3D" parent="Kilns" unique_id=1789984493]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7, 2.7, -4.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.3, 1.8, 1.8)
+kind = "kiln_glow"
+
+[node name="MouthZEN" type="Node3D" parent="Kilns" unique_id=1630285671]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 2.7, -7.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.8, 1.8, 0.3)
+kind = "kiln_glow"
+
+[node name="MouthHoodXEN" type="Node3D" parent="Kilns" unique_id=1895915692]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.55, 3.85, -4.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.7, 0.25, 2.4)
+kind = "brick_light"
+
+[node name="MouthHoodZEN" type="Node3D" parent="Kilns" unique_id=857214310]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 3.85, -7.55)
+script = ExtResource("3_onmqy")
+size = Vector3(2.4, 0.25, 0.7)
+kind = "brick_light"
+
+[node name="KilnES" type="Node3D" parent="Kilns" unique_id=1704574285]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 5.35, 4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(6.4, 7.5, 6.4)
+kind = "brick_dark"
+sides = 20
+
+[node name="KilnCapES" type="Node3D" parent="Kilns" unique_id=1707330926]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 9.3, 4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(6.9, 0.4, 6.9)
+kind = "soot"
+sides = 20
+
+[node name="KilnLidES" type="Node3D" parent="Kilns" unique_id=1266594794]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 9.6, 4.5)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(2.2, 0.5, 2.2)
+kind = "steel"
+
+[node name="MouthXES" type="Node3D" parent="Kilns" unique_id=1714743401]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.7, 2.7, 4.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.3, 1.8, 1.8)
+kind = "kiln_glow"
+
+[node name="MouthZES" type="Node3D" parent="Kilns" unique_id=2074495978]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 2.7, 7.7)
+script = ExtResource("3_onmqy")
+size = Vector3(1.8, 1.8, 0.3)
+kind = "kiln_glow"
+
+[node name="MouthHoodXES" type="Node3D" parent="Kilns" unique_id=143445793]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.55, 3.85, 4.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.7, 0.25, 2.4)
+kind = "brick_light"
+
+[node name="MouthHoodZES" type="Node3D" parent="Kilns" unique_id=76686928]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 3.85, 7.55)
+script = ExtResource("3_onmqy")
+size = Vector3(2.4, 0.25, 0.7)
+kind = "brick_light"
+
+[node name="Galleries" type="Node3D" parent="." unique_id=839502184]
+metadata/_edit_group_ = true
+
+[node name="GalleryNorth" type="Node3D" parent="Galleries" unique_id=1002657213]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 5.85, -24)
+script = ExtResource("3_onmqy")
+size = Vector3(53, 0.3, 10)
+kind = "flags"
+
+[node name="GalleryNorthSoffit" type="Node3D" parent="Galleries" unique_id=1631117063]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 5.62, -24)
+script = ExtResource("3_onmqy")
+size = Vector3(53, 0.16, 10)
+kind = "soot"
+solid = false
+
+[node name="GalleryNorthBeam-24" type="Node3D" parent="Galleries" unique_id=796476291]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 5.45, -24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GalleryNorthBeam-12" type="Node3D" parent="Galleries" unique_id=1824352440]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 5.45, -24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GalleryNorthBeam0" type="Node3D" parent="Galleries" unique_id=525108505]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.45, -24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GalleryNorthBeam12" type="Node3D" parent="Galleries" unique_id=933867128]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 5.45, -24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GalleryNorthBeam22" type="Node3D" parent="Galleries" unique_id=2076247160]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 5.45, -24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GalleryNorthPier-20" type="Node3D" parent="Galleries" unique_id=929293221]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 2.85, -20.2)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 5.7, 1.2)
+kind = "brick"
+
+[node name="GalleryNorthPier0" type="Node3D" parent="Galleries" unique_id=1186168697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, -20.2)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 5.7, 1.2)
+kind = "brick"
+
+[node name="GalleryNorthPier20" type="Node3D" parent="Galleries" unique_id=1704597370]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 2.85, -20.2)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 5.7, 1.2)
+kind = "brick"
+
+[node name="GallerySouth" type="Node3D" parent="Galleries" unique_id=826236655]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 5.85, 24)
+script = ExtResource("3_onmqy")
+size = Vector3(53, 0.3, 10)
+kind = "flags"
+
+[node name="GallerySouthSoffit" type="Node3D" parent="Galleries" unique_id=1382012923]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 5.62, 24)
+script = ExtResource("3_onmqy")
+size = Vector3(53, 0.16, 10)
+kind = "soot"
+solid = false
+
+[node name="GallerySouthBeam-24" type="Node3D" parent="Galleries" unique_id=417100402]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 5.45, 24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GallerySouthBeam-12" type="Node3D" parent="Galleries" unique_id=676654313]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 5.45, 24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GallerySouthBeam0" type="Node3D" parent="Galleries" unique_id=1908793414]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.45, 24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GallerySouthBeam12" type="Node3D" parent="Galleries" unique_id=1915190077]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 5.45, 24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GallerySouthBeam22" type="Node3D" parent="Galleries" unique_id=1785701474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 5.45, 24)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 0.4, 10)
+kind = "steel_light"
+
+[node name="GallerySouthPier-20" type="Node3D" parent="Galleries" unique_id=808717299]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 2.85, 20.2)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 5.7, 1.2)
+kind = "brick"
+
+[node name="GallerySouthPier0" type="Node3D" parent="Galleries" unique_id=1555858053]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, 20.2)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 5.7, 1.2)
+kind = "brick"
+
+[node name="GallerySouthPier20" type="Node3D" parent="Galleries" unique_id=1883861332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 2.85, 20.2)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 5.7, 1.2)
+kind = "brick"
+
+[node name="FrontWallN-19" type="Node3D" parent="Galleries" unique_id=2072141089]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 1.1, -19.5)
+script = ExtResource("3_onmqy")
+size = Vector3(10, 2.2, 0.5)
+kind = "brick"
+
+[node name="FrontWallS-19" type="Node3D" parent="Galleries" unique_id=1377902212]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 1.1, 19.5)
+script = ExtResource("3_onmqy")
+size = Vector3(10, 2.2, 0.5)
+kind = "brick"
+
+[node name="FrontWallN0" type="Node3D" parent="Galleries" unique_id=1005147250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, -19.5)
+script = ExtResource("3_onmqy")
+size = Vector3(18, 2.2, 0.5)
+kind = "brick"
+
+[node name="FrontWallS0" type="Node3D" parent="Galleries" unique_id=925937761]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.1, 19.5)
+script = ExtResource("3_onmqy")
+size = Vector3(18, 2.2, 0.5)
+kind = "brick"
+
+[node name="FrontWallN19" type="Node3D" parent="Galleries" unique_id=1645810573]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 1.1, -19.5)
+script = ExtResource("3_onmqy")
+size = Vector3(10, 2.2, 0.5)
+kind = "brick"
+
+[node name="FrontWallS19" type="Node3D" parent="Galleries" unique_id=1038833253]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 1.1, 19.5)
+script = ExtResource("3_onmqy")
+size = Vector3(10, 2.2, 0.5)
+kind = "brick"
+
+[node name="ParapetN-17" type="Node3D" parent="Galleries" unique_id=1920791893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 6.55, -19.3)
+script = ExtResource("3_onmqy")
+size = Vector3(14, 1.1, 0.4)
+kind = "brick_light"
+
+[node name="ParapetN10" type="Node3D" parent="Galleries" unique_id=591831993]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 6.55, -19.3)
+script = ExtResource("3_onmqy")
+size = Vector3(17, 1.1, 0.4)
+kind = "brick_light"
+
+[node name="ParapetS-10" type="Node3D" parent="Galleries" unique_id=137454963]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5, 6.55, 19.3)
+script = ExtResource("3_onmqy")
+size = Vector3(17, 1.1, 0.4)
+kind = "brick_light"
+
+[node name="ParapetS17" type="Node3D" parent="Galleries" unique_id=2068134938]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 6.55, 19.3)
+script = ExtResource("3_onmqy")
+size = Vector3(14, 1.1, 0.4)
+kind = "brick_light"
+
+[node name="YardRampNorth" type="Node3D" parent="Galleries" unique_id=788094939]
+transform = Transform3D(-1, 3.9096655e-08, -7.819331e-08, 0, 0.8944272, 0.4472136, 8.742278e-08, 0.4472136, -0.8944272, 22, 2.8211145, -13.089442)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.4, 13.416408)
+kind = "steel"
+
+[node name="YardRampSouth" type="Node3D" parent="Galleries" unique_id=2142447243]
+transform = Transform3D(1, 0, 0, 0, 0.8944272, 0.4472136, 0, -0.4472136, 0.8944272, -22, 2.8211145, 13.089442)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.4, 13.416408)
+kind = "steel"
+
+[node name="YardRampNorthStep0" type="Node3D" parent="Galleries" unique_id=110098736]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 0.06, -7)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampSouthStep0" type="Node3D" parent="Galleries" unique_id=1943485042]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 0.06, 7)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampNorthStep1" type="Node3D" parent="Galleries" unique_id=496152776]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 1.26, -9.4)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampSouthStep1" type="Node3D" parent="Galleries" unique_id=1670563985]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 1.26, 9.4)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampNorthStep2" type="Node3D" parent="Galleries" unique_id=540023520]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 2.46, -11.8)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampSouthStep2" type="Node3D" parent="Galleries" unique_id=1010014499]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 2.46, 11.8)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampNorthStep3" type="Node3D" parent="Galleries" unique_id=621266711]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 3.66, -14.2)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampSouthStep3" type="Node3D" parent="Galleries" unique_id=842833056]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 3.66, 14.2)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampNorthStep4" type="Node3D" parent="Galleries" unique_id=1679873913]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 4.86, -16.6)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampSouthStep4" type="Node3D" parent="Galleries" unique_id=330476707]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 4.86, 16.6)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampNorthStep5" type="Node3D" parent="Galleries" unique_id=2310788]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 6.06, -19)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="YardRampSouthStep5" type="Node3D" parent="Galleries" unique_id=907508150]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 6.06, 19)
+script = ExtResource("3_onmqy")
+size = Vector3(4, 0.05, 0.1)
+kind = "hazard"
+solid = false
+
+[node name="HighWalk" type="Node3D" parent="." unique_id=530610129]
+metadata/_edit_group_ = true
+
+[node name="Catwalk" type="Node3D" parent="HighWalk" unique_id=139578862]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, 11.85, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(5, 0.3, 16)
+kind = "deck"
+
+[node name="Bridge" type="Node3D" parent="HighWalk" unique_id=104677131]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.85, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(48, 0.3, 4)
+kind = "deck"
+
+[node name="Landing" type="Node3D" parent="HighWalk" unique_id=504906511]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 11.85, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(8, 0.3, 12)
+kind = "deck"
+
+[node name="CatwalkRampNorth" type="Node3D" parent="HighWalk" unique_id=637657336]
+transform = Transform3D(1, 0, 0, 0, 0.8944272, 0.4472136, 0, -0.4472136, 0.8944272, -26.5, 8.821115, -13.910558)
+script = ExtResource("3_onmqy")
+size = Vector3(5, 0.4, 13.416408)
+kind = "deck"
+
+[node name="CatwalkRampSouth" type="Node3D" parent="HighWalk" unique_id=984760594]
+transform = Transform3D(1, 0, 0, 0, 0.8944272, -0.4472136, 0, 0.4472136, 0.8944272, -26.5, 8.821115, 13.910558)
+script = ExtResource("3_onmqy")
+size = Vector3(5, 0.4, 13.416408)
+kind = "deck"
+
+[node name="BridgeRib-20" type="Node3D" parent="HighWalk" unique_id=523173150]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 11.62, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.35, 0.35, 4)
+kind = "steel_light"
+solid = false
+
+[node name="BridgeRib-10" type="Node3D" parent="HighWalk" unique_id=237620689]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 11.62, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.35, 0.35, 4)
+kind = "steel_light"
+solid = false
+
+[node name="BridgeRib0" type="Node3D" parent="HighWalk" unique_id=1758294589]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.62, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.35, 0.35, 4)
+kind = "steel_light"
+solid = false
+
+[node name="BridgeRib10" type="Node3D" parent="HighWalk" unique_id=1992017284]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 11.62, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.35, 0.35, 4)
+kind = "steel_light"
+solid = false
+
+[node name="BridgeRib20" type="Node3D" parent="HighWalk" unique_id=1428455265]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 11.62, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.35, 0.35, 4)
+kind = "steel_light"
+solid = false
+
+[node name="BridgePier-14" type="Node3D" parent="HighWalk" unique_id=1284688621]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 5.85, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(1.4, 11.7, 1.4)
+kind = "brick_dark"
+
+[node name="BridgePierCap-14" type="Node3D" parent="HighWalk" unique_id=1090700050]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 11.5, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(1.8, 0.4, 1.8)
+kind = "steel"
+
+[node name="BridgePier14" type="Node3D" parent="HighWalk" unique_id=907306796]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5.85, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(1.4, 11.7, 1.4)
+kind = "brick_dark"
+
+[node name="BridgePierCap14" type="Node3D" parent="HighWalk" unique_id=337738958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 11.5, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(1.8, 0.4, 1.8)
+kind = "steel"
+
+[node name="BridgeRail-14_-21" type="Node3D" parent="HighWalk" unique_id=782925241]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 12.45, -2.15)
+script = ExtResource("3_onmqy")
+size = Vector3(20, 0.9, 0.3)
+kind = "steel_light"
+
+[node name="BridgeRail-14_21" type="Node3D" parent="HighWalk" unique_id=1218324838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 12.45, 2.15)
+script = ExtResource("3_onmqy")
+size = Vector3(20, 0.9, 0.3)
+kind = "steel_light"
+
+[node name="BridgeRail12_-21" type="Node3D" parent="HighWalk" unique_id=1703574464]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 12.45, -2.15)
+script = ExtResource("3_onmqy")
+size = Vector3(16, 0.9, 0.3)
+kind = "steel_light"
+
+[node name="BridgeRail12_21" type="Node3D" parent="HighWalk" unique_id=385141266]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 12.45, 2.15)
+script = ExtResource("3_onmqy")
+size = Vector3(16, 0.9, 0.3)
+kind = "steel_light"
+
+[node name="CatwalkRail-5" type="Node3D" parent="HighWalk" unique_id=624135883]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.8, 12.45, -5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.4, 0.9, 6)
+kind = "steel_light"
+
+[node name="CatwalkRail5" type="Node3D" parent="HighWalk" unique_id=343232030]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.8, 12.45, 5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.4, 0.9, 6)
+kind = "steel_light"
+
+[node name="LandingRail-62" type="Node3D" parent="HighWalk" unique_id=923672339]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 12.45, -6.2)
+script = ExtResource("3_onmqy")
+size = Vector3(8, 0.9, 0.4)
+kind = "steel_light"
+
+[node name="LandingRail62" type="Node3D" parent="HighWalk" unique_id=1829756603]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 12.45, 6.2)
+script = ExtResource("3_onmqy")
+size = Vector3(8, 0.9, 0.4)
+kind = "steel_light"
+
+[node name="LandingRailEast" type="Node3D" parent="HighWalk" unique_id=2002511871]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.2, 12.45, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.4, 0.9, 12)
+kind = "steel_light"
+
+[node name="Cover" type="Node3D" parent="." unique_id=323147704]
+metadata/_edit_group_ = true
+
+[node name="WallRunNorth" type="Node3D" parent="Cover" unique_id=1980210506]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 3, -14.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 6, 9)
+kind = "brick"
+
+[node name="WallRunNorthStripe" type="Node3D" parent="Cover" unique_id=502073379]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.32, 3, -14.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.04, 5.4, 8.4)
+kind = "hazard"
+solid = false
+
+[node name="WallRunSouth" type="Node3D" parent="Cover" unique_id=1452773332]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 3, 14.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.6, 6, 9)
+kind = "brick"
+
+[node name="WallRunSouthStripe" type="Node3D" parent="Cover" unique_id=667871134]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.32, 3, 14.5)
+script = ExtResource("3_onmqy")
+size = Vector3(0.04, 5.4, 8.4)
+kind = "hazard"
+solid = false
+
+[node name="Crate140_140" type="Node3D" parent="Cover" unique_id=314835563]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 0.75, 14)
+script = ExtResource("3_onmqy")
+size = Vector3(2.2, 1.5, 2.2)
+kind = "crate"
+
+[node name="Crate163_156" type="Node3D" parent="Cover" unique_id=1433708013]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.4, 0.5, 15.6)
+script = ExtResource("3_onmqy")
+size = Vector3(1.8, 1, 1.8)
+kind = "crate"
+
+[node name="Crate-140_-140" type="Node3D" parent="Cover" unique_id=517550188]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0.75, -14)
+script = ExtResource("3_onmqy")
+size = Vector3(2.2, 1.5, 2.2)
+kind = "crate"
+
+[node name="Crate-162_-160" type="Node3D" parent="Cover" unique_id=327059614]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.2, 0.5, -16)
+script = ExtResource("3_onmqy")
+size = Vector3(1.6, 1, 1.6)
+kind = "crate"
+
+[node name="Crate265_80" type="Node3D" parent="Cover" unique_id=1257465436]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.5, 0.6, 8)
+script = ExtResource("3_onmqy")
+size = Vector3(2, 1.2, 2)
+kind = "crate"
+
+[node name="Crate265_-80" type="Node3D" parent="Cover" unique_id=1953241726]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.5, 0.6, -8)
+script = ExtResource("3_onmqy")
+size = Vector3(2, 1.2, 2)
+kind = "crate"
+
+[node name="Crate-15_-165" type="Node3D" parent="Cover" unique_id=1935990883]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0.45, -16.5)
+script = ExtResource("3_onmqy")
+size = Vector3(1.6, 0.9, 1.6)
+kind = "crate"
+
+[node name="Barrel-160_100" type="Node3D" parent="Cover" unique_id=798532168]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 0.75, 10)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(1.2, 1.5, 1.2)
+kind = "clay"
+sides = 10
+
+[node name="Barrel-146_111" type="Node3D" parent="Cover" unique_id=1585489854]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.6, 0.75, 11.2)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(1.2, 1.5, 1.2)
+kind = "clay"
+sides = 10
+
+[node name="Barrel160_-90" type="Node3D" parent="Cover" unique_id=234946761]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0.75, -9)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(1.2, 1.5, 1.2)
+kind = "clay"
+sides = 10
+
+[node name="Barrel172_-103" type="Node3D" parent="Cover" unique_id=688958772]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.2, 0.75, -10.4)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(1.2, 1.5, 1.2)
+kind = "clay"
+sides = 10
+
+[node name="Barrel-260_60" type="Node3D" parent="Cover" unique_id=1518215064]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 0.75, 6)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(1.2, 1.5, 1.2)
+kind = "clay"
+sides = 10
+
+[node name="Barrel260_-140" type="Node3D" parent="Cover" unique_id=672759337]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 0.75, -14)
+script = ExtResource("3_onmqy")
+shape = 1
+size = Vector3(1.2, 1.5, 1.2)
+kind = "clay"
+sides = 10
+
+[node name="PartitionWest" type="Node3D" parent="Cover" unique_id=1963821080]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, 1.3, -18)
+script = ExtResource("3_onmqy")
+size = Vector3(0.3, 2.6, 8)
+kind = "plaster"
+
+[node name="PartitionEast" type="Node3D" parent="Cover" unique_id=236449074]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 1.3, 12)
+script = ExtResource("3_onmqy")
+size = Vector3(0.3, 2.6, 8)
+kind = "plaster"
+
+[node name="PartitionWestBase" type="Node3D" parent="Cover" unique_id=569096244]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, 0.1, -18)
+script = ExtResource("3_onmqy")
+size = Vector3(0.7, 0.2, 8.2)
+kind = "soot"
+unbreakable = true
+
+[node name="PartitionEastBase" type="Node3D" parent="Cover" unique_id=1664356009]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 0.1, 12)
+script = ExtResource("3_onmqy")
+size = Vector3(0.7, 0.2, 8.2)
+kind = "soot"
+unbreakable = true
+
+[node name="Stack-60_-260" type="Node3D" parent="Cover" unique_id=2090257114]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 6.6, -26)
+script = ExtResource("3_onmqy")
+size = Vector3(1.6, 1.2, 1.6)
+kind = "crate"
+
+[node name="Stack100_260" type="Node3D" parent="Cover" unique_id=2076455059]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 6.6, 26)
+script = ExtResource("3_onmqy")
+size = Vector3(1.6, 1.2, 1.6)
+kind = "crate"
+
+[node name="Stack-140_265" type="Node3D" parent="Cover" unique_id=1720466738]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 6.6, 26.5)
+script = ExtResource("3_onmqy")
+size = Vector3(1.4, 1.2, 1.4)
+kind = "crate"
+
+[node name="Stack260_-265" type="Node3D" parent="Cover" unique_id=1334574757]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26, 6.6, -26.5)
+script = ExtResource("3_onmqy")
+size = Vector3(1.4, 1.2, 1.4)
+kind = "crate"
+
+[node name="Stack-265_-65" type="Node3D" parent="Cover" unique_id=303468534]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, 12.6, -6.5)
+script = ExtResource("3_onmqy")
+size = Vector3(1.4, 1.2, 1.4)
+kind = "crate"
+
+[node name="Stack265_-40" type="Node3D" parent="Cover" unique_id=650069258]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.5, 12.6, -4)
+script = ExtResource("3_onmqy")
+size = Vector3(1.4, 1.2, 1.4)
+kind = "crate"
+
+[node name="Lights" type="Node3D" parent="." unique_id=1007665534]
+metadata/_edit_group_ = true
+
+[node name="LampNorth" type="Node3D" parent="Lights" unique_id=1952095170]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.4, -28.9)
+script = ExtResource("3_onmqy")
+size = Vector3(6, 0.5, 0.3)
+kind = "lamp"
+solid = false
+
+[node name="LampSouth" type="Node3D" parent="Lights" unique_id=1044860648]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.4, 28.9)
+script = ExtResource("3_onmqy")
+size = Vector3(6, 0.5, 0.3)
+kind = "lamp"
+solid = false
+
+[node name="LampWest" type="Node3D" parent="Lights" unique_id=1496226305]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.9, 11.4, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.3, 0.5, 6)
+kind = "lamp"
+solid = false
+
+[node name="LampEast" type="Node3D" parent="Lights" unique_id=377815524]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.9, 11.4, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(0.3, 0.5, 6)
+kind = "lamp"
+solid = false
+
+[node name="DeckLamp-265_40" type="Node3D" parent="Lights" unique_id=1939323204]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, 12.12, 4)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 0.12, 1.2)
+kind = "lamp"
+solid = false
+
+[node name="DeckLamp240_40" type="Node3D" parent="Lights" unique_id=249175165]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 12.12, 4)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 0.12, 1.2)
+kind = "lamp"
+solid = false
+
+[node name="DeckLamp-120_0" type="Node3D" parent="Lights" unique_id=1280004589]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 12.12, 0)
+script = ExtResource("3_onmqy")
+size = Vector3(1.2, 0.12, 1.2)
+kind = "lamp"
+solid = false
+
+[node name="Spawns" type="Node3D" parent="." unique_id=808080336]
+
+[node name="YardWest" type="Marker3D" parent="Spawns" unique_id=867837965]
+transform = Transform3D(0.70710677, 0, -0.70710677, 0, 1, 0, 0.70710677, 0, 0.70710677, -13, 0, 13)
+script = ExtResource("4_fo7xq")
+
+[node name="YardEast" type="Marker3D" parent="Spawns" unique_id=245302054]
+transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 13, 0, -13)
+script = ExtResource("4_fo7xq")
+
+[node name="YardNorthWest" type="Marker3D" parent="Spawns" unique_id=1255836036]
+transform = Transform3D(-0.13511315, 0, -0.9908302, 0, 1, 0, 0.9908302, 0, -0.13511315, -22, 0, -3)
+script = ExtResource("4_fo7xq")
+
+[node name="YardSouthEast" type="Marker3D" parent="Spawns" unique_id=685433384]
+transform = Transform3D(0.13511318, 0, 0.9908302, 0, 1, 0, -0.9908302, 0, 0.13511318, 22, 0, 3)
+script = ExtResource("4_fo7xq")
+
+[node name="UnderGallerySouth" type="Marker3D" parent="Spawns" unique_id=913688391]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 24)
+script = ExtResource("4_fo7xq")
+
+[node name="UnderGalleryNorth" type="Marker3D" parent="Spawns" unique_id=947193204]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, -24)
+script = ExtResource("4_fo7xq")
+
+[node name="GalleryNorthWest" type="Marker3D" parent="Spawns" unique_id=195776982]
+transform = Transform3D(-0.76822126, 0, -0.6401844, 0, 1, 0, 0.6401844, 0, -0.76822126, -20, 6, -24)
+script = ExtResource("4_fo7xq")
+
+[node name="GalleryNorthEast" type="Marker3D" parent="Spawns" unique_id=94245506]
+transform = Transform3D(-0.97014254, 0, -0.24253555, 0, 1, 0, 0.24253555, 0, -0.97014254, -6, 6, -24)
+script = ExtResource("4_fo7xq")
+
+[node name="GallerySouthEast" type="Marker3D" parent="Spawns" unique_id=1705192267]
+transform = Transform3D(0.76822126, 0, 0.6401844, 0, 1, 0, -0.6401844, 0, 0.76822126, 20, 6, 24)
+script = ExtResource("4_fo7xq")
+
+[node name="GallerySouthWest" type="Marker3D" parent="Spawns" unique_id=634766860]
+transform = Transform3D(0.9701425, 0, 0.24253562, 0, 1, 0, -0.24253562, 0, 0.9701425, 6, 6, 24)
+script = ExtResource("4_fo7xq")
+
+[node name="Catwalk" type="Marker3D" parent="Spawns" unique_id=912522626]
+transform = Transform3D(0.037708953, 0, -0.99928874, 0, 1, 0, 0.99928874, 0, 0.037708953, -26.5, 12, 1)
+script = ExtResource("4_fo7xq")
+
+[node name="BridgeWest" type="Marker3D" parent="Spawns" unique_id=1235927940]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -14, 12, 0)
+script = ExtResource("4_fo7xq")
+
+[node name="BridgeEast" type="Marker3D" parent="Spawns" unique_id=243616229]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 10, 12, 0)
+script = ExtResource("4_fo7xq")
+
+[node name="Landing" type="Marker3D" parent="Spawns" unique_id=782781812]
+transform = Transform3D(-0.17888542, 0, 0.9838699, 0, 1, 0, -0.9838699, 0, -0.17888542, 22, 12, -4)
+script = ExtResource("4_fo7xq")
+
+[node name="WeaponSpawns" type="Node3D" parent="." unique_id=1790779196]
+
+[node name="Pistol" type="Marker3D" parent="WeaponSpawns" unique_id=2145453935]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 15)
+script = ExtResource("5_hcpj5")
+
+[node name="MachinePistol" type="Marker3D" parent="WeaponSpawns" unique_id=1476261826]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.5, 0, 9)
+script = ExtResource("5_hcpj5")
+weapon = "machine_pistol"
+
+[node name="Shotgun" type="Marker3D" parent="WeaponSpawns" unique_id=1806054734]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.5, 0, -9)
+script = ExtResource("5_hcpj5")
+weapon = "shotgun"
+
+[node name="Sword" type="Marker3D" parent="WeaponSpawns" unique_id=1714868093]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 0, 23)
+script = ExtResource("5_hcpj5")
+weapon = "sword"
+
+[node name="GrenadeLauncher" type="Marker3D" parent="WeaponSpawns" unique_id=468209466]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 0, -3)
+script = ExtResource("5_hcpj5")
+weapon = "grenade_launcher"
+
+[node name="Axe" type="Marker3D" parent="WeaponSpawns" unique_id=1653965087]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, 0, -12)
+script = ExtResource("5_hcpj5")
+weapon = "axe"
+
+[node name="Dagger" type="Marker3D" parent="WeaponSpawns" unique_id=1828511616]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1.6, 0)
+script = ExtResource("5_hcpj5")
+weapon = "dagger"
+
+[node name="LeverAction" type="Marker3D" parent="WeaponSpawns" unique_id=39923599]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5, 1.6, 8.5)
+script = ExtResource("5_hcpj5")
+weapon = "lever_action"
+
+[node name="Bat" type="Marker3D" parent="WeaponSpawns" unique_id=54250320]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 1.6, -6)
+script = ExtResource("5_hcpj5")
+weapon = "bat"
+
+[node name="Rifle" type="Marker3D" parent="WeaponSpawns" unique_id=1280654281]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 6, -24)
+script = ExtResource("5_hcpj5")
+weapon = "rifle"
+
+[node name="LMG" type="Marker3D" parent="WeaponSpawns" unique_id=1847794436]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 6, 27)
+script = ExtResource("5_hcpj5")
+weapon = "lmg"
+
+[node name="BoltAction" type="Marker3D" parent="WeaponSpawns" unique_id=1139526701]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 6, 26)
+script = ExtResource("5_hcpj5")
+weapon = "bolt_action"
+
+[node name="BreakAction" type="Marker3D" parent="WeaponSpawns" unique_id=1301678457]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 6, -26)
+script = ExtResource("5_hcpj5")
+weapon = "break_action"
+
+[node name="RocketLauncher" type="Marker3D" parent="WeaponSpawns" unique_id=1245704736]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 6, -27)
+script = ExtResource("5_hcpj5")
+weapon = "rocket_launcher"
+
+[node name="Sniper" type="Marker3D" parent="WeaponSpawns" unique_id=1235267893]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 12, 0)
+script = ExtResource("5_hcpj5")
+weapon = "sniper"
+
+[node name="Railgun" type="Marker3D" parent="WeaponSpawns" unique_id=1203480591]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.5, 12, 4.5)
+script = ExtResource("5_hcpj5")
+weapon = "railgun"
+
+[node name="Signs" type="Node3D" parent="." unique_id=1915501979]
+metadata/_edit_group_ = true
+
+[node name="Sign_KILN_7" type="Label3D" parent="Signs" unique_id=871374372]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.2, -28.6)
+pixel_size = 0.01
+modulate = Color(0.94, 0.86, 0.58, 1)
+outline_modulate = Color(0.22, 0.12, 0.09, 1)
+text = "KILN 7"
+font_size = 130
+
+[node name="Sign_DRYING_FLOOR" type="Label3D" parent="Signs" unique_id=920083514]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -16, 9, 28.6)
+pixel_size = 0.01
+modulate = Color(0.94, 0.86, 0.58, 1)
+outline_modulate = Color(0.22, 0.12, 0.09, 1)
+text = "DRYING FLOOR"
+font_size = 100
+
+[node name="Sign_KILNWORKS" type="Label3D" parent="Signs" unique_id=30300295]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 28.6, 9.6, 0)
+pixel_size = 0.01
+modulate = Color(0.94, 0.86, 0.58, 1)
+outline_modulate = Color(0.22, 0.12, 0.09, 1)
+text = "KILNWORKS"
+font_size = 110
+
+[node name="Sign_PRIVATE" type="Label3D" parent="Signs" unique_id=1716908675]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, -28.6, 8.6, 12)
+pixel_size = 0.01
+modulate = Color(0.94, 0.86, 0.58, 1)
+outline_modulate = Color(0.22, 0.12, 0.09, 1)
+text = "PRIVATE"
+font_size = 90
