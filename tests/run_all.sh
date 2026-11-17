@@ -33,12 +33,18 @@ echo "== Office: spawn points, bot navigation and every movement route"
 run_script tests/office_test.gd
 echo "== Rail Yard, Lost Temple and Neon Arcade: spawn points, breakable pieces and bot navigation"
 run_script tests/arena_maps_test.gd
+echo "== Halcyon: spawn points, pickups, the terminal, glass, the reactor pit, the hull and every route"
+run_script tests/halcyon_test.gd
+echo "== Map terminal: hold to fire, what cancels a hold, one player at a time"
+run_script tests/terminal_test.gd
+echo "== Low gravity: the event's schedule, jump heights, projectiles untouched, gravity always comes back"
+run_script tests/gravity_test.gd
 echo "== Breakable walls and floors: which pieces break, spawns stay safe, holes let shots through"
 run_script tests/destruction_test.gd
 echo "== Debug menu cheats and the target dummies"
 run_script tests/debug_test.gd
 echo "== Practice mode boots without errors on every map"
-for map in construction_site office kilnworks castle testing_grounds rooftop_run foundry sky_ruins; do
+for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins; do
   out=$("$GODOT" --headless --path . -- --practice --map="$map" --quit-after=3 2>&1)
   if echo "$out" | grep -q "SCRIPT ERROR\|^ERROR"; then echo "$out" | grep -A3 "ERROR"; exit 1; fi
 done
@@ -61,6 +67,8 @@ echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Office)"
 MAP=office tests/run_bot_test.sh
 echo "== Bots climb the Construction Site tower to a player on top"
 tests/run_bot_climb_test.sh
+echo "== Halcyon online and with bots: a client fires the terminal, a late joiner is told, bots use it and cope"
+tests/run_gravity_test.sh
 echo "== Race mode: bots finish every race map, fail conditions, results, an online race"
 tests/run_race_test.sh
 echo "== Sound effects: every sound loads; yours, the bots' and other players' play (Testing Grounds)"

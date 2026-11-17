@@ -5,7 +5,7 @@ extends Resource
 ## steel, plank...), and the kind's colour comes from here. Change a colour and
 ## every block of that kind changes with it, in the editor and in the game.
 
-## kind -> colour.
+## kind -> colour. An alpha below 1 makes the kind see-through (glass you look out of).
 @export var colors: Dictionary[String, Color] = {}:
 	set(v):
 		colors = v

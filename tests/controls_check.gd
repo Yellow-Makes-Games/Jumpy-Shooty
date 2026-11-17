@@ -23,6 +23,12 @@ func _initialize() -> void:
 	_ok(InputMap.action_has_event("kick", _key(KEY_F)), "F kicks by default")
 	_ok(S.action_text("dive") == "Q / Alt", "dive shows Q / Alt: " + S.action_text("dive"))
 	_ok(InputMap.action_has_event("float", _key(KEY_SHIFT)) and InputMap.action_has_event("sprint", _key(KEY_SHIFT)), "sprint and float share Shift")
+	_ok(InputMap.action_has_event("interact", _key(KEY_G)), "G is interact by default (hold it at a map terminal)")
+	var shared := []
+	for a in S.ACTIONS:
+		if a[0] != "interact" and (a[2] as Array).has("key:%d" % KEY_G):
+			shared.append(a[1])
+	_ok(shared.is_empty(), "no other action uses G by default %s" % [shared])
 	_ok(S.rebind("float", 1, "key:%d" % KEY_SHIFT).is_empty() and S.bindings.sprint.size() == 1, "sharing Shift is not a conflict")
 	var taken: Array = S.rebind("boost", 0, "key:%d" % KEY_F)
 	_ok(taken == ["Kick"], "F taken from Kick")

@@ -169,7 +169,7 @@ func _reel_to_player(body: Node3D, vel: Vector3, delta: float) -> Vector3:
 	if room > 0.0:
 		vel += dir * minf(tuning.tether_pull_accel * delta, room)
 	# Gravity is mostly cancelled while you are reeled in, so you fly at them, not under them.
-	vel.y += tuning.gravity * 0.6 * delta
+	vel.y += tuning.gravity * WorldGravity.scale * 0.6 * delta
 	return vel
 
 

@@ -1,5 +1,5 @@
 """Builds the arena maps made from code: python3 tools/arena/build_arena_maps.py [name...]
-(rail_yard, lost_temple, neon_arcade; all three when none are given). Writes
+(rail_yard, lost_temple, neon_arcade, halcyon; all of them when none are given). Writes
 game/maps/NAME.tscn and game/maps/palettes/NAME.tres, overwriting any hand edits."""
 import os
 import sys
@@ -18,6 +18,12 @@ except ImportError:
 try:
     import neon_arcade  # noqa: E402
     MAPS["neon_arcade"] = neon_arcade
+except ImportError:
+    pass
+
+try:
+    import halcyon  # noqa: E402
+    MAPS["halcyon"] = halcyon
 except ImportError:
     pass
 
