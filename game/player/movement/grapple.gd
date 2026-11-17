@@ -21,6 +21,11 @@ var attached := false
 var anchor := Vector3.ZERO
 var length := 0.0
 var cooldown_left := 0.0
+## The pull never takes you faster than this: the pull's top speed, or the speed you
+## hooked on at if that was faster. Past it, the pull turns your speed toward the
+## hook instead of adding to it, so hooking a nearby point at speed doesn't spin
+## you round it ever faster. Gravity can still add speed on a swing.
+var speed_cap := 0.0
 
 
 func _init(t: MovementTuning) -> void:
@@ -89,6 +94,7 @@ func release() -> void:
 ## The kick the hook gives the moment it catches: speed toward the hook, never
 ## past the pull's top speed.
 func yank(body: Node3D, vel: Vector3) -> Vector3:
+	speed_cap = maxf(vel.length(), tuning.grapple_pull_speed)
 	return _add_toward(body, vel, tuning.grapple_yank)
 
 
@@ -110,7 +116,11 @@ func _add_toward(body: Node3D, vel: Vector3, amount: float) -> Vector3:
 	var room := tuning.grapple_pull_speed * fade - vel.dot(dir)
 	if room <= 0.0:
 		return vel
-	return vel + dir * minf(amount, room)
+	var out := vel + dir * minf(amount, room)
+	var top := maxf(speed_cap, vel.length())
+	if out.length() > top:
+		out = out.normalized() * top   # turn toward the hook rather than speed up
+	return out
 
 
 ## Removes any velocity that would stretch the rope. Velocity along the swing is

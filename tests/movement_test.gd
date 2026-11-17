@@ -190,6 +190,21 @@ func _initialize() -> void:
 				_expect_true("moved toward the hook (x = %.1f)" % body.global_position.x, body.global_position.x < LOW_HOOK.x + 9.0)
 				_data.erase("y0")
 				input.grapple = false],
+		["hooking a near point at speed turns you toward it, never faster", 0.5,
+			func():
+				motor.reset()
+				_teleport(LOW_HOOK + Vector3(5, -2.5, 0))
+				_clear_input()
+				_aim_at(LOW_HOOK)
+				body.velocity = Vector3(0, 0, -20)
+				input.grapple = true
+				input.grapple_pressed = true
+				_data["fastest"] = 0.0,
+			func():
+				_expect_below("top speed on the rope", _data["fastest"], 20.5)
+				_data.erase("fastest")
+				input.grapple = false
+				motor.grapple.reset()],
 		["running past a hook keeps your sideways speed", 1.0 / Engine.physics_ticks_per_second,
 			func():
 				motor.reset()
@@ -211,7 +226,7 @@ func _initialize() -> void:
 			func():
 				_expect_true("let go", not motor.grapple.attached)
 				var v0: float = _data.get("release_speed", 0.0)
-				_expect_true("released fast (%.2f m/s)" % v0, v0 > 0.9 * sqrt(t.gravity * ROPE))
+				_expect_true("released fast (%.2f m/s)" % v0, v0 > 0.9 * t.grapple_pull_speed)
 				_expect_near("horizontal speed 0.4 s after letting go", motor.horizontal_speed(body), v0, 0.2)
 				_data.erase("release_speed")],
 		["cooldown blocks an instant re-grapple", 0.05,
@@ -536,6 +551,8 @@ func _tick() -> void:
 		var g := motor.grapple
 		var into := body.velocity.dot((g.anchor - g.rope_origin(body)).normalized())
 		_data["pull"]["fastest_in"] = max(_data["pull"]["fastest_in"], into)
+	if _data.has("fastest"):
+		_data["fastest"] = max(_data["fastest"], body.velocity.length())
 	if _data.has("let_go_after"):
 		_data["let_go_after"] -= dt
 		_steps[_scenario][1] = 99.0
