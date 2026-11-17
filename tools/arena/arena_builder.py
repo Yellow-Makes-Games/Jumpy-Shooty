@@ -165,11 +165,16 @@ class Map:
         mid = tuple((p + q) * 0.5 - y * thick * 0.5 for p, q, y in zip(a, b, Y))
         return self.block(parent, name, kind, mid, (width, thick, L), cols=(X, Y, Z), **kw)
 
-    def stairs(self, parent, name, a, b, width, kind="stair", side=None, rise=0.25, base=None, fill=False):
+    def stairs(self, parent, name, a, b, width, kind="stair", side=None, rise=0.25, base=None, fill=False, cheeks=(True, True),
+               cheek_stop=0.0):
         """A staircase from `a` (bottom of the first step) to `b` (top landing edge): an invisible
         solid ramp to walk (and for the bots' navigation mesh) under drawn steps you see.
         `side`: a kind for the cheeks along both sides. `base`: how low the step boxes reach.
-        `fill`: solid invisible boxes under the ramp, so nobody walks in under a big stair."""
+        `fill`: solid invisible boxes under the ramp, so nobody walks in under a big stair.
+        `cheeks`: which of the two cheeks to make (north or west one, south or east one): leave
+        out the one against a wall, or it lies in the wall's face and flickers. `cheek_stop`:
+        how far short of the top landing edge the cheeks end (when a railing or a beam's face
+        is in line with that edge)."""
         g = self.group(name, parent)
         self.slab(g, "Ramp", kind, a, b, width, thick=0.3, drawn=False, unbreakable=True)
         lo, hi = (a, b) if a[1] < b[1] else (b, a)
@@ -193,11 +198,15 @@ class Map:
                 self.box(g, "Fill", kind, (x0, floor_y, z0), (x1, top - rise - 0.1, z1), drawn=False, unbreakable=True)
             if side:
                 if along_x:
-                    for zz in (z0 - 0.15, z1 + 0.15):
-                        self.box(g, "Side", side, (x0, floor_y, zz - 0.15), (x1, top + 0.35, zz + 0.15), solid=False)
+                    c0, c1 = (max(x0, hi[0] + cheek_stop), x1) if dx < 0 else (x0, min(x1, hi[0] - cheek_stop))
+                    for zz, on in zip((z0 - 0.15, z1 + 0.15), cheeks):
+                        if on:
+                            self.box(g, "Side", side, (c0, floor_y, zz - 0.15), (c1, top + 0.35, zz + 0.15), solid=False)
                 else:
-                    for xx in (x0 - 0.15, x1 + 0.15):
-                        self.box(g, "Side", side, (xx - 0.15, floor_y, z0), (xx + 0.15, top + 0.35, z1), solid=False)
+                    c0, c1 = (max(z0, hi[2] + cheek_stop), z1) if dz < 0 else (z0, min(z1, hi[2] - cheek_stop))
+                    for xx, on in zip((x0 - 0.15, x1 + 0.15), cheeks):
+                        if on:
+                            self.box(g, "Side", side, (xx - 0.15, floor_y, c0), (xx + 0.15, top + 0.35, c1), solid=False)
         return g
 
     def wall(self, parent, name, kind, a, b, y0, y1, thick, holes=(), **kw):
@@ -230,6 +239,49 @@ class Map:
         """A railing (a low wall) along x or z with gaps: holes are (from, to) along it."""
         self.wall(parent, name, kind, a, b, y, y + height, thick, [(h0, h1, y, y + height) for h0, h1 in holes], **kw)
 
+    # -- details: drawn only, never solid --------------------------------------
+    # Two surfaces of different colours in one plane flicker, so a detail always stands
+    # proud of the face it is on (paint on a floor is 2 cm thick), and two details that
+    # overlap stand out by different amounts. tests/map_flicker_test.gd checks it.
+    def strip(self, parent, name, kind, lo, hi, **kw):
+        """A drawn-only box from corner `lo` to corner `hi`: paint, trim, a lamp, a rod."""
+        return self.box(parent, name, kind, lo, hi, solid=False, **kw)
+
+    def on_wall(self, parent, name, kind, axis, face, out, u0, u1, y0, y1, depth=0.1, lift=0.0, **kw):
+        """A drawn-only piece on a wall. `axis` "x": the wall runs along x and `face` is its
+        z; "z": it runs along z and `face` is its x. `out` (+1 or -1) is the way the wall
+        faces. The piece covers u0..u1 along the wall and y0..y1, and stands `depth` proud
+        (starting `lift` off the face: on top of another piece). Its back lies against the
+        wall and never goes into it, so on a wall that breaks it never holds the wall up."""
+        a = face + out * lift
+        b = face + out * (lift + depth)
+        if axis == "x":
+            return self.strip(parent, name, kind, (u0, y0, min(a, b)), (u1, y1, max(a, b)), **kw)
+        return self.strip(parent, name, kind, (min(a, b), y0, u0), (max(a, b), y1, u1), **kw)
+
+    def rod(self, parent, name, kind, a, b, thick=0.08, wide=None, **kw):
+        """A drawn-only bar from point `a` to point `b` at any angle: a brace, a cable, a rung."""
+        d = tuple(q - p for p, q in zip(a, b))
+        L = math.sqrt(sum(v * v for v in d))
+        Z = norm(d)
+        ref = (0, 1, 0) if abs(Z[1]) < 0.95 else (1, 0, 0)
+        X = norm(cross(ref, Z))
+        Y = cross(Z, X)
+        mid = tuple((p + q) * 0.5 for p, q in zip(a, b))
+        return self.block(parent, name, kind, mid, (wide or thick, thick, L), cols=(X, Y, Z), solid=False, **kw)
+
+    def pipe(self, parent, name, kind, a, b, diameter=0.2, sides=8, inner=None, **kw):
+        """A drawn-only round bar (or, with `inner`, a hoop or a hollow pipe) from `a` to `b`."""
+        d = tuple(q - p for p, q in zip(a, b))
+        L = math.sqrt(sum(v * v for v in d))
+        Y = norm(d)
+        ref = (1, 0, 0) if abs(Y[0]) < 0.95 else (0, 0, 1)
+        Z = norm(cross(ref, Y))
+        X = cross(Y, Z)
+        mid = tuple((p + q) * 0.5 for p, q in zip(a, b))
+        return self.block(parent, name, kind, mid, (diameter, L, diameter), cols=(X, Y, Z), solid=False,
+                          shape="tube" if inner else "cyl", sides=sides, inner=inner, **kw)
+
     # -- players and pickups -------------------------------------------------
     def spawn(self, pos, toward=(0, 0)):
         self.spawn_count += 1
@@ -241,9 +293,20 @@ class Map:
         props = [("transform", xform(IDENTITY, pos)), ("weapon", '"%s"' % weapon)]
         self._add("%s%d" % (weapon.title().replace("_", ""), self.weapon_count), "Marker3D", "WeaponSpawns", props, "weapon", False)
 
-    def sign(self, text, pos, yaw=0.0, size=96, col=(1, 1, 1, 1), parent="Signs", pixel=0.01, outline=True):
-        """A Label3D; it reads from its +z side (yaw turns it)."""
-        props = [("transform", xform(yaw_cols(yaw), pos)), ("pixel_size", fmt(pixel)), ("modulate", color(col))]
+    def sign(self, text, pos, yaw=0.0, size=96, col=(1, 1, 1, 1), parent="Signs", pixel=0.01, outline=True, flat=False,
+             one_sided=False):
+        """A Label3D; it reads from its +z side (yaw turns it). flat: it lies on a floor, read
+        from above (its top toward -z before yaw), and takes the map's light like paint.
+        one_sided: not drawn from behind (for a sign on a board or a wall)."""
+        cols = yaw_cols(yaw)
+        if flat:
+            X, _, Z = cols
+            cols = (X, tuple(-v for v in Z), (0, 1, 0))
+        props = [("transform", xform(cols, pos)), ("pixel_size", fmt(pixel)), ("modulate", color(col))]
+        if flat:
+            props.append(("shaded", "true"))
+        if flat or one_sided:
+            props.append(("double_sided", "false"))
         if outline:
             props += [("outline_size", "14"), ("outline_modulate", "Color(0.05, 0.05, 0.08, 1)")]
         props += [("text", '"%s"' % text.replace('"', "'")), ("font_size", str(size))]
