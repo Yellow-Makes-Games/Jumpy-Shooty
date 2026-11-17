@@ -231,7 +231,8 @@ func _swing_run() -> Dictionary:
 					input.grapple_pressed = true
 				elif g.attached:
 					input.grapple = true
-					if p.x < O.HOOK.x - 2.0 and body.velocity.y > 0.0:
+					# The rope reels you in fast: let go once past the beam and fly on.
+					if p.x < O.HOOK.x - 0.5:
 						input.grapple = false
 						_mem["let_go"] = true
 			else:

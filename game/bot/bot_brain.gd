@@ -590,9 +590,11 @@ func _grapple(delta: float, visible: bool) -> void:
 	if g.attached:
 		_grapple_time += delta
 		input.grapple = true
-		# Let go once past the anchor and rising, or after a while.
+		# Let go once past the anchor and rising, once reeled in close (so the pull's
+		# speed flings it on instead of pinning it to the wall), or after a while.
 		var passed := _flat(me.global_position, _grapple_start) > _flat(g.anchor, _grapple_start)
-		if (passed and me.velocity.y > 0.0) or _grapple_time > 1.6:
+		var close := g.rope_origin(me).distance_to(g.anchor) < g.tuning.grapple_pull_stop + 1.0
+		if (passed and me.velocity.y > 0.0) or close or _grapple_time > 1.6:
 			input.grapple = false
 		return
 	input.grapple = false

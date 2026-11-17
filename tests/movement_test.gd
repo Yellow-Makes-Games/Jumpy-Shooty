@@ -14,6 +14,7 @@ var _data := {}
 
 const ANCHOR := Vector3(150, 60, 0)   ## underside of the block we swing from
 const ROPE := 15.0
+const LOW_HOOK := Vector3(150, 11, 80)  ## underside of a low block, hookable from the floor
 
 
 func _initialize() -> void:
@@ -47,6 +48,7 @@ func _initialize() -> void:
 	hang.add_child(hang_shape)
 	hang.position = ANCHOR + Vector3(0, 1, 0)
 	root.add_child(hang)
+	_box(LOW_HOOK + Vector3(0, 1, 0), Vector3(4, 2, 4))
 
 	# Obstacles for crouch, slide, wall-run, vault and ledge checks.
 	_box(Vector3(-100, 1.9, -10), Vector3(4, 1, 10))      # low ceiling: 1.4 m gap underneath, z -15..-5
@@ -121,8 +123,11 @@ func _initialize() -> void:
 			func():
 				_data.erase("strafe")
 				_expect_true("faster than the 9 m/s it started with (%.2f)" % motor.horizontal_speed(body), motor.horizontal_speed(body) > 10.5)],
-		["grapple catches the block and swings like a pendulum", 2.6,
+		["with the pull off, the rope swings like a pendulum", 2.6,
 			func():
+				_data["pull_was"] = [t.grapple_pull_accel, t.grapple_yank]
+				t.grapple_pull_accel = 0.0   # check the rope on its own
+				t.grapple_yank = 0.0
 				_start_swing()
 				_data["swing"] = {"max_speed": 0.0, "max_stretch": 0.0, "lowest": 999.0},
 			func():
@@ -135,7 +140,70 @@ func _initialize() -> void:
 				var expected := sqrt(t.gravity * g.length)
 				_expect_near("speed at the bottom of the swing", d["max_speed"], expected, expected * 0.06)
 				_expect_below("rope stretch", d["max_stretch"], 0.15)
-				_expect_near("lowest point is a rope's length below the anchor", g.anchor.y - d["lowest"], g.length, 0.2)],
+				_expect_near("lowest point is a rope's length below the anchor", g.anchor.y - d["lowest"], g.length, 0.2)
+				t.grapple_pull_accel = _data["pull_was"][0]
+				t.grapple_yank = _data["pull_was"][1]
+				_data.erase("pull_was")],
+		["grapple yanks you toward the hook the moment it catches", 1.0 / Engine.physics_ticks_per_second,
+			func(): _start_swing(),
+			func():
+				var g := motor.grapple
+				_expect_true("hooked on", g.attached)
+				var toward := body.velocity.dot((g.anchor - g.rope_origin(body)).normalized())
+				_expect_true("moving toward the hook (%.1f m/s)" % toward, toward > t.grapple_yank * 0.8)],
+		["the rope reels you in and builds speed", 0.6,
+			func():
+				_data["pull"] = {"fastest_in": 0.0, "d0": motor.grapple.rope_origin(body).distance_to(motor.grapple.anchor)},
+			func():
+				var d: Dictionary = _data["pull"]
+				_data.erase("pull")
+				var g := motor.grapple
+				var now := g.rope_origin(body).distance_to(g.anchor)
+				_expect_true("pulled in (%.1f m -> %.1f m)" % [d["d0"], now], now < d["d0"] - 5.0)
+				_expect_true("built up speed toward the hook (%.1f m/s)" % d["fastest_in"], d["fastest_in"] > t.grapple_pull_speed * 0.8)
+				_expect_below("the pull alone never goes past its top speed", d["fastest_in"], t.grapple_pull_speed + 1.0)
+				input.grapple = false],
+		["letting go mid-pull flings you on with that speed", 0.3,
+			func():
+				_start_swing()
+				_data["let_go_after"] = 0.45,
+			func():
+				var v0: float = _data["fling_speed"]
+				_data.erase("fling_speed")
+				_expect_true("let go", not motor.grapple.attached)
+				_expect_true("fast when let go (%.1f m/s)" % v0, v0 > 12.0)
+				_expect_near("speed 0.3 s later (minus gravity's share)", Vector2(body.velocity.x, body.velocity.z).length(), _data.get("fling_flat", 0.0), 0.3)
+				_data.erase("fling_flat")],
+		["hooking from the floor pops you up and reels you in", 0.5,
+			func():
+				motor.reset()
+				_teleport(LOW_HOOK + Vector3(14, -11.0 + 0.05, 0))
+				_clear_input()
+				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)   # settle on the floor
+				_data["y0"] = body.global_position.y
+				_aim_at(LOW_HOOK)
+				input.grapple = true
+				input.grapple_pressed = true,
+			func():
+				_expect_true("off the floor", not body.is_on_floor())
+				_expect_true("risen (%.1f m)" % (body.global_position.y - _data["y0"]), body.global_position.y - _data["y0"] > 1.5)
+				_expect_true("moved toward the hook (x = %.1f)" % body.global_position.x, body.global_position.x < LOW_HOOK.x + 9.0)
+				_data.erase("y0")
+				input.grapple = false],
+		["running past a hook keeps your sideways speed", 1.0 / Engine.physics_ticks_per_second,
+			func():
+				motor.reset()
+				_teleport(LOW_HOOK + Vector3(10, -2.0, 0))
+				_clear_input()
+				_aim_at(LOW_HOOK)
+				body.velocity = Vector3(0, 0, -11)
+				input.grapple = true
+				input.grapple_pressed = true,
+			func():
+				_expect_true("hooked on", motor.grapple.attached)
+				_expect_near("sideways speed", body.velocity.z, -11.0, 0.5)
+				input.grapple = false
+				motor.grapple.reset()],
 		["letting go keeps your momentum", 0.4,
 			func():
 				_start_swing()
@@ -464,6 +532,20 @@ func _tick() -> void:
 		elif _data["regrab"] == 4:
 			input.grapple = true   # and immediately try again
 			input.grapple_pressed = true
+	if _data.has("pull") and motor.grapple.attached:
+		var g := motor.grapple
+		var into := body.velocity.dot((g.anchor - g.rope_origin(body)).normalized())
+		_data["pull"]["fastest_in"] = max(_data["pull"]["fastest_in"], into)
+	if _data.has("let_go_after"):
+		_data["let_go_after"] -= dt
+		_steps[_scenario][1] = 99.0
+		if _data["let_go_after"] <= 0.0:
+			_data.erase("let_go_after")
+			input.grapple = false
+			_data["fling_speed"] = body.velocity.length()
+			_data["fling_flat"] = Vector2(body.velocity.x, body.velocity.z).length()
+			_frame = 0
+			_steps[_scenario][1] = 0.3
 	if _data.has("jump_off_after"):
 		_data["jump_off_after"] -= dt
 		_steps[_scenario][1] = 99.0

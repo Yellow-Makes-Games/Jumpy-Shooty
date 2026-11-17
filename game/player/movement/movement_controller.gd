@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ##   GROUND    running and sprinting
 ##   AIR       jumping and falling (bunny-hops and air-strafing live here)
-##   GRAPPLE   swinging on the rope (see grapple.gd)
+##   GRAPPLE   reeled in and swinging on the rope (see grapple.gd)
 ##   CROUCH    crouched on the ground: lower and slower
 ##   SLIDE     crouch while moving fast: keeps momentum, speeds up downhill
 ##   WALL_RUN  run along a wall with little gravity; jump to kick off it
@@ -106,8 +106,9 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 	# --- Grapple: hold to stay on the rope, let go to fly off with your momentum,
 	# or jump to let go with an upward kick.
+	var hooked_now := false
 	if input.grapple_pressed and not grapple.attached:
-		grapple.try_attach(body, input)
+		hooked_now = grapple.try_attach(body, input)
 	if grapple.attached and not input.grapple:
 		grapple.release()
 	var rope_jump := false
@@ -250,9 +251,17 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		vel = _flip(vel, wish, input)
 
 	if grapple.attached:
+		# Reel in: a yank when the hook catches, then a steady pull toward it.
+		if hooked_now:
+			vel = grapple.yank(body, vel)
+			if grounded and grapple.anchor.y > grapple.rope_origin(body).y:
+				vel.y = max(vel.y, t.grapple_hop)   # pop off the floor instead of dragging along it
+		vel = grapple.pull(body, vel, delta)
 		vel = grapple.constrain_velocity(body, vel, delta)
 		if grounded and state != State.BELLY_SLIDE:
 			state = State.GRAPPLE if vel.y > 0.1 else State.GROUND
+			if vel.y > 0.1:
+				_since_ground = t.coyote_time + 1.0   # pulled off the floor
 
 	if _knock != Vector3.ZERO:
 		vel += _knock
@@ -281,6 +290,8 @@ func _measure_impact(body: CharacterBody3D, vel: Vector3) -> void:
 		var normal := c.get_normal()
 		if normal.y > 0.7 or c.get_collider() is CharacterBody3D:
 			continue   # a floor (landing), or another player
+		if grapple.attached and c.get_position().distance_to(grapple.anchor) < 2.5:
+			continue   # reeled into your own hook point: that's arriving, not a crash
 		var into := -vel.dot(normal)
 		if into > impact_speed:
 			impact_speed = into

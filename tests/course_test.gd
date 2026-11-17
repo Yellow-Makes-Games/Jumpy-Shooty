@@ -130,9 +130,8 @@ func _grapple_run() -> Dictionary:
 					input.grapple_pressed = true
 				elif g.attached:
 					input.grapple = true
-					# Let go past the beam, on the way up at about 45 degrees, or at the top.
-					var v := body.velocity
-					if p.x > beam_x + 1.0 and (v.y >= 0.8 * v.x or v.y < 0.0):
+					# The rope reels you in fast: let go just past the beam and fly on.
+					if p.x > beam_x + 1.0:
 						input.grapple = false
 						_mem["beam"] = next + 1
 			else:
