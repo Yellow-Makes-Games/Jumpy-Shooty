@@ -37,7 +37,7 @@ sleep 12
 "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT2" --name=P3 --spawn=40,-5.8,0,0 \
   --quit-after=7 "${COMMON[@]}" > "$OUT/gravity_late.log" 2>&1 &
 # 3. Bots.
-timeout 120 "$GODOT" --headless --path . -- --bot=2 --bots=4 --eager-terminal --kill-target=99 --quit-after=75 "${COMMON[@]}" \
+timeout 120 "$GODOT" --headless --path . -- --bot=2 --bots=4 --eager-terminal --kill-target=99 --quit-after=45 "${COMMON[@]}" \
   > "$OUT/gravity_bots.log" 2>&1 &
 wait || true
 
