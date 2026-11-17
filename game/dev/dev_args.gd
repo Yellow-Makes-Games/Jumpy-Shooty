@@ -15,7 +15,7 @@ extends Node
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
 ## --practice           Skip the menus and drop into the arena alone.
-## --map=ID             Which map to play: construction_site, office, testing_grounds, or a race map
+## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins: that makes it a race) (host, practice and bot).
 ## --race               With --practice, --bot or --host and no --map: race on the first race map.
 ## --game=GAME          ffa or dm (Deathmatch: start unarmed, pick weapons up off the map), with --practice, --bot or --host.

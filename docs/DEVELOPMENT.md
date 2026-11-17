@@ -168,7 +168,8 @@ top of `game/dev/dev_args.gd`. The useful ones:
 ## Maps
 
 Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`,
-`game/maps/office.tscn`, `game/maps/kilnworks.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+`game/maps/office.tscn`, `game/maps/kilnworks.tscn`, `game/maps/rail_yard.tscn`,
+`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
@@ -258,6 +259,17 @@ tools/map_preview.sh construction_site OUT_DIR --shots="sw;top;cut7.5;-24,1.7,35
 Shots are corners (`sw`, `ne`, ...), `top` (a plan), `cutY` (a plan with everything above
 height Y sliced off, to see one floor) or a camera `x,y,z:look-x,y,z:fov`. The map can
 also be a scene path (`res://game/maps/my_map.tscn`).
+
+### Rail Yard, Lost Temple and Neon Arcade
+
+These three arenas were laid out by `tools/arena/build_arena_maps.py` (one file per map
+in `tools/arena/`, the scene writer in `tools/arena/arena_builder.py`). They are ordinary
+map scenes, grouped one object per group like the others, so edit them in the editor.
+Running the script again (`python3 tools/arena/build_arena_maps.py rail_yard`) rebuilds a
+map and its palette from scratch and overwrites hand edits. After moving things,
+`godot --headless --path . --script tests/arena_maps_test.gd` checks that every spawn is
+clear, walls and floors still break, and a bot can walk between every spawn point and to
+each map's floors (the goals are at the top of the test).
 
 ### Race maps
 

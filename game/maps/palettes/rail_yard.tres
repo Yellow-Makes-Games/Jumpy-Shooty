@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_pal"]
+
+[resource]
+script = ExtResource("1_pal")
+colors = Dictionary[String, Color]({
+"awning": Color(0.86, 0.3, 0.24, 1),
+"backdrop": Color(0.6, 0.55, 0.52, 1),
+"backdrop_dark": Color(0.48, 0.44, 0.43, 1),
+"ballast": Color(0.48, 0.45, 0.41, 1),
+"bench": Color(0.42, 0.28, 0.18, 1),
+"brick": Color(0.62, 0.3, 0.22, 1),
+"brick_dark": Color(0.45, 0.22, 0.17, 1),
+"canopy": Color(0.75, 0.78, 0.76, 1),
+"clock": Color(0.97, 0.95, 0.88, 1),
+"coal": Color(0.12, 0.12, 0.13, 1),
+"concrete": Color(0.66, 0.66, 0.64, 1),
+"crate": Color(0.7, 0.55, 0.34, 1),
+"crate_dark": Color(0.55, 0.42, 0.26, 1),
+"fence": Color(0.3, 0.32, 0.3, 1),
+"floorboard": Color(0.64, 0.47, 0.3, 1),
+"glass": Color(0.64, 0.8, 0.86, 1),
+"glass_rail": Color(0.62, 0.78, 0.84, 1),
+"ground": Color(0.55, 0.52, 0.47, 1),
+"iron": Color(0.17, 0.33, 0.27, 1),
+"iron_dark": Color(0.13, 0.2, 0.18, 1),
+"kiosk": Color(0.2, 0.45, 0.36, 1),
+"lamp": Color(1, 0.95, 0.8, 1),
+"loco": Color(0.16, 0.36, 0.58, 1),
+"loco_yellow": Color(0.95, 0.75, 0.12, 1),
+"pallet": Color(0.6, 0.5, 0.36, 1),
+"pavement": Color(0.68, 0.67, 0.64, 1),
+"plant": Color(0.34, 0.56, 0.3, 1),
+"plaster": Color(0.9, 0.86, 0.76, 1),
+"platform": Color(0.78, 0.76, 0.72, 1),
+"platform_edge": Color(0.96, 0.8, 0.18, 1),
+"rail": Color(0.36, 0.34, 0.33, 1),
+"roof": Color(0.33, 0.36, 0.4, 1),
+"shed_roof": Color(0.48, 0.5, 0.52, 1),
+"shed_wall": Color(0.56, 0.62, 0.6, 1),
+"sign": Color(0.12, 0.2, 0.36, 1),
+"signal_green": Color(0.3, 1, 0.45, 1),
+"signal_red": Color(1, 0.2, 0.15, 1),
+"sleeper": Color(0.32, 0.25, 0.2, 1),
+"steel": Color(0.5, 0.53, 0.56, 1),
+"steel_dark": Color(0.3, 0.32, 0.35, 1),
+"stone_trim": Color(0.86, 0.82, 0.72, 1),
+"street": Color(0.42, 0.42, 0.43, 1),
+"tactile": Color(0.9, 0.86, 0.7, 1),
+"tank": Color(0.2, 0.2, 0.22, 1),
+"tile": Color(0.82, 0.8, 0.74, 1),
+"tile_dark": Color(0.42, 0.4, 0.38, 1),
+"timber": Color(0.42, 0.32, 0.22, 1),
+"train": Color(0.78, 0.2, 0.17, 1),
+"train_floor": Color(0.36, 0.38, 0.42, 1),
+"train_roof": Color(0.55, 0.57, 0.6, 1),
+"train_seat": Color(0.2, 0.33, 0.6, 1),
+"train_stripe": Color(0.96, 0.93, 0.86, 1),
+"tunnel": Color(0.06, 0.06, 0.07, 1),
+"wagon": Color(0.45, 0.3, 0.22, 1),
+"wagon_grey": Color(0.52, 0.54, 0.52, 1),
+"water_tank": Color(0.38, 0.42, 0.36, 1),
+"window_dark": Color(0.15, 0.2, 0.26, 1)
+})
+glow = Dictionary[String, float]({
+"clock": 0.4,
+"lamp": 1.4,
+"signal_green": 2.5,
+"signal_red": 2.5
+})
+breakable = Dictionary[String, float]({
+"canopy": 140.0,
+"floorboard": 220.0,
+"glass": 25.0,
+"glass_rail": 40.0,
+"plaster": 120.0,
+"shed_roof": 140.0,
+"shed_wall": 110.0
+})

@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_pal"]
+
+[resource]
+script = ExtResource("1_pal")
+colors = Dictionary[String, Color]({
+"carving": Color(0.62, 0.52, 0.36, 1),
+"cloth_blue": Color(0.18, 0.32, 0.6, 1),
+"cloth_red": Color(0.7, 0.18, 0.14, 1),
+"crystal": Color(0.35, 0.9, 0.85, 1),
+"dirt": Color(0.5, 0.4, 0.28, 1),
+"gold": Color(0.95, 0.74, 0.25, 1),
+"grass": Color(0.36, 0.52, 0.24, 1),
+"grass_dark": Color(0.28, 0.43, 0.2, 1),
+"leaves": Color(0.24, 0.5, 0.22, 1),
+"leaves_dark": Color(0.17, 0.38, 0.17, 1),
+"leaves_light": Color(0.36, 0.6, 0.26, 1),
+"moss": Color(0.3, 0.5, 0.22, 1),
+"paving": Color(0.66, 0.62, 0.52, 1),
+"plank": Color(0.6, 0.44, 0.27, 1),
+"pot": Color(0.68, 0.4, 0.26, 1),
+"rock": Color(0.5, 0.47, 0.43, 1),
+"rock_dark": Color(0.38, 0.36, 0.34, 1),
+"rope": Color(0.72, 0.62, 0.42, 1),
+"stone": Color(0.6, 0.58, 0.54, 1),
+"stone_dark": Color(0.45, 0.44, 0.42, 1),
+"temple": Color(0.7, 0.64, 0.5, 1),
+"temple_dark": Color(0.55, 0.5, 0.4, 1),
+"temple_light": Color(0.8, 0.75, 0.62, 1),
+"thatch": Color(0.78, 0.66, 0.38, 1),
+"timber": Color(0.4, 0.29, 0.19, 1),
+"torch": Color(1, 0.62, 0.22, 1),
+"trunk": Color(0.42, 0.32, 0.22, 1),
+"vine": Color(0.2, 0.44, 0.18, 1),
+"water": Color(0.25, 0.52, 0.6, 1),
+"wood_wall": Color(0.52, 0.38, 0.24, 1)
+})
+glow = Dictionary[String, float]({
+"crystal": 1.6,
+"gold": 0.3,
+"torch": 2.0
+})
+breakable = Dictionary[String, float]({
+"cloth_red": 40.0,
+"plank": 200.0,
+"thatch": 80.0,
+"wood_wall": 120.0
+})

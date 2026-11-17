@@ -1,0 +1,4011 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_root.gd" id="1_root"]
+[ext_resource type="Script" path="res://game/arena/map_block.gd" id="2_block"]
+[ext_resource type="Script" path="res://game/arena/map_spawn.gd" id="3_spawn"]
+[ext_resource type="Script" path="res://game/arena/map_weapon_spawn.gd" id="4_weapon"]
+[ext_resource type="Resource" path="res://game/maps/palettes/neon_arcade.tres" id="pal"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.14, 0.16, 0.36, 1)
+sky_horizon_color = Color(0.62, 0.42, 0.6, 1)
+ground_bottom_color = Color(0.12, 0.1, 0.16, 1)
+ground_horizon_color = Color(0.5, 0.36, 0.5, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 2
+ambient_light_color = Color(0.78, 0.74, 0.95, 1)
+ambient_light_energy = 1.05
+tonemap_mode = 2
+tonemap_white = 2.4
+ssao_enabled = true
+glow_enabled = true
+glow_intensity = 1.1
+
+[node name="NeonArcade" type="Node3D"]
+script = ExtResource("1_root")
+palette = ExtResource("pal")
+face_shade = Vector3(0.93, 0.84, 0.66)
+kill_height = -6.0
+bounds = Rect2(-23, -19, 46, 42)
+swing_point = Vector3(0, 7.4, 0)
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_1")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.342, 0.498, -0.7969, 0, 0.848, 0.5299, 0.9397, -0.1812, 0.29, 0, 0, 0)
+light_color = Color(1, 0.72, 0.6, 1)
+light_energy = 0.9
+shadow_enabled = true
+directional_shadow_max_distance = 180.0
+
+[node name="Spawns" type="Node3D" parent="."]
+
+[node name="WeaponSpawns" type="Node3D" parent="."]
+
+[node name="Signs" type="Node3D" parent="."]
+
+[node name="Shell" type="Node3D" parent="."]
+metadata/_edit_group_ = true
+
+[node name="Floor" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 0)
+script = ExtResource("2_block")
+size = Vector3(37.6, 0.5, 29.6)
+kind = "carpet"
+
+[node name="Spots" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.005, -2)
+script = ExtResource("2_block")
+size = Vector3(2.4, 0.01, 1.44)
+kind = "carpet_spots"
+solid = false
+
+[node name="Spots2" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.005, 2)
+script = ExtResource("2_block")
+size = Vector3(2, 0.01, 1.2)
+kind = "carpet_spots"
+solid = false
+
+[node name="Spots3" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.005, -5)
+script = ExtResource("2_block")
+size = Vector3(2.8, 0.01, 1.68)
+kind = "carpet_spots"
+solid = false
+
+[node name="Spots4" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0.005, 8)
+script = ExtResource("2_block")
+size = Vector3(2.2, 0.01, 1.32)
+kind = "carpet_spots"
+solid = false
+
+[node name="Spots5" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0.005, 9)
+script = ExtResource("2_block")
+size = Vector3(1.8, 0.01, 1.08)
+kind = "carpet_spots"
+solid = false
+
+[node name="Spots6" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0.005, 9)
+script = ExtResource("2_block")
+size = Vector3(2, 0.01, 1.2)
+kind = "carpet_spots"
+solid = false
+
+[node name="Spots7" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0.005, -7)
+script = ExtResource("2_block")
+size = Vector3(2.4, 0.01, 1.44)
+kind = "carpet_spots"
+solid = false
+
+[node name="NorthWall" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, -14.4)
+script = ExtResource("2_block")
+size = Vector3(37.6, 9.6, 0.8)
+kind = "wall"
+
+[node name="WestWall" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.4, 4.8, 0)
+script = ExtResource("2_block")
+size = Vector3(0.8, 9.6, 28)
+kind = "wall"
+
+[node name="EastWall" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.4, 4.8, 0)
+script = ExtResource("2_block")
+size = Vector3(0.8, 9.6, 28)
+kind = "wall"
+
+[node name="FireDoor" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.97, 1.2, -11.7)
+script = ExtResource("2_block")
+size = Vector3(0.06, 2.4, 1.6)
+kind = "steel"
+solid = false
+
+[node name="ExitSign" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.95, 2.75, -11.7)
+script = ExtResource("2_block")
+size = Vector3(0.06, 0.3, 0.8)
+kind = "neon_green"
+solid = false
+
+[node name="Front" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.4, 4.8, 14.4)
+script = ExtResource("2_block")
+size = Vector3(4.8, 9.6, 0.8)
+kind = "wall_outer"
+
+[node name="FrontSill" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.4, 14.4)
+script = ExtResource("2_block")
+size = Vector3(10, 0.8, 0.8)
+kind = "wall_outer"
+
+[node name="FrontLintel" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 6.8, 14.4)
+script = ExtResource("2_block")
+size = Vector3(10, 5.6, 0.8)
+kind = "wall_outer"
+
+[node name="Front2" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.75, 4.8, 14.4)
+script = ExtResource("2_block")
+size = Vector3(2.5, 9.6, 0.8)
+kind = "wall_outer"
+
+[node name="FrontLintel2" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.3, 14.4)
+script = ExtResource("2_block")
+size = Vector3(3, 6.6, 0.8)
+kind = "wall_outer"
+
+[node name="Front3" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.75, 4.8, 14.4)
+script = ExtResource("2_block")
+size = Vector3(2.5, 9.6, 0.8)
+kind = "wall_outer"
+
+[node name="FrontSill2" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.4, 14.4)
+script = ExtResource("2_block")
+size = Vector3(10, 0.8, 0.8)
+kind = "wall_outer"
+
+[node name="FrontLintel3" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 6.8, 14.4)
+script = ExtResource("2_block")
+size = Vector3(10, 5.6, 0.8)
+kind = "wall_outer"
+
+[node name="Front4" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.4, 4.8, 14.4)
+script = ExtResource("2_block")
+size = Vector3(4.8, 9.6, 0.8)
+kind = "wall_outer"
+
+[node name="Window" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.5, 2.4, 14.4)
+script = ExtResource("2_block")
+size = Vector3(5, 3.2, 0.12)
+kind = "glass"
+
+[node name="Window2" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5, 2.4, 14.4)
+script = ExtResource("2_block")
+size = Vector3(5, 3.2, 0.12)
+kind = "glass"
+
+[node name="Window3" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 2.4, 14.4)
+script = ExtResource("2_block")
+size = Vector3(5, 3.2, 0.12)
+kind = "glass"
+
+[node name="Window4" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 2.4, 14.4)
+script = ExtResource("2_block")
+size = Vector3(5, 3.2, 0.12)
+kind = "glass"
+
+[node name="Doors" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 14.4)
+script = ExtResource("2_block")
+size = Vector3(3, 3, 0.12)
+kind = "door"
+
+[node name="Panel" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.975, 2, -12)
+script = ExtResource("2_block")
+size = Vector3(0.05, 3.2, 3.2)
+kind = "wall_panel"
+solid = false
+
+[node name="Panel2" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.975, 2, -8)
+script = ExtResource("2_block")
+size = Vector3(0.05, 3.2, 3.2)
+kind = "wall_panel"
+solid = false
+
+[node name="Panel3" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.975, 2, -4)
+script = ExtResource("2_block")
+size = Vector3(0.05, 3.2, 3.2)
+kind = "wall_panel"
+solid = false
+
+[node name="Panel4" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.975, 2, 0)
+script = ExtResource("2_block")
+size = Vector3(0.05, 3.2, 3.2)
+kind = "wall_panel"
+solid = false
+
+[node name="Panel5" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.975, 2, 4)
+script = ExtResource("2_block")
+size = Vector3(0.05, 3.2, 3.2)
+kind = "wall_panel"
+solid = false
+
+[node name="Panel6" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.975, 2, 8)
+script = ExtResource("2_block")
+size = Vector3(0.05, 3.2, 3.2)
+kind = "wall_panel"
+solid = false
+
+[node name="Panel7" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.975, 2, 12)
+script = ExtResource("2_block")
+size = Vector3(0.05, 3.2, 3.2)
+kind = "wall_panel"
+solid = false
+
+[node name="NeonStrip" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.96, 8.275, 0)
+script = ExtResource("2_block")
+size = Vector3(0.08, 0.15, 28)
+kind = "neon_pink"
+solid = false
+
+[node name="NeonStrip2" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.96, 8.275, 0)
+script = ExtResource("2_block")
+size = Vector3(0.08, 0.15, 28)
+kind = "neon_cyan"
+solid = false
+
+[node name="NeonStrip3" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.275, -13.96)
+script = ExtResource("2_block")
+size = Vector3(36, 0.15, 0.08)
+kind = "neon_cyan"
+solid = false
+
+[node name="NeonStrip4" type="Node3D" parent="Shell"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.275, 13.96)
+script = ExtResource("2_block")
+size = Vector3(36, 0.15, 0.08)
+kind = "neon_pink"
+solid = false
+
+[node name="Trusses" type="Node3D" parent="."]
+metadata/_edit_group_ = true
+
+[node name="Truss" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 7.7, 0)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 28)
+kind = "truss"
+
+[node name="Light" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 7.325, 0)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.15, 12)
+kind = "lamp"
+solid = false
+
+[node name="Truss2" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 7.7, 0)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 28)
+kind = "truss"
+
+[node name="Light2" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 7.325, 0)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.15, 12)
+kind = "lamp"
+solid = false
+
+[node name="Truss3" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.7, 0)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 28)
+kind = "truss"
+
+[node name="Light3" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.325, 0)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.15, 12)
+kind = "lamp"
+solid = false
+
+[node name="Truss4" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 7.7, 0)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 28)
+kind = "truss"
+
+[node name="Light4" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 7.325, 0)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.15, 12)
+kind = "lamp"
+solid = false
+
+[node name="Truss5" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 7.7, 0)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 28)
+kind = "truss"
+
+[node name="Light5" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 7.325, 0)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.15, 12)
+kind = "lamp"
+solid = false
+
+[node name="Spine" type="Node3D" parent="Trusses"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.8, 0)
+script = ExtResource("2_block")
+size = Vector3(36, 0.4, 0.4)
+kind = "truss"
+
+[node name="Mezzanine" type="Node3D" parent="."]
+metadata/_edit_group_ = true
+
+[node name="FloorNorth" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.35, -11.5)
+script = ExtResource("2_block")
+size = Vector3(36, 0.3, 5)
+kind = "mezz_floor"
+
+[node name="FloorWest" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.5, 4.35, 2.5)
+script = ExtResource("2_block")
+size = Vector3(5, 0.3, 23)
+kind = "mezz_floor"
+
+[node name="EdgeBeam" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 4, -9.2)
+script = ExtResource("2_block")
+size = Vector3(31, 0.4, 0.4)
+kind = "steel"
+
+[node name="EdgeBeam2" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.8, 4, 2.5)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.4, 23)
+kind = "steel"
+
+[node name="Column" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 1.9, -9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Column2" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.9, -9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Column3" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 1.9, -9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Column4" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 1.9, -9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Column5" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.6, 1.9, -9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Column6" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.8, 1.9, -3)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Column7" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.8, 1.9, 3)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Column8" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.8, 1.9, 13.6)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Column9" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.8, 1.9, -9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.4)
+kind = "steel"
+
+[node name="Railing" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 5.05, -9.06)
+script = ExtResource("2_block")
+size = Vector3(25, 1.1, 0.12)
+kind = "glass_rail"
+
+[node name="Railing2" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.2, 5.05, -9.06)
+script = ExtResource("2_block")
+size = Vector3(3.6, 1.1, 0.12)
+kind = "glass_rail"
+
+[node name="Railing3" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.94, 5.05, -0.5)
+script = ExtResource("2_block")
+size = Vector3(0.12, 1.1, 17)
+kind = "glass_rail"
+
+[node name="Railing4" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.94, 5.05, 12.2)
+script = ExtResource("2_block")
+size = Vector3(0.12, 1.1, 3.6)
+kind = "glass_rail"
+
+[node name="Handrail" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 5.64, -9.06)
+script = ExtResource("2_block")
+size = Vector3(31, 0.08, 0.08)
+kind = "neon_cyan"
+solid = false
+
+[node name="Handrail2" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.94, 5.64, 2.5)
+script = ExtResource("2_block")
+size = Vector3(0.08, 0.08, 23)
+kind = "neon_pink"
+solid = false
+
+[node name="StairsEast" type="Node3D" parent="Mezzanine"]
+metadata/_edit_group_ = true
+
+[node name="Ramp" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(-1, 0, 0, 0, 0.8716, 0.4903, 0, 0.4903, -0.8716, 13.2, 2.1193, -5.0735)
+script = ExtResource("2_block")
+size = Vector3(2.4, 0.3, 9.1788)
+kind = "steel"
+drawn = false
+unbreakable = true
+
+[node name="Step" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0.125, -1.2222)
+script = ExtResource("2_block")
+size = Vector3(2.4, 0.25, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 0.3, -1.2222)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side2" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 0.3, -1.2222)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step2" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0.25, -1.6667)
+script = ExtResource("2_block")
+size = Vector3(2.4, 0.5, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side3" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 0.425, -1.6667)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side4" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 0.425, -1.6667)
+script = ExtResource("2_block")
+size = Vector3(0.3, 0.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step3" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0.375, -2.1111)
+script = ExtResource("2_block")
+size = Vector3(2.4, 0.75, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side5" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 0.55, -2.1111)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1.1, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side6" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 0.55, -2.1111)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1.1, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step4" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0.5, -2.5556)
+script = ExtResource("2_block")
+size = Vector3(2.4, 1, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side7" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 0.675, -2.5556)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1.35, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side8" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 0.675, -2.5556)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1.35, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step5" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0.625, -3)
+script = ExtResource("2_block")
+size = Vector3(2.4, 1.25, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side9" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 0.8, -3)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side10" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 0.8, -3)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step6" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0.75, -3.4444)
+script = ExtResource("2_block")
+size = Vector3(2.4, 1.5, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side11" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 0.925, -3.4444)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side12" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 0.925, -3.4444)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step7" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0.875, -3.8889)
+script = ExtResource("2_block")
+size = Vector3(2.4, 1.75, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side13" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 1.05, -3.8889)
+script = ExtResource("2_block")
+size = Vector3(0.3, 2.1, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side14" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 1.05, -3.8889)
+script = ExtResource("2_block")
+size = Vector3(0.3, 2.1, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step8" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 1, -4.3333)
+script = ExtResource("2_block")
+size = Vector3(2.4, 2, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side15" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 1.175, -4.3333)
+script = ExtResource("2_block")
+size = Vector3(0.3, 2.35, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side16" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 1.175, -4.3333)
+script = ExtResource("2_block")
+size = Vector3(0.3, 2.35, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step9" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 1.125, -4.7778)
+script = ExtResource("2_block")
+size = Vector3(2.4, 2.25, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side17" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 1.3, -4.7778)
+script = ExtResource("2_block")
+size = Vector3(0.3, 2.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side18" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 1.3, -4.7778)
+script = ExtResource("2_block")
+size = Vector3(0.3, 2.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step10" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 1.25, -5.2222)
+script = ExtResource("2_block")
+size = Vector3(2.4, 2.5, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side19" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 1.425, -5.2222)
+script = ExtResource("2_block")
+size = Vector3(0.3, 2.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side20" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 1.425, -5.2222)
+script = ExtResource("2_block")
+size = Vector3(0.3, 2.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step11" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 1.375, -5.6667)
+script = ExtResource("2_block")
+size = Vector3(2.4, 2.75, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side21" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 1.55, -5.6667)
+script = ExtResource("2_block")
+size = Vector3(0.3, 3.1, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side22" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 1.55, -5.6667)
+script = ExtResource("2_block")
+size = Vector3(0.3, 3.1, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step12" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 1.5, -6.1111)
+script = ExtResource("2_block")
+size = Vector3(2.4, 3, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side23" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 1.675, -6.1111)
+script = ExtResource("2_block")
+size = Vector3(0.3, 3.35, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side24" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 1.675, -6.1111)
+script = ExtResource("2_block")
+size = Vector3(0.3, 3.35, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step13" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 1.625, -6.5556)
+script = ExtResource("2_block")
+size = Vector3(2.4, 3.25, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side25" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 1.8, -6.5556)
+script = ExtResource("2_block")
+size = Vector3(0.3, 3.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side26" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 1.8, -6.5556)
+script = ExtResource("2_block")
+size = Vector3(0.3, 3.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step14" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 1.75, -7)
+script = ExtResource("2_block")
+size = Vector3(2.4, 3.5, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side27" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 1.925, -7)
+script = ExtResource("2_block")
+size = Vector3(0.3, 3.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side28" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 1.925, -7)
+script = ExtResource("2_block")
+size = Vector3(0.3, 3.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step15" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 1.875, -7.4444)
+script = ExtResource("2_block")
+size = Vector3(2.4, 3.75, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side29" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 2.05, -7.4444)
+script = ExtResource("2_block")
+size = Vector3(0.3, 4.1, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side30" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 2.05, -7.4444)
+script = ExtResource("2_block")
+size = Vector3(0.3, 4.1, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step16" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 2, -7.8889)
+script = ExtResource("2_block")
+size = Vector3(2.4, 4, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side31" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 2.175, -7.8889)
+script = ExtResource("2_block")
+size = Vector3(0.3, 4.35, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side32" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 2.175, -7.8889)
+script = ExtResource("2_block")
+size = Vector3(0.3, 4.35, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step17" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 2.125, -8.3333)
+script = ExtResource("2_block")
+size = Vector3(2.4, 4.25, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side33" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 2.3, -8.3333)
+script = ExtResource("2_block")
+size = Vector3(0.3, 4.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side34" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 2.3, -8.3333)
+script = ExtResource("2_block")
+size = Vector3(0.3, 4.6, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Step18" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 2.25, -8.7778)
+script = ExtResource("2_block")
+size = Vector3(2.4, 4.5, 0.4444)
+kind = "steel"
+solid = false
+
+[node name="Side35" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.85, 2.425, -8.7778)
+script = ExtResource("2_block")
+size = Vector3(0.3, 4.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="Side36" type="Node3D" parent="Mezzanine/StairsEast"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.55, 2.425, -8.7778)
+script = ExtResource("2_block")
+size = Vector3(0.3, 4.85, 0.4444)
+kind = "truss"
+solid = false
+
+[node name="StairsWest" type="Node3D" parent="Mezzanine"]
+metadata/_edit_group_ = true
+
+[node name="Ramp" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(0, 0.4903, -0.8716, 0, 0.8716, 0.4903, 1, 0, 0, -9.0735, 2.1193, 9.2)
+script = ExtResource("2_block")
+size = Vector3(2.4, 0.3, 9.1788)
+kind = "steel"
+drawn = false
+unbreakable = true
+
+[node name="Step" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2222, 0.125, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 0.25, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2222, 0.3, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 0.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side2" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2222, 0.3, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 0.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step2" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6667, 0.25, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 0.5, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side3" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6667, 0.425, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 0.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side4" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6667, 0.425, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 0.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step3" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.1111, 0.375, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 0.75, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side5" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.1111, 0.55, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.1, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side6" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.1111, 0.55, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.1, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step4" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5556, 0.5, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side7" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5556, 0.675, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.35, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side8" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5556, 0.675, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.35, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step5" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.625, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.25, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side9" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.8, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side10" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.8, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step6" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.4444, 0.75, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.5, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side11" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.4444, 0.925, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side12" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.4444, 0.925, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step7" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.8889, 0.875, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 1.75, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side13" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.8889, 1.05, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.1, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side14" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.8889, 1.05, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.1, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step8" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3333, 1, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side15" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3333, 1.175, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.35, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side16" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3333, 1.175, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.35, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step9" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.7778, 1.125, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.25, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side17" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.7778, 1.3, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side18" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.7778, 1.3, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step10" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2222, 1.25, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.5, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side19" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2222, 1.425, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side20" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2222, 1.425, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step11" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.6667, 1.375, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 2.75, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side21" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.6667, 1.55, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.1, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side22" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.6667, 1.55, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.1, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step12" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.1111, 1.5, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side23" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.1111, 1.675, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.35, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side24" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.1111, 1.675, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.35, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step13" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5556, 1.625, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.25, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side25" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5556, 1.8, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side26" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5556, 1.8, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step14" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 1.75, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.5, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side27" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 1.925, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side28" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 1.925, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step15" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.4444, 1.875, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 3.75, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side29" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.4444, 2.05, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.1, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side30" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.4444, 2.05, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.1, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step16" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.8889, 2, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side31" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.8889, 2.175, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.35, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side32" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.8889, 2.175, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.35, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step17" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.3333, 2.125, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.25, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side33" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.3333, 2.3, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side34" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.3333, 2.3, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.6, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Step18" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.7778, 2.25, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.5, 2.4)
+kind = "steel"
+solid = false
+
+[node name="Side35" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.7778, 2.425, 7.85)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Side36" type="Node3D" parent="Mezzanine/StairsWest"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.7778, 2.425, 10.55)
+script = ExtResource("2_block")
+size = Vector3(0.4444, 4.85, 0.3)
+kind = "truss"
+solid = false
+
+[node name="Sofa" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 4.9, -1.5)
+script = ExtResource("2_block")
+size = Vector3(1.2, 0.8, 5)
+kind = "sofa"
+
+[node name="Sofa2" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 4.9, -13)
+script = ExtResource("2_block")
+size = Vector3(5, 0.8, 1.2)
+kind = "sofa"
+
+[node name="Cabinet" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 4.5, -13.2)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Mezzanine/Cabinet"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Mezzanine/Cabinet"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Mezzanine/Cabinet"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Mezzanine/Cabinet"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet2" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.4, 4.5, -13.2)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Mezzanine/Cabinet2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Mezzanine/Cabinet2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Mezzanine/Cabinet2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Mezzanine/Cabinet2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet3" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.8, 4.5, -13.2)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Mezzanine/Cabinet3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Mezzanine/Cabinet3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Mezzanine/Cabinet3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Mezzanine/Cabinet3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet4" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, 4.5, -13.2)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Mezzanine/Cabinet4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Mezzanine/Cabinet4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Mezzanine/Cabinet4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Mezzanine/Cabinet4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet5" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.6, 4.5, -13.2)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Mezzanine/Cabinet5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Mezzanine/Cabinet5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Mezzanine/Cabinet5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Mezzanine/Cabinet5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="VRBooth" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.1, 5.8, 5.075)
+script = ExtResource("2_block")
+size = Vector3(3, 2.6, 0.15)
+kind = "partition"
+
+[node name="VRMat" type="Node3D" parent="Mezzanine"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.1, 4.51, 6.5)
+script = ExtResource("2_block")
+size = Vector3(2.6, 0.02, 2.2)
+kind = "neon_green"
+solid = false
+
+[node name="Sign_Level2" type="Label3D" parent="Signs"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 6.9, -9.15)
+pixel_size = 0.01
+modulate = Color(0.4, 1, 1, 1)
+outline_size = 14
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "LEVEL 2"
+font_size = 48
+
+[node name="Games" type="Node3D" parent="."]
+
+[node name="Rows" type="Node3D" parent="Games"]
+metadata/_edit_group_ = true
+
+[node name="Cabinet" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -9.45, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet2" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.45, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet2"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet3" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -8.3, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet3"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet4" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet4"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet5" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -7.15, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet5"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet6" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.15, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet6"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet6"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet6"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet6"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet7" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -6, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet7"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet7"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet7"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet7"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet8" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet8"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet8"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet8"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet8"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet9" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -4.85, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet9"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet9"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet9"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet9"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet10" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.85, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet10"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet10"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet10"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet10"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet11" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -3.7, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet11"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet11"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet11"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet11"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet12" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet12"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet12"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet12"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet12"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="RowSign" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.75, 2.25, -4)
+script = ExtResource("2_block")
+size = Vector3(6.5, 0.2, 0.1)
+kind = "neon_yellow"
+solid = false
+
+[node name="Cabinet13" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3.55, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet14" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.55, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet14"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet14"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet14"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet14"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet15" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4.7, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet15"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet15"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet15"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet15"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet16" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.7, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet17" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 5.85, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet17"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet17"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet17"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet17"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet18" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.85, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet19" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 7, 0, -4.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet20" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, -3.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet20"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet20"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet20"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet20"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="RowSign2" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.25, 2.25, -4)
+script = ExtResource("2_block")
+size = Vector3(4.5, 0.2, 0.1)
+kind = "neon_yellow"
+solid = false
+
+[node name="Cabinet21" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -9.45, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet21"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet21"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet21"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet21"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet22" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.45, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet22"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet22"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet22"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet22"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet23" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -8.3, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet24" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet25" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -7.15, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet25"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet25"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet25"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet25"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet26" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.15, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet27" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -6, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet28" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet29" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -4.85, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet30" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.85, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet30"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet30"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet30"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet30"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet31" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -3.7, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet32" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.7, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="RowSign3" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.75, 2.25, 5)
+script = ExtResource("2_block")
+size = Vector3(6.5, 0.2, 0.1)
+kind = "neon_pink"
+solid = false
+
+[node name="Cabinet33" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3.55, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet33"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet33"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet33"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet33"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet34" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.55, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet34"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet34"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet34"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet34"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet35" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 4.7, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet35"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_blue"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet35"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet35"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet35"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet36" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.7, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet36"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet36"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet36"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet36"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet37" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 5.85, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet37"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_black"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet37"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet37"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet37"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet38" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.85, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet38"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet38"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet38"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet38"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet39" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 7, 0, 4.55)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet39"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_yellow"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet39"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet39"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet39"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="Cabinet40" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 5.45)
+metadata/_edit_group_ = true
+
+[node name="Body" type="Node3D" parent="Games/Rows/Cabinet40"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.05, 0)
+script = ExtResource("2_block")
+size = Vector3(1.1, 2.1, 0.9)
+kind = "cab_red"
+
+[node name="Screen" type="Node3D" parent="Games/Rows/Cabinet40"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.475, 0.475)
+script = ExtResource("2_block")
+size = Vector3(0.84, 0.55, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Marquee" type="Node3D" parent="Games/Rows/Cabinet40"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.485)
+script = ExtResource("2_block")
+size = Vector3(1, 0.2, 0.07)
+kind = "marquee"
+solid = false
+
+[node name="Panel" type="Node3D" parent="Games/Rows/Cabinet40"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.025, 0.6)
+script = ExtResource("2_block")
+size = Vector3(1, 0.15, 0.3)
+kind = "cab_black"
+solid = false
+
+[node name="RowSign4" type="Node3D" parent="Games/Rows"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.25, 2.25, 5)
+script = ExtResource("2_block")
+size = Vector3(4.5, 0.2, 0.1)
+kind = "neon_pink"
+solid = false
+
+[node name="ChangeBooth" type="Node3D" parent="Games"]
+metadata/_edit_group_ = true
+
+[node name="Booth" type="Node3D" parent="Games/ChangeBooth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.35, 0)
+script = ExtResource("2_block")
+size = Vector3(4, 2.7, 3)
+kind = "counter"
+
+[node name="Roof" type="Node3D" parent="Games/ChangeBooth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.85, 0)
+script = ExtResource("2_block")
+size = Vector3(4.4, 0.3, 3.4)
+kind = "steel"
+
+[node name="Window" type="Node3D" parent="Games/ChangeBooth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 1.525)
+script = ExtResource("2_block")
+size = Vector3(2.8, 1, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Window2" type="Node3D" parent="Games/ChangeBooth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, -1.525)
+script = ExtResource("2_block")
+size = Vector3(2.8, 1, 0.05)
+kind = "screen"
+solid = false
+
+[node name="Neon" type="Node3D" parent="Games/ChangeBooth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+script = ExtResource("2_block")
+size = Vector3(4.5, 0.1, 3.5)
+kind = "neon_green"
+solid = false
+
+[node name="Sign_Tokens" type="Label3D" parent="Games/ChangeBooth"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.45, 1.56)
+pixel_size = 0.01
+modulate = Color(1, 1, 1, 1)
+outline_size = 14
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "TOKENS"
+font_size = 40
+
+[node name="PrizeCounter" type="Node3D" parent="Games"]
+metadata/_edit_group_ = true
+
+[node name="Front" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.3, 0.55, 8)
+script = ExtResource("2_block")
+size = Vector3(0.6, 1.1, 8)
+kind = "counter"
+
+[node name="Side" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.2, 0.55, 4.3)
+script = ExtResource("2_block")
+size = Vector3(6.4, 1.1, 0.6)
+kind = "counter"
+
+[node name="Side2" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.2, 0.55, 11.7)
+script = ExtResource("2_block")
+size = Vector3(6.4, 1.1, 0.6)
+kind = "counter"
+
+[node name="Top" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.3, 1.13, 8)
+script = ExtResource("2_block")
+size = Vector3(0.7, 0.06, 8.1)
+kind = "neon_pink"
+solid = false
+
+[node name="Shelves" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.6, 1.8, 8)
+script = ExtResource("2_block")
+size = Vector3(0.8, 3.6, 8)
+kind = "shelf"
+
+[node name="Prize" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 2.9, 5)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 1)
+kind = "prize"
+solid = false
+
+[node name="Prize2" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 3.3, 6.4)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 1)
+kind = "prize_blue"
+solid = false
+
+[node name="Prize3" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 2.5, 7.8)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 1)
+kind = "prize"
+solid = false
+
+[node name="Prize4" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 3.1, 9.2)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 1)
+kind = "prize_blue"
+solid = false
+
+[node name="Prize5" type="Node3D" parent="Games/PrizeCounter"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17, 2.7, 10.6)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 1)
+kind = "prize"
+solid = false
+
+[node name="Sign_Prizes" type="Label3D" parent="Signs"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.9, 4.3, 8)
+pixel_size = 0.01
+modulate = Color(1, 0.85, 0.3, 1)
+outline_size = 14
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "PRIZES"
+font_size = 72
+
+[node name="Stage" type="Node3D" parent="Games"]
+metadata/_edit_group_ = true
+
+[node name="Stage" type="Node3D" parent="Games/Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.3, 11.9)
+script = ExtResource("2_block")
+size = Vector3(8, 0.6, 3.8)
+kind = "stage"
+
+[node name="Ramp" type="Node3D" parent="Games/Stage"]
+transform = Transform3D(-1, 0, 0, 0, 0.9487, -0.3162, 0, -0.3162, -0.9487, 1, 0.1577, 9.1474)
+script = ExtResource("2_block")
+size = Vector3(6, 0.3, 1.8974)
+kind = "stage"
+
+[node name="Pad" type="Node3D" parent="Games/Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0.61, 12.2)
+script = ExtResource("2_block")
+size = Vector3(1.6, 0.02, 1.6)
+kind = "dance_pad"
+solid = false
+
+[node name="Screen" type="Node3D" parent="Games/Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 1.7, 13.45)
+script = ExtResource("2_block")
+size = Vector3(1.8, 2.2, 0.5)
+kind = "cab_black"
+
+[node name="Glow" type="Node3D" parent="Games/Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 2.05, 13.175)
+script = ExtResource("2_block")
+size = Vector3(1.4, 0.9, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="Pad2" type="Node3D" parent="Games/Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.61, 12.2)
+script = ExtResource("2_block")
+size = Vector3(1.6, 0.02, 1.6)
+kind = "dance_pad"
+solid = false
+
+[node name="Screen2" type="Node3D" parent="Games/Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1.7, 13.45)
+script = ExtResource("2_block")
+size = Vector3(1.8, 2.2, 0.5)
+kind = "cab_black"
+
+[node name="Glow2" type="Node3D" parent="Games/Stage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 2.05, 13.175)
+script = ExtResource("2_block")
+size = Vector3(1.4, 0.9, 0.05)
+kind = "screen_pink"
+solid = false
+
+[node name="AirHockey" type="Node3D" parent="Games"]
+metadata/_edit_group_ = true
+
+[node name="Table" type="Node3D" parent="Games/AirHockey"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.45, 9)
+script = ExtResource("2_block")
+size = Vector3(3, 0.9, 2)
+kind = "hockey"
+
+[node name="Rim" type="Node3D" parent="Games/AirHockey"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.9, 9)
+script = ExtResource("2_block")
+size = Vector3(3.1, 0.1, 2.1)
+kind = "neon_cyan"
+solid = false
+
+[node name="Table2" type="Node3D" parent="Games/AirHockey"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.45, 1)
+script = ExtResource("2_block")
+size = Vector3(3, 0.9, 2)
+kind = "hockey"
+
+[node name="Rim2" type="Node3D" parent="Games/AirHockey"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.9, 1)
+script = ExtResource("2_block")
+size = Vector3(3.1, 0.1, 2.1)
+kind = "neon_cyan"
+solid = false
+
+[node name="Pinball" type="Node3D" parent="Games"]
+metadata/_edit_group_ = true
+
+[node name="Pinball" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.4, 0.5, -7)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1, 0.8)
+kind = "cab_blue"
+
+[node name="Backbox" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.85, 1.5, -7)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 0.8)
+kind = "cab_black"
+
+[node name="Lights" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.69, 1.55, -7)
+script = ExtResource("2_block")
+size = Vector3(0.02, 0.7, 0.64)
+kind = "screen"
+solid = false
+
+[node name="Pinball2" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.4, 0.5, -5)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1, 0.8)
+kind = "cab_blue"
+
+[node name="Backbox2" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.85, 1.5, -5)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 0.8)
+kind = "cab_black"
+
+[node name="Lights2" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.69, 1.55, -5)
+script = ExtResource("2_block")
+size = Vector3(0.02, 0.7, 0.64)
+kind = "screen"
+solid = false
+
+[node name="Pinball3" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.4, 0.5, -1)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1, 0.8)
+kind = "cab_blue"
+
+[node name="Backbox3" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.85, 1.5, -1)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 0.8)
+kind = "cab_black"
+
+[node name="Lights3" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.69, 1.55, -1)
+script = ExtResource("2_block")
+size = Vector3(0.02, 0.7, 0.64)
+kind = "screen"
+solid = false
+
+[node name="Pinball4" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.4, 0.5, 1)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1, 0.8)
+kind = "cab_blue"
+
+[node name="Backbox4" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.85, 1.5, 1)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 0.8)
+kind = "cab_black"
+
+[node name="Lights4" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.69, 1.55, 1)
+script = ExtResource("2_block")
+size = Vector3(0.02, 0.7, 0.64)
+kind = "screen"
+solid = false
+
+[node name="Pinball5" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.4, 0.5, 5)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1, 0.8)
+kind = "cab_blue"
+
+[node name="Backbox5" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.85, 1.5, 5)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 0.8)
+kind = "cab_black"
+
+[node name="Lights5" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.69, 1.55, 5)
+script = ExtResource("2_block")
+size = Vector3(0.02, 0.7, 0.64)
+kind = "screen"
+solid = false
+
+[node name="Pinball6" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.4, 0.5, 7)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1, 0.8)
+kind = "cab_blue"
+
+[node name="Backbox6" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.85, 1.5, 7)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 0.8)
+kind = "cab_black"
+
+[node name="Lights6" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.69, 1.55, 7)
+script = ExtResource("2_block")
+size = Vector3(0.02, 0.7, 0.64)
+kind = "screen"
+solid = false
+
+[node name="Pinball7" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.4, 0.5, 11)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1, 0.8)
+kind = "cab_blue"
+
+[node name="Backbox7" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.85, 1.5, 11)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 0.8)
+kind = "cab_black"
+
+[node name="Lights7" type="Node3D" parent="Games/Pinball"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.69, 1.55, 11)
+script = ExtResource("2_block")
+size = Vector3(0.02, 0.7, 0.64)
+kind = "screen"
+solid = false
+
+[node name="ClawMachines" type="Node3D" parent="Games"]
+metadata/_edit_group_ = true
+
+[node name="Base" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 0.5, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.4, 1, 1.4)
+kind = "cab_yellow"
+
+[node name="Case" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 1.7, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.4, 1.4, 1.4)
+kind = "claw_glass"
+
+[node name="Top" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 2.5, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.44, 0.2, 1.44)
+kind = "neon_pink"
+solid = false
+
+[node name="Base2" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.5, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.4, 1, 1.4)
+kind = "cab_yellow"
+
+[node name="Case2" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 1.7, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.4, 1.4, 1.4)
+kind = "claw_glass"
+
+[node name="Top2" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 2.5, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.44, 0.2, 1.44)
+kind = "neon_pink"
+solid = false
+
+[node name="Base3" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 0.5, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.4, 1, 1.4)
+kind = "cab_yellow"
+
+[node name="Case3" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 1.7, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.4, 1.4, 1.4)
+kind = "claw_glass"
+
+[node name="Top3" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 2.5, -12.7)
+script = ExtResource("2_block")
+size = Vector3(1.44, 0.2, 1.44)
+kind = "neon_pink"
+solid = false
+
+[node name="LoungeWall" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.2, 1.9, -9.6)
+script = ExtResource("2_block")
+size = Vector3(3.6, 3.8, 0.25)
+kind = "partition"
+
+[node name="LoungeWallLintel" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.8, 3.2, -9.6)
+script = ExtResource("2_block")
+size = Vector3(1.6, 1.2, 0.25)
+kind = "partition"
+
+[node name="LoungeWall2" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.8, 1.9, -9.6)
+script = ExtResource("2_block")
+size = Vector3(0.4, 3.8, 0.25)
+kind = "partition"
+
+[node name="LoungeWall3" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.4, 1.9, -11.8)
+script = ExtResource("2_block")
+size = Vector3(0.25, 3.8, 4.4)
+kind = "partition"
+
+[node name="Vending" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 1.1, -13.45)
+script = ExtResource("2_block")
+size = Vector3(1.2, 2.2, 0.9)
+kind = "cab_red"
+
+[node name="VendingLight" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 1.45, -12.98)
+script = ExtResource("2_block")
+size = Vector3(0.9, 1.1, 0.04)
+kind = "lamp"
+solid = false
+
+[node name="Vending2" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.4, 1.1, -13.45)
+script = ExtResource("2_block")
+size = Vector3(1.2, 2.2, 0.9)
+kind = "cab_blue"
+
+[node name="VendingLight2" type="Node3D" parent="Games/ClawMachines"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15.4, 1.45, -12.98)
+script = ExtResource("2_block")
+size = Vector3(0.9, 1.1, 0.04)
+kind = "lamp"
+solid = false
+
+[node name="PartyRoom" type="Node3D" parent="."]
+metadata/_edit_group_ = true
+
+[node name="Front" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1.9, -9.6)
+script = ExtResource("2_block")
+size = Vector3(1, 3.8, 0.25)
+kind = "partition"
+
+[node name="FrontSill" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 0.55, -9.6)
+script = ExtResource("2_block")
+size = Vector3(3.5, 1.1, 0.25)
+kind = "partition"
+
+[node name="FrontLintel" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.75, 3.2, -9.6)
+script = ExtResource("2_block")
+size = Vector3(3.5, 1.2, 0.25)
+kind = "partition"
+
+[node name="Front2" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.25, 1.9, -9.6)
+script = ExtResource("2_block")
+size = Vector3(1.5, 3.8, 0.25)
+kind = "partition"
+
+[node name="FrontLintel2" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.9, 3.2, -9.6)
+script = ExtResource("2_block")
+size = Vector3(1.8, 1.2, 0.25)
+kind = "partition"
+
+[node name="Front3" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.7, 1.9, -9.6)
+script = ExtResource("2_block")
+size = Vector3(5.8, 3.8, 0.25)
+kind = "partition"
+
+[node name="Side" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 1.9, -11.8)
+script = ExtResource("2_block")
+size = Vector3(0.25, 3.8, 4.4)
+kind = "partition"
+
+[node name="Side2" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.6, 1.9, -11.8)
+script = ExtResource("2_block")
+size = Vector3(0.25, 3.8, 4.4)
+kind = "partition"
+
+[node name="Table" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 0.4, -11.9)
+script = ExtResource("2_block")
+size = Vector3(3.4, 0.8, 1.4)
+kind = "table"
+
+[node name="Sofa" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0.35, -13.3)
+script = ExtResource("2_block")
+size = Vector3(3.2, 0.7, 1)
+kind = "sofa"
+
+[node name="Balloons" type="Node3D" parent="PartyRoom"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.4, 2.9, -12)
+script = ExtResource("2_block")
+size = Vector3(0.4, 0.6, 0.4)
+kind = "neon_pink"
+solid = false
+
+[node name="Sign_PartyRoom" type="Label3D" parent="Signs"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.8, 3.3, -9.45)
+pixel_size = 0.01
+modulate = Color(1, 0.5, 0.85, 1)
+outline_size = 14
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "PARTY ROOM"
+font_size = 44
+
+[node name="Street" type="Node3D" parent="."]
+metadata/_edit_group_ = true
+
+[node name="Pavement" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.25, 17.9)
+script = ExtResource("2_block")
+size = Vector3(46, 0.5, 6.2)
+kind = "sidewalk"
+
+[node name="Kerb" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.075, 20.85)
+script = ExtResource("2_block")
+size = Vector3(46, 0.15, 0.3)
+kind = "kerb"
+
+[node name="Road" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.425, 32.5)
+script = ExtResource("2_block")
+size = Vector3(160, 0.55, 23)
+kind = "street"
+
+[node name="Far" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.75, 0)
+script = ExtResource("2_block")
+size = Vector3(320, 0.3, 320)
+kind = "street"
+tint = Color(0.7, 0.7, 0.7, 1)
+
+[node name="Fence" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.4, 0.6, 17.9)
+script = ExtResource("2_block")
+size = Vector3(0.2, 1.2, 6.2)
+kind = "steel"
+
+[node name="Fence2" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.4, 0.6, 17.9)
+script = ExtResource("2_block")
+size = Vector3(0.2, 1.2, 6.2)
+kind = "steel"
+
+[node name="Barrier" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 23)
+script = ExtResource("2_block")
+size = Vector3(46, 12, 0.4)
+kind = "steel"
+drawn = false
+
+[node name="Bollard" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 0.5, 20)
+script = ExtResource("2_block")
+size = Vector3(0.4, 1, 0.4)
+kind = "steel"
+
+[node name="Bollard2" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.5, 20)
+script = ExtResource("2_block")
+size = Vector3(0.4, 1, 0.4)
+kind = "steel"
+
+[node name="Bollard3" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.5, 20)
+script = ExtResource("2_block")
+size = Vector3(0.4, 1, 0.4)
+kind = "steel"
+
+[node name="Bollard4" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 0.5, 20)
+script = ExtResource("2_block")
+size = Vector3(0.4, 1, 0.4)
+kind = "steel"
+
+[node name="Bench" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.25, 0.25, 17.8)
+script = ExtResource("2_block")
+size = Vector3(2.5, 0.5, 0.6)
+kind = "steel"
+
+[node name="Awning" type="Node3D" parent="Street"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 15.6)
+script = ExtResource("2_block")
+size = Vector3(37.6, 0.2, 1.6)
+kind = "neon_pink"
+
+[node name="Backdrop" type="Node3D" parent="."]
+metadata/_edit_group_ = true
+
+[node name="Building" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -53, 8.925, 37)
+script = ExtResource("2_block")
+size = Vector3(14, 18.15, 14)
+kind = "backdrop"
+
+[node name="Window" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -57.4, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window2" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -54.4, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window3" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51.4, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window4" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -48.4, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Building2" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 11.925, 37)
+script = ExtResource("2_block")
+size = Vector3(10, 24.15, 14)
+kind = "backdrop_dark"
+
+[node name="Window5" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window6" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window7" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window8" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.4, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window9" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.4, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window10" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.4, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Building3" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26, 6.925, 37)
+script = ExtResource("2_block")
+size = Vector3(16, 14.15, 14)
+kind = "backdrop"
+
+[node name="Window11" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window12" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window13" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window14" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window15" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Building4" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 13.925, 37)
+script = ExtResource("2_block")
+size = Vector3(12, 28.15, 14)
+kind = "backdrop_dark"
+
+[node name="Window16" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window17" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window18" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.4, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window19" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.4, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window20" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.4, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window21" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.4, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Building5" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 9.925, 37)
+script = ExtResource("2_block")
+size = Vector3(18, 20.15, 14)
+kind = "backdrop"
+
+[node name="Window22" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window23" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window24" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window25" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.6, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window26" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.6, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Building6" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.5, 7.925, 37)
+script = ExtResource("2_block")
+size = Vector3(11, 16.15, 14)
+kind = "backdrop_dark"
+
+[node name="Window27" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.6, 11.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window28" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20.6, 11.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window29" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.6, 11.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Building7" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.5, 10.925, 37)
+script = ExtResource("2_block")
+size = Vector3(15, 22.15, 14)
+kind = "backdrop"
+
+[node name="Window30" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.6, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window31" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.6, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window32" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.6, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window33" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.6, 7.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window34" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.6, 19.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window35" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.6, 19.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window36" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.6, 19.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window37" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.6, 19.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Building8" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 49, 8.925, 37)
+script = ExtResource("2_block")
+size = Vector3(12, 18.15, 14)
+kind = "backdrop_dark"
+
+[node name="Window38" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 45.6, 11.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window39" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.6, 11.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window40" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51.6, 11.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Building9" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 63, 12.925, 37)
+script = ExtResource("2_block")
+size = Vector3(14, 26.15, 14)
+kind = "backdrop"
+
+[node name="Window41" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.6, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window42" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61.6, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window43" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64.6, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window44" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.6, 3.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window45" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.6, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window46" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61.6, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window47" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 64.6, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Window48" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 67.6, 15.8, 29.975)
+script = ExtResource("2_block")
+size = Vector3(1.2, 1.6, 0.05)
+kind = "window_lit"
+solid = false
+
+[node name="Neighbour" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.8, 6.925, -12.6)
+script = ExtResource("2_block")
+size = Vector3(40.4, 14.15, 54.8)
+kind = "backdrop_dark"
+
+[node name="Neighbour2" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39.8, 6.925, -12.6)
+script = ExtResource("2_block")
+size = Vector3(40.4, 14.15, 54.8)
+kind = "backdrop_dark"
+
+[node name="Behind" type="Node3D" parent="Backdrop"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.925, -32.8)
+script = ExtResource("2_block")
+size = Vector3(60, 16.15, 34.4)
+kind = "backdrop"
+
+[node name="Roof" type="Node3D" parent="."]
+metadata/_edit_group_ = true
+
+[node name="Roof" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.35, -10.4)
+script = ExtResource("2_block")
+size = Vector3(37.6, 0.5, 8.8)
+kind = "roof"
+
+[node name="Roof2" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.35, 0)
+script = ExtResource("2_block")
+size = Vector3(37.6, 0.5, 6)
+kind = "roof"
+
+[node name="Roof3" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.35, 10.4)
+script = ExtResource("2_block")
+size = Vector3(37.6, 0.5, 8.8)
+kind = "roof"
+
+[node name="Roof4" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.4, 9.35, -4.5)
+script = ExtResource("2_block")
+size = Vector3(10.8, 0.5, 3)
+kind = "roof"
+
+[node name="Roof5" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 9.35, -4.5)
+script = ExtResource("2_block")
+size = Vector3(10.8, 0.5, 3)
+kind = "roof"
+
+[node name="Curb" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, -6)
+script = ExtResource("2_block")
+size = Vector3(16, 0.4, 0.2)
+kind = "parapet"
+
+[node name="Curb2" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, -3)
+script = ExtResource("2_block")
+size = Vector3(16, 0.4, 0.2)
+kind = "parapet"
+
+[node name="Roof6" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.4, 9.35, 4.5)
+script = ExtResource("2_block")
+size = Vector3(10.8, 0.5, 3)
+kind = "roof"
+
+[node name="Roof7" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 9.35, 4.5)
+script = ExtResource("2_block")
+size = Vector3(10.8, 0.5, 3)
+kind = "roof"
+
+[node name="Curb3" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, 3)
+script = ExtResource("2_block")
+size = Vector3(16, 0.4, 0.2)
+kind = "parapet"
+
+[node name="Curb4" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, 6)
+script = ExtResource("2_block")
+size = Vector3(16, 0.4, 0.2)
+kind = "parapet"
+
+[node name="Parapet" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10.1, -14.65)
+script = ExtResource("2_block")
+size = Vector3(37.6, 1, 0.3)
+kind = "parapet"
+
+[node name="Parapet2" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10.1, 14.65)
+script = ExtResource("2_block")
+size = Vector3(37.6, 1, 0.3)
+kind = "parapet"
+
+[node name="Parapet3" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.65, 10.1, 0)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 29.6)
+kind = "parapet"
+
+[node name="Parapet4" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.65, 10.1, 0)
+script = ExtResource("2_block")
+size = Vector3(0.3, 1, 29.6)
+kind = "parapet"
+
+[node name="ACUnit" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 10.4, -11)
+script = ExtResource("2_block")
+size = Vector3(2.4, 1.6, 2)
+kind = "ac_unit"
+
+[node name="ACUnit2" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 10.4, -11)
+script = ExtResource("2_block")
+size = Vector3(2.4, 1.6, 2)
+kind = "ac_unit"
+
+[node name="ACUnit3" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 10.4, -10)
+script = ExtResource("2_block")
+size = Vector3(2.4, 1.6, 2)
+kind = "ac_unit"
+
+[node name="ACUnit4" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 10.4, 10)
+script = ExtResource("2_block")
+size = Vector3(2.4, 1.6, 2)
+kind = "ac_unit"
+
+[node name="Vent" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5, 10.8, 8.5)
+script = ExtResource("2_block")
+size = Vector3(1, 2.4, 1)
+kind = "steel"
+
+[node name="SignFrame" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10.7, 14.3)
+script = ExtResource("2_block")
+size = Vector3(20, 0.2, 0.2)
+kind = "truss"
+
+[node name="SignBoard" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.4, 14.3)
+script = ExtResource("2_block")
+size = Vector3(20, 3.2, 0.2)
+kind = "cab_black"
+
+[node name="SignNeon" type="Node3D" parent="Roof"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14.075, 14.3)
+script = ExtResource("2_block")
+size = Vector3(20.2, 0.15, 0.3)
+kind = "neon_cyan"
+solid = false
+
+[node name="Sign_NeonArcade" type="Label3D" parent="Signs"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.4, 14.46)
+pixel_size = 0.012
+modulate = Color(1, 0.4, 0.85, 1)
+outline_size = 14
+outline_modulate = Color(0.05, 0.05, 0.08, 1)
+text = "NEON ARCADE"
+font_size = 220
+
+[node name="Spawn1" type="Marker3D" parent="Spawns"]
+transform = Transform3D(-0.6585, 0, -0.7526, 0, 1, 0, 0.7526, 0, -0.6585, -8, 0, -7)
+script = ExtResource("3_spawn")
+
+[node name="Spawn2" type="Marker3D" parent="Spawns"]
+transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, 7, 0, -7)
+script = ExtResource("3_spawn")
+
+[node name="Spawn3" type="Marker3D" parent="Spawns"]
+transform = Transform3D(0.2124, 0, -0.9772, 0, 1, 0, 0.9772, 0, 0.2124, -11.5, 0, 2.5)
+script = ExtResource("3_spawn")
+
+[node name="Spawn4" type="Marker3D" parent="Spawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 7.4)
+script = ExtResource("3_spawn")
+
+[node name="Spawn5" type="Marker3D" parent="Spawns"]
+transform = Transform3D(0.0825, 0, 0.9966, 0, 1, 0, -0.9966, 0, 0.0825, 14.5, 0, 1.2)
+script = ExtResource("3_spawn")
+
+[node name="Spawn6" type="Marker3D" parent="Spawns"]
+transform = Transform3D(-0.6122, 0, -0.7907, 0, 1, 0, 0.7907, 0, -0.6122, -15.5, 0, -12)
+script = ExtResource("3_spawn")
+
+[node name="Spawn7" type="Marker3D" parent="Spawns"]
+transform = Transform3D(-0.8209, 0, 0.5711, 0, 1, 0, -0.5711, 0, -0.8209, 8, 0, -11.5)
+script = ExtResource("3_spawn")
+
+[node name="Spawn8" type="Marker3D" parent="Spawns"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -15.5, 4.5, 0)
+script = ExtResource("3_spawn")
+
+[node name="Spawn9" type="Marker3D" parent="Spawns"]
+transform = Transform3D(-0.7546, 0, 0.6562, 0, 1, 0, -0.6562, 0, -0.7546, 10, 4.5, -11.5)
+script = ExtResource("3_spawn")
+
+[node name="Spawn10" type="Marker3D" parent="Spawns"]
+transform = Transform3D(-0.8209, 0, -0.5711, 0, 1, 0, 0.5711, 0, -0.8209, -8, 4.5, -11.5)
+script = ExtResource("3_spawn")
+
+[node name="Spawn11" type="Marker3D" parent="Spawns"]
+transform = Transform3D(-0.3417, 0, 0.9398, 0, 1, 0, -0.9398, 0, -0.3417, 16.5, 0, -6)
+script = ExtResource("3_spawn")
+
+[node name="Spawn12" type="Marker3D" parent="Spawns"]
+transform = Transform3D(0.359, 0, -0.9333, 0, 1, 0, 0.9333, 0, 0.359, -15.6, 0, 6)
+script = ExtResource("3_spawn")
+
+[node name="Shotgun1" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+script = ExtResource("4_weapon")
+weapon = "shotgun"
+
+[node name="Sniper2" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.6, 10)
+script = ExtResource("4_weapon")
+weapon = "sniper"
+
+[node name="Rifle3" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 4.5, 12)
+script = ExtResource("4_weapon")
+weapon = "rifle"
+
+[node name="Smg4" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, -11.2)
+script = ExtResource("4_weapon")
+weapon = "smg"
+
+[node name="Revolver5" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, -10.6)
+script = ExtResource("4_weapon")
+weapon = "revolver"
+
+[node name="Hammer6" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.6, 11)
+script = ExtResource("4_weapon")
+weapon = "hammer"
+
+[node name="Dagger7" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, 8)
+script = ExtResource("4_weapon")
+weapon = "dagger"
+
+[node name="BurstRifle8" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0, 18)
+script = ExtResource("4_weapon")
+weapon = "burst_rifle"
+
+[node name="MachinePistol9" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.5, 0, -3)
+script = ExtResource("4_weapon")
+weapon = "machine_pistol"
+
+[node name="Spear10" type="Marker3D" parent="WeaponSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, -6.6)
+script = ExtResource("4_weapon")
+weapon = "spear"
