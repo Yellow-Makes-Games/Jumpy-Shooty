@@ -66,7 +66,7 @@ static func _draw_rest(ci: CanvasItem, c: Vector2, v: Hud.View, size: Vector2, b
 		var bar := Rect2(right - 150.0, bottom - 32.0, 150.0, 8.0)
 		HudStyle.edged_rect(ci, bar, HudStyle.DIM)
 		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(v.swing, 0.0, 1.0), bar.size.y)), HudStyle.WHITE if v.swing >= 1.0 else HudStyle.ORANGE)
-		HudStyle.text(ci, Vector2(right, bottom - 6.0), "LMB  SWING", 12, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_RIGHT)
+		HudStyle.text(ci, Vector2(right, bottom - 6.0), "F  KICK" if v.gun == "none" else "LMB  SWING", 12, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_RIGHT)
 	else:
 		_draw_ammo(ci, v, right, bottom)
 	var speed := "%s  ·  %.1f m/s" % [v.move_state, v.speed]

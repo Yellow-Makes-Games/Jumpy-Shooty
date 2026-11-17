@@ -18,6 +18,7 @@ extends Node
 ## --map=ID             Which map to play: construction_site, office, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins: that makes it a race) (host, practice and bot).
 ## --race               With --practice, --bot or --host and no --map: race on the first race map.
+## --game=GAME          ffa or dm (Deathmatch: start unarmed, pick weapons up off the map), with --practice, --bot or --host.
 ## --autopilot          Your own racer runs the course like a bot would (race tests and screenshots).
 ## --bot-level=LEVEL    With --autopilot: run the course at this bot difficulty (default 3, Expert).
 ## --bot=LEVEL          Skip the menus and start a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert).
@@ -58,6 +59,7 @@ var switch_weapon := false
 var swap_on_death := false
 var map := ""
 var race := false
+var game := ""   ## --game=dm: a Deathmatch (on an arena map)
 var autopilot := false
 var bot_level := 3
 var bot := -1
@@ -128,6 +130,11 @@ func _ready() -> void:
 				else:
 					push_warning("Unknown map: %s (maps: %s)" % [value, ", ".join(Maps.ids())])
 			"--race": race = true
+			"--game":
+				if value in Maps.GAMES:
+					game = value
+				else:
+					push_warning("Unknown game: %s (games: %s)" % [value, ", ".join(Maps.GAMES)])
 			"--autopilot": autopilot = true
 			"--bot-level": bot_level = clampi(int(value), 0, 3)
 			"--bot": bot = clampi(int(value), 0, 3)

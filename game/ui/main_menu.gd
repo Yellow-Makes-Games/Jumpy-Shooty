@@ -209,7 +209,7 @@ func _map_picker(parent: Node, current: String, game: String = "ffa") -> OptionB
 	return pick
 
 
-const MODE_LABELS := ["Shoot-out (FFA / 1v1)", "Race"]
+const MODE_LABELS := ["Shoot-out (FFA / 1v1)", "Deathmatch", "Race"]
 
 
 ## A "Mode" heading and switch: free-for-all (or 1v1) or race, and Gun Game if
@@ -230,13 +230,14 @@ func _show_practice() -> void:
 	UiKit.title(_col, "Practice", 36)
 	var note := UiKit.label(_col, "", true, 16)
 	var left := _two_columns()
-	var game := Maps.game_of(Game.last_practice_map)
+	var game := Game.last_practice_game if Maps.fits(Game.last_practice_map, Game.last_practice_game) else Maps.game_of(Game.last_practice_map)
 	# The map drop-down is made after the mode switch, but the switch refills it, so
 	# the callback reaches it through an array (lambdas copy plain locals when made).
 	var map_ref: Array[OptionButton] = [null]
 	var explain := func(g: String):
 		note.text = "Run a race course on your own against the clock." if g == "race" \
-			else "Roam a map on your own to learn its routes. No opponents, no timer."
+			else ("Weapons float about the map: walk over one to pick it up. Carry two: 1 and 2 to switch." if g == "dm" \
+			else "Roam a map on your own to learn its routes. No opponents, no timer.")
 	explain.call(game)
 	var mode := _mode_picker(left, game, func(g: String):
 		explain.call(g)
@@ -244,7 +245,7 @@ func _show_practice() -> void:
 	var map := _map_picker(left, Game.last_practice_map, mode[0])
 	map_ref[0] = map
 	var row := _back_row(_show_play)
-	_start_button(row, func(): Game.start_practice(Maps.picked(map)))
+	_start_button(row, func(): Game.start_practice(Maps.picked(map), mode[0]))
 
 
 const RACE_BLURBS := [
@@ -302,7 +303,7 @@ func _show_bot() -> void:
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
 		var race := g == "race"
-		kills_box.visible = g == "ffa"
+		kills_box.visible = g == "ffa" or g == "dm"
 		for n in range(1, Game.MAX_BOTS + 1):
 			var t := "%d (1v1)" % n if n == 1 else "%d (free-for-all)" % n
 			if race:
@@ -326,7 +327,7 @@ func _show_bot() -> void:
 	show_mode.call(mode[0])
 	var buttons := _back_row(_show_play)
 	_start_button(buttons, func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
-			count.get_selected_id(), mode[0] == "gungame"))
+			count.get_selected_id(), mode[0] == "gungame", GunGame.game_of_mode(mode[0])))
 
 
 func _show_multiplayer() -> void:

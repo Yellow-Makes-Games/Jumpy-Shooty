@@ -67,6 +67,7 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	(func(): Match.player_died.connect(_on_player_died)).call_deferred()   # Match is the next autoload
 
 
 static func now() -> float:
@@ -314,8 +315,32 @@ func set_my_character(character: String) -> void:
 func confirm_my_character() -> void:
 	if players.has(my_id()) and player_character(my_id()) != _local_character:
 		set_my_character(_local_character)
-	if players.has(my_id()) and player_weapon(my_id()) != _local_weapon:
+	if players.has(my_id()) and player_loadout_weapon(my_id()) != _local_weapon:
 		set_my_weapon(_local_weapon)
+
+
+## Pause menu "Loadout": change robot and/or weapon mid-match. It takes effect when
+## you next respawn: sent now if you are dead (or racing, where nobody dies), else
+## as soon as you die (see _on_player_died).
+func set_loadout(character: String, weapon: String) -> void:
+	_local_character = Characters.valid(character)
+	_local_weapon = WeaponData.valid(weapon)
+	if not in_match or not Match.is_alive(my_id()) or Race.active:
+		confirm_my_character()
+
+
+## The robot and weapon you will have after your next respawn.
+func pending_character() -> String:
+	return _local_character
+
+
+func pending_weapon() -> String:
+	return _local_weapon
+
+
+func _on_player_died(victim: int, _killer: int) -> void:
+	if victim == my_id():
+		confirm_my_character()   # a loadout picked while alive applies now, for the respawn
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -325,8 +350,10 @@ func _choose_character(character: String) -> void:
 
 
 func _apply_character(id: int, character: String) -> void:
-	if in_match or not players.has(id) or players[id].get("character", "") == Characters.valid(character):
+	if not players.has(id) or players[id].get("character", "") == Characters.valid(character):
 		return
+	if in_match and not Race.active and (Match.is_alive(id) or not Match.running):
+		return   # mid-fight you can only change robot while waiting to respawn
 	players[id]["character"] = Characters.valid(character)
 	print("[net] %d picked %s" % [id, players[id].character])
 	if is_online:
@@ -390,11 +417,12 @@ func _sync_settings(settings: Dictionary) -> void:
 	match_settings = settings
 	var game := Maps.valid_game(str(match_settings.get("game", "")))
 	var map := str(match_settings.get("map", ""))
-	if Maps.has(map) and not map.begins_with("res://") and Maps.game_of(map) != game:
-		map = ""   # a map for the other game: race maps only race, arenas only fight
+	if Maps.has(map) and not map.begins_with("res://") and not Maps.fits(map, game):
+		map = ""   # a map for another game: race maps only race, arenas only fight
 	if not Maps.has(map):
 		match_settings["map"] = Maps.default_id(game)
-	match_settings["game"] = Maps.game_of(str(match_settings.map))
+	map = str(match_settings.map)
+	match_settings["game"] = game if game in Maps.games_of(map) else Maps.game_of(map)
 	players_changed.emit()  # lobby screens refresh on this
 
 
@@ -481,9 +509,117 @@ func player_character(id: int) -> String:
 	return Characters.valid(str(players[id].get("character", ""))) if players.has(id) else Characters.default_id()
 
 
-## The gun a player is using (an id from WeaponData).
+## The gun a player is using (an id from WeaponData). In a Deathmatch it is the
+## weapon in their hands, or "none" before they have picked one up.
 func player_weapon(id: int) -> String:
+	if not players.has(id):
+		return WeaponData.default_id()
+	if in_match and is_deathmatch():
+		var held := str(players[id].get("held", "none"))
+		return held if WeaponData.has(held) else "none"
+	return WeaponData.valid(str(players[id].get("weapon", "")))
+
+
+## The weapon a player chose in the lobby or the loadout (what they spawn with
+## outside a Deathmatch).
+func player_loadout_weapon(id: int) -> String:
 	return WeaponData.valid(str(players[id].get("weapon", ""))) if players.has(id) else WeaponData.default_id()
+
+
+## Deathmatch: how many weapons you can carry, one slot per key (1 and 2).
+const SLOTS := 2
+
+
+## Deathmatch: the weapons a player is carrying (picked up since they last died), by
+## slot: SLOTS entries, "" for an empty slot. Slot 1 is key 1, slot 2 is key 2.
+func player_inventory(id: int) -> Array:
+	var slots: Array = players[id].get("inventory", []) if players.has(id) else []
+	slots = slots.duplicate()
+	slots.resize(SLOTS)
+	for i in SLOTS:
+		if slots[i] == null:
+			slots[i] = ""
+	return slots
+
+
+## Deathmatch: the weapons a player carries, without the empty slots.
+func player_weapons(id: int) -> Array:
+	return player_inventory(id).filter(func(w): return w != "")
+
+
+# ---------------------------------------------------------------------------
+# Deathmatch inventory (the host decides; everyone is told through `players`)
+
+## Deathmatch: hold one of the weapons you carry ("none": put it away). The host
+## checks you have it.
+func switch_my_weapon(weapon: String) -> void:
+	if is_host():
+		_apply_held(my_id(), weapon)
+	else:
+		_choose_held.rpc_id(1, weapon)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_held(weapon: String) -> void:
+	if is_host():
+		_apply_held(multiplayer.get_remote_sender_id(), weapon)
+
+
+## Host: `id` holds `weapon` now, if they carry it (bots call this directly).
+func _apply_held(id: int, weapon: String) -> void:
+	if not players.has(id) or not is_deathmatch() or not Match.is_alive(id):
+		return
+	if weapon != "none" and not weapon in player_weapons(id):
+		return
+	if str(players[id].get("held", "none")) == weapon:
+		return
+	players[id]["held"] = weapon
+	_players_updated()
+
+
+## Host: `id` walked over `weapon`. One they already carry only refills its ammo (on
+## their own copy; see Arena). Otherwise it goes in their first empty slot (and in
+## their hands if those were empty), or, with both slots full, it replaces the weapon
+## in their hands. Returns true if what they carry changed.
+func host_give_weapon(id: int, weapon: String) -> bool:
+	if not players.has(id) or not WeaponData.has(weapon):
+		return false
+	var slots := player_inventory(id)
+	if weapon in slots:
+		return false
+	var held := str(players[id].get("held", "none"))
+	var at := slots.find("")
+	if at < 0:
+		at = maxi(slots.find(held), 0)   # full: swap out the one in your hands
+		held = weapon
+	slots[at] = weapon
+	if not WeaponData.has(held):
+		held = weapon
+	players[id]["inventory"] = slots
+	players[id]["held"] = held
+	_players_updated()
+	return true
+
+
+## Host: `id` died (or a Deathmatch is starting): empty hands, nothing carried.
+func host_clear_inventory(id: int, tell: bool = true) -> void:
+	if not players.has(id):
+		return
+	var empty := []
+	empty.resize(SLOTS)
+	empty.fill("")
+	players[id]["inventory"] = empty
+	players[id]["held"] = "none"
+	if tell:
+		_players_updated()
+
+
+## Host: everyone hears about a change to `players`.
+func _players_updated() -> void:
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
 
 
 func player_color(id: int) -> Color:
@@ -493,9 +629,15 @@ func player_color(id: int) -> Color:
 # ---------------------------------------------------------------------------
 # Match flow
 
-## "ffa" or "race": what kind of game is set up (it follows the map).
+## "ffa", "dm" or "race": what kind of game is set up (one the map can host).
 func game_kind() -> String:
-	return Maps.game_of(map_id())
+	var game := str(match_settings.get("game", ""))
+	return game if game in Maps.games_of(map_id()) else Maps.game_of(map_id())
+
+
+## Deathmatch: everyone starts unarmed and picks weapons up off the map.
+func is_deathmatch() -> bool:
+	return game_kind() == "dm"
 
 
 ## The id of the map being played (or about to be).
