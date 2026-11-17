@@ -57,7 +57,7 @@ func setup(player: Player, color: Color) -> void:
 	_player = player
 	name = "ViewModel"
 	_data = player.weapon.data if player.weapon else WeaponData.pistol()
-	_weapon = _data.id
+	_weapon = _data.id if player.weapon else "none"   # Deathmatch, nothing picked up yet: empty hands
 	model = RobotModel.new().setup(Characters.arms(Net.player_character(player.peer_id)), color, true, _weapon)
 	model.position = -EYE
 	model.set_layer(Player.VIEWMODEL_LAYER)
@@ -145,7 +145,7 @@ func update(delta: float) -> void:
 	var vel := _player.velocity
 	var speed := Vector2(vel.x, vel.z).length()
 	var grounded := motor.state in [S.GROUND, S.CROUCH, S.SLIDE, S.ROLL, S.BELLY_SLIDE]
-	var reloading := _player.weapon.is_reloading()
+	var reloading := _player.weapon != null and _player.weapon.is_reloading()
 	_since_fire += delta
 
 	# --- Arm pose for what the body is doing

@@ -28,30 +28,33 @@ static func weapon_at(level: int) -> String:
 
 
 # ---------------------------------------------------------------------------
-# The menus' mode switch: Shoot-out, Gun Game or Race. Gun Game is a free-for-all
-# ("ffa" maps, the arenas) with its own rules (match_settings.mode = "gungame").
+# The menus' mode switch: Shoot-out, Gun Game, Deathmatch or Race. Gun Game is a
+# free-for-all ("ffa" maps, the arenas) with its own rules (match_settings.mode =
+# "gungame"); Deathmatch is a game of its own ("dm", on the arenas with weapon pickups).
 
-const MODES := ["ffa", "gungame", "race"]
-const MODE_LABELS := ["Shoot-out (FFA / 1v1)", "Gun Game", "Race"]
+const MODES := ["ffa", "gungame", "dm", "race"]
+const MODE_LABELS := ["Shoot-out (FFA / 1v1)", "Gun Game", "Deathmatch", "Race"]
 
 
 ## Which of MODES these match settings are.
 static func mode_of(settings: Dictionary) -> String:
 	if Maps.game_of(str(settings.get("map", ""))) == "race" or str(settings.get("game", "")) == "race":
 		return "race"
+	if str(settings.get("game", "")) == "dm" and Maps.fits(str(settings.get("map", "")), "dm"):
+		return "dm"
 	return "gungame" if str(settings.get("mode", "")) == "gungame" else "ffa"
 
 
-## The kind of map a mode plays on ("ffa" or "race").
+## The kind of game a mode is ("ffa", "dm" or "race"; Gun Game is a kind of "ffa").
 static func game_of_mode(mode: String) -> String:
-	return "race" if mode == "race" else "ffa"
+	return mode if mode in ["race", "dm"] else "ffa"
 
 
 ## Match settings switched to `mode` (the map changes only if it does not fit).
 static func with_mode(settings: Dictionary, mode: String, map_for_game: String) -> Dictionary:
 	var s := settings.duplicate()
 	var game := game_of_mode(mode)
-	if Maps.game_of(str(s.get("map", ""))) != game:
+	if not Maps.fits(str(s.get("map", "")), game):
 		s["map"] = map_for_game
 	s["game"] = game
 	if mode == "gungame":

@@ -246,7 +246,7 @@ func _build_map() -> void:
 			return
 		var s := Net.match_settings.duplicate()
 		s["map"] = Maps.picked(_map_pick)
-		Game.last_map[Maps.game_of(s.map)] = s.map
+		Game.last_map[Net.game_kind()] = s.map
 		Net.set_match_settings(s))
 
 
@@ -303,7 +303,7 @@ func _refresh_rules() -> void:
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
 	if _weapon:
-		_weapon.visible = not race and not gun_game   # no guns in a race; Gun Game hands them out
+		_weapon.visible = not race and not gun_game and not Net.is_deathmatch()   # no guns in a race; Gun Game hands them out; a Deathmatch finds them on the map
 	_rules_label.visible = not Net.is_host() or gun_game
 	_host_rules.visible = Net.is_host() and not gun_game
 	_map_label.text = Maps.label(Net.map_id())

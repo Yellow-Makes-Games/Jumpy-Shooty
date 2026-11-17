@@ -7,6 +7,7 @@ extends Node3D
 ##    selects the whole container or staircase; see docs/DEVELOPMENT.md).
 ##  - MapSpawn nodes: where players appear.
 ##  - MapDummy nodes: target dummies to shoot at (test maps).
+##  - MapWeaponSpawn nodes (under "WeaponSpawns"): Deathmatch weapon pickups.
 ##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
 ##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
@@ -67,6 +68,8 @@ const FALLBACK_PALETTE := "res://game/maps/palettes/construction_site.tres"
 var spawns: Array = []
 ## [position, yaw, MapDummy] of every target dummy; filled in by build().
 var dummies: Array = []
+## [position, weapon id] of every Deathmatch weapon pickup (MapWeaponSpawn); filled in by build().
+var weapon_spawns: Array = []
 ## Race maps, filled in by build(). Checkpoints: {number, finish, xf, opening},
 ## sorted by number. Hazards: {xf, size, shape, mover} (mover = index into movers,
 ## or -1). Movers: {node: MapMover, base: Transform3D, body: AnimatableBody3D}.
@@ -118,6 +121,7 @@ func build(with_meshes: bool = true) -> void:
 	hazards = []
 	movers = []
 	route = []
+	weapon_spawns = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
 	checkpoints.sort_custom(func(a, b): return a.number < b.number)
 	dummies = []
@@ -178,6 +182,8 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 					"shape": MapBlock.SHAPE_NAMES[b.shape], "mover": mover})
 		elif child is MapSpawn:
 			spawn_list.append([at.origin + Vector3(0, 0.2, 0), atan2(at.basis.z.x, at.basis.z.z)])
+		elif child is MapWeaponSpawn:
+			weapon_spawns.append([at.origin, (child as MapWeaponSpawn).weapon])
 		elif child is MapCheckpoint:
 			var c := child as MapCheckpoint
 			checkpoints.append({"number": c.number, "finish": c.finish, "opening": c.opening,

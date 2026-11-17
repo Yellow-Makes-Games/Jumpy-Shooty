@@ -12,6 +12,8 @@ var debug_menu: DebugMenu
 var dummies: Array = []
 ## Race maps: the drawn checkpoint gates, in the order racers pass them.
 var gates: Array = []
+## Deathmatch: the map's floating weapons (WeaponPickup), in the order of their index.
+var pickups: Array = []
 ## Seconds until the bots' navigation mesh is redone after walls or floors broke.
 var _nav_rebake := 0.0
 var _nav_baking := false
@@ -32,6 +34,8 @@ func _ready() -> void:
 	elif Net.has_bots():
 		ensure_navigation()   # only when bots play: it takes a moment (racing bots follow the map's route instead)
 	_spawn_dummies()
+	if Net.is_deathmatch():
+		_spawn_pickups()
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
@@ -50,6 +54,7 @@ func _ready() -> void:
 	Match.shot_fired.connect(_on_shot_fired)
 	Match.projectile_fired.connect(_on_projectile_fired)
 	Match.exploded.connect(_on_exploded)
+	Match.pickup_changed.connect(_on_pickup_changed)
 	_sync_players()
 	_capture_mouse(true)
 	if layout.destruction:
@@ -59,6 +64,7 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if Net.arena == self:
 		Net.arena = null
+	Match.pickups_taken.clear()
 	Engine.time_scale = 1.0   # the debug menu's slow motion ends with the match
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -194,13 +200,16 @@ func _sync_players() -> void:
 		if not players_root.has_node("Player_%d" % id):
 			_spawn(id)
 		else:
-			# Swapped weapons while waiting to respawn: rebuilt holding the new one.
 			var p := get_player(id)
-			if not p.racing and p.robot.weapon != Net.player_weapon(id):
-				if p.alive and Match.is_alive(id):
+			if p.character != Net.player_character(id):
+				rebuild_player(id)   # a new robot from the loadout (picked while waiting to respawn)
+			elif not p.racing and p.robot.weapon != Net.player_weapon(id):
+				if Net.is_deathmatch():
+					p.equip(Net.player_weapon(id))   # switched weapons (or picked one up); a dead body waits for its respawn
+				elif p.alive and Match.is_alive(id):
 					p.change_weapon(Net.player_weapon(id))   # Gun Game: a kill hands you the next weapon now
 				else:
-					rebuild_player(id)
+					rebuild_player(id)   # swapped weapons while waiting to respawn: rebuilt holding the new one
 	for p in players_root.get_children():
 		if not Net.players.has((p as Player).peer_id):
 			p.queue_free()
@@ -321,6 +330,36 @@ func _spawn_dummies() -> void:
 		var dummy := TargetDummy.new().setup(dummies.size(), d[0], d[1], marker.character, marker.gun, marker.caption)
 		root.add_child(dummy)
 		dummies.append(dummy)
+
+
+func _spawn_pickups() -> void:
+	var root := Node3D.new()
+	root.name = "Pickups"
+	add_child(root)
+	for w in layout.weapon_spawns:
+		var p := WeaponPickup.make(pickups.size(), w[0], w[1])
+		root.add_child(p)
+		pickups.append(p)
+
+
+## The host says a weapon was taken (by `by`) or is back.
+func _on_pickup_changed(index: int, taken: bool, by: int, weapon: String) -> void:
+	if index < 0 or index >= pickups.size():
+		return
+	var pickup: WeaponPickup = pickups[index]
+	pickup.set_taken(taken)
+	if not taken:
+		Sound.play_at("ui_click", pickup.spot, "move", -6.0)
+		return
+	if by == 0:
+		return   # just catching up on what is gone (joined mid-match)
+	var p := get_player(by)
+	if p and p.is_local:
+		p.picked_up(weapon)   # a full magazine, whether it is new or one you carry
+		if p == local_player:
+			Sound.play("equip_" + weapon)
+			return
+	Sound.play_at("equip_" + weapon, pickup.spot, "move")
 
 
 func _capture_mouse(on: bool) -> void:
