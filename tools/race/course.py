@@ -17,7 +17,7 @@ import math
 
 ACTIONS = ["RUN", "JUMP", "LONG_JUMP", "DIVE_JUMP", "FLIP_DIVE", "SLIDE", "CRAWL", "WALL_RUN",
            "WALL_JUMP", "CHIMNEY", "GRAPPLE", "WAIT_GROUND", "WAIT_CLEAR", "WALK", "BOOST_JUMP", "BOOST_UP",
-           "FLOAT_JUMP"]
+           "GLIDE_JUMP"]
 HEADINGS = [(1, 0, 0), (0, 0, 1), (-1, 0, 0), (0, 0, -1)]   # turning right steps forward through these
 
 

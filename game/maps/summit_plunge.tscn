@@ -40,7 +40,7 @@ script = ExtResource("1_root")
 palette = ExtResource("pal")
 face_shade = Vector3(0.95, 0.86, 0.7)
 kill_height = -106.5
-bounds = Rect2(-56, -40, 716, 304)
+bounds = Rect2(-56, -40, 696, 301)
 swing_point = Vector3(0, 10, 0)
 
 [node name="Environment" type="WorldEnvironment" parent="."]
@@ -3630,13 +3630,13 @@ script = ExtResource("5_route")
 action = 0
 radius = 2
 
-[node name="Sign_SlideJumpFloatShift" type="Label3D" parent="Signs"]
+[node name="Sign_SlideJumpFlipDive" type="Label3D" parent="Signs"]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -33.5, 51)
 pixel_size = 0.01
 modulate = Color(0.45, 0.9, 1, 1)
 outline_size = 16
 outline_modulate = Color(0.05, 0.05, 0.08, 1)
-text = "SLIDE, JUMP, FLOAT: SHIFT"
+text = "SLIDE, JUMP, FLIP, DIVE"
 font_size = 60
 
 [node name="SkiJump" type="Node3D" parent="Course"]
@@ -3819,58 +3819,58 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -37.5, 49.8)
 script = ExtResource("5_route")
 action = 5
 
-[node name="P29_float_jump" type="Marker3D" parent="BotRoute"]
+[node name="P29_flip_dive" type="Marker3D" parent="BotRoute"]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -45.5, 71.55)
 script = ExtResource("5_route")
-action = 16
+action = 4
 radius = 0.8
 
 [node name="Deck2" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -50, 104)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -50, 101)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 16)
 kind = "snow"
 
 [node name="Ridge12" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -54.25, 104)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -54.25, 101)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 16)
 kind = "snow_shade"
 
 [node name="Ridge13" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -64.5, 104)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -64.5, 101)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 16)
 kind = "rock"
 
 [node name="SnowCap2" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.3, 104)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.3, 101)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 16)
 kind = "snow"
 solid = false
 
 [node name="Ridge14" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -89.5, 104)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -89.5, 101)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 32)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank5" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.65, -49.825, 104)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.65, -49.825, 101)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 16)
 kind = "snow_drift"
 
 [node name="Bank6" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -49.825, 104)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -49.825, 101)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 16)
 kind = "snow_drift"
 
 [node name="Catch3" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -64, 91)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -64, 88)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 42)
 kind = "rock_dark"
@@ -3878,7 +3878,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -56.3, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -56.3, 96.354)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -3887,79 +3887,79 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -55.2, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -55.2, 96.354)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(6.8058, 2.5806, 6.8058)
+size = Vector3(8.3149, 3.2291, 8.3149)
 kind = "pine_dark"
 solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -53.9097, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -53.5855, 96.354)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(4.4237, 0.25, 4.4237)
+size = Vector3(5.4047, 0.25, 5.4047)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -53.254, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -52.6645, 96.354)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(5.3043, 2.5806, 5.3043)
+size = Vector3(6.4362, 3.2291, 6.4362)
 kind = "pine"
 solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -51.9637, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -51.05, 96.354)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(3.4478, 0.25, 3.4478)
+size = Vector3(4.1835, 0.25, 4.1835)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -51.308, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -50.129, 96.354)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(3.8029, 2.5806, 3.8029)
+size = Vector3(4.5574, 3.2291, 4.5574)
 kind = "pine_dark"
 solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -50.0177, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -48.5145, 96.354)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(2.4719, 0.25, 2.4719)
+size = Vector3(2.9623, 0.25, 2.9623)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -49.362, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -47.5935, 96.354)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(2.3014, 2.5806, 2.3014)
+size = Vector3(2.6787, 3.2291, 2.6787)
 kind = "pine"
 solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.008, -48.0717, 101.658)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 296.576, -45.979, 96.354)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(1.4959, 0.25, 1.4959)
+size = Vector3(1.7412, 0.25, 1.7412)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="Trunk2" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -56.3, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -56.3, 103.864)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -3968,79 +3968,79 @@ solid = false
 sides = 6
 
 [node name="Pine5" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -55.2, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -55.2, 103.864)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(7.3626, 2.8199, 7.3626)
+size = Vector3(7.9539, 3.074, 7.9539)
 kind = "pine_dark"
 solid = false
 sides = 7
 
 [node name="PineSnow5" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -53.7901, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -53.663, 103.864)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(4.7857, 0.25, 4.7857)
+size = Vector3(5.17, 0.25, 5.17)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="Pine6" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -53.0365, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -52.8055, 103.864)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(5.7219, 2.8199, 5.7219)
+size = Vector3(6.1654, 3.074, 6.1654)
 kind = "pine"
 solid = false
 sides = 7
 
 [node name="PineSnow6" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -51.6266, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -51.2685, 103.864)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(3.7192, 0.25, 3.7192)
+size = Vector3(4.0075, 0.25, 4.0075)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="Pine7" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -50.873, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -50.411, 103.864)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(4.0813, 2.8199, 4.0813)
+size = Vector3(4.377, 3.074, 4.377)
 kind = "pine_dark"
 solid = false
 sides = 7
 
 [node name="PineSnow7" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -49.4631, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -48.874, 103.864)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(2.6528, 0.25, 2.6528)
+size = Vector3(2.845, 0.25, 2.845)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="Pine8" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -48.7095, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -48.0165, 103.864)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(2.4406, 2.8199, 2.4406)
+size = Vector3(2.5885, 3.074, 2.5885)
 kind = "pine"
 solid = false
 sides = 7
 
 [node name="PineSnow8" type="Node3D" parent="Course/SkiJump"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.068, -47.2996, 106.168)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.476, -46.4795, 103.864)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(1.5864, 0.25, 1.5864)
+size = Vector3(1.6825, 0.25, 1.6825)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="P30_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -49.5, 108)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -49.5, 105)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -4049,51 +4049,51 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -50, 118)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -50, 115)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 12)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -54.25, 118)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -54.25, 115)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 12)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -64.5, 118)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -64.5, 115)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 12)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.3, 118)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.3, 115)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 12)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -89.5, 118)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -89.5, 115)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 28)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.65, -49.825, 118)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.65, -49.825, 115)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -49.825, 118)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -49.825, 115)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -64, 105)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -64, 102)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 38)
 kind = "rock_dark"
@@ -4101,7 +4101,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -56.3, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -56.3, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -4110,7 +4110,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -55.2, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -55.2, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -4119,7 +4119,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -53.6853, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -53.6853, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -4128,7 +4128,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -52.846, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -52.846, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -4137,7 +4137,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.3313, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.3313, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -4146,7 +4146,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -50.492, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -50.492, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -4155,7 +4155,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -48.9773, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -48.9773, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -4164,7 +4164,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -48.138, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -48.138, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -4173,7 +4173,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/CheckpointPad5"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -46.6233, 117.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -46.6233, 114.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -4182,19 +4182,19 @@ solid = false
 sides = 7
 
 [node name="Checkpoint5" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -49.5, 116)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -49.5, 113)
 script = ExtResource("6_checkpoint")
 number = 5
 opening = Vector2(14.4, 6)
 
 [node name="P31_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -49.5, 120)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -49.5, 117)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_TheGorge" type="Label3D" parent="Signs"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -44.5, 128)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -44.5, 125)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -4206,129 +4206,129 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Span" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -38.4, 134)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -38.4, 131)
 script = ExtResource("2_block")
 size = Vector3(18, 1.4, 1.6)
 kind = "ice_dark"
 
 [node name="SpanSnow" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -37.5, 134)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -37.5, 131)
 script = ExtResource("2_block")
 size = Vector3(18, 0.4, 1.8)
 kind = "snow"
 solid = false
 
 [node name="Crag" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315, -58.3, 134)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315, -58.3, 131)
 script = ExtResource("2_block")
 size = Vector3(3, 40.4, 3)
 kind = "rock"
 
 [node name="CragSnow" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315, -37.8, 134)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315, -37.8, 131)
 script = ExtResource("2_block")
 size = Vector3(3.2, 0.6, 3.2)
 kind = "snow"
 solid = false
 
 [node name="Crag2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 297, -58.3, 134)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 297, -58.3, 131)
 script = ExtResource("2_block")
 size = Vector3(3, 40.4, 3)
 kind = "rock"
 
 [node name="CragSnow2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 297, -37.8, 134)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 297, -37.8, 131)
 script = ExtResource("2_block")
 size = Vector3(3.2, 0.6, 3.2)
 kind = "snow"
 solid = false
 
 [node name="Span2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -37.4, 154)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -37.4, 151)
 script = ExtResource("2_block")
 size = Vector3(18, 1.4, 1.6)
 kind = "ice_dark"
 
 [node name="SpanSnow2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -36.5, 154)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -36.5, 151)
 script = ExtResource("2_block")
 size = Vector3(18, 0.4, 1.8)
 kind = "snow"
 solid = false
 
 [node name="Crag3" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315, -57.3, 154)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315, -57.3, 151)
 script = ExtResource("2_block")
 size = Vector3(3, 40.4, 3)
 kind = "rock"
 
 [node name="CragSnow3" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315, -36.8, 154)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315, -36.8, 151)
 script = ExtResource("2_block")
 size = Vector3(3.2, 0.6, 3.2)
 kind = "snow"
 solid = false
 
 [node name="Crag4" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 297, -57.3, 154)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 297, -57.3, 151)
 script = ExtResource("2_block")
 size = Vector3(3, 40.4, 3)
 kind = "rock"
 
 [node name="CragSnow4" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 297, -36.8, 154)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 297, -36.8, 151)
 script = ExtResource("2_block")
 size = Vector3(3.2, 0.6, 3.2)
 kind = "snow"
 solid = false
 
 [node name="Deck" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -53, 169)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -53, 166)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 14)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.25, 169)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.25, 166)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 14)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67.5, 169)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67.5, 166)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 14)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -60.3, 169)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -60.3, 166)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 14)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -92.5, 169)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -92.5, 166)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 30)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.65, -52.825, 169)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.65, -52.825, 166)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 14)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -52.825, 169)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -52.825, 166)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 14)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67, 156)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67, 153)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 40)
 kind = "rock_dark"
@@ -4336,7 +4336,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -59.3, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -59.3, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -4345,7 +4345,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -58.2, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -58.2, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.8864, 2.6153, 6.8864)
@@ -4354,7 +4354,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -56.8924, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -56.8924, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.4762, 0.25, 4.4762)
@@ -4363,7 +4363,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -56.2225, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -56.2225, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.3648, 2.6153, 5.3648)
@@ -4372,7 +4372,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -54.9149, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -54.9149, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.4871, 0.25, 3.4871)
@@ -4381,7 +4381,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -54.245, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -54.245, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.8432, 2.6153, 3.8432)
@@ -4390,7 +4390,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -52.9374, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -52.9374, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.4981, 0.25, 2.4981)
@@ -4399,7 +4399,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -52.2675, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -52.2675, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.3216, 2.6153, 2.3216)
@@ -4408,7 +4408,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -50.9599, 166.788)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 295.704, -50.9599, 163.788)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.509, 0.25, 1.509)
@@ -4417,7 +4417,7 @@ solid = false
 sides = 7
 
 [node name="Trunk2" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -59.3, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -59.3, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -4426,7 +4426,7 @@ solid = false
 sides = 6
 
 [node name="Pine5" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -58.2, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -58.2, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.5254, 2.4602, 6.5254)
@@ -4435,7 +4435,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow5" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -56.9699, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -56.9699, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.2415, 0.25, 4.2415)
@@ -4444,7 +4444,7 @@ solid = false
 sides = 7
 
 [node name="Pine6" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -56.3635, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -56.3635, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.0941, 2.4602, 5.0941)
@@ -4453,7 +4453,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow6" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -55.1334, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -55.1334, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.3112, 0.25, 3.3112)
@@ -4462,7 +4462,7 @@ solid = false
 sides = 7
 
 [node name="Pine7" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -54.527, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -54.527, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.6627, 2.4602, 3.6627)
@@ -4471,7 +4471,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow7" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -53.2969, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -53.2969, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.3808, 0.25, 2.3808)
@@ -4480,7 +4480,7 @@ solid = false
 sides = 7
 
 [node name="Pine8" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -52.6905, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -52.6905, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.2314, 2.4602, 2.2314)
@@ -4489,7 +4489,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow8" type="Node3D" parent="Course/GrappleSwing"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -51.4604, 174.298)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 294.604, -51.4604, 171.298)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.4504, 0.25, 1.4504)
@@ -4498,21 +4498,21 @@ solid = false
 sides = 7
 
 [node name="P32_grapple" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -49.5, 123.2)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -49.5, 120.2)
 script = ExtResource("5_route")
 action = 10
 aim = Vector3(0, 10.5, 10.8)
 radius = 0.6
 
 [node name="P33_grapple" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -48, 135.5)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -48, 132.5)
 script = ExtResource("5_route")
 action = 10
 aim = Vector3(0, 10, 18.5)
 radius = 2.5
 
 [node name="P34_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 166)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 163)
 script = ExtResource("5_route")
 action = 0
 radius = 2.2
@@ -4521,51 +4521,51 @@ radius = 2.2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -53, 195)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -53, 192)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 38)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.25, 195)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.25, 192)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 38)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67.5, 195)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67.5, 192)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 38)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -60.3, 195)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -60.3, 192)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 38)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -92.5, 195)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -92.5, 192)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 54)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.65, -52.825, 195)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.65, -52.825, 192)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 38)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -52.825, 195)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -52.825, 192)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 38)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67, 182)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67, 179)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 64)
 kind = "rock_dark"
@@ -4573,7 +4573,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -59.3, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -59.3, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -4582,7 +4582,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -58.2, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -58.2, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -4591,7 +4591,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -56.6853, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -56.6853, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -4600,7 +4600,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -55.846, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -55.846, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -4609,7 +4609,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -54.3313, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -54.3313, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -4618,7 +4618,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -53.492, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -53.492, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -4627,7 +4627,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.9773, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.9773, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -4636,7 +4636,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.138, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.138, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -4645,7 +4645,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -49.6233, 181.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -49.6233, 178.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -4654,7 +4654,7 @@ solid = false
 sides = 7
 
 [node name="Trunk2" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -59.3, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -59.3, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -4663,7 +4663,7 @@ solid = false
 sides = 6
 
 [node name="Pine5" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -58.2, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -58.2, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(8.407, 3.2687, 8.407)
@@ -4672,7 +4672,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow5" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -56.5657, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -56.5657, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.4646, 0.25, 5.4646)
@@ -4681,7 +4681,7 @@ solid = false
 sides = 7
 
 [node name="Pine6" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -55.6285, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -55.6285, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.5053, 3.2687, 6.5053)
@@ -4690,7 +4690,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow6" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -53.9942, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -53.9942, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.2284, 0.25, 4.2284)
@@ -4699,7 +4699,7 @@ solid = false
 sides = 7
 
 [node name="Pine7" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -53.057, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -53.057, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.6035, 3.2687, 4.6035)
@@ -4708,7 +4708,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow7" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -51.4227, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -51.4227, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.9923, 0.25, 2.9923)
@@ -4717,7 +4717,7 @@ solid = false
 sides = 7
 
 [node name="Pine8" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -50.4855, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -50.4855, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.7018, 3.2687, 2.7018)
@@ -4726,7 +4726,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow8" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -48.8512, 186.282)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 316.176, -48.8512, 183.282)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.7561, 0.25, 1.7561)
@@ -4735,7 +4735,7 @@ solid = false
 sides = 7
 
 [node name="Trunk3" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -59.3, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -59.3, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -4744,7 +4744,7 @@ solid = false
 sides = 6
 
 [node name="Pine9" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -58.2, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -58.2, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(8.0461, 3.1136, 8.0461)
@@ -4753,7 +4753,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow9" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -56.6432, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -56.6432, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.23, 0.25, 5.23)
@@ -4762,7 +4762,7 @@ solid = false
 sides = 7
 
 [node name="Pine10" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -55.7695, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -55.7695, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.2346, 3.1136, 6.2346)
@@ -4771,7 +4771,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow10" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -54.2127, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -54.2127, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.0525, 0.25, 4.0525)
@@ -4780,7 +4780,7 @@ solid = false
 sides = 7
 
 [node name="Pine11" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -53.339, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -53.339, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.423, 3.1136, 4.423)
@@ -4789,7 +4789,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow11" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -51.7822, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -51.7822, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.875, 0.25, 2.875)
@@ -4798,7 +4798,7 @@ solid = false
 sides = 7
 
 [node name="Pine12" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -50.9085, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -50.9085, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.6115, 3.1136, 2.6115)
@@ -4807,7 +4807,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow12" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -49.3517, 193.792)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.276, -49.3517, 190.792)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6975, 0.25, 1.6975)
@@ -4816,7 +4816,7 @@ solid = false
 sides = 7
 
 [node name="Trunk4" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -59.3, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -59.3, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -4825,7 +4825,7 @@ solid = false
 sides = 6
 
 [node name="Pine13" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -58.2, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -58.2, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.6851, 2.9585, 7.6851)
@@ -4834,7 +4834,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow13" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -56.7208, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -56.7208, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.9953, 0.25, 4.9953)
@@ -4843,7 +4843,7 @@ solid = false
 sides = 7
 
 [node name="Pine14" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -55.9105, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -55.9105, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.9638, 2.9585, 5.9638)
@@ -4852,7 +4852,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow14" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -54.4313, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -54.4313, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.8765, 0.25, 3.8765)
@@ -4861,7 +4861,7 @@ solid = false
 sides = 7
 
 [node name="Pine15" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -53.621, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -53.621, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.2426, 2.9585, 4.2426)
@@ -4870,7 +4870,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow15" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -52.1418, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -52.1418, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.7577, 0.25, 2.7577)
@@ -4879,7 +4879,7 @@ solid = false
 sides = 7
 
 [node name="Pine16" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -51.3315, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -51.3315, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5213, 2.9585, 2.5213)
@@ -4888,7 +4888,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow16" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -49.8523, 201.302)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 318.376, -49.8523, 198.302)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6388, 0.25, 1.6388)
@@ -4897,7 +4897,7 @@ solid = false
 sides = 7
 
 [node name="Trunk5" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -59.3, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -59.3, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -4906,7 +4906,7 @@ solid = false
 sides = 6
 
 [node name="Pine17" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -58.2, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -58.2, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.3242, 2.8034, 7.3242)
@@ -4915,7 +4915,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow17" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -56.7983, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -56.7983, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.7607, 0.25, 4.7607)
@@ -4924,7 +4924,7 @@ solid = false
 sides = 7
 
 [node name="Pine18" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -56.0515, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -56.0515, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.6931, 2.8034, 5.6931)
@@ -4933,7 +4933,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow18" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -54.6498, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -54.6498, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.7005, 0.25, 3.7005)
@@ -4942,7 +4942,7 @@ solid = false
 sides = 7
 
 [node name="Pine19" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -53.903, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -53.903, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.0621, 2.8034, 4.0621)
@@ -4951,7 +4951,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow19" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -52.5013, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -52.5013, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.6404, 0.25, 2.6404)
@@ -4960,7 +4960,7 @@ solid = false
 sides = 7
 
 [node name="Pine20" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -51.7545, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -51.7545, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.431, 2.8034, 2.431)
@@ -4969,7 +4969,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow20" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -50.3528, 208.812)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 315.476, -50.3528, 205.812)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.5802, 0.25, 1.5802)
@@ -4978,7 +4978,7 @@ solid = false
 sides = 7
 
 [node name="Post" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.6, -51, 185)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.6, -51, 182)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.8, 3, 0.8)
@@ -4986,13 +4986,13 @@ kind = "rock_dark"
 sides = 12
 
 [node name="Foot" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.6, -52.6, 185)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.6, -52.6, 182)
 script = ExtResource("2_block")
 size = Vector3(2, 0.4, 2)
 kind = "rock_dark"
 
 [node name="Sweeper" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.6, -52.5, 185)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 311.6, -52.5, 182)
 script = ExtResource("4_mover")
 period = 4
 spin = 80
@@ -5006,19 +5006,19 @@ kind = "flag_red"
 solid = false
 
 [node name="P35_wait_clear" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 174.8852)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 171.8852)
 script = ExtResource("5_route")
 action = 12
 radius = 0.9
 
 [node name="P36_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 195.1148)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 192.1148)
 script = ExtResource("5_route")
 action = 0
 radius = 1.5
 
 [node name="Post2" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.4, -51, 203)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.4, -51, 200)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.8, 3, 0.8)
@@ -5026,13 +5026,13 @@ kind = "rock_dark"
 sides = 12
 
 [node name="Foot2" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.4, -52.6, 203)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.4, -52.6, 200)
 script = ExtResource("2_block")
 size = Vector3(2, 0.4, 2)
 kind = "rock_dark"
 
 [node name="Sweeper2" type="Node3D" parent="Course/Sweepers"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.4, -52.5, 203)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.4, -52.5, 200)
 script = ExtResource("4_mover")
 period = 4
 spin = -80
@@ -5047,13 +5047,13 @@ kind = "flag_red"
 solid = false
 
 [node name="P37_wait_clear" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 192.8852)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 189.8852)
 script = ExtResource("5_route")
 action = 12
 radius = 0.9
 
 [node name="P38_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 213.1148)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 210.1148)
 script = ExtResource("5_route")
 action = 0
 radius = 1.5
@@ -5062,45 +5062,45 @@ radius = 1.5
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -53, 219)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -53, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 10)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.25, 219)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -57.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 10)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67.5, 219)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 10)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -60.3, 219)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -60.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 10)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -92.5, 219)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -92.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 26)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -52.825, 219)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 300.35, -52.825, 216)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 10)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67, 206)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -67, 203)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 36)
 kind = "rock_dark"
@@ -5108,7 +5108,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -59.3, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -59.3, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -5117,7 +5117,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -58.2, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -58.2, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -5126,7 +5126,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -56.6853, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -56.6853, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -5135,7 +5135,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -55.846, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -55.846, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -5144,7 +5144,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -54.3313, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -54.3313, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -5153,7 +5153,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -53.492, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -53.492, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -5162,7 +5162,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.9773, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.9773, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -5171,7 +5171,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.138, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -51.138, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -5180,7 +5180,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/Corner2"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -49.6233, 219.772)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 317.144, -49.6233, 216.772)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -5189,7 +5189,7 @@ solid = false
 sides = 7
 
 [node name="P39_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 219)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 306, -52.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 2.6
@@ -5198,51 +5198,51 @@ radius = 2.6
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -53, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -53, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 12)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -57.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -57.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 12)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -67.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -67.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 12)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -60.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -60.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 12)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -92.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -92.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 28)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -52.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -52.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -52.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 317, -52.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 304, -67, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 304, -67, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 38)
 kind = "rock_dark"
@@ -5250,7 +5250,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -59.3, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -59.3, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -5259,7 +5259,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -58.2, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -58.2, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -5268,7 +5268,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -56.6853, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -56.6853, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -5277,7 +5277,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -55.846, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -55.846, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -5286,7 +5286,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -54.3313, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -54.3313, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -5295,7 +5295,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -53.492, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -53.492, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -5304,7 +5304,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -51.9773, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -51.9773, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -5313,7 +5313,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -51.138, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -51.138, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -5322,7 +5322,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/CheckpointPad6"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -49.6233, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316.772, -49.6233, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -5331,19 +5331,19 @@ solid = false
 sides = 7
 
 [node name="Checkpoint6" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 315, -52.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 315, -52.5, 216)
 script = ExtResource("6_checkpoint")
 number = 6
 opening = Vector2(14.4, 6)
 
 [node name="P40_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 319, -52.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 319, -52.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_Icefall" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 327, -47.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 327, -47.5, 216)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -5355,51 +5355,51 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -53, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -53, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 12)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -57.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -57.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 12)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -67.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -67.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 12)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -60.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -60.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 12)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -92.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -92.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 28)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -52.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -52.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -52.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 329, -52.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316, -67, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 316, -67, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 38)
 kind = "rock_dark"
@@ -5407,7 +5407,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -59.3, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -59.3, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -5416,7 +5416,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -58.2, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -58.2, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -5425,7 +5425,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -56.6853, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -56.6853, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -5434,7 +5434,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -55.846, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -55.846, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -5443,7 +5443,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -54.3313, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -54.3313, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -5452,7 +5452,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -53.492, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -53.492, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -5461,7 +5461,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -51.9773, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -51.9773, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -5470,7 +5470,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -51.138, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -51.138, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -5479,7 +5479,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -49.6233, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 328.772, -49.6233, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -5488,77 +5488,77 @@ solid = false
 sides = 7
 
 [node name="Ramp" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.8364, -57.4725, 219)
+transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.8364, -57.4725, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 27.5136)
 kind = "snow"
 
 [node name="Ridge4" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 338.25, -61.35, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 338.25, -61.35, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 6.5)
 kind = "rock"
 
 [node name="Ridge5" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 338.25, -79.75, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 338.25, -79.75, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 6.5)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge6" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 344.75, -63.6, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 344.75, -63.6, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 6.5)
 kind = "rock"
 
 [node name="Ridge7" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 344.75, -82, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 344.75, -82, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 6.5)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge8" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 351.25, -65.85, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 351.25, -65.85, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 6.5)
 kind = "rock"
 
 [node name="Ridge9" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 351.25, -84.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 351.25, -84.25, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 6.5)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge10" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 357.75, -68.1, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 357.75, -68.1, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 6.5)
 kind = "rock"
 
 [node name="Ridge11" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 357.75, -86.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 357.75, -86.5, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 6.5)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank3" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.771, -57.3115, 213.4)
+transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.771, -57.3115, 210.4)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 27.5136)
 kind = "snow_drift"
 
 [node name="Bank4" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.771, -57.3115, 224.6)
+transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.771, -57.3115, 221.6)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 27.5136)
 kind = "snow_drift"
 
 [node name="Catch2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 346, -76, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 346, -76, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 30)
 kind = "rock_dark"
@@ -5566,94 +5566,94 @@ solid = false
 drawn = false
 
 [node name="Roof" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.8692, -55.5261, 219)
+transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.8692, -55.5261, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 0.8, 27.5136)
 kind = "ice_dark"
 
 [node name="Side" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.6402, -55.8395, 215.7)
+transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.6402, -55.8395, 212.7)
 script = ExtResource("2_block")
 size = Vector3(3.4, 2.2, 27.5136)
 kind = "rock"
 
 [node name="Side2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.6402, -55.8395, 222.3)
+transform = Transform3D(0, 0.3271, -0.945, 0, 0.945, 0.3271, 1, 0, 0, 347.6402, -55.8395, 219.3)
 script = ExtResource("2_block")
 size = Vector3(3.4, 2.2, 27.5136)
 kind = "rock"
 
 [node name="Mouth" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 335, -51, 215)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 335, -51, 212)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 1.2)
 kind = "ice"
 
 [node name="Mouth2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 335, -51, 223)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 335, -51, 220)
 script = ExtResource("2_block")
 size = Vector3(4.8, 3, 1.2)
 kind = "ice"
 
 [node name="Lintel" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 335, -50.525, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 335, -50.525, 216)
 script = ExtResource("2_block")
 size = Vector3(3.2, 2.05, 1.2)
 kind = "ice"
 
 [node name="Cornice" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 334.7, -49.2, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 334.7, -49.2, 216)
 script = ExtResource("2_block")
 size = Vector3(12.8, 0.6, 1.8)
 kind = "snow"
 solid = false
 
 [node name="Deck2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -62, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -62, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 14)
 kind = "snow"
 
 [node name="Ridge12" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -66.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -66.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 14)
 kind = "snow_shade"
 
 [node name="Ridge13" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -76.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -76.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 14)
 kind = "rock"
 
 [node name="SnowCap2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -69.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -69.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 14)
 kind = "snow"
 solid = false
 
 [node name="Ridge14" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -101.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -101.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 30)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank5" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -61.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -61.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 14)
 kind = "snow_drift"
 
 [node name="Bank6" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -61.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 368, -61.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 14)
 kind = "snow_drift"
 
 [node name="Catch3" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 355, -76, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 355, -76, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 40)
 kind = "rock_dark"
@@ -5661,7 +5661,7 @@ solid = false
 drawn = false
 
 [node name="Trunk2" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -68.3, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -68.3, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -5670,7 +5670,7 @@ solid = false
 sides = 6
 
 [node name="Pine5" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -67.2, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -67.2, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.8864, 2.6153, 6.8864)
@@ -5679,7 +5679,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow5" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -65.8924, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -65.8924, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.4762, 0.25, 4.4762)
@@ -5688,7 +5688,7 @@ solid = false
 sides = 7
 
 [node name="Pine6" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -65.2225, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -65.2225, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.3648, 2.6153, 5.3648)
@@ -5697,7 +5697,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow6" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -63.9149, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -63.9149, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.4871, 0.25, 3.4871)
@@ -5706,7 +5706,7 @@ solid = false
 sides = 7
 
 [node name="Pine7" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -63.245, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -63.245, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.8432, 2.6153, 3.8432)
@@ -5715,7 +5715,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow7" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -61.9374, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -61.9374, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.4981, 0.25, 2.4981)
@@ -5724,7 +5724,7 @@ solid = false
 sides = 7
 
 [node name="Pine8" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -61.2675, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -61.2675, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.3216, 2.6153, 2.3216)
@@ -5733,7 +5733,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow8" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -59.9599, 229.296)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 365.788, -59.9599, 226.296)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.509, 0.25, 1.509)
@@ -5742,7 +5742,7 @@ solid = false
 sides = 7
 
 [node name="Trunk3" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -68.3, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -68.3, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -5751,7 +5751,7 @@ solid = false
 sides = 6
 
 [node name="Pine9" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -67.2, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -67.2, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.5254, 2.4602, 6.5254)
@@ -5760,7 +5760,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow9" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -65.9699, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -65.9699, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.2415, 0.25, 4.2415)
@@ -5769,7 +5769,7 @@ solid = false
 sides = 7
 
 [node name="Pine10" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -65.3635, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -65.3635, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.0941, 2.4602, 5.0941)
@@ -5778,7 +5778,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow10" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -64.1334, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -64.1334, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.3112, 0.25, 3.3112)
@@ -5787,7 +5787,7 @@ solid = false
 sides = 7
 
 [node name="Pine11" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -63.527, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -63.527, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.6627, 2.4602, 3.6627)
@@ -5796,7 +5796,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow11" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -62.2969, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -62.2969, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.3808, 0.25, 2.3808)
@@ -5805,7 +5805,7 @@ solid = false
 sides = 7
 
 [node name="Pine12" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -61.6905, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -61.6905, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.2314, 2.4602, 2.2314)
@@ -5814,7 +5814,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow12" type="Node3D" parent="Course/BellyChute2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -60.4604, 230.396)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 373.298, -60.4604, 227.396)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.4504, 0.25, 1.4504)
@@ -5823,13 +5823,13 @@ solid = false
 sides = 7
 
 [node name="P41_crawl" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 324, -52.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 324, -52.5, 216)
 script = ExtResource("5_route")
 action = 6
 radius = 1
 
 [node name="P42_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 367, -61.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 367, -61.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -5838,77 +5838,77 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Ramp" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0.3304, -0.9439, 0, 0.9439, 0.3304, 1, 0, 0, 384.8348, -65.4719, 219)
+transform = Transform3D(0, 0.3304, -0.9439, 0, 0.9439, 0.3304, 1, 0, 0, 384.8348, -65.4719, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 21.1896)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 377.5, -69.85, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 377.5, -69.85, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 5)
 kind = "rock"
 
 [node name="Ridge2" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 377.5, -88.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 377.5, -88.25, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 5)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 382.5, -71.6, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 382.5, -71.6, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 5)
 kind = "rock"
 
 [node name="Ridge4" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 382.5, -90, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 382.5, -90, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 5)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge5" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 387.5, -73.35, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 387.5, -73.35, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 5)
 kind = "rock"
 
 [node name="Ridge6" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 387.5, -91.75, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 387.5, -91.75, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 5)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge7" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 392.5, -75.1, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 392.5, -75.1, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 5)
 kind = "rock"
 
 [node name="Ridge8" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 392.5, -93.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 392.5, -93.5, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 5)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0.3304, -0.9439, 0, 0.9439, 0.3304, 1, 0, 0, 384.7688, -65.3107, 213.4)
+transform = Transform3D(0, 0.3304, -0.9439, 0, 0.9439, 0.3304, 1, 0, 0, 384.7688, -65.3107, 210.4)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 21.1896)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0.3304, -0.9439, 0, 0.9439, 0.3304, 1, 0, 0, 384.7688, -65.3107, 224.6)
+transform = Transform3D(0, 0.3304, -0.9439, 0, 0.9439, 0.3304, 1, 0, 0, 384.7688, -65.3107, 221.6)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 21.1896)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 383, -83, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 383, -83, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 24)
 kind = "rock_dark"
@@ -5916,56 +5916,56 @@ solid = false
 drawn = false
 
 [node name="P43_slide" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 375.8, -61.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 375.8, -61.5, 216)
 script = ExtResource("5_route")
 action = 5
 
 [node name="Deck" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -69, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -69, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 8)
 kind = "snow"
 
 [node name="Ridge9" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -73.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -73.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 8)
 kind = "snow_shade"
 
 [node name="Ridge10" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -83.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -83.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 8)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -76.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -76.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 8)
 kind = "snow"
 solid = false
 
 [node name="Ridge11" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -108.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -108.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 24)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank3" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -68.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -68.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 8)
 kind = "snow_drift"
 
 [node name="Bank4" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -68.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 399, -68.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 8)
 kind = "snow_drift"
 
 [node name="Catch2" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 386, -83, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 386, -83, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 34)
 kind = "rock_dark"
@@ -5973,7 +5973,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -75.3, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -75.3, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -5982,7 +5982,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -74.2, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -74.2, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(8.2765, 3.2125, 8.2765)
@@ -5991,7 +5991,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -72.5937, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -72.5937, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.3797, 0.25, 5.3797)
@@ -6000,7 +6000,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -71.6795, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -71.6795, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.4074, 3.2125, 6.4074)
@@ -6009,7 +6009,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -70.0732, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -70.0732, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.1648, 0.25, 4.1648)
@@ -6018,7 +6018,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -69.159, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -69.159, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.5382, 3.2125, 4.5382)
@@ -6027,7 +6027,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -67.5527, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -67.5527, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.9499, 0.25, 2.9499)
@@ -6036,7 +6036,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -66.6385, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -66.6385, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.6691, 3.2125, 2.6691)
@@ -6045,7 +6045,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/Slope3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -65.0322, 227.86)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.048, -65.0322, 224.86)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.7349, 0.25, 1.7349)
@@ -6054,7 +6054,7 @@ solid = false
 sides = 7
 
 [node name="P44_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.5, -68.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 398.5, -68.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -6063,51 +6063,51 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -69, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -69, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 10)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -73.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -73.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 10)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -83.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -83.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 10)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -76.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -76.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 10)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -108.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -108.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 26)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -68.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -68.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 10)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -68.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408, -68.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 10)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 395, -83, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 395, -83, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 36)
 kind = "rock_dark"
@@ -6115,7 +6115,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -75.3, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -75.3, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -6124,7 +6124,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -74.2, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -74.2, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -6133,7 +6133,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -72.6853, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -72.6853, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -6142,7 +6142,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -71.846, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -71.846, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -6151,7 +6151,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -70.3313, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -70.3313, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -6160,7 +6160,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -69.492, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -69.492, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -6169,7 +6169,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -67.9773, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -67.9773, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -6178,7 +6178,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -67.138, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -67.138, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -6187,7 +6187,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/Run"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -65.6233, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 408.772, -65.6233, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -6196,126 +6196,126 @@ solid = false
 sides = 7
 
 [node name="P45_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 411.5, -68.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 411.5, -68.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 2
 
-[node name="Sign_FloatThenE" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 415, -64.5, 219)
+[node name="Sign_HoldShiftToGlideThenE" type="Label3D" parent="Signs"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 415, -64.5, 216)
 pixel_size = 0.01
 modulate = Color(0.45, 0.9, 1, 1)
 outline_size = 16
 outline_modulate = Color(0.05, 0.05, 0.08, 1)
-text = "FLOAT, THEN E"
-font_size = 70
+text = "HOLD SHIFT TO GLIDE, THEN E"
+font_size = 56
 
-[node name="FloatGap" type="Node3D" parent="Course"]
+[node name="GlideGap" type="Node3D" parent="Course"]
 metadata/_edit_group_ = true
 
-[node name="Chevron" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(-0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, -0.5646, 411.8, -68.485, 218)
+[node name="Chevron" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(-0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, -0.5646, 411.8, -68.485, 215)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
-[node name="Chevron2" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, 0.5646, 411.8, -68.485, 220)
+[node name="Chevron2" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, 0.5646, 411.8, -68.485, 217)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
-[node name="Chevron3" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(-0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, -0.5646, 410.4, -68.485, 218)
+[node name="Chevron3" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(-0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, -0.5646, 410.4, -68.485, 215)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
-[node name="Chevron4" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, 0.5646, 410.4, -68.485, 220)
+[node name="Chevron4" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, 0.5646, 410.4, -68.485, 217)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
-[node name="Chevron5" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(-0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, -0.5646, 409, -68.485, 218)
+[node name="Chevron5" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(-0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, -0.5646, 409, -68.485, 215)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
-[node name="Chevron6" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, 0.5646, 409, -68.485, 220)
+[node name="Chevron6" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0.5646, 0, -0.8253, 0, 1, 0, 0.8253, 0, 0.5646, 409, -68.485, 217)
 script = ExtResource("2_block")
 size = Vector3(1.2, 0.03, 0.7)
 kind = "jet"
 solid = false
 
-[node name="P46_float_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 412.55, -68.5, 219)
+[node name="P46_glide_jump" type="Marker3D" parent="BotRoute"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 412.55, -68.5, 216)
 script = ExtResource("5_route")
 action = 16
 radius = 0.55
 boost = true
 
-[node name="Deck" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 462, -77, 219)
+[node name="Deck" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 442, -77, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 18)
 kind = "snow"
 
-[node name="Ridge" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 462, -81.25, 219)
+[node name="Ridge" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 442, -81.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 18)
 kind = "snow_shade"
 
-[node name="Ridge2" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 462, -91.5, 219)
+[node name="Ridge2" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 442, -91.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 18)
 kind = "rock"
 
-[node name="SnowCap" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 462, -84.3, 219)
+[node name="SnowCap" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 442, -84.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 18)
 kind = "snow"
 solid = false
 
-[node name="Ridge3" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 462, -116.5, 219)
+[node name="Ridge3" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 442, -116.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 34)
 kind = "rock_dark"
 solid = false
 
-[node name="Bank" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 462, -76.825, 213.35)
+[node name="Bank" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 442, -76.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 18)
 kind = "snow_drift"
 
-[node name="Bank2" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 462, -76.825, 224.65)
+[node name="Bank2" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 442, -76.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 18)
 kind = "snow_drift"
 
-[node name="Catch" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 449, -91, 219)
+[node name="Catch" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 429, -91, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 44)
 kind = "rock_dark"
 solid = false
 drawn = false
 
-[node name="Trunk" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -83.3, 229.636)
+[node name="Trunk" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -83.3, 205.188)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -6323,80 +6323,80 @@ kind = "trunk"
 solid = false
 sides = 6
 
-[node name="Pine" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -82.2, 229.636)
+[node name="Pine" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -82.2, 205.188)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(7.3779, 2.8264, 7.3779)
+size = Vector3(6.9709, 2.6515, 6.9709)
 kind = "pine_dark"
 solid = false
 sides = 7
 
-[node name="PineSnow" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -80.7868, 229.636)
+[node name="PineSnow" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -80.8742, 205.188)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(4.7956, 0.25, 4.7956)
+size = Vector3(4.5311, 0.25, 4.5311)
 kind = "snow"
 solid = false
 sides = 7
 
-[node name="Pine2" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -80.0305, 229.636)
+[node name="Pine2" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -80.1895, 205.188)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(5.7334, 2.8264, 5.7334)
+size = Vector3(5.4282, 2.6515, 5.4282)
 kind = "pine"
 solid = false
 sides = 7
 
-[node name="PineSnow2" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -78.6173, 229.636)
+[node name="PineSnow2" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -78.8637, 205.188)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(3.7267, 0.25, 3.7267)
+size = Vector3(3.5283, 0.25, 3.5283)
 kind = "snow"
 solid = false
 sides = 7
 
-[node name="Pine3" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -77.861, 229.636)
+[node name="Pine3" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -78.179, 205.188)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(4.089, 2.8264, 4.089)
+size = Vector3(3.8854, 2.6515, 3.8854)
 kind = "pine_dark"
 solid = false
 sides = 7
 
-[node name="PineSnow3" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -76.4478, 229.636)
+[node name="PineSnow3" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -76.8532, 205.188)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(2.6578, 0.25, 2.6578)
+size = Vector3(2.5255, 0.25, 2.5255)
 kind = "snow"
 solid = false
 sides = 7
 
-[node name="Pine4" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -75.6915, 229.636)
+[node name="Pine4" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -76.1685, 205.188)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(2.4445, 2.8264, 2.4445)
+size = Vector3(2.3427, 2.6515, 2.3427)
 kind = "pine"
 solid = false
 sides = 7
 
-[node name="PineSnow4" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.303, -74.2783, 229.636)
+[node name="PineSnow4" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 436.048, -74.8427, 205.188)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(1.5889, 0.25, 1.5889)
+size = Vector3(1.5228, 0.25, 1.5228)
 kind = "snow"
 solid = false
 sides = 7
 
-[node name="Trunk2" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -83.3, 230.736)
+[node name="Trunk2" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -83.3, 226.028)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -6404,80 +6404,80 @@ kind = "trunk"
 solid = false
 sides = 6
 
-[node name="Pine5" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -82.2, 230.736)
+[node name="Pine5" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -82.2, 226.028)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(7.017, 2.6714, 7.017)
+size = Vector3(4.9472, 1.782, 4.9472)
 kind = "pine_dark"
 solid = false
 sides = 7
 
-[node name="PineSnow5" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -80.8643, 230.736)
+[node name="PineSnow5" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -81.309, 226.028)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(4.561, 0.25, 4.561)
+size = Vector3(3.2157, 0.25, 3.2157)
 kind = "snow"
 solid = false
 sides = 7
 
-[node name="Pine6" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -80.1715, 230.736)
+[node name="Pine6" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -80.98, 226.028)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(5.4627, 2.6714, 5.4627)
+size = Vector3(3.9104, 1.782, 3.9104)
 kind = "pine"
 solid = false
 sides = 7
 
-[node name="PineSnow6" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -78.8358, 230.736)
+[node name="PineSnow6" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -80.089, 226.028)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(3.5508, 0.25, 3.5508)
+size = Vector3(2.5418, 0.25, 2.5418)
 kind = "snow"
 solid = false
 sides = 7
 
-[node name="Pine7" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -78.143, 230.736)
+[node name="Pine7" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -79.76, 226.028)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(3.9085, 2.6714, 3.9085)
+size = Vector3(2.8736, 1.782, 2.8736)
 kind = "pine_dark"
 solid = false
 sides = 7
 
-[node name="PineSnow7" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -76.8073, 230.736)
+[node name="PineSnow7" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -78.869, 226.028)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(2.5405, 0.25, 2.5405)
+size = Vector3(1.8678, 0.25, 1.8678)
 kind = "snow"
 solid = false
 sides = 7
 
-[node name="Pine8" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -76.1145, 230.736)
+[node name="Pine8" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -78.54, 226.028)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(2.3542, 2.6714, 2.3542)
+size = Vector3(1.8368, 1.782, 1.8368)
 kind = "pine"
 solid = false
 sides = 7
 
-[node name="PineSnow8" type="Node3D" parent="Course/FloatGap"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.813, -74.7788, 230.736)
+[node name="PineSnow8" type="Node3D" parent="Course/GlideGap"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 443.558, -77.649, 226.028)
 script = ExtResource("2_block")
 shape = 1
-size = Vector3(1.5303, 0.25, 1.5303)
+size = Vector3(1.1939, 0.25, 1.1939)
 kind = "snow"
 solid = false
 sides = 7
 
 [node name="P47_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 467, -76.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 447, -76.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -6486,51 +6486,51 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 477, -77, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 457, -77, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 12)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 477, -81.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 457, -81.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 12)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 477, -91.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 457, -91.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 12)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 477, -84.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 457, -84.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 12)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 477, -116.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 457, -116.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 28)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 477, -76.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 457, -76.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 477, -76.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 457, -76.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 464, -91, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 444, -91, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 38)
 kind = "rock_dark"
@@ -6538,7 +6538,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -83.3, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -83.3, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -6547,7 +6547,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -82.2, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -82.2, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -6556,7 +6556,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -80.6853, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -80.6853, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -6565,7 +6565,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -79.846, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -79.846, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -6574,7 +6574,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -78.3313, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -78.3313, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -6583,7 +6583,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -77.492, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -77.492, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -6592,7 +6592,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -75.9773, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -75.9773, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -6601,7 +6601,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -75.138, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -75.138, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -6610,7 +6610,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/CheckpointPad7"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.772, -73.6233, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 456.772, -73.6233, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -6619,19 +6619,19 @@ solid = false
 sides = 7
 
 [node name="Checkpoint7" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 475, -76.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 455, -76.5, 216)
 script = ExtResource("6_checkpoint")
 number = 7
 opening = Vector2(14.4, 6)
 
 [node name="P48_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 479, -76.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 459, -76.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 1.6
 
 [node name="Sign_LastRun" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 487, -71.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 467, -71.5, 216)
 pixel_size = 0.01
 modulate = Color(1, 1, 1, 1)
 outline_size = 16
@@ -6643,77 +6643,77 @@ font_size = 90
 metadata/_edit_group_ = true
 
 [node name="Ramp" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0.3624, -0.932, 0, 0.932, 0.3624, 1, 0, 0, 500.8188, -83.966, 219)
+transform = Transform3D(0, 0.3624, -0.932, 0, 0.932, 0.3624, 1, 0, 0, 480.8188, -83.966, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 38.6264)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 487.5, -86.6, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 467.5, -86.6, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 9)
 kind = "rock"
 
 [node name="Ridge2" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 487.5, -105, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 467.5, -105, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 9)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 496.5, -90.1, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.5, -90.1, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 9)
 kind = "rock"
 
 [node name="Ridge4" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 496.5, -108.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 476.5, -108.5, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 9)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge5" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 505.5, -93.6, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 485.5, -93.6, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 9)
 kind = "rock"
 
 [node name="Ridge6" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 505.5, -112, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 485.5, -112, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 9)
 kind = "rock_dark"
 solid = false
 
 [node name="Ridge7" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 514.5, -97.1, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 494.5, -97.1, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 10.8, 9)
 kind = "rock"
 
 [node name="Ridge8" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 514.5, -115.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 494.5, -115.5, 216)
 script = ExtResource("2_block")
 size = Vector3(34, 30, 9)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0.3624, -0.932, 0, 0.932, 0.3624, 1, 0, 0, 500.7463, -83.8024, 213.4)
+transform = Transform3D(0, 0.3624, -0.932, 0, 0.932, 0.3624, 1, 0, 0, 480.7463, -83.8024, 210.4)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 38.6264)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0.3624, -0.932, 0, 0.932, 0.3624, 1, 0, 0, 500.7463, -83.8024, 224.6)
+transform = Transform3D(0, 0.3624, -0.932, 0, 0.932, 0.3624, 1, 0, 0, 480.7463, -83.8024, 221.6)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 38.6264)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 499, -105, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 479, -105, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 40)
 kind = "rock_dark"
@@ -6721,56 +6721,56 @@ solid = false
 drawn = false
 
 [node name="P49_slide" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 483.8, -76.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 463.8, -76.5, 216)
 script = ExtResource("5_route")
 action = 5
 
 [node name="Deck" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 523, -91, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 503, -91, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 8)
 kind = "snow"
 
 [node name="Ridge9" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 523, -95.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 503, -95.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 8)
 kind = "snow_shade"
 
 [node name="Ridge10" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 523, -105.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 503, -105.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 8)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 523, -98.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 503, -98.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 8)
 kind = "snow"
 solid = false
 
 [node name="Ridge11" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 523, -130.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 503, -130.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 24)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank3" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 523, -90.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 503, -90.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 8)
 kind = "snow_drift"
 
 [node name="Bank4" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 523, -90.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 503, -90.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 8)
 kind = "snow_drift"
 
 [node name="Catch2" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 510, -105, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 490, -105, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 34)
 kind = "rock_dark"
@@ -6778,7 +6778,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -97.3, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -97.3, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -6787,7 +6787,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -96.2, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -96.2, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.007, 2.2374, 6.007)
@@ -6796,7 +6796,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -95.0813, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -95.0813, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.9046, 0.25, 3.9046)
@@ -6805,7 +6805,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -94.566, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -94.566, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.7053, 2.2374, 4.7053)
@@ -6814,7 +6814,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -93.4473, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -93.4473, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.0584, 0.25, 3.0584)
@@ -6823,7 +6823,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -92.932, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -92.932, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.4035, 2.2374, 3.4035)
@@ -6832,7 +6832,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -91.8133, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -91.8133, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.2123, 0.25, 2.2123)
@@ -6841,7 +6841,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -91.298, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -91.298, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.1018, 2.2374, 2.1018)
@@ -6850,7 +6850,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/Slope4"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.252, -90.1793, 209.104)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.252, -90.1793, 206.104)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.3661, 0.25, 1.3661)
@@ -6859,7 +6859,7 @@ solid = false
 sides = 7
 
 [node name="P50_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 522.5, -90.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 502.5, -90.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 2
@@ -6868,51 +6868,51 @@ radius = 2
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532, -91, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512, -91, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 10)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532, -95.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512, -95.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 10)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532, -105.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512, -105.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 10)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532, -98.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512, -98.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 10)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532, -130.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512, -130.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 26)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532, -90.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512, -90.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 10)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532, -90.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512, -90.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 10)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 519, -105, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 499, -105, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 36)
 kind = "rock_dark"
@@ -6920,7 +6920,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -97.3, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -97.3, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -6929,7 +6929,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -96.2, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -96.2, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -6938,7 +6938,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -94.6853, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -94.6853, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -6947,7 +6947,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -93.846, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -93.846, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -6956,7 +6956,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -92.3313, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -92.3313, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -6965,7 +6965,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -91.492, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -91.492, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -6974,7 +6974,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -89.9773, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -89.9773, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -6983,7 +6983,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -89.138, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -89.138, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -6992,7 +6992,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/Run2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 532.772, -87.6233, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 512.772, -87.6233, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -7001,13 +7001,13 @@ solid = false
 sides = 7
 
 [node name="P51_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 535.5, -90.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 515.5, -90.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 2
 
 [node name="Sign_SwingLetGoE" type="Label3D" parent="Signs"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 539, -86.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 519, -86.5, 216)
 pixel_size = 0.01
 modulate = Color(0.45, 0.9, 1, 1)
 outline_size = 16
@@ -7019,90 +7019,90 @@ font_size = 60
 metadata/_edit_group_ = true
 
 [node name="Span" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 549, -77.4, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 529, -77.4, 216)
 script = ExtResource("2_block")
 size = Vector3(18, 1.4, 1.6)
 kind = "ice_dark"
 
 [node name="SpanSnow" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 549, -76.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 529, -76.5, 216)
 script = ExtResource("2_block")
 size = Vector3(18, 0.4, 1.8)
 kind = "snow"
 solid = false
 
 [node name="Crag" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 549, -97.3, 210)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 529, -97.3, 207)
 script = ExtResource("2_block")
 size = Vector3(3, 40.4, 3)
 kind = "rock"
 
 [node name="CragSnow" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 549, -76.8, 210)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 529, -76.8, 207)
 script = ExtResource("2_block")
 size = Vector3(3.2, 0.6, 3.2)
 kind = "snow"
 solid = false
 
 [node name="Crag2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 549, -97.3, 228)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 529, -97.3, 225)
 script = ExtResource("2_block")
 size = Vector3(3, 40.4, 3)
 kind = "rock"
 
 [node name="CragSnow2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 549, -76.8, 228)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 529, -76.8, 225)
 script = ExtResource("2_block")
 size = Vector3(3.2, 0.6, 3.2)
 kind = "snow"
 solid = false
 
 [node name="Deck" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 574, -97, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 554, -97, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 14)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 574, -101.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 554, -101.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 14)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 574, -111.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 554, -111.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 14)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 574, -104.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 554, -104.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 14)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 574, -136.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 554, -136.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 30)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 574, -96.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 554, -96.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 14)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 574, -96.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 554, -96.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 14)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 561, -111, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 541, -111, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 40)
 kind = "rock_dark"
@@ -7110,7 +7110,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -103.3, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -103.3, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -7119,7 +7119,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -102.2, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -102.2, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(8.4186, 3.2736, 8.4186)
@@ -7128,7 +7128,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -100.5632, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -100.5632, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.4721, 0.25, 5.4721)
@@ -7137,7 +7137,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -99.624, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -99.624, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.5139, 3.2736, 6.5139)
@@ -7146,7 +7146,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -97.9872, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -97.9872, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.234, 0.25, 4.234)
@@ -7155,7 +7155,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -97.048, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -97.048, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.6093, 3.2736, 4.6093)
@@ -7164,7 +7164,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -95.4112, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -95.4112, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.996, 0.25, 2.996)
@@ -7173,7 +7173,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -94.472, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -94.472, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.7046, 3.2736, 2.7046)
@@ -7182,7 +7182,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571.686, -92.8352, 208.232)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551.686, -92.8352, 205.232)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.758, 0.25, 1.758)
@@ -7191,7 +7191,7 @@ solid = false
 sides = 7
 
 [node name="Trunk2" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -103.3, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -103.3, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -7200,7 +7200,7 @@ solid = false
 sides = 6
 
 [node name="Pine5" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -102.2, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -102.2, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(8.0845, 3.1301, 8.0845)
@@ -7209,7 +7209,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow5" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -100.635, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -100.635, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.2549, 0.25, 5.2549)
@@ -7218,7 +7218,7 @@ solid = false
 sides = 7
 
 [node name="Pine6" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -99.7545, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -99.7545, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.2634, 3.1301, 6.2634)
@@ -7227,7 +7227,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow6" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -98.1895, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -98.1895, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.0712, 0.25, 4.0712)
@@ -7236,7 +7236,7 @@ solid = false
 sides = 7
 
 [node name="Pine7" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -97.309, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -97.309, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.4422, 3.1301, 4.4422)
@@ -7245,7 +7245,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow7" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -95.744, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -95.744, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8875, 0.25, 2.8875)
@@ -7254,7 +7254,7 @@ solid = false
 sides = 7
 
 [node name="Pine8" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -94.8635, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -94.8635, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.6211, 3.1301, 2.6211)
@@ -7263,7 +7263,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow8" type="Node3D" parent="Course/GrappleSwing2"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 579.196, -93.2985, 207.132)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 559.196, -93.2985, 204.132)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.7037, 0.25, 1.7037)
@@ -7272,7 +7272,7 @@ solid = false
 sides = 7
 
 [node name="P52_grapple" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 536.2, -90.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 516.2, -90.5, 216)
 script = ExtResource("5_route")
 action = 10
 aim = Vector3(12.8, 12.5, 0)
@@ -7280,7 +7280,7 @@ radius = 0.6
 boost = true
 
 [node name="P53_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 571, -96.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 551, -96.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 2.2
@@ -7289,57 +7289,57 @@ radius = 2.2
 metadata/_edit_group_ = true
 
 [node name="P54_dive_jump" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 580.55, -96.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 560.55, -96.5, 216)
 script = ExtResource("5_route")
 action = 3
 radius = 0.55
 
 [node name="Deck" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 596, -99, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 576, -99, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 12)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 596, -103.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 576, -103.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 12)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 596, -113.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 576, -113.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 12)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 596, -106.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 576, -106.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 12)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 596, -138.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 576, -138.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 28)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 596, -98.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 576, -98.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 596, -98.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 576, -98.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 12)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 583, -113, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 563, -113, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 38)
 kind = "rock_dark"
@@ -7347,7 +7347,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -105.3, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -105.3, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -7356,7 +7356,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -104.2, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -104.2, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.2544, 1.914, 5.2544)
@@ -7365,7 +7365,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -103.243, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -103.243, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.4154, 0.25, 3.4154)
@@ -7374,7 +7374,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -102.86, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -102.86, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.1408, 1.914, 4.1408)
@@ -7383,7 +7383,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -101.903, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -101.903, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.6915, 0.25, 2.6915)
@@ -7392,7 +7392,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -101.52, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -101.52, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.0272, 1.914, 3.0272)
@@ -7401,7 +7401,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -100.563, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -100.563, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.9677, 0.25, 1.9677)
@@ -7410,7 +7410,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -100.18, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -100.18, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.9136, 1.914, 1.9136)
@@ -7419,7 +7419,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/Gaps3"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593.642, -99.223, 207.26)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573.642, -99.223, 204.26)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.2438, 0.25, 1.2438)
@@ -7428,7 +7428,7 @@ solid = false
 sides = 7
 
 [node name="P55_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 593, -98.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 573, -98.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 1.8
@@ -7437,51 +7437,51 @@ radius = 1.8
 metadata/_edit_group_ = true
 
 [node name="Deck" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 611, -99, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 591, -99, 216)
 script = ExtResource("2_block")
 size = Vector3(10, 1, 18)
 kind = "snow"
 
 [node name="Ridge" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 611, -103.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 591, -103.25, 216)
 script = ExtResource("2_block")
 size = Vector3(16, 7.5, 18)
 kind = "snow_shade"
 
 [node name="Ridge2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 611, -113.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 591, -113.5, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 14, 18)
 kind = "rock"
 
 [node name="SnowCap" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 611, -106.3, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 591, -106.3, 216)
 script = ExtResource("2_block")
 size = Vector3(28, 0.4, 18)
 kind = "snow"
 solid = false
 
 [node name="Ridge3" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 611, -138.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 591, -138.5, 216)
 script = ExtResource("2_block")
 size = Vector3(50, 40, 34)
 kind = "rock_dark"
 solid = false
 
 [node name="Bank" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 611, -98.825, 213.35)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 591, -98.825, 210.35)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 18)
 kind = "snow_drift"
 
 [node name="Bank2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 611, -98.825, 224.65)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 591, -98.825, 221.65)
 script = ExtResource("2_block")
 size = Vector3(1.5, 1.35, 18)
 kind = "snow_drift"
 
 [node name="Catch" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 598, -113, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 578, -113, 216)
 script = ExtResource("3_hazard")
 size = Vector3(90, 1, 44)
 kind = "rock_dark"
@@ -7489,7 +7489,7 @@ solid = false
 drawn = false
 
 [node name="Trunk" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -105.3, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -105.3, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -7498,7 +7498,7 @@ solid = false
 sides = 6
 
 [node name="Pine" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -104.2, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -104.2, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(7.8502, 3.0294, 7.8502)
@@ -7507,7 +7507,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -102.6853, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -102.6853, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.1027, 0.25, 5.1027)
@@ -7516,7 +7516,7 @@ solid = false
 sides = 7
 
 [node name="Pine2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -101.846, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -101.846, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.0877, 3.0294, 6.0877)
@@ -7525,7 +7525,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -100.3313, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -100.3313, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(3.957, 0.25, 3.957)
@@ -7534,7 +7534,7 @@ solid = false
 sides = 7
 
 [node name="Pine3" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -99.492, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -99.492, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.3251, 3.0294, 4.3251)
@@ -7543,7 +7543,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow3" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -97.9773, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -97.9773, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.8113, 0.25, 2.8113)
@@ -7552,7 +7552,7 @@ solid = false
 sides = 7
 
 [node name="Pine4" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -97.138, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -97.138, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.5626, 3.0294, 2.5626)
@@ -7561,7 +7561,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow4" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 607.772, -95.6233, 207.856)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 587.772, -95.6233, 204.856)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.6657, 0.25, 1.6657)
@@ -7570,7 +7570,7 @@ solid = false
 sides = 7
 
 [node name="Trunk2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -105.3, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -105.3, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.5, 1.6, 0.5)
@@ -7579,7 +7579,7 @@ solid = false
 sides = 6
 
 [node name="Pine5" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -104.2, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -104.2, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(8.407, 3.2687, 8.407)
@@ -7588,7 +7588,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow5" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -102.5657, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -102.5657, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.4646, 0.25, 5.4646)
@@ -7597,7 +7597,7 @@ solid = false
 sides = 7
 
 [node name="Pine6" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -101.6285, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -101.6285, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(6.5053, 3.2687, 6.5053)
@@ -7606,7 +7606,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow6" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -99.9942, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -99.9942, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.2284, 0.25, 4.2284)
@@ -7615,7 +7615,7 @@ solid = false
 sides = 7
 
 [node name="Pine7" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -99.057, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -99.057, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(4.6035, 3.2687, 4.6035)
@@ -7624,7 +7624,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow7" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -97.4227, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -97.4227, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.9923, 0.25, 2.9923)
@@ -7633,7 +7633,7 @@ solid = false
 sides = 7
 
 [node name="Pine8" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -96.4855, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -96.4855, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(2.7018, 3.2687, 2.7018)
@@ -7642,7 +7642,7 @@ solid = false
 sides = 7
 
 [node name="PineSnow8" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612.282, -94.8512, 208.824)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592.282, -94.8512, 205.824)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(1.7561, 0.25, 1.7561)
@@ -7651,93 +7651,93 @@ solid = false
 sides = 7
 
 [node name="Finish" type="Marker3D" parent="Checkpoints"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 608, -98.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 588, -98.5, 216)
 script = ExtResource("6_checkpoint")
 number = 8
 finish = true
 opening = Vector2(14.4, 6)
 
 [node name="P56_run" type="Marker3D" parent="BotRoute"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 612, -98.5, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 592, -98.5, 216)
 script = ExtResource("5_route")
 action = 0
 radius = 3
 
 [node name="Lodge" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 617, -96.25, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 597, -96.25, 216)
 script = ExtResource("2_block")
 size = Vector3(18, 4.5, 4)
 kind = "wood"
 
 [node name="LodgeRoof" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 617, -93.6, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 597, -93.6, 216)
 script = ExtResource("2_block")
 size = Vector3(19.2, 0.8, 5.2)
 kind = "roof_red"
 
 [node name="LodgeSnow" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 617, -93.05, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 597, -93.05, 216)
 script = ExtResource("2_block")
 size = Vector3(19.4, 0.3, 5.4)
 kind = "snow"
 solid = false
 
 [node name="Window" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 614.975, -96.4, 213)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 594.975, -96.4, 210)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 0.05)
 kind = "window_lit"
 solid = false
 
 [node name="Window2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 614.975, -96.4, 216)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 594.975, -96.4, 213)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 0.05)
 kind = "window_lit"
 solid = false
 
 [node name="Window3" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 614.975, -96.4, 219)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 594.975, -96.4, 216)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 0.05)
 kind = "window_lit"
 solid = false
 
 [node name="Window4" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 614.975, -96.4, 222)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 594.975, -96.4, 219)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 0.05)
 kind = "window_lit"
 solid = false
 
 [node name="Window5" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 614.975, -96.4, 225)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 594.975, -96.4, 222)
 script = ExtResource("2_block")
 size = Vector3(1.4, 1.4, 0.05)
 kind = "window_lit"
 solid = false
 
 [node name="Pole" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 608, -96.25, 213)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 588, -96.25, 210)
 script = ExtResource("2_block")
 size = Vector3(0.4, 4.5, 0.4)
 kind = "flag_blue"
 
 [node name="Lamp" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 608, -93.8, 213)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 588, -93.8, 210)
 script = ExtResource("2_block")
 size = Vector3(0.8, 0.4, 0.8)
 kind = "lamp"
 solid = false
 
 [node name="Pole2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 608, -96.25, 225)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 588, -96.25, 222)
 script = ExtResource("2_block")
 size = Vector3(0.4, 4.5, 0.4)
 kind = "flag_red"
 
 [node name="Lamp2" type="Node3D" parent="Course/Finish"]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 608, -93.8, 225)
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 588, -93.8, 222)
 script = ExtResource("2_block")
 size = Vector3(0.8, 0.4, 0.8)
 kind = "lamp"
@@ -7747,9 +7747,9 @@ solid = false
 metadata/_edit_group_ = true
 
 [node name="Valley" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 302, -159.5, 112)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 292, -159.5, 110.5)
 script = ExtResource("2_block")
-size = Vector3(1536, 2, 1124)
+size = Vector3(1516, 2, 1121)
 kind = "valley"
 solid = false
 
@@ -7810,406 +7810,406 @@ kind = "far_snow"
 solid = false
 
 [node name="Peak5" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8328, 0.15, -0.5328, 0.4082, 0.8165, -0.4082, 0.3738, -0.5575, -0.7412, 297.5019, -154.6423, 128.8845)
+transform = Transform3D(-0.8328, 0.15, -0.5328, 0.4082, 0.8165, -0.4082, 0.3738, -0.5575, -0.7412, 297.5019, -154.6423, 125.8845)
 script = ExtResource("2_block")
 size = Vector3(90.3934, 90.3934, 90.3934)
 kind = "rock_dark"
 solid = false
 
 [node name="PeakSnow5" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8328, 0.15, -0.5328, 0.4082, 0.8165, -0.4082, 0.3738, -0.5575, -0.7412, 297.5019, -108.9381, 128.8845)
+transform = Transform3D(-0.8328, 0.15, -0.5328, 0.4082, 0.8165, -0.4082, 0.3738, -0.5575, -0.7412, 297.5019, -108.9381, 125.8845)
 script = ExtResource("2_block")
 size = Vector3(37.9652, 37.9652, 37.9652)
 kind = "far_snow"
 solid = false
 
 [node name="Peak6" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.3972, 0.2438, 0.8848, 0.4082, 0.8165, -0.4082, -0.8219, 0.5234, 0.2248, 313.7881, -178.7854, 227.9144)
+transform = Transform3D(0.3972, 0.2438, 0.8848, 0.4082, 0.8165, -0.4082, -0.8219, 0.5234, 0.2248, 313.7881, -178.7854, 224.9144)
 script = ExtResource("2_block")
 size = Vector3(112.9718, 112.9718, 112.9718)
 kind = "rock_dark"
 solid = false
 
 [node name="PeakSnow6" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.3972, 0.2438, 0.8848, 0.4082, 0.8165, -0.4082, -0.8219, 0.5234, 0.2248, 313.7881, -121.7403, 227.9144)
+transform = Transform3D(0.3972, 0.2438, 0.8848, 0.4082, 0.8165, -0.4082, -0.8219, 0.5234, 0.2248, 313.7881, -121.7403, 224.9144)
 script = ExtResource("2_block")
 size = Vector3(47.4481, 47.4481, 47.4481)
 kind = "far_snow"
 solid = false
 
 [node name="Peak7" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8771, 0.227, -0.4232, 0.4082, 0.8165, -0.4082, 0.2529, -0.5309, -0.8088, 472.601, -198.9155, 204.0532)
+transform = Transform3D(-0.8771, 0.227, -0.4232, 0.4082, 0.8165, -0.4082, 0.2529, -0.5309, -0.8088, 452.601, -198.9155, 201.0532)
 script = ExtResource("2_block")
 size = Vector3(108.5236, 108.5236, 108.5236)
 kind = "rock_dark"
 solid = false
 
 [node name="PeakSnow7" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8771, 0.227, -0.4232, 0.4082, 0.8165, -0.4082, 0.2529, -0.5309, -0.8088, 472.601, -144.1047, 204.0532)
+transform = Transform3D(-0.8771, 0.227, -0.4232, 0.4082, 0.8165, -0.4082, 0.2529, -0.5309, -0.8088, 452.601, -144.1047, 201.0532)
 script = ExtResource("2_block")
 size = Vector3(45.5799, 45.5799, 45.5799)
 kind = "far_snow"
 solid = false
 
 [node name="Peak8" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8763, 0.2253, -0.4258, 0.4082, 0.8165, -0.4082, 0.2557, -0.5316, -0.8075, 809.7215, -122.8164, 133.2816)
+transform = Transform3D(-0.8763, 0.2253, -0.4258, 0.4082, 0.8165, -0.4082, 0.2557, -0.5316, -0.8075, 789.7303, -122.8164, 131.3628)
 script = ExtResource("2_block")
 size = Vector3(237.8905, 237.8905, 237.8905)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow8" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8763, 0.2253, -0.4258, 0.4082, 0.8165, -0.4082, 0.2557, -0.5316, -0.8075, 809.7215, -3.0253, 133.2816)
+transform = Transform3D(-0.8763, 0.2253, -0.4258, 0.4082, 0.8165, -0.4082, 0.2557, -0.5316, -0.8075, 789.7303, -3.0253, 131.3628)
 script = ExtResource("2_block")
 size = Vector3(99.914, 99.914, 99.914)
 kind = "far_snow"
 solid = false
 
 [node name="Peak9" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8644, 0.4896, 0.1148, 0.4082, 0.8165, -0.4082, -0.2936, -0.306, -0.9056, 887.3322, -130.794, 292.758)
+transform = Transform3D(-0.8644, 0.4896, 0.1148, 0.4082, 0.8165, -0.4082, -0.2936, -0.306, -0.9056, 867.7774, -130.794, 288.3073)
 script = ExtResource("2_block")
 size = Vector3(184.7068, 184.7068, 184.7068)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow9" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8644, 0.4896, 0.1148, 0.4082, 0.8165, -0.4082, -0.2936, -0.306, -0.9056, 887.3322, -37.7167, 292.758)
+transform = Transform3D(-0.8644, 0.4896, 0.1148, 0.4082, 0.8165, -0.4082, -0.2936, -0.306, -0.9056, 867.7774, -37.7167, 288.3073)
 script = ExtResource("2_block")
 size = Vector3(77.5769, 77.5769, 77.5769)
 kind = "far_snow"
 solid = false
 
 [node name="Peak10" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.7637, 0.0605, -0.6427, 0.4082, 0.8165, -0.4082, 0.5, -0.5742, -0.6483, 829.8403, -128.0684, 417.2268)
+transform = Transform3D(-0.7637, 0.0605, -0.6427, 0.4082, 0.8165, -0.4082, 0.5, -0.5742, -0.6483, 811.1834, -128.0684, 410.721)
 script = ExtResource("2_block")
 size = Vector3(202.877, 202.877, 202.877)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow10" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.7637, 0.0605, -0.6427, 0.4082, 0.8165, -0.4082, 0.5, -0.5742, -0.6483, 829.8403, -25.8644, 417.2268)
+transform = Transform3D(-0.7637, 0.0605, -0.6427, 0.4082, 0.8165, -0.4082, 0.5, -0.5742, -0.6483, 811.1834, -25.8644, 410.721)
 script = ExtResource("2_block")
 size = Vector3(85.2084, 85.2084, 85.2084)
 kind = "far_snow"
 solid = false
 
 [node name="Peak11" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.3256, 0.2876, 0.9007, 0.4082, 0.8165, -0.4082, -0.8528, 0.5006, 0.1485, 623.6102, -133.9986, 520.4)
+transform = Transform3D(0.3256, 0.2876, 0.9007, 0.4082, 0.8165, -0.4082, -0.8528, 0.5006, 0.1485, 607.4234, -133.9986, 511.0436)
 script = ExtResource("2_block")
 size = Vector3(163.3428, 163.3428, 163.3428)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow11" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.3256, 0.2876, 0.9007, 0.4082, 0.8165, -0.4082, -0.8528, 0.5006, 0.1485, 623.6102, -51.6524, 520.4)
+transform = Transform3D(0.3256, 0.2876, 0.9007, 0.4082, 0.8165, -0.4082, -0.8528, 0.5006, 0.1485, 607.4234, -51.6524, 511.0436)
 script = ExtResource("2_block")
 size = Vector3(68.604, 68.604, 68.604)
 kind = "far_snow"
 solid = false
 
 [node name="Peak12" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.7724, 0.5473, 0.3223, 0.4082, 0.8165, -0.4082, -0.4866, -0.1838, -0.8541, 566.9175, -135.0755, 520.7838)
+transform = Transform3D(-0.7724, 0.5473, 0.3223, 0.4082, 0.8165, -0.4082, -0.4866, -0.1838, -0.8541, 551.479, -135.0755, 510.8919)
 script = ExtResource("2_block")
 size = Vector3(156.1631, 156.1631, 156.1631)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow12" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.7724, 0.5473, 0.3223, 0.4082, 0.8165, -0.4082, -0.4866, -0.1838, -0.8541, 566.9175, -56.3356, 520.7838)
+transform = Transform3D(-0.7724, 0.5473, 0.3223, 0.4082, 0.8165, -0.4082, -0.4866, -0.1838, -0.8541, 551.479, -56.3356, 510.8919)
 script = ExtResource("2_block")
 size = Vector3(65.5885, 65.5885, 65.5885)
 kind = "far_snow"
 solid = false
 
 [node name="Peak13" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.0799, 0.4775, 0.875, 0.4082, 0.8165, -0.4082, -0.9094, 0.3246, -0.2602, 504.7945, -134.4179, 647.8182)
+transform = Transform3D(-0.0799, 0.4775, 0.875, 0.4082, 0.8165, -0.4082, -0.9094, 0.3246, -0.2602, 491.2547, -134.4179, 636.9657)
 script = ExtResource("2_block")
 size = Vector3(160.5476, 160.5476, 160.5476)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow13" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.0799, 0.4775, 0.875, 0.4082, 0.8165, -0.4082, -0.9094, 0.3246, -0.2602, 504.7945, -53.4756, 647.8182)
+transform = Transform3D(-0.0799, 0.4775, 0.875, 0.4082, 0.8165, -0.4082, -0.9094, 0.3246, -0.2602, 491.2547, -53.4756, 636.9657)
 script = ExtResource("2_block")
 size = Vector3(67.43, 67.43, 67.43)
 kind = "far_snow"
 solid = false
 
 [node name="Peak14" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.5346, 0.5763, 0.618, 0.4082, 0.8165, -0.4082, -0.7399, 0.034, -0.6718, 278.6283, -134.8157, 656.8032)
+transform = Transform3D(-0.5346, 0.5763, 0.618, 0.4082, 0.8165, -0.4082, -0.7399, 0.034, -0.6718, 269.0569, -134.8157, 645.3124)
 script = ExtResource("2_block")
 size = Vector3(157.8952, 157.8952, 157.8952)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow14" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.5346, 0.5763, 0.618, 0.4082, 0.8165, -0.4082, -0.7399, 0.034, -0.6718, 278.6283, -55.2058, 656.8032)
+transform = Transform3D(-0.5346, 0.5763, 0.618, 0.4082, 0.8165, -0.4082, -0.7399, 0.034, -0.6718, 269.0569, -55.2058, 645.3124)
 script = ExtResource("2_block")
 size = Vector3(66.316, 66.316, 66.316)
 kind = "far_snow"
 solid = false
 
 [node name="Peak15" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.6638, 0.0414, 0.7467, 0.4082, 0.8165, -0.4082, -0.6266, 0.5759, 0.5251, 176.2356, -122.9482, 581.4252)
+transform = Transform3D(0.6638, 0.0414, 0.7467, 0.4082, 0.8165, -0.4082, -0.6266, 0.5759, 0.5251, 168.8234, -122.9482, 570.2658)
 script = ExtResource("2_block")
 size = Vector3(237.0119, 237.0119, 237.0119)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow15" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.6638, 0.0414, 0.7467, 0.4082, 0.8165, -0.4082, -0.6266, 0.5759, 0.5251, 176.2356, -3.5984, 581.4252)
+transform = Transform3D(0.6638, 0.0414, 0.7467, 0.4082, 0.8165, -0.4082, -0.6266, 0.5759, 0.5251, 168.8234, -3.5984, 570.2658)
 script = ExtResource("2_block")
 size = Vector3(99.545, 99.545, 99.545)
 kind = "far_snow"
 solid = false
 
 [node name="Peak16" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.9127, 0.3571, -0.1985, 0.4082, 0.8165, -0.4082, 0.0163, -0.4537, -0.891, 9.6337, -140.1748, 631.6881)
+transform = Transform3D(-0.9127, 0.3571, -0.1985, 0.4082, 0.8165, -0.4082, 0.0163, -0.4537, -0.891, 4.5368, -140.1748, 621.4727)
 script = ExtResource("2_block")
 size = Vector3(122.1681, 122.1681, 122.1681)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow16" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.9127, 0.3571, -0.1985, 0.4082, 0.8165, -0.4082, 0.0163, -0.4537, -0.891, 9.6337, -78.5104, 631.6881)
+transform = Transform3D(-0.9127, 0.3571, -0.1985, 0.4082, 0.8165, -0.4082, 0.0163, -0.4537, -0.891, 4.5368, -78.5104, 621.4727)
 script = ExtResource("2_block")
 size = Vector3(51.3106, 51.3106, 51.3106)
 kind = "far_snow"
 solid = false
 
 [node name="Peak17" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.6151, 0.0844, 0.784, 0.4082, 0.8165, -0.4082, -0.6746, 0.5711, 0.4677, -48.3547, -140.3366, 547.5736)
+transform = Transform3D(0.6151, 0.0844, 0.784, 0.4082, 0.8165, -0.4082, -0.6746, 0.5711, 0.4677, -52.0871, -140.3366, 538.2815)
 script = ExtResource("2_block")
 size = Vector3(121.0894, 121.0894, 121.0894)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow17" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.6151, 0.0844, 0.784, 0.4082, 0.8165, -0.4082, -0.6746, 0.5711, 0.4677, -48.3547, -79.214, 547.5736)
+transform = Transform3D(0.6151, 0.0844, 0.784, 0.4082, 0.8165, -0.4082, -0.6746, 0.5711, 0.4677, -52.0871, -79.214, 538.2815)
 script = ExtResource("2_block")
 size = Vector3(50.8576, 50.8576, 50.8576)
 kind = "far_snow"
 solid = false
 
 [node name="Peak18" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.9098, 0.4008, -0.1081, 0.4082, 0.8165, -0.4082, -0.0754, -0.4155, -0.9064, -170.2579, -136.9626, 500.8189)
+transform = Transform3D(-0.9098, 0.4008, -0.1081, 0.4082, 0.8165, -0.4082, -0.0754, -0.4155, -0.9064, -172.5378, -136.9626, 492.9628)
 script = ExtResource("2_block")
 size = Vector3(143.5826, 143.5826, 143.5826)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow18" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.9098, 0.4008, -0.1081, 0.4082, 0.8165, -0.4082, -0.0754, -0.4155, -0.9064, -170.2579, -64.5418, 500.8189)
+transform = Transform3D(-0.9098, 0.4008, -0.1081, 0.4082, 0.8165, -0.4082, -0.0754, -0.4155, -0.9064, -172.5378, -64.5418, 492.9628)
 script = ExtResource("2_block")
 size = Vector3(60.3047, 60.3047, 60.3047)
 kind = "far_snow"
 solid = false
 
 [node name="Peak19" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.2068, 0.5183, 0.8298, 0.4082, 0.8165, -0.4082, -0.8891, 0.2543, -0.3805, -281.1147, -134.3011, 290.7129)
+transform = Transform3D(-0.2068, 0.5183, 0.8298, 0.4082, 0.8165, -0.4082, -0.8891, 0.2543, -0.3805, -281.5537, -134.3011, 286.2826)
 script = ExtResource("2_block")
 size = Vector3(161.3258, 161.3258, 161.3258)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow19" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.2068, 0.5183, 0.8298, 0.4082, 0.8165, -0.4082, -0.8891, 0.2543, -0.3805, -281.1147, -52.968, 290.7129)
+transform = Transform3D(-0.2068, 0.5183, 0.8298, 0.4082, 0.8165, -0.4082, -0.8891, 0.2543, -0.3805, -281.5537, -52.968, 286.2826)
 script = ExtResource("2_block")
 size = Vector3(67.7568, 67.7568, 67.7568)
 kind = "far_snow"
 solid = false
 
 [node name="Peak20" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.9078, 0.4103, -0.0872, 0.4082, 0.8165, -0.4082, -0.0963, -0.4062, -0.9087, -279.1106, -138.555, 191.9486)
+transform = Transform3D(-0.9078, 0.4103, -0.0872, 0.4082, 0.8165, -0.4082, -0.0963, -0.4062, -0.9087, -279.2039, -138.555, 189.0856)
 script = ExtResource("2_block")
 size = Vector3(132.9663, 132.9663, 132.9663)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow20" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.9078, 0.4103, -0.0872, 0.4082, 0.8165, -0.4082, -0.0963, -0.4062, -0.9087, -279.1106, -71.4668, 191.9486)
+transform = Transform3D(-0.9078, 0.4103, -0.0872, 0.4082, 0.8165, -0.4082, -0.0963, -0.4062, -0.9087, -279.2039, -71.4668, 189.0856)
 script = ExtResource("2_block")
 size = Vector3(55.8459, 55.8459, 55.8459)
 kind = "far_snow"
 solid = false
 
 [node name="Peak21" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.7947, 0.0978, -0.599, 0.4082, 0.8165, -0.4082, 0.4492, -0.569, -0.6888, -288.7673, -139.8406, 16.9985)
+transform = Transform3D(-0.7947, 0.0978, -0.599, 0.4082, 0.8165, -0.4082, 0.4492, -0.569, -0.6888, -288.8942, -139.8406, 17.0862)
 script = ExtResource("2_block")
 size = Vector3(124.3958, 124.3958, 124.3958)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow21" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.7947, 0.0978, -0.599, 0.4082, 0.8165, -0.4082, 0.4492, -0.569, -0.6888, -288.7673, -77.0573, 16.9985)
+transform = Transform3D(-0.7947, 0.0978, -0.599, 0.4082, 0.8165, -0.4082, 0.4492, -0.569, -0.6888, -288.8942, -77.0573, 17.0862)
 script = ExtResource("2_block")
 size = Vector3(52.2462, 52.2462, 52.2462)
 kind = "far_snow"
 solid = false
 
 [node name="Peak22" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8308, 0.1469, -0.5369, 0.4082, 0.8165, -0.4082, 0.3784, -0.5583, -0.7383, -206.0487, -129.5051, -23.0958)
+transform = Transform3D(-0.8308, 0.1469, -0.5369, 0.4082, 0.8165, -0.4082, 0.3784, -0.5583, -0.7383, -206.3845, -129.5051, -22.026)
 script = ExtResource("2_block")
 size = Vector3(193.2993, 193.2993, 193.2993)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow22" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.8308, 0.1469, -0.5369, 0.4082, 0.8165, -0.4082, 0.3784, -0.5583, -0.7383, -206.0487, -32.1119, -23.0958)
+transform = Transform3D(-0.8308, 0.1469, -0.5369, 0.4082, 0.8165, -0.4082, 0.3784, -0.5583, -0.7383, -206.3845, -32.1119, -22.026)
 script = ExtResource("2_block")
 size = Vector3(81.1857, 81.1857, 81.1857)
 kind = "far_snow"
 solid = false
 
 [node name="Peak23" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.0871, 0.48, 0.8729, 0.4082, 0.8165, -0.4082, -0.9087, 0.3208, -0.267, -215.3953, -130.6874, -206.1538)
+transform = Transform3D(-0.0871, 0.48, 0.8729, 0.4082, 0.8165, -0.4082, -0.9087, 0.3208, -0.267, -216.8769, -130.6874, -202.4158)
 script = ExtResource("2_block")
 size = Vector3(185.4173, 185.4173, 185.4173)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow23" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.0871, 0.48, 0.8729, 0.4082, 0.8165, -0.4082, -0.9087, 0.3208, -0.267, -215.3953, -37.2533, -206.1538)
+transform = Transform3D(-0.0871, 0.48, 0.8729, 0.4082, 0.8165, -0.4082, -0.9087, 0.3208, -0.267, -216.8769, -37.2533, -202.4158)
 script = ExtResource("2_block")
 size = Vector3(77.8753, 77.8753, 77.8753)
 kind = "far_snow"
 solid = false
 
 [node name="Peak24" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.3709, 0.2603, 0.8915, 0.4082, 0.8165, -0.4082, -0.8341, 0.5154, 0.1966, -52.5178, -139.0925, -244.612)
+transform = Transform3D(0.3709, 0.2603, 0.8915, 0.4082, 0.8165, -0.4082, -0.8341, 0.5154, 0.1966, -55.4676, -139.0925, -239.0201)
 script = ExtResource("2_block")
 size = Vector3(129.3835, 129.3835, 129.3835)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow24" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.3709, 0.2603, 0.8915, 0.4082, 0.8165, -0.4082, -0.8341, 0.5154, 0.1966, -52.5178, -73.8038, -244.612)
+transform = Transform3D(0.3709, 0.2603, 0.8915, 0.4082, 0.8165, -0.4082, -0.8341, 0.5154, 0.1966, -55.4676, -73.8038, -239.0201)
 script = ExtResource("2_block")
 size = Vector3(54.3411, 54.3411, 54.3411)
 kind = "far_snow"
 solid = false
 
 [node name="Peak25" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.6112, 0.0877, 0.7866, 0.4082, 0.8165, -0.4082, -0.6781, 0.5706, 0.4632, 24.3532, -137.5925, -439.6068)
+transform = Transform3D(0.6112, 0.0877, 0.7866, 0.4082, 0.8165, -0.4082, -0.6781, 0.5706, 0.4632, 18.8492, -137.5925, -432.1745)
 script = ExtResource("2_block")
 size = Vector3(139.3835, 139.3835, 139.3835)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow25" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.6112, 0.0877, 0.7866, 0.4082, 0.8165, -0.4082, -0.6781, 0.5706, 0.4632, 24.3532, -67.2809, -439.6068)
+transform = Transform3D(0.6112, 0.0877, 0.7866, 0.4082, 0.8165, -0.4082, -0.6781, 0.5706, 0.4632, 18.8492, -67.2809, -432.1745)
 script = ExtResource("2_block")
 size = Vector3(58.5411, 58.5411, 58.5411)
 kind = "far_snow"
 solid = false
 
 [node name="Peak26" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.1278, 0.3917, 0.9112, 0.4082, 0.8165, -0.4082, -0.9039, 0.4242, -0.0556, 211.136, -133.194, -433.174)
+transform = Transform3D(0.1278, 0.3917, 0.9112, 0.4082, 0.8165, -0.4082, -0.9039, 0.4242, -0.0556, 202.78, -133.194, -424.8101)
 script = ExtResource("2_block")
 size = Vector3(168.7066, 168.7066, 168.7066)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow26" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(0.1278, 0.3917, 0.9112, 0.4082, 0.8165, -0.4082, -0.9039, 0.4242, -0.0556, 211.136, -48.1536, -433.174)
+transform = Transform3D(0.1278, 0.3917, 0.9112, 0.4082, 0.8165, -0.4082, -0.9039, 0.4242, -0.0556, 202.78, -48.1536, -424.8101)
 script = ExtResource("2_block")
 size = Vector3(70.8568, 70.8568, 70.8568)
 kind = "far_snow"
 solid = false
 
 [node name="Peak27" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.3879, 0.56, 0.7321, 0.4082, 0.8165, -0.4082, -0.8263, 0.1405, -0.5454, 300.7898, -132.298, -481.6801)
+transform = Transform3D(-0.3879, 0.56, 0.7321, 0.4082, 0.8165, -0.4082, -0.8263, 0.1405, -0.5454, 290.8102, -132.298, -473.1802)
 script = ExtResource("2_block")
 size = Vector3(174.6798, 174.6798, 174.6798)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow27" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.3879, 0.56, 0.7321, 0.4082, 0.8165, -0.4082, -0.8263, 0.1405, -0.5454, 300.7898, -44.2573, -481.6801)
+transform = Transform3D(-0.3879, 0.56, 0.7321, 0.4082, 0.8165, -0.4082, -0.8263, 0.1405, -0.5454, 290.8102, -44.2573, -473.1802)
 script = ExtResource("2_block")
 size = Vector3(73.3655, 73.3655, 73.3655)
 kind = "far_snow"
 solid = false
 
 [node name="Peak28" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.5629, 0.5772, 0.5915, 0.4082, 0.8165, -0.4082, -0.7186, 0.0117, -0.6953, 381.7759, -139.911, -488.978)
+transform = Transform3D(-0.5629, 0.5772, 0.5915, 0.4082, 0.8165, -0.4082, -0.7186, 0.0117, -0.6953, 370.46, -139.911, -480.5649)
 script = ExtResource("2_block")
 size = Vector3(123.9265, 123.9265, 123.9265)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow28" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.5629, 0.5772, 0.5915, 0.4082, 0.8165, -0.4082, -0.7186, 0.0117, -0.6953, 381.7759, -77.3634, -488.978)
+transform = Transform3D(-0.5629, 0.5772, 0.5915, 0.4082, 0.8165, -0.4082, -0.7186, 0.0117, -0.6953, 370.46, -77.3634, -480.5649)
 script = ExtResource("2_block")
 size = Vector3(52.0491, 52.0491, 52.0491)
 kind = "far_snow"
 solid = false
 
 [node name="Peak29" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.789, 0.0907, -0.6077, 0.4082, 0.8165, -0.4082, 0.4591, -0.5702, -0.6812, 552.962, -127.33, -316.1494)
+transform = Transform3D(-0.789, 0.0907, -0.6077, 0.4082, 0.8165, -0.4082, 0.4591, -0.5702, -0.6812, 537.9052, -127.33, -309.0223)
 script = ExtResource("2_block")
 size = Vector3(207.7997, 207.7997, 207.7997)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow29" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.789, 0.0907, -0.6077, 0.4082, 0.8165, -0.4082, 0.4591, -0.5702, -0.6812, 552.962, -22.6533, -316.1494)
+transform = Transform3D(-0.789, 0.0907, -0.6077, 0.4082, 0.8165, -0.4082, 0.4591, -0.5702, -0.6812, 537.9052, -22.6533, -309.0223)
 script = ExtResource("2_block")
 size = Vector3(87.2759, 87.2759, 87.2759)
 kind = "far_snow"
 solid = false
 
 [node name="Peak30" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.4208, 0.5652, 0.7096, 0.4082, 0.8165, -0.4082, -0.8101, 0.1179, -0.5743, 694.4355, -138.5806, -326.3109)
+transform = Transform3D(-0.4208, 0.5652, 0.7096, 0.4082, 0.8165, -0.4082, -0.8101, 0.1179, -0.5743, 677.765, -138.5806, -320.3607)
 script = ExtResource("2_block")
 size = Vector3(132.7957, 132.7957, 132.7957)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow30" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.4208, 0.5652, 0.7096, 0.4082, 0.8165, -0.4082, -0.8101, 0.1179, -0.5743, 694.4355, -71.5781, -326.3109)
+transform = Transform3D(-0.4208, 0.5652, 0.7096, 0.4082, 0.8165, -0.4082, -0.8101, 0.1179, -0.5743, 677.765, -71.5781, -320.3607)
 script = ExtResource("2_block")
 size = Vector3(55.7742, 55.7742, 55.7742)
 kind = "far_snow"
 solid = false
 
 [node name="Peak31" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.4674, 0.5711, 0.6748, 0.4082, 0.8165, -0.4082, -0.7841, 0.0847, -0.6148, 759.9107, -135.1934, -269.8993)
+transform = Transform3D(-0.4674, 0.5711, 0.6748, 0.4082, 0.8165, -0.4082, -0.7841, 0.0847, -0.6148, 742.231, -135.1934, -264.9944)
 script = ExtResource("2_block")
 size = Vector3(155.3776, 155.3776, 155.3776)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow31" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.4674, 0.5711, 0.6748, 0.4082, 0.8165, -0.4082, -0.7841, 0.0847, -0.6148, 759.9107, -56.848, -269.8993)
+transform = Transform3D(-0.4674, 0.5711, 0.6748, 0.4082, 0.8165, -0.4082, -0.7841, 0.0847, -0.6148, 742.231, -56.848, -264.9944)
 script = ExtResource("2_block")
 size = Vector3(65.2586, 65.2586, 65.2586)
 kind = "far_snow"
 solid = false
 
 [node name="Peak32" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.4684, 0.5712, 0.6741, 0.4082, 0.8165, -0.4082, -0.7836, 0.084, -0.6156, 875.4783, -122.9319, -55.0578)
+transform = Transform3D(-0.4684, 0.5712, 0.6741, 0.4082, 0.8165, -0.4082, -0.7836, 0.084, -0.6156, 855.8773, -122.9319, -53.761)
 script = ExtResource("2_block")
 size = Vector3(237.1209, 237.1209, 237.1209)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow32" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.4684, 0.5712, 0.6741, 0.4082, 0.8165, -0.4082, -0.7836, 0.084, -0.6156, 875.4783, -3.5273, -55.0578)
+transform = Transform3D(-0.4684, 0.5712, 0.6741, 0.4082, 0.8165, -0.4082, -0.7836, 0.084, -0.6156, 855.8773, -3.5273, -53.761)
 script = ExtResource("2_block")
 size = Vector3(99.5908, 99.5908, 99.5908)
 kind = "far_snow"
 solid = false
 
 [node name="Peak33" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.0257, 0.4573, 0.8889, 0.4082, 0.8165, -0.4082, -0.9125, 0.3524, -0.2077, 876.1239, -131.8772, 28.7328)
+transform = Transform3D(-0.0257, 0.4573, 0.8889, 0.4082, 0.8165, -0.4082, -0.9125, 0.3524, -0.2077, 856.2274, -131.8772, 28.6682)
 script = ExtResource("2_block")
 size = Vector3(177.4851, 177.4851, 177.4851)
 kind = "far_peak"
 solid = false
 
 [node name="PeakSnow33" type="Node3D" parent="Scenery/Range"]
-transform = Transform3D(-0.0257, 0.4573, 0.8889, 0.4082, 0.8165, -0.4082, -0.9125, 0.3524, -0.2077, 876.1239, -42.4274, 28.7328)
+transform = Transform3D(-0.0257, 0.4573, 0.8889, 0.4082, 0.8165, -0.4082, -0.9125, 0.3524, -0.2077, 856.2274, -42.4274, 28.6682)
 script = ExtResource("2_block")
 size = Vector3(74.5437, 74.5437, 74.5437)
 kind = "far_snow"

@@ -171,7 +171,7 @@ func update_local(p: Player) -> void:
 		v.crosshair = data.crosshair
 		var cam := get_viewport().get_camera_3d()
 		var fov := cam.fov if cam else 75.0
-		v.spread_px = tan(deg_to_rad(data.spread_degrees)) / tan(deg_to_rad(fov) * 0.5) * get_viewport().get_visible_rect().size.y * 0.5
+		v.spread_px = tan(deg_to_rad(data.spread_degrees * p.spread_scale())) / tan(deg_to_rad(fov) * 0.5) * get_viewport().get_visible_rect().size.y * 0.5
 		v.ready = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval >= 0.5 else 1.0
 		v.melee = data.is_melee()
 		v.swing = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval > 0.0 else 1.0
@@ -202,7 +202,7 @@ func update_local(p: Player) -> void:
 		["GRAPPLE", "RMB", 1.0 - grapple_cooldown if grapple == GRAPPLE_COOLING else 1.0, grapple == GRAPPLE_ON],
 		["DIVE", "Q", p.motor.dive_readiness(), false],
 		["FLIP", "SPACE", p.motor.flip_readiness(), false],
-		["FLOAT", "SHIFT", p.motor.float_readiness(), p.motor.state == MovementController.State.FLOAT],
+		["GLIDE", "SHIFT", p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE],
 		["SLIDE", "C", p.motor.slide_boost_readiness(), false],
 		["BOOST", "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3],
 	]

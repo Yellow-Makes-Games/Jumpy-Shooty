@@ -29,6 +29,7 @@ var _fire_t := -1.0
 var _fire_next := 0
 var _grapple_pending := -1.0   # attach clack, a moment after the hook flies
 var _quiet := 0.0              # seconds of silence left (just spawned: no landing thud)
+var _glide_voice: Node         # the wind of a glide while it plays, so it can be faded when the glide ends
 
 
 func _init(p: Player, is_own: bool, gun: String) -> void:
@@ -37,11 +38,10 @@ func _init(p: Player, is_own: bool, gun: String) -> void:
 	weapon_id = gun
 
 
-func _play(sound: String, kind: String = "move", volume_db: float = 0.0, jitter: float = 0.04) -> void:
+func _play(sound: String, kind: String = "move", volume_db: float = 0.0, jitter: float = 0.04) -> Node:
 	if own:
-		Sound.play(sound, volume_db, jitter)
-	else:
-		Sound.play_at(sound, player.global_position + Vector3(0, 0.6, 0), kind, volume_db, jitter)
+		return Sound.play(sound, volume_db, jitter)
+	return Sound.play_at(sound, player.global_position + Vector3(0, 0.6, 0), kind, volume_db, jitter)
 
 
 ## Gun handling sounds come from the gun, a little quieter for other players.
@@ -113,8 +113,10 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 	var was_air: bool = not (_state in grounded_states) and _state != S.MANTLE and _state != S.WALL_RUN
 	if state in [S.AIR, S.DIVE, S.FLIP, S.GRAPPLE]:
 		_fall = minf(_fall, a.velocity.y)
-	elif state == S.FLOAT:
-		_fall = 0.0   # a float stops the fall: the landing after it is only as hard as the drop from there
+	elif state == S.GLIDE:
+		_fall = 0.0   # a glide stops the fall: the landing after it is only as hard as the drop from there
+	if state != S.GLIDE and _glide_voice:
+		_fade_glide(delta)
 
 	if state != _state:
 		match state:
@@ -123,7 +125,7 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 			S.ROLL: _play("roll")
 			S.DIVE: _play("dive")
 			S.FLIP: _play("flip")
-			S.FLOAT: _play("float")
+			S.GLIDE: _glide_voice = _play("glide")
 			S.WALL_RUN: _play("wall_run")
 			S.MANTLE: _play("vault" if a.vaulting() else "ledge_climb")
 			S.AIR:
@@ -156,6 +158,20 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 	_crouched = a.crouched
 	_grapple = a.grapple_on
 	_wall_jumps = a.wall_jumps()
+
+
+## The glide's wind is as long as a whole glide; when the glide stops sooner, it
+## fades out quickly instead of blowing on. (The voice is one of Sound's shared
+## players: if something else has taken it over since, leave it alone.)
+func _fade_glide(delta: float) -> void:
+	var v = _glide_voice
+	if not is_instance_valid(v) or not v.playing or v.stream != Sound.stream("glide"):
+		_glide_voice = null
+		return
+	v.volume_db -= 160.0 * delta
+	if v.volume_db < -60.0:
+		v.stop()
+		_glide_voice = null
 
 
 func _land() -> void:

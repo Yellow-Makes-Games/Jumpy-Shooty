@@ -526,7 +526,7 @@ def rooftop_run():
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "SIGN SKIPPING", 90)
     S.wallrun(c, T, side=1, panels=2)
-    c.sign(2, 4, 0, "SLIDE, JUMP, FLOAT: SHIFT", 60, JET)
+    c.sign(2, 4, 0, "SLIDE, JUMP, FLIP, DIVE", 60, JET)
     S.ski_jump(c, T)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "LIVE WIRES", 90)
@@ -541,8 +541,8 @@ def rooftop_run():
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "GLASS ROOF", 90)
     S.slope(c, T, 22, -8, slide=True)
-    c.sign(2, 4, 0, "FLOAT, THEN E", 70, JET)
-    S.float_gap(c, T, 40.0, -6.0, land=16, boost=True)
+    c.sign(2, 4, 0, "HOLD SHIFT TO GLIDE, THEN E", 56, JET)
+    S.glide_gap(c, T, 20.0, -6.0, land=16, boost=True)
     S.finish(c, T)
     _city(c)
     return c, T
@@ -611,7 +611,7 @@ def foundry():
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "SLAG LAKE", 90)
     S.pistons(c, T, 3)
-    c.sign(2, 4, 0, "SLIDE, JUMP, FLOAT: SHIFT", 60, JET)
+    c.sign(2, 4, 0, "SLIDE, JUMP, FLIP, DIVE", 60, JET)
     S.ski_jump(c, T)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "BOILER WALL", 90)
@@ -698,7 +698,7 @@ def sky_ruins():
     c.sign(4, 5, 0, "HIGH WINDS", 90)
     S.wallrun(c, T, side=-1, panels=2)
     S.run(c, T, 8)
-    c.sign(2, 4, 0, "SLIDE, JUMP, FLOAT: SHIFT", 60, JET)
+    c.sign(2, 4, 0, "SLIDE, JUMP, FLIP, DIVE", 60, JET)
     S.ski_jump(c, T)
     S.sweepers(c, T, 2)
     S.checkpoint(c, T)
@@ -706,8 +706,8 @@ def sky_ruins():
     S.slope(c, T, 26, -10, slide=True)
     S.run(c, T, 12)   # room to slow down: the pistons want a standing start
     S.pistons(c, T, 3)
-    c.sign(2, 4, 0, "FLOAT, THEN E", 70, JET)
-    S.float_gap(c, T, 40.0, -6.0, land=16, boost=True)
+    c.sign(2, 4, 0, "HOLD SHIFT TO GLIDE, THEN E", 56, JET)
+    S.glide_gap(c, T, 20.0, -6.0, land=16, boost=True)
     S.finish(c, T)
     _clouds(c)
     return c, T
@@ -737,7 +737,7 @@ def _clouds(c):
 
 def summit_plunge():
     """Down a big snowy mountain: slide the slopes, boost the crevasses, belly-slide the ice
-    tunnels, swing the gorge on the rock arches and float the cliffs, to the lodge below."""
+    tunnels, swing the gorge on the rock arches and glide the cliffs, to the lodge below."""
     T = Snow()
     c = Course("SummitPlunge", None, env_block((0.18, 0.4, 0.82), (0.86, 0.92, 1.0), (0.78, 0.84, 0.92),
                                                    (0.8, 0.86, 0.96), 0.9, fog=((0.84, 0.9, 0.98), 0.0009, 0.1)),
@@ -764,7 +764,7 @@ def summit_plunge():
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "SKI JUMP", 90)
     S.slope(c, T, 24, -9, slide=True)
-    c.sign(2, 4, 0, "SLIDE, JUMP, FLOAT: SHIFT", 60, JET)
+    c.sign(2, 4, 0, "SLIDE, JUMP, FLIP, DIVE", 60, JET)
     S.ski_jump(c, T, L=20, dy=-8)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "THE GORGE", 90)
@@ -776,8 +776,8 @@ def summit_plunge():
     S.belly_chute(c, T, 26, -9)
     S.slope(c, T, 20, -7, slide=True)
     S.run(c, T, 10)
-    c.sign(2, 4, 0, "FLOAT, THEN E", 70, JET)
-    S.float_gap(c, T, 40.0, -8.0, land=18, boost=True)
+    c.sign(2, 4, 0, "HOLD SHIFT TO GLIDE, THEN E", 56, JET)
+    S.glide_gap(c, T, 20.0, -8.0, land=18, boost=True)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "LAST RUN", 90)
     S.slope(c, T, 36, -14, slide=True)

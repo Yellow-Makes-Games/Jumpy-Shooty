@@ -151,7 +151,7 @@ func _check_character() -> void:
 		[S.DIVE, true, 0, true, "dive"], [S.ROLL, true, 0, true, "roll"],
 		[S.BELLY_SLIDE, true, 0, true, "belly_slide"],
 		[S.FLIP, false, 0, true, "flip_front"], [S.FLIP, false, flip_r, true, "flip_right"],
-		[S.FLOAT, false, 0, true, "float"],
+		[S.GLIDE, false, 0, true, "glide"],
 		[S.GROUND, false, 0, false, "death"],
 	]
 	for c in cases:
@@ -211,23 +211,25 @@ func _check_character() -> void:
 		_expect("%s: gun out in front, off the floor" % what, gun.z < -0.6 and gun.y > 0.1, str(gun))
 
 	_fresh()
-	var floating := _input(S.FLOAT, Vector3(0, 0, -12), 0.0)
-	_run(floating, 0.5)
+	var gliding := _input(S.GLIDE, Vector3(0, 0, -12), 0.0)
+	_run(gliding, 0.5)
 	var held := robot.bone_position("muzzle")
-	_expect("floating: gun still held out in front", held.z < -0.35 and held.y > 1.2, str(held))
+	_expect("gliding: gun still held out in front", held.z < -0.35 and held.y > 1.2, str(held))
 	var seat := robot.bone_position("hips")
 	var leg_l := robot.bone_position("foot_l") - seat
 	var leg_r := robot.bone_position("foot_r") - seat
-	_expect("floating: legs straight out to the sides",
-		Vector2(leg_l.x, leg_l.z).length() > 0.65 and Vector2(leg_r.x, leg_r.z).length() > 0.65 and leg_l.dot(leg_r) < 0.0,
+	_expect("gliding forward: both legs trail behind", leg_l.z > 0.3 and leg_r.z > 0.15 and absf(leg_l.x - leg_r.x) < 0.45,
 		"%s %s" % [leg_l, leg_r])
-	_run(floating, 2.5 / 60.0)   # three frames
-	var later := robot.bone_position("foot_l") - robot.bone_position("hips")
-	var turned := rad_to_deg(absf(Vector2(leg_l.x, leg_l.z).angle_to(Vector2(later.x, later.z))))
-	_near("floating: the legs whirl round at the spin speed (degrees in three frames)", turned,
-		360.0 * 0.05 / RobotAnimator.FLOAT_SPIN_TIME, 5.0)
-	_expect("floating: the gun stays on target while they turn", robot.bone_position("muzzle").distance_to(held) < 0.03,
+	# Going sideways (to the right) while still looking ahead: the legs trail to the left, the gun stays put.
+	_run(_input(S.GLIDE, Vector3(12, 0, 0), 0.0), 0.6)
+	var side_l := robot.bone_position("foot_l") - robot.bone_position("hips")
+	_expect("gliding sideways: the legs trail away from where you are going", side_l.x < -0.3 and absf(side_l.z) < 0.35, str(side_l))
+	_expect("gliding sideways: the gun stays on target", robot.bone_position("muzzle").distance_to(held) < 0.06,
 		"%.3f m" % robot.bone_position("muzzle").distance_to(held))
+	# Hanging in place: the legs hang nearly straight down.
+	_run(_input(S.GLIDE, Vector3.ZERO, 0.0), 0.6)
+	var hang := robot.bone_position("foot_l") - robot.bone_position("hips")
+	_expect("gliding at a standstill: the legs hang", Vector2(hang.x, hang.z).length() < 0.3 and hang.y < -0.7, str(hang))
 
 	_fresh()
 	var before := robot.marker("muzzle")

@@ -2,13 +2,13 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://xpwkupu37a70"
-path="res://.godot/imported/float.wav-fdd35472abaa37e329cb6f08817a0cf0.sample"
+uid="uid://cbgnhpwgkhfr3"
+path="res://.godot/imported/glide.wav-c099d2bfbdc2e1434f16667118c86579.sample"
 
 [deps]
 
-source_file="res://game/audio/sfx/float.wav"
-dest_files=["res://.godot/imported/float.wav-fdd35472abaa37e329cb6f08817a0cf0.sample"]
+source_file="res://game/audio/sfx/glide.wav"
+dest_files=["res://.godot/imported/glide.wav-c099d2bfbdc2e1434f16667118c86579.sample"]
 
 [params]
 

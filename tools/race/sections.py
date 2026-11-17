@@ -286,14 +286,19 @@ def finish(c, T, name="Finish"):
 
 
 # ---------------------------------------------------------------------------
-# Sections built for the newer moves: rocket boots (E), float (Shift in the
-# air), the grapple's pull, and the belly slide. Measured in the game with the
+# Sections built for the newer moves: rocket boots (E), the glide (hold Shift in
+# the air), the grapple's pull, and the belly slide. Measured in the game with the
 # race_lab strip (see build_race_maps.py): a flip and a dive clear 13 m on the
-# level and 19 m off a 4 m drop, but not 30 m off a ski jump at slide speed,
-# where a float clears 32; a sprinting jump with the boots fired just after
-# take-off (tipped up by holding Space) clears 20 m easily but not 40 m off a
-# 6 m drop, which a float with the boots fired in it does; the boots fired up
-# from a jump reach a ledge 7 m up (a jump and a ledge grab reach 3.5 m).
+# level and 19 m off a 4 m drop, and 26 m off a ski jump at slide speed (a jump
+# and a flip, 22 m); a sprinting jump with the boots fired just after take-off
+# (tipped up by holding Space) clears 20 m easily and 37 m off a 6 m drop; the
+# boots fired up from a jump reach a ledge 7 m up (a jump and a ledge grab reach
+# 3.5 m).
+# The glide holds you up but bleeds your speed, so it is for hanging in the air
+# and for slow gaps, not for long fast ones: from a sprinting jump it reaches 16 m
+# off a 3 m drop (the jump alone, 11 m), and 26 m off a 6 m drop with the boots
+# fired in it; at slide speed off a ski jump it reaches 20 m, less than a flip
+# does, which is why the ski jump is a flip and a dive.
 
 def boost_gap(c, T, d=17.0, land=18, dy=0.0, name="BoostGap"):
     """A gap no jump can clear (13 m is the most a flip and a dive manage): jump and fire the
@@ -322,12 +327,13 @@ def boost_wall(c, T, h=7.0, name="BoostWall"):
     c.advance(W + 10, h)
 
 
-def float_gap(c, T, d=16.0, dy=-3.0, land=14, boost=False, name="FloatGap"):
-    """A long drop across: jump, then float at the top of the jump (Shift) and glide over.
-    With `boost`, so long that the float needs the boots fired in it as well."""
+def glide_gap(c, T, d=13.0, dy=-3.0, land=14, boost=False, name="GlideGap"):
+    """A drop across, too far for a jump alone: jump, then hold Shift at the top of the jump
+    and glide over. With `boost`, longer (20 m off a 6 m drop is a fair size): fire the boots
+    in the glide as well."""
     g = c.group(name)
     T.takeoff(c, g, 0)
-    c.point(-0.45, 0, 0, "FLOAT_JUMP", radius=0.55, boost=boost)
+    c.point(-0.45, 0, 0, "GLIDE_JUMP", radius=0.55, boost=boost)
     floor(c, T, g, d, d + land, top=dy)
     c.point(d + land - 4, dy, 0, "RUN", radius=2.0)
     c.advance(d + land, dy)
@@ -378,9 +384,9 @@ def belly_chute(c, T, L=22.0, dy=-6.0, name="BellyChute"):
     c.advance(end + 14, dy)
 
 
-def ski_jump(c, T, L=18.0, dy=-6.0, d=24.0, ddy=-4.0, land=16, action="FLOAT_JUMP", boost=False, name="SkiJump"):
-    """Slide down a slope straight off a lip and float across the drop beyond: the slide's
-    speed carries the float much further than a flip and a dive go."""
+def ski_jump(c, T, L=18.0, dy=-6.0, d=21.0, ddy=-4.0, land=16, action="FLIP_DIVE", boost=False, name="SkiJump"):
+    """Slide down a slope straight off a lip, then flip and dive across the drop beyond: the
+    slide's speed carries them much further than they go from a run."""
     g = c.group(name)
     c.ramp(g, 0, 0, L, dy, T.ramp, thick=T.thick)
     T.under_ramp(c, g, L, dy)
