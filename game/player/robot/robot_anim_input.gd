@@ -30,11 +30,17 @@ const FLIP_RIGHT := 3
 ## bits 9-10 kick counter (every kick, flying or not)
 ## bit 11    in a flying kick
 ## bits 12-13 rocket-boot burst counter
+## bit 14    winding up a melee swing (holding the button)
 static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int, swings: int = 0,
-		kicks: int = 0, flying_kick: bool = false, boosts: int = 0) -> int:
+		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false) -> int:
 	return (1 if wall_right else 0) | (2 if vaulting else 0) | (4 if reloading else 0) \
 		| ((flip & 3) << 3) | ((wall_jumps & 3) << 5) | ((swings & 3) << 7) \
-		| ((kicks & 3) << 9) | ((1 if flying_kick else 0) << 11) | ((boosts & 3) << 12)
+		| ((kicks & 3) << 9) | ((1 if flying_kick else 0) << 11) | ((boosts & 3) << 12) \
+		| ((1 if winding else 0) << 14)
+
+
+static func winding_of(f: int) -> bool:
+	return (f >> 14) & 1 == 1
 
 
 static func kicks_of(f: int) -> int:

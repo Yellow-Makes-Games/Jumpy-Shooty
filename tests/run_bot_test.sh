@@ -13,7 +13,7 @@
 #  - a 5-player free-for-all against 4 bots: every bot shoots and hits, bots fight
 #    each other as well as you, the robots alternate starting with the one you did
 #    not pick, and the rematch keeps all 4 bots
-#  - a melee bot (sword) rushes in, lands blows and knocks you back
+#  - a melee bot (sword) rushes in winding its swing up, lands blows and knocks you back
 #  - there are no script errors
 # The 1v1 bots carry the rifle so their accuracy can be compared; the free-for-all
 # bots take any weapon at random, guns or melee.
@@ -163,14 +163,17 @@ if not any(t == "1" for _, t in hits):
     print("  FAIL: no bot ever hit you"); fail = True
 
 log = read("melee")
-blows = re.findall(r"^MELEE 9001 sword (\d+)", log, re.M)
-landed = sum(1 for b in blows if int(b) > 0)
+blows = re.findall(r"^MELEE 9001 sword (\d+) charge ([\d.]+)", log, re.M)
+landed = sum(1 for b, _ in blows if int(b) > 0)
+wound = sum(1 for _, c in blows if float(c) >= 0.5)
 knocks = len(re.findall(r"^KNOCK 1 ", log, re.M))
-print(f"Melee   swings {len(blows)}  landed {landed}  knocked you back {knocks}  errors {log.count('SCRIPT ERROR')}")
+print(f"Melee   swings {len(blows)}  wound up half or more {wound}  landed {landed}  knocked you back {knocks}  errors {log.count('SCRIPT ERROR')}")
 if log.count("SCRIPT ERROR"):
     print("  FAIL: script errors"); fail = True
 if landed == 0 or knocks == 0:
     print("  FAIL: the sword bot should land blows that knock you back"); fail = True
+if wound == 0:
+    print("  FAIL: the sword bot should wind its swings up"); fail = True
 
 print("BOT TEST", "FAILED" if fail else "PASSED")
 sys.exit(1 if fail else 0)

@@ -563,22 +563,23 @@ func _rewound_bodies(attacker: int, view_times: Dictionary) -> Array:
 # ---------------------------------------------------------------------------
 # Melee
 
-## Called by the local player when a swing lands (after its wind-up): from the eyes,
-## toward where it looks. Like a shot, it says when it was seeing each opponent.
-func request_melee(origin: Vector3, direction: Vector3, view_times: Dictionary, attacker: int = 0) -> void:
+## Called by the local player when a swing lands: from the eyes, toward where it
+## looks. Like a shot, it says when it was seeing each opponent. `charge`: how wound
+## up the swing was, 0 (a tap) to 1 (a full wind-up).
+func request_melee(origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float, attacker: int = 0) -> void:
 	if Net.is_host():
-		_host_melee(attacker if attacker != 0 else Net.my_id(), origin, direction, view_times)
+		_host_melee(attacker if attacker != 0 else Net.my_id(), origin, direction, view_times, charge)
 	else:
-		_melee_request.rpc_id(1, origin, direction, view_times)
+		_melee_request.rpc_id(1, origin, direction, view_times, charge)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _melee_request(origin: Vector3, direction: Vector3, view_times: Dictionary) -> void:
+func _melee_request(origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float) -> void:
 	if Net.is_host():
-		_host_melee(multiplayer.get_remote_sender_id(), origin, direction, view_times)
+		_host_melee(multiplayer.get_remote_sender_id(), origin, direction, view_times, charge)
 
 
-func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times: Dictionary) -> void:
+func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times: Dictionary, charge: float) -> void:
 	if not running or not is_alive(attacker) or not Net.arena or Race.active:
 		return
 	if Net.player_weapon(attacker) == "none":
@@ -587,12 +588,17 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 	if not weapon.is_melee() or direction.length_squared() < 0.0001:
 		return
 	var now := Net.now()
-	if (now - _last_shot_time.get(attacker, -10.0)) * Engine.time_scale < weapon.fire_interval * 0.7:
+	var since: float = (now - _last_shot_time.get(attacker, -10.0)) * Engine.time_scale
+	if since < weapon.fire_interval * 0.7:
 		return
 	_last_shot_time[attacker] = now
 	var who: Player = Net.arena.get_player(attacker)
 	if who == null or origin.distance_to(who.latest_position() + Vector3(0, CameraRig.EYE_HEIGHT, 0)) > 3.0:
 		return
+	# Nobody can have wound up for longer than it has been since their last swing.
+	charge = clampf(charge, 0.0, weapon.charge_of(since)) if is_finite(charge) else 0.0
+	var blow := weapon.melee_damage(charge)
+	var push: Array = weapon.melee_knockback(charge)
 	direction = direction.normalized()
 	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
 	var points := PackedVector3Array()
@@ -612,17 +618,17 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 			continue
 		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, near, 1)).is_empty():
 			continue   # a wall in the way
-		var dmg := weapon.damage
+		var dmg := blow
 		var flat := Vector3(to.x, 0.0, to.z)
 		flat = flat.normalized() if flat.length_squared() > 0.0001 else Vector3(direction.x, 0.0, direction.z).normalized()
 		# From behind: the blow goes the same way they face.
 		var facing := Vector3.FORWARD.rotated(Vector3.UP, b[3])
 		if weapon.backstab_multiplier > 1.0 and facing.dot(flat) > 0.5:
 			dmg *= weapon.backstab_multiplier
-		hits.append([b[0], dmg, flat * weapon.knockback + Vector3.UP * weapon.knockback_up])
+		hits.append([b[0], dmg, flat * push[0] + Vector3.UP * push[1]])
 		points.append(near.lerp(origin, Player.CAPSULE_RADIUS / maxf(to.length(), 0.01)))
 	if DevArgs.sync_log:
-		print("MELEE %d %s %d" % [attacker, weapon.id, hits.size()])
+		print("MELEE %d %s %d charge %.2f" % [attacker, weapon.id, hits.size(), charge])
 		# Also a SHOT line like a gun's, so the tests count blows as shots and hits.
 		print("SHOT %d %s" % [attacker, ("hit %d at melee" % hits[0][0]) if not hits.is_empty() else "miss"])
 	_melee_effect.rpc(attacker, weapon.id, points)
@@ -631,7 +637,7 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 	if breaks:
 		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * (weapon.max_range + 0.5), 1))
 		if wall:
-			breaks.damage(breaks.cell_at(wall.collider, wall.position, wall.normal), weapon.damage * weapon.structure_damage)
+			breaks.damage(breaks.cell_at(wall.collider, wall.position, wall.normal), blow * weapon.structure_damage)
 			_flush_breaks()
 	for h in hits:
 		if is_dummy(h[0]):

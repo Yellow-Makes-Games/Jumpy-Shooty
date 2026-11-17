@@ -31,9 +31,10 @@ const ENGAGE_RANGE := 45.0
 ## The distances each gun likes to fight at: [closer than this it backs off a little,
 ## further than this it closes in, it does not shoot beyond this]. The shotgun rushes
 ## in, the sniper rifle keeps its distance.
-## Melee weapons run straight in and swing once in reach.
+## Melee weapons run straight in, winding the swing up on the way (harder bots wind
+## up further), and let go once in reach and facing you.
 const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rifle": [8.0, 22.0, 999.0],
-	"sniper": [16.0, 36.0, 999.0], "sword": [0.0, 1.6, 3.1], "hammer": [0.0, 1.8, 3.3], "dagger": [0.0, 1.3, 2.6],
+	"sniper": [16.0, 36.0, 999.0], "sword": [0.0, 1.8, 3.3], "hammer": [0.0, 1.8, 3.3], "dagger": [0.0, 1.3, 2.6],
 	"revolver": [8.0, 20.0, 999.0], "machine_pistol": [3.0, 9.0, 30.0], "break_action": [2.0, 6.0, 16.0],
 	"smg": [3.5, 11.0, 40.0], "burst_rifle": [9.0, 24.0, 999.0], "lmg": [8.0, 22.0, 999.0],
 	"lever_action": [10.0, 26.0, 999.0], "bolt_action": [14.0, 32.0, 999.0], "railgun": [14.0, 34.0, 999.0],
@@ -48,6 +49,7 @@ const WHIZZ := 4.0         ## a shot ending this close is heard, however far awa
 const LOOK_TIME := 1.2     ## it looks toward a fresh sighting or sound for this long, then where it runs
 const GRAPPLE_HEADROOM := 6.0  ## it only swings with this much open air above its head
 const LEVEL_GAP := 2.5     ## you are this much higher or lower: it comes to your floor instead of fighting from where it is
+const WIND_FROM := 6.0     ## melee: it starts winding its swing up this far outside its reach
 const RETARGET := 0.25     ## seconds between choosing who to fight (straight away if the target dies)
 const SEEN_BIAS := 0.5     ## someone it can see counts as this much closer...
 const KEEP_BIAS := 0.7     ## ...its current target as this much closer...
@@ -88,6 +90,7 @@ var FAR := 18.0
 var _reach := 999.0
 var _lob := Vector3.INF          # rockets and grenades: the point it is really aiming at (led, low, lobbed)
 var _melee := false              # carrying a blade or hammer: rush in instead of keeping distance
+var _wind_goal := 0.6            # how far it means to wind this swing up, 0..1
 var _stuck_time := 0.0
 var _escape_dir := Vector3.ZERO
 var _escape_time := 0.0
@@ -813,6 +816,8 @@ func _fire(delta: float, perceived: Array) -> void:
 	if w == null:
 		_burst = 0.0
 		return   # Deathmatch, empty hands: it can only kick (see _kick)
+	if _melee and me.winding_up():
+		input.fire = true   # a wound-up swing is held (through losing sight of you) until there is someone to hit
 	if w.ammo == 0 and not w.is_reloading():
 		w.start_reload()
 	# Top up a half-empty gun when nobody is in sight.
@@ -825,7 +830,7 @@ func _fire(delta: float, perceived: Array) -> void:
 	var eye := me.eye_position()
 	var want: Vector3 = (perceived[1] as Vector3) - eye
 	var dist := want.length()
-	if dist > _reach:
+	if dist > _reach + (WIND_FROM if _melee else 0.0):
 		return   # a shotgun does not waste shells at long range
 	if w.data.is_projectile() and dist < w.data.splash_radius * 0.9:
 		return   # too close: it would blow itself up
@@ -833,11 +838,18 @@ func _fire(delta: float, perceived: Array) -> void:
 		want = _lob - eye   # it aims off you on purpose: judge the aim against that point
 	var off := me.aim_forward().angle_to(want)
 	if w.data.is_melee():
-		# In reach and roughly facing you: swing.
-		if off < deg_to_rad(w.data.arc_degrees * 0.7) and w.can_fire() and _fire_wait <= 0.0:
+		# Hold the swing (wind it up), and let go once in reach, roughly facing you and
+		# wound up as far as it meant to: not setting input.fire is letting go.
+		var facing := off < deg_to_rad(w.data.arc_degrees * 0.7)
+		if me.winding_up():
+			if dist <= _reach and facing and me.melee_charge() >= _wind_goal:
+				input.fire = false
+				_fire_wait = d.fire_gap * _rng.randf_range(0.3, 0.7)
+		elif w.can_fire() and _fire_wait <= 0.0:
 			input.fire_pressed = true
 			input.fire = true
-			_fire_wait = d.fire_gap * _rng.randf_range(0.3, 0.7)
+			# Easy bots mostly tap; Expert ones wind right up.
+			_wind_goal = clampf(_rng.randf_range(0.15, 0.6) + 0.15 * d.level, 0.0, 1.0)
 		return
 	var allowed: float = max(atan(0.35 / max(dist, 0.1)), deg_to_rad(1.0))
 	if w.data.id in ["sniper", "bolt_action", "railgun"]:
