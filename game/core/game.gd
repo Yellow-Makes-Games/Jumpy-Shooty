@@ -85,7 +85,9 @@ func _game_for(map: String, game: String) -> String:
 
 ## An offline match against computer players: a 1v1 with one bot, or a
 ## free-for-all with up to MAX_BOTS (you plus four bots is a full five).
-func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0, game: String = "") -> void:
+## gun_game: Gun Game rules instead of first to `kills_to_win` (see GunGame).
+## game: "dm" for a Deathmatch ("" keeps the last one, or follows the map).
+func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0, gun_game: bool = false, game: String = "") -> void:
 	mode = Mode.BOT
 	if bots <= 0:
 		bots = int(last_bot.get("bots", 1))
@@ -93,12 +95,13 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	var picked: String = map if map != "" else last_bot.map
 	if game == "":
 		game = str(last_bot.get("game", ""))
-	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game)}
+	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
+		"rules": "gungame" if gun_game else "kills"}
 	last_map[last_bot.game] = picked
 	Net.start_offline(local_name(), local_character(), local_weapon())
 	var playing := _map_choice(last_bot.map)
-	Net.match_settings = {"game": _game_for(playing, DevArgs.game if DevArgs.game != "" else last_bot.game), "mode": "kills", "kills": kills_to_win, "minutes": 8,
-		"race_minutes": 10, "map": playing}
+	Net.match_settings = {"game": _game_for(playing, DevArgs.game if DevArgs.game != "" else last_bot.game),
+		"mode": "gungame" if gun_game else "kills", "kills": kills_to_win, "minutes": 8, "race_minutes": 10, "map": playing}
 	for i in bots:
 		Net.add_bot(difficulty, DevArgs.bot_weapon)
 	Net.host_start_match()
@@ -106,7 +109,7 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 
 ## Same bots and rules again (from the results screen).
 func rematch_bot() -> void:
-	start_bot(last_bot.difficulty, last_bot.kills, "", last_bot.bots, last_bot.game)
+	start_bot(last_bot.difficulty, last_bot.kills, "", last_bot.bots, str(last_bot.get("rules", "")) == "gungame", str(last_bot.get("game", "")))
 
 
 ## The map to play: the one picked in the menu, unless --map=ID overrides it.
@@ -136,10 +139,10 @@ func host_online() -> Error:
 		var s := Net.match_settings.duplicate()
 		var kind := DevArgs.rules.get_slice(":", 0)
 		var amount := float(DevArgs.rules.get_slice(":", 1))
-		s.mode = "time" if kind == "time" else "kills"
+		s.mode = kind if kind in ["time", "gungame"] else "kills"
 		if kind == "time":
 			s.minutes = amount
-		else:
+		elif kind != "gungame":
 			s.kills = int(amount)
 		Net.set_match_settings(s)
 	return err
@@ -196,7 +199,7 @@ func _on_players_changed() -> void:
 
 func _run_dev_args() -> void:
 	if DevArgs.bot >= 0:
-		start_bot(DevArgs.bot, DevArgs.kill_target if DevArgs.kill_target > 0 else 10, "", DevArgs.bots)
+		start_bot(DevArgs.bot, DevArgs.kill_target if DevArgs.kill_target > 0 else 10, "", DevArgs.bots, DevArgs.rules == "gungame")
 	elif DevArgs.practice:
 		start_practice()
 	elif DevArgs.host:

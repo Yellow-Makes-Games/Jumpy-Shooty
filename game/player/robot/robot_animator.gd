@@ -11,6 +11,11 @@ extends RefCounted
 ##  5. Legs turn at the waist to face the way the robot is moving (it can strafe
 ##     and back-pedal while the upper body keeps aiming).
 ##  6. Recoil, and the left arm reaching for the grapple anchor.
+## Gliding has no clip either: the legs are set trailing behind the way you are
+## going (see _glide_legs, and the waist turn in update), while everything above
+## the waist keeps aiming wherever you look.
+## A melee weapon has no clips: MeleeSwing says where the weapon is (ready, wound up,
+## mid-blow) and bends the arms to hold it, in both hands where the weapon allows.
 ## The clips come from the model file; see tools/robot/animations.py. A long gun has its
 ## own version of the clips where the hands hold the gun ("aim_rifle", "reload_shotgun";
 ## tools/robot/weapon_anims.py), used instead of the plain (pistol) ones. Long guns also
@@ -25,7 +30,7 @@ const WALL_SPEED := 10.5
 const FADE_DEFAULT := 0.12
 const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
-	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06}
+	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06, "glide": 0.14}
 const FLIPS := ["flip_front", "flip_back", "flip_left", "flip_right"]
 const VIEW_BACK := -0.02        ## first person: the front of the chest sits this far behind the eyes (just ahead of them)...
 const VIEW_BACK_DOWN := 0.32    ## ...and this much further back when looking straight down,
@@ -36,12 +41,19 @@ const VIEW_KEEP_LEAN := ["crouch", "slide", "dive", "roll", "belly_slide", "deat
 const VIEW_UPRIGHT_MAX := 0.6   ## radians of forward lean taken out, at most
 const VIEW_SIDE := 0.10         ## the body may shift this far sideways to stay under the eyes
 const VIEW_NECK_BELOW := 0.12   ## and its neck is kept at least this far below them
-const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right"]
+const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right", "glide"]
+## Gliding: the legs trail behind you, further back the faster you go, and the
+## hips tip forward a little into the wind.
+const GLIDE_TRAIL := 42.0       ## degrees the legs trail back at GLIDE_TRAIL_SPEED and above
+const GLIDE_HANG := 8.0         ## ...and when you are hardly moving (hanging in the air)
+const GLIDE_TRAIL_SPEED := 14.0 ## m/s
+const GLIDE_LEAN := 14.0        ## degrees the hips tip forward at that speed
 ## [right arm, left arm, torso]: how much each follows the aim in each source.
 const AIM_WEIGHTS := {
 	"loco": [1.0, 1.0, 1.0], "crouch": [1.0, 1.0, 1.0], "slide": [1.0, 0.0, 1.0],
 	"air": [1.0, 1.0, 1.0], "tuck": [1.0, 1.0, 1.0], "grapple": [1.0, 0.0, 0.6],
 	"wall_l": [1.0, 0.0, 0.7], "wall_r": [1.0, 0.0, 0.7], "belly_slide": [1.0, 1.0, 0.35],
+	"glide": [1.0, 1.0, 1.0],
 }
 
 var model: RobotModel
@@ -77,6 +89,8 @@ var _aim_r := 1.0
 var _aim_l := 1.0
 var _torso := 1.0
 var _recoil := 0.0
+var _recoil_l := 0.0      # akimbo: the left gun's own kick (_recoil is the right's)
+var _akimbo := false      # a pistol in each hand: each arm kicks on its own shots
 var _since_fire := 99.0
 var _reload_t := -1.0
 var _reload_w := 0.0
@@ -100,8 +114,10 @@ var _carry_pose: RobotPose
 var _fire_t := -1.0       # time into the gun's fire clip (pump, bolt), or -1
 var _kick := 1.0
 var _loop_reload := false
-var _melee := false       # a sword, hammer or dagger: one hand on it, swings instead of shots
+var _melee := false       # a melee weapon: held and swung by MeleeSwing, not by clips
 var _swing := MeleeSwing.new()
+var _hold := 1.0          # how much the arms hold the weapon up (0 in a flip, a roll, a climb)
+var _swing_key: Array = []   # the swing's pose this frame
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
@@ -123,7 +139,7 @@ func _init(robot: RobotModel) -> void:
 	_aim = rig.new_pose()
 	_b = rig.bones
 	_arm_r = _bones(["upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag"])
-	_arm_l = _bones(["upper_arm_l", "forearm_l", "hand_l"])
+	_arm_l = _bones(["upper_arm_l", "forearm_l", "hand_l", "pistol_l", "pistol_l_slide", "pistol_l_mag"])
 	_legs_core = _bones(["hips", "spine", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r"])
 	for i in rig.bone_names.size():
 		if not (i in _arm_r or i in _arm_l):
@@ -139,6 +155,9 @@ func set_weapon(id: String) -> void:
 	_kick = data.kick
 	_loop_reload = data.reload_per_round
 	_melee = data.is_melee()
+	_akimbo = data.is_akimbo()
+	if _melee:
+		_swing.set_weapon(weapon)
 	if rig.has_clip(clip("aim")):
 		rig.sample(_aim, clip("aim"), 0.0)
 	_stance = _aim.rot[_b["chest"]].normalized()
@@ -160,18 +179,27 @@ func _bones(names: Array) -> PackedInt32Array:
 	return out
 
 
-## A shot was fired: kick the gun.
-func fire() -> void:
-	_recoil = _kick
+## A shot was fired: kick the gun (akimbo: the one in the left hand when `left`).
+func fire(left: bool = false) -> void:
+	if _akimbo and left:
+		_recoil_l = _kick
+	else:
+		_recoil = _kick
 	_since_fire = 0.0
 	if rig.has_clip("fire_" + weapon):
 		_fire_t = 0.0
 
 
-## A melee swing started (count: the swing number, so swings alternate sides).
-func swing(count: int) -> void:
+## Winding a melee swing up, this frame: `charge` 0..1 is how far (the body coils with it).
+func wind(charge: float) -> void:
 	if _melee:
-		_swing.start(weapon, count)
+		_swing.wind(charge)
+
+
+## The swing was let go, `power` 0..1 wound up.
+func swing(power: float) -> void:
+	if _melee:
+		_swing.swing(power)
 		_since_fire = 0.0
 
 
@@ -249,6 +277,7 @@ func cutting() -> bool:
 ## Back to life: play the boot-up over whatever the body is doing.
 func respawn() -> void:
 	_respawn_t = 0.0
+	_swing.stop()
 	_dead_time = -1.0
 	_reload_t = -1.0
 	_land = 0.0
@@ -372,11 +401,15 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_pose.blend_bones(_tmp, fw * minf(_aim_l, _aim_r), _arm_l)
 			_fire_t += delta
 
-	# A melee swing over the top
-	if _swing.active():
-		MeleeSwing.apply(_pose, _b, _swing.sample(delta) if inp.alive else MeleeSwing.REST)
+	# A melee weapon: the body turns and leans with the wind-up and the blow (the arms
+	# are bent to hold the weapon once the chest is where it will be, below).
+	if _melee:
 		if not inp.alive:
 			_swing.stop()
+		_swing_key = _swing.sample(delta)
+		var busy := _swing.active() and inp.alive
+		_hold = move_toward(_hold, 1.0 if busy or (want[0] > 0.0 and inp.alive and _respawn_t < 0.0) else 0.0, delta * 9.0)
+		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
 	_apply_kick(delta, inp.alive)
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward
@@ -399,16 +432,24 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var chest_fwd := chest_rot * Vector3.FORWARD
 	var chest_pitch := asin(clampf(chest_fwd.y, -1.0, 1.0))
 	_recoil = _recoil * exp(-delta * 16.0)
-	var lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7) + minf(_recoil, 1.5) * 0.2
+	_recoil_l = _recoil_l * exp(-delta * 16.0)
+	var aim_lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7)
+	var lift := aim_lift + minf(_recoil, 1.5) * 0.2
+	var lift_l := aim_lift + minf(_recoil_l if _akimbo else _recoil, 1.5) * 0.2
 	var up_r: int = _b["upper_arm_r"]
 	var up_l: int = _b["upper_arm_l"]
 	var w_r := maxf(_aim_r, _reload_w)
 	var w_l := maxf(_aim_l, _reload_w)
 	var across := twist.inverse() * Vector3.RIGHT   # the body's left-right axis, seen from the turned chest
 	_pose.rot[up_r] = Quaternion(across, lift * w_r) * _pose.rot[up_r]
-	_pose.rot[up_l] = Quaternion(across, lift * w_l) * _pose.rot[up_l]
-	if _b.has("pistol_slide") and weapon == "pistol":
+	_pose.rot[up_l] = Quaternion(across, lift_l * w_l) * _pose.rot[up_l]
+	if _b.has("pistol_slide") and (weapon == "pistol" or _akimbo):
 		_pose.pos[_b["pistol_slide"]] += Vector3(0.0, 0.035 * _recoil, 0.0)
+	if _akimbo and _b.has("pistol_l_slide"):
+		_pose.pos[_b["pistol_l_slide"]] += Vector3(0.0, 0.035 * _recoil_l, 0.0)
+	if _melee and _hold > 0.0:
+		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
+		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed, clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8, _hold, _hold)
 
 	# --- 6 (before the waist turn, which must not move the chest). Grapple arm
 	_grapple_w = move_toward(_grapple_w, 1.0 if (inp.grapple_on and inp.alive) else 0.0, delta * 10.0)
@@ -434,7 +475,11 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		if _reverse:
 			angle -= signf(angle) * PI
 		twist_target = -angle
-	elif key not in ["loco", "crouch"]:
+	elif key == "glide":
+		_reverse = false
+		if speed > 1.0:
+			twist_target = -atan2(local_vel.x, -local_vel.z)   # the legs trail behind wherever you are going, however far round that is
+	else:
 		_reverse = false
 	_twist = lerp_angle(_twist, twist_target, 1.0 - exp(-delta * 12.0))
 	if absf(_twist) > 0.002:
@@ -491,6 +536,7 @@ func _pick(inp: RobotAnimInput) -> String:
 		S.ROLL: return "roll"
 		S.BELLY_SLIDE: return "belly_slide"
 		S.FLIP: return FLIPS[inp.flip()]
+		S.GLIDE: return "glide"
 	return "air"
 
 
@@ -554,6 +600,9 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 			rig.sample(_pose, "air", _air_t * rig.length("air"))
 		"tuck":
 			_loop("air_tuck")
+		"glide":
+			rig.sample(_pose, "air", 0.5 * rig.length("air"))
+			_glide_legs(Vector2(inp.velocity.x, inp.velocity.z).length())
 		"belly_slide":
 			# Sliding: a still pose. Slowed to a crawl: the knees work, at crawling pace.
 			_loop("belly_slide")
@@ -579,6 +628,25 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 				rig.sample(_pose, clip, minf(_time, rig.length(clip)))
 			else:
 				rig.sample(_pose, "air", 0.5 * rig.length("air"))
+
+
+## Gliding: both legs together, trailing back (the waist turn in update points
+## "back" away from where you are going), the back one a little straighter than
+## the front, toes pointed, drifting gently. The hips tip forward with speed.
+func _glide_legs(speed: float) -> void:
+	var fast := clampf(speed / GLIDE_TRAIL_SPEED, 0.0, 1.0)
+	var trail := deg_to_rad(lerpf(GLIDE_HANG, GLIDE_TRAIL, fast))
+	var lean := deg_to_rad(GLIDE_LEAN) * fast
+	var drift := sin(_time * TAU / 1.6) * deg_to_rad(3.0)
+	_pose.rot[_b["hips"]] = Quaternion(Vector3.RIGHT, -lean)
+	# (thigh angles are from the tipped hips: the lean is already in them)
+	_pose.rot[_b["thigh_l"]] = Quaternion(Vector3.RIGHT, -(trail - lean) - drift) * Quaternion(Vector3.BACK, -0.05)
+	_pose.rot[_b["thigh_r"]] = Quaternion(Vector3.RIGHT, -(trail - lean) * 0.55 + drift) * Quaternion(Vector3.BACK, 0.05)
+	_pose.rot[_b["shin_l"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(14.0))
+	_pose.rot[_b["shin_r"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(lerpf(22.0, 48.0, fast)))
+	_pose.rot[_b["foot_l"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(35.0))
+	_pose.rot[_b["foot_r"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(35.0))
+	_pose.pos[_b["hips"]] += Vector3(0.0, 0.015 * sin(_time * TAU / 1.6), 0.0)
 
 
 func _loop(clip: String) -> void:

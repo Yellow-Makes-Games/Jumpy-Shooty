@@ -1,0 +1,92 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_pal"]
+
+[resource]
+script = ExtResource("1_pal")
+colors = Dictionary[String, Color]({
+"ac_unit": Color(0.7, 0.72, 0.74, 1),
+"backdrop": Color(0.36, 0.34, 0.44, 1),
+"backdrop_dark": Color(0.26, 0.25, 0.34, 1),
+"beacon": Color(1, 0.2, 0.15, 1),
+"cab_black": Color(0.1, 0.1, 0.13, 1),
+"cab_blue": Color(0.16, 0.3, 0.72, 1),
+"cab_red": Color(0.7, 0.16, 0.22, 1),
+"cab_yellow": Color(0.9, 0.7, 0.14, 1),
+"carpet": Color(0.2, 0.14, 0.32, 1),
+"carpet_spots": Color(0.36, 0.2, 0.5, 1),
+"claw_glass": Color(0.6, 0.85, 0.95, 1),
+"counter": Color(0.85, 0.35, 0.55, 1),
+"dance_pad": Color(0.9, 0.3, 0.9, 1),
+"door": Color(0.4, 0.6, 0.7, 1),
+"glass": Color(0.55, 0.75, 0.86, 1),
+"glass_rail": Color(0.5, 0.76, 0.86, 1),
+"hockey": Color(0.9, 0.92, 0.96, 1),
+"kerb": Color(0.72, 0.72, 0.7, 1),
+"lamp": Color(1, 0.95, 0.85, 1),
+"marquee": Color(1, 0.9, 0.55, 1),
+"mezz_floor": Color(0.3, 0.2, 0.42, 1),
+"neon_cyan": Color(0.2, 0.95, 1, 1),
+"neon_green": Color(0.35, 1, 0.45, 1),
+"neon_pink": Color(1, 0.25, 0.7, 1),
+"neon_yellow": Color(1, 0.86, 0.2, 1),
+"parapet": Color(0.55, 0.52, 0.58, 1),
+"partition": Color(0.44, 0.3, 0.58, 1),
+"prize": Color(0.95, 0.6, 0.2, 1),
+"prize_blue": Color(0.35, 0.6, 0.95, 1),
+"roof": Color(0.4, 0.4, 0.43, 1),
+"screen": Color(0.3, 0.85, 1, 1),
+"screen_pink": Color(1, 0.35, 0.75, 1),
+"shelf": Color(0.36, 0.3, 0.44, 1),
+"shutter": Color(0.46, 0.48, 0.52, 1),
+"sidewalk": Color(0.6, 0.6, 0.6, 1),
+"sofa": Color(0.2, 0.7, 0.75, 1),
+"stage": Color(0.12, 0.12, 0.16, 1),
+"steel": Color(0.42, 0.44, 0.5, 1),
+"street": Color(0.3, 0.3, 0.32, 1),
+"table": Color(0.85, 0.85, 0.9, 1),
+"tile": Color(0.22, 0.22, 0.26, 1),
+"truss": Color(0.3, 0.31, 0.36, 1),
+"tyre": Color(0.08, 0.08, 0.09, 1),
+"wall": Color(0.16, 0.15, 0.22, 1),
+"wall_outer": Color(0.5, 0.48, 0.55, 1),
+"wall_panel": Color(0.26, 0.22, 0.36, 1),
+"window_lit": Color(1, 0.85, 0.55, 1)
+})
+glow = Dictionary[String, float]({
+"beacon": 2.5,
+"dance_pad": 1.2,
+"lamp": 1.5,
+"marquee": 1.4,
+"neon_cyan": 3.0,
+"neon_green": 3.0,
+"neon_pink": 3.0,
+"neon_yellow": 3.0,
+"screen": 1.6,
+"screen_pink": 1.6,
+"window_lit": 0.8
+})
+surface = Dictionary[String, String]({
+"ac_unit": "slats",
+"backdrop": "windows_lit",
+"backdrop_dark": "windows_lit",
+"carpet": "confetti",
+"mezz_floor": "checker",
+"partition": "panels_plain",
+"roof": "tarmac",
+"shelf": "planks",
+"shutter": "slats",
+"sidewalk": "pavers",
+"stage": "planks",
+"street": "tarmac",
+"wall": "panels",
+"wall_outer": "bricks"
+})
+roughness = 0.7
+breakable = Dictionary[String, float]({
+"glass": 25.0,
+"glass_rail": 40.0,
+"mezz_floor": 200.0,
+"partition": 100.0,
+"roof": 300.0
+})

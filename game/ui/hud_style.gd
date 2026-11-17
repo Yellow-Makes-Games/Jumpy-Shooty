@@ -3,11 +3,13 @@ extends RefCounted
 ## Colours, font and small drawing helpers shared by every part of the in-game HUD.
 ## Everything is drawn in code (no textures), with a dark edge under each shape
 ## and each line of text so it reads on bright and dark backgrounds alike.
+## The look: plates with two corners cut off, thin lines, gauges with a soft glow.
 
 const WHITE := Color(1, 1, 1, 0.95)
 const DIM := Color(1, 1, 1, 0.25)
 const EDGE := Color(0, 0, 0, 0.45)
-const PANEL := Color(0.04, 0.05, 0.07, 0.55)
+const PANEL := Color(0.03, 0.045, 0.07, 0.62)
+const LINE := Color(0.55, 0.85, 1.0, 0.35)   ## thin lines round plates
 const CYAN := Color(0.4, 0.9, 1.0)
 const ORANGE := Color(1.0, 0.54, 0.24)
 const RED := Color(1.0, 0.29, 0.24)
@@ -44,6 +46,17 @@ static func text(ci: CanvasItem, pos: Vector2, s: String, size: int, color: Colo
 	return w
 
 
+## The bold face with extra space between letters, for small capitals.
+static func font_spaced(extra: int = 2) -> Font:
+	var key := "Spaced%d" % extra
+	if not _fonts.has(key):
+		var v := FontVariation.new()
+		v.base_font = font(true)
+		v.spacing_glyph = extra
+		_fonts[key] = v
+	return _fonts[key]
+
+
 static func text_width(s: String, size: int, bold: bool = true) -> float:
 	return font(bold).get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 
@@ -67,12 +80,77 @@ static func edged_rect(ci: CanvasItem, r: Rect2, color: Color) -> void:
 	ci.draw_rect(r, color)
 
 
-## A rounded dark plate behind text.
+## A dark plate behind text, with two corners cut off (top left and bottom right).
+## `radius` is the size of the cut.
 static func plate(ci: CanvasItem, r: Rect2, radius: float = 4.0, color: Color = PANEL) -> void:
-	var box := StyleBoxFlat.new()
-	box.bg_color = color
-	box.set_corner_radius_all(int(radius))
-	ci.draw_style_box(box, r)
+	ci.draw_colored_polygon(cut_points(r, minf(radius, 9.0)), color)
+
+
+## The outline of a rectangle with its top-left and bottom-right corners cut off.
+static func cut_points(r: Rect2, cut: float) -> PackedVector2Array:
+	cut = minf(cut, minf(r.size.x, r.size.y) * 0.5)
+	return PackedVector2Array([
+		r.position + Vector2(cut, 0), Vector2(r.end.x, r.position.y), Vector2(r.end.x, r.end.y - cut),
+		r.end - Vector2(cut, 0), Vector2(r.position.x, r.end.y), r.position + Vector2(0, cut)])
+
+
+## A cut-corner plate with a thin line round it.
+static func framed_plate(ci: CanvasItem, r: Rect2, cut: float, fill: Color, line: Color, width: float = 1.0) -> void:
+	var pts := cut_points(r, cut)
+	ci.draw_colored_polygon(pts, fill)
+	pts.append(pts[0])
+	ci.draw_polyline(pts, line, width, true)
+
+
+## A plate leaning over: `slant` pixels further right at the top than at the bottom
+## (negative leans the other way).
+static func slant_plate(ci: CanvasItem, r: Rect2, slant: float, color: Color) -> void:
+	ci.draw_colored_polygon(PackedVector2Array([
+		r.position + Vector2(slant, 0), Vector2(r.end.x + slant, r.position.y),
+		r.end, Vector2(r.position.x, r.end.y)]), color)
+
+
+## Four corner brackets round a rectangle (a targeting frame).
+static func brackets(ci: CanvasItem, r: Rect2, arm: float, color: Color, width: float = 2.0) -> void:
+	for corner in [[r.position, Vector2(1, 1)], [Vector2(r.end.x, r.position.y), Vector2(-1, 1)],
+			[r.end, Vector2(-1, -1)], [Vector2(r.position.x, r.end.y), Vector2(1, -1)]]:
+		var p: Vector2 = corner[0]
+		var d: Vector2 = corner[1]
+		ci.draw_polyline(PackedVector2Array([p + Vector2(arm * d.x, 0), p, p + Vector2(0, arm * d.y)]), color, width, true)
+
+
+## An arc with a soft halo of its own colour under it, and a dark edge under that.
+static func glow_arc(ci: CanvasItem, c: Vector2, r: float, from_deg: float, to_deg: float, color: Color, width: float,
+		glow: Color = Color(0, 0, 0, 0)) -> void:
+	if absf(to_deg - from_deg) < 0.05:
+		return
+	if glow.a <= 0.0:
+		glow = color
+	arc(ci, c, r, from_deg, to_deg, Color(glow, 0.16 * color.a), width + 8.0)
+	arc(ci, c, r, from_deg, to_deg, Color(0, 0, 0, EDGE.a * minf(color.a / 0.95, 1.0)), width + 3.0)
+	arc(ci, c, r, from_deg, to_deg, color, width)
+
+
+## A short line across an arc at `deg` (the ends of a gauge).
+static func tick(ci: CanvasItem, c: Vector2, r0: float, r1: float, deg: float, color: Color, width: float = 1.5) -> void:
+	var d := Vector2.from_angle(deg_to_rad(deg))
+	ci.draw_line(c + d * r0, c + d * r1, color, width, true)
+
+
+## Small capitals with wide letter spacing (labels on gauges and panels).
+static func label(ci: CanvasItem, pos: Vector2, s: String, size: int = 10, color: Color = Color(1, 1, 1, 0.7),
+		align: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT) -> float:
+	var f := font_spaced()
+	var w := f.get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
+	var x := pos.x
+	if align == HORIZONTAL_ALIGNMENT_CENTER:
+		x -= w * 0.5
+	elif align == HORIZONTAL_ALIGNMENT_RIGHT:
+		x -= w
+	var baseline := pos.y + (f.get_ascent(size) - f.get_descent(size)) * 0.5
+	ci.draw_string_outline(f, Vector2(x, baseline), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, 3, Color(0, 0, 0, 0.55 * color.a))
+	ci.draw_string(f, Vector2(x, baseline), s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color)
+	return w
 
 
 ## A small pistol silhouette (kill feed).
@@ -111,6 +189,62 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			shapes = [[Vector2(0, 3), Vector2(6, 3), Vector2(6, 5), Vector2(0, 5)],
 				[Vector2(6, 0), Vector2(8, 0), Vector2(8, 8), Vector2(6, 8)],
 				[Vector2(8, 2.5), Vector2(20, 2.5), Vector2(24, 4), Vector2(20, 5.5), Vector2(8, 5.5)]]
+		"revolver":
+			shapes = [[Vector2(0, 1), Vector2(26, 1), Vector2(26, 3.5), Vector2(11, 3.5), Vector2(10, 5),
+				Vector2(5, 10), Vector2(1, 10), Vector2(3, 4), Vector2(0, 4)], [Vector2(6, 0), Vector2(12, 0), Vector2(12, 5), Vector2(6, 5)]]
+		"machine_pistol":
+			shapes = [[Vector2(0, 0), Vector2(21, 0), Vector2(21, 4), Vector2(9, 4), Vector2(8, 15), Vector2(5, 15),
+				Vector2(5, 4), Vector2(0, 4)], [Vector2(15, 4), Vector2(17, 4), Vector2(17, 8), Vector2(15, 8)]]
+		"akimbo":   # two pistols, one behind and above the other
+			for off in [Vector2(6, -5), Vector2(0, 0)]:
+				shapes.append([Vector2(0, 0) + off, Vector2(18, 0) + off, Vector2(18, 4) + off, Vector2(9.5, 4) + off,
+					Vector2(8.5, 9) + off, Vector2(5, 9) + off, Vector2(5.5, 4) + off, Vector2(0, 4) + off])
+		"break_action":
+			shapes = [[Vector2(0, 2), Vector2(10, 1), Vector2(40, 0), Vector2(40, 3.5), Vector2(14, 4), Vector2(12, 9),
+				Vector2(9, 9), Vector2(10, 4.5), Vector2(0, 7)], [Vector2(15, 3.5), Vector2(28, 3.5), Vector2(28, 6), Vector2(15, 6)]]
+		"smg":
+			shapes = [[Vector2(0, 2), Vector2(6, 1), Vector2(28, 1), Vector2(28, 3.5), Vector2(22, 4), Vector2(22, 8),
+				Vector2(20, 8), Vector2(20, 4.5), Vector2(15, 4.5), Vector2(15, 12), Vector2(12, 12), Vector2(12, 4.5),
+				Vector2(9, 4.5), Vector2(8, 8), Vector2(6, 8), Vector2(6, 4.5), Vector2(0, 5)]]
+		"burst_rifle":
+			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(36, 0), Vector2(38, 2), Vector2(36, 4.5), Vector2(19, 5),
+				Vector2(18, 10), Vector2(15, 10), Vector2(15, 5), Vector2(11, 5), Vector2(10, 9), Vector2(7, 9),
+				Vector2(8, 5), Vector2(0, 6)], [Vector2(12, -3), Vector2(22, -3), Vector2(22, 0), Vector2(12, 0)]]
+		"lmg":
+			shapes = [[Vector2(0, 1), Vector2(8, 0), Vector2(46, 0.5), Vector2(46, 3), Vector2(28, 3.5), Vector2(28, 5),
+				Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 6)],
+				[Vector2(13, 5), Vector2(23, 5), Vector2(23, 12), Vector2(13, 12)], [Vector2(14, -3), Vector2(24, -3), Vector2(24, -1), Vector2(14, -1)]]
+		"lever_action":
+			shapes = [[Vector2(0, 2), Vector2(9, 1), Vector2(42, 0.5), Vector2(42, 2.5), Vector2(14, 3.5), Vector2(12, 5),
+				Vector2(0, 6.5)], [Vector2(9, 4.5), Vector2(15, 4.5), Vector2(15, 9), Vector2(9, 9)], [Vector2(16, 3), Vector2(30, 3), Vector2(30, 5), Vector2(16, 5)]]
+		"bolt_action":
+			shapes = [[Vector2(0, 2), Vector2(9, 1), Vector2(26, 1), Vector2(44, 1.2), Vector2(44, 3), Vector2(36, 3.5),
+				Vector2(36, 5), Vector2(12, 5), Vector2(11, 9), Vector2(8, 9), Vector2(9, 5), Vector2(0, 6.5)],
+				[Vector2(14, -1.5), Vector2(16, -1.5), Vector2(16, 1), Vector2(14, 1)]]
+		"railgun":
+			shapes = [[Vector2(0, 1), Vector2(10, -1), Vector2(44, -1), Vector2(44, 1), Vector2(18, 1), Vector2(18, 3),
+				Vector2(44, 3), Vector2(44, 5), Vector2(15, 5), Vector2(14, 10), Vector2(11, 10), Vector2(11, 5), Vector2(0, 6)]]
+		"rocket_launcher":
+			shapes = [[Vector2(0, -1), Vector2(44, -1), Vector2(46, 0), Vector2(46, 5), Vector2(44, 6), Vector2(0, 6), Vector2(-2, 7), Vector2(-2, -2)],
+				[Vector2(14, 6), Vector2(17, 6), Vector2(17, 11), Vector2(14, 11)], [Vector2(26, 6), Vector2(29, 6), Vector2(29, 10), Vector2(26, 10)]]
+		"grenade_launcher":
+			shapes = [[Vector2(0, 2), Vector2(8, 1), Vector2(14, 1), Vector2(14, 5), Vector2(11, 5), Vector2(10, 10),
+				Vector2(7, 10), Vector2(8, 5), Vector2(0, 6)], [Vector2(13, -2), Vector2(23, -2), Vector2(23, 8), Vector2(13, 8)],
+				[Vector2(23, 0), Vector2(36, 0), Vector2(36, 5), Vector2(23, 5)]]
+		"brass_knuckles":
+			shapes = [[Vector2(0, 0), Vector2(18, 0), Vector2(18, 4), Vector2(0, 4)], [Vector2(1, 4), Vector2(17, 4), Vector2(14, 9), Vector2(4, 9)],
+				[Vector2(1, -3), Vector2(4, -3), Vector2(4, 0), Vector2(1, 0)], [Vector2(5.5, -3), Vector2(8.5, -3), Vector2(8.5, 0), Vector2(5.5, 0)],
+				[Vector2(10, -3), Vector2(13, -3), Vector2(13, 0), Vector2(10, 0)], [Vector2(14.5, -3), Vector2(17.5, -3), Vector2(17.5, 0), Vector2(14.5, 0)]]
+		"spear":
+			shapes = [[Vector2(0, 3.2), Vector2(40, 3.2), Vector2(40, 4.8), Vector2(0, 4.8)],
+				[Vector2(40, 1.5), Vector2(46, 1.5), Vector2(52, 4), Vector2(46, 6.5), Vector2(40, 6.5)]]
+		"axe":
+			shapes = [[Vector2(0, 3), Vector2(30, 3), Vector2(30, 5), Vector2(0, 5)],
+				[Vector2(24, 1), Vector2(30, 1), Vector2(33, -4), Vector2(33, 12), Vector2(30, 7), Vector2(24, 7)]]
+		"bat":
+			shapes = [[Vector2(0, 3), Vector2(10, 3), Vector2(34, 1.5), Vector2(38, 2.5), Vector2(38, 5.5), Vector2(34, 6.5),
+				Vector2(10, 5), Vector2(0, 5)], [Vector2(-1.5, 2), Vector2(0.5, 2), Vector2(0.5, 6), Vector2(-1.5, 6)]]
+
 		"none":   # a boot (Deathmatch: killed with a kick, or a crash, before finding a weapon)
 			shapes = [[Vector2(2, -2), Vector2(9, -2), Vector2(9, 5), Vector2(19, 6), Vector2(21, 10), Vector2(2, 10)]]
 		_:
@@ -124,6 +258,14 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 			width = maxf(width, p.x * s)
 		ci.draw_colored_polygon(pts, color)
 	return width
+
+
+## How wide a weapon's icon is at size 1 (to centre it).
+static func weapon_width(id: String) -> float:
+	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0, "sword": 40.0, "hammer": 32.0, "dagger": 24.0,
+		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "break_action": 40.0, "smg": 28.0, "burst_rifle": 38.0, "lmg": 46.0,
+		"lever_action": 42.0, "bolt_action": 44.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,
+		"brass_knuckles": 18.0, "spear": 52.0, "axe": 33.0, "bat": 38.0}.get(id, 22.0)
 
 
 static func health_color(hp: float) -> Color:

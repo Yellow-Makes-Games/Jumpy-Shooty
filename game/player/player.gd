@@ -14,6 +14,7 @@ const CROUCH_HEIGHT := 1.1
 const PRONE_HEIGHT := 0.8    ## lying on your front (belly slide)
 const TUCK_LIFT := CAPSULE_HEIGHT - CROUCH_HEIGHT
 
+var _dev_group := -1   # --swap-on-death: the weapon group to pick (see dev_swap_after_death)
 var peer_id := 1
 var is_local := false   ## simulated on this machine (you, or a bot when hosting)
 var is_bot := false
@@ -63,6 +64,9 @@ var _flying := false              # local: the debug menu's noclip is on
 var _swings := 0                  # local: melee swings so far (travels in snapshots, wrapping at 4)
 var _seen_swings := -1            # the swing count last shown (starts the swing animation and sound)
 var _strike_left := -1.0          # local: seconds until the current swing's blow lands
+var _charge := -1.0               # local: seconds the swing button has been held (winding up), or -1
+var _swing_power := 0.0           # local: how wound up the swing in flight is, 0..1
+var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
 var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
@@ -81,6 +85,10 @@ var _tug_left := 0.0
 var _tug_fresh := false
 var _flame: Node3D                # rocket-boot flames under the feet
 var _flame_t := 0.0
+var _burst_left := 0              # local: rounds of a burst still to fire
+var _akimbo_shots := 0            # akimbo: shots so far (yours, or seen); odd ones leave the left gun
+var _akimbo_left := false         # akimbo: the last shot came from the left gun
+var _burst_wait := 0.0            # local: seconds until the next round of the burst
 
 
 func _init() -> void:
@@ -196,6 +204,9 @@ func _physics_process(delta: float) -> void:
 		else:
 			_update_tug(delta)
 			_steer_flying_kick(delta)
+			if _fly_kick > 0.0:
+				input.glide = false   # mid flying kick: you are already going somewhere
+				input.glide_pressed = false
 			var boosts := motor.boosts
 			motor.step(self, input, delta)
 			if hooking and not motor.grapple.attached:
@@ -245,7 +256,7 @@ func _process(delta: float) -> void:
 		_anim.flags = _my_anim_flags()
 		_anim.grapple_on = g.attached
 		_anim.grapple_anchor = g.anchor
-		_watch_swings()
+		_watch_swings(delta)
 		_watch_kicks()
 		_animate(delta)
 		sounds.update(delta, _anim, true)
@@ -273,7 +284,7 @@ func _process(delta: float) -> void:
 	_anim.flags = s[5]
 	_anim.grapple_on = _rope_on
 	_anim.grapple_anchor = _rope_anchor
-	_watch_swings()
+	_watch_swings(delta)
 	_watch_kicks()
 	_animate(delta)
 	sounds.update(delta, _anim, visual.visible)
@@ -314,20 +325,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pick_on_death(event)
 
 
-## Waiting to respawn: 1-7 (or the mouse wheel) picks the weapon you come back with.
+## Waiting to respawn: the mouse wheel goes through every weapon, and the number keys
+## pick a group (1 sidearms, 2 shotguns... 6 melee; again goes on through the group).
 func _pick_on_death(event: InputEvent) -> void:
+	if GunGame.active():
+		return   # Gun Game hands out the weapons
 	var ids := WeaponData.IDS
 	var current := ids.find(Net.player_weapon(peer_id))
 	var pick := -1
-	if event is InputEventKey and event.pressed and not event.echo:
-		var k: int = event.keycode - KEY_1
-		if k >= 0 and k < ids.size():
-			pick = k
-	elif event is InputEventMouseButton and event.pressed:
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			pick = (current + 1) % ids.size()
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			pick = (current - 1 + ids.size()) % ids.size()
+	var k := _weapon_slot(event, WeaponData.GROUPS.size()) if event else _dev_group
+	if k >= 0:
+		var group: Array = WeaponData.GROUPS[k][1]
+		var at := group.find(ids[current]) if current >= 0 else -1
+		pick = ids.find(group[(at + 1) % group.size()] if at >= 0 else group[0])
+	elif event and event.is_action_pressed("weapon_next"):
+		pick = (current + 1) % ids.size()
+	elif event and event.is_action_pressed("weapon_prev"):
+		pick = (current - 1 + ids.size()) % ids.size()
 	if pick < 0 or pick == current or alive:
 		return
 	if DevArgs.sync_log:
@@ -349,15 +363,20 @@ func read_local_input() -> void:
 		input.fire = false
 		input.grapple = false
 		input.dive = false
+		input.interact = false
 		return
 	if Input.is_action_just_pressed("kick"):
 		input.kick_pressed = true
 	if Input.is_action_just_pressed("boost"):
 		input.boost_pressed = true
+	input.glide = Input.is_action_pressed("glide")
+	if Input.is_action_just_pressed("glide"):
+		input.glide_pressed = true
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"))
 	input.sprint = Input.is_action_pressed("sprint")
+	input.interact = Input.is_action_pressed("interact")
 	input.crouch = Input.is_action_pressed("crouch")
 	if Input.is_action_just_pressed("crouch"):
 		input.crouch_pressed = true
@@ -400,6 +419,19 @@ func _update_weapon(delta: float) -> void:
 	if weapon.data.is_melee():
 		_update_melee(delta)
 		return
+	if _burst_left > 0:   # the rest of a burst, a round every burst_gap seconds
+		_burst_wait -= delta
+		if _burst_wait <= 0.0 and Match.running and weapon.ammo > 0 and not weapon.is_reloading():
+			_burst_left -= 1
+			_burst_wait = weapon.data.burst_gap
+			weapon.ammo -= 1
+			_fire_round()
+			if weapon.ammo <= 0:
+				_burst_left = 0
+				weapon.start_reload()
+		elif weapon.ammo <= 0 or weapon.is_reloading():
+			_burst_left = 0
+		return
 	var wants: bool = input.fire if weapon.data.automatic else _fire_buffer > 0.0
 	if not wants or not Match.running:
 		return
@@ -408,15 +440,28 @@ func _update_weapon(delta: float) -> void:
 			Sound.play("dry_click", 0.0, 0.03)   # empty: the gun clicks while it reloads
 		return
 	_fire_buffer = 0.0
+	if weapon.data.burst > 1:
+		_burst_left = weapon.data.burst - 1
+		_burst_wait = weapon.data.burst_gap
+	_fire_round()
+
+
+## One round leaves the gun (a shot, or a rocket or grenade): sound, recoil, and the
+## host is asked what it hit.
+func _fire_round() -> void:
+	_next_gun()
 	Sound.gun_fire(weapon.data.id, muzzle_position(), sounds.own)
 	sounds.fired()
-	animator.fire()
+	animator.fire(_akimbo_left)
 	if DevArgs.sync_log:
 		print("ANIM FIRE %d" % peer_id)
 	if view:
-		view.fire()
+		view.fire(_akimbo_left)
 	var eye := eye_position()
-	var dirs := shot_directions(_aim_direction(eye), weapon.data)
+	if weapon.data.is_projectile():
+		Match.request_projectile(eye, _aim_direction(eye), peer_id)
+		return
+	var dirs := shot_directions(_aim_direction(eye), weapon.data, spread_scale())
 	# Show the shot straight away; the host decides whether it hit.
 	var ends := PackedVector3Array()
 	var hits := []
@@ -441,8 +486,10 @@ func _update_weapon(delta: float) -> void:
 # ---------------------------------------------------------------------------
 # Melee
 
-## Swinging a blade or hammer: the click starts the swing (and a small lunge), and
-## the blow lands after the weapon's wind-up. The host decides what it hit.
+## Swinging a melee weapon: holding the button winds the swing up (the body coils;
+## there is no meter), letting go swings. The longer the wind-up, up to the weapon's
+## charge_time, the harder the blow and the further it lunges you. A tap still draws
+## back for the weapon's `windup` first. The host decides what it hit.
 func _update_melee(delta: float) -> void:
 	var data := weapon.data
 	if _strike_left >= 0.0:
@@ -450,55 +497,102 @@ func _update_melee(delta: float) -> void:
 		if _strike_left < 0.0:
 			_strike()
 	if motor.grapple.hooked_player() or _fly_kick > 0.0:
+		_charge = -1.0
 		return   # a player on your hook: the swing button is a flying kick (see _update_kick)
+	if _charge >= 0.0:
+		_charge += delta
+		if not Match.running:
+			_charge = -1.0
+		elif not input.fire and _charge >= data.windup:
+			_swing()
+		return
 	var wants := input.fire or _fire_buffer > 0.0
-	if not wants or not Match.running or _strike_left >= 0.0 or not weapon.fire():
+	if not wants or not Match.running or _strike_left >= 0.0 or not weapon.can_fire():
 		return
 	_fire_buffer = 0.0
+	_charge = 0.0
+	if DevArgs.sync_log:
+		print("ANIM WIND %d" % peer_id)
+
+
+## Let go: the swing starts from however far it was wound up.
+func _swing() -> void:
+	var data := weapon.data
+	weapon.fire()
+	_swing_power = data.charge_of(_charge)
+	_charge = -1.0
 	_swings += 1
 	_strike_left = MeleeSwing.impact_time(data.id)   # when the blade is mid-blow on screen
 	# Lunge toward where you look (never past a sprinting dive's speed).
 	var ahead := Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
 	var along := velocity.dot(ahead)
-	if data.lunge > 0.0 and along < 14.0:
-		motor.knock(ahead * minf(data.lunge, 14.0 - along))
+	var lunge := data.lunge * lerpf(0.4, 1.0, _swing_power)
+	if lunge > 0.0 and along < 14.0:
+		motor.knock(ahead * minf(lunge, 14.0 - along))
 	if DevArgs.sync_log:
-		print("ANIM SWING %d" % peer_id)
+		print("ANIM SWING %d %.2f" % [peer_id, _swing_power])
+
+
+## How wound up your swing is right now, 0..1 (0 when not winding up).
+func melee_charge() -> float:
+	return weapon.data.charge_of(_charge) if weapon != null and _charge >= 0.0 else 0.0
+
+
+## Holding a wind-up (the bots ask).
+func winding_up() -> bool:
+	return _charge >= 0.0
 
 
 func _strike() -> void:
 	if not alive:
 		return
-	if rig:   # your own blow: the view jolts the way the blade travels
-		var side := 0.0 if robot.weapon == "hammer" else (1.0 if _swings % 2 == 1 else -1.0)
-		_punch += Vector2(side * 0.035, -0.03 if robot.weapon == "hammer" else -0.012)
-		_punch_roll += side * 0.03
+	if rig:   # your own blow: the view jolts the way the blade travels (right to left), harder the more it was wound up
+		var side := 0.0 if robot.weapon == "spear" else 1.0
+		var weight := lerpf(0.5, 1.4, _swing_power)
+		_punch += Vector2(side * 0.035, -0.012) * weight
+		_punch_roll += side * 0.03 * weight
 	var eye := eye_position()
 	var view_times := {}
 	for p in get_parent().get_children():
 		if p != self and p is Player and p.last_render_time >= 0.0:
 			view_times[p.peer_id] = p.last_render_time
-	Match.request_melee(eye, aim_forward(), view_times, peer_id)
+	Match.request_melee(eye, aim_forward(), view_times, _swing_power, peer_id)
 
 
-## A new swing (yours, or one seen in someone's snapshots): animation and whoosh.
-func _watch_swings() -> void:
+## A wind-up or a new swing (yours, or one seen in someone's snapshots): the body
+## coils while the swing is held, then the swing itself and its whoosh. For other
+## players only "winding up" travels; how far is worked out from how long it has
+## been seen, at the weapon's pace.
+func _watch_swings(delta: float) -> void:
 	var count := _swings & 3 if is_local else RobotAnimInput.swings_of(_anim.flags)
+	var melee := alive and robot.weapon != "none" and WeaponData.melee(robot.weapon)
+	var winding := melee and (_charge >= 0.0 if is_local else RobotAnimInput.winding_of(_anim.flags))
+	if winding:
+		_seen_wind = _charge if is_local else maxf(_seen_wind, 0.0) + delta
+		var held := WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
+		animator.wind(held)
+		if view:
+			view.wind(held)
 	if _seen_swings < 0:
 		_seen_swings = count   # just appeared: no swing to replay
 		return
-	if count == _seen_swings:
-		return
-	_seen_swings = count
-	if not alive or robot.weapon == "none" or not WeaponData.melee(robot.weapon):
-		return
-	animator.swing(count)
-	if view:
-		view.swing(count)
-	if sounds.own:
-		Sound.play("swing_" + robot.weapon, 0.0, 0.05)
-	elif visual.visible:
-		Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", 0.0, 0.05)
+	if count != _seen_swings:
+		_seen_swings = count
+		if melee:
+			var power := _swing_power if is_local else WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
+			if DevArgs.sync_log and not is_local:
+				print("ANIM SWUNG %d %d %.2f" % [Net.my_id(), peer_id, power])
+			animator.swing(power)
+			if view:
+				view.swing(power)
+			var loud := lerpf(-5.0, 2.0, power)   # a wound-up swing whooshes louder
+			if sounds.own:
+				Sound.play("swing_" + robot.weapon, loud, 0.05)
+			elif visual.visible:
+				Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", loud, 0.05)
+		_seen_wind = -1.0
+	elif not winding:
+		_seen_wind = -1.0
 
 
 ## A blow landed somewhere. Ours: the swing freezes for a moment (hit-stop) and the view jolts harder.
@@ -769,47 +863,7 @@ func equip(gun: String) -> void:
 		_pending_gun = gun   # dead: the body keeps what it fell with; the change shows on respawn
 		return
 	_pending_gun = ""
-	if robot.weapon == gun:
-		return
-	if weapon:
-		_ammo[weapon.data.id] = weapon.ammo
-	var color := Net.player_color(peer_id)
-	var was_visible := robot.visible
-	visual.remove_child(robot)
-	robot.queue_free()
-	robot = RobotModel.new().setup(Characters.body(character), color, false, gun)
-	robot.visible = was_visible
-	visual.add_child(robot)
-	animator = RobotAnimator.new(robot)
-	sounds.weapon_id = gun
-	if _trail:
-		_trail.queue_free()
-		_trail = null
-	if WeaponData.melee(gun):
-		_trail = SwingTrail.new().setup(RobotModel.trim_color(color))
-		add_child(_trail)
-	_strike_left = -1.0
-	if is_local:
-		weapon = _make_weapon(gun)
-		if weapon and _ammo.has(gun):
-			weapon.ammo = _ammo[gun]
-		_apply_move_bonus()
-		if brain and brain.has_method("refresh_weapon"):
-			brain.refresh_weapon()
-	if rig:
-		robot.set_layer(CameraRig.BODY_LAYER)
-		robot.add_view_mesh(CameraRig.VIEW_BODY_LAYER)
-		var shown := view.visible
-		rig.camera.remove_child(view)
-		view.queue_free()
-		view = ViewModel.new()
-		rig.camera.add_child(view)
-		view.setup(self, color)
-		view.visible = shown
-	if sounds.own and gun != "none":
-		Sound.play("equip_" + gun)
-	if DevArgs.sync_log:
-		print("EQUIP %s %d %d %s" % ["SELF" if is_local else "SEEN", Net.my_id(), peer_id, gun])
+	change_weapon(gun)
 
 
 ## Deathmatch: walked over a weapon: a full magazine for it, carried or in hand.
@@ -819,26 +873,32 @@ func picked_up(gun: String) -> void:
 		weapon.reset()
 
 
-## Deathmatch, alive: 1-7 (or the mouse wheel) takes out a weapon you carry.
+## Deathmatch, alive: 1 or 2 takes out the weapon in that slot; the mouse wheel
+## swaps to the other one.
 func _switch_weapon(event: InputEvent) -> void:
-	var have := Net.player_inventory(peer_id)
-	if have.is_empty():
-		return
+	var slots := Net.player_inventory(peer_id)
 	var current := robot.weapon
 	var pick := ""
-	if event is InputEventKey and event.pressed and not event.echo:
-		var k: int = event.keycode - KEY_1
-		if k >= 0 and k < WeaponData.IDS.size() and WeaponData.IDS[k] in have:
-			pick = WeaponData.IDS[k]
-	elif event is InputEventMouseButton and event.pressed:
-		var at := have.find(current)
-		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			pick = have[(at + 1) % have.size()]
-		elif event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			pick = have[(at - 1 + have.size()) % have.size()] if at >= 0 else have[-1]
+	var k := _weapon_slot(event, slots.size())
+	if k >= 0:
+		pick = slots[k]
+	elif event.is_action_pressed("weapon_next") or event.is_action_pressed("weapon_prev"):
+		for w in slots:
+			if w != "" and w != current:
+				pick = w
 	if pick == "" or pick == current:
 		return
 	Net.switch_my_weapon(pick)
+
+
+## Which weapon_N action `event` presses, as an index from 0 (-1 for none or past `count`).
+func _weapon_slot(event: InputEvent, count: int) -> int:
+	if event.is_echo():
+		return -1
+	for i in count:
+		if event.is_action_pressed("weapon_%d" % (i + 1)):
+			return i
+	return -1
 
 
 ## The ammo you have for a weapon you carry (HUD), -1 if unknown.
@@ -848,11 +908,21 @@ func ammo_for(gun: String) -> int:
 	return int(_ammo.get(gun, WeaponData.by_id(gun).magazine))
 
 
+## Gliding steadies your aim: every gun's spread is this much of its usual size.
+const GLIDE_SPREAD := 0.5
+
+
+## How wide this player's shots scatter right now, against the gun's own spread (1 = as usual).
+func spread_scale() -> float:
+	return GLIDE_SPREAD if motor and motor.state == MovementController.State.GLIDE else 1.0
+
+
 ## The directions of one shot's pellets (one for most guns), spread at random
 ## around `aim` by the gun's spread. A shotgun's pellets fill its cone evenly.
-static func shot_directions(aim: Vector3, data: WeaponData) -> PackedVector3Array:
+## `tighten` scales the spread (see spread_scale).
+static func shot_directions(aim: Vector3, data: WeaponData, tighten: float = 1.0) -> PackedVector3Array:
 	var out := PackedVector3Array()
-	var spread := deg_to_rad(data.spread_degrees)
+	var spread := deg_to_rad(data.spread_degrees) * tighten
 	var side := aim.cross(Vector3.UP)
 	side = side.normalized() if side.length_squared() > 0.0001 else Vector3.RIGHT
 	var up := side.cross(aim).normalized()
@@ -894,9 +964,17 @@ func _aim_direction(eye: Vector3) -> Vector3:
 
 
 func muzzle_position() -> Vector3:
+	var data := WeaponData.by_id(robot.weapon)
+	var bone := data.muzzle_bone_left if _akimbo_left and data.is_akimbo() else data.muzzle_bone
 	if view and not rig.is_third_person():
-		return view.marker(WeaponData.by_id(robot.weapon).muzzle_bone)
-	return robot.muzzle()
+		return view.marker(bone)
+	return robot.marker(bone)
+
+
+## Akimbo: which gun this shot leaves from. They take turns, right first.
+func _next_gun() -> void:
+	_akimbo_left = WeaponData.by_id(robot.weapon).is_akimbo() and _akimbo_shots % 2 == 1
+	_akimbo_shots += 1
 
 
 ## Where the grapple rope leaves the robot: the launcher on its left wrist.
@@ -908,7 +986,8 @@ func rope_origin() -> Vector3:
 
 ## Another player's shot, as told by the host: kick their gun.
 func show_shot() -> void:
-	animator.fire()
+	_next_gun()
+	animator.fire(_akimbo_left)
 	Sound.gun_fire(robot.weapon, muzzle_position(), false)
 	sounds.fired()
 	if DevArgs.sync_log:
@@ -920,16 +999,17 @@ func show_shot() -> void:
 
 ## --swap-on-death (tests): just died, so press the next weapon's number key.
 func dev_swap_after_death() -> void:
-	var key := InputEventKey.new()
-	key.pressed = true
-	key.keycode = KEY_1 + (WeaponData.IDS.find(Net.player_weapon(peer_id)) + 1) % WeaponData.IDS.size()
+	var group := (WeaponData.group_of(Net.player_weapon(peer_id)) + 1) % WeaponData.GROUPS.size()
 	get_tree().create_timer(0.5).timeout.connect(func():
 		if is_instance_valid(self) and is_inside_tree():
-			_pick_on_death(key))
+			_dev_group = group
+			_pick_on_death(null)
+			_dev_group = -1)
 
 
 func set_dead() -> void:
 	alive = false
+	_charge = -1.0
 	_fly_kick = 0.0
 	_tug_by = 0
 	_flame_t = 0.0
@@ -965,6 +1045,8 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	if weapon:
 		weapon.reset()
 	_strike_left = -1.0
+	_charge = -1.0
+	_seen_wind = -1.0
 	_kick_strike = -1.0
 	_kick_cool = 0.0
 	_fly_kick = 0.0
@@ -978,6 +1060,69 @@ func respawn_count() -> int:
 
 func set_respawn_count(n: int) -> void:
 	_teleport_count = n
+
+
+## A blast went off nearby: the view jolts (0..1, how close).
+func shake(amount: float) -> void:
+	if amount <= 0.0:
+		return
+	_punch += Vector2(randf_range(-0.03, 0.03), randf_range(0.01, 0.04)) * amount
+	_punch_roll += randf_range(-0.04, 0.04) * amount
+
+
+## A new weapon in your hands right now ("none": empty hands), wherever you are and
+## whatever you are doing: only the robot's model, arms, sounds and gun are rebuilt,
+## not the movement, so you keep your speed and rope. Gun Game hands you the next
+## weapon this way; a Deathmatch switch or pickup too (see equip). Ammo is kept per weapon.
+func change_weapon(gun: String) -> void:
+	if racing or robot == null or robot.weapon == gun:
+		return
+	if weapon:
+		_ammo[weapon.data.id] = weapon.ammo
+	var color := Net.player_color(peer_id)
+	var was_visible := visual.visible
+	visual.remove_child(robot)
+	robot.queue_free()
+	robot = RobotModel.new().setup(Characters.body(character), color, false, gun)
+	visual.add_child(robot)
+	animator = RobotAnimator.new(robot)
+	sounds = PlayerSounds.new(self, is_local and not is_bot, gun)
+	_seen_swings = -1
+	_seen_wind = -1.0
+	_strike_left = -1.0
+	_charge = -1.0
+	_burst_left = 0
+	_akimbo_shots = 0
+	_akimbo_left = false
+	if is_local:
+		weapon = _make_weapon(gun)
+		if weapon and _ammo.has(gun):
+			weapon.ammo = _ammo[gun]
+		_apply_move_bonus()
+		if is_bot and brain is BotBrain:
+			(brain as BotBrain).weapon_changed()
+	if rig:
+		robot.set_layer(CameraRig.BODY_LAYER)
+		robot.add_view_mesh(CameraRig.VIEW_BODY_LAYER)
+		var shown := view.visible
+		rig.camera.remove_child(view)
+		view.queue_free()
+		view = ViewModel.new()
+		rig.camera.add_child(view)
+		view.setup(self, color)
+		view.respawn()
+		view.visible = shown
+		if sounds.own and gun != "none":
+			Sound.play("equip_" + gun)
+	if _trail:
+		_trail.queue_free()
+		_trail = null
+	if WeaponData.melee(gun):
+		_trail = SwingTrail.new().setup(RobotModel.trim_color(color))
+		add_child(_trail)
+	visual.visible = was_visible
+	if DevArgs.sync_log:
+		print("GUN %s %d %d %s" % ["SELF" if is_local else "SEEN", Net.my_id(), peer_id, gun])
 
 
 ## Remote player rebuilt while dead (they swapped weapons): hidden until they respawn.
@@ -1130,7 +1275,7 @@ func _my_anim_flags() -> int:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
-		_kicks, _fly_kick > 0.0, motor.boosts)
+		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive)
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -1183,6 +1328,23 @@ func _target_roll() -> float:
 	return -motor.wall_normal.dot(right) * deg_to_rad(7.0)
 
 
+## What this copy of the game draws for this player right now, for the killcam's
+## recording (see Killcam): [feet, velocity, yaw, pitch, pose, animation flags,
+## rope on, rope anchor, alive, drawn, eye height above the feet, weapon in hand].
+func shown_state() -> Array:
+	var pose := _my_pose() if is_local and motor else _remote_state
+	var eye := motor.eye_height if is_local and motor else eye_for_pose(pose) - tuck_offset(pose)   # (a remote body is drawn lifted by its tuck)
+	return [global_position, velocity, _visual_yaw, _anim.pitch, pose, _anim.flags, _anim.grapple_on and alive,
+		_anim.grapple_anchor, alive, visual.visible and not _awaiting_respawn, eye, robot.weapon if robot else "none"]
+
+
+## Eye height above the feet for a pose (as sent in snapshots).
+static func eye_for_pose(pose: int) -> float:
+	if pose_state(pose) == MovementController.State.BELLY_SLIDE:
+		return 0.55
+	return 1.0 if pose_crouched(pose) else CameraRig.EYE_HEIGHT
+
+
 ## Where this player's feet were at time t (on this player's clock).
 func position_at(t: float) -> Vector3:
 	if not buffer.has_data():
@@ -1229,6 +1391,8 @@ func _hold_still() -> void:
 	input.fire = false
 	input.kick_pressed = false
 	input.boost_pressed = false
+	input.glide = false
+	input.glide_pressed = false
 
 
 # ---------------------------------------------------------------------------
@@ -1246,6 +1410,10 @@ func _scripted_input(delta: float) -> void:
 		input.jump_pressed = true   # mid-air: flip
 	if fmod(t + 2.5, 5.3) < delta:
 		input.dive_pressed = true
+	var glide_t := fmod(t + 3.1, 3.4)   # near the top of every other jump: glide for a moment
+	input.glide = glide_t < 0.6
+	if glide_t < delta:
+		input.glide_pressed = true
 	input.dive = fmod(t + 7.8, 10.6) < 1.4   # every other dive: keep holding it, to land in a belly slide
 	# Crouch (or slide, when fast) for a moment every 7 s.
 	var was_crouching := input.crouch
@@ -1271,7 +1439,9 @@ func _scripted_input(delta: float) -> void:
 			if weapon and weapon.data.is_melee():
 				input.move = Vector2(0.0, 1.0)   # a blade: run straight at them
 			input.fire = true
-			if fmod(t, 0.2) < delta:
+			if weapon and weapon.data.is_melee():
+				input.fire = fmod(t, 1.6) < 1.1   # wind a swing up for a second, then let go
+			if fmod(t, 0.2) < delta and input.fire:
 				input.fire_pressed = true  # click about 5 times a second
 		if fmod(t, 6.0) < delta and weapon:
 			weapon.start_reload()  # top up now and then (tests the reload animation online)
@@ -1434,3 +1604,4 @@ func _update_flame(delta: float) -> void:
 		aim = visual.global_transform.basis.inverse() * -velocity.normalized()
 	var turn := Quaternion(Vector3.DOWN, aim.normalized()) if aim.normalized().dot(Vector3.UP) < 0.999 else Quaternion(Vector3.RIGHT, PI)
 	_flame.basis = Basis(turn) * Basis.from_scale(Vector3(1.0, length, 1.0))
+

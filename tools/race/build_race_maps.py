@@ -1,6 +1,6 @@
-"""Builds the three race maps: Rooftop Run, Foundry and Sky Ruins.
+"""Builds the four race maps: Rooftop Run, Foundry, Sky Ruins and Summit Plunge.
 
-    python3 tools/race/build_race_maps.py          # all three
+    python3 tools/race/build_race_maps.py          # all four
     python3 tools/race/build_race_maps.py foundry  # one
 
 Writes game/maps/<id>.tscn and game/maps/palettes/<id>.tres. The scenes are the
@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from course import Course, fmt  # noqa: E402
 import sections as S  # noqa: E402
 
+JET = (0.45, 0.9, 1.0, 1)   # signs that name a move
 ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 
 
@@ -94,6 +95,26 @@ class Theme:
 
     def under_ramp(self, c, g, L, dy):
         pass
+
+    def under_ramp_at(self, c, g, f0, L, dy):
+        """under_ramp for a slope starting f0 ahead of the cursor."""
+        pos = c.pos
+        c.pos = c.w(f0)
+        self.under_ramp(c, g, L, dy)
+        c.pos = pos
+
+    def takeoff(self, c, g, f, mark_only=False):
+        """Chevrons on the floor before a take-off that needs the newer moves."""
+        for i in range(3):
+            ff = f - 1.2 - i * 1.4
+            for sd in (-1, 1):
+                c.box(g, "Chevron", ff - 0.35, ff + 0.35, sd * 0.4, sd * 1.6, 0, 0.03, "jet", solid=False,
+                      cols=c.basis(yaw=sd * 0.6))
+
+    def chute_mouth(self, c, g, f, top):
+        for sd in (-1, 1):
+            c.box(g, "Mouth", f - 0.3, f + 0.3, sd * 1.6, sd * (c.W / 2), top, top + 2.4, self.wall)
+        c.box(g, "Lintel", f - 0.3, f + 0.3, -1.6, 1.6, top + 0.95, top + 2.4, "jet")
 
     def ledge(self, c, g, f, h):
         c.box(g, "Ledge", f, f + 1.0, -c.W / 2, c.W / 2, -self.thick, h - self.thick, self.wall)
@@ -207,7 +228,7 @@ class Rooftops(Theme):
 
 
 class Foundry(Theme):
-    FLOOR = -9.0
+    FLOOR = -16.0
     thick = 0.4
     deck = "grating"
     obstacle = "crate"
@@ -338,6 +359,135 @@ class SkyRuins(Theme):
         c.block(g, "Dais", c.w(10, 0.1, 0), (6.0, 0.2, 6.0), "gold", shape="cyl", sides=20, solid=False)
 
 
+class Snow(Theme):
+    """A groomed piste down a mountain ridge: snow over rock, ice where the walls are,
+    pines on the shoulders. Each floor sits on a stepped rock mass that widens and
+    deepens below it, so the course reads as a ridge on one huge mountain."""
+    thick = 1.0
+    deck = "snow"
+    obstacle = "snow_drift"
+    wall = "rock"
+    duct = "ice_dark"
+    panel = "ice"
+    tower = "rock"
+    platform = "ice"
+    stem = "rock_dark"
+    press = "rock_dark"
+    hot = "meltwater"
+    beam_hazard = "flag_red"
+    ramp = "snow"
+    colors = {
+        "snow": (0.93, 0.95, 0.98), "snow_shade": (0.8, 0.86, 0.94), "snow_drift": (0.86, 0.9, 0.96),
+        "ice": (0.62, 0.84, 0.96), "ice_dark": (0.38, 0.6, 0.78), "rock": (0.42, 0.42, 0.46),
+        "rock_dark": (0.3, 0.3, 0.34), "pine": (0.15, 0.32, 0.24), "pine_dark": (0.1, 0.24, 0.18),
+        "trunk": (0.36, 0.25, 0.17), "wood": (0.55, 0.36, 0.22), "wood_dark": (0.38, 0.24, 0.14),
+        "roof_red": (0.72, 0.16, 0.13), "window_lit": (1.0, 0.8, 0.45), "lamp": (1.0, 0.88, 0.62),
+        "flag_red": (0.95, 0.2, 0.15), "flag_blue": (0.15, 0.35, 0.95), "meltwater": (0.25, 0.75, 1.0),
+        "valley": (0.82, 0.88, 0.95), "far_peak": (0.5, 0.54, 0.62), "far_snow": (0.95, 0.97, 1.0),
+        "pole": (0.25, 0.26, 0.28),
+    }
+    glow = {"window_lit": 1.4, "lamp": 2.2, "meltwater": 1.4, "flag_red": 0.3}
+
+    def under(self, c, g, f0, f1, top, w, r, open_side=0):
+        y = top - self.thick
+        # The ridge: snow shoulders a step down, then rock widening below.
+        for i, (drop, extra, depth, kind) in enumerate(((2.5, 6, 6, "snow_shade"), (8, 18, 14, "rock"),
+                                                         (20, 40, 40, "rock_dark"))):
+            ext = 0 if i < 2 else 8   # the deepest step runs under the gaps too
+            c.box(g, "Ridge", f0 - ext, f1 + ext, r - w / 2 - extra / 2, r + w / 2 + extra / 2, top - drop - depth,
+                  top - drop if i else y, kind, solid=i < 2)
+            if i == 1:
+                c.box(g, "SnowCap", f0, f1, r - w / 2 - extra / 2, r + w / 2 + extra / 2, top - drop, top - drop + 0.4,
+                      "snow", solid=False)
+        # Snow banks along the edges of the piste, and a catch net of nothing under the
+        # crevasses: falling in sends you back at once rather than after a long fall.
+        for sd in (-1, 1):
+            if sd == open_side:
+                continue
+            c.box(g, "Bank", f0, f1, r + sd * (w / 2 - 0.1), r + sd * (w / 2 + 1.4), top - self.thick, top + 0.35, "snow_drift")
+        c.box(g, "Catch", f0 - 26, f1, r - w / 2 - 40, r + w / 2 + 40, top - 15, top - 14, "rock_dark",
+              hazard=True, solid=False, drawn=False)
+        # Pines on the lower shoulder.
+        L = f1 - f0
+        n = int(L / 7)
+        for i in range(n):
+            f = f0 + 3 + i * 7 + h(f0, i) * 3
+            for sd in (-1, 1):
+                if h(f, sd, top) < 0.45:
+                    continue
+                rr = r + sd * (w / 2 + 3.5 + h(sd, f) * 4.0)
+                self.pine(c, g, f, rr, top - 8 + 0.4, 6 + h(f, sd) * 6)
+
+    def pine(self, c, g, f, r, base, height):
+        c.block(g, "Trunk", c.w(f, base + 0.8, r), (0.5, 1.6, 0.5), "trunk", shape="cyl", sides=6, solid=False)
+        tiers = 4
+        for i in range(tiers):
+            k = i / tiers
+            rad = (1.0 - k) * height * 0.32 + 0.4
+            y = base + 1.4 + k * (height - 1.6)
+            c.block(g, "Pine", c.w(f, y + 0.5, r), (rad * 2, height / tiers * 1.1, rad * 2), "pine" if i % 2 else "pine_dark",
+                    shape="cyl", sides=7, solid=False)
+            c.block(g, "PineSnow", c.w(f, y + height / tiers * 0.55 + 0.5, r), (rad * 1.3, 0.25, rad * 1.3), "snow",
+                    shape="cyl", sides=7, solid=False)
+
+    def under_ramp(self, c, g, L, dy):
+        top = min(0, dy)
+        steps = 4
+        for i in range(steps):
+            a, b = L * i / steps, L * (i + 1) / steps
+            y = min(dy * (i + 1) / steps, dy * i / steps)   # the lower end of this stretch
+            c.box(g, "Ridge", a, b, -c.W / 2 - 3, c.W / 2 + 3, y - 12, y - self.thick - 0.2, "rock")
+            c.box(g, "Ridge", a, b, -c.W / 2 - 12, c.W / 2 + 12, y - 40, y - 10, "rock_dark", solid=False)
+        for sd in (-1, 1):
+            c.ramp(g, 0, 0.35, L, dy + 0.35, "snow_drift", width=1.4, thick=1.4, r=sd * (c.W / 2 + 0.6), name="Bank")
+        c.box(g, "Catch", -4, L, -c.W / 2 - 40, c.W / 2 + 40, top - 15, top - 14, "rock_dark",
+              hazard=True, solid=False, drawn=False)
+
+    def ledge(self, c, g, f, h_):
+        c.box(g, "Ledge", f, f + 1.0, -c.W / 2, c.W / 2, -self.thick, h_ - self.thick, "rock")
+
+    def beam(self, c, g, f, h_):
+        # A rock arch over the gorge: two crags and an icy span to hook.
+        c.box(g, "Span", f - 0.8, f + 0.8, -9, 9, h_ - 0.6, h_ + 0.8, "ice_dark")
+        c.box(g, "SpanSnow", f - 0.9, f + 0.9, -9, 9, h_ + 0.8, h_ + 1.2, "snow", solid=False)
+        for sd in (-1, 1):
+            c.box(g, "Crag", f - 1.5, f + 1.5, sd * 7.5, sd * 10.5, h_ - 40, h_ + 0.4, "rock")
+            c.box(g, "CragSnow", f - 1.6, f + 1.6, sd * 7.4, sd * 10.6, h_ + 0.4, h_ + 1.0, "snow", solid=False)
+
+    def panel_dressing(self, c, g, f0, f1, side):
+        c.box(g, "IceBase", f0, f1, side * 2.0, side * 3.0, -40, -4.0, "rock")
+        c.box(g, "IceTop", f0, f1, side * 1.95, side * 3.05, 5.0, 5.4, "snow", solid=False)
+
+    def pool(self, c, g, f0, f1, y):
+        c.box(g, "Water", f0, f1, -c.W / 2 - 3, c.W / 2 + 3, y - 1.0, y, "meltwater", hazard=True, solid=False)
+
+    def chute_mouth(self, c, g, f, top):
+        for sd in (-1, 1):
+            c.box(g, "Mouth", f - 0.6, f + 0.6, sd * 1.6, sd * (c.W / 2 + 1.4), top, top + 3.0, "ice")
+        c.box(g, "Lintel", f - 0.6, f + 0.6, -1.6, 1.6, top + 0.95, top + 3.0, "ice")
+        c.box(g, "Cornice", f - 1.2, f + 0.6, -c.W / 2 - 1.4, c.W / 2 + 1.4, top + 3.0, top + 3.6, "snow", solid=False)
+
+    def start_dressing(self, c, g):
+        # The summit: a weather hut and a flag.
+        c.box(g, "Hut", -15, -10, -c.W / 2 + 0.5, -c.W / 2 + 4.5, 0, 3.2, "wood")
+        c.box(g, "HutRoof", -15.4, -9.6, -c.W / 2 + 0.1, -c.W / 2 + 4.9, 3.2, 3.8, "snow")
+        c.box(g, "Mast", -12.6, -12.4, c.W / 2 - 2.1, c.W / 2 - 1.9, 0, 7, "pole")
+        c.box(g, "Flag", -12.6, -12.5, c.W / 2 - 1.9, c.W / 2 + 0.4, 5.6, 6.9, "flag_red", solid=False)
+
+    def finish_dressing(self, c, g):
+        # The lodge at the bottom, past the line.
+        f0 = 13
+        c.box(g, "Lodge", f0, f0 + 4, -9, 9, 0, 4.5, "wood")
+        c.box(g, "LodgeRoof", f0 - 0.6, f0 + 4.6, -9.6, 9.6, 4.5, 5.3, "roof_red")
+        c.box(g, "LodgeSnow", f0 - 0.7, f0 + 4.7, -9.7, 9.7, 5.3, 5.6, "snow", solid=False)
+        for i in range(5):
+            rr = -6 + i * 3
+            c.box(g, "Window", f0 - 0.05, f0, rr - 0.7, rr + 0.7, 1.4, 2.8, "window_lit", solid=False)
+        for sd in (-1, 1):
+            c.box(g, "Pole", 5.8, 6.2, sd * (c.W / 2 + 1.0) - 0.2, sd * (c.W / 2 + 1.0) + 0.2, 0, 4.5, "flag_blue" if sd < 0 else "flag_red")
+            c.box(g, "Lamp", 5.6, 6.4, sd * (c.W / 2 + 1.0) - 0.4, sd * (c.W / 2 + 1.0) + 0.4, 4.5, 4.9, "lamp", solid=False)
+
+
 # ---------------------------------------------------------------------------
 # The courses
 
@@ -355,26 +505,29 @@ def rooftop_run():
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "BILLBOARD ALLEY", 90)
     S.wallrun(c, T, side=-1, panels=2)
-    S.gaps(c, T, [(5.0, 8), (7.5, 10)])
+    c.sign(2, 4, 0, "ROCKET GAP: JUMP + E", 70, JET)
+    S.boost_gap(c, T, 19.0, land=18)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "DUCT MAZE", 90)
     S.slide_under(c, T, 10)
-    S.crawl(c, T, 8)
+    c.sign(4, 3.5, 0, "DIVE IN: HOLD Q", 60, JET)
+    S.belly_chute(c, T, 20, -5)
     S.vaults(c, T, 3)
     S.turn(c, T, right=True)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "THE CLIMB", 90)
-    S.climb(c, T, [2.0, 2.2])
+    S.boost_wall(c, T, 7.0)
     S.chimney(c, T, 8.0)
     S.strips(c, T, 3)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "CRANE CROSSING", 90)
-    S.grapple(c, T, 3)
+    S.grapple_swing(c, T, [(10, 11.0), (30, 12.0)], land_gap=8)
     S.gaps(c, T, [(6.0, 10)])
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "SIGN SKIPPING", 90)
     S.wallrun(c, T, side=1, panels=2)
-    S.gaps(c, T, [(8.5, 10, -1.0)])
+    c.sign(2, 4, 0, "SLIDE, JUMP, FLIP, DIVE", 60, JET)
+    S.ski_jump(c, T)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "LIVE WIRES", 90)
     S.strips(c, T, 3)
@@ -383,12 +536,13 @@ def rooftop_run():
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "WATER TOWERS", 90)
     S.climb(c, T, [2.0])
-    S.grapple(c, T, 2)
+    S.grapple_swing(c, T, [(14, 13.0)], land_gap=12)
     S.vaults(c, T, 2)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "GLASS ROOF", 90)
     S.slope(c, T, 22, -8, slide=True)
-    S.gaps(c, T, [(9.0, 6)])
+    c.sign(2, 4, 0, "HOLD SHIFT TO GLIDE, THEN E", 56, JET)
+    S.glide_gap(c, T, 20.0, -6.0, land=16, boost=True)
     S.finish(c, T)
     _city(c)
     return c, T
@@ -438,24 +592,27 @@ def foundry():
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "TANK FARM", 90)
     S.wallrun(c, T, side=1, panels=2)
-    S.gaps(c, T, [(7.0, 10)])
+    c.sign(2, 4, 0, "ROCKET GAP: JUMP + E", 70, JET)
+    S.boost_gap(c, T, 19.0, land=18)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "FURNACE STACK", 90)
     S.chimney(c, T, 9.0, side=-1)
-    S.climb(c, T, [2.2])
+    c.sign(4, 3.5, 0, "BOOST UP: JUMP + E", 60, JET)
+    S.boost_wall(c, T, 7.0)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "CASTING HALL", 90)
-    S.grapple(c, T, 3)
+    S.grapple_swing(c, T, [(10, 11.0), (30, 12.0)], land_gap=8)
     S.sweepers(c, T, 2)
     S.turn(c, T, right=True)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "STAMPING LINE", 90)
-    S.crawl(c, T, 8)
+    S.belly_chute(c, T, 22, -6)
     S.presses(c, T, 4)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "SLAG LAKE", 90)
     S.pistons(c, T, 3)
-    S.gaps(c, T, [(6.0, 10)])
+    c.sign(2, 4, 0, "SLIDE, JUMP, FLIP, DIVE", 60, JET)
+    S.ski_jump(c, T)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "BOILER WALL", 90)
     S.wallrun(c, T, side=-1, panels=2)
@@ -463,6 +620,8 @@ def foundry():
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "PIPE AND CHUTE", 90)
     S.slope(c, T, 24, -9, slide=True)
+    c.sign(2, 4, 0, "CRANE FLING: LET GO + E", 60, JET)
+    S.grapple_swing(c, T, [(12, 13.0)], land_gap=18, boost=True)
     S.strips(c, T, 3)
     S.finish(c, T)
     _hall(c)
@@ -508,7 +667,9 @@ def sky_ruins():
     S.start(c, T)
     c.sign(-4, 6.5, 0, "SKY RUINS", 140, (0.8, 0.95, 1, 1))
     c.sign(4, 5, 0, "STEPPING STONES", 90)
-    S.gaps(c, T, [(5.0, 9), (7.0, 10), (9.0, 12)])
+    S.gaps(c, T, [(5.0, 9), (7.0, 10)])
+    c.sign(2, 4, 0, "ROCKET GAP: JUMP + E", 70, JET)
+    S.boost_gap(c, T, 19.0, land=18)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "SWEEPER BRIDGE", 90)
     S.sweepers(c, T, 3)
@@ -518,31 +679,35 @@ def sky_ruins():
     S.turn(c, T, right=False)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "RING ARCHES", 90)
-    S.grapple(c, T, 3)
+    S.grapple_swing(c, T, [(10, 12.0), (30, 13.0)], land_gap=8)
     S.strips(c, T, 3)
-    S.gaps(c, T, [(6.0, 10), (8.0, 10)])
+    S.gaps(c, T, [(6.0, 10)])
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "SUNKEN TEMPLE", 90)
     S.slide_under(c, T, 8)
-    S.crawl(c, T, 8)
+    S.belly_chute(c, T, 22, -6)
     S.vaults(c, T, 2)
     S.turn(c, T, right=False)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "THE SPIRE", 90)
-    S.climb(c, T, [2.2, 2.2])
+    S.climb(c, T, [2.2])
+    c.sign(4, 3.5, 0, "BOOST UP: JUMP + E", 60, JET)
+    S.boost_wall(c, T, 7.0)
     S.chimney(c, T, 9.0)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "HIGH WINDS", 90)
     S.wallrun(c, T, side=-1, panels=2)
     S.run(c, T, 8)
-    S.grapple(c, T, 2)
+    c.sign(2, 4, 0, "SLIDE, JUMP, FLIP, DIVE", 60, JET)
+    S.ski_jump(c, T)
     S.sweepers(c, T, 2)
     S.checkpoint(c, T)
     c.sign(4, 5, 0, "DROP AND DASH", 90)
     S.slope(c, T, 26, -10, slide=True)
     S.run(c, T, 12)   # room to slow down: the pistons want a standing start
     S.pistons(c, T, 3)
-    S.gaps(c, T, [(10.5, 8)])
+    c.sign(2, 4, 0, "HOLD SHIFT TO GLIDE, THEN E", 56, JET)
+    S.glide_gap(c, T, 20.0, -6.0, land=16, boost=True)
     S.finish(c, T)
     _clouds(c)
     return c, T
@@ -570,12 +735,128 @@ def _clouds(c):
         c.world_block(g, "FarRock", (x, y - 4, z), (s * 0.75, 6, s * 0.6), "stone_dark", solid=False)
 
 
-MAPS = {"rooftop_run": rooftop_run, "foundry": foundry, "sky_ruins": sky_ruins}
+def summit_plunge():
+    """Down a big snowy mountain: slide the slopes, boost the crevasses, belly-slide the ice
+    tunnels, swing the gorge on the rock arches and glide the cliffs, to the lodge below."""
+    T = Snow()
+    c = Course("SummitPlunge", None, env_block((0.18, 0.4, 0.82), (0.86, 0.92, 1.0), (0.78, 0.84, 0.92),
+                                                   (0.8, 0.86, 0.96), 0.9, fog=((0.84, 0.9, 0.98), 0.0009, 0.1)),
+               (sun_rows(30, 200), (1.0, 0.95, 0.86), 1.25), (0, 0, 0), width=10.0)
+    c.settings["face_shade"] = "Vector3(0.95, 0.86, 0.7)"
+    S.start(c, T)
+    c.sign(-4, 6, 0, "SUMMIT PLUNGE", 140, (0.85, 0.95, 1, 1))
+    c.sign(6, 4.5, 0, "DROP IN: CROUCH TO SLIDE", 60, JET)
+    S.slope(c, T, 30, -12, slide=True)
+    S.gaps(c, T, [(6.0, 10, -1.5), (8.0, 12, -2.0)])
+    S.checkpoint(c, T)
+    c.sign(4, 5, 0, "THE CREVASSE", 90)
+    c.sign(9, 3.5, 0, "JUMP + E", 70, JET)
+    S.boost_gap(c, T, 20.0, land=20, dy=-3.0)
+    S.checkpoint(c, T)
+    c.sign(4, 5, 0, "ICE TUNNEL", 90)
+    c.sign(9, 3.5, 0, "DIVE IN: HOLD Q", 60, JET)
+    S.belly_chute(c, T, 30, -10)
+    S.checkpoint(c, T)
+    c.sign(4, 5, 0, "ICE WALLS", 90)
+    S.wallrun(c, T, side=1, panels=2)
+    S.strips(c, T, 2)
+    S.turn(c, T, right=True)
+    S.checkpoint(c, T)
+    c.sign(4, 5, 0, "SKI JUMP", 90)
+    S.slope(c, T, 24, -9, slide=True)
+    c.sign(2, 4, 0, "SLIDE, JUMP, FLIP, DIVE", 60, JET)
+    S.ski_jump(c, T, L=20, dy=-8)
+    S.checkpoint(c, T)
+    c.sign(4, 5, 0, "THE GORGE", 90)
+    S.grapple_swing(c, T, [(10, 11.0), (30, 12.0)], land_gap=8, dy=-3.0)
+    S.sweepers(c, T, 2)
+    S.turn(c, T, right=False)
+    S.checkpoint(c, T)
+    c.sign(4, 5, 0, "ICEFALL", 90)
+    S.belly_chute(c, T, 26, -9)
+    S.slope(c, T, 20, -7, slide=True)
+    S.run(c, T, 10)
+    c.sign(2, 4, 0, "HOLD SHIFT TO GLIDE, THEN E", 56, JET)
+    S.glide_gap(c, T, 20.0, -8.0, land=18, boost=True)
+    S.checkpoint(c, T)
+    c.sign(4, 5, 0, "LAST RUN", 90)
+    S.slope(c, T, 36, -14, slide=True)
+    S.run(c, T, 10)
+    c.sign(2, 4, 0, "SWING, LET GO + E", 60, JET)
+    S.grapple_swing(c, T, [(12, 13.0)], land_gap=18, dy=-6.0, boost=True)
+    S.gaps(c, T, [(9.0, 12, -2.0)])
+    S.finish(c, T)
+    _mountain(c)
+    return c, T
+
+
+def _mountain(c):
+    """The rest of the range: far peaks round the course, and the valley floor below."""
+    import random
+    rnd = random.Random(5)
+    x0, z0, x1, z1 = c.extent
+    g = c.group("Range", "Scenery")
+    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+    floor_y = c.min_y - 60
+    c.world_block(g, "Valley", (cx, floor_y - 1, cz), (x1 - x0 + 900, 2, z1 - z0 + 900), "valley", solid=False)
+
+    def peak(x, z, size, base_y, kind="far_peak"):
+        # A cube stood on a corner, half buried: a sharp peak. A smaller white one on top is its snow.
+        a, b = math.radians(45), math.atan(1 / math.sqrt(2))
+        ca, sa, cb, sb = math.cos(a), math.sin(a), math.cos(b), math.sin(b)
+        yaw = rnd.random() * math.pi
+        cy, sy = math.cos(yaw), math.sin(yaw)
+        # Rx(b) * Ry(a): a vertex up; then turned about y.
+        X = (ca, sa * sb, -sa * cb)
+        Y = (0.0, cb, sb)
+        Z = (sa, -ca * sb, ca * cb)
+        def turn(v):
+            return (v[0] * cy + v[2] * sy, v[1], -v[0] * sy + v[2] * cy)
+        cols = (turn(X), turn(Y), turn(Z))
+        half = size * math.sqrt(3) / 2
+        c.block(g, "Peak", (x, base_y, z), (size, size, size), kind, cols=cols, solid=False)
+        cap = size * 0.42
+        c.block(g, "PeakSnow", (x, base_y + half - cap * math.sqrt(3) / 2 + 0.3, z), (cap, cap, cap), "far_snow",
+                cols=cols, solid=False)
+
+    # The mountain under the course: a few huge peaks along it, the start on the highest.
+    pts = c.points
+    for i in range(0, len(pts), max(1, len(pts) // 7)):
+        p = pts[i]
+        size = 90 + rnd.random() * 30
+        peak(p[0] + (rnd.random() - 0.5) * 30, p[2] + (rnd.random() - 0.5) * 30, size, p[1] - 28 - size * 0.87, "rock_dark")
+    for i in range(26):
+        ang = i / 26 * math.tau + rnd.random() * 0.2
+        rad = max(x1 - x0, z1 - z0) * 0.5 + 160 + rnd.random() * 140
+        x, z = cx + math.cos(ang) * rad, cz + math.sin(ang) * rad
+        size = 120 + rnd.random() * 120
+        peak(x, z, size, floor_y + size * 0.15)
+
+
+def lab():
+    """A test strip of the newer sections, for tuning them (not a real map)."""
+    T = Foundry()
+    c = Course("RaceLab", None, env_block((0.3, 0.46, 0.75), (0.8, 0.8, 0.8), (0.4, 0.35, 0.32), (0.86, 0.78, 0.72), 0.85),
+               (sun_rows(40, 235), (1.0, 0.95, 0.9), 1.0), (0, 0, 0))
+    import json
+    spec = json.loads(os.environ.get("LAB", "[]"))
+    S.start(c, T)
+    for name, kw in spec:
+        getattr(S, name)(c, T, **kw)
+        S.checkpoint(c, T)
+    S.finish(c, T)
+    return c, T
+
+
+MAPS = {"rooftop_run": rooftop_run, "foundry": foundry, "sky_ruins": sky_ruins, "summit_plunge": summit_plunge}
+EXTRA = {"race_lab": lab}
 
 
 def main(names):
     for name in names or MAPS:
-        c, T = MAPS[name]()
+        c, T = {**MAPS, **EXTRA}[name]()
+        T.colors = {"jet": (0.25, 0.85, 1.0), **T.colors}
+        T.glow = {"jet": 1.6, **T.glow}
         pal = "res://game/maps/palettes/%s.tres" % name
         write_palette(os.path.join(ROOT, "game/maps/palettes/%s.tres" % name), T.colors, T.glow)
         c.write(os.path.join(ROOT, "game/maps/%s.tscn" % name), pal)

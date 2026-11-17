@@ -6,7 +6,9 @@ extends Marker3D
 ## the weapon is yours until you die; it comes back Match.PICKUP_RESPAWN seconds after
 ## it was taken. In other games the spot is empty. The orange ghost is editor-only.
 
-@export_enum("pistol", "shotgun", "rifle", "sniper", "sword", "hammer", "dagger") var weapon := "pistol":
+@export_enum("pistol", "revolver", "machine_pistol", "akimbo", "shotgun", "break_action", "smg", "rifle", "burst_rifle", "lmg",
+	"lever_action", "bolt_action", "sniper", "railgun", "rocket_launcher", "grenade_launcher",
+	"sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat") var weapon := "pistol":   ## (WeaponData.IDS)
 	set(v):
 		weapon = v
 		if _label:

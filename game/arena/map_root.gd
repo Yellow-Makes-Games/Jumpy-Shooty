@@ -8,11 +8,15 @@ extends Node3D
 ##  - MapSpawn nodes: where players appear.
 ##  - MapDummy nodes: target dummies to shoot at (test maps).
 ##  - MapWeaponSpawn nodes (under "WeaponSpawns"): Deathmatch weapon pickups.
+##  - MapGrapplePoint nodes: glowing spots the grappling hook snaps to when you aim
+##    near them (any map, any mode).
 ##  - MapItemSpawn nodes (under "ItemSpawns"): Deathmatch power-ups (health, damage).
 ##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
 ##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
 ##    steps bots follow round the course.
+##  - MapSpinner groups: scenery that turns (drawn, never solid); MapTerminal consoles
+##    players press interact at, and the MapEvent (GravityEvent) each one sets off.
 ##  - Label3D nodes: signs and painted numbers.
 ##  - A WorldEnvironment (sky, ambient light, fog) and a DirectionalLight3D (the sun).
 ##
@@ -76,11 +80,13 @@ var item_spawns: Array = []
 ## Race maps, filled in by build(). Checkpoints: {number, finish, xf, opening},
 ## sorted by number. Hazards: {xf, size, shape, mover} (mover = index into movers,
 ## or -1). Movers: {node: MapMover, base: Transform3D, body: AnimatableBody3D}.
-## Route: {pos, action, aim, radius} in running order.
+## Route: {pos, action, aim, radius, boost} in running order.
 var checkpoints: Array = []
 var hazards: Array = []
 var movers: Array = []
 var route: Array = []
+## The map's MapSpinner nodes (scenery that turns), filled in by build().
+var spinners: Array = []
 ## Seconds the map's moving parts have been running (the same on every copy of the
 ## game: the arena starts it when the match starts).
 var clock := 0.0
@@ -125,7 +131,10 @@ func build(with_meshes: bool = true) -> void:
 	movers = []
 	route = []
 	weapon_spawns = []
+	spinners = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
+	for s in spinners:
+		(s as MapSpinner).build(self, with_meshes)
 	checkpoints.sort_custom(func(a, b): return a.number < b.number)
 	dummies = []
 	_collect_dummies(self, Transform3D.IDENTITY)
@@ -170,6 +179,10 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			if not (child as Node3D).visible:
 				continue   # hidden in the editor: left out of the game
 			at = xf * (child as Node3D).transform
+		if child is MapSpinner:
+			if not spinners.has(child):
+				spinners.append(child)   # scenery that turns: it draws its own blocks, none of them solid
+			continue
 		if child is MapMover and mover == -1:
 			# Its blocks are built into a moving body of their own (see _build_mover),
 			# in the mover's own frame.
@@ -195,7 +208,7 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 				"xf": Transform3D(at.basis.orthonormalized(), at.origin)})
 		elif child is MapRoutePoint:
 			var r := child as MapRoutePoint
-			route.append({"pos": at.origin, "action": r.action, "aim": r.aim, "radius": r.radius})
+			route.append({"pos": at.origin, "action": r.action, "aim": r.aim, "radius": r.radius, "boost": r.boost})
 		_collect(child, at, pieces, spawn_list, mover)
 
 

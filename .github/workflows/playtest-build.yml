@@ -1,0 +1,87 @@
+# Exports the Windows build on every push to main and publishes it to the
+# playtest-build branch as JumpyShooty-windows.zip, so the download link
+# https://github.com/Yellow-Makes-Games/Jumpy-Shooty/raw/playtest-build/JumpyShooty-windows.zip
+# always has the latest main. The branch is replaced by one fresh commit each
+# time (keeping its README.md), so old 60 MB zips don't pile up in history.
+name: Playtest build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: playtest-build
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-cache
+          key: godot-${{ env.GODOT_VERSION }}-windows-template
+
+      - name: Download Godot and the Windows export template
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable"
+          mkdir -p ~/godot-cache && cd ~/godot-cache
+          curl -fsSL -o godot.zip "$base/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && rm godot.zip
+          mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot
+          curl -fsSL -o templates.tpz "$base/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -q -j templates.tpz templates/windows_release_x86_64.exe templates/version.txt -d templates
+          rm templates.tpz
+
+      - name: Install Godot
+        run: |
+          set -euo pipefail
+          tdir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$tdir"
+          cp ~/godot-cache/templates/* "$tdir/"
+          chmod +x ~/godot-cache/godot
+          echo "$HOME/godot-cache" >> "$GITHUB_PATH"
+
+      - name: Import assets
+        run: godot --headless --import --path . || godot --headless --editor --quit --path .
+
+      - name: Export Windows build
+        run: |
+          set -euo pipefail
+          mkdir -p builds/windows
+          godot --headless --path . --export-release "Windows Desktop" builds/windows/JumpyShooty.exe
+          test -s builds/windows/JumpyShooty.exe
+          cd builds/windows && zip -9 -q ../JumpyShooty-windows.zip JumpyShooty.exe
+          ls -lh ../JumpyShooty-windows.zip
+
+      - name: Publish to playtest-build
+        run: |
+          set -euo pipefail
+          subject="$(git log -1 --format=%s)"
+          sha="$(git rev-parse --short HEAD)"
+          mkdir -p "$RUNNER_TEMP/publish" && cd "$RUNNER_TEMP/publish"
+          git init -q -b playtest-build
+          if git -C "$GITHUB_WORKSPACE" fetch -q --depth=1 origin playtest-build; then
+            git -C "$GITHUB_WORKSPACE" show FETCH_HEAD:README.md > README.md || true
+          fi
+          cp "$GITHUB_WORKSPACE/builds/JumpyShooty-windows.zip" .
+          git add -A
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Playtest build (Windows) from ${sha}: ${subject}"
+          git remote add origin "$(git -C "$GITHUB_WORKSPACE" remote get-url origin)"
+          auth="$(git -C "$GITHUB_WORKSPACE" config --get http.https://github.com/.extraheader)"
+          git -c http.https://github.com/.extraheader="$auth" push --force origin playtest-build

@@ -1,0 +1,72 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_castle"]
+
+[resource]
+script = ExtResource("1_castle")
+colors = Dictionary[String, Color]({
+"apple": Color(0.68, 0.16, 0.12, 1),
+"banner_blue": Color(0.14, 0.21, 0.5, 1),
+"banner_gold": Color(0.84, 0.64, 0.2, 1),
+"banner_red": Color(0.6, 0.12, 0.13, 1),
+"bread": Color(0.76, 0.55, 0.3, 1),
+"cabbage": Color(0.4, 0.58, 0.26, 1),
+"cloth": Color(0.8, 0.72, 0.55, 1),
+"cobble": Color(0.48, 0.46, 0.43, 1),
+"dirt": Color(0.41, 0.37, 0.32, 1),
+"door": Color(0.3, 0.21, 0.14, 1),
+"glass_lit": Color(1, 0.78, 0.42, 1),
+"grass": Color(0.34, 0.44, 0.22, 1),
+"hay": Color(0.72, 0.63, 0.35, 1),
+"hoarding": Color(0.46, 0.34, 0.22, 1),
+"iron": Color(0.27, 0.28, 0.3, 1),
+"ivy": Color(0.2, 0.33, 0.17, 1),
+"ivy_light": Color(0.29, 0.41, 0.2, 1),
+"lake": Color(0.2, 0.37, 0.45, 1),
+"mountain": Color(0.4, 0.43, 0.44, 1),
+"pine": Color(0.15, 0.29, 0.2, 1),
+"pumpkin": Color(0.86, 0.48, 0.14, 1),
+"rock": Color(0.41, 0.4, 0.38, 1),
+"rope": Color(0.62, 0.52, 0.36, 1),
+"shadow": Color(0.08, 0.07, 0.07, 1),
+"slate": Color(0.26, 0.28, 0.32, 1),
+"snow": Color(0.9, 0.92, 0.95, 1),
+"stone": Color(0.56, 0.55, 0.52, 1),
+"stone_dark": Color(0.36, 0.35, 0.34, 1),
+"stone_light": Color(0.7, 0.68, 0.63, 1),
+"torch": Color(1, 0.72, 0.36, 1),
+"trunk": Color(0.3, 0.22, 0.16, 1),
+"water": Color(0.17, 0.3, 0.34, 1),
+"wood": Color(0.44, 0.31, 0.2, 1),
+"wood_light": Color(0.64, 0.49, 0.33, 1)
+})
+glow = Dictionary[String, float]({
+"glass_lit": 1.1,
+"torch": 1.5
+})
+surface = Dictionary[String, String]({
+"cobble": "cobbles",
+"dirt": "dirt",
+"door": "planks_upright",
+"grass": "grass",
+"hay": "thatch",
+"hoarding": "planks_upright",
+"ivy": "clumps",
+"ivy_light": "clumps",
+"lake": "water",
+"mountain": "strata",
+"pine": "clumps",
+"rock": "strata",
+"slate": "shingles",
+"stone": "blocks",
+"stone_dark": "blocks",
+"stone_light": "blocks_small",
+"trunk": "bark",
+"water": "water",
+"wood": "planks",
+"wood_light": "planks"
+})
+roughness = 0.9
+breakable = Dictionary[String, float]({
+"hoarding": 90.0
+})

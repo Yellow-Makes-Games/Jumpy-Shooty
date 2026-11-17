@@ -16,7 +16,8 @@ cursor's floor, and right.
 import math
 
 ACTIONS = ["RUN", "JUMP", "LONG_JUMP", "DIVE_JUMP", "FLIP_DIVE", "SLIDE", "CRAWL", "WALL_RUN",
-           "WALL_JUMP", "CHIMNEY", "GRAPPLE", "WAIT_GROUND", "WAIT_CLEAR", "WALK"]
+           "WALL_JUMP", "CHIMNEY", "GRAPPLE", "WAIT_GROUND", "WAIT_CLEAR", "WALK", "BOOST_JUMP", "BOOST_UP",
+           "GLIDE_JUMP"]
 HEADINGS = [(1, 0, 0), (0, 0, 1), (-1, 0, 0), (0, 0, -1)]   # turning right steps forward through these
 
 
@@ -210,13 +211,15 @@ class Course:
         return self.block(parent, name, (r, y, -f), size, kind, cols=cols, local=True, **kw)
 
     # -- race things ---------------------------------------------------------
-    def point(self, f, y, r, action="RUN", aim=None, radius=1.0):
+    def point(self, f, y, r, action="RUN", aim=None, radius=1.0, boost=False):
         props = [("transform", self.xform(self.basis(), self.w(f, y, r)))]
         props.append(("action", str(ACTIONS.index(action))))
         if aim is not None:
             props.append(("aim", vec(self.local_vec(*aim))))
         if radius != 1.2:
             props.append(("radius", fmt(radius)))
+        if boost:
+            props.append(("boost", "true"))
         self.points.append(self.w(f, y, r))
         return self.add_node("P%02d_%s" % (len(self.points), action.lower()), "Marker3D", "BotRoute", props, script="route")
 

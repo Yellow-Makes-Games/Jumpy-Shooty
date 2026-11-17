@@ -15,8 +15,8 @@ extends Node
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
 ## --practice           Skip the menus and drop into the arena alone.
-## --map=ID             Which map to play: construction_site, office, testing_grounds, or a race map
-##                      (rooftop_run, foundry, sky_ruins: that makes it a race) (host, practice and bot).
+## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
+##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
 ## --race               With --practice, --bot or --host and no --map: race on the first race map.
 ## --game=GAME          ffa or dm (Deathmatch: start unarmed, pick weapons up off the map), with --practice, --bot or --host.
 ## --autopilot          Your own racer runs the course like a bot would (race tests and screenshots).
@@ -30,11 +30,19 @@ extends Node
 ## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
 ##                      P percent of movement packets lost (incoming, this copy only).
 ## --scripted-fire     With --scripted-input: aim at the nearest opponent and shoot.
-## --rules=kills:N | time:MINUTES  Host only: set the lobby's win condition.
+## --map-event=SEC     Start the map's events (Halcyon's low gravity) SEC seconds after start, as if a terminal
+##                      had fired them (host, practice and bot matches; tests and screenshots).
+## --eager-terminal    Bots go for a map terminal whenever one is ready and they have nobody to fight (tests;
+##                      normally they only try now and then).
+## --rules=kills:N | time:MINUTES | gungame  Set the win condition (Gun Game also works with --bot).
 ## --kill-target=N      Host only: override the kill target for this match.
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
 ## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings.
+## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics).
+## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
+## --fall=SEC           Your player falls out of the arena SEC seconds after start (shows the death screen; screenshots).
+## --hud=STYLE          Use this HUD layout in both views: arcs or clean (screenshots).
 ## --third-person      Start in third-person view (not saved to settings).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
 ## --press=SEC:ACTION   Press an input action (e.g. toggle_camera) SEC seconds after start (repeatable).
@@ -68,6 +76,8 @@ var scripted_input := false
 var sync_log := false
 var sound_log := false
 var scripted_fire := false
+var eager_terminal := false
+var map_event_at := -1.0     # --map-event: seconds after start (-1 = never)
 ## With --scripted-input: also hook the nearest opponent now and then and flying-kick
 ## them, kick anyone close, and fire the rocket boots every few seconds (tests).
 var scripted_kicks := false
@@ -77,6 +87,8 @@ var rules := ""
 var time_limit := 0.0
 var quit_after := 0.0
 var menu := ""
+var pause_page := ""
+var fall_at := -1.0          # --fall: seconds after start (-1 = never)
 var window_rect := Rect2i()
 var net_sim_latency := 0.0
 var net_sim_jitter := 0.0
@@ -143,9 +155,18 @@ func _ready() -> void:
 			"--sync-log": sync_log = true
 			"--sound-log": sound_log = true
 			"--scripted-fire": scripted_fire = true
+			"--eager-terminal": eager_terminal = true
+			"--map-event": map_event_at = float(value)
 			"--scripted-kicks": scripted_kicks = true
 			"--auto-return": auto_return = true
 			"--menu": menu = value
+			"--settings-tab": SettingsPanel.open_on_tab(int(value))
+			"--pause-page": pause_page = value
+			"--fall": fall_at = float(value)
+			"--hud":
+				if Settings.HUD_STYLES.has(value):
+					Settings.hud_first_person = value
+					Settings.hud_third_person = value
 			"--kill-target": kill_target = int(value)
 			"--rules": rules = value
 			"--time-limit": time_limit = float(value)
@@ -226,6 +247,13 @@ func _process(delta: float) -> void:
 				ev.pressed = down
 				Input.parse_input_event(ev)
 			print("[dev] pressed: %s" % press[1])
+	if map_event_at >= 0.0 and elapsed >= map_event_at and Net.arena:
+		map_event_at = -1.0
+		for e in get_tree().get_nodes_in_group(MapEvent.GROUP):
+			(e as MapEvent).host_start()
+	if fall_at >= 0.0 and elapsed >= fall_at and Net.arena and Net.arena.local_player:
+		fall_at = -1.0
+		Net.arena.local_player.report_fell_once()
 	for look in looks.duplicate():
 		if elapsed >= look[0]:
 			looks.erase(look)

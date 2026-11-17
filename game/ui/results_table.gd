@@ -13,7 +13,7 @@ static func build(parent: Control, rows: Array) -> void:
 		_build_race(list, rows)
 		return
 	var head := _row(list, Color(0, 0, 0, 0), Color(0, 0, 0, 0))
-	for h in [["", 34], ["PLAYER", 0], ["KILLS", 70], ["DEATHS", 70]]:
+	for h in [["", 34], ["PLAYER", 0], ["WEAPON #" if GunGame.active() else "KILLS", 70], ["DEATHS", 70]]:
 		var l := _cell(head, h[0], 12, UiKit.TEXT_DIM, false, h[1])
 		if h[0] == "PLAYER":
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -29,7 +29,9 @@ static func build(parent: Control, rows: Array) -> void:
 		card.add_child(who)
 		_cell(who, row.name + ("  (you)" if me else ""), 20, Color.WHITE, true)
 		_cell(who, Characters.name_of(Net.player_character(row.id)), 13, UiKit.TEXT_DIM, false)
-		_cell(card, str(row.kills), 26, GOLD if rank == 1 else Color.WHITE, true, 70)
+		var score := ("%d/%d" % [mini(int(row.get("level", 0)) + 1, GunGame.steps()), GunGame.steps()]) \
+			if GunGame.active() else str(row.kills)
+		_cell(card, score, 26, GOLD if rank == 1 else Color.WHITE, true, 70)
 		_cell(card, str(row.deaths), 20, UiKit.TEXT_DIM, false, 70)
 
 
@@ -67,15 +69,9 @@ static func _build_race(list: VBoxContainer, rows: Array) -> void:
 
 static func _row(list: Node, bg: Color, stripe: Color) -> HBoxContainer:
 	var p := PanelContainer.new()
-	var s := StyleBoxFlat.new()
-	s.bg_color = bg
-	s.set_corner_radius_all(6)
+	var s := UiKit.cut_box(bg, 9, 16, 7)
 	s.border_width_left = 5
 	s.border_color = stripe
-	s.content_margin_left = 14
-	s.content_margin_right = 18
-	s.content_margin_top = 8
-	s.content_margin_bottom = 8
 	p.add_theme_stylebox_override("panel", s)
 	list.add_child(p)
 	var h := HBoxContainer.new()

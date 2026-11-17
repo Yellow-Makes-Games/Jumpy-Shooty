@@ -61,9 +61,9 @@ func draw(ci: CanvasItem, size: Vector2, hud: Hud) -> void:
 	var gap := clock_w * 0.5 + 10.0
 	var racers := Race.progress.size()
 	var place_s := "%s / %d" % [Race.ordinal(Race.place(me)), racers] if racers > 1 else "SOLO"
-	hud.pill(ci, Vector2(cx - gap - (HudStyle.text_width(place_s, 22) + 28.0) * 0.5, y), place_s, 22, HudStyle.ORANGE)
+	hud.pill(ci, Vector2(cx - gap - (HudStyle.text_width(place_s, 22) + 32.0) * 0.5, y), place_s, 22, HudStyle.ORANGE)
 	var gates_s := "GATE %d / %d" % [mini(Race.gates_passed(me), Race.gates), Race.gates]
-	hud.pill(ci, Vector2(cx + gap + (HudStyle.text_width(gates_s, 22) + 28.0) * 0.5, y), gates_s, 22, HudStyle.WHITE)
+	hud.pill(ci, Vector2(cx + gap + (HudStyle.text_width(gates_s, 22) + 32.0) * 0.5, y), gates_s, 22, HudStyle.WHITE)
 	HudStyle.text(ci, Vector2(cx, y + 32.0), Maps.name_of(Net.map_id()).to_upper() + "  ·  RACE", 12, Color(1, 1, 1, 0.75),
 		HORIZONTAL_ALIGNMENT_CENTER, false)
 	if Race.end_at < INF and not done:

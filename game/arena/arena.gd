@@ -23,6 +23,7 @@ const NAV_REBAKE_DELAY := 0.6
 
 
 func _ready() -> void:
+	WorldGravity.reset()   # whatever the last match's map event left behind
 	layout = Maps.make(Net.map_id())
 	layout.name = "Level"
 	add_child(layout)
@@ -56,18 +57,22 @@ func _ready() -> void:
 	Match.player_died.connect(_on_player_died)
 	Match.player_respawned.connect(_on_player_respawned)
 	Match.shot_fired.connect(_on_shot_fired)
+	Match.projectile_fired.connect(_on_projectile_fired)
+	Match.exploded.connect(_on_exploded)
 	Match.pickup_changed.connect(_on_pickup_changed)
 	Match.item_changed.connect(_on_item_changed)
 	_sync_players()
 	_capture_mouse(true)
 	if layout.destruction:
 		Match.request_breaks()   # joining a match in progress: what is broken already
+	Net.request_map_state()      # ...and where the map's terminals and events are
 
 
 func _exit_tree() -> void:
 	if Net.arena == self:
 		Net.arena = null
 	Match.pickups_taken.clear()
+	WorldGravity.reset()      # a map event never outlives the map
 	Match.items_taken.clear()
 	Engine.time_scale = 1.0   # the debug menu's slow motion ends with the match
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -147,6 +152,33 @@ func _on_player_respawned(id: int, _spawn_index: int) -> void:
 		p.expect_respawn()
 
 
+## A rocket or grenade is on its way: draw it (and, for someone else's, their gun firing).
+func _on_projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3) -> void:
+	var p := get_player(shooter)
+	var muzzle := Vector3.INF
+	var color := Color(1.0, 0.6, 0.3)
+	if p:
+		muzzle = p.muzzle_position()
+		color = RobotModel.trim_color(Net.player_color(shooter))
+		if shooter != Net.my_id() and not p.is_local:
+			p.show_shot()
+	add_child(Projectile.make(id, WeaponData.by_id(weapon_id), origin, direction, muzzle, color))
+
+
+func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
+	var node := get_node_or_null("Projectile_%d" % id)
+	if node:
+		node.queue_free()
+	var w := WeaponData.by_id(weapon_id)
+	ShotFx.explosion(self, at, w.splash_radius)
+	Sound.play_at("explosion", at, "fire", 0.0, 0.05)
+	var d := at.distance_to(Sound.listener_position())
+	if d > 40.0 and d < INF:
+		Sound.play_at("explosion_far", at, "far", 0.0, 0.05)
+	if local_player and local_player.rig:
+		local_player.shake(clampf(1.0 - d / (w.splash_radius * 5.0), 0.0, 1.0))
+
+
 func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array) -> void:
 	var p := get_player(shooter)
 	if shooter == Net.my_id() or (p and p.is_local):
@@ -182,7 +214,9 @@ func _sync_players() -> void:
 				rebuild_player(id)   # a new robot from the loadout (picked while waiting to respawn)
 			elif not p.racing and p.robot.weapon != Net.player_weapon(id):
 				if Net.is_deathmatch():
-					p.equip(Net.player_weapon(id))   # switched weapons (or picked one up): in your hands at once
+					p.equip(Net.player_weapon(id))   # switched weapons (or picked one up); a dead body waits for its respawn
+				elif p.alive and Match.is_alive(id):
+					p.change_weapon(Net.player_weapon(id))   # Gun Game: a kill hands you the next weapon now
 				else:
 					rebuild_player(id)   # swapped weapons while waiting to respawn: rebuilt holding the new one
 	for p in players_root.get_children():

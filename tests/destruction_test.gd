@@ -35,7 +35,7 @@ func _make(id: String) -> MapRoot:
 
 func _run() -> void:
 	await process_frame
-	for id in ["construction_site", "office"]:
+	for id in ["construction_site", "office", "rail_yard", "lost_temple", "neon_arcade"]:
 		var map := _make(id)
 		var d := map.destruction
 		_check(d != null and d.panels.size() > 10, "%s has breakable panels (%d)" % [id, d.panels.size() if d else 0])
@@ -106,7 +106,7 @@ func _run() -> void:
 		_check((snap[0] as PackedInt32Array).size() >= 2, "%s: the snapshot for late joiners lists the broken cells" % id)
 		map.queue_free()
 		await process_frame
-	for id in ["rooftop_run", "foundry", "sky_ruins"]:
+	for id in ["rooftop_run", "foundry", "sky_ruins", "summit_plunge"]:
 		var map := _make(id)
 		_check(map.destruction == null, "%s (race): nothing breaks" % id)
 		map.queue_free()

@@ -8,6 +8,8 @@
 #  - every copy shows each player as the robot they picked and with the gun they
 #    picked (the copies start with different guns), and new picks made in the lobby
 #    between the two matches show up in the second one
+#  - every copy hears its own gun, and the other players' shots and footsteps placed
+#    in the world, and someone hears a hit
 #  - there are no script errors
 # Usage: tests/run_match_test.sh [PLAYERS] [NET_SIM]
 set -euo pipefail
@@ -22,7 +24,7 @@ rm -f "$OUT"/match_*.log
 EXTRA=()
 if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
 if [[ -n "${MAP:-}" ]]; then EXTRA+=("--map=$MAP"); fi   # MAP=testing_grounds picks the map (default: the game's default)
-COMMON=(--scripted-input --scripted-fire --sync-log --auto-return --switch-character --switch-weapon --quit-after=150)
+COMMON=(--scripted-input --scripted-fire --sync-log --sound-log --auto-return --switch-character --switch-weapon --quit-after=150)
 CHARACTERS=(needle vanguard)
 GUNS=(pistol shotgun rifle sniper)
 
@@ -80,11 +82,12 @@ shots = hits + misses
 ratio = hits / shots if shots else 0
 print(f"shots judged by host: {shots}, hits {hits} ({ratio:.0%}), headshots {heads}")
 print("by gun: " + ", ".join(f"{g} {h}/{n}" for g, (h, n) in sorted(per_gun.items())))
-# The rifle's wobble (and its long bursts while the target moves) makes it miss
-# more by design, so the rewind check looks at the other guns. Any pellet counts
-# for the shotgun.
+# The automatic guns' wobble (and their long bursts while the target moves) makes
+# them miss more by design, so the rewind check looks at the other guns. Any pellet
+# counts for the shotgun.
+SPRAY = {"rifle", "burst_rifle", "smg", "lmg", "machine_pistol"}
 if per_gun:
-    aimed = [v for g, v in per_gun.items() if g != "rifle"]
+    aimed = [v for g, v in per_gun.items() if g not in SPRAY]
     hits_aimed, shots_aimed = sum(h for h, _ in aimed), sum(n for _, n in aimed)
     ratio = hits_aimed / shots_aimed if shots_aimed else ratio
     rifle = per_gun.get("rifle", [0, 0])
@@ -119,4 +122,13 @@ sys.exit(0 if ok else 1)
 PY
 echo "-- Animation: every copy shows what each player is doing"
 python3 tests/check_anim.py --need=loco,air,death,reload --characters=2 --switched --guns=3 --switched-guns "$OUT"/match_*.log || fail=1
+echo "-- Sounds: every copy hears itself and the others"
+for i in $(seq 1 "$PLAYERS"); do
+  log="$OUT/match_$i.log"
+  grep -qE "^SFX fire_[a-z_]+_fp" "$log" || { echo "FAIL: copy $i never heard its own gun"; fail=1; }
+  grep -qE "^SFX3D fire_[a-z_]+ " "$log" || { echo "FAIL: copy $i never heard another player's shot in the world"; fail=1; }
+  grep -qE "^SFX3D step " "$log" || { echo "FAIL: copy $i never heard another player's footsteps"; fail=1; }
+done
+grep -qhE "^SFX (hitmarker|hurt|kill)" "$OUT"/match_*.log || { echo "FAIL: nobody heard a hit"; fail=1; }
+[[ $fail -eq 0 ]] && echo "PASS: sounds"
 exit $fail

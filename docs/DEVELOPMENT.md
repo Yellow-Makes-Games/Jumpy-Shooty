@@ -50,27 +50,91 @@ addresses or router settings. Everyone needs Steam running.
 
 ## Automated tests
 
-`tests/run_all.sh` runs everything (needs bash and python3, so on Windows use Git Bash
-or WSL; I run these on every change anyway):
+`tests/run_all.sh` runs everything in about 4 minutes on a 4-core machine (needs bash
+and python3, so on Windows use Git Bash or WSL; I run these on every change anyway).
+The quick checks run side by side (`JOBS=8 tests/run_all.sh` for more at once), and the
+ones that only step physics run on a fixed game clock (Godot's `--fixed-fps 60`), so
+they play out as fast as the machine allows instead of in real time. Their logs go to
+`tests/out/check_<name>.log`.
 
-- movement checks (speeds, stopping, jump height, momentum in the air);
-- robot checks, for every character: the model files hold every bone and clip, the
-  skeletons match, each movement state plays the right animation, and the poses fit
-  the hitbox (`tests/robot_test.gd`); every gun has its muzzle bone and its own aim,
-  carry, reload and first-person clips;
-- weapons: damage and falloff (a close shotgun blast and a sniper headshot kill, the
-  rifle never one-shots), whole-magazine and shell-by-shell reloads (`tests/weapon_test.gd`);
-- the Testing Grounds practice courses and the Construction Site routes: a scripted
-  player runs each one (`tests/course_test.gd`, `tests/site_test.gd`). The site test also
-  checks the spawn points and that a bot can walk to every level. To run one route and
-- robot checks: the model files hold every bone and clip, each movement state plays the
-  right animation, and the poses fit the hitbox (`tests/robot_test.gd`);
-- the Testing Grounds practice courses and the Construction Site and Office routes: a
-  scripted player runs each one (`tests/course_test.gd`, `tests/site_test.gd`,
-  `tests/office_test.gd`). The site and office tests also check the spawn points and that
-  a bot can walk to every level. To run one route and
-  print what the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless
+Quick checks:
+
+- movement (`tests/movement_test.gd`): speeds, stopping, jump height, momentum in the air;
+- robots (`tests/robot_test.gd`), for every character: the model files hold every bone
+  and clip, the skeletons match, each movement state plays the right animation, the
+  poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- weapons (`tests/weapon_test.gd`): damage and falloff, magazine and shell-by-shell
+  reloads, melee wind-ups and shoves;
+- sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
+  for exists;
+- map scenes (`tests/map_scene_test.gd`): every map loads and builds, blocks, resize
+  handles, race gates, bot routes, hazards, and the map lists keep race and arena maps apart;
+- the Testing Grounds courses and the Construction Site and Office routes: a scripted
+  player runs each one (`tests/course_test.gd`, `tests/site_test.gd`,
+  `tests/office_test.gd`), plus spawn points and bot navigation; the other arenas'
+  spawns and navigation (`tests/arena_maps_test.gd`). To run one route and print what
+  the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
+- breakable walls and floors (`tests/destruction_test.gd`);
+- flicker (`tests/map_flicker_test.gd`), on the Castle, Rail Yard, Lost Temple and Neon
+  Arcade: no two surfaces of different colours share a plane where both can be seen,
+  and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
+  `FLICKER_LIST=40` prints more of what it found;
+- Halcyon (`tests/halcyon_test.gd`): spawn points, pickups, the terminal on its dais,
+  bot navigation through every room and level, the hull stays sealed, the reactor pit
+  kills;
+- the map terminal (`tests/terminal_test.gd`): a 2 s hold in range fires its event,
+  what cancels a hold, no use during the event or cooldown, one player at a time;
+- low gravity (`tests/gravity_test.gd`): the multiplier's schedule, jump heights,
+  rockets and grenades fly the same path, the centrifuge slows, and gravity always
+  comes back to 1.0;
+- menu layout (`tests/ui_layout_test.gd`): builds every menu page (main menu and its
+  pages, the four Settings tabs, lobby, results, pause, loadout) at 18 window sizes
+  and shapes (960x540 to 4K, 16:10, 21:9, 32:9, 4:3, 5:4, tall and tiny windows) and
+  fails if any button, text box or slider is off screen, if a robot or weapon button
+  cuts its name short, or if the death screen's two columns do not fit;
+- controls rebinding (`tests/controls_check.gd`), the main menu's mode switch
+  (`tests/menu_mode_test.gd`), Deathmatch maps, pickups and inventory
+  (`tests/deathmatch_test.gd`), and the debug menu and target dummies in a real
+  Practice match (`tests/debug_test.gd`);
+- killcams (`tests/killcam_test.gd`): the kill scores and the pick of the best three,
+  what travels with a death, recording and blending frames, a replay from the killer's
+  eyes (camera, arms, the victim, the shot, slow motion), the best kills playing
+  fullscreen after a match (counting down to the best), and the results page with
+  them listed still fits 1600x900;
+- the game boots into practice mode on every map without script errors.
+
+Networked and bot runs (real time):
+
+- sync (`tests/run_sync_test.sh`): 3 copies on a simulated bad network (100 ms latency,
+  60 ms jitter, 10% loss) move on their own; every copy must draw every other player
+  within 15 cm of where they really were (95% of frames), with no visible pops, show
+  the move they were really doing (`tests/check_anim.py`) as the robot they picked,
+  and notice when the host leaves. `SYNC_DEBUG=1 python3 tests/check_sync.py
+  tests/out/sync_*.log` prints where and when each pop happened;
+- match (`tests/run_match_test.sh`): 3 copies on a laggy network play two matches back
+  to back, aiming and shooting on their own: hits land, the match ends at the kill
+  target, every copy agrees on the results and on broken walls, new robot and gun
+  picks show in the second match, and every copy hears its own gun and the others'
+  shots and footsteps;
+- bots (`tests/run_bot_test.sh`): a bot of every difficulty finds you and shoots, Expert
+  beats Easy on accuracy, the hard bots use the movement set, Rematch works, a
+  5-player free-for-all against 4 bots, a sword bot, and your and the bots' sounds;
+- Halcyon online and with bots (`tests/run_gravity_test.sh`): a client fires the
+  terminal on the host, a client across the room cannot, a late joiner is told how far
+  along the event is, and bots use the terminal and keep moving in low gravity;
+- killcams (`tests/run_killcam_test.sh`): Vs Bots (in game time), the killcam plays each
+  time the bot gets you and runs until you respawn, Jump skips it, and the results
+  screen plays the best kills; online, a host and a client on a laggy network each
+  watch their killcams, score every kill the same, pick the same best three and have
+  a clip of each;
+- races (`tests/run_race_test.sh`, in game time): you and 4 bots finish Rooftop Run in
+  time order and "Race again" starts another, Easy bots finish, and a hazard, a fall and
+  R each send you back. After changing a course, run it on that map:
+  `MAPS="foundry" tests/run_race_test.sh`.
+
+The sync, match and bot tests take a map and a player count, for example
+`MAP=testing_grounds tests/run_bot_test.sh` or `MAP=office tests/run_sync_test.sh 5 "100,60,10"`.
 - breakable walls and floors (`tests/destruction_test.gd`): the arena maps have them and
   race maps none, no spawn stands on floor that can break, an intact wall still collides
   as one box, damage cracks then breaks a piece and a shot then goes through the hole;
@@ -78,6 +142,26 @@ or WSL; I run these on every change anyway):
   under itself and falls through, a client breaks a wall, a player joining mid-match is
   shown what is broken and every copy agrees; the match test also checks every copy
   ends each match with the same broken pieces;
+- Halcyon (`tests/halcyon_test.gd`): 16 or more spawn points, each clear, none in the
+  Control Room or in sight of the terminal's dais; the pickups (the heavy weapons up
+  high, none in the Control Room); the terminal on its dais and its event; on the bots'
+  navigation mesh, every room and level reached from the dais and back, both decks
+  joined, and the Control Room entered by each of its six doorways; the dome and the
+  floor glass cannot break and nothing gets out of the hull; no lit strip hangs across
+  a doorway or in mid-air; no two floors or floor markings of different colours share a
+  height where they overlap (that flickers); the reactor pit kills;
+- the map terminal (`tests/terminal_test.gd`): one press in range fires its event; a
+  press from out of range, or during the event or the cooldown, does nothing, and a key
+  kept down does not fire it again; and for a terminal set to need a hold: a 2 s hold
+  fires it, letting go, leaving the range and dying cancel and taking damage does not,
+  one player at a time;
+- low gravity (`tests/gravity_test.gd`): the multiplier reaches 0.3 and returns to 1.0
+  on schedule, a jump reaches about 4 m against about 1.2 m, rockets and grenades fly
+  the same path, the centrifuge slows to half speed, and gravity is back at 1.0 when a
+  match ends mid-event, when the next starts and when the map is unloaded; online and
+  with bots (`tests/run_gravity_test.sh`): a client fires the terminal on the host, a
+  client across the room cannot, a late joiner is told how far along the event is, and
+  bots use the terminal and keep moving through the low gravity;
 - the debug menu and target dummies, in a real Practice match on the Testing Grounds:
   body shots and headshots on a dummy, it goes down and gets back up, god mode, infinite
   ammo, adding and removing bots, changing robot and gun, game speed, and that no cheat
@@ -136,7 +220,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
-| `--map=ID` | Which map: `construction_site` (the default), `office`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -146,6 +230,10 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
+| `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics (with `--menu=settings`, or in the pause menu) |
+| `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
+| `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
+| `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter` or `orbit` without changing your saved choice |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
@@ -156,14 +244,31 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
-| `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site` or `office`) |
+| `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`...) |
+| `--map-event=SEC` | Start the map's events (Halcyon's low gravity) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
+| `--eager-terminal` | Bots go for a map terminal whenever one is ready and they have nobody to fight (normally they only try now and then) |
 | `--autopilot` | Your own racer runs the course the way a bot does (race tests and screenshots) |
 | `--bot-level=LEVEL` | With `--autopilot`: at this bot difficulty (default 3, Expert) |
 
 ## Maps
 
 Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`,
-`game/maps/office.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+`game/maps/office.tscn`, `game/maps/kilnworks.tscn`, `game/maps/rail_yard.tscn`,
+`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn`, `game/maps/halcyon.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+
+The Castle is a good small example of a map with several height levels: a curtain
+wall with a battlement walk at 6 m, four round corner towers at 12 m reached by
+stone ramps laid along the wall walks, a gatehouse with a gate tunnel, and a
+central keep whose upper floor (6 m) is reached from a terrace ramp and from the
+west wall walk over a timber bridge, and whose roof deck (12 m) the keep stair
+climbs to. Its palette (`palettes/castle.tres`) shows a breakable kind (the wooden
+hoardings in the bailey). Its small dressing (a coping on every merlon, pilasters and
+torches along the walls, door and window surrounds, the great hall's fittings, market
+goods, ivy, weeds, and the lake and mountains outside) is the scene's `Dressing` branch,
+about 2,000 drawn-only blocks written by `python3 tools/arena/castle_dressing.py`. The
+script reads where the merlons, barrels, crates, carts and hoardings are, so run it
+again after moving them; it replaces only the `Dressing` branch and leaves the rest of
+the scene as it is.
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
@@ -181,11 +286,14 @@ Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`
 - **MapDummy** nodes (under `TargetRange` in the Testing Grounds): target dummies. The
   orange figure shows which way the dummy faces; the inspector picks its robot, its gun
   and the caption over its head (the Testing Grounds ones give the distance).
-- **MapWeaponSpawn** nodes (under `WeaponSpawns`, on the Construction Site and the
-  Office): Deathmatch weapon pickups. Stand one on a floor and pick its **Weapon** in the
+- **MapWeaponSpawn** nodes (under `WeaponSpawns`, on the Construction Site, the
+  Office, the Kilnworks and the Castle): Deathmatch weapon pickups. Stand one on a floor and pick its **Weapon** in the
   inspector; in a Deathmatch that weapon floats a metre above it, bobbing and turning,
   until someone walks through it, and is back 10 s after (`Match.PICKUP_RESPAWN`). Other
   games leave the spot empty. The orange ghost and label are editor-only.
+- **MapTerminal**, **GravityEvent** and **MapSpinner** nodes (Halcyon): a console players
+  press Interact at, the event it sets off, and scenery that turns. See "Terminals and
+  map events" below.
 - **Label3D** nodes: signs and painted floor numbers.
 - **Environment** (sky, ambient light) and **Sun**: ordinary Godot nodes, so the editor
   shows the map lit the way the game does.
@@ -198,7 +306,21 @@ game). A block or group you hide with the eye icon is left out of the game.
 
 Colours live in the palette (`game/maps/palettes/*.tres`): change one there and every
 block of that kind changes. To add a kind, add an entry to the palette's Colors, then
-type its name into a block's Kind. The MapRoot's inspector also has the map's rules:
+type its name into a block's Kind. A colour whose alpha is below 1 makes the kind
+see-through (Halcyon's dome and windows): you look through it, but it is as solid as
+any block. The palette's **Surface** list gives a kind a pattern drawn on every surface
+of that kind with no extra blocks (Halcyon): `panels` (seams on walls, now and then a
+hatch or vent slots), `panels_plain`, `tiles`, `plates` (rivets), `grating`, `slats`
+(a vent), `hazard` (slanted stripes), `treads` (grip lines across a ramp),
+`corrugated` (shipping containers), and for buildings and the outdoors: `checker`,
+`pavers` and `slabs` (floors), `bricks`, `blocks` and `blocks_small` (dressed stone; on a
+floor, flagstones), `cobbles`, `planks` and `planks_upright`, `shingles` and `thatch`
+(roofs), `grass`, `dirt`, `gravel` and `tarmac` (soft blotches), `clumps` (leaves),
+`bark`, `strata` (a cliff), `water` (ripples that move), `confetti` (an arcade carpet)
+and `windows` / `windows_lit` (rows of windows on far-off buildings). The patterns are settings of one shader,
+`game/arena/map_surface.gdshader`, listed in `MapScenery.SURFACES`; they are measured
+in metres from where the surface is in the map, so they line up from block to block. A
+kind that glows or is see-through takes no pattern. The MapRoot's inspector also has the map's rules:
 **Bounds** (leave it and you are out; drawn as a red rectangle), **Kill Height** and the
 **Swing Point** the test player hooks.
 
@@ -231,7 +353,8 @@ it down), give it a palette, add blocks, spawns, a WorldEnvironment and a sun. F
 it straight away. To put it in the menus, add a line to `LIST` in `game/arena/maps.gd`.
 To offer an arena for Deathmatch too, give it `"also": ["dm"]` there and add
 MapWeaponSpawn nodes; `tests/deathmatch_test.gd` checks every Deathmatch map has at
-least 8 pickups, every weapon among them, each over a floor with room to stand.
+least 8 pickups of 10 or more different weapons, each over a floor with room to stand,
+and that all the Deathmatch maps together offer every weapon.
 
 The scripts behind this:
 
@@ -241,6 +364,9 @@ The scripts behind this:
 | `game/arena/map_root.gd`, `map_block.gd`, `map_spawn.gd`, `map_palette.gd` | The node types above; `MapRoot.build()` turns the blocks into collision and meshes |
 | `game/arena/map_mesher.gd`, `map_scenery.gd` | One merged mesh per kind, the materials, the navigation mesh |
 | `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
+| `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
+| `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
+| `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
 | `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline |
 
 To render pictures of a map without opening the game:
@@ -251,11 +377,145 @@ tools/map_preview.sh construction_site OUT_DIR --shots="sw;top;cut7.5;-24,1.7,35
 
 Shots are corners (`sw`, `ne`, ...), `top` (a plan), `cutY` (a plan with everything above
 height Y sliced off, to see one floor) or a camera `x,y,z:look-x,y,z:fov`. The map can
-also be a scene path (`res://game/maps/my_map.tscn`).
+also be a scene path (`res://game/maps/my_map.tscn`). A plan shows 92 m from top to
+bottom; `--span=150` fits a map the size of Halcyon (`--shots="cut5.9;cut-0.6"` are its
+main and lower decks).
+
+### Rail Yard, Lost Temple and Neon Arcade
+
+These three arenas were laid out by `tools/arena/build_arena_maps.py` (one file per map
+in `tools/arena/`, the scene writer in `tools/arena/arena_builder.py`). They are ordinary
+map scenes, grouped one object per group like the others, so edit them in the editor.
+Running the script again (`python3 tools/arena/build_arena_maps.py rail_yard`) rebuilds a
+map and its palette from scratch and overwrites hand edits. After moving things,
+`godot --headless --path . --script tests/arena_maps_test.gd` checks that every spawn is
+clear, walls and floors still break, and a bot can walk between every spawn point and to
+each map's floors (the goals are at the top of the test).
+
+Each map file ends with a `details(m)` function: the small things (window frames, lamps,
+signs, pipes, weeds, vines, the street outside the arcade). They are all drawn only, so
+they change neither collision nor the bots' navigation. The builder has helpers for them:
+`strip` (a box), `on_wall` (a piece that stands proud of a wall face), `rod` and `pipe`
+(bars at any angle), `sign`, and `stairs(..., cheek_stop=)` for stair sides that stop
+short of a landing. The rules they keep, which `tests/map_flicker_test.gd` checks:
+
+- Two surfaces of different colours never share a plane. A detail stands proud of the
+  surface behind it, and one laid over another is both a different depth (2 cm or more)
+  and a different outline, so their fronts and their edges are in different planes.
+- Paint on a floor is 2 cm thick or more, and each kind of paint has its own height.
+- A box that wraps a post (a collar, a cap) ends below the post's top.
+- On a wall or floor that breaks, a detail is a thin skin (0.15 m or less) lying
+  inside one panel's outline, so it breaks with the panel. Anything bigger, or
+  anything that spans two panels, would hold the wall up: stand it on its own posts.
+
+### Halcyon
+
+`game/maps/halcyon.tscn` is the inside of a colony ship, the biggest arena (140 x 140 m,
+up to 16 players) and the only one that is sealed all round: a round Control Room in the
+middle under a glass dome, four spoke corridors to four tall rooms (Hangar north,
+Hydroponics east, Engineering south, Cargo Bay west), an outer ring corridor joining
+them through three corner sections and the Cryo zone, and a lower maintenance deck (-6 m)
+under the spokes and the ring. The tall rooms run from the lower deck's floor up to
+26-30 m, with decks about every 7 m and plenty to hook. The reactor pit in Engineering
+is the only hazard: it drops below the map's Kill Height (-16 m).
+
+It was laid out by `python3 tools/arena/build_arena_maps.py halcyon` (the layout is
+`tools/arena/halcyon.py`: the four spokes are one spoke turned, three ring corners one
+corner mirrored). Like the other generated arenas the scene is an ordinary map scene and
+is what you edit from here on; running the script again rebuilds it from scratch and
+**overwrites hand edits**. After moving things, `godot --headless --path . --script
+tests/halcyon_test.gd` checks the spawns, the routes and that the hull is still sealed
+(the places it walks to are at the top of the test).
+
+Things to keep true when editing it:
+
+- The dome, the floor glass and the hull windows are the kind `glass_hull`, which is not
+  in the palette's Breakable list (and they are ticked Unbreakable too). The glass
+  that breaks is `glass_pane`; a pane only breaks if nothing rests on it, so they stop
+  a little short of the lintel above.
+- In low gravity a jump reaches 4 m. Every room has a ceiling and the hull has no gaps,
+  so nobody gets out; keep it that way when you open a wall.
+- Wall and floor details (each place's "Details" group: ribs, vents, wall displays,
+  conduits, ceiling beams, floor lines, grates, hazard stripes) are drawn only: Solid
+  is off on every one, and none stands more than 0.3 m off its surface, so nothing
+  snags a wall run, a slide or a swing. Keep new ones the same. Panel seams, tiles,
+  grating and stripes are not blocks at all: the palette's Surface list draws them.
+- A light bar or colour band along a wall stops at every doorway and window (in a
+  round room it is made of straight pieces, one per wall piece, for that reason). The
+  Halcyon test fails if one hangs across an opening.
+- Two surfaces of different kinds (or tints) in exactly the same plane flicker. So a
+  room's floor stops at its wall under a doorway (the doorway's threshold is the floor
+  there), a wall has no sill under an opening that starts at the floor, and corridor
+  walls end inside a room's wall, not flush with its face. Paint on a floor goes in
+  layers so no two share a height: grates 12 mm thick, lines 20 to 24 mm, hole rims
+  30 mm, hazard stripes 40 mm, words 60 mm up. Wall pieces differ in how far they stand
+  off the wall. The Halcyon test checks the floors.
+- Words on a floor are Label3D nodes lying flat with Shaded on, so they take the
+  room's light (and go blue with it in low gravity).
+- No spawn point or weapon in the Control Room, and no spawn point that can see the dais.
+- Lighting is the ambient light, a soft shadowless "sun" and the glowing kinds (each
+  room has its own accent kind: `accent_cyan` and so on). There are no light nodes, so
+  it looks the same on every renderer. The sky is `game/maps/sky/halcyon_sky.gdshader`.
+
+### Terminals and map events
+
+A **MapTerminal** is a console players use by pressing **Interact** (`interact` in
+`Settings.ACTIONS`; G by default, rebindable like any key). Halcyon's stands on the dais
+in the Control Room. The rules, which the host decides:
+
+- stand within its **Range** (2 m) and press Interact: one press sets it off;
+- it cannot be used while its event is running or cooling down, and a press made then
+  does not count later: it takes a new press once it is ready.
+
+A terminal can ask for a hold instead: give its **Channel Time** some seconds (it is 0
+by default). Then Interact must be held that long; letting go cancels, and so does
+leaving the range (walking off, or being knocked out of it) or dying, while taking
+damage does not; and it belongs to one player at a time.
+
+Nothing about it is on the HUD. A ring of light over the console pulses gently when it
+is ready, flashes full when someone sets it off (through a hold it fills round in blue,
+for everyone to see), and sits dim while it is locked; a hum winds down as it goes off.
+
+Its **Event** points at a **MapEvent** node in the same scene. The one kind so far is
+**GravityEvent** (Halcyon's `LowGravity`): gravity eases down to **Gravity Scale** (0.3)
+over **Ease Time** (2 s), stays there for **Duration** (30 s), eases back, and the
+terminal stays locked for **Cooldown** (60 s) more. While it runs every light in the map
+fades to a deep blue, a soft chord swells in, motes of light drift through the boxes
+listed in **Mote Volumes**, and the map's MapSpinners turn at **Spinner Speed** (half).
+All of that follows the same curve as the gravity.
+
+How it works underneath:
+
+- `WorldGravity.scale` is the one gravity multiplier. `MovementController` and
+  `Grapple` multiply by it wherever they use gravity (falling, swinging, slides
+  downhill, and the wall run's and glide's own gravity, scaled the same), so the
+  tuning resource's `gravity` (22) is never changed. Rockets and grenades do not read
+  it. The arena puts it back to 1.0 when a match starts and when the map is unloaded.
+- The host owns the terminal and the event. A player's copy only says when its player
+  presses and lets go of Interact there (`Net.terminal_hold`); the host checks the range (and
+  the timing, for a hold) and tells everyone the terminal's state and the event's clock
+  (`Net.send_terminal_state`, `Net.send_map_event_state`), again every few seconds, and
+  to anyone who joins mid-match (`Net.request_map_state`).
+- Bots press at a terminal through the same `PlayerInput.interact` a person does.
+
+**To put a terminal on another map:** add a GravityEvent node (a plain Node with
+`game/arena/gravity_event.gd`) to the map scene and set its numbers; add a Node3D with
+`game/arena/map_terminal.gd` where the console stands (on a floor; build the console
+itself from MapBlocks round it) and point its Event at the GravityEvent; fill in Mote
+Volumes if you want motes. Nothing else needs changing: the arena, the network and the
+bots find them in the scene. A different kind of event is a script that extends
+`MapEvent` and fills in `length()` and `_update()`.
+
+A **MapSpinner** is a group of MapBlocks that turns round its own y axis (tip the node
+over for another axis): Halcyon's centrifuge ring, outside the hull. It is decoration
+only: drawn, never solid, and each copy of the game turns it by its own clock. That is
+why it is not a MapMover, which is still for race maps only (a mover is solid, carries
+riders and runs off the race clock); MapHazard is race-only too, so Halcyon's pit uses
+the Kill Height and its decks are joined by fixed ramps.
 
 ### Race maps
 
-`game/maps/rooftop_run.tscn`, `foundry.tscn` and `sky_ruins.tscn` are ordinary maps
+`game/maps/rooftop_run.tscn`, `foundry.tscn`, `sky_ruins.tscn` and `summit_plunge.tscn` are ordinary maps
 (MapBlocks in groups, so one click picks a whole piece and F6 plays it as a race) with
 four more node types:
 
@@ -272,17 +532,24 @@ four more node types:
 - **MapRoutePoint** (under `BotRoute`, in running order): the line the bots take, and
   what they do at each point (run, jump, long jump, dive jump, flip dive, slide, crawl,
   wall run, wall jump, chimney, grapple to the point plus Aim, wait for ground, wait for a
-  clear path). If you move an obstacle, move its route points with it.
+  clear path, boost jump, boost up, glide jump). **Boost** on a grapple or glide-jump point
+  also fires the rocket boots toward the next point (as it lets go of the rope, or in
+  the glide). If you move an obstacle, move its route points with it.
 
 Falling below **Kill Height** sends you back too. A map counts as a race map when it has
 checkpoints; `game/arena/maps.gd` lists each map with its game, `ffa` or `race`, and the
 menus only offer a map for its own game.
 
-The three courses were laid out by `tools/race/build_race_maps.py` (the sections are in
+The four courses were laid out by `tools/race/build_race_maps.py` (the sections are in
 `tools/race/sections.py`: gaps, vaults, climbs, wall runs, chimneys, grapples, pistons,
-presses, sweepers and so on). Edit a map in the editor and the change is yours to keep;
-running the script again rebuilds all three from scratch and overwrites hand edits.
-After changing a course, `tests/run_race_test.sh` checks that bots still get round.
+presses, sweepers, and the ones built for the newer moves: rocket gaps, boost-up walls,
+glide gaps, ski jumps, grapple swings and belly-slide chutes, with the distances each
+move covers at the top of that part of the file). Edit a map in the editor and the
+change is yours to keep; running the script again rebuilds them all from scratch and
+overwrites hand edits. To try a section on its own, build the test strip
+`race_lab` (`LAB='[["boost_gap", {"d": 20}]]' python3 tools/race/build_race_maps.py race_lab`,
+any sections and arguments) and race it with `--map=res://game/maps/race_lab.tscn --autopilot`.
+After changing a course, `MAPS=<map id> tests/run_race_test.sh` checks that bots still get round.
 `game/match/race_state.gd` (the `Race` autoload) runs the race rules and
 `game/bot/race_brain.gd` the race bots.
 
@@ -334,7 +601,11 @@ mesh parts (the materials are named `GUN.KIND`, e.g. `rifle.accent`). A long gun
 are the base name plus the gun (`aim_rifle`, `fp_reload_shotgun`, `fire_sniper`); the
 game falls back to the plain (pistol) clip when a gun has no version of one. Each gun's
 shots leave from its own marker bone (`muzzle_shotgun`, ...). The numbers for every gun
-are in `game/combat/weapon_data.gd`. A model made in Blender later can
+are in `game/combat/weapon_data.gd`. The akimbo pistols are the one weapon in two hands:
+the left gun rides on its own bones in the left fist (`pistol_l`, `pistol_l_slide`,
+`pistol_l_mag`, `muzzle_akimbo_l`; pose specs move them with `pistol_l`, `slide_l` and
+`mag_l`), the shots alternate between `muzzle_akimbo` and `muzzle_akimbo_l`
+(`WeaponData.muzzle_bone_left`), and `fire(left)` kicks only the arm that fired. A model made in Blender later can
 replace the .glb files as long as it keeps the same bone and clip names.
 
 **Your own body in first person.** The arms and gun you see are the separate arms
@@ -392,6 +663,11 @@ python3 tools/audio/make_sfx.py            # every sound (a few seconds)
 python3 tools/audio/make_sfx.py fire_      # only the ones whose names start with fire_
 godot --headless --path . --import
 ```
+
+Two of the sounds loop (`terminal_hum` and `gravity_pad`, for Halcyon's terminal and low
+gravity): every frequency in them fits a whole number of times into the file, so the end
+runs into the start, and the nodes that play them (MapTerminal, GravityEvent) set the
+loop and fade them in and out.
 
 In the game, `game/audio/` holds the code:
 

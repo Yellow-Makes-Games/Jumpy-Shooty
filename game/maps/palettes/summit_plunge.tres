@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_pal"]
+
+[resource]
+script = ExtResource("1_pal")
+colors = Dictionary[String, Color]({
+"far_peak": Color(0.5, 0.54, 0.62, 1),
+"far_snow": Color(0.95, 0.97, 1, 1),
+"flag_blue": Color(0.15, 0.35, 0.95, 1),
+"flag_red": Color(0.95, 0.2, 0.15, 1),
+"ice": Color(0.62, 0.84, 0.96, 1),
+"ice_dark": Color(0.38, 0.6, 0.78, 1),
+"jet": Color(0.25, 0.85, 1, 1),
+"lamp": Color(1, 0.88, 0.62, 1),
+"meltwater": Color(0.25, 0.75, 1, 1),
+"pine": Color(0.15, 0.32, 0.24, 1),
+"pine_dark": Color(0.1, 0.24, 0.18, 1),
+"pole": Color(0.25, 0.26, 0.28, 1),
+"rock": Color(0.42, 0.42, 0.46, 1),
+"rock_dark": Color(0.3, 0.3, 0.34, 1),
+"roof_red": Color(0.72, 0.16, 0.13, 1),
+"snow": Color(0.93, 0.95, 0.98, 1),
+"snow_drift": Color(0.86, 0.9, 0.96, 1),
+"snow_shade": Color(0.8, 0.86, 0.94, 1),
+"trunk": Color(0.36, 0.25, 0.17, 1),
+"valley": Color(0.82, 0.88, 0.95, 1),
+"window_lit": Color(1, 0.8, 0.45, 1),
+"wood": Color(0.55, 0.36, 0.22, 1),
+"wood_dark": Color(0.38, 0.24, 0.14, 1)
+})
+glow = Dictionary[String, float]({
+"flag_red": 0.3,
+"jet": 1.6,
+"lamp": 2.2,
+"meltwater": 1.4,
+"window_lit": 1.4
+})
+roughness = 0.85

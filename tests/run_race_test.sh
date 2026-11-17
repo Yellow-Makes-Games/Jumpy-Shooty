@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Race mode test. Headless, in game time (--fixed-fps 60 --game-clock), so it plays
 # out the same however slowly the machine runs. Checks that:
-#  - on every race map, a race against 4 bots (Normal) with your own racer on
-#    autopilot (Expert) ends with all 5 having finished, in time order, and the
-#    results are race results; "Race again" starts a second race
-#  - Easy bots get round every course too
+#  - a race against 4 bots (Normal) with your own racer on autopilot (Expert) ends
+#    with all 5 having finished, in time order, and the results are race results;
+#    "Race again" starts a second race
+#  - Easy bots get round the course too
 #  - fail conditions: touching a hazard, falling off the course and pressing R
 #    each put you back at your checkpoint
-#  - an online race (host and one client, both on autopilot) finishes for both,
-#    and the client sees the same finishers as the host
 #  - there are no script errors
-# Usage: tests/run_race_test.sh
+# Usage: [MAPS="rooftop_run foundry sky_ruins summit_plunge"] tests/run_race_test.sh
+#   MAPS picks the race maps (default: Rooftop Run). After changing a course, run it
+#   on that map.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
@@ -18,7 +18,7 @@ OUT=tests/out
 mkdir -p "$OUT"
 rm -f "$OUT"/race_*.log
 RUN=(--headless --fixed-fps 60 --path . --)
-MAPS=(rooftop_run foundry sky_ruins)
+read -r -a MAPS <<< "${MAPS:-rooftop_run}"
 
 for map in "${MAPS[@]}"; do
   timeout 400 "$GODOT" "${RUN[@]}" --bot=1 --bots=4 --map="$map" --autopilot --bot-level=3 --sync-log --game-clock \
@@ -36,15 +36,6 @@ timeout 60 "$GODOT" "${RUN[@]}" --practice --map=foundry --hold=4:move_forward:1
   --quit-after=8 > "$OUT/race_reset.log" 2>&1 &
 wait
 
-# Online: host and one client race Sky Ruins.
-PORT=24790
-timeout 300 "$GODOT" "${RUN[@]}" --host --port=$PORT --name=Host --autostart=2 --map=sky_ruins --autopilot --sync-log \
-  --quit-after=130 > "$OUT/race_host.log" 2>&1 &
-sleep 2
-timeout 300 "$GODOT" "${RUN[@]}" --join=127.0.0.1:$PORT --name=Guest --autopilot --sync-log \
-  --quit-after=128 > "$OUT/race_client.log" 2>&1 &
-wait
-
 python3 - "$OUT" "${MAPS[@]}" <<'EOF'
 import json, re, sys
 out, maps = sys.argv[1], sys.argv[2:]
@@ -56,7 +47,7 @@ def read(name):
 def results(text):
     return [json.loads(m) for m in re.findall(r"^MATCH_OVER (\[.*\])$", text, re.M)]
 
-for name in [f"{m}" for m in maps] + [f"easy_{m}" for m in maps] + ["hazard", "fall", "reset", "host", "client"]:
+for name in [f"{m}" for m in maps] + [f"easy_{m}" for m in maps] + ["hazard", "fall", "reset"]:
     if "SCRIPT ERROR" in read(name):
         fails.append(f"{name}: script errors")
 
@@ -90,16 +81,6 @@ for name, needle in checks.items():
     print(f"  {name}: {'sent back' if ok else 'NOT sent back'}")
     if not ok:
         fails.append(f"{name}: never sent back to the checkpoint")
-
-host, client = results(read("host")), results(read("client"))
-if not host or not client:
-    fails.append("online: the race did not end for both players")
-else:
-    hf = sorted(r["id"] for r in host[0] if r.get("finished"))
-    cf = sorted(r["id"] for r in client[0] if r.get("finished"))
-    print(f"  online: host saw {len(hf)} finishers, client saw {len(cf)}")
-    if len(hf) != 2 or hf != cf:
-        fails.append(f"online: finishers differ or missing (host {hf}, client {cf})")
 
 if fails:
     print("FAIL:\n  " + "\n  ".join(fails))

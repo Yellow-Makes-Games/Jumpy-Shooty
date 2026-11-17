@@ -175,7 +175,8 @@ func _add_blade(model: Node3D) -> void:
 		mi.transform = part[1]
 		var kind: String = part[2]
 		var m := StandardMaterial3D.new()
-		m.albedo_color = {"steel": MeleeModel.STEEL, "dark": MeleeModel.DARK, "grip": MeleeModel.GRIP, "edge": GLOW}[kind]
+		m.albedo_color = {"steel": MeleeModel.STEEL, "dark": MeleeModel.DARK, "grip": MeleeModel.GRIP, "edge": GLOW,
+			"wood": MeleeModel.WOOD}.get(kind, MeleeModel.DARK)
 		m.roughness = 0.25 if kind == "steel" else 0.6
 		m.metallic = 0.9 if kind == "steel" else 0.3
 		if kind == "edge":

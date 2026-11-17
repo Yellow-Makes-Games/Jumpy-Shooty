@@ -61,6 +61,11 @@ BODY = Skeleton([
     ("forearm_l", "upper_arm_l", (-0.215, 1.13, 0)),
     ("hand_l", "forearm_l", (-0.215, 0.88, 0)),
     ("grapple", "forearm_l", (-0.285, 0.90, 0)),      # where the grapple rope leaves the left wrist
+    # The second pistol of the akimbo pair, in the left fist (the same three gun bones, mirrored).
+    ("pistol_l", "hand_l", (-0.215, 0.835, 0)),
+    ("pistol_l_slide", "pistol_l", (-0.215, 0.835, 0)),
+    ("pistol_l_mag", "pistol_l", (-0.215, 0.835, 0)),
+    ("muzzle_akimbo_l", "pistol_l", (-0.215, 0.835 - 0.20, -0.064)),
     ("upper_arm_r", "chest", (0.215, 1.40, 0)),
     ("forearm_r", "upper_arm_r", (0.215, 1.13, 0)),
     ("hand_r", "forearm_r", (0.215, 0.88, 0)),
@@ -78,7 +83,12 @@ BODY = Skeleton([
 ])
 
 # Where each long gun's shots leave its barrel, in gun space (x, up, back). The pistol's is "muzzle".
-MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565), "sniper": (0.0, 0.058, -0.86)}
+MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565), "sniper": (0.0, 0.058, -0.86),
+           "revolver": (0.0, 0.066, -0.285), "machine_pistol": (0.0, 0.064, -0.235),
+           "break_action": (0.0, 0.066, -0.66), "smg": (0.0, 0.052, -0.47), "burst_rifle": (0.0, 0.056, -0.62),
+           "lmg": (0.0, 0.060, -0.80), "lever_action": (0.0, 0.066, -0.78), "bolt_action": (0.0, 0.060, -0.80),
+           "railgun": (0.0, 0.062, -0.80), "rocket_launcher": (0.0, 0.115, -0.70),
+           "grenade_launcher": (0.0, 0.070, -0.52), "akimbo": (0.0, 0.064, -0.20)}
 
 
 def _with_muzzles(skel_spec):
@@ -94,7 +104,7 @@ def _with_muzzles(skel_spec):
 
 BODY = Skeleton(_with_muzzles(BODY.spec))
 
-MOVING_BONES = ("root", "hips", "pistol", "pistol_slide", "pistol_mag")  # bones whose position is animated
+MOVING_BONES = ("root", "hips", "pistol", "pistol_slide", "pistol_mag", "pistol_l", "pistol_l_slide", "pistol_l_mag")  # bones whose position is animated
 
 ZERO = (0.0, 0.0, 0.0)
 OVERREACH = []   # how far beyond reach each over-stretched limb was asked to go (for checking new poses)
@@ -254,6 +264,8 @@ def solve(skel, spec):
             place(ha, euler(arm.get("hand", ZERO)))
         if side == "r" and "pistol" in skel._by_name:
             _place_gun(skel, spec, place)
+        if side == "l" and "pistol_l" in skel._by_name:
+            _place_left_gun(skel, spec, place)
 
     for b in skel.bones:   # marker bones (muzzle, grapple) just ride along
         if b.name not in L:
@@ -269,11 +281,26 @@ def _place_gun(skel, spec, place):
           skel.offset("pistol") + GUN_REST @ np.array(gun.get("pos", ZERO), dtype=float))
     # The slide moves back along the barrel; a bolt can also turn about the bore ("slide_turn",
     # degrees, about a line "slide_axis" metres above the grip).
-    turn = rz(spec.get("slide_turn", 0.0))
-    axis = v(0.0, spec.get("slide_axis", 0.0), 0.0)
+    # A lever (or a top cover) swings about a sideways line instead ("slide_pitch", degrees,
+    # about the point "slide_pivot": (up, forward) of the grip).
+    turn = rz(spec.get("slide_turn", 0.0)) @ rx(spec.get("slide_pitch", 0.0))
+    if "slide_pivot" in spec:
+        axis = v(0.0, spec["slide_pivot"][0], -spec["slide_pivot"][1])
+    else:
+        axis = v(0.0, spec.get("slide_axis", 0.0), 0.0)
     place("pistol_slide", GUN_REST @ turn @ GUN_REST.T, GUN_REST @ (v(0, 0, spec.get("slide", 0.0)) + axis - turn @ axis))
     place("pistol_mag", GUN_REST @ euler(spec.get("mag_rot", ZERO)) @ GUN_REST.T,
           GUN_REST @ np.array(spec.get("mag", ZERO), dtype=float))
+
+
+def _place_left_gun(skel, spec, place):
+    """The akimbo pair's second pistol, in the left fist: "pistol_l" {pos, rot} in the
+    hand (gun space), "slide_l" (slide travel back, metres) and "mag_l" (magazine offset)."""
+    gun = spec.get("pistol_l", {})
+    place("pistol_l", GUN_REST @ euler(gun.get("rot", ZERO)) @ GUN_REST.T,
+          skel.offset("pistol_l") + GUN_REST @ np.array(gun.get("pos", ZERO), dtype=float))
+    place("pistol_l_slide", np.eye(3), GUN_REST @ v(0, 0, spec.get("slide_l", 0.0)))
+    place("pistol_l_mag", np.eye(3), GUN_REST @ np.array(spec.get("mag_l", ZERO), dtype=float))
 
 
 def _slerp_m(a, b, u):

@@ -17,6 +17,16 @@ extends RefCounted
 ##             the slide runs out you can crawl until you let go.
 ##   FLIP      press jump again in mid-air: a flip toward your WASD direction with a
 ##             small burst, once per jump (a dodge)
+##   GLIDE     hold Shift in mid-air (pressed there: jumping with sprint held does
+##             not start one): your up-and-down speed is cancelled and you carry on
+##             the way you were going, free to look and aim anywhere. Your speed
+##             bleeds off to a drift and you sink, slowly at first and faster the
+##             longer you glide. One budget of glide_time seconds per time in the
+##             air, spent in as many pieces as you like; landing, a wall run or the
+##             grapple refills it. Let go to stop. Any other move takes over from it
+##             (flip, dive, grapple, a wall), so it works as a way to stop rising or
+##             falling before the next move. Rocket boots do not end it: they send
+##             the glide off the way you press instead (see _glide_boost).
 ##
 ## Rocket boots (E): a burst of speed toward your WASD direction as seen from
 ## where you look (straight where you look if you hold no direction), so you can
@@ -28,8 +38,10 @@ extends RefCounted
 ## edges. Wall jumps work from a wall run or any wall you are touching in the air.
 
 const TUCK_SETTLE_SPEED := 3.0   ## metres per second
+const BELLY_SLOPE := 0.985       ## floor normal's y below this (about 10 degrees): a belly slide never slows to a crawl
 
-enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE }
+## New states go on the end: the numbers travel in snapshots (Player.make_pose).
+enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE, GLIDE }
 
 var tuning: MovementTuning
 var state: State = State.AIR
@@ -72,6 +84,9 @@ var _air_dive_used := false   # one dive per jump
 var _flip_used := false       # one flip per jump
 var _roll_left := 0.0
 var _flip_left := 0.0
+var _glide_left := 0.0        # seconds of glide left for this time in the air
+var _glide_wanted := false    # Shift was pressed in the air and is still held
+var _glide_on := false        # a glide is under way (to notice another move taking over from it)
 
 
 func _init(t: MovementTuning = null) -> void:
@@ -92,6 +107,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_air_dive_used = false
 		_flip_used = false
 		_flip_left = 0.0
+		_glide_left = t.glide_time
 	else:
 		_since_ground += delta
 	if input.jump_pressed:
@@ -130,6 +146,24 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 	if grapple.attached or state == State.WALL_RUN:
 		_flip_used = false   # swinging or wall-running gives your flip back
+		_glide_left = t.glide_time  # ...and refills your glide
+
+	# --- Glide: Shift held in the air, having been pressed there. Letting go,
+	# landing or catching the rope ends it. Every other move below simply takes
+	# over from it, and then it needs a fresh press to start again.
+	if _glide_on and state != State.GLIDE:
+		_glide_on = false
+		_glide_wanted = false
+	if not input.glide or grounded or state == State.WALL_RUN:
+		_glide_wanted = false
+	elif input.glide_pressed:
+		_glide_wanted = true
+	if state == State.GLIDE:
+		if grounded or grapple.attached or not _glide_wanted:
+			state = State.AIR
+			_glide_on = false
+	elif _glide_wanted and _can_glide(body, grounded):
+		vel = _start_glide(vel)
 
 	# --- Dive (and the roll when you land from one)
 	var diving_now := false
@@ -209,13 +243,15 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var hspeed := Vector2(vel.x, vel.z).length()
 	if wall_jump:
 		state = State.AIR
-		vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+		vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 	elif state == State.WALL_RUN:
 		vel = _wall_run(vel, delta)
+	elif state == State.GLIDE:
+		vel = _glide(vel, delta)
 	elif state == State.DIVE:
 		if not diving_now:
 			vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.dive_air_accel, delta)
-			vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+			vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 	elif state == State.ROLL:
 		vel = _roll(vel, wish, delta)
 	elif state == State.BELLY_SLIDE:
@@ -225,7 +261,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# the rope removes any motion that would stretch it.
 		state = State.GRAPPLE
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.grapple_air_accel, delta)
-		vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+		vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 	elif grounded and not jumping:
 		var just_landed := state not in [State.GROUND, State.CROUCH, State.SLIDE]
 		if state == State.SLIDE and (not crouched or hspeed < t.slide_end_speed):
@@ -248,7 +284,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		state = State.FLIP if _flip_left > 0.0 else State.AIR
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.air_accel, delta)
 		if not grounded:
-			vel.y = max(vel.y - t.gravity * delta, -t.max_fall_speed)
+			vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 
 	if jumping:
 		vel.y = t.jump_velocity
@@ -265,9 +301,11 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# Reel in: a yank when the hook catches, then a steady pull toward it.
 		if hooked_now:
 			vel = grapple.yank(body, vel)
+			vel = grapple.yank_lift(body, vel)
 			if grounded and (grapple.target != null or grapple.anchor.y > grapple.rope_origin(body).y):
 				vel.y = max(vel.y, t.grapple_hop)   # pop off the floor instead of dragging along it
 		vel = grapple.pull(body, vel, delta)
+		vel = grapple.lift(body, vel, delta)
 		vel = grapple.constrain_velocity(body, vel, delta)
 		if grounded and state != State.BELLY_SLIDE:
 			state = State.GRAPPLE if vel.y > 0.1 else State.GROUND
@@ -278,6 +316,11 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		vel = _boost(vel, input, grounded)
 
 	if _knock != Vector3.ZERO:
+		if state == State.GLIDE:
+			if _knock.y > 0.5:
+				state = State.AIR   # a real shove knocks you out of a glide
+			else:
+				_knock.y = 0.0      # a nudge (a bullet, your own lunge) pushes you along, no lift
 		vel += _knock
 		if _knock.y > 0.5 and state in [State.GROUND, State.CROUCH, State.SLIDE, State.ROLL, State.BELLY_SLIDE]:
 			state = State.AIR   # knocked off your feet
@@ -294,6 +337,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 ## Rocket boots: a burst toward where you push (see the top of this file).
 func _boost(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
 	var t := tuning
+	if state == State.GLIDE:
+		return _glide_boost(vel, input)
 	var dir := input.boost_dir
 	if dir == Vector3.ZERO:
 		var look := Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0))
@@ -372,6 +417,9 @@ func reset() -> void:
 	_flip_used = false
 	_roll_left = 0.0
 	_flip_left = 0.0
+	_glide_left = tuning.glide_time
+	_glide_wanted = false
+	_glide_on = false
 	if crouched and _shape:
 		_set_height(tuning.stand_height)
 	crouched = false
@@ -472,7 +520,7 @@ func _slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, delta: float) ->
 	var t := tuning
 	var n := body.get_floor_normal()
 	# Gravity along the floor: zero on flat ground, speeds you up downhill.
-	var downhill := Vector3(0, -t.gravity, 0)
+	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
 	var h := Vector3(vel.x, 0, vel.z)
@@ -552,7 +600,7 @@ func _wall_run(vel: Vector3, delta: float) -> Vector3:
 	if speed < t.wall_run_speed:
 		speed = min(speed + t.wall_run_accel * delta, t.wall_run_speed)
 	h = dir * speed - n * t.wall_stick
-	var y: float = max(vel.y - t.wall_run_gravity * delta, -t.max_fall_speed)
+	var y: float = max(vel.y - t.wall_run_gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 	return Vector3(h.x, y, h.z)
 
 
@@ -567,6 +615,13 @@ func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 	var into := h.dot(n)
 	if into < 0.0:
 		h -= n * into
+	# Carry on the way you were running, a little faster (chained kicks don't stack
+	# past wall_jump_forward_max).
+	var along := h - n * h.dot(n)
+	var speed := along.length()
+	if speed > 1.0:
+		var faster := maxf(speed, minf(speed + t.wall_jump_forward, t.wall_jump_forward_max))
+		h += along / speed * (faster - speed)
 	h += n * t.wall_jump_push
 	return Vector3(h.x, max(vel.y, t.wall_jump_up), h.z)
 
@@ -595,6 +650,11 @@ func flip_readiness() -> float:
 
 func slide_boost_readiness() -> float:
 	return clampf(_since_slide_boost / tuning.slide_boost_cooldown, 0.0, 1.0)
+
+
+## How much of this air time's glide is left: 1 = all of it, 0 = spent until you land.
+func glide_readiness() -> float:
+	return clampf(_glide_left / tuning.glide_time, 0.0, 1.0)
 
 
 func _can_dive(grounded: bool) -> bool:
@@ -654,13 +714,15 @@ func _belly_slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, input: Pla
 	var t := tuning
 	var h := Vector3(vel.x, 0, vel.z)
 	var speed := h.length()
-	if speed <= t.belly_crawl_speed + 0.05:
+	var n := body.get_floor_normal()
+	# Crawling, unless the floor is steep enough to slide you off again (a belly slide
+	# down a chute that slowed to a crawl picks up speed, rather than crawling on down).
+	if speed <= t.belly_crawl_speed + 0.05 and n.y > BELLY_SLOPE:
 		var top: float = t.belly_crawl_speed * min(input.move.length(), 1.0)
 		vel = _apply_friction(vel, top, delta)
 		vel = _accelerate(vel, wish, top, t.ground_accel, delta)
 		return Vector3(vel.x, min(vel.y, 0.0), vel.z)
-	var n := body.get_floor_normal()
-	var downhill := Vector3(0, -t.gravity, 0)
+	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
 	h = Vector3(vel.x, 0, vel.z)
@@ -681,6 +743,58 @@ func _flip(vel: Vector3, wish: Vector3, input: PlayerInput) -> Vector3:
 	flip_dir = input.move.limit_length(1.0).normalized() if wish != Vector3.ZERO else Vector2(0, -1)  # no direction: backflip
 	var h := Vector3(vel.x, 0, vel.z) + wish * t.flip_burst
 	return Vector3(h.x, max(vel.y, t.flip_up), h.z)
+
+
+# ---------------------------------------------------------------------------
+# Glide
+
+func _can_glide(body: CharacterBody3D, grounded: bool) -> bool:
+	if grounded or _glide_left <= 0.0 or grapple.attached or state == State.WALL_RUN:
+		return false
+	# Shift pressed as you leave or reach the floor is a sprint, not a glide.
+	return not SurfaceProbe.floor_within(body, tuning.glide_min_height)
+
+
+## Up-and-down speed goes; you carry on the way you were going. (From there you
+## slow and sink: see _glide.)
+func _start_glide(vel: Vector3) -> Vector3:
+	state = State.GLIDE
+	_glide_on = true
+	_flip_left = 0.0   # gliding out of a flip: the flip is over
+	return Vector3(vel.x, 0.0, vel.z)
+
+
+## Gliding: no steering, so you hold your line while your speed bleeds off toward
+## a drift, and you sink: hardly at all at first, faster the more of the budget
+## you have used (so stopping and starting again does not buy a fresh hover).
+func _glide(vel: Vector3, delta: float) -> Vector3:
+	var t := tuning
+	_glide_left = maxf(_glide_left - delta, 0.0)
+	if _glide_left <= 0.0:
+		state = State.AIR
+	var used := 1.0 - _glide_left / t.glide_time
+	var h := Vector2(vel.x, vel.z)
+	var speed := h.length()
+	if speed > t.glide_drift_speed:
+		h *= (t.glide_drift_speed + (speed - t.glide_drift_speed) * exp(-t.glide_drag * delta)) / speed
+	return Vector3(h.x, -t.glide_fall_speed * used * WorldGravity.scale, h.y)
+
+
+## Rocket boots while gliding: the burst turns the whole glide the way you press
+## (WASD as seen from the way you face; forward if you hold nothing), carrying
+## all the speed you had plus the burst's. You keep gliding.
+func _glide_boost(vel: Vector3, input: PlayerInput) -> Vector3:
+	var t := tuning
+	var dir := Vector3(input.boost_dir.x, 0.0, input.boost_dir.z)   # a bot's aim, kept level
+	if dir.length_squared() < 0.0001:
+		dir = _wish_dir(input)
+	if dir.length_squared() < 0.0001:
+		dir = _facing(input)
+	dir = dir.normalized()
+	var speed := Vector2(vel.x, vel.z).length() + t.boost_speed
+	since_boost = 0.0
+	boosts += 1
+	return Vector3(dir.x * speed, vel.y, dir.z * speed)
 
 
 # ---------------------------------------------------------------------------

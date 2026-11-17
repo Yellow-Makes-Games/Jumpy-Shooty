@@ -8,10 +8,16 @@ class_name ShotFx
 static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits: Array, weapon: String = "pistol") -> void:
 	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
 		return
-	var flash: float = {"shotgun": 0.2, "rifle": 0.11, "sniper": 0.22}.get(weapon, 0.12)
-	var width: float = {"shotgun": 0.009, "sniper": 0.028}.get(weapon, 0.015)
-	var color := Color(0.75, 0.9, 1.0) if weapon == "sniper" else Color(1.0, 0.85, 0.5)
-	var life := 0.16 if weapon == "sniper" else 0.07
+	var flash: float = {"shotgun": 0.2, "rifle": 0.11, "sniper": 0.22, "break_action": 0.24, "revolver": 0.16,
+		"lever_action": 0.16, "bolt_action": 0.2, "railgun": 0.26, "lmg": 0.13, "smg": 0.09, "machine_pistol": 0.08, "akimbo": 0.1}.get(weapon, 0.12)
+	var width: float = {"shotgun": 0.009, "break_action": 0.009, "sniper": 0.028, "bolt_action": 0.022,
+		"railgun": 0.05}.get(weapon, 0.015)
+	var color := Color(1.0, 0.85, 0.5)
+	if weapon in ["sniper", "bolt_action"]:
+		color = Color(0.75, 0.9, 1.0)
+	elif weapon == "railgun":
+		color = Color(0.35, 0.95, 1.0)
+	var life: float = {"sniper": 0.16, "bolt_action": 0.14, "railgun": 0.45}.get(weapon, 0.07)
 	_flash(parent, muzzle, Color(1.0, 0.8, 0.4), flash, 0.05)
 	for i in ends.size():
 		var hit: bool = hits[i] if i < hits.size() else false
@@ -72,3 +78,58 @@ static func _fade_and_free(node: Node3D, life: float) -> void:
 	var tween := node.create_tween()
 	tween.tween_property(node, "transparency", 1.0, life)
 	tween.tween_callback(node.queue_free)
+
+
+## A rocket or grenade going off: a bright fireball that swells and fades, a shock
+## ring, a flash of light and a puff of smoke.
+static func explosion(parent: Node, at: Vector3, radius: float) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
+		return
+	var core := _ball(parent, at, radius * 0.35, Color(1.0, 0.75, 0.3))
+	var tw := core.create_tween().set_parallel()
+	tw.tween_property(core, "scale", Vector3.ONE * 2.6, 0.28).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(core, "transparency", 1.0, 0.32)
+	tw.chain().tween_callback(core.queue_free)
+	var fire := _ball(parent, at, radius * 0.5, Color(1.0, 0.4, 0.12))
+	var tw2 := fire.create_tween().set_parallel()
+	tw2.tween_property(fire, "scale", Vector3.ONE * 1.8, 0.45).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	tw2.tween_property(fire, "transparency", 1.0, 0.5)
+	tw2.chain().tween_callback(fire.queue_free)
+	var smoke := _ball(parent, at + Vector3(0, 0.3, 0), radius * 0.6, Color(0.25, 0.24, 0.23), false)
+	smoke.transparency = 0.35
+	var tw3 := smoke.create_tween().set_parallel()
+	tw3.tween_property(smoke, "scale", Vector3.ONE * 1.9, 1.4).set_ease(Tween.EASE_OUT)
+	tw3.tween_property(smoke, "position", smoke.position + Vector3(0, 1.6, 0), 1.4)
+	tw3.tween_property(smoke, "transparency", 1.0, 1.4)
+	tw3.chain().tween_callback(smoke.queue_free)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.65, 0.3)
+	light.light_energy = 9.0
+	light.omni_range = radius * 3.0
+	parent.add_child(light)
+	light.global_position = at
+	var tw4 := light.create_tween()
+	tw4.tween_property(light, "light_energy", 0.0, 0.4)
+	tw4.tween_callback(light.queue_free)
+
+
+static func _ball(parent: Node, at: Vector3, r: float, color: Color, glow: bool = true) -> MeshInstance3D:
+	var mesh := MeshInstance3D.new()
+	var s := SphereMesh.new()
+	s.radius = r
+	s.height = r * 2.0
+	s.radial_segments = 12
+	s.rings = 6
+	mesh.mesh = s
+	if glow:
+		mesh.material_override = _glow(color)
+	else:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = color
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mesh.material_override = m
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mesh)
+	mesh.global_position = at
+	return mesh

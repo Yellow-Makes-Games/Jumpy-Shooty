@@ -6,8 +6,16 @@ extends SceneTree
 ## and not far away; the sniper kills with one headshot and two body shots; the rifle
 ## and pistol need several hits; magazines reload, and the shotgun's shell-by-shell
 ## reload can be cut short by firing. Melee weapons: never run dry, have reach and
-## an arc, and the hammer shoves hard enough to slam someone into a wall; the
-## swing animation always comes back to rest.
+## an arc; every swing is charged (a tap is weak and cannot slam anyone into a wall, a
+## full wind-up hits harder and shoves far harder, but never kills outright: the
+## hammer and the bat kill by the wall they send you into); all but the dagger and
+## the knuckles are two-handed, and the left hand stays on the handle through the
+## whole wind-up and swing; the swing always comes back to the ready pose.
+
+## Match's wall-slam rules (it is an autoload, not loaded in this test).
+const SLAM_SPEED := 17.5
+const SLAM_DAMAGE := 4.0
+const SLAM_MAX := 80.0
 
 var _ok := true
 
@@ -17,9 +25,19 @@ func _init() -> void:
 		var w := WeaponData.by_id(id)
 		_check(w.id == id, "%s: by_id gives the right gun" % id)
 		if w.is_melee():
-			_check(w.fire_interval > 0.0 and w.max_range > 1.5 and w.max_range < 4.0 and w.arc_degrees > 0.0,
+			_check(w.fire_interval > 0.0 and w.max_range > 1.5 and w.max_range < 4.5 and w.arc_degrees > 0.0,
 				"%s: swing interval, reach and arc are sane" % id)
-			_check(w.windup < w.fire_interval, "%s: the blow lands before the next swing" % id)
+			_check(w.windup < w.charge_time and w.windup < w.fire_interval, "%s: a tap is quicker than a full wind-up" % id)
+			_check(w.charge_damage >= w.damage * 2.0, "%s: a full wind-up does much more damage than a tap" % id)
+			_check(w.charge_knockback >= w.knockback * 3.0, "%s: a full wind-up shoves much harder than a tap" % id)
+			_check(w.melee_damage(0.0) == w.damage and w.melee_damage(1.0) == w.charge_damage and w.melee_damage(0.5) > w.damage \
+				and w.melee_damage(7.0) == w.charge_damage, "%s: damage grows with the wind-up, up to full" % id)
+			_check(w.melee_knockback(0.0)[0] == w.knockback and w.melee_knockback(1.0)[0] == w.charge_knockback \
+				and w.melee_knockback(0.5)[0] < (w.knockback + w.charge_knockback) * 0.5, "%s: the shove grows with the wind-up, most at the end" % id)
+			_check(w.damage <= 20.0 and w.knockback < SLAM_SPEED * 0.5, "%s: a tap is weak and slams nobody into a wall" % id)
+			_check(w.charge_damage * w.backstab_multiplier < 100.0, "%s: no blow kills a healthy player outright" % id)
+			_check(w.charge_of(0.0) == 0.0 and w.charge_of(w.charge_time) == 1.0 and w.charge_of(99.0) == 1.0, "%s: wound up after charge_time" % id)
+			_check(w.two_handed == (id not in ["dagger", "brass_knuckles"]), "%s: two-handed unless it cannot be" % id)
 		else:
 			_check(w.magazine > 0 and w.fire_interval > 0.0 and w.reload_time > 0.0 and w.pellets > 0,
 				"%s: magazine, fire interval, reload and pellets are positive" % id)
@@ -77,10 +95,19 @@ func _init() -> void:
 
 	_check(WeaponData.IDS.size() == WeaponData.GUNS.size() + WeaponData.MELEE.size(), "every weapon is a gun or melee")
 	var sword := WeaponData.by_id("sword")
-	_check(sword.damage < 100.0 and sword.damage * 2.0 >= 100.0, "sword: two hits kill")
-	_check(WeaponData.by_id("hammer").knockback > 17.5, "hammer: a hit can slam someone into a wall")
+	var hammer := WeaponData.by_id("hammer")
+	_check(sword.display_name == "Longsword" and sword.two_handed and absf(sword.max_range - hammer.max_range) <= 0.3,
+		"sword: a two-handed longsword with the hammer's kind of reach")
+	_check(sword.charge_damage * 2.0 >= 100.0, "sword: two full swings kill")
+	for id in ["hammer", "bat"]:
+		var w := WeaponData.by_id(id)
+		_check(w.charge_damage + minf((w.charge_knockback - SLAM_SPEED) * SLAM_DAMAGE, SLAM_MAX) >= 100.0,
+			"%s: a full swing into a wall kills" % id)
+	for id in WeaponData.MELEE:
+		if WeaponData.by_id(id).two_handed:
+			_check(WeaponData.by_id(id).charge_knockback > SLAM_SPEED, "%s: a full swing can slam someone into a wall" % id)
 	var dagger := WeaponData.by_id("dagger")
-	_check(dagger.damage * dagger.backstab_multiplier >= 100.0, "dagger: a stab in the back kills")
+	_check(dagger.backstab_multiplier > 1.0, "dagger: a stab in the back does more")
 	s = WeaponState.new(sword)
 	var swings := 0
 	for i in 200:
@@ -90,17 +117,79 @@ func _init() -> void:
 	_check(swings >= 5 and swings <= 7, "sword: swings at its pace and never needs a reload (%d swings in 3.3 s)" % swings)
 	s.start_reload()
 	_check(not s.is_reloading(), "sword: nothing to reload")
-	var anim := MeleeSwing.new()
-	for id in WeaponData.MELEE:
-		for count in 2:
-			anim.start(id, count)
-			var last := []
-			for i in 120:
-				last = anim.sample(1.0 / 60.0)
-			_check(not anim.active() and last == MeleeSwing.REST, "%s: swing %d ends back at rest" % [id, count])
+	_melee_animation()
 
 	print("WEAPON TEST PASSED" if _ok else "WEAPON TEST FAILED")
 	quit(0 if _ok else 1)
+
+
+## The wind-up and swing of every melee weapon, on a real robot skeleton: the body
+## coils as the swing is held, the blow starts from there and ends back at ready, and
+## a two-handed weapon has the left hand on its handle the whole way.
+func _melee_animation() -> void:
+	var rig := RobotRig.open(Characters.body(Characters.default_id()))
+	var dt := 1.0 / 60.0
+	for id in WeaponData.MELEE:
+		var w := WeaponData.by_id(id)
+		_check(MeleeSwing.KEYS.has(id) and MeleeSwing.PACE.has(id), "%s: has its own swing" % id)
+		_check(MeleeSwing.impact_time(id) < 0.2, "%s: the blow lands straight after letting go" % id)
+		for power in [0.0, 1.0]:
+			var anim := MeleeSwing.new(id)
+			var worst := 0.0
+			var held := 0.0
+			var coiled := 0.0
+			# Hold: a tap's worth, or all the way.
+			while held < (w.windup if power == 0.0 else w.charge_time + 0.4):
+				held += dt
+				anim.wind(w.charge_of(held))
+				worst = maxf(worst, _left_hand_gap(rig, anim.sample(dt), anim.two_handed))
+			coiled = anim.coil()
+			_check(anim.winding(), "%s: holding winds the swing up" % id)
+			if power == 1.0:
+				_check(coiled < -0.95, "%s: fully wound, the body is coiled right round (%.2f)" % [id, coiled])
+			else:
+				_check(coiled < -0.05 and coiled > -0.7, "%s: a tap only draws back a little (%.2f)" % [id, coiled])
+			anim.swing(power)
+			var cut := false
+			var t := 0.0
+			var last := []
+			while t < anim.length() + 0.6:
+				t += dt
+				cut = cut or anim.cutting()
+				last = anim.sample(dt)
+				worst = maxf(worst, _left_hand_gap(rig, last, anim.two_handed))
+			var ready := MeleeSwing.ready(id)
+			_check(cut and not anim.active() and (last[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.005 \
+				and (last[MeleeSwing.BLADE] as Vector3).angle_to(ready[MeleeSwing.BLADE]) < 0.02,
+				"%s: a %s swing cuts and ends back at ready" % [id, "tap" if power == 0.0 else "full"])
+			if w.two_handed:
+				_check(worst < 0.01, "%s: the left hand stays on the handle (%.3f m off at worst)" % [id, worst])
+
+
+## Poses a skeleton to hold the weapon as key `k` says, and measures how far the left
+## palm is from where it should be on the handle (0 for a one-handed weapon).
+func _left_hand_gap(rig: RobotRig, k: Array, two_handed: bool) -> float:
+	if not two_handed:
+		return 0.0
+	var pose := rig.new_pose()
+	MeleeSwing.turn_body(pose, rig.bones, k)
+	MeleeSwing.hold(pose, rig, k, true)
+	var grip := _bone(rig, pose, "pistol")
+	var hand := _bone(rig, pose, "hand_l")
+	var blade := (grip.basis * MeleeModel.HOLD * Vector3.UP).normalized()
+	var palm := hand * rig.rest_pos[rig.bones["pistol"]]
+	return palm.distance_to(grip.origin + blade * float(k[MeleeSwing.LEFT]))
+
+
+## Where a bone is in the model's space, in `pose`.
+func _bone(rig: RobotRig, pose: RobotPose, bone: String) -> Transform3D:
+	var chains := {"pistol": ["root", "hips", "spine", "chest", "upper_arm_r", "forearm_r", "hand_r", "pistol"],
+		"hand_l": ["root", "hips", "spine", "chest", "upper_arm_l", "forearm_l", "hand_l"]}
+	var t := Transform3D.IDENTITY
+	for b in chains[bone]:
+		var i: int = rig.bones[b]
+		t = t * Transform3D(Basis(pose.rot[i]), pose.pos[i])
+	return t
 
 
 func _step(s: WeaponState, seconds: float) -> void:

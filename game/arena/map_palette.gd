@@ -5,7 +5,7 @@ extends Resource
 ## steel, plank...), and the kind's colour comes from here. Change a colour and
 ## every block of that kind changes with it, in the editor and in the game.
 
-## kind -> colour.
+## kind -> colour. An alpha below 1 makes the kind see-through (glass you look out of).
 @export var colors: Dictionary[String, Color] = {}:
 	set(v):
 		colors = v
@@ -15,6 +15,15 @@ extends Resource
 @export var glow: Dictionary[String, float] = {}:
 	set(v):
 		glow = v
+		emit_changed()
+
+## kind -> a pattern drawn on every surface of that kind, with no extra blocks: panel
+## seams on walls, tiles on floors, grating, hazard stripes... (the names are in
+## MapScenery.SURFACES). Leave a kind out and it is one flat colour. Not for kinds
+## that glow or are see-through.
+@export var surface: Dictionary[String, String] = {}:
+	set(v):
+		surface = v
 		emit_changed()
 
 ## How rough (matte) every surface is: 1 = no shine at all.

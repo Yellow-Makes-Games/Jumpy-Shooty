@@ -1,53 +1,84 @@
 class_name SettingsPanel
 extends VBoxContainer
-## Settings, used from the main menu and the in-game pause menu.
+## Settings, used from the main menu and the in-game pause menu. Built in a
+## MenuFrame: the title and tabs stay at the top and Back at the bottom while the
+## tab's own controls scroll between them if the window is short.
 ## Four tabs (Controls, Camera & HUD, Audio, Graphics); every change applies at once
-## and is saved when you leave.
+## (Controls also rebinds keys: click one, then press the new key or mouse button)
+## and is saved when you leave, except the display settings on the Graphics tab: those
+## wait for Apply, and a new resolution or screen mode puts itself back after a few
+## seconds unless you press Keep (in case the new one is unusable).
 
 signal closed
 
 const TABS := ["Controls", "Camera & HUD", "Audio", "Graphics"]
-const KEYS := [
-	["W A S D", "Move"], ["Shift", "Sprint"], ["Space", "Jump; again in mid-air to flip"],
-	["Ctrl / C", "Crouch; slide when moving fast"], ["Q / Alt", "Dive (keep holding to land in a belly slide)"], ["Right mouse", "Grapple"],
-	["Left mouse", "Shoot"], ["R", "Reload"], ["V", "First / third person"], ["Tab", "Scoreboard"],
-	["F1", "Debug menu (Practice and Vs Bots)"],
+## The short controls list on the pause menu: [action, description]. Keys come from
+## the current bindings.
+const CHEAT_SHEET := [
+	["move", "Move"], ["sprint", "Sprint; hold in mid-air to glide"], ["jump", "Jump; again in mid-air to flip"],
+	["crouch", "Crouch; slide when moving fast"], ["dive", "Dive (keep holding to land in a belly slide)"],
+	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Grapple"],
+	["interact", "Interact: press at a map terminal"],
+	["fire", "Shoot; melee: hold to wind up, let go to swing"], ["reload", "Reload"],
+	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"],
+	["debug_menu", "Debug menu (Practice and Vs Bots)"],
 ]
+
+const DISPLAY_KEYS := ["fullscreen", "vsync", "resolution", "frame_rate"]
+const CONFIRM_SECONDS := 15
 
 static var _last_tab := 0
 
+var _frame: MenuFrame
 var _page: VBoxContainer
+var _pending := {}       # display settings picked on the Graphics tab, not applied yet
+var _revert_to := {}     # what Revert (or running out of time) puts back
+var _countdown := 0
+var _timer: Timer
+var _apply_btn: Button
+var _confirm_row: HBoxContainer
+var _confirm_label: Label
+var _listen: Array = []      # [action, slot] waiting for a key or mouse button (Controls tab)
+var _binds_box: VBoxContainer
+var _bind_note: Label
+
+
+## `frame`: the page this panel is built in. The title and the tabs go in its header
+## and Back in its footer, so they stay on screen while a long tab (Controls) scrolls.
+func _init(frame: MenuFrame = null) -> void:
+	_frame = frame
 
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 14)
-	custom_minimum_size = Vector2(620, 0)
-	UiKit.title(self, "Settings", 34)
-	UiKit.segmented(self, TABS, _last_tab, _show_tab)
+	var top: Node = _frame.header if _frame else self
+	UiKit.title(top, "Settings", 38, false, "Options")
+	UiKit.segmented(top, TABS, _last_tab, _show_tab)
 	_page = VBoxContainer.new()
 	_page.add_theme_constant_override("separation", 12)
-	_page.custom_minimum_size = Vector2(0, 400)
 	add_child(_page)
+	_timer = Timer.new()
+	_timer.wait_time = 1.0
+	_timer.timeout.connect(_tick)
+	add_child(_timer)
 	_show_tab(_last_tab)
-	UiKit.button(self, "Back", _on_back)
+	if _frame:
+		_frame.back_button("Back", _on_back)
+	else:
+		UiKit.button(self, "Back", _on_back)
 
 
 func _show_tab(i: int) -> void:
 	_last_tab = i
+	_stop_listening()
+	_on_keep()   # leaving the tab while asked to keep new display settings keeps them
 	UiKit.clear(_page)
 	match i:
 		0:
 			UiKit.section(_page, "Mouse")
 			_slider("Sensitivity", 0.02, 0.5, 0.01, Settings.mouse_sensitivity, func(v): Settings.mouse_sensitivity = v)
 			_switch("Invert mouse Y", Settings.invert_y, func(v): Settings.invert_y = v)
-			UiKit.section(_page, "Keys")
-			var grid := GridContainer.new()
-			grid.columns = 2
-			grid.add_theme_constant_override("h_separation", 24)
-			grid.add_theme_constant_override("v_separation", 6)
-			_page.add_child(grid)
-			for k in KEYS:
-				UiKit.key_row(grid, k[0], k[1]).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_build_bindings()
 		1:
 			UiKit.section(_page, "Camera")
 			_slider("Field of view", 70.0, 120.0, 1.0, Settings.field_of_view, func(v): Settings.field_of_view = v)
@@ -56,20 +87,271 @@ func _show_tab(i: int) -> void:
 			_option("In first person", Settings.HUD_STYLES, Settings.hud_first_person, func(v): Settings.hud_first_person = v)
 			_option("In third person", Settings.HUD_STYLES, Settings.hud_third_person, func(v): Settings.hud_third_person = v)
 			UiKit.label(_page, "Twin arcs keeps health, ammo and move cooldowns round the crosshair. Clean puts them in the bottom corners.", true, 15)
+			_switch("Killcam when you are knocked out (Space skips it)", Settings.killcam, func(v): Settings.killcam = v)
 		2:
 			UiKit.section(_page, "Volume")
 			_slider("Master", 0.0, 1.0, 0.05, Settings.master_volume, func(v): Settings.master_volume = v, true)
 			_slider("Music", 0.0, 1.0, 0.05, Settings.music_volume, func(v): Settings.music_volume = v, true)
 			_slider("Effects", 0.0, 1.0, 0.05, Settings.sfx_volume, func(v): Settings.sfx_volume = v, true)
 		3:
-			UiKit.section(_page, "Display")
-			_switch("Fullscreen", Settings.fullscreen, func(v): Settings.fullscreen = v)
-			_switch("V-Sync", Settings.vsync, func(v): Settings.vsync = v)
+			_build_display()
 
 
 func _on_back() -> void:
+	_stop_listening()
+	_on_keep()
 	Settings.save_settings()
 	closed.emit()
+
+
+## Open on this tab next time (dev: screenshots of each tab).
+static func open_on_tab(i: int) -> void:
+	_last_tab = clampi(i, 0, TABS.size() - 1)
+
+
+## Each pause-menu line: [keys, description].
+static func cheat_sheet() -> Array:
+	var rows := []
+	for c in CHEAT_SHEET:
+		var keys: String
+		if c[0] == "move":
+			keys = " ".join(["move_forward", "move_left", "move_back", "move_right"].map(Settings.action_text))
+		else:
+			keys = Settings.action_text(c[0])
+		rows.append([keys, c[1]])
+	return rows
+
+
+# ---------------------------------------------------------------------------
+# Controls tab: click a binding, then press a key or mouse button for it.
+
+func _build_bindings() -> void:
+	UiKit.section(_page, "Keys")
+	UiKit.label(_page, "Click a key, then press the new key or mouse button. Esc cancels, Backspace clears it. A key already used elsewhere moves here.", true, 15)
+	_bind_note = UiKit.label(_page, "", false, 15)
+	_bind_note.add_theme_color_override("font_color", UiKit.ACCENT)
+	_bind_note.visible = false
+	_binds_box = VBoxContainer.new()   # the page's frame scrolls: no second scroll bar inside it
+	_binds_box.add_theme_constant_override("separation", 4)
+	_binds_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_page.add_child(_binds_box)
+	_fill_bindings()
+	UiKit.button(_page, "Reset controls to defaults", func():
+		_stop_listening()
+		Settings.reset_bindings()
+		_note("Controls reset to the defaults.")
+		_fill_bindings())
+
+
+func _fill_bindings() -> void:
+	if not is_instance_valid(_binds_box):
+		return
+	UiKit.clear(_binds_box)
+	for a in Settings.ACTIONS:
+		var action: String = a[0]
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_binds_box.add_child(row)
+		var l := UiKit.label(row, a[1], false, 16)
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var list: Array = Settings.bindings[action]
+		if list.is_empty():
+			l.add_theme_color_override("font_color", UiKit.ACCENT)
+		for slot in Settings.MAX_BINDS:
+			var b := Button.new()
+			b.theme_type_variation = "Chip"
+			b.custom_minimum_size = Vector2(150, 38)
+			b.clip_text = true
+			b.focus_mode = Control.FOCUS_NONE   # so Space or Enter can be bound, not press it again
+			if slot < list.size():
+				b.text = Settings.binding_text(list[slot])
+			else:
+				b.text = "Unbound" if slot == 0 else "+"
+				b.modulate = Color(1, 1, 1, 0.55)
+			b.pressed.connect(_start_listening.bind(action, mini(slot, list.size()), b))
+			row.add_child(b)
+		var reset := Button.new()
+		reset.text = "↺"
+		reset.theme_type_variation = "Chip"
+		reset.tooltip_text = "Back to the default for this action"
+		reset.custom_minimum_size = Vector2(38, 38)
+		reset.focus_mode = Control.FOCUS_NONE
+		reset.disabled = list == Settings.default_bindings(action)
+		reset.pressed.connect(func():
+			_stop_listening()
+			_reset_action(action))
+		row.add_child(reset)
+
+
+func _reset_action(action: String) -> void:
+	while not Settings.bindings[action].is_empty():
+		Settings.rebind(action, 0, "")
+	var taken := []
+	for b in Settings.default_bindings(action):
+		taken.append_array(Settings.rebind(action, Settings.bindings[action].size(), b))
+	_report(taken, action)
+	_fill_bindings()
+
+
+func _start_listening(action: String, slot: int, b: Button) -> void:
+	_stop_listening()
+	_listen = [action, slot]
+	b.text = "Press a key..."
+	b.modulate = UiKit.ACCENT
+
+
+func _stop_listening() -> void:
+	if _listen.is_empty():
+		return
+	_listen = []
+	_fill_bindings()
+
+
+func _input(event: InputEvent) -> void:
+	if _listen.is_empty() or not is_visible_in_tree():
+		return
+	if not (event is InputEventKey or event is InputEventMouseButton) or not event.pressed or event.is_echo():
+		return
+	get_viewport().set_input_as_handled()
+	var action: String = _listen[0]
+	var slot: int = _listen[1]
+	if event is InputEventKey and event.keycode == KEY_ESCAPE:
+		_stop_listening()
+		return
+	var binding := Settings.event_binding(event)
+	if event is InputEventKey and event.keycode == KEY_BACKSPACE:
+		binding = ""
+	elif binding == "":
+		return
+	_listen = []
+	var taken := Settings.rebind(action, slot, binding)
+	_report(taken, action)
+	_fill_bindings()
+
+
+func _report(taken: Array, action: String) -> void:
+	if taken.is_empty():
+		_note("")
+		return
+	var label := ""
+	for a in Settings.ACTIONS:
+		if a[0] == action:
+			label = a[1]
+	_note("Moved from %s to %s." % [", ".join(taken), label])
+
+
+func _note(text: String) -> void:
+	if is_instance_valid(_bind_note):
+		_bind_note.text = text
+		_bind_note.visible = text != ""
+
+
+# ---------------------------------------------------------------------------
+# Graphics tab: display settings wait for Apply.
+
+func _build_display() -> void:
+	_pending = _current_display()
+	UiKit.section(_page, "Display")
+	_switch("Fullscreen", _pending.fullscreen, func(v): _pick("fullscreen", v), false)
+	_switch("V-Sync", _pending.vsync, func(v): _pick("vsync", v), false)
+	_option("Resolution", Settings.resolution_choices(), _pending.resolution, func(v): _pick("resolution", v), false)
+	_option("Frame rate", Settings.frame_rate_choices(), _pending.frame_rate, func(v): _pick("frame_rate", v), false)
+	UiKit.label(_page, "Windowed, Resolution sets the window size. In fullscreen it sets how sharp the 3D world is drawn (you'll see it in a match, not in menus). Frame rate caps how fast the game draws; your monitor's refresh rate is set in your computer's display settings.", true, 15)
+	if Engine.is_embedded_in_editor():
+		var note := UiKit.label(_page, "You're running the game inside the Godot editor, which keeps it in its own panel, so window size and fullscreen won't change here. They work in the exported game, or after turning off \"Embed Game on Next Play\" in the editor's Game tab.", false, 15)
+		note.add_theme_color_override("font_color", UiKit.ACCENT)
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 12)
+	_page.add_child(bar)
+	_apply_btn = UiKit.primary_button(bar, "Apply", _on_apply)
+	_apply_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_confirm_row = HBoxContainer.new()
+	_confirm_row.add_theme_constant_override("separation", 12)
+	_page.add_child(_confirm_row)
+	_confirm_label = UiKit.label(_confirm_row, "", false, 18)
+	_confirm_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_confirm_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	UiKit.button(_confirm_row, "Keep", _on_keep).custom_minimum_size.x = 120
+	UiKit.button(_confirm_row, "Revert", _on_revert).custom_minimum_size.x = 120
+	_confirm_row.visible = false
+	_update_apply()
+
+
+func _current_display() -> Dictionary:
+	var d := {}
+	for k in DISPLAY_KEYS:
+		d[k] = Settings.get(k)
+	return d
+
+
+func _set_display(d: Dictionary) -> void:
+	for k in DISPLAY_KEYS:
+		Settings.set(k, d[k])
+	Settings.apply()
+	Settings.save_settings()
+
+
+func _pick(key: String, value) -> void:
+	_pending[key] = value
+	_update_apply()
+
+
+func _has_changes() -> bool:
+	var now := _current_display()
+	for k in DISPLAY_KEYS:
+		if now[k] != _pending[k]:
+			return true
+	return false
+
+
+func _update_apply() -> void:
+	if is_instance_valid(_apply_btn):
+		_apply_btn.disabled = not _has_changes() or not _timer.is_stopped()
+
+
+func _on_apply() -> void:
+	var before := _current_display()
+	_set_display(_pending)
+	if before.fullscreen != _pending.fullscreen or before.resolution != _pending.resolution:
+		_revert_to = before   # a new screen mode or size: ask before keeping it
+		_countdown = CONFIRM_SECONDS
+		_confirm_row.visible = true
+		_confirm_label.text = _confirm_text()
+		_timer.start()
+	_update_apply()
+
+
+func _tick() -> void:
+	_countdown -= 1
+	if _countdown <= 0:
+		_on_revert()
+	elif is_instance_valid(_confirm_label):
+		_confirm_label.text = _confirm_text()
+
+
+func _confirm_text() -> String:
+	return "Keep these settings? Reverting in %d s" % _countdown
+
+
+func _on_keep() -> void:
+	if not is_instance_valid(_timer) or _timer.is_stopped():
+		return
+	_timer.stop()
+	_revert_to = {}
+	if is_instance_valid(_confirm_row):
+		_confirm_row.visible = false
+	_update_apply()
+
+
+func _on_revert() -> void:
+	_timer.stop()
+	if not _revert_to.is_empty():
+		_set_display(_revert_to)
+	_revert_to = {}
+	UiKit.clear(_page)
+	_build_display()
 
 
 func _row(text: String) -> HBoxContainer:
@@ -102,19 +384,21 @@ func _slider(text: String, lo: float, hi: float, step: float, value: float, sett
 		Settings.apply())
 
 
-func _switch(text: String, value: bool, setter: Callable) -> void:
+## `live`: apply the change at once (otherwise the caller decides when).
+func _switch(text: String, value: bool, setter: Callable, live: bool = true) -> void:
 	var c := CheckButton.new()
 	c.text = text
 	c.button_pressed = value
 	c.add_theme_font_size_override("font_size", 18)
 	c.toggled.connect(func(x):
 		setter.call(x)
-		Settings.apply())
+		if live:
+			Settings.apply())
 	_page.add_child(c)
 
 
 ## A drop-down. `choices` maps each stored value to the text shown for it.
-func _option(text: String, choices: Dictionary, value: String, setter: Callable) -> void:
+func _option(text: String, choices: Dictionary, value: Variant, setter: Callable, live: bool = true) -> void:
 	var row := _row(text)
 	var o := OptionButton.new()
 	o.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -126,7 +410,8 @@ func _option(text: String, choices: Dictionary, value: String, setter: Callable)
 	o.selected = maxi(keys.find(value), 0)
 	o.item_selected.connect(func(i):
 		setter.call(keys[i])
-		Settings.apply())
+		if live:
+			Settings.apply())
 	row.add_child(o)
 
 

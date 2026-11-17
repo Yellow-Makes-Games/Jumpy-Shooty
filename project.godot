@@ -22,8 +22,10 @@ DevArgs="*res://game/dev/dev_args.gd"
 Net="*res://game/net/net.gd"
 Match="*res://game/match/match_state.gd"
 Race="*res://game/match/race_state.gd"
+Killcam="*res://game/match/killcam.gd"
 Game="*res://game/core/game.gd"
 Sound="*res://game/audio/sound.gd"
+Music="*res://game/audio/music.gd"
 
 [display]
 

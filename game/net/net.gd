@@ -383,10 +383,23 @@ func _choose_weapon(weapon: String) -> void:
 func _apply_weapon(id: int, weapon: String) -> void:
 	if not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
 		return
+	if in_match and GunGame.active():
+		return   # Gun Game hands out the weapons
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
 		return   # mid-fight you can only swap while waiting to respawn
 	players[id]["weapon"] = WeaponData.valid(weapon)
 	print("[net] %d took the %s" % [id, players[id].weapon])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Host only: give a player a weapon now, alive or not (Gun Game), and tell everyone.
+func host_set_weapon(id: int, weapon: String) -> void:
+	if not is_host() or not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
+		return
+	players[id]["weapon"] = WeaponData.valid(weapon)
 	if is_online:
 		_sync_players.rpc(players)
 	else:
@@ -514,10 +527,25 @@ func player_loadout_weapon(id: int) -> String:
 	return WeaponData.valid(str(players[id].get("weapon", ""))) if players.has(id) else WeaponData.default_id()
 
 
-## Deathmatch: the weapons a player is carrying (picked up since they last died),
-## in WeaponData.IDS order.
+## Deathmatch: how many weapons you can carry, one slot per key (1 and 2).
+const SLOTS := 2
+
+
+## Deathmatch: the weapons a player is carrying (picked up since they last died), by
+## slot: SLOTS entries, "" for an empty slot. Slot 1 is key 1, slot 2 is key 2.
 func player_inventory(id: int) -> Array:
-	return players[id].get("inventory", []) if players.has(id) else []
+	var slots: Array = players[id].get("inventory", []) if players.has(id) else []
+	slots = slots.duplicate()
+	slots.resize(SLOTS)
+	for i in SLOTS:
+		if slots[i] == null:
+			slots[i] = ""
+	return slots
+
+
+## Deathmatch: the weapons a player carries, without the empty slots.
+func player_weapons(id: int) -> Array:
+	return player_inventory(id).filter(func(w): return w != "")
 
 
 # ---------------------------------------------------------------------------
@@ -542,7 +570,7 @@ func _choose_held(weapon: String) -> void:
 func _apply_held(id: int, weapon: String) -> void:
 	if not players.has(id) or not is_deathmatch() or not Match.is_alive(id):
 		return
-	if weapon != "none" and not weapon in player_inventory(id):
+	if weapon != "none" and not weapon in player_weapons(id):
 		return
 	if str(players[id].get("held", "none")) == weapon:
 		return
@@ -550,30 +578,38 @@ func _apply_held(id: int, weapon: String) -> void:
 	_players_updated()
 
 
-## Host: `id` picked `weapon` up. It goes in their inventory, and in their hands if
-## they had nothing in them. Returns false if they already carried it.
+## Host: `id` walked over `weapon`. One they already carry only refills its ammo (on
+## their own copy; see Arena). Otherwise it goes in their first empty slot (and in
+## their hands if those were empty), or, with both slots full, it replaces the weapon
+## in their hands. Returns true if what they carry changed.
 func host_give_weapon(id: int, weapon: String) -> bool:
 	if not players.has(id) or not WeaponData.has(weapon):
 		return false
-	var inv: Array = player_inventory(id).duplicate()
-	var fresh := not weapon in inv
-	if fresh:
-		inv.append(weapon)
-		inv.sort_custom(func(a, b): return WeaponData.IDS.find(a) < WeaponData.IDS.find(b))
-		players[id]["inventory"] = inv
-	if not WeaponData.has(str(players[id].get("held", "none"))):
-		players[id]["held"] = weapon
-		fresh = true
-	if fresh:
-		_players_updated()
-	return fresh
+	var slots := player_inventory(id)
+	if weapon in slots:
+		return false
+	var held := str(players[id].get("held", "none"))
+	var at := slots.find("")
+	if at < 0:
+		at = maxi(slots.find(held), 0)   # full: swap out the one in your hands
+		held = weapon
+	slots[at] = weapon
+	if not WeaponData.has(held):
+		held = weapon
+	players[id]["inventory"] = slots
+	players[id]["held"] = held
+	_players_updated()
+	return true
 
 
 ## Host: `id` died (or a Deathmatch is starting): empty hands, nothing carried.
 func host_clear_inventory(id: int, tell: bool = true) -> void:
 	if not players.has(id):
 		return
-	players[id]["inventory"] = []
+	var empty := []
+	empty.resize(SLOTS)
+	empty.fill("")
+	players[id]["inventory"] = empty
 	players[id]["held"] = "none"
 	if tell:
 		_players_updated()
@@ -618,6 +654,13 @@ func map_id() -> String:
 func host_start_match() -> void:
 	if not is_host():
 		return
+	if GunGame.active():   # everyone starts on the first rung of the ladder
+		for id in players:
+			players[id]["weapon"] = GunGame.weapon_at(0)
+		if is_online:
+			_sync_players.rpc(players)
+		else:
+			players_changed.emit()
 	_start_match.rpc()
 
 
@@ -631,6 +674,90 @@ func _start_match() -> void:
 func _late_join() -> void:
 	in_match = true
 	match_started.emit()
+
+
+# ---------------------------------------------------------------------------
+# Map objects: terminals players press "interact" at, and the events they set off (see
+# MapTerminal and MapEvent). A player only says when they start and stop holding; the
+# host checks range and timing, decides, and tells everyone what state things are in.
+
+## The local player `who` (you, or one of the host's bots) started or stopped holding
+## interact at terminal number `index`.
+func terminal_hold(index: int, holding: bool, who: int = 0) -> void:
+	if is_host():
+		_host_terminal_hold(index, who if who != 0 else my_id(), holding)
+	elif is_online:
+		_terminal_hold.rpc_id(1, index, holding)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _terminal_hold(index: int, holding: bool) -> void:
+	if is_host():
+		_host_terminal_hold(index, multiplayer.get_remote_sender_id(), holding)
+
+
+func _host_terminal_hold(index: int, who: int, holding: bool) -> void:
+	var terminal := MapTerminal.at(get_tree(), index)
+	if terminal:
+		terminal.host_set_holding(who, holding)
+
+
+## Host: tell everyone (or only peer `to`) what state a terminal is in.
+func send_terminal_state(index: int, phase: int, who: int, progress: float, to: int = 0) -> void:
+	if not is_host():
+		return
+	if to != 0:
+		_terminal_state.rpc_id(to, index, phase, who, progress)
+	else:
+		_terminal_state.rpc(index, phase, who, progress)
+
+
+@rpc("authority", "call_local", "reliable")
+func _terminal_state(index: int, phase: int, who: int, progress: float) -> void:
+	var terminal := MapTerminal.at(get_tree(), index)
+	if terminal:
+		terminal.apply_state(phase, who, progress)
+
+
+## Host: tell everyone (or only peer `to`) whether a map event is running and how far in.
+func send_map_event_state(index: int, running: bool, elapsed: float, to: int = 0) -> void:
+	if not is_host():
+		return
+	if to != 0:
+		_map_event_state.rpc_id(to, index, running, elapsed)
+	else:
+		_map_event_state.rpc(index, running, elapsed)
+
+
+@rpc("authority", "call_local", "reliable")
+func _map_event_state(index: int, running: bool, elapsed: float) -> void:
+	var event := MapEvent.at(get_tree(), index)
+	if event:
+		event.apply_state(running, elapsed)
+		if DevArgs.sync_log:
+			print("MAP_EVENT %d %s %.2f" % [index, "on" if running else "off", elapsed])
+
+
+## A copy that has just built the arena asks the host where the terminals and events are.
+func request_map_state() -> void:
+	if not is_host() and is_online:
+		_map_state_request.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _map_state_request() -> void:
+	if not is_host():
+		return
+	var to := multiplayer.get_remote_sender_id()
+	var events := get_tree().get_nodes_in_group(MapEvent.GROUP)
+	for i in events.size():
+		var e := events[i] as MapEvent
+		if e.running:
+			send_map_event_state(i, true, e.elapsed, to)
+	var terminals := get_tree().get_nodes_in_group(MapTerminal.GROUP)
+	for i in terminals.size():
+		var t := terminals[i] as MapTerminal
+		send_terminal_state(i, t.phase, t.channeler, t.progress, to)
 
 
 # ---------------------------------------------------------------------------

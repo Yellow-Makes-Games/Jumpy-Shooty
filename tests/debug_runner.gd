@@ -116,6 +116,54 @@ func run() -> void:
 	_check(me.weapon.data.id == "sniper" and net.player_character(net.my_id()) == "orbit", "robot and gun changed")
 	_check(me.global_position.distance_to(spot) < 0.5, "you stay where you were")
 
+	# Melee swings are charged: a tap is weak, holding the button winds the swing up
+	# (the body coils) and letting go hits much harder.
+	menu._set_loadout("weapon", "hammer")
+	await _frames(5)
+	me = arena.local_player
+	var hammer := WeaponData.by_id("hammer")
+	dummy = arena.dummies[1]
+	me.teleport(dummy.global_position - Vector3(2.0, 0, 0), -PI / 2)
+	await _frames(5)
+	_hits.clear()
+	var health := dummy.health
+	DevArgs.drives_keys = true   # the player listens to the keys without the mouse captured
+	Input.action_press("fire")
+	await _frames(3)
+	Input.action_release("fire")
+	await get_tree().create_timer(hammer.windup + 0.4).timeout
+	_check(_hits.size() == 1 and absf(health - dummy.health - hammer.damage) < 1.0,
+		"a tap of the hammer is a weak blow (%.1f damage, %d hits)" % [health - dummy.health, _hits.size()])
+	await get_tree().create_timer(hammer.fire_interval).timeout
+	health = dummy.health
+	Input.action_press("fire")
+	await get_tree().create_timer(hammer.charge_time * 0.5).timeout
+	var half := me.melee_charge()
+	_check(_hits.size() == 1, "holding the button does not swing")
+	await get_tree().create_timer(hammer.charge_time * 0.5 + 0.3).timeout
+	_check(half > 0.3 and half < 0.7 and me.melee_charge() == 1.0 and me.winding_up(), "holding it winds the swing up (%.2f, then %.2f)" % [half, me.melee_charge()])
+	_check(me.animator._swing.winding() and me.animator._swing.coil() < -0.9, "and the body coils with it (%.2f)" % me.animator._swing.coil())
+	Input.action_release("fire")
+	await get_tree().create_timer(0.4).timeout
+	_check(_hits.size() == 2 and is_equal_approx(health - dummy.health, hammer.charge_damage),
+		"letting go of a full wind-up hits much harder (%.1f damage)" % (health - dummy.health))
+	_check(not me.winding_up() and me.melee_charge() == 0.0, "and the wind-up is spent")
+	# Gliding: hold Shift in the air (through the real key), and guns scatter less while you do.
+	me.teleport(dummy.global_position + Vector3(-8, 6.0, 0), -PI / 2)
+	await _frames(2)
+	var usual := me.spread_scale()
+	Input.action_press("glide")
+	await _frames(6)
+	var glided := me.motor.state == MovementController.State.GLIDE
+	var tight := me.spread_scale()
+	Input.action_release("glide")
+	await _frames(4)
+	_check(glided, "holding Shift in the air glides")
+	_check(is_equal_approx(usual, 1.0) and is_equal_approx(tight, Player.GLIDE_SPREAD), "spread is tighter while gliding (%.2f of the usual)" % tight)
+	_check(me.motor.state != MovementController.State.GLIDE, "letting go stops the glide")
+	await get_tree().create_timer(1.0).timeout   # back on the floor
+	DevArgs.drives_keys = false
+
 	# The menu opens offline (and builds every control without errors).
 	menu.set_open(true)
 	await _frames(2)

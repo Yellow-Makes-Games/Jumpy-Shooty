@@ -11,7 +11,8 @@ extends SceneTree
 ## An item can instead be driven by the game's own animator, to check blending and
 ## aiming: {"puppet": {"state": 0, "velocity": [x,y,z], "pitch": 20, "flags": 0,
 ##   "crouched": false, "grapple": [x,y,z], "alive": true, "seconds": 1.0,
-##   "fire_at": 0.9, "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
+##   "fire_at": 0.9, "fire_left_at": 0.9 (akimbo), "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
+## A puppet can hold any weapon: "weapon": "akimbo" (next to "puppet").
 ## A puppet with "first_person": {"pitch": -40, "eye": 1.6, "fov": 95} is seen through
 ## its own eyes (the shot's camera is ignored): the body as you see it in first person.
 
@@ -142,7 +143,7 @@ func _set_up(shot: Dictionary) -> void:
 ## A robot posed by RobotAnimator from made-up movement, stepped at 60 frames a second.
 func _puppet(item: Dictionary) -> void:
 	var c: Array = item.get("color", [0.95, 0.35, 0.25])
-	var robot := RobotModel.new().setup(Characters.body(item.get("character", "")), Color(c[0], c[1], c[2]))
+	var robot := RobotModel.new().setup(Characters.body(item.get("character", "")), Color(c[0], c[1], c[2]), false, item.get("weapon", "pistol"))
 	_root.add_child(robot)
 	robot.position = _v(item.get("pos", [0, 0, 0]))
 	robot.rotation_degrees.y = item.get("yaw", 0.0)
@@ -174,10 +175,14 @@ func _puppet(item: Dictionary) -> void:
 			inp.grapple_anchor = robot.global_transform * _v(step.grapple)
 		var t := 0.0
 		var fired := false
+		var fired_left := false
 		while t < float(step.get("seconds", 1.0)):
 			if step.has("fire_at") and not fired and t >= float(step.fire_at):
 				animator.fire()
 				fired = true
+			if step.has("fire_left_at") and not fired_left and t >= float(step.fire_left_at):
+				animator.fire(true)
+				fired_left = true
 			animator.update(1.0 / 60.0, inp, robot.global_transform)
 			if not first.is_empty():
 				animator.place_for_view(1.0, first.get("eye", 1.6), deg_to_rad(first.get("pitch", 0.0)))
