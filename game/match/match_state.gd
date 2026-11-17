@@ -435,7 +435,12 @@ func _host_kick(attacker: int, origin: Vector3, direction: Vector3, view_times: 
 			continue   # a wall in the way
 		var flat := Vector3(direction.x, 0.0, direction.z) if flying else Vector3(to.x, 0.0, to.z)
 		flat = flat.normalized() if flat.length_squared() > 0.0001 else Vector3(direction.x, 0.0, direction.z).normalized()
-		var shove := flat * (Kick.FLYING_KNOCKBACK if flying else Kick.KNOCKBACK) \
+		# Faster into them than they are moving away = a harder shove.
+		var victim: Player = Net.arena.get_player(b[0])
+		var their_vel := victim.latest_velocity() if victim else Vector3.ZERO
+		var closing := maxf((who.latest_velocity() - their_vel).dot(flat), 0.0)
+		var boost := minf(1.0 + closing * Kick.SPEED_KNOCKBACK, Kick.SPEED_MAX)
+		var shove := flat * (Kick.FLYING_KNOCKBACK if flying else Kick.KNOCKBACK) * boost \
 			+ Vector3.UP * (Kick.FLYING_KNOCKBACK_UP if flying else Kick.KNOCKBACK_UP)
 		hits.append([b[0], Kick.FLYING_DAMAGE if flying else Kick.DAMAGE, shove])
 		points.append(near.lerp(origin, Player.CAPSULE_RADIUS / maxf(to.length(), 0.01)))
