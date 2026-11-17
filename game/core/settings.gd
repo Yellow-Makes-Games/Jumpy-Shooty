@@ -107,9 +107,13 @@ func save_settings() -> void:
 
 func apply() -> void:
 	if DisplayServer.get_name() != "headless":
-		var mode: DisplayServer.WindowMode = DisplayServer.WINDOW_MODE_FULLSCREEN if fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
-		if DisplayServer.window_get_mode() != mode:
-			DisplayServer.window_set_mode(mode)
+		# Windowed: only leave fullscreen, so a window you maximized stays maximized.
+		var current := DisplayServer.window_get_mode()
+		var is_full := current == DisplayServer.WINDOW_MODE_FULLSCREEN or current == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+		if fullscreen and not is_full:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		elif not fullscreen and is_full:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
 		_apply_resolution()
 		Engine.max_fps = monitor_refresh_rate() if frame_rate < 0 else frame_rate
@@ -119,7 +123,7 @@ func apply() -> void:
 ## Fullscreen always covers the screen at its own resolution (the game can't change the
 ## monitor's mode), so there the chosen resolution sets how sharp the 3D picture is drawn
 ## before it is stretched to fill the screen; menus and the HUD stay sharp. In windowed
-## mode it sets the window size.
+## mode it sets the window size (Native maximizes the window).
 func _apply_resolution() -> void:
 	var screen := screen_size()
 	var res := resolution
@@ -130,12 +134,20 @@ func _apply_resolution() -> void:
 		root.scaling_3d_scale = clampf(float(res.y) / screen.y, 0.25, 1.0) if fullscreen and res != Vector2i.ZERO else 1.0
 	if res == _applied_resolution and fullscreen == _applied_fullscreen:
 		return
+	var first := _applied_resolution == Vector2i(-1, -1)
 	_applied_resolution = res
 	_applied_fullscreen = fullscreen
 	# Copies started side by side by tools/run_local keep the window --window gave them.
 	var dev_args := get_node_or_null("/root/DevArgs")
-	if fullscreen or res == Vector2i.ZERO or (dev_args and dev_args.window_rect.size != Vector2i.ZERO):
+	if fullscreen or (dev_args and dev_args.window_rect.size != Vector2i.ZERO):
 		return
+	if res == Vector2i.ZERO:
+		# Native in a window: fill the screen (but leave the window alone at startup).
+		if not first:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_MAXIMIZED)
+		return
+	if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_MAXIMIZED:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
 	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
 	DisplayServer.window_set_size(res)
 	DisplayServer.window_set_position(usable.position + (usable.size - res) / 2)
