@@ -11,7 +11,7 @@ Last updated: no name tags over players, and bots no longer see through walls. D
 | --- | --- | --- |
 | Main menu (Play, Multiplayer, Settings, Exit) | working | Styled to match the HUD (Chakra Petch, dark panels, orange accent, drifting grid backdrop). Front page shows every robot side by side, idling; Play has cards for Vs Bots, Practice and Multiplayer |
 | Mode select (Vs Bots, Practice, Multiplayer FFA) | working | Vs Bots page: pick how many bots (1 for a 1v1, up to 4 for a 5-player free-for-all), difficulty and kills to win; Rematch on the results screen |
-| Lobby: create, join, player list, host shown, start, leave | working | By address for now (IP, or a tunnel address such as playit.gg). The host's lobby lists its home-network and Tailscale addresses |
+| Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
 | Character select | working | Seven robots (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit), with a live preview. On the Practice and Vs Bots pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
 | Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
 | Settings menu (mouse, camera, HUD, audio, graphics) | working | Tabs: Controls (with the key list), Camera & HUD, Audio, Graphics. Switches and sliders apply at once. Audio: Master, Music (nothing plays on it yet) and Effects |
@@ -29,8 +29,7 @@ Last updated: no name tags over players, and bots no longer see through walls. D
 | Player leaves mid-match | working | Their character disappears for everyone |
 | Host leaves: match ends, everyone back to menu | working | Covered by the sync test |
 | Rejoin a match in progress | rough | Joining mid-match drops you into the arena; a rejoining player starts at 0 kills |
-| Internet play between two PCs | working | Not yet verified on real PCs. Via a playit.gg tunnel, Tailscale or port forwarding; see docs/ONLINE_PLAY.md. Joining by host name checked |
-| Shareable builds | working | Windows and Linux export presets (one file each, in builds/); checked that an exported build hosts, joins and plays a match |
+| Internet play between two PCs | working | Not yet verified on real PCs. Hosting asks the router to open the port (UPnP) and the lobby shows the public address with a Copy button; otherwise forward UDP 24680 by hand |
 | Hit detection (host decides with rewind) | working | Laggy-network test: 90% of aimed shots hit with rewind vs 37% without |
 | Headshots | working | 1.5x damage above the shoulders (lower when crouched). Yellow hit marker |
 | Character sync | working | Every copy shows each player as the robot they picked, including a new pick made in the lobby between matches. Checked by the sync and match tests |

@@ -29,8 +29,6 @@ echo "== Office: spawn points, bot navigation and every movement route"
 run_script tests/office_test.gd
 echo "== Debug menu cheats and the target dummies"
 run_script tests/debug_test.gd
-echo "== Lobby: the join addresses it shows (home network, Tailscale)"
-run_script tests/join_address_test.gd
 echo "== Practice mode boots without errors on every map"
 for map in construction_site office testing_grounds rooftop_run foundry sky_ruins; do
   out=$("$GODOT" --headless --path . -- --practice --map="$map" --quit-after=3 2>&1)

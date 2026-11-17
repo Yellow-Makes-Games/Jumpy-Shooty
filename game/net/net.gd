@@ -15,6 +15,7 @@ signal joined_lobby                     # we are connected and registered
 signal join_failed(reason: String)
 signal session_ended(reason: String)    # host left, or we were refused
 signal match_started
+signal internet_changed                 # host only: internet_state / public_ip changed
 
 const DEFAULT_PORT := 24680
 const BOT_ID_BASE := 9001
@@ -31,6 +32,14 @@ var players: Dictionary = {}
 var in_match := false
 var is_online := false
 var port := DEFAULT_PORT  ## the port we are hosting on
+
+## Host only: whether friends can reach us over the internet. When we host, the game
+## asks the router (UPnP) to open the port and tells us our public address.
+## "" (not hosting), "checking", "open" (friends join at public_ip) or "failed".
+var internet_state := ""
+var public_ip := ""
+var _upnp: UPNP = null        # the router we opened the port on, to close it again
+var _upnp_thread: Thread = null
 
 ## The game and win condition chosen by the host in the lobby.
 ## game: "ffa" (free-for-all, a 1v1 with two players) or "race" (see Maps and Race).
@@ -102,6 +111,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	joined_lobby.emit()
 	port = listen_port
 	print("[net] hosting on port %d" % port)
+	_open_router_port()
 	return OK
 
 
@@ -127,12 +137,83 @@ func join_direct(player_name: String, character: String, address: String, weapon
 
 
 func leave() -> void:
+	_close_router_port()
 	in_match = false
 	is_online = false
 	players.clear()
 	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+
+
+# ---------------------------------------------------------------------------
+# Internet hosting: ask the router to forward our port (UPnP), on a thread because
+# finding the router takes a second or two.
+
+func _open_router_port() -> void:
+	internet_state = "checking"
+	public_ip = ""
+	internet_changed.emit()
+	if _upnp_thread:
+		_upnp_thread.wait_to_finish()
+	_upnp_thread = Thread.new()
+	_upnp_thread.start(_upnp_work.bind(port))
+
+
+func _upnp_work(open_port: int) -> void:
+	var upnp := UPNP.new()
+	var ip := ""
+	if upnp.discover(2000, 2) == UPNP.UPNP_RESULT_SUCCESS and upnp.get_gateway() and upnp.get_gateway().is_valid_gateway():
+		if upnp.add_port_mapping(open_port, open_port, "Jumpy Shooty", "UDP") == UPNP.UPNP_RESULT_SUCCESS:
+			ip = upnp.query_external_address()
+	_upnp_done.call_deferred(upnp, ip, open_port)
+
+
+func _upnp_done(upnp: UPNP, ip: String, opened_port: int) -> void:
+	if _upnp_thread:
+		_upnp_thread.wait_to_finish()
+		_upnp_thread = null
+	if internet_state != "checking" or opened_port != port:
+		if ip != "":
+			upnp.delete_port_mapping(opened_port, "UDP")   # we stopped hosting meanwhile
+		return
+	# A private address here means the internet provider shares one public address
+	# between many homes (carrier-grade NAT): friends cannot reach us that way.
+	if ip == "" or _is_private(ip):
+		internet_state = "failed"
+		if ip != "":
+			upnp.delete_port_mapping(opened_port, "UDP")
+		print("[net] could not open port %d on the router" % opened_port)
+	else:
+		_upnp = upnp
+		internet_state = "open"
+		public_ip = ip
+		print("[net] router port %d open; public address %s" % [opened_port, ip])
+	internet_changed.emit()
+
+
+func _close_router_port() -> void:
+	if _upnp:
+		_upnp.delete_port_mapping(port, "UDP")
+		_upnp = null
+	internet_state = ""
+	public_ip = ""
+
+
+func _exit_tree() -> void:
+	_close_router_port()
+	if _upnp_thread:
+		_upnp_thread.wait_to_finish()
+
+
+static func _is_private(ip: String) -> bool:
+	var p := ip.split(".")
+	if p.size() != 4:
+		return true
+	var a := int(p[0])
+	var b := int(p[1])
+	return a == 10 or a == 127 or (a == 192 and b == 168) or (a == 172 and b >= 16 and b <= 31) \
+		or (a == 100 and b >= 64 and b <= 127)
 
 
 # ---------------------------------------------------------------------------
