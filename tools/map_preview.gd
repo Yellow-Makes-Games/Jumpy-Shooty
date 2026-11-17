@@ -3,14 +3,15 @@ extends SceneTree
 ## corner and a top-down plan. Used by tools/map_preview.sh.
 ##
 ##   godot --path . --script tools/map_preview.gd -- --map=ID --out=DIR
-##       [--shots=sw;ne;top] [--size=1600x900] [--no-signs]
+##       [--shots=sw;ne;top] [--size=1600x900] [--span=92] [--no-signs]
 ##
 ## ID is a map id from game/arena/maps.gd (construction_site) or a map scene's path
 ## (res://game/maps/my_map.tscn).
 ##
 ## Shots (separated by ";"): a corner or side to look from (sw, se, nw, ne, s, n, e,
 ## w), "top" (a plan), "cutY" (a plan with everything above height Y sliced off, to
-## see one floor), or a camera "x,y,z:lx,ly,lz[:fov]" (position : look-at).
+## see one floor), or a camera "x,y,z:lx,ly,lz[:fov]" (position : look-at). --span is how
+## many metres a plan shows from top to bottom (92; a 140 m map needs about 150).
 
 var _map: MapRoot
 var _camera: Camera3D
@@ -19,6 +20,7 @@ var _shot := -1
 var _wait := 0
 var _out := "."
 var _prefix := "map"
+var _span := 92.0
 
 const CORNERS := {
 	"sw": Vector3(-74, 70, 84), "se": Vector3(74, 70, 84),
@@ -41,6 +43,8 @@ func _initialize() -> void:
 			shots = arg.substr(8)
 		elif arg.begins_with("--size="):
 			size = Vector2i(int(arg.substr(7).get_slice("x", 0)), int(arg.substr(7).get_slice("x", 1)))
+		elif arg.begins_with("--span="):
+			_span = float(arg.substr(7))
 		elif arg == "--no-signs":
 			show_signs = false
 	if map_path.begins_with("res://"):
@@ -96,7 +100,7 @@ func _aim(shot: String) -> void:
 	if shot == "top" or shot.begins_with("cut"):
 		# "cutY" is a plan with everything above height Y sliced off (to see one floor).
 		_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-		_camera.size = 92.0
+		_camera.size = _span
 		_camera.near = 0.05
 		_camera.position = Vector3(0, 200.0 if shot == "top" else float(shot.substr(3)), 0)
 		_camera.rotation_degrees = Vector3(-90, 0, 0)

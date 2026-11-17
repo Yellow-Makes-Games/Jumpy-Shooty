@@ -64,6 +64,12 @@ static func materials(palette: MapPalette, grid: bool) -> Dictionary:
 			m.uv1_scale = Vector3(0.25, 0.25, 0.25)  # one grid square per 4 m (sub-lines every 1 m)
 		m.roughness = palette.roughness
 		m.vertex_color_use_as_albedo = true
+		if palette.colors[kind].a < 0.999:
+			# A colour with alpha below 1 is see-through (glass). No shine: a glancing
+			# reflection would turn the pane white and hide what is behind it.
+			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			m.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+			m.metallic_specular = 0.0
 		var shine: float = palette.glow.get(kind, 0.0)
 		if shine > 0.0:
 			m.emission_enabled = true
