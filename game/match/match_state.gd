@@ -351,6 +351,8 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 		points.append(near.lerp(origin, Player.CAPSULE_RADIUS / maxf(to.length(), 0.01)))
 	if DevArgs.sync_log:
 		print("MELEE %d %s %d" % [attacker, weapon.id, hits.size()])
+		# Also a SHOT line like a gun's, so the tests count blows as shots and hits.
+		print("SHOT %d %s" % [attacker, ("hit %d at melee" % hits[0][0]) if not hits.is_empty() else "miss"])
 	_melee_effect.rpc(attacker, weapon.id, points)
 	for h in hits:
 		if is_dummy(h[0]):

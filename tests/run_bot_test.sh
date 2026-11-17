@@ -13,7 +13,10 @@
 #  - a 5-player free-for-all against 4 bots: every bot shoots and hits, bots fight
 #    each other as well as you, the robots alternate starting with the one you did
 #    not pick, and the rematch keeps all 4 bots
+#  - a melee bot (sword) rushes in, lands blows and knocks you back
 #  - there are no script errors
+# The 1v1 bots carry the rifle so their accuracy can be compared; the free-for-all
+# bots take any weapon at random, guns or melee.
 # Usage: [MAP=map_id] tests/run_bot_test.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -30,18 +33,21 @@ fi
 
 for level in 0 1 2 3; do
   character=$([[ $((level % 2)) -eq 0 ]] && echo needle || echo vanguard)
-  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --character="$character" --time-limit=80 --quit-after=85 \
+  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --bot-weapon=rifle --character="$character" --time-limit=80 --quit-after=85 \
     > "$OUT/bot_$level.log" 2>&1 &
 done
 # Easy against a player who stands still: even the weakest bot must land hits.
-timeout 90 "$GODOT" "${STILL[@]}" --bot=0 --time-limit=40 --quit-after=45 \
+timeout 90 "$GODOT" "${STILL[@]}" --bot=0 --bot-weapon=rifle --time-limit=40 --quit-after=45 \
   > "$OUT/bot_still.log" 2>&1 &
 # Expert again, but the player fights back; first to 2 so it ends, then rematches.
-timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --scripted-fire --kill-target=2 --time-limit=40 \
+timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --scripted-fire --kill-target=2 --time-limit=40 \
   --auto-return --quit-after=60 > "$OUT/bot_fight.log" 2>&1 &
 # Free-for-all: you plus 4 Hard bots, first to 3 kills, then a rematch.
 timeout 150 "$GODOT" "${COMMON[@]}" --bot=2 --bots=4 --character=vanguard --kill-target=3 --time-limit=60 \
   --auto-return --quit-after=110 > "$OUT/bot_ffa.log" 2>&1 &
+# A sword bot (Hard) against a player who moves on its own.
+timeout 90 "$GODOT" "${COMMON[@]}" --bot=2 --bot-weapon=sword --time-limit=40 --quit-after=45 \
+  > "$OUT/bot_melee.log" 2>&1 &
 wait || true
 
 python3 - "$OUT" <<'EOF'
@@ -155,6 +161,16 @@ if not any(s in bot_ids and t in bot_ids for s, t in hits):
     print("  FAIL: the bots never fought each other"); fail = True
 if not any(t == "1" for _, t in hits):
     print("  FAIL: no bot ever hit you"); fail = True
+
+log = read("melee")
+blows = re.findall(r"^MELEE 9001 sword (\d+)", log, re.M)
+landed = sum(1 for b in blows if int(b) > 0)
+knocks = len(re.findall(r"^KNOCK 1 ", log, re.M))
+print(f"Melee   swings {len(blows)}  landed {landed}  knocked you back {knocks}  errors {log.count('SCRIPT ERROR')}")
+if log.count("SCRIPT ERROR"):
+    print("  FAIL: script errors"); fail = True
+if landed == 0 or knocks == 0:
+    print("  FAIL: the sword bot should land blows that knock you back"); fail = True
 
 print("BOT TEST", "FAILED" if fail else "PASSED")
 sys.exit(1 if fail else 0)
