@@ -199,25 +199,55 @@ func _two_columns() -> VBoxContainer:
 	return left
 
 
-## A "Map" heading and drop-down with every map; `current` is selected.
-func _map_picker(parent: Node, current: String) -> OptionButton:
+## A "Map" heading and drop-down with the maps for `game`; `current` is selected.
+func _map_picker(parent: Node, current: String, game: String = "ffa") -> OptionButton:
 	UiKit.section(parent, "Map")
 	var pick := OptionButton.new()
 	pick.custom_minimum_size = Vector2(0, 46)
-	Maps.fill(pick, current)
+	Maps.fill(pick, current, game)
 	parent.add_child(pick)
 	return pick
+
+
+const MODE_LABELS := ["Shoot-out (FFA / 1v1)", "Race"]
+
+
+## A "Mode" heading and switch: free-for-all (or 1v1) or race. Returns [mode] (an
+## array, so the callbacks can change it); `on_change` gets the new game id.
+func _mode_picker(parent: Node, game: String, on_change: Callable) -> Array:
+	UiKit.section(parent, "Mode")
+	var mode := [game]
+	UiKit.segmented(parent, MODE_LABELS, Maps.GAMES.find(game), func(i: int):
+		mode[0] = Maps.GAMES[i]
+		on_change.call(mode[0]))
+	return mode
 
 
 func _show_practice() -> void:
 	_page(820)
 	UiKit.title(_col, "Practice", 36)
-	UiKit.label(_col, "Roam a map on your own to learn its routes. No opponents, no timer.", true, 16)
+	var note := UiKit.label(_col, "", true, 16)
 	var left := _two_columns()
-	var map := _map_picker(left, Game.last_practice_map)
+	var game := Maps.game_of(Game.last_practice_map)
+	var map: OptionButton
+	var explain := func(g: String):
+		note.text = "Run a race course on your own against the clock." if g == "race" \
+			else "Roam a map on your own to learn its routes. No opponents, no timer."
+	explain.call(game)
+	var mode := _mode_picker(left, game, func(g: String):
+		explain.call(g)
+		Maps.fill(map, Game.last_map.get(g, Maps.default_id(g)), g))
+	map = _map_picker(left, Game.last_practice_map, mode[0])
 	var row := _back_row(_show_play)
-	_start_button(row, func(): Game.start_practice(Maps.LIST[map.selected].id))
+	_start_button(row, func(): Game.start_practice(Maps.picked(map)))
 
+
+const RACE_BLURBS := [
+	"Takes its time, hesitates at the tricky bits and fumbles a jump now and then.",
+	"A steady runner: few mistakes, but no hurry on the straights.",
+	"Quick on the straights and clean over the obstacles.",
+	"Flat out everywhere, takes every line first time.",
+]
 
 const BOT_BLURBS := [
 	"Slow to react, wobbly aim, mostly just runs and shoots.",
@@ -241,7 +271,7 @@ func _show_bot() -> void:
 	UiKit.section(bots_box, "Bots")
 	var count := OptionButton.new()
 	for n in range(1, Game.MAX_BOTS + 1):
-		count.add_item("1 (1v1)" if n == 1 else "%d (free-for-all)" % n, n)
+		count.add_item("", n)
 	count.custom_minimum_size = Vector2(0, 46)
 	count.select(clampi(int(Game.last_bot.get("bots", 1)), 1, Game.MAX_BOTS) - 1)
 	bots_box.add_child(count)
@@ -258,15 +288,35 @@ func _show_bot() -> void:
 	UiKit.section(left, "Difficulty (every bot)")
 	var level := [Game.last_bot.difficulty]   # in an array so the button callbacks can change it
 	var seg := UiKit.segmented(left, BotDifficulty.NAMES, level[0], func(_i: int): pass)
-	var blurb := UiKit.label(left, BOT_BLURBS[level[0]], true, 15)
+	var blurb := UiKit.label(left, "", true, 15)
 	blurb.custom_minimum_size = Vector2(0, 40)
+	var game := str(Game.last_bot.get("game", Maps.game_of(Game.last_bot.map)))
+	var map: OptionButton
+	# Race or shoot-out: the bot count reads differently, kills to win goes away.
+	var show_mode := func(g: String):
+		var race := g == "race"
+		kills_box.visible = not race
+		for n in range(1, Game.MAX_BOTS + 1):
+			var t := "%d (1v1)" % n if n == 1 else "%d (free-for-all)" % n
+			if race:
+				t = "%d bot%s (race)" % [n, "" if n == 1 else "s"]
+			count.set_item_text(n - 1, t)
+		blurb.text = (RACE_BLURBS if race else BOT_BLURBS)[level[0]]
 	for i in seg.get_child_count():
 		(seg.get_child(i) as Button).pressed.connect(func():
 			level[0] = i
-			blurb.text = BOT_BLURBS[i])
-	var map := _map_picker(left, Game.last_bot.map)
+			blurb.text = (RACE_BLURBS if map and Maps.game_of(Maps.picked(map)) == "race" else BOT_BLURBS)[i])
+	var mode := _mode_picker(left, game, func(g: String):
+		show_mode.call(g)
+		Maps.fill(map, Game.last_map.get(g, Maps.default_id(g)), g))
+	# The mode switch goes first on the page.
+	var mode_row_start := left.get_child_count() - 2
+	left.move_child(left.get_child(mode_row_start), 0)
+	left.move_child(left.get_child(mode_row_start + 1), 1)
+	map = _map_picker(left, Game.last_bot.map, mode[0])
+	show_mode.call(mode[0])
 	var buttons := _back_row(_show_play)
-	_start_button(buttons, func(): Game.start_bot(level[0], int(kills.value), Maps.LIST[map.selected].id,
+	_start_button(buttons, func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
 			count.get_selected_id()))
 
 

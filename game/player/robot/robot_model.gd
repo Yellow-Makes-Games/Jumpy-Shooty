@@ -44,7 +44,7 @@ func setup(path: String, player_color: Color, viewmodel: bool = false, gun: Stri
 	for c in skeleton.get_children():
 		if c is MeshInstance3D:
 			mesh = c
-	weapon = WeaponData.valid(gun)
+	weapon = gun if gun == "none" else WeaponData.valid(gun)   # "none": empty hands (races)
 	mesh.mesh = _with_gun(path, mesh.mesh, weapon)
 	var trim := trim_color(player_color)
 	_glow_color = trim

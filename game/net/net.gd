@@ -32,10 +32,12 @@ var in_match := false
 var is_online := false
 var port := DEFAULT_PORT  ## the port we are hosting on
 
-## Win condition chosen by the host in the lobby.
-## mode: "kills" (first to `kills`) or "time" (most kills after `minutes`).
-## map: which map to play (an id from Maps).
-var match_settings := {"mode": "kills", "kills": 15, "minutes": 8, "map": Maps.default_id()}
+## The game and win condition chosen by the host in the lobby.
+## game: "ffa" (free-for-all, a 1v1 with two players) or "race" (see Maps and Race).
+## mode: "kills" (first to `kills`) or "time" (most kills after `minutes`); free-for-all only.
+## race_minutes: a race's time limit.
+## map: which map to play (an id from Maps; it must be one for the game).
+var match_settings := {"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id()}
 
 ## The arena currently running, if any. It registers itself here.
 var arena: Node = null
@@ -284,8 +286,13 @@ func set_match_settings(settings: Dictionary) -> void:
 @rpc("authority", "call_local", "reliable")
 func _sync_settings(settings: Dictionary) -> void:
 	match_settings = settings
-	if not Maps.has(str(match_settings.get("map", ""))):
-		match_settings["map"] = Maps.default_id()
+	var game := Maps.valid_game(str(match_settings.get("game", "")))
+	var map := str(match_settings.get("map", ""))
+	if Maps.has(map) and not map.begins_with("res://") and Maps.game_of(map) != game:
+		map = ""   # a map for the other game: race maps only race, arenas only fight
+	if not Maps.has(map):
+		match_settings["map"] = Maps.default_id(game)
+	match_settings["game"] = Maps.game_of(str(match_settings.map))
 	players_changed.emit()  # lobby screens refresh on this
 
 
@@ -383,6 +390,11 @@ func player_color(id: int) -> Color:
 
 # ---------------------------------------------------------------------------
 # Match flow
+
+## "ffa" or "race": what kind of game is set up (it follows the map).
+func game_kind() -> String:
+	return Maps.game_of(map_id())
+
 
 ## The id of the map being played (or about to be).
 func map_id() -> String:

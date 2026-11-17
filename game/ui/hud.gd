@@ -34,6 +34,7 @@ class View:
 	var move_state := ""
 	## [label, key, readiness 0..1, active] for grapple, dive, flip, slide
 	var moves: Array = []
+	var race := false           ## a race: no health or ammo to show
 
 enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON }
 
@@ -68,6 +69,7 @@ var _killer_view: RobotPreview   # the robot that got you, on the death screen
 var _respawn_left := 0.0
 var _pulse := 0.0
 var _board_age := 0.0
+var _race: HudRace
 
 
 func _ready() -> void:
@@ -94,6 +96,8 @@ func _ready() -> void:
 	_killer_view.visible = false
 	_root.add_child(_killer_view)
 	_build_scoreboard()
+	_race = HudRace.new()
+	Race.changed.connect(_refresh_scoreboard)
 
 	Match.state_changed.connect(_refresh_scoreboard)
 	Match.player_hit.connect(_on_hit)
@@ -157,6 +161,7 @@ func update_local(p: Player) -> void:
 		var fov := cam.fov if cam else 75.0
 		v.spread_px = tan(deg_to_rad(data.spread_degrees)) / tan(deg_to_rad(fov) * 0.5) * get_viewport().get_visible_rect().size.y * 0.5
 		v.ready = 1.0 - p.weapon.cooldown() / data.fire_interval if data.fire_interval >= 0.5 else 1.0
+	v.race = Race.active
 	v.speed = Vector2(p.velocity.x, p.velocity.z).length()
 	v.move_state = MovementController.State.keys()[p.motor.state].replace("_", " ")
 
@@ -188,6 +193,9 @@ func update_local(p: Player) -> void:
 			_board_age = 0.0
 			_refresh_scoreboard()
 	_flash.color.a = move_toward(_flash.color.a, 0.0, delta * 1.2)
+	if Race.active:
+		_race.age(delta)
+		_flash.color = Color(1, 1, 1, _race.flash())
 	var low := p.alive and v.hp <= HudStyle.LOW_HEALTH
 	var pulse := 0.75 + 0.25 * sin(_pulse * 5.0)
 	_vignette.modulate.a = move_toward(_vignette.modulate.a, pulse if low else 0.0, delta * 3.0)
@@ -291,10 +299,14 @@ func _draw_overlay() -> void:
 	var ci := _overlay
 	var size := ci.size
 	var c := size * 0.5
-	if _dead:
-		_draw_death(ci, size)
-	_draw_score_bar(ci, size)
-	_draw_feed(ci, size)
+	if Race.active:
+		if not _scoreboard.visible:
+			_race.draw(ci, size, self)
+	else:
+		if _dead:
+			_draw_death(ci, size)
+		_draw_score_bar(ci, size)
+		_draw_feed(ci, size)
 	if _dead or _scoreboard.visible:
 		return
 	_draw_crosshair(ci, c)
@@ -413,6 +425,10 @@ func _draw_score_bar(ci: CanvasItem, size: Vector2) -> void:
 
 
 ## A rounded plate with text in it, centred on `at`. Returns its width.
+func pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> float:
+	return _pill(ci, at, s, size, color)
+
+
 func _pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> float:
 	var w := HudStyle.text_width(s, size) + 28.0
 	var h := size + 12.0
@@ -555,6 +571,10 @@ func _cell(parent: Node, text: String, size: int, color: Color, bold: bool = tru
 func _refresh_scoreboard() -> void:
 	if not _score_grid:
 		return
+	if Race.active:
+		_refresh_race_board()
+		return
+	_score_grid.columns = 5
 	var title := Maps.name_of(Net.map_id())
 	if Match.kill_target > 0:
 		title += "  ·  First to %d" % Match.kill_target
@@ -589,6 +609,45 @@ func _refresh_scoreboard() -> void:
 		_cell(_score_grid, "%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), WeaponData.by_id(Net.player_weapon(row.id)).short_name], 16, Color(col, 0.75), false)
 		_cell(_score_grid, str(row.kills), 20, col, true, true)
 		_cell(_score_grid, str(row.deaths), 16, Color(col, 0.75), false, true)
+
+
+## The race version: place, racer, gates passed, time (or how far along), resets.
+func _refresh_race_board() -> void:
+	var title := "%s  ·  Race" % Maps.name_of(Net.map_id())
+	if Race.time >= 0.0:
+		title += "  ·  %s" % Race.format_time(Race.time)
+	if Race.end_at < INF:
+		title += "  ·  ends in %d s" % maxi(int(ceil(Race.end_at - Race.time)), 0)
+	var ping := _ping_ms()
+	if ping >= 0:
+		title += "  ·  Ping %d ms" % ping
+	_score_title.text = title
+	UiKit.clear(_score_grid)
+	_score_grid.columns = 5
+	var dim := Color(1, 1, 1, 0.6)
+	for h in ["", "RACER", "GATES", "TIME", "RESETS"]:
+		var l := _cell(_score_grid, h, 12, dim, false, h in ["GATES", "TIME", "RESETS"])
+		if h == "RACER":
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var rank := 0
+	for row in Race.standings():
+		rank += 1
+		var mine: bool = row.id == Net.my_id()
+		var col := HudStyle.ORANGE if mine else HudStyle.WHITE
+		_cell(_score_grid, str(rank), 16, dim)
+		var name_row := HBoxContainer.new()
+		name_row.add_theme_constant_override("separation", 10)
+		var chip := ColorRect.new()
+		chip.color = Net.player_color(row.id)
+		chip.custom_minimum_size = Vector2(12, 12)
+		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		name_row.add_child(chip)
+		_cell(name_row, row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 18, col)
+		_score_grid.add_child(name_row)
+		_cell(_score_grid, "%d / %d" % [row.cp, Race.gates], 16, Color(col, 0.75), false, true)
+		_cell(_score_grid, Race.format_time(row.time) if row.finished else "racing", 18 if row.finished else 14,
+			HudStyle.YELLOW if row.finished else Color(col, 0.6), row.finished, true)
+		_cell(_score_grid, str(row.resets), 16, Color(col, 0.75), false, true)
 
 
 func _ping_ms() -> int:

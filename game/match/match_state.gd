@@ -77,6 +77,11 @@ func _on_match_started() -> void:
 			kill_target = DevArgs.kill_target
 		if DevArgs.time_limit > 0.0:
 			time_left = DevArgs.time_limit
+		if Maps.game_of(Net.map_id()) == "race":
+			kill_target = 0   # a race ends at the finish (see Race), or at its time limit
+			time_left = float(s.get("race_minutes", 10)) * 60.0 + Race.COUNTDOWN
+			if DevArgs.time_limit > 0.0:
+				time_left = DevArgs.time_limit
 		if Game.mode == Game.Mode.PRACTICE:
 			kill_target = 0
 			time_left = INF
@@ -350,6 +355,8 @@ func _fell_request() -> void:
 
 
 func _host_fell(id: int) -> void:
+	if Race.active:
+		return   # in a race you go back to your checkpoint instead (see Race)
 	if running and is_alive(id):
 		health[id] = 0.0
 		_host_kill(id, 0)
@@ -398,8 +405,10 @@ func host_end_match() -> void:
 	_match_over.rpc(build_results())
 
 
-## Rankings: most kills first, then fewest deaths.
+## Rankings: most kills first, then fewest deaths. In a race: the race standings.
 func build_results() -> Array:
+	if Race.active:
+		return Race.standings()
 	var rows: Array = []
 	for id in scores:
 		rows.append({"id": id, "name": Net.player_name(id), "kills": scores[id].kills, "deaths": scores[id].deaths})

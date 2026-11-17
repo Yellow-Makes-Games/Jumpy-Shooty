@@ -7,6 +7,10 @@ extends Node3D
 ##    selects the whole container or staircase; see docs/DEVELOPMENT.md).
 ##  - MapSpawn nodes: where players appear.
 ##  - MapDummy nodes: target dummies to shoot at (test maps).
+##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
+##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
+##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
+##    steps bots follow round the course.
 ##  - Label3D nodes: signs and painted numbers.
 ##  - A WorldEnvironment (sky, ambient light, fog) and a DirectionalLight3D (the sun).
 ##
@@ -63,6 +67,19 @@ const FALLBACK_PALETTE := "res://game/maps/palettes/construction_site.tres"
 var spawns: Array = []
 ## [position, yaw, MapDummy] of every target dummy; filled in by build().
 var dummies: Array = []
+## Race maps, filled in by build(). Checkpoints: {number, finish, xf, opening},
+## sorted by number. Hazards: {xf, size, shape, mover} (mover = index into movers,
+## or -1). Movers: {node: MapMover, base: Transform3D, body: AnimatableBody3D}.
+## Route: {pos, action, aim, radius} in running order.
+var checkpoints: Array = []
+var hazards: Array = []
+var movers: Array = []
+var route: Array = []
+## Seconds the map's moving parts have been running (the same on every copy of the
+## game: the arena starts it when the match starts).
+var clock := 0.0
+## If set, the moving parts follow this clock (seconds) instead of counting their own.
+var clock_source: Callable
 
 var _materials := {}
 static var _fallback := {}
@@ -91,9 +108,16 @@ static func of(node: Node) -> MapRoot:
 func build(with_meshes: bool = true) -> void:
 	var pieces := []
 	spawns = []
+	checkpoints = []
+	hazards = []
+	movers = []
+	route = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
+	checkpoints.sort_custom(func(a, b): return a.number < b.number)
 	dummies = []
 	_collect_dummies(self, Transform3D.IDENTITY)
+	for i in movers.size():
+		_build_mover(i, with_meshes)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
 	add_child(body)
@@ -121,18 +145,121 @@ func collect_pieces() -> Array:
 	return pieces
 
 
-func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array) -> void:
+func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mover: int = -1) -> void:
 	for child in node.get_children():
 		var at := xf
 		if child is Node3D:
 			if not (child as Node3D).visible:
 				continue   # hidden in the editor: left out of the game
 			at = xf * (child as Node3D).transform
+		if child is MapMover and mover == -1:
+			# Its blocks are built into a moving body of their own (see _build_mover),
+			# in the mover's own frame.
+			var m := {"node": child, "base": at, "pieces": [], "body": null}
+			movers.append(m)
+			_collect(child, Transform3D.IDENTITY, m.pieces, spawn_list, movers.size() - 1)
+			continue
 		if child is MapBlock:
 			pieces.append((child as MapBlock).to_piece(at))
+			if child is MapHazard:
+				var b := child as MapBlock
+				hazards.append({"xf": Transform3D(at.basis.orthonormalized(), at.origin), "size": b.size * at.basis.get_scale().abs(),
+					"shape": MapBlock.SHAPE_NAMES[b.shape], "mover": mover})
 		elif child is MapSpawn:
 			spawn_list.append([at.origin + Vector3(0, 0.2, 0), atan2(at.basis.z.x, at.basis.z.z)])
-		_collect(child, at, pieces, spawn_list)
+		elif child is MapCheckpoint:
+			var c := child as MapCheckpoint
+			checkpoints.append({"number": c.number, "finish": c.finish, "opening": c.opening,
+				"xf": Transform3D(at.basis.orthonormalized(), at.origin)})
+		elif child is MapRoutePoint:
+			var r := child as MapRoutePoint
+			route.append({"pos": at.origin, "action": r.action, "aim": r.aim, "radius": r.radius})
+		_collect(child, at, pieces, spawn_list, mover)
+
+
+## A mover's blocks as one moving body (collision for the solid ones) and meshes.
+func _build_mover(index: int, with_meshes: bool) -> void:
+	var m: Dictionary = movers[index]
+	var body := AnimatableBody3D.new()
+	body.name = "Mover_%d" % index
+	body.sync_to_physics = false   # moved in _physics_process; it still carries whoever stands on it
+	body.transform = m.base
+	add_child(body)
+	m.body = body
+	for piece in m.pieces:
+		if piece.solid:
+			var shape := CollisionShape3D.new()
+			shape.shape = _collision_shape(piece)
+			shape.transform = piece.xf
+			body.add_child(shape)
+	if not with_meshes:
+		return
+	var meshes := MapMesher.build(m.pieces, face_shade)
+	for kind in meshes:
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = meshes[kind]
+		mesh.material_override = material_for(kind)
+		body.add_child(mesh)
+
+
+## Moves the moving parts to where they are at `clock` seconds.
+func update_movers(delta: float) -> void:
+	clock = clock_source.call() if clock_source.is_valid() else clock + delta
+	for m in movers:
+		if m.body:
+			(m.body as AnimatableBody3D).transform = m.base * (m.node as MapMover).offset_at(clock)
+
+
+func _physics_process(delta: float) -> void:
+	if not Engine.is_editor_hint() and not movers.is_empty():
+		update_movers(delta)
+
+
+## Where a hazard is right now (it may be riding a mover).
+func hazard_xf(h: Dictionary) -> Transform3D:
+	if h.mover < 0:
+		return h.xf
+	var m: Dictionary = movers[h.mover]
+	return (m.body.transform if m.body else m.base) * h.xf
+
+
+## Is `point` inside a hazard (grown by `margin` metres all round)? With `at` (a
+## map clock time), where the moving ones will be then rather than now.
+func hazard_at(point: Vector3, margin: float = 0.0, at: float = -INF) -> bool:
+	for h in hazards:
+		var xf: Transform3D = hazard_xf(h)
+		if at > -INF and h.mover >= 0:
+			var m: Dictionary = movers[h.mover]
+			xf = m.base * (m.node as MapMover).offset_at(at) * h.xf
+		var local := xf.affine_inverse() * point
+		var half: Vector3 = h.size * 0.5 + Vector3(margin, margin, margin)
+		if absf(local.y) > half.y:
+			continue
+		if h.shape == "box":
+			if absf(local.x) <= half.x and absf(local.z) <= half.z:
+				return true
+		elif Vector2(local.x, local.z).length() <= half.x:
+			return true
+	return false
+
+
+## Will a moving part be there to stand on at `point` at map clock `at`? -1 if no
+## moving part ever passes over it (look at the ground itself then), else 0 or 1.
+func mover_ground_at(point: Vector3, at: float, tolerance: float = 0.5) -> int:
+	var near := false
+	for m in movers:
+		var mxf: Transform3D = m.base * (m.node as MapMover).offset_at(at)
+		for piece in m.pieces:
+			if not piece.solid:
+				continue
+			var local: Vector3 = (mxf * (piece.xf as Transform3D)).affine_inverse() * point
+			var half: Vector3 = piece.size * 0.5
+			if absf(local.x) > half.x or absf(local.z) > half.z:
+				continue
+			near = true
+			if absf(local.y - half.y) <= tolerance:
+				return 1
+	return 0 if near else -1
 
 
 func _collect_dummies(node: Node, xf: Transform3D) -> void:

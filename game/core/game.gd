@@ -16,9 +16,12 @@ var mode: Mode = Mode.NONE
 ## A message to show on the main menu (for example "The host left").
 var pending_notice := ""
 ## The last bot match's settings, for a rematch. "bots": how many bots (1 is a 1v1).
-var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.default_id(), "bots": 1}
+## "game": "ffa" or "race" (the map decides it).
+var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.default_id(), "bots": 1, "game": "ffa"}
 ## The map last picked for practice.
 var last_practice_map := Maps.default_id()
+## The map last picked for each kind of game, so the menus remember both.
+var last_map := {"ffa": Maps.default_id("ffa"), "race": Maps.default_id("race")}
 
 
 func _ready() -> void:
@@ -66,8 +69,10 @@ func start_practice(map: String = "") -> void:
 	mode = Mode.PRACTICE
 	if map != "":
 		last_practice_map = map
+		last_map[Maps.game_of(map)] = map
 	Net.start_offline(local_name(), local_character(), local_weapon())
 	Net.match_settings["map"] = _map_choice(last_practice_map)
+	Net.match_settings["game"] = Maps.game_of(Net.match_settings.map)
 	Net.host_start_match()
 
 
@@ -78,9 +83,13 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	if bots <= 0:
 		bots = int(last_bot.get("bots", 1))
 	bots = clampi(bots, 1, MAX_BOTS)
-	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": map if map != "" else last_bot.map, "bots": bots}
+	var picked: String = map if map != "" else last_bot.map
+	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": Maps.game_of(picked)}
+	last_map[Maps.game_of(picked)] = picked
 	Net.start_offline(local_name(), local_character(), local_weapon())
-	Net.match_settings = {"mode": "kills", "kills": kills_to_win, "minutes": 8, "map": _map_choice(last_bot.map)}
+	var playing := _map_choice(last_bot.map)
+	Net.match_settings = {"game": Maps.game_of(playing), "mode": "kills", "kills": kills_to_win, "minutes": 8,
+		"race_minutes": 10, "map": playing}
 	for i in bots:
 		Net.add_bot(difficulty, DevArgs.bot_weapon)
 	Net.host_start_match()
@@ -95,6 +104,8 @@ func rematch_bot() -> void:
 func _map_choice(picked: String) -> String:
 	if DevArgs.map != "":
 		return DevArgs.map
+	if DevArgs.race:
+		return Maps.default_id("race")
 	return picked if Maps.has(picked) else Maps.default_id()
 
 
@@ -102,9 +113,10 @@ func host_online() -> Error:
 	mode = Mode.ONLINE
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
 	var err := Net.host_direct(local_name(), local_character(), port, local_weapon())
-	if err == OK and DevArgs.map != "":
+	if err == OK and (DevArgs.map != "" or DevArgs.race):
 		var with_map := Net.match_settings.duplicate()
-		with_map["map"] = DevArgs.map
+		with_map["map"] = _map_choice("")
+		with_map["game"] = Maps.game_of(with_map.map)
 		Net.set_match_settings(with_map)
 	if err == OK and DevArgs.rules != "":
 		var s := Net.match_settings.duplicate()

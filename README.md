@@ -1,7 +1,9 @@
 # Jumpy Shooty
 
 A fast, high-mobility 3D multiplayer arena shooter: grapple, wall-run, slide, dive and
-fight in free-for-all matches of up to 5 players, or offline against 1 to 4 bots.
+fight in free-for-all matches of up to 5 players, or offline against 1 to 4 bots. Or put
+the guns away and **race**: run an obstacle course against friends or bots, from
+checkpoint to checkpoint, to the finish.
 
 Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player hosts and
 up to 4 friends connect to them. Today that works over direct IP; Steam invites and
@@ -27,7 +29,7 @@ More detail, including how to play with a friend and run several copies on one P
 | Sprint | Shift |
 | Jump | Space |
 | Shoot | Left mouse |
-| Reload | R |
+| Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |
 | Scoreboard | Tab (hold) |
 | Menu | Esc |
@@ -42,7 +44,7 @@ game/
   core/      settings, screen changes
   net/       multiplayer: hosting, joining, lobby, movement smoothing
   player/    player, movement (movement/), camera (camera/)
-  match/     match rules run by the host: health, hits, kills, respawns, timer
+  match/     match rules run by the host: health, hits, kills, respawns, timer, races
   combat/    weapons and shot effects
   audio/     sound effects (sfx/) and the code that plays them
   arena/     the arena and the map system (see docs/DEVELOPMENT.md)
@@ -50,7 +52,7 @@ game/
   ui/        menus, lobby, HUD, pause menu
   dev/       developer command-line options
 addons/      map_tools: the editor plugin for editing maps
-tools/       launch several copies, take screenshots, render map previews, build the robots and sounds
+tools/       launch several copies, take screenshots, render map previews, build the robots, sounds and race maps
 tests/       automated tests (tests/run_all.sh)
 docs/        setup guide, feature tracker
 ```

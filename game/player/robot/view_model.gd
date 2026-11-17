@@ -87,7 +87,7 @@ func fire() -> void:
 
 
 func respawn() -> void:
-	visible = true
+	visible = not _player.racing
 	_raise_t = 0.0
 	_dip = 0.0
 	_dip_vel = 0.0
@@ -106,7 +106,7 @@ func marker(bone: String) -> Vector3:
 
 
 func update(delta: float) -> void:
-	visible = _player.alive
+	visible = _player.alive and not _player.racing   # a race: no gun to hold
 	if not visible:
 		return
 	var motor := _player.motor

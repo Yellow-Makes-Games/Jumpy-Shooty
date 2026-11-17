@@ -10,6 +10,8 @@ var pause_menu: PauseMenu
 var debug_menu: DebugMenu
 ## The map's target dummies (TargetDummy), in the order of their index.
 var dummies: Array = []
+## Race maps: the drawn checkpoint gates, in the order racers pass them.
+var gates: Array = []
 
 
 func _ready() -> void:
@@ -17,8 +19,11 @@ func _ready() -> void:
 	layout.name = "Level"
 	add_child(layout)
 	layout.build()
-	if Net.has_bots():
-		ensure_navigation()   # only when bots play: it takes a moment
+	if Race.active:
+		layout.clock_source = func(): return Race.time + Race.COUNTDOWN   # moving parts in step on every copy
+		_build_gates()
+	elif Net.has_bots():
+		ensure_navigation()   # only when bots play: it takes a moment (racing bots follow the map's route instead)
 	_spawn_dummies()
 	players_root = Node3D.new()
 	players_root.name = "Players"
@@ -70,6 +75,21 @@ func _physics_process(_delta: float) -> void:
 func _process(_delta: float) -> void:
 	if local_player:
 		hud.update_local(local_player)
+		if Race.active:
+			var passed := Race.gates_passed(local_player.peer_id)
+			for i in gates.size():
+				RaceGate.set_state(gates[i], i == passed, i < passed)
+
+
+func _build_gates() -> void:
+	var root := Node3D.new()
+	root.name = "Gates"
+	add_child(root)
+	for c in layout.checkpoints:
+		var g := RaceGate.make(c.opening, c.finish, c.number)
+		g.transform = c.xf
+		root.add_child(g)
+		gates.append(g)
 
 
 func get_player(id: int) -> Player:
@@ -154,6 +174,8 @@ func _respawn(p: Player) -> void:
 	ids.sort()
 	var index: int = max(ids.find(p.peer_id), 0)
 	var s: Array = layout.spawns[(index + randi() % 2 * (layout.spawns.size() / 2)) % layout.spawns.size()]
+	if Race.active:
+		s = layout.spawns[index % layout.spawns.size()]   # everyone has their own place on the start line
 	if not DevArgs.spawn.is_empty() and not p.is_bot:
 		s = DevArgs.spawn
 	p.teleport(s[0], s[1])

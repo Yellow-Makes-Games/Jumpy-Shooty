@@ -4,16 +4,36 @@ extends Control
 func _ready() -> void:
 	var col := UiKit.screen(self, 860)
 	var results: Array = Match.last_results
+	var race: bool = not results.is_empty() and results[0].get("race", false)
 	var won: bool = not results.is_empty() and results[0].id == Net.my_id() and results[0].kills > 0
 	var title := "Match over"
-	if won:
-		title = "Victory"
-	elif not results.is_empty():
-		title = "%s wins" % results[0].name
-	UiKit.title(col, title, 48)
 	var sub := Maps.name_of(Net.map_id())
-	if not results.is_empty():
-		sub += "  ·  %s scored %d" % ["You" if won else results[0].name, results[0].kills]
+	if race:
+		# A race: the winner is whoever finished first (if anyone did).
+		var first_done: bool = results[0].finished
+		won = first_done and results[0].id == Net.my_id()
+		if results.size() == 1:
+			title = "Finished!" if first_done else "Out of time"
+		elif won:
+			title = "You win the race"
+		elif first_done:
+			title = "%s wins" % results[0].name
+		else:
+			title = "Nobody finished"
+		sub += "  ·  Race"
+		if first_done:
+			sub += "  ·  %s in %s" % ["You" if won else results[0].name, Race.format_time(results[0].time)]
+		var mine := results.filter(func(r): return r.id == Net.my_id())
+		if results.size() > 1 and not mine.is_empty() and mine[0].finished and not won:
+			sub += "  ·  You: %s, %s" % [Race.ordinal(results.find(mine[0]) + 1), Race.format_time(mine[0].time)]
+	else:
+		if won:
+			title = "Victory"
+		elif not results.is_empty():
+			title = "%s wins" % results[0].name
+		if not results.is_empty():
+			sub += "  ·  %s scored %d" % ["You" if won else results[0].name, results[0].kills]
+	UiKit.title(col, title, 48)
 	UiKit.label(col, sub, true, 16)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 28)
@@ -34,7 +54,9 @@ func _ready() -> void:
 	UiKit.button(buttons, "Main menu", Game.leave_to_menu).custom_minimum_size = Vector2(200, 56)
 	var next: Button = null
 	if Game.mode == Game.Mode.BOT:
-		next = UiKit.primary_button(buttons, "Rematch", Game.rematch_bot)
+		next = UiKit.primary_button(buttons, "Race again" if race else "Rematch", Game.rematch_bot)
+	elif Game.mode == Game.Mode.PRACTICE:
+		next = UiKit.primary_button(buttons, "Run it again", func(): Game.start_practice(Net.map_id()))
 	elif Game.mode == Game.Mode.ONLINE and Net.is_online:
 		next = UiKit.primary_button(buttons, "Return to lobby", Game.goto_lobby)
 	if next:

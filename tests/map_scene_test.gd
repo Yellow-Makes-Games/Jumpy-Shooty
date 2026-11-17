@@ -3,7 +3,10 @@ extends SceneTree
 ##  - every map in the list loads, builds collision and meshes, has enough spawn
 ##    points inside its bounds, and every block's kind has a colour in the palette;
 ##  - a block's scale is folded into its size, and a hidden block is left out;
-##  - the resize handles' face moves keep the opposite face in place.
+##  - the resize handles' face moves keep the opposite face in place;
+##  - race maps: numbered gates ending in one finish, a bot route, hazards, and
+##    their moving parts build; race maps are only offered for races, arenas only
+##    for shoot-outs.
 ## Run: godot --headless --path . --script tests/map_scene_test.gd
 
 var failures := 0
@@ -13,6 +16,7 @@ func _initialize() -> void:
 	print("Map scene checks")
 	for id in Maps.ids():
 		_check_map(id)
+	_check_modes()
 	_check_blocks()
 	_check_face_moves()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
@@ -36,7 +40,12 @@ func _check_map(id: String) -> void:
 	var shapes := map.get_node("Collision").get_child_count()
 	var meshes := map.find_children("Mesh_*", "MeshInstance3D", false, false).size()
 	_expect(shapes > 0 and meshes > 0, "builds %d collision shapes and %d merged meshes from %d blocks" % [shapes, meshes, pieces.size()])
-	_expect(map.spawns.size() >= 8, "%d spawn points (the arena needs at least 8)" % map.spawns.size())
+	var race := Maps.game_of(id) == "race"
+	if race:
+		_expect(map.spawns.size() >= 5, "%d spawn points on the start line (a race needs 5)" % map.spawns.size())
+		_check_race(map)
+	else:
+		_expect(map.spawns.size() >= 8, "%d spawn points (the arena needs at least 8)" % map.spawns.size())
 	var outside := 0
 	for s in map.spawns:
 		if map.bounds.has_area() and not map.bounds.has_point(Vector2(s[0].x, s[0].z)):
@@ -76,6 +85,39 @@ func _check_blocks() -> void:
 	_expect(map.spawns.size() == 1 and absf(map.spawns[0][1] - 1.0) < 0.001 and is_equal_approx(map.spawns[0][0].y, 0.2),
 		"a spawn point gives its position (lifted 0.2 m) and the way it faces")
 	map.free()
+
+
+func _check_race(map: MapRoot) -> void:
+	var n := map.checkpoints.size()
+	var numbered := true
+	for i in n:
+		numbered = numbered and int(map.checkpoints[i].number) == i + 1
+	_expect(n >= 5 and numbered, "%d gates, numbered 1 to %d in order" % [n, n])
+	var finishes := map.checkpoints.filter(func(c): return c.finish)
+	_expect(finishes.size() == 1 and n > 0 and map.checkpoints[n - 1].finish, "exactly one finish, and it is the last gate")
+	_expect(map.route.size() >= 20, "a bot route of %d points" % map.route.size())
+	_expect(map.hazards.size() > 0, "%d hazards (touch one: back to your checkpoint)" % map.hazards.size())
+	_expect(map.movers.size() > 0 and map.movers.all(func(m): return m.body != null), "%d moving parts, each built as a moving body" % map.movers.size())
+	var lowest := INF
+	for c in map.checkpoints:
+		lowest = minf(lowest, (c.xf as Transform3D).origin.y)
+	_expect(map.kill_height < lowest - 4.0, "falling off (below %.0f m) is well under every gate" % map.kill_height)
+	var t := 1.234
+	var moved := map.movers.any(func(m): return not (m.node as MapMover).offset_at(t).is_equal_approx((m.node as MapMover).offset_at(t + 1.0)))
+	_expect(moved, "the moving parts move")
+
+
+func _check_modes() -> void:
+	print("  race maps and arena maps")
+	var race := Maps.ids_for("race")
+	var ffa := Maps.ids_for("ffa")
+	_expect(race.size() >= 3, "%d race maps" % race.size())
+	_expect(race.all(func(id): return not ffa.has(id)), "no map is both a race map and an arena")
+	_expect(not Maps.fits(race[0], "ffa") and not Maps.fits(ffa[0], "race"), "a race map does not fit a shoot-out, an arena does not fit a race")
+	var pick := OptionButton.new()
+	Maps.fill(pick, ffa[0], "race")
+	_expect(pick.item_count == race.size() and Maps.picked(pick) == race[0], "the race map list shows only race maps (and falls back to the first)")
+	pick.free()
 
 
 func _check_face_moves() -> void:

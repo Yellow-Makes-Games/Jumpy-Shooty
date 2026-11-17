@@ -12,8 +12,16 @@ static func draw(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 	var size := c * 2.0
 	var bottom := size.y - MARGIN
 
+	if v.race:   # a race has no health or ammo: just the moves, a little lower
+		bottom += 60.0
 	# Health: big number, robot name, ten segments.
 	var hp_col := HudStyle.health_color(v.hp)
+	if not v.race:
+		_draw_health(ci, v, bottom, hp_col)
+	_draw_rest(ci, c, v, size, bottom)
+
+
+static func _draw_health(ci: CanvasItem, v: Hud.View, bottom: float, hp_col: Color) -> void:
 	var w := HudStyle.text(ci, Vector2(MARGIN, bottom - 46.0), str(ceili(v.hp)), 52, hp_col)
 	HudStyle.text(ci, Vector2(MARGIN + w + 10.0, bottom - 36.0), v.character.to_upper(), 12, Color(1, 1, 1, 0.75))
 	for i in 10:
@@ -25,6 +33,8 @@ static func draw(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 			col = HudStyle.RED
 		HudStyle.edged_rect(ci, Rect2(MARGIN + i * 30.0, bottom - 8.0, 27.0, 8.0), col)
 
+
+static func _draw_rest(ci: CanvasItem, c: Vector2, v: Hud.View, size: Vector2, bottom: float) -> void:
 	# Moves: a chip each, with a ring that refills as the move recharges.
 	var x := MARGIN - 4.0
 	var y := bottom - 100.0
@@ -46,6 +56,9 @@ static func draw(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 		HudStyle.text(ci, Vector2(x + 30.0, y), label, 11, text_col)
 		x += cw + 6.0
 
+	if v.race:
+		HudStyle.text(ci, c + Vector2(0, 40), "%s  ·  %.1f m/s" % [v.move_state, v.speed], 13, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
+		return
 	# Ammo: count, magazine, a tick per round, weapon.
 	var right := size.x - MARGIN
 	var ticks := clampi(v.magazine, 1, 30)

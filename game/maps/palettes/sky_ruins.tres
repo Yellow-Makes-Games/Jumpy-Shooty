@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="MapPalette" format=3]
+
+[ext_resource type="Script" path="res://game/arena/map_palette.gd" id="1_pal"]
+
+[resource]
+script = ExtResource("1_pal")
+colors = Dictionary[String, Color]({
+"beam": Color(0.86, 0.83, 0.76, 1),
+"cloud": Color(0.97, 0.98, 1, 1),
+"earth": Color(0.5, 0.4, 0.3, 1),
+"energy": Color(0.5, 0.95, 1, 1),
+"gold": Color(0.95, 0.78, 0.3, 1),
+"grass": Color(0.46, 0.66, 0.36, 1),
+"moss": Color(0.36, 0.52, 0.3, 1),
+"rubble": Color(0.68, 0.64, 0.56, 1),
+"rune": Color(0.45, 0.85, 1, 1),
+"slab": Color(0.8, 0.77, 0.7, 1),
+"stone": Color(0.74, 0.7, 0.62, 1),
+"stone_dark": Color(0.55, 0.52, 0.48, 1),
+"stone_light": Color(0.86, 0.83, 0.76, 1)
+})
+glow = Dictionary[String, float]({
+"energy": 2.6,
+"gold": 0.4,
+"rune": 1.8
+})
+roughness = 0.85
