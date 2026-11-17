@@ -229,15 +229,18 @@ func _show_practice() -> void:
 	var note := UiKit.label(_col, "", true, 16)
 	var left := _two_columns()
 	var game := Maps.game_of(Game.last_practice_map)
-	var map: OptionButton
+	# The map drop-down is made after the mode switch, but the switch refills it, so
+	# the callback reaches it through an array (lambdas copy plain locals when made).
+	var map_ref: Array[OptionButton] = [null]
 	var explain := func(g: String):
 		note.text = "Run a race course on your own against the clock." if g == "race" \
 			else "Roam a map on your own to learn its routes. No opponents, no timer."
 	explain.call(game)
 	var mode := _mode_picker(left, game, func(g: String):
 		explain.call(g)
-		Maps.fill(map, Game.last_map.get(g, Maps.default_id(g)), g))
-	map = _map_picker(left, Game.last_practice_map, mode[0])
+		Maps.fill(map_ref[0], Game.last_map.get(g, Maps.default_id(g)), g))
+	var map := _map_picker(left, Game.last_practice_map, mode[0])
+	map_ref[0] = map
 	var row := _back_row(_show_play)
 	_start_button(row, func(): Game.start_practice(Maps.picked(map)))
 
@@ -291,7 +294,7 @@ func _show_bot() -> void:
 	var blurb := UiKit.label(left, "", true, 15)
 	blurb.custom_minimum_size = Vector2(0, 40)
 	var game := str(Game.last_bot.get("game", Maps.game_of(Game.last_bot.map)))
-	var map: OptionButton
+	var map_ref: Array[OptionButton] = [null]   # filled below; see _show_practice
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
 		var race := g == "race"
@@ -305,15 +308,16 @@ func _show_bot() -> void:
 	for i in seg.get_child_count():
 		(seg.get_child(i) as Button).pressed.connect(func():
 			level[0] = i
-			blurb.text = (RACE_BLURBS if map and Maps.game_of(Maps.picked(map)) == "race" else BOT_BLURBS)[i])
+			blurb.text = (RACE_BLURBS if map_ref[0] and Maps.game_of(Maps.picked(map_ref[0])) == "race" else BOT_BLURBS)[i])
 	var mode := _mode_picker(left, game, func(g: String):
 		show_mode.call(g)
-		Maps.fill(map, Game.last_map.get(g, Maps.default_id(g)), g))
+		Maps.fill(map_ref[0], Game.last_map.get(g, Maps.default_id(g)), g))
 	# The mode switch goes first on the page.
 	var mode_row_start := left.get_child_count() - 2
 	left.move_child(left.get_child(mode_row_start), 0)
 	left.move_child(left.get_child(mode_row_start + 1), 1)
-	map = _map_picker(left, Game.last_bot.map, mode[0])
+	var map := _map_picker(left, Game.last_bot.map, mode[0])
+	map_ref[0] = map
 	show_mode.call(mode[0])
 	var buttons := _back_row(_show_play)
 	_start_button(buttons, func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),

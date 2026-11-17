@@ -19,6 +19,8 @@ echo "== Weapons: damage, falloff and reloading"
 run_script tests/weapon_test.gd
 echo "== Map scenes: every map loads and builds; blocks and resize handles"
 run_script tests/map_scene_test.gd
+echo "== Main menu: the mode switch refills the map list"
+run_script tests/menu_mode_test.gd
 echo "== Testing Grounds: every practice course can be completed"
 run_script tests/course_test.gd
 echo "== Construction Site: spawn points, bot navigation and every movement route"
