@@ -10,7 +10,7 @@ Run it again after changing a recipe:
 
 The style is crisp but realistic: a clean attack, real weight in the low end, gun
 actions and armour made of dull steel rather than ringing bells, and room tails.
-The players are robots, so feet and hits are metal, but nothing is "beepy".
+The players are robots, so hits are metal (feet have soft rubber treads), but nothing is "beepy".
 Every sound is normalised to the same peak; Sound (game/audio/sound.gd) sets how loud
 each one plays. Needs Python 3 and numpy only. Output: 44.1 kHz, 16-bit, mono (the
 first-person gunshots are stereo for a wider tail).
@@ -478,17 +478,18 @@ def respawn():
 
 
 # ---------------------------------------------------------------------------
-# Movement (robots: metal feet, servos, hydraulics)
+# Movement (robots: rubber-soled feet, servos, hydraulics)
 
-def footstep(seed, weight=1.0):
-    rng = np.random.default_rng(8000 + seed)
+def footstep(seed):
+    """Soft rubber tread: a muffled, padded thump and a faint grippy scuff. Kept quiet
+    and short so it never gets tiring, with no ringing metal."""
+    rng = np.random.default_rng(9200 + seed)
     k = rng.uniform(0.9, 1.1)
-    thud = sine_sweep(0.2, 120 * k, 50, 0.012) * env(0.2, 0.03, 0.001) * weight * 0.7
-    body = lp(noise(rng, 0.1), 450) * env(0.1, 0.018, 0.0008) * 1.0
-    heel = bp(noise(rng, 0.06), 900 * k, 1.0) * env(0.06, 0.008, 0.0004) * 0.6
-    clank = modal(rng, 0.2, [430 * k, 710 * k, 1130 * k, 1690 * k], [0.03, 0.022, 0.014, 0.008], [0.22, 0.2, 0.14, 0.08], 0.04)
-    scuff = bp(noise(rng, 0.08), 1500, 1.0) * env(0.08, 0.014, 0.004) * 0.25
-    return finish(sat(mix(click(rng, 0.006, 0.0005, 3000) * 0.25, thud, body, heel, clank, (scuff, 0.01)), 1.4))
+    pad = sine_sweep(0.12, 95 * k, 55, 0.015) * env(0.12, 0.025, 0.002) * 0.9
+    body = lp(noise(rng, 0.1), 380 * k) * env(0.1, 0.018, 0.002) * 1.1
+    scuff = bp(noise(rng, 0.09), 1700 * k, 0.8) * bell_env(0.09, 0.25, 1.6) * 0.09
+    toe = lp(noise(rng, 0.05), 500) * env(0.05, 0.01, 0.001) * 0.4
+    return finish(mix(pad, body, (scuff, 0.01), (toe, 0.06)))
 
 
 def land(hard=False):
