@@ -65,6 +65,9 @@ func _show_tab(i: int) -> void:
 			UiKit.section(_page, "Display")
 			_switch("Fullscreen", Settings.fullscreen, func(v): Settings.fullscreen = v)
 			_switch("V-Sync", Settings.vsync, func(v): Settings.vsync = v)
+			_option("Resolution", Settings.resolution_choices(), Settings.resolution, func(v): Settings.resolution = v)
+			_option("Frame rate", Settings.frame_rate_choices(), Settings.frame_rate, func(v): Settings.frame_rate = v)
+			UiKit.label(_page, "In fullscreen the game draws at this resolution and stretches it to fill your screen; menus and the HUD stay sharp. Your monitor's refresh rate is set in your system's display settings; Frame rate caps how fast the game draws. With V-Sync on, the game never goes faster than your monitor.", true, 15)
 
 
 func _on_back() -> void:
@@ -114,7 +117,7 @@ func _switch(text: String, value: bool, setter: Callable) -> void:
 
 
 ## A drop-down. `choices` maps each stored value to the text shown for it.
-func _option(text: String, choices: Dictionary, value: String, setter: Callable) -> void:
+func _option(text: String, choices: Dictionary, value: Variant, setter: Callable) -> void:
 	var row := _row(text)
 	var o := OptionButton.new()
 	o.size_flags_horizontal = Control.SIZE_EXPAND_FILL
