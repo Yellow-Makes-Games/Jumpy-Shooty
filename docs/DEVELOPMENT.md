@@ -88,12 +88,15 @@ or WSL; I run these on every change anyway):
   high, none in the Control Room); the terminal on its dais and its event; on the bots'
   navigation mesh, every room and level reached from the dais and back, both decks
   joined, and the Control Room entered by each of its six doorways; the dome and the
-  floor glass cannot break and nothing gets out of the hull; the reactor pit kills;
-- the map terminal (`tests/terminal_test.gd`): a 2 s hold in range fires its event;
-  letting go, leaving the range and dying cancel a hold and taking damage does not; it
-  cannot be used during the event or the cooldown; one player at a time;
-- low gravity (`tests/gravity_test.gd`): the multiplier reaches 0.4 and returns to 1.0
-  on schedule, a jump reaches about 3 m against about 1.2 m, rockets and grenades fly
+  floor glass cannot break and nothing gets out of the hull; no lit strip hangs across
+  a doorway or in mid-air; the reactor pit kills;
+- the map terminal (`tests/terminal_test.gd`): one press in range fires its event; a
+  press from out of range, or during the event or the cooldown, does nothing, and a key
+  kept down does not fire it again; and for a terminal set to need a hold: a 2 s hold
+  fires it, letting go, leaving the range and dying cancel and taking damage does not,
+  one player at a time;
+- low gravity (`tests/gravity_test.gd`): the multiplier reaches 0.3 and returns to 1.0
+  on schedule, a jump reaches about 4 m against about 1.2 m, rockets and grenades fly
   the same path, the centrifuge slows to half speed, and gravity is back at 1.0 when a
   match ends mid-event, when the next starts and when the map is unloaded; online and
   with bots (`tests/run_gravity_test.sh`): a client fires the terminal on the host, a
@@ -219,7 +222,7 @@ hoardings in the bailey).
   until someone walks through it, and is back 10 s after (`Match.PICKUP_RESPAWN`). Other
   games leave the spot empty. The orange ghost and label are editor-only.
 - **MapTerminal**, **GravityEvent** and **MapSpinner** nodes (Halcyon): a console players
-  hold Interact at, the event it sets off, and scenery that turns. See "Terminals and
+  press Interact at, the event it sets off, and scenery that turns. See "Terminals and
   map events" below.
 - **Label3D** nodes: signs and painted floor numbers.
 - **Environment** (sky, ambient light) and **Sun**: ordinary Godot nodes, so the editor
@@ -235,7 +238,14 @@ Colours live in the palette (`game/maps/palettes/*.tres`): change one there and 
 block of that kind changes. To add a kind, add an entry to the palette's Colors, then
 type its name into a block's Kind. A colour whose alpha is below 1 makes the kind
 see-through (Halcyon's dome and windows): you look through it, but it is as solid as
-any block. The MapRoot's inspector also has the map's rules:
+any block. The palette's **Surface** list gives a kind a pattern drawn on every surface
+of that kind with no extra blocks (Halcyon): `panels` (seams on walls, now and then a
+hatch or vent slots), `panels_plain`, `tiles`, `plates` (rivets), `grating`, `slats`
+(a vent), `hazard` (slanted stripes), `treads` (grip lines across a ramp) and
+`corrugated` (shipping containers). The patterns are settings of one shader,
+`game/arena/map_surface.gdshader`, listed in `MapScenery.SURFACES`; they are measured
+in metres from where the surface is in the map, so they line up from block to block. A
+kind that glows or is see-through takes no pattern. The MapRoot's inspector also has the map's rules:
 **Bounds** (leave it and you are out; drawn as a red rectangle), **Kill Height** and the
 **Swing Point** the test player hooks.
 
@@ -279,8 +289,9 @@ The scripts behind this:
 | `game/arena/map_root.gd`, `map_block.gd`, `map_spawn.gd`, `map_palette.gd` | The node types above; `MapRoot.build()` turns the blocks into collision and meshes |
 | `game/arena/map_mesher.gd`, `map_scenery.gd` | One merged mesh per kind, the materials, the navigation mesh |
 | `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
-| `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players hold Interact at, the event it fires, and the one gravity multiplier all movement reads |
+| `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
+| `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
 | `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline |
 
 To render pictures of a map without opening the game:
@@ -331,8 +342,18 @@ Things to keep true when editing it:
   in the palette's Breakable list (and they are ticked Unbreakable too). The glass
   that breaks is `glass_pane`; a pane only breaks if nothing rests on it, so they stop
   a little short of the lintel above.
-- In low gravity a jump reaches 3 m. Every room has a ceiling and the hull has no gaps,
+- In low gravity a jump reaches 4 m. Every room has a ceiling and the hull has no gaps,
   so nobody gets out; keep it that way when you open a wall.
+- Wall and floor details (each place's "Details" group: ribs, vents, wall displays,
+  conduits, ceiling beams, floor lines, grates, hazard stripes) are drawn only: Solid
+  is off on every one, and none stands more than 0.3 m off its surface, so nothing
+  snags a wall run, a slide or a swing. Keep new ones the same. Panel seams, tiles,
+  grating and stripes are not blocks at all: the palette's Surface list draws them.
+- A light bar or colour band along a wall stops at every doorway and window (in a
+  round room it is made of straight pieces, one per wall piece, for that reason). The
+  Halcyon test fails if one hangs across an opening.
+- Words on a floor are Label3D nodes lying flat with Shaded on, so they take the
+  room's light (and go blue with it in low gravity).
 - No spawn point or weapon in the Control Room, and no spawn point that can see the dais.
 - Lighting is the ambient light, a soft shadowless "sun" and the glowing kinds (each
   room has its own accent kind: `accent_cyan` and so on). There are no light nodes, so
@@ -340,22 +361,25 @@ Things to keep true when editing it:
 
 ### Terminals and map events
 
-A **MapTerminal** is a console players use by holding **Interact** (`interact` in
+A **MapTerminal** is a console players use by pressing **Interact** (`interact` in
 `Settings.ACTIONS`; G by default, rebindable like any key). Halcyon's stands on the dais
 in the Control Room. The rules, which the host decides:
 
-- stand within its **Range** (2 m) and hold Interact for its **Channel Time** (2 s);
-- letting go cancels, and so does leaving the range (walking off, or being knocked out
-  of it: that is the counterplay) or dying. Taking damage does not;
-- one player at a time: while someone holds it, it is theirs;
-- it cannot be used while its event is running or cooling down.
+- stand within its **Range** (2 m) and press Interact: one press sets it off;
+- it cannot be used while its event is running or cooling down, and a press made then
+  does not count later: it takes a new press once it is ready.
+
+A terminal can ask for a hold instead: give its **Channel Time** some seconds (it is 0
+by default). Then Interact must be held that long; letting go cancels, and so does
+leaving the range (walking off, or being knocked out of it) or dying, while taking
+damage does not; and it belongs to one player at a time.
 
 Nothing about it is on the HUD. A ring of light over the console pulses gently when it
-is ready, fills round in blue while someone holds (everyone sees it), and sits dim while
-it is locked; a hum winds down as the ring fills.
+is ready, flashes full when someone sets it off (through a hold it fills round in blue,
+for everyone to see), and sits dim while it is locked; a hum winds down as it goes off.
 
 Its **Event** points at a **MapEvent** node in the same scene. The one kind so far is
-**GravityEvent** (Halcyon's `LowGravity`): gravity eases down to **Gravity Scale** (0.4)
+**GravityEvent** (Halcyon's `LowGravity`): gravity eases down to **Gravity Scale** (0.3)
 over **Ease Time** (2 s), stays there for **Duration** (30 s), eases back, and the
 terminal stays locked for **Cooldown** (60 s) more. While it runs every light in the map
 fades to a deep blue, a soft chord swells in, motes of light drift through the boxes
@@ -370,11 +394,11 @@ How it works underneath:
   tuning resource's `gravity` (22) is never changed. Rockets and grenades do not read
   it. The arena puts it back to 1.0 when a match starts and when the map is unloaded.
 - The host owns the terminal and the event. A player's copy only says when its player
-  starts and stops holding (`Net.terminal_hold`); the host checks the range and the
-  timing and tells everyone the terminal's state and the event's clock
+  presses and lets go of Interact there (`Net.terminal_hold`); the host checks the range (and
+  the timing, for a hold) and tells everyone the terminal's state and the event's clock
   (`Net.send_terminal_state`, `Net.send_map_event_state`), again every few seconds, and
   to anyone who joins mid-match (`Net.request_map_state`).
-- Bots hold a terminal through the same `PlayerInput.interact` a person does.
+- Bots press at a terminal through the same `PlayerInput.interact` a person does.
 
 **To put a terminal on another map:** add a GravityEvent node (a plain Node with
 `game/arena/gravity_event.gd`) to the map scene and set its numbers; add a Node3D with

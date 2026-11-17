@@ -17,6 +17,15 @@ extends Resource
 		glow = v
 		emit_changed()
 
+## kind -> a pattern drawn on every surface of that kind, with no extra blocks: panel
+## seams on walls, tiles on floors, grating, hazard stripes... (the names are in
+## MapScenery.SURFACES). Leave a kind out and it is one flat colour. Not for kinds
+## that glow or are see-through.
+@export var surface: Dictionary[String, String] = {}:
+	set(v):
+		surface = v
+		emit_changed()
+
 ## How rough (matte) every surface is: 1 = no shine at all.
 @export_range(0.0, 1.0) var roughness := 0.85:
 	set(v):

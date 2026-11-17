@@ -35,7 +35,7 @@ More detail, including how to play with a friend and run several copies on one P
 | Deathmatch: take out the weapon in slot 1 or 2 (you carry two) | 1 / 2 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |
 | Rocket boots (a burst toward WASD as you look; hold Space to tip it up; while floating, turns the float that way) | E |
-| Interact (hold for 2 s at the terminal in Halcyon's Control Room: low gravity) | G |
+| Interact (press at the terminal in Halcyon's Control Room: low gravity) | G |
 | Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |
 | Scoreboard | Tab (hold) |

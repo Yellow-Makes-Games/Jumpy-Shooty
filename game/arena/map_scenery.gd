@@ -48,6 +48,32 @@ static func _nav_settings() -> NavigationMesh:
 	return nav
 
 
+## The patterns a palette can give a kind (MapPalette.surface), as settings of
+## map_surface.gdshader. Cells are in metres: a wall panel's (width, height) and a floor
+## or ceiling tile's (x, z).
+const SURFACE_SHADER := preload("res://game/arena/map_surface.gdshader")
+const SURFACES := {
+	# Wall panels 3 m wide and 2 m high, now and then one with a hatch or vent slots.
+	"panels": {"style": 0, "wall_cell": Vector2(3, 2), "floor_cell": Vector2(3, 3), "seam_shade": 0.66, "vary": 0.03, "detail": 0.18},
+	# The same, quieter: for bright walls and for things that are not walls.
+	"panels_plain": {"style": 0, "wall_cell": Vector2(2, 2), "floor_cell": Vector2(2, 2), "seam_shade": 0.78, "vary": 0.02},
+	# Floor tiles 2 m square.
+	"tiles": {"style": 1, "wall_cell": Vector2(2, 1), "floor_cell": Vector2(2, 2), "seam_shade": 0.7, "vary": 0.035},
+	# Riveted plates (maintenance decks).
+	"plates": {"style": 2, "wall_cell": Vector2(2, 1.5), "floor_cell": Vector2(1.5, 1.5), "seam_shade": 0.62, "vary": 0.05},
+	# A fine mesh in 1 m frames (catwalks, floor grates).
+	"grating": {"style": 3, "wall_cell": Vector2(1, 1), "floor_cell": Vector2(1, 1), "seam_shade": 0.55},
+	# Louvres (vents).
+	"slats": {"style": 4},
+	# Slanted dark stripes (the edge of a drop).
+	"hazard": {"style": 5},
+	# Grip lines across a ramp.
+	"treads": {"style": 6, "seam_shade": 0.66},
+	# Upright ridges (shipping containers).
+	"corrugated": {"style": 7, "wall_cell": Vector2(1000, 1000), "floor_cell": Vector2(1000, 1000)},
+}
+
+
 ## kind -> material, for every kind in the palette.
 static func materials(palette: MapPalette, grid: bool) -> Dictionary:
 	var result := {}
@@ -55,6 +81,17 @@ static func materials(palette: MapPalette, grid: bool) -> Dictionary:
 		return result
 	var grid_tex: ImageTexture = _grid_texture() if grid else null
 	for kind in palette.colors:
+		var pattern: String = palette.surface.get(kind, "")
+		if pattern != "" and not grid and SURFACES.has(pattern) and palette.colors[kind].a >= 0.999 and palette.glow.get(kind, 0.0) <= 0.0:
+			# A patterned kind: the same colour and roughness, drawn by the surface shader.
+			var sm := ShaderMaterial.new()
+			sm.shader = SURFACE_SHADER
+			sm.set_shader_parameter("albedo", palette.colors[kind])
+			sm.set_shader_parameter("roughness", palette.roughness)
+			for key in SURFACES[pattern]:
+				sm.set_shader_parameter(key, SURFACES[pattern][key])
+			result[kind] = sm
+			continue
 		var m := StandardMaterial3D.new()
 		m.albedo_color = palette.colors[kind]
 		if grid_tex:

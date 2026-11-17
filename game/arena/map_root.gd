@@ -13,7 +13,7 @@ extends Node3D
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
 ##    steps bots follow round the course.
 ##  - MapSpinner groups: scenery that turns (drawn, never solid); MapTerminal consoles
-##    players hold interact at, and the MapEvent (GravityEvent) each one sets off.
+##    players press interact at, and the MapEvent (GravityEvent) each one sets off.
 ##  - Label3D nodes: signs and painted numbers.
 ##  - A WorldEnvironment (sky, ambient light, fog) and a DirectionalLight3D (the sun).
 ##
