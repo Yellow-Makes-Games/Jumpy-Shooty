@@ -118,6 +118,7 @@ var _melee := false       # a melee weapon: held and swung by MeleeSwing, not by
 var _swing := MeleeSwing.new()
 var _hold := 1.0          # how much the arms hold the weapon up (0 in a flip, a roll, a climb)
 var _swing_key: Array = []   # the swing's pose this frame
+var _sink := 0.0             # how far the body has sunk into its knees with the swing, 0..1
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
@@ -270,6 +271,11 @@ func hit_stop(seconds: float = 0.07) -> void:
 	_swing.hit_stop(seconds)
 
 
+## How far the chest is turned by a melee swing right now, radians (+ = to the left).
+func melee_turn() -> float:
+	return float(_swing_key[MeleeSwing.TURN]) * _hold if _melee and not _swing_key.is_empty() else 0.0
+
+
 ## The swing itself (its glow, its power, whether it is the heavy blow).
 func melee_swing() -> MeleeSwing:
 	return _swing
@@ -415,6 +421,12 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		_swing_key = _swing.sample(delta)
 		var busy := _swing.active() and inp.alive
 		_hold = move_toward(_hold, 1.0 if busy or (want[0] > 0.0 and inp.alive and _respawn_t < 0.0) else 0.0, delta * 9.0)
+		# On its feet the body sinks into its knees as it coils (less on the run), then turns.
+		var low := MeleeSwing.sink(_swing_key) * _hold * (1.0 - 0.6 * clampf(speed / 6.0, 0.0, 1.0)) if key == "loco" else 0.0
+		_sink = move_toward(_sink, low, delta * 8.0)
+		if _sink > 0.0:
+			rig.sample(_tmp, "crouch_idle", 0.0)
+			_pose.blend_bones(_tmp, _sink, _legs_core)
 		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
 		if model.melee:
 			MeleeModel.set_glow(model.melee, _swing.glow() if inp.alive else 0.0)

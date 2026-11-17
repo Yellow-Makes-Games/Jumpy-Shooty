@@ -6,6 +6,7 @@ extends CharacterBody3D
 ##  - bots: simulated on the host like a local player, but input comes from a
 ##    BotBrain instead of the keyboard, and there is no camera.
 
+const COIL_ROLL := 0.075  ## radians the view tips for each radian the chest is coiled in a melee swing
 const SEND_RATE := 40.0  ## snapshots per second (40 rather than 30 keeps fast grapple swings accurate on lossy networks)
 const CAPSULE_RADIUS := 0.4
 const CAPSULE_HEIGHT := 1.8
@@ -75,6 +76,7 @@ var _slam_wait := 0.0             # local: a crash just hurt; the next can't for
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
 var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
 var _punch_roll := 0.0
+var _coil_roll := 0.0             # own view: tipped by a melee wind-up
 var _kicks := 0                   # local: kicks so far (travels in snapshots, wrapping at 4)
 var _seen_kicks := -1
 var _kick_cool := 0.0             # local: seconds until you can kick again
@@ -250,8 +252,11 @@ func _process(delta: float) -> void:
 			_roll = lerp(_roll, _target_roll(), min(delta * 8.0, 1.0))
 			_punch = _punch.lerp(Vector2.ZERO, 1.0 - exp(-delta * 14.0))
 			_punch_roll = lerpf(_punch_roll, 0.0, 1.0 - exp(-delta * 12.0))
+			# A melee wind-up tips the view the way the body coils; the blow tips it back through level.
+			var coil := animator.melee_turn() if weapon and weapon.data.is_melee() and alive else 0.0
+			_coil_roll = lerpf(_coil_roll, coil * COIL_ROLL, 1.0 - exp(-delta * 16.0))
 			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
-				motor.eye_height, _roll + _punch_roll)
+				motor.eye_height, _roll + _punch_roll + _coil_roll)
 		var g := motor.grapple
 		_anim.state = motor.state
 		_anim.crouched = motor.crouched

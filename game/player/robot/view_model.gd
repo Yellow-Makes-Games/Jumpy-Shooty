@@ -30,7 +30,7 @@ const MELEE_VIEW_YAW := -0.2   ## and turned a little to the right: the weapon r
 ## more of the view than a plain one would. Only at rest: wound up and swinging it is
 ## where every weapon is.
 const MELEE_REST_VIEW := {
-	"sword": Vector3(0.17, -0.27, -0.17),
+	"sword": Vector3(0.14, -0.04, 0.02),
 	"axe": Vector3(0.13, -0.15, -0.14),
 	"bat": Vector3(0.09, -0.11, -0.09),
 	"spear": Vector3(0.04, -0.03, 0.0),

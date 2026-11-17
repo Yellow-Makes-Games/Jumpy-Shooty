@@ -168,8 +168,9 @@ func _melee_animation() -> void:
 					last = anim.sample(dt)
 					worst = maxf(worst, _left_hand_gap(rig, last, anim.two_handed))
 				var ready: Array = MeleeSwing.new(id, first_person).sample(0.0)
-				_check(cut and not anim.active() and (last[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.005 \
-					and (last[MeleeSwing.BLADE] as Vector3).angle_to(ready[MeleeSwing.BLADE]) < 0.02,
+				# (At rest the weapon sways a little with the body's breathing.)
+				_check(cut and not anim.active() and (last[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.02 \
+					and (last[MeleeSwing.BLADE] as Vector3).angle_to(ready[MeleeSwing.BLADE]) < 0.06,
 					"%s: cuts and ends back at ready" % what)
 				_check(flared > 2.0 and is_equal_approx(anim.glow(), 1.0), "%s: the glow flares with the blow and settles (%.2f)" % [what, flared])
 				if w.two_handed:
@@ -190,8 +191,8 @@ func _melee_animation() -> void:
 ## Poses a skeleton to hold the weapon as key `k` says, and measures how far the left
 ## palm is from where it should be on the handle (0 for a one-handed weapon).
 func _left_hand_gap(rig: RobotRig, k: Array, two_handed: bool) -> float:
-	if not two_handed:
-		return 0.0
+	if not two_handed or (k.size() > MeleeSwing.HANDS and k[MeleeSwing.HANDS] < 0.999):
+		return 0.0   # (one-handed, or the left hand is off the weapon just now)
 	var pose := rig.new_pose()
 	MeleeSwing.turn_body(pose, rig.bones, k)
 	MeleeSwing.hold(pose, rig, k, true)

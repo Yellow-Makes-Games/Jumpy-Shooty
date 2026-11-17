@@ -33,17 +33,19 @@ const RECOVER := 0.3
 const MIN_WOUND := 0.7   ## how far a tap draws back, as a part of the tap's own coil
 const DRAW := 14.0       ## how quickly the pose follows the wind-up (per second)...
 const DRAW_TAP := 26.0   ## ...and the first draw back, which a tap has only a moment for
+const SETTLE := 7.0      ## how quickly the weapon eases back to rest when nothing is happening
 const LEAD_AT := 0.45    ## how far into the time before it lands a blow passes its "lead" key
 const HEAVY_AT := 0.5    ## wound up this far or more (0..1), the blow is the weapon's heavy one
 const TAP_SPAN := 0.2    ## the first part of the wind-up draws back to the tap's coil; the rest travels on to the heavy blow's
 const COMBO_RESET := 1.0 ## seconds without a swing before the taps start from the right again
 
 ## What a key holds.
-enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT }
+enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT, HANDS }
 ## Each key: [where the grip (the right hand) is, which way the blade points, which way
 ## its edge faces (the way it is travelling), chest turn (+ = to the left; the spine adds
 ## half as much again), lean (+ = forward), where the left hand holds it (metres along
-## the weapon from the right hand: - = toward the pommel)].
+## the weapon from the right hand: - = toward the pommel), and perhaps how much the left
+## hand holds it at all (1 if left out; 0 = it hangs free, as in a relaxed carry)].
 ##
 ## A weapon's blows: "ready", then "taps" (two) and "heavy", each with "wound" (where
 ## the wind-up draws to), "hit" (the moment it lands) and "end" (the end of a full
@@ -52,31 +54,32 @@ enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT }
 ## the weapon has to stay in view (and clear of the middle of it).
 const MOVES := {
 	"sword": {
-		# A middle guard. The flat faces forward, so the edge is already turned for the cut.
-		"ready": [Vector3(0.08, -0.24, -0.28), Vector3(0.18, 0.86, -0.47), Vector3(-1.0, 0.0, 0.0), -0.14, 0.0, -0.15],
-		"fp_ready": [Vector3(0.1, -0.2, -0.3), Vector3(-0.1, 0.86, -0.5), Vector3(-1.0, 0.0, 0.0), -0.14, 0.0, -0.15],
+		# A low guard, at ease: both hands at the hip, the point low and forward. (In first
+		# person it is lifted into view, the blade lying across below the crosshair.)
+		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.13],
+		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.13],
 		"taps": [
 			{   # from the right: cocked by the right shoulder, a flat cut across
-				"wound": [Vector3(0.12, -0.08, -0.24), Vector3(0.8, 0.45, 0.4), Vector3(0.35, 0.0, -0.94), -0.6, -0.05, -0.15],
+				"wound": [Vector3(0.12, -0.08, -0.24), Vector3(0.75, 0.4, 0.55), Vector3(0.35, 0.0, -0.94), -0.8, -0.08, -0.15],
 				"fp_wound": [Vector3(0.1, -0.1, -0.36), Vector3(0.5, 0.85, 0.1), Vector3(0.35, 0.0, -0.94), -0.6, -0.05, -0.15],
 				"lead": [Vector3(0.14, -0.14, -0.3), Vector3(0.92, 0.12, -0.3), Vector3(-0.3, 0.0, -0.95), -0.35, 0.05, -0.15],
 				"hit": [Vector3(0.02, -0.18, -0.42), Vector3(0.15, 0.03, -0.99), Vector3(-1.0, 0.0, 0.0), 0.15, 0.2, -0.15],
-				"end": [Vector3(-0.1, -0.16, -0.3), Vector3(-0.9, 0.0, -0.4), Vector3(-0.4, 0.0, 0.9), 0.6, 0.14, -0.15],
+				"end": [Vector3(-0.1, -0.16, -0.3), Vector3(-0.95, 0.0, -0.2), Vector3(-0.4, 0.0, 0.9), 0.85, 0.2, -0.15],
 			},
 			{   # back from the left: the same cut the other way
-				"wound": [Vector3(-0.08, -0.1, -0.26), Vector3(-0.8, 0.45, 0.4), Vector3(0.35, 0.0, 0.94), 0.55, -0.05, -0.15],
+				"wound": [Vector3(-0.08, -0.1, -0.26), Vector3(-0.75, 0.4, 0.55), Vector3(0.35, 0.0, 0.94), 0.75, -0.08, -0.15],
 				"fp_wound": [Vector3(-0.4, -0.24, -0.32), Vector3(-0.7, 0.68, 0.2), Vector3(0.35, 0.0, 0.94), 0.55, -0.05, -0.15],
 				"lead": [Vector3(-0.1, -0.15, -0.3), Vector3(-0.92, 0.12, -0.3), Vector3(-0.3, 0.0, 0.95), 0.35, 0.05, -0.15],
 				"hit": [Vector3(0.02, -0.18, -0.42), Vector3(-0.15, 0.03, -0.99), Vector3(-1.0, 0.0, 0.0), -0.1, 0.2, -0.15],
-				"end": [Vector3(0.14, -0.16, -0.28), Vector3(0.9, 0.0, -0.4), Vector3(-0.4, 0.0, -0.9), -0.6, 0.14, -0.15],
+				"end": [Vector3(0.14, -0.16, -0.28), Vector3(0.95, 0.0, -0.2), Vector3(-0.4, 0.0, -0.9), -0.85, 0.2, -0.15],
 			},
 		],
 		# From high by the right shoulder, a diagonal cut down to the left hip, the whole body behind it.
 		"heavy": {
-			"wound": [Vector3(0.14, 0.12, -0.14), Vector3(0.55, 0.6, 0.58), Vector3(-0.3, -0.3, -0.9), -0.85, -0.12, -0.15],
+			"wound": [Vector3(0.14, 0.1, -0.14), Vector3(0.5, 0.3, 0.81), Vector3(-0.3, -0.5, -0.8), -1.1, -0.2, -0.15],
 			"fp_wound": [Vector3(0.06, -0.02, -0.4), Vector3(0.42, 0.88, 0.22), Vector3(-0.3, -0.3, -0.9), -0.85, -0.12, -0.15],
-			"hit": [Vector3(0.0, -0.2, -0.42), Vector3(0.2, 0.25, -0.95), Vector3(-0.7, -0.7, 0.0), 0.2, 0.3, -0.15],
-			"end": [Vector3(-0.16, -0.36, -0.22), Vector3(-0.75, -0.55, -0.35), Vector3(-0.3, -0.4, 0.86), 0.85, 0.3, -0.15],
+			"hit": [Vector3(0.0, -0.2, -0.42), Vector3(0.2, 0.25, -0.95), Vector3(-0.7, -0.7, 0.0), 0.25, 0.38, -0.15],
+			"end": [Vector3(-0.16, -0.36, -0.22), Vector3(-0.75, -0.6, -0.2), Vector3(-0.3, -0.4, 0.86), 1.05, 0.4, -0.15],
 		},
 	},
 }
@@ -133,6 +136,9 @@ const GUARD := Vector3(-0.13, -0.1, -0.3)
 ## Which way each elbow points (down, out and a little back), in the hold frame.
 const ELBOW_R := Vector3(0.55, -0.8, 0.25)
 const ELBOW_L := Vector3(-0.55, -0.8, 0.25)
+## How much of the chest's turn the hips make too, and how far the body tips sideways with it.
+const HIPS_TURN := 0.45
+const SIDE_LEAN := 0.16
 ## How much an elbow gives way to keep its wrist straight (0: not at all).
 const WRIST_EASE := 1.1
 
@@ -169,14 +175,19 @@ func _init(weapon_id: String = "sword", in_first_person: bool = false) -> void:
 func set_weapon(weapon_id: String) -> void:
 	weapon = weapon_id
 	var m := moves(weapon_id)
-	_ready = _pick(m, "ready")
+	_ready = _whole(_pick(m, "ready"))
 	_taps = []
 	for tap in m.taps:
-		_taps.append({"wound": _pick(tap, "wound"), "lead": tap.get("lead", []), "hit": tap.hit, "end": tap.end})
-	_heavy = {"wound": _pick(m.heavy, "wound"), "lead": m.heavy.get("lead", []), "hit": m.heavy.hit, "end": m.heavy.end}
+		_taps.append({"wound": _whole(_pick(tap, "wound")), "lead": _whole(tap.get("lead", [])), "hit": _whole(tap.hit), "end": _whole(tap.end)})
+	_heavy = {"wound": _whole(_pick(m.heavy, "wound")), "lead": _whole(m.heavy.get("lead", [])), "hit": _whole(m.heavy.hit), "end": _whole(m.heavy.end)}
 	_pace = PACE.get(weapon_id, 1.0)
 	two_handed = WeaponData.by_id(weapon_id).two_handed
 	stop()
+
+
+## A key with every part filled in (both hands on, unless it says otherwise).
+static func _whole(k: Array) -> Array:
+	return k if k.size() != HANDS else k + [1.0]
 
 
 func _pick(from: Dictionary, what: String) -> Array:
@@ -306,10 +317,13 @@ func sample(delta: float) -> Array:
 			if _t >= length():
 				stop()
 	if _phase == REST:
-		_cur = _mix(_cur, _ready, follow)
+		_cur = _mix(_cur, _ready, 1.0 - exp(-delta * SETTLE))
 		_drawn = lerpf(_drawn, 0.0, follow)
 	_wound = false
 	var out := _cur.duplicate()
+	if _phase == REST:   # at ease: the weapon rides the body's breathing, never quite still
+		out[GRIP] = out[GRIP] as Vector3 + Vector3(0.004 * sin(_clock * 1.3), 0.007 * sin(_clock * 1.9), 0.0)
+		out[BLADE] = (out[BLADE] as Vector3 + Vector3(0.02 * sin(_clock * 1.1 + 1.0), 0.0, 0.014 * sin(_clock * 1.7))).normalized()
 	if _phase == SWING and _stop > 0.0:   # frozen on the blow: the weapon judders against what it hit
 		out[GRIP] = out[GRIP] as Vector3 + Vector3(sin(_clock * 173.0), sin(_clock * 211.0), sin(_clock * 131.0)) * 0.006 * lerpf(0.5, 1.0, _power)
 	if _phase == WIND and _charge >= 1.0:   # fully wound: straining to hold it
@@ -317,12 +331,18 @@ func sample(delta: float) -> Array:
 	return out
 
 
-## Where the wind-up is drawing the weapon to right now.
+## Where the wind-up is drawing the weapon to right now. The body leads: it has done
+## most of its coiling by half way, and the weapon comes round after it.
 func _wind_target() -> Array:
 	var tap: Array = _taps[_side].wound
 	if _charge < TAP_SPAN:
 		return _mix(_ready, tap, MIN_WOUND + (1.0 - MIN_WOUND) * _ease_out(_charge / TAP_SPAN))
-	return _mix(tap, _heavy.wound, smoothstep(0.0, 1.0, _ease_out((_charge - TAP_SPAN) / (1.0 - TAP_SPAN))))
+	var u := (_charge - TAP_SPAN) / (1.0 - TAP_SPAN)
+	var out := _mix(tap, _heavy.wound, smoothstep(0.0, 1.0, u))
+	var body := _ease_out(u)
+	out[TURN] = lerpf(tap[TURN], _heavy.wound[TURN], body)
+	out[LEAN] = lerpf(tap[LEAN], _heavy.wound[LEAN], body)
+	return out
 
 
 ## ...and how far that is, 0..1.
@@ -353,7 +373,7 @@ func glow() -> float:
 
 ## The ready pose of a weapon.
 static func ready(weapon_id: String) -> Array:
-	return (moves(weapon_id).ready as Array).duplicate()
+	return _whole(moves(weapon_id).ready).duplicate()
 
 
 static func _mix(a: Array, b: Array, u: float) -> Array:
@@ -362,7 +382,8 @@ static func _mix(a: Array, b: Array, u: float) -> Array:
 	var la: Vector3 = (a[LEAD] as Vector3).normalized()
 	var lb: Vector3 = (b[LEAD] as Vector3).normalized()
 	return [(a[GRIP] as Vector3).lerp(b[GRIP], u), _turn(ba, bb, u), _turn(la, lb, u),
-		lerpf(a[TURN], b[TURN], u), lerpf(a[LEAN], b[LEAN], u), lerpf(a[LEFT], b[LEFT], u)]
+		lerpf(a[TURN], b[TURN], u), lerpf(a[LEAN], b[LEAN], u), lerpf(a[LEFT], b[LEFT], u),
+		lerpf(a[HANDS] if a.size() > HANDS else 1.0, b[HANDS] if b.size() > HANDS else 1.0, u)]
 
 
 ## From one direction to another along the arc between them.
@@ -387,7 +408,7 @@ static func _along(path: Array, times: PackedFloat32Array, t: float) -> Array:
 	var span := times[i + 1] - times[i]
 	var u := (t - times[i]) / span
 	var out := []
-	for part in 6:
+	for part in HANDS + 1:
 		var a: Variant = path[i][part]
 		var b: Variant = path[i + 1][part]
 		var turning: bool = part == BLADE or part == LEAD
@@ -427,22 +448,33 @@ static func _curve(a: Variant, b: Variant, slope_a: Variant, slope_b: Variant, u
 # ---------------------------------------------------------------------------
 # Laying a key over a pose
 
-## Turns and leans the upper body with the swing (`weight` 0..1). Call before hold(),
-## and before anything that reads where the chest is.
+## How far the body sinks into its knees for key `k`, 0..1: coiled right round (wound
+## up, or at the end of a big follow-through) it sits low; at the moment of the blow it is up.
+static func sink(k: Array) -> float:
+	return smoothstep(0.25, 1.05, absf(k[TURN])) * 0.5
+
+
+## Turns and leans the whole body with the swing (`weight` 0..1): the hips come round
+## with it (and the legs with them), the spine and chest further still, and the body
+## tips away from the way it is coiled. Call before hold(), and before anything that
+## reads where the chest is.
 static func turn_body(pose: RobotPose, bones: Dictionary, k: Array, weight: float = 1.0) -> void:
 	if weight <= 0.0:
 		return
 	var turn: float = k[TURN] * weight
 	var lean: float = k[LEAN] * weight
+	if bones.has("hips"):
+		var hp: int = bones["hips"]
+		pose.rot[hp] = Quaternion(Vector3.UP, turn * HIPS_TURN) * pose.rot[hp]
 	if bones.has("chest"):
 		var c: int = bones["chest"]
 		pose.rot[c] = Quaternion(Vector3.UP, turn) * pose.rot[c]
 	if bones.has("spine"):
 		var sp: int = bones["spine"]
-		pose.rot[sp] = Quaternion(Vector3.UP, turn * 0.5) * Quaternion(Vector3.RIGHT, -lean) * pose.rot[sp]
-	if bones.has("head"):   # the head keeps looking ahead
+		pose.rot[sp] = Quaternion(Vector3.UP, turn * 0.5) * Quaternion(Vector3.BACK, turn * SIDE_LEAN) * Quaternion(Vector3.RIGHT, -lean) * pose.rot[sp]
+	if bones.has("head"):   # the head keeps looking ahead, as far as a neck turns
 		var h: int = bones["head"]
-		pose.rot[h] = Quaternion(Vector3.UP, -turn * 1.35) * pose.rot[h]
+		pose.rot[h] = Quaternion(Vector3.UP, clampf(-turn * (1.5 + HIPS_TURN), -1.15, 1.15)) * pose.rot[h]
 
 
 ## Bends the arms so the weapon is where key `k` says: the right hand on the grip,
@@ -478,6 +510,7 @@ static func hold(pose: RobotPose, rig: RobotRig, k: Array, two_handed: bool, pit
 	var solved := _reach(pose, rig, rot, at, "r", grip - hand_rot * palm, hand_rot, frame * ELBOW_R, right)
 	if b.has("pistol"):
 		pose.rot[b["pistol"]] = pose.rot[b["pistol"]].slerp(Quaternion.IDENTITY, right)
+	left *= float(k[HANDS]) if k.size() > HANDS else 1.0
 	if left <= 0.0:
 		return
 	# Left arm: on the handle, coming at it from the left shoulder's side; or a guard.
