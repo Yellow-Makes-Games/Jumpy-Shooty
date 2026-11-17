@@ -50,96 +50,72 @@ addresses or router settings. Everyone needs Steam running.
 
 ## Automated tests
 
-`tests/run_all.sh` runs everything (needs bash and python3, so on Windows use Git Bash
-or WSL; I run these on every change anyway):
+`tests/run_all.sh` runs everything in about 4 minutes on a 4-core machine (needs bash
+and python3, so on Windows use Git Bash or WSL; I run these on every change anyway).
+The quick checks run side by side (`JOBS=8 tests/run_all.sh` for more at once), and the
+ones that only step physics run on a fixed game clock (Godot's `--fixed-fps 60`), so
+they play out as fast as the machine allows instead of in real time. Their logs go to
+`tests/out/check_<name>.log`.
 
-- movement checks (speeds, stopping, jump height, momentum in the air);
-- robot checks, for every character: the model files hold every bone and clip, the
-  skeletons match, each movement state plays the right animation, and the poses fit
-  the hitbox (`tests/robot_test.gd`); every gun has its muzzle bone and its own aim,
-  carry, reload and first-person clips;
-- weapons: damage and falloff (a close shotgun blast and a sniper headshot kill, the
-  rifle never one-shots), whole-magazine and shell-by-shell reloads; melee: a tap is
-  weak, a full wind-up hits and shoves much harder but never kills outright (the
-  hammer and bat kill by the wall), the body coils with the wind-up, and the left hand
-  stays on a two-handed weapon's handle through the whole swing (`tests/weapon_test.gd`);
-  in a real Practice match, tapping and then holding the button on a target dummy
-  (`tests/debug_test.gd`);
-- the Testing Grounds practice courses and the Construction Site routes: a scripted
-  player runs each one (`tests/course_test.gd`, `tests/site_test.gd`). The site test also
-  checks the spawn points and that a bot can walk to every level. To run one route and
-- robot checks: the model files hold every bone and clip, each movement state plays the
-  right animation, and the poses fit the hitbox (`tests/robot_test.gd`);
-- the Testing Grounds practice courses and the Construction Site and Office routes: a
-  scripted player runs each one (`tests/course_test.gd`, `tests/site_test.gd`,
-  `tests/office_test.gd`). The site and office tests also check the spawn points and that
-  a bot can walk to every level. To run one route and
-  print what the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless
+Quick checks:
+
+- movement (`tests/movement_test.gd`): speeds, stopping, jump height, momentum in the air;
+- robots (`tests/robot_test.gd`), for every character: the model files hold every bone
+  and clip, the skeletons match, each movement state plays the right animation, the
+  poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- weapons (`tests/weapon_test.gd`): damage and falloff, magazine and shell-by-shell
+  reloads, melee wind-ups and shoves;
+- sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
+  for exists;
+- map scenes (`tests/map_scene_test.gd`): every map loads and builds, blocks, resize
+  handles, race gates, bot routes, hazards, and the map lists keep race and arena maps apart;
+- the Testing Grounds courses and the Construction Site and Office routes: a scripted
+  player runs each one (`tests/course_test.gd`, `tests/site_test.gd`,
+  `tests/office_test.gd`), plus spawn points and bot navigation; the other arenas'
+  spawns and navigation (`tests/arena_maps_test.gd`). To run one route and print what
+  the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
-- breakable walls and floors (`tests/destruction_test.gd`): the arena maps have them and
-  race maps none, no spawn stands on floor that can break, an intact wall still collides
-  as one box, damage cracks then breaks a piece and a shot then goes through the hole;
-  online (`tests/run_break_test.sh`, laggy network) the host shoots the floor out from
-  under itself and falls through, a client breaks a wall, a player joining mid-match is
-  shown what is broken and every copy agrees; the match test also checks every copy
-  ends each match with the same broken pieces;
-- Halcyon (`tests/halcyon_test.gd`): 16 or more spawn points, each clear, none in the
-  Control Room or in sight of the terminal's dais; the pickups (the heavy weapons up
-  high, none in the Control Room); the terminal on its dais and its event; on the bots'
-  navigation mesh, every room and level reached from the dais and back, both decks
-  joined, and the Control Room entered by each of its six doorways; the dome and the
-  floor glass cannot break and nothing gets out of the hull; the reactor pit kills;
-- the map terminal (`tests/terminal_test.gd`): a 2 s hold in range fires its event;
-  letting go, leaving the range and dying cancel a hold and taking damage does not; it
-  cannot be used during the event or the cooldown; one player at a time;
-- low gravity (`tests/gravity_test.gd`): the multiplier reaches 0.4 and returns to 1.0
-  on schedule, a jump reaches about 3 m against about 1.2 m, rockets and grenades fly
-  the same path, the centrifuge slows to half speed, and gravity is back at 1.0 when a
-  match ends mid-event, when the next starts and when the map is unloaded; online and
-  with bots (`tests/run_gravity_test.sh`): a client fires the terminal on the host, a
-  client across the room cannot, a late joiner is told how far along the event is, and
-  bots use the terminal and keep moving through the low gravity;
-- the debug menu and target dummies, in a real Practice match on the Testing Grounds:
-  body shots and headshots on a dummy, it goes down and gets back up, god mode, infinite
-  ammo, adding and removing bots, changing robot and gun, game speed, and that no cheat
-  works online (`tests/debug_test.gd`);
-- map scenes: every map loads and builds, every block has a colour, and the resize
-  handles move the right face; race maps have gates numbered in order ending in one
-  finish, a bot route, hazards and moving parts that move, and the map lists keep race
-  maps and arena maps apart (`tests/map_scene_test.gd`);
-- races (`tests/run_race_test.sh`, in game time so it plays out the same on a slow
-  machine): on every race map you (on autopilot) and 4 Normal bots all finish, in time
-  order, and "Race again" starts another; Easy bots finish every map too; a hazard, a
-  fall and R each send you back; an online race between a host and a client finishes
-  for both and both see the same finishers;
-- the game boots into practice mode on every map without script errors;
-- bots climb the Construction Site tower to a player standing on a high floor
-  (`tests/run_bot_climb_test.sh`);
-- a bot of every difficulty finds you and shoots, even Easy hits a player standing still, harder bots hit a moving player more often, the hard bots slide, dive, belly-slide, flip and grapple (and the easier ones never belly-slide), and Rematch starts a new match; a 5-player free-for-all against 4 bots, where every bot shoots, bots fight each other as well as you, the robots alternate, and the rematch keeps all 4 bots (`tests/run_bot_test.sh`);
-- a match test: 3 copies on a laggy network play two matches back to back, aiming
-  and shooting on their own; checks that hits land, the match ends at the kill target,
-  every copy agrees on the results, and "return to lobby, play again" works;
-- a sync test: 2 copies on a clean network, then 5 copies on a simulated bad network
-  (100 ms latency, 60 ms jitter, 10% packet loss). Each copy moves on its own, and the test
-  checks that every copy draws every other player within 15 cm of where they really were
-  (95% of frames), with no visible pops, and that everyone notices when the host leaves.
-  The 5-copy run fails now and then on a small test machine (five copies sharing four
-  processor cores); `SYNC_DEBUG=1 python3 tests/check_sync.py tests/out/sync_*.log` prints
-  where and when each pop happened;
-- the sync, match and bot tests take a map: `MAP=testing_grounds tests/run_bot_test.sh`.
-  `run_all.sh` spreads them over both maps;
-- animation sync (`tests/check_anim.py`, part of the sync and match tests): every copy
-  shows each other player doing the move they were really doing at that moment, shows
-  each held move, and kicks their gun on every shot. The bot test checks the bot's body
-  the same way.
-- sound effects (`tests/run_audio_test.sh`): every sound file loads and every sound the
-  code asks for exists (`tests/audio_test.gd`); in a bot match your own gun, reloads,
-  steps and hit markers play, and the bots' shots, impacts and steps play placed in the
-  world; online, each copy hears the other's shots and footsteps in the world.
-- character sync (same checker): the copies play different robots, and every copy must
-  show each player as the robot they picked. In the match test everyone picks again in
-  the lobby between matches, and the new picks must show in the next match. The bot
-  test checks the bot plays the robot you did not pick, and that with several bots they take turns through the robots starting with the other one.
+- breakable walls and floors (`tests/destruction_test.gd`);
+- Halcyon (`tests/halcyon_test.gd`): spawn points, pickups, the terminal on its dais,
+  bot navigation through every room and level, the hull stays sealed, the reactor pit
+  kills;
+- the map terminal (`tests/terminal_test.gd`): a 2 s hold in range fires its event,
+  what cancels a hold, no use during the event or cooldown, one player at a time;
+- low gravity (`tests/gravity_test.gd`): the multiplier's schedule, jump heights,
+  rockets and grenades fly the same path, the centrifuge slows, and gravity always
+  comes back to 1.0;
+- controls rebinding (`tests/controls_check.gd`), the main menu's mode switch
+  (`tests/menu_mode_test.gd`), Deathmatch maps, pickups and inventory
+  (`tests/deathmatch_test.gd`), and the debug menu and target dummies in a real
+  Practice match (`tests/debug_test.gd`);
+- the game boots into practice mode on every map without script errors.
+
+Networked and bot runs (real time):
+
+- sync (`tests/run_sync_test.sh`): 3 copies on a simulated bad network (100 ms latency,
+  60 ms jitter, 10% loss) move on their own; every copy must draw every other player
+  within 15 cm of where they really were (95% of frames), with no visible pops, show
+  the move they were really doing (`tests/check_anim.py`) as the robot they picked,
+  and notice when the host leaves. `SYNC_DEBUG=1 python3 tests/check_sync.py
+  tests/out/sync_*.log` prints where and when each pop happened;
+- match (`tests/run_match_test.sh`): 3 copies on a laggy network play two matches back
+  to back, aiming and shooting on their own: hits land, the match ends at the kill
+  target, every copy agrees on the results and on broken walls, new robot and gun
+  picks show in the second match, and every copy hears its own gun and the others'
+  shots and footsteps;
+- bots (`tests/run_bot_test.sh`): a bot of every difficulty finds you and shoots, Expert
+  beats Easy on accuracy, the hard bots use the movement set, Rematch works, a
+  5-player free-for-all against 4 bots, a sword bot, and your and the bots' sounds;
+- Halcyon online and with bots (`tests/run_gravity_test.sh`): a client fires the
+  terminal on the host, a client across the room cannot, a late joiner is told how far
+  along the event is, and bots use the terminal and keep moving in low gravity;
+- races (`tests/run_race_test.sh`, in game time): you and 4 bots finish Rooftop Run in
+  time order and "Race again" starts another, Easy bots finish, and a hazard, a fall and
+  R each send you back. After changing a course, run it on that map:
+  `MAPS="foundry" tests/run_race_test.sh`.
+
+The sync, match and bot tests take a map and a player count, for example
+`MAP=testing_grounds tests/run_bot_test.sh` or `MAP=office tests/run_sync_test.sh 5 "100,60,10"`.
 
 ## Debug menu
 
@@ -427,7 +403,7 @@ change is yours to keep; running the script again rebuilds them all from scratch
 overwrites hand edits. To try a section on its own, build the test strip
 `race_lab` (`LAB='[["boost_gap", {"d": 20}]]' python3 tools/race/build_race_maps.py race_lab`,
 any sections and arguments) and race it with `--map=res://game/maps/race_lab.tscn --autopilot`.
-After changing a course, `tests/run_race_test.sh` checks that bots still get round.
+After changing a course, `MAPS=<map id> tests/run_race_test.sh` checks that bots still get round.
 `game/match/race_state.gd` (the `Race` autoload) runs the race rules and
 `game/bot/race_brain.gd` the race bots.
 
