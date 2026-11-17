@@ -22,6 +22,9 @@ extends RefCounted
 ##    higher difficulties.
 ##  - Uses the movement set: sprints, slides and bunny-hops while chasing, dives to
 ##    close distance, flips to dodge when hit, grapples toward high ground.
+##  - Kicks anyone right in front of it, hooks you with the grapple to reel you in
+##    and finishes with a flying kick, and fires its rocket boots to close in, to
+##    dodge when hit and to whip round faster on a grapple swing.
 ## How good it is at each of these comes from BotDifficulty.
 
 const ENGAGE_RANGE := 45.0
@@ -91,6 +94,8 @@ var _dodge_time := 0.0
 var _grapple_time := 0.0
 var _grapple_start := Vector3.ZERO
 var _log_time := 0.0
+var _hook_frame := false         # it has just aimed the hook at someone: don't turn away this frame
+var _boost_side := 0.0           # it was just hit: boost this way (-1 left, 1 right, 0 no)
 var _last_state := -1
 var _state_seen := {}
 
@@ -141,11 +146,15 @@ func update(delta: float) -> void:
 	var perceived := _perceived() if visible else []
 
 	var world_dir := _choose_direction(delta, visible)
+	_hook_frame = false
 	_grapple(delta, visible)
 	_dodge(delta)
 	_set_move(world_dir)
-	_aim(delta, perceived, world_dir)
+	if not _hook_frame:
+		_aim(delta, perceived, world_dir)
 	_fire(delta, perceived)
+	_kick(delta, visible)
+	_boost(delta, visible)
 	if DevArgs.sync_log:
 		if me.motor.state != _last_state:
 			_last_state = me.motor.state
@@ -567,6 +576,9 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 				_hear(shooter, other.global_position, true)   # it knows roughly where that came from
 	if _dodge_time > 0.0:
 		return
+	if _rng.randf() < d.dodge_chance * 0.5 and me.motor.boost_readiness() >= 1.0:
+		_boost_side = 1.0 if _rng.randf() < 0.5 else -1.0   # a sideways rocket burst
+		return
 	if _rng.randf() < d.dodge_chance:
 		# Flip dodge: jump, then jump again in the air toward a side.
 		_dodge_side = 1.0 if _rng.randf() < 0.5 else -1.0
@@ -587,6 +599,15 @@ func _dodge(delta: float) -> void:
 ## Grapple toward high ground or a far-away target (Hard and Expert).
 func _grapple(delta: float, visible: bool) -> void:
 	var g := me.motor.grapple
+	if g.hooked_player():
+		# Reeling someone in: hold on, and flying-kick them once close.
+		_grapple_time += delta
+		input.grapple = true
+		input.jump_pressed = false   # a jump would let go of the rope
+		var t := g.target as Player
+		if t and me.global_position.distance_to(t.global_position) < 9.0 and _rng.randf() < delta * 12.0:
+			input.kick_pressed = true
+		return
 	if g.attached:
 		_grapple_time += delta
 		input.grapple = true
@@ -598,6 +619,8 @@ func _grapple(delta: float, visible: bool) -> void:
 			input.grapple = false
 		return
 	input.grapple = false
+	if visible and _hook_player(delta):
+		return
 	# Toward its target when it can see it, otherwise toward where it is walking.
 	var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
 	if not d.grapples or spot == Vector3.INF or not g.ready_to_fire():
@@ -627,6 +650,76 @@ func _grapple(delta: float, visible: bool) -> void:
 	input.grapple_pressed = true
 	_grapple_time = 0.0
 	_grapple_start = me.global_position
+
+
+## Hook the target it is fighting, now and then, to reel them in for a flying kick.
+func _hook_player(delta: float) -> bool:
+	var g := me.motor.grapple
+	if _target == null or not g.ready_to_fire() or not g.hook_players or not Match.running or me.kick_readiness() < 1.0:
+		return false
+	var dist := me.global_position.distance_to(_target.global_position)
+	if dist < 7.0 or dist > minf(32.0, g.tuning.grapple_range - 4.0):
+		return false
+	if _rng.randf() > delta * (0.45 if d.grapples else 0.15):
+		return false
+	var eye := me.eye_position()
+	var point := Grapple.target_point(_target) + _target.velocity * 0.08
+	point += Vector3(_rng.randfn(), _rng.randfn() * 0.5, _rng.randfn()) * dist * tan(deg_to_rad(d.aim_error)) * 0.5
+	var dir := (point - eye).normalized()
+	var q := PhysicsRayQueryParameters3D.create(eye, eye + dir * g.tuning.grapple_range, 1 | (1 << 1), [me.get_rid()])
+	var hit := me.get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty() or hit.collider != _target:
+		return false   # it would miss, or hit a wall: not worth it
+	input.yaw = atan2(-dir.x, -dir.z)
+	input.pitch = asin(clamp(dir.y, -1.0, 1.0))
+	input.grapple = true
+	input.grapple_pressed = true
+	_grapple_time = 0.0
+	_grapple_start = me.global_position
+	_hook_frame = true
+	return true
+
+
+## Someone right in front of it: kick them.
+func _kick(delta: float, visible: bool) -> void:
+	if not visible or _target == null or me.kick_readiness() < 1.0 or me.motor.grapple.hooked_player() or not Match.running:
+		return
+	var to := _target.global_position + Vector3(0, CHEST, 0) - me.eye_position()
+	if to.length() > Kick.REACH + Player.CAPSULE_RADIUS - 0.1:
+		return
+	if me.aim_forward().angle_to(to) > deg_to_rad(Kick.ARC * 0.7):
+		return
+	if _rng.randf() < delta * (5.0 if not _melee else 2.0):
+		input.kick_pressed = true
+
+
+## Rocket boots: to dodge when hit, to close in on someone far off, and mid-swing to
+## whip round the hook faster. Easier bots use them less.
+func _boost(delta: float, visible: bool) -> void:
+	var m := me.motor
+	if m.boost_readiness() < 1.0:
+		_boost_side = 0.0
+		return
+	var keen := 1.0 if d.grapples else 0.4
+	var right := Vector3.RIGHT.rotated(Vector3.UP, input.yaw)
+	if _boost_side != 0.0:
+		input.boost_pressed = true
+		input.boost_dir = right * _boost_side + Vector3.UP * 0.35
+		_boost_side = 0.0
+		return
+	var g := m.grapple
+	var speed := me.velocity.length()
+	if g.attached and not g.hooked_player() and _grapple_time > 0.3 and _grapple_time < 1.0 and speed > 8.0 \
+			and _rng.randf() < delta * 2.5 * keen:
+		input.boost_pressed = true   # along the swing: faster round the hook
+		input.boost_dir = me.velocity.normalized()
+		return
+	if visible and _target != null and not g.attached:
+		var to := _target.global_position - me.global_position
+		var far := 6.0 if _melee else FAR + 6.0
+		if to.length() > far and to.length() < 40.0 and _rng.randf() < delta * 0.35 * keen and _ground_ahead(to, 6.0):
+			input.boost_pressed = true   # close in
+			input.boost_dir = Vector3(to.x, 0.0, to.z).normalized() + Vector3.UP * 0.25
 
 
 # ---------------------------------------------------------------------------

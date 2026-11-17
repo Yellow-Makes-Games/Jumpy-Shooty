@@ -59,11 +59,11 @@ static func _draw_health_ammo(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 
 
 static func _draw_moves(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
-	# Moves, under the crosshair: grapple, dive, flip, slide (left to right).
+	# Moves, under the crosshair: grapple, dive, flip, slide, boots, kick (left to right).
 	for i in v.moves.size():
 		var m: Array = v.moves[i]
 		var ready: float = m[2]
-		var a0 := 122.0 - i * 16.0      # angles grow clockwise, so go right to left
+		var a0 := 90.0 + (v.moves.size() * 16.0 - 3.0) * 0.5 - i * 16.0   # centred under; angles grow clockwise, so go right to left
 		var a1 := a0 - 13.0
 		HudStyle.edged_arc(ci, c, MOVES_R, a1, a0, HudStyle.DIM, 4.0)
 		var col := HudStyle.WHITE

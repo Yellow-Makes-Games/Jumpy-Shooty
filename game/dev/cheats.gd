@@ -9,7 +9,7 @@ extends RefCounted
 
 static var god := false            ## you take no damage from shots (falling out still counts)
 static var infinite_ammo := false  ## the magazine never empties and never needs reloading
-static var no_cooldowns := false   ## grapple, dive and slide boost are ready again at once
+static var no_cooldowns := false   ## grapple, dive, slide boost and rocket boots are ready again at once
 static var noclip := false         ## fly through walls: WASD along the view, Space up, Ctrl / C down, Shift faster
 static var freeze_bots := false    ## bots stand still and hold fire
 static var show_stats := false     ## FPS, frame time, position, speed and movement state in a corner

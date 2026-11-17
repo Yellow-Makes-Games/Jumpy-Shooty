@@ -51,6 +51,8 @@ var last_results: Array = []
 var _last_shot_time: Dictionary = {}   # host: id -> Net.now() of last accepted shot
 var _last_slam_time: Dictionary = {}   # host: id -> Net.now() of last crash that hurt
 var _last_shove: Dictionary = {}       # host: id -> [who shoved them, Net.now()]
+var _last_kick_time: Dictionary = {}   # host: id -> Net.now() of last accepted kick
+var _tethers: Dictionary = {}          # host: id -> [the player their hook is on, Net.now()]
 ## How each player last died: "" (shot or cut down), "fell", or "slam" (hit a wall too hard).
 var death_cause: Dictionary = {}
 var _respawn_counter := 0
@@ -106,6 +108,8 @@ func _on_match_started() -> void:
 		_last_shot_time.clear()
 		_last_slam_time.clear()
 		_last_shove.clear()
+		_last_kick_time.clear()
+		_tethers.clear()
 		death_cause.clear()
 		for id in Net.players:
 			scores[id] = {"kills": 0, "deaths": 0}
@@ -374,6 +378,135 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 		else:
 			_host_damage(attacker, h[0], h[1], false)
 			_host_shove(attacker, h[0], h[2])
+
+
+# ---------------------------------------------------------------------------
+# Kicks (see Kick): everyone has one, whatever they carry
+
+## Called by the local player (or a bot) when a kick lands: from the eyes, toward
+## where it looks (a flying kick: toward who it is flying at).
+func request_kick(origin: Vector3, direction: Vector3, view_times: Dictionary, flying: bool, attacker: int = 0) -> void:
+	if Net.is_host():
+		_host_kick(attacker if attacker != 0 else Net.my_id(), origin, direction, view_times, flying)
+	else:
+		_kick_request.rpc_id(1, origin, direction, view_times, flying)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _kick_request(origin: Vector3, direction: Vector3, view_times: Dictionary, flying: bool) -> void:
+	if Net.is_host():
+		_host_kick(multiplayer.get_remote_sender_id(), origin, direction, view_times, flying)
+
+
+func _host_kick(attacker: int, origin: Vector3, direction: Vector3, view_times: Dictionary, flying: bool) -> void:
+	if not running or not is_alive(attacker) or not Net.arena or Race.active or direction.length_squared() < 0.0001:
+		return
+	var now := Net.now()
+	if (now - _last_kick_time.get(attacker, -10.0)) * Engine.time_scale < Kick.COOLDOWN * 0.7:
+		return
+	if flying:
+		# Only straight after hooking someone.
+		var tether: Array = _tethers.get(attacker, [])
+		if tether.is_empty() or now - float(tether[1]) > Kick.FLYING_WINDOW:
+			flying = false
+		else:
+			_tethers.erase(attacker)
+	_last_kick_time[attacker] = now
+	var who: Player = Net.arena.get_player(attacker)
+	if who == null or origin.distance_to(who.latest_position() + Vector3(0, CameraRig.EYE_HEIGHT, 0)) > (6.0 if flying else 3.0):
+		return
+	direction = direction.normalized()
+	var reach := Kick.FLYING_REACH if flying else Kick.REACH
+	var arc := Kick.FLYING_ARC if flying else Kick.ARC
+	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
+	var points := PackedVector3Array()
+	var hits := []   # [id, damage, shove]
+	for b in _rewound_bodies(attacker, view_times):
+		var feet: Vector3 = b[1]
+		var height: float = b[2]
+		var near := Geometry3D.get_closest_point_to_segment(origin,
+			feet + Vector3(0, Player.CAPSULE_RADIUS, 0), feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0))
+		var to := near - origin
+		if maxf(to.length() - Player.CAPSULE_RADIUS, 0.0) > reach:
+			continue
+		if to.length() > Player.CAPSULE_RADIUS * 2.0 and rad_to_deg(direction.angle_to(to)) > arc:
+			continue
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, near, 1)).is_empty():
+			continue   # a wall in the way
+		var flat := Vector3(direction.x, 0.0, direction.z) if flying else Vector3(to.x, 0.0, to.z)
+		flat = flat.normalized() if flat.length_squared() > 0.0001 else Vector3(direction.x, 0.0, direction.z).normalized()
+		var shove := flat * (Kick.FLYING_KNOCKBACK if flying else Kick.KNOCKBACK) \
+			+ Vector3.UP * (Kick.FLYING_KNOCKBACK_UP if flying else Kick.KNOCKBACK_UP)
+		hits.append([b[0], Kick.FLYING_DAMAGE if flying else Kick.DAMAGE, shove])
+		points.append(near.lerp(origin, Player.CAPSULE_RADIUS / maxf(to.length(), 0.01)))
+	if DevArgs.sync_log:
+		print("KICK %d %s %d" % [attacker, "flying" if flying else "front", hits.size()])
+	var kind := "flying_kick" if flying else "kick"
+	_melee_effect.rpc(attacker, kind, points)
+	var breaks := _breakables()
+	if breaks:
+		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * (reach + 0.5), 1))
+		if wall:
+			var dmg := (Kick.FLYING_DAMAGE if flying else Kick.DAMAGE) * Kick.STRUCTURE
+			breaks.damage(breaks.cell_at(wall.collider, wall.position, wall.normal), dmg)
+			_flush_breaks()
+	for h in hits:
+		if is_dummy(h[0]):
+			_host_dummy_damage(attacker, h[0], h[1], false)
+		else:
+			_host_damage(attacker, h[0], h[1], false)
+			_host_shove(attacker, h[0], h[2])
+
+
+# ---------------------------------------------------------------------------
+# Hooking another player: the rope reels you both together
+
+## Called by the local player (or a bot) when its hook catches player `target`
+## (on = true) or lets go of them (on = false).
+func request_tether(target: int, on: bool, by: int = 0) -> void:
+	if Net.is_host():
+		_host_tether(by if by != 0 else Net.my_id(), target, on)
+	else:
+		_tether_request.rpc_id(1, target, on)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _tether_request(target: int, on: bool) -> void:
+	if Net.is_host():
+		_host_tether(multiplayer.get_remote_sender_id(), target, on)
+
+
+func _host_tether(by: int, target: int, on: bool) -> void:
+	if not Net.players.has(target) or target == by or not Net.arena:
+		return
+	if on:
+		if not running or Race.active or not is_alive(by) or not is_alive(target):
+			return
+		var a: Player = Net.arena.get_player(by)
+		var b: Player = Net.arena.get_player(target)
+		if a == null or b == null or a.latest_position().distance_to(b.latest_position()) > 60.0:
+			return
+		_tethers[by] = [target, Net.now()]
+		_last_shove[target] = [by, Net.now()]   # reeled into a wall: that's their doing
+	if DevArgs.sync_log:
+		print("TUG %d %d %s" % [by, target, "on" if on else "off"])
+	if target == Net.my_id() or Net.is_bot(target):
+		_apply_tug(target, by, on)
+	else:
+		_tug.rpc_id(target, target, by, on)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _tug(target: int, by: int, on: bool) -> void:
+	_apply_tug(target, by, on)
+
+
+func _apply_tug(target: int, by: int, on: bool) -> void:
+	var p: Player = Net.arena.get_player(target) if Net.arena else null
+	if p and p.is_local:
+		if on and target == Net.my_id() and Cheats.god_mode():
+			return
+		p.tug(by, on)
 
 
 @rpc("authority", "call_local", "unreliable")

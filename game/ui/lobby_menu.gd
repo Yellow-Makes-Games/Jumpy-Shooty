@@ -5,6 +5,7 @@ extends Control
 var _col: VBoxContainer          # the left column: players, map, rules
 var _side: VBoxContainer         # the right column: your character
 var _list: VBoxContainer
+var _list_scroll: ScrollContainer
 var _start: Button
 var _waiting: Label
 var _info: Label
@@ -46,9 +47,13 @@ func _ready() -> void:
 	_side.custom_minimum_size = Vector2(280, 0)
 	columns.add_child(_side)
 	UiKit.section(_col, "Players")
+	_list_scroll = ScrollContainer.new()   # 16 players don't fit: the list scrolls past 6
+	_list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_col.add_child(_list_scroll)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 6)
-	_col.add_child(_list)
+	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list_scroll.add_child(_list)
 	UiKit.spacer(_col, 4)
 	_build_map()
 	_build_rules()
@@ -76,12 +81,19 @@ func _ready() -> void:
 				Net.host_start_match())
 
 
+## The player list grows with the players, up to about six rows, then scrolls.
+func _fit_list() -> void:
+	if is_instance_valid(_list_scroll):
+		_list_scroll.custom_minimum_size.y = minf(_list.get_combined_minimum_size().y, 300.0)
+
+
 func _refresh() -> void:
 	UiKit.clear(_list)
 	var ids := Net.players.keys()
 	ids.sort()
 	for id in ids:
 		_list.add_child(_player_row(id))
+	_fit_list.call_deferred()
 	_start.visible = Net.is_host()
 	_waiting.visible = not Net.is_host()
 	_start.disabled = Net.players.size() < 1

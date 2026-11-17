@@ -66,6 +66,9 @@ var scripted_input := false
 var sync_log := false
 var sound_log := false
 var scripted_fire := false
+## With --scripted-input: also hook the nearest opponent now and then and flying-kick
+## them, kick anyone close, and fire the rocket boots every few seconds (tests).
+var scripted_kicks := false
 var auto_return := false
 var kill_target := 0
 var rules := ""
@@ -133,6 +136,7 @@ func _ready() -> void:
 			"--sync-log": sync_log = true
 			"--sound-log": sound_log = true
 			"--scripted-fire": scripted_fire = true
+			"--scripted-kicks": scripted_kicks = true
 			"--auto-return": auto_return = true
 			"--menu": menu = value
 			"--kill-target": kill_target = int(value)

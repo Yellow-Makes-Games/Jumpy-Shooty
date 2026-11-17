@@ -39,6 +39,20 @@ const BODY_RADIUS := 0.4
 @export var grapple_yank := 7.0           ## instant speed toward the hook when it catches
 @export var grapple_hop := 4.0            ## hooking from the ground pops you off the floor this fast
 @export var grapple_pull_stop := 4.0      ## the pull stops this close to the hook, so you coast in or fly past
+## Hooking another player: the rope reels you both together (they get pulled too,
+## see Player.tug), harder than a wall hook, and lets go once you meet.
+@export var tether_pull_accel := 46.0
+@export var tether_pull_speed := 20.0
+@export var tether_meet := 2.2            ## let go once this close (chest to chest)
+@export var tether_time := 1.6            ## the longest a player stays hooked
+@export var tug_accel := 30.0             ## how hard the hooked player is dragged toward you
+@export var tug_speed := 11.0             ## up to this speed toward you
+@export var tug_lift := 4.0               ## lifts them off their feet when the hook catches
+
+@export_group("Rocket boots")
+@export var boost_speed := 14.0           ## speed a burst adds, in the direction you push
+@export var boost_ground_lift := 3.5      ## fired on the ground, you leave the floor at least this fast
+@export var boost_cooldown := 2.5         ## seconds between bursts
 
 @export_group("Crouch and slide")
 @export var stand_height := 1.8           ## body height standing

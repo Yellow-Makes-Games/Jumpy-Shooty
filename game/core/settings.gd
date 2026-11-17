@@ -32,6 +32,7 @@ var vsync: bool = true
 var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
+var last_address: String = ""   # the host address you last joined (filled in on the Join box next time)
 
 
 func _ready() -> void:
@@ -58,6 +59,7 @@ func load_settings() -> void:
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
+	last_address = str(cfg.get_value("network", "last_address", last_address))
 
 
 func save_settings() -> void:
@@ -76,6 +78,7 @@ func save_settings() -> void:
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
 	cfg.set_value("profile", "weapon", weapon)
+	cfg.set_value("network", "last_address", last_address)
 	cfg.save(SAVE_PATH)
 
 
@@ -115,6 +118,8 @@ const KEY_BINDINGS := {
 	"sprint": [KEY_SHIFT],
 	"crouch": [KEY_CTRL, KEY_C],  # slide when moving fast
 	"dive": [KEY_ALT, KEY_Q],
+	"kick": [KEY_F],
+	"boost": [KEY_E],   # rocket boots
 	"toggle_camera": [KEY_V],
 	"scoreboard": [KEY_TAB],
 	"pause": [KEY_ESCAPE],

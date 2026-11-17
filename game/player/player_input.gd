@@ -18,6 +18,11 @@ var grapple := false          ## grapple button held
 var grapple_pressed := false  ## grapple button pressed this frame
 var fire := false          ## trigger held (automatic weapons)
 var fire_pressed := false  ## trigger pulled this frame (semi-automatic weapons)
+var kick_pressed := false  ## kick pressed this frame (any weapon; a flying kick while you have a player hooked)
+var boost_pressed := false ## rocket boots fired this frame
+## Optional: which way the rocket boots push (bots aim them). Left at zero, they push
+## toward your WASD direction as seen from where you look, or straight where you look.
+var boost_dir := Vector3.ZERO
 ## Optional crosshair ray (third person aims from the camera, not the eyes).
 ## Left at zero, aiming uses the eyes plus yaw and pitch.
 var aim_origin := Vector3.ZERO
@@ -30,3 +35,6 @@ func clear_edges() -> void:
 	fire_pressed = false
 	grapple_pressed = false
 	crouch_pressed = false
+	kick_pressed = false
+	boost_pressed = false
+	boost_dir = Vector3.ZERO

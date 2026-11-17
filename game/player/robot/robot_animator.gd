@@ -102,6 +102,9 @@ var _kick := 1.0
 var _loop_reload := false
 var _melee := false       # a sword, hammer or dagger: one hand on it, swings instead of shots
 var _swing := MeleeSwing.new()
+var _leg_t := -1.0        # time into a kick, or -1
+var _flying_kick := false # in a flying kick: feet first
+var _fly_w := 0.0
 
 var _b := {}                      # bone name -> index
 var _arm_r: PackedInt32Array
@@ -172,6 +175,67 @@ func swing(count: int) -> void:
 		_since_fire = 0.0
 
 
+## A kick (see Kick): the right leg snaps out in front.
+func kick(flying: bool = false) -> void:
+	_leg_t = 0.0 if not flying else -1.0
+	if flying:
+		_flying_kick = true
+
+
+## A flying kick starts or ends: both legs out, leaning back, for as long as it lasts.
+func set_flying_kick(on: bool) -> void:
+	_flying_kick = on
+
+
+## Front kick, over the pose: [thigh lift, knee bend, lean back] at time t.
+const KICK_KEYS := [[0.0, 0.0, 0.0, 0.0], [0.07, 1.5, 1.9, 0.15], [0.15, 1.65, 0.05, 0.35], [0.26, 1.55, 0.1, 0.3], [0.45, 0.0, 0.0, 0.0]]
+
+
+func _kick_sample(t: float) -> Array:
+	for i in range(1, KICK_KEYS.size()):
+		var b: Array = KICK_KEYS[i]
+		if t <= b[0]:
+			var a: Array = KICK_KEYS[i - 1]
+			var u := smoothstep(0.0, 1.0, (t - a[0]) / (b[0] - a[0]))
+			return [lerpf(a[1], b[1], u), lerpf(a[2], b[2], u), lerpf(a[3], b[3], u)]
+	return [0.0, 0.0, 0.0]
+
+
+func _apply_kick(delta: float, alive: bool) -> void:
+	_fly_w = move_toward(_fly_w, 1.0 if (_flying_kick and alive) else 0.0, delta * 9.0)
+	var lift := 0.0
+	var bend := 0.0
+	var lean := 0.0
+	var w := 0.0
+	if _leg_t >= 0.0:
+		var k := _kick_sample(_leg_t)
+		lift = k[0]
+		bend = k[1]
+		lean = k[2]
+		w = 1.0
+		_leg_t += delta
+		if _leg_t >= KICK_KEYS[-1][0] or not alive:
+			_leg_t = -1.0
+	if _fly_w > 0.0:
+		lift = lerpf(lift, 1.45, _fly_w)
+		bend = lerpf(bend, 0.0, _fly_w)
+		lean = lerpf(lean, 0.75, _fly_w)
+		w = maxf(w, _fly_w)
+	if w <= 0.0:
+		return
+	var t_r: int = _b["thigh_r"]
+	var s_r: int = _b["shin_r"]
+	_pose.rot[t_r] = _pose.rot[t_r].slerp(Quaternion(Vector3.RIGHT, lift), w)
+	_pose.rot[s_r] = _pose.rot[s_r].slerp(Quaternion(Vector3.RIGHT, -bend), w)
+	if _fly_w > 0.0:   # the other leg tucked up under you
+		var t_l: int = _b["thigh_l"]
+		var s_l: int = _b["shin_l"]
+		_pose.rot[t_l] = _pose.rot[t_l].slerp(Quaternion(Vector3.RIGHT, 0.9), _fly_w)
+		_pose.rot[s_l] = _pose.rot[s_l].slerp(Quaternion(Vector3.RIGHT, -1.9), _fly_w)
+	var sp: int = _b["spine"]
+	_pose.rot[sp] = Quaternion(Vector3.RIGHT, lean * w) * _pose.rot[sp]
+
+
 ## The blow landed: freeze the swing for a moment so the hit has weight.
 func hit_stop() -> void:
 	_swing.hit_stop()
@@ -189,6 +253,8 @@ func respawn() -> void:
 	_reload_t = -1.0
 	_land = 0.0
 	_kick_t = -1.0
+	_leg_t = -1.0
+	_flying_kick = false
 	_fade = 1.0
 
 
@@ -311,6 +377,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		MeleeSwing.apply(_pose, _b, _swing.sample(delta) if inp.alive else MeleeSwing.REST)
 		if not inp.alive:
 			_swing.stop()
+	_apply_kick(delta, inp.alive)
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward
 	var stance := maxf(_aim_r, _reload_w)

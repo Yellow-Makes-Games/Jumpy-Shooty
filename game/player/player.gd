@@ -63,6 +63,20 @@ var _slam_wait := 0.0             # local: a crash just hurt; the next can't for
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
 var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
 var _punch_roll := 0.0
+var _kicks := 0                   # local: kicks so far (travels in snapshots, wrapping at 4)
+var _seen_kicks := -1
+var _kick_cool := 0.0             # local: seconds until you can kick again
+var _kick_strike := -1.0          # local: seconds until the kick lands
+var _fly_kick := 0.0              # local: seconds left of a flying kick (0 = not flying)
+var _fly_target: Player           # local: who the flying kick is going for
+var _seen_flying := false
+var _seen_boosts := -1
+var _tether_id := 0               # local: the player your hook is on, as told to the host
+var _tug_by := 0                  # local: someone has you hooked and is reeling you in
+var _tug_left := 0.0
+var _tug_fresh := false
+var _flame: Node3D                # rocket-boot flames under the feet
+var _flame_t := 0.0
 
 
 func _init() -> void:
@@ -135,10 +149,13 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		view.setup(self, Net.player_color(id))
 		view.visible = not racing   # no gun to hold in a race: you see your body, not arms
 	_build_rope()
+	_build_flame()
+	if motor:
+		motor.grapple.hook_players = not racing
 	if WeaponData.melee(robot.weapon):
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
 		add_child(_trail)
-		Match.melee_landed.connect(_on_melee_landed)
+	Match.melee_landed.connect(_on_melee_landed)
 
 
 # ---------------------------------------------------------------------------
@@ -173,10 +190,16 @@ func _physics_process(delta: float) -> void:
 		if fly:
 			_fly(delta)
 		else:
+			_update_tug(delta)
+			_steer_flying_kick(delta)
+			var boosts := motor.boosts
 			motor.step(self, input, delta)
 			if hooking and not motor.grapple.attached:
 				sounds.grapple_missed()   # nothing in range to hook
+			if motor.boosts != boosts and DevArgs.sync_log:
+				print("BOOST %d" % peer_id)
 			_check_slam(delta)
+		_report_tether()
 		if Cheats.cooldowns_off() and not is_bot:
 			motor.clear_cooldowns()
 		if DevArgs.sync_log and motor.grapple.attached != was_on:
@@ -184,8 +207,10 @@ func _physics_process(delta: float) -> void:
 		_visual_yaw = input.yaw
 		if not racing:
 			_update_weapon(delta)
+			_update_kick(delta)
 	else:
 		velocity = Vector3.ZERO
+		_report_tether()
 	input.clear_edges()
 	_send_timer -= delta
 	if _send_timer <= 0.0:
@@ -216,12 +241,14 @@ func _process(delta: float) -> void:
 		_anim.grapple_on = g.attached
 		_anim.grapple_anchor = g.anchor
 		_watch_swings()
+		_watch_kicks()
 		_animate(delta)
 		sounds.update(delta, _anim, true)
 		if view:
 			view.update(delta)
 		_draw_rope(g.attached and alive, g.anchor)
 		_update_trail(delta)
+		_update_flame(delta)
 		return
 	if not buffer.has_data():
 		return
@@ -242,6 +269,7 @@ func _process(delta: float) -> void:
 	_anim.grapple_on = _rope_on
 	_anim.grapple_anchor = _rope_anchor
 	_watch_swings()
+	_watch_kicks()
 	_animate(delta)
 	sounds.update(delta, _anim, visual.visible)
 	while not _rope_events.is_empty() and _rope_events[0][0] <= rt:
@@ -252,6 +280,7 @@ func _process(delta: float) -> void:
 			print("ROPE SEEN %d %d %s" % [Net.my_id(), peer_id, "on" if _rope_on else "off"])
 	_draw_rope(_rope_on and alive and not _awaiting_respawn, _rope_anchor)
 	_update_trail(delta)
+	_update_flame(delta)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
 		var sp: Vector3 = s[0]
 		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, sp.x, sp.y, sp.z, delta])
@@ -311,6 +340,10 @@ func read_local_input() -> void:
 		input.grapple = false
 		input.dive = false
 		return
+	if Input.is_action_just_pressed("kick"):
+		input.kick_pressed = true
+	if Input.is_action_just_pressed("boost"):
+		input.boost_pressed = true
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"))
@@ -406,6 +439,8 @@ func _update_melee(delta: float) -> void:
 		_strike_left -= delta
 		if _strike_left < 0.0:
 			_strike()
+	if motor.grapple.hooked_player() or _fly_kick > 0.0:
+		return   # a player on your hook: the swing button is a flying kick (see _update_kick)
 	var wants := input.fire or _fire_buffer > 0.0
 	if not wants or not Match.running or _strike_left >= 0.0 or not weapon.fire():
 		return
@@ -457,14 +492,207 @@ func _watch_swings() -> void:
 
 
 ## A blow landed somewhere. Ours: the swing freezes for a moment (hit-stop) and the view jolts harder.
-func _on_melee_landed(attacker: int, _weapon_id: String, points: PackedVector3Array) -> void:
+func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array) -> void:
 	if attacker != peer_id or points.is_empty():
+		return
+	if weapon_id == "kick" or weapon_id == "flying_kick":
+		if rig:
+			_punch += Vector2(randf_range(-0.02, 0.02), -0.05 if weapon_id == "flying_kick" else -0.025)
+			_punch_roll += randf_range(-0.03, 0.03)
 		return
 	animator.hit_stop()
 	if view:
 		view.hit_stop()
 	if rig:
 		_punch += Vector2(randf_range(-0.012, 0.012), -0.02)
+
+
+# ---------------------------------------------------------------------------
+# Kick, flying kick (see Kick) and being reeled in by someone's hook
+
+## F: a quick front kick, whatever you carry. With a player on your hook it is a
+## flying kick instead (so is a melee weapon's swing).
+func _update_kick(delta: float) -> void:
+	_kick_cool = maxf(_kick_cool - delta, 0.0)
+	if _kick_strike >= 0.0:
+		_kick_strike -= delta
+		if _kick_strike < 0.0:
+			_kick_strike = -1.0
+			if alive:
+				_send_kick(aim_forward(), false)
+	if not Match.running:
+		return
+	var g := motor.grapple
+	var swing_kick := weapon != null and weapon.data.is_melee() and input.fire_pressed
+	if g.hooked_player() and (input.kick_pressed or swing_kick) and _fly_kick <= 0.0:
+		_start_flying_kick(g.target as Player)
+		return
+	if not input.kick_pressed or _kick_cool > 0.0 or _kick_strike >= 0.0 or _fly_kick > 0.0:
+		return
+	_kick_cool = Kick.COOLDOWN
+	_kick_strike = Kick.WINDUP
+	_kicks += 1
+	var ahead := Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
+	if velocity.dot(ahead) < 10.0:
+		motor.knock(ahead * Kick.LUNGE)
+	if DevArgs.sync_log:
+		print("ANIM KICK %d" % peer_id)
+
+
+func kick_readiness() -> float:
+	return 1.0 - _kick_cool / Kick.COOLDOWN
+
+
+## Let go of the rope and fly at them feet first.
+func _start_flying_kick(target: Player) -> void:
+	motor.grapple.release()
+	motor.grapple.cooldown_left = 0.0   # the kick is the payoff: the hook is ready again after it
+	_fly_target = target
+	_fly_kick = Kick.FLYING_TIME
+	_kicks += 1
+	_kick_cool = Kick.COOLDOWN
+	var to := Grapple.target_point(target) - (global_position + Vector3(0, 1.1, 0))
+	velocity = to.normalized() * maxf(velocity.length(), Kick.FLYING_SPEED)
+	if DevArgs.sync_log:
+		print("FLYING_KICK %d %d" % [peer_id, target.peer_id])
+
+
+## While flying: bend toward them, and land the kick when close enough.
+func _steer_flying_kick(delta: float) -> void:
+	if _fly_kick <= 0.0:
+		return
+	_fly_kick -= delta
+	var t := _fly_target
+	if t == null or not is_instance_valid(t) or not t.alive or not t.visible_in_world():
+		_fly_kick = 0.0
+		return
+	var to := Grapple.target_point(t) - (global_position + Vector3(0, 1.1, 0))
+	if to.length() <= Kick.FLYING_REACH - 0.6:
+		_fly_kick = 0.0
+		_send_kick(to.normalized(), true)
+		return
+	var speed := maxf(velocity.length(), Kick.FLYING_SPEED)
+	velocity = velocity.lerp(to.normalized() * speed, minf(Kick.FLYING_STEER * delta, 1.0))
+	if _fly_kick <= 0.0:
+		_send_kick(to.normalized(), true)   # ran out of time: one last try (the host checks the reach)
+
+
+func flying_kick() -> bool:
+	return _fly_kick > 0.0
+
+
+func _send_kick(dir: Vector3, flying: bool) -> void:
+	if rig:
+		_punch += Vector2(0.0, -0.03)
+	var view_times := {}
+	for p in get_parent().get_children():
+		if p != self and p is Player and p.last_render_time >= 0.0:
+			view_times[p.peer_id] = p.last_render_time
+	Match.request_kick(eye_position(), dir, view_times, flying, peer_id)
+
+
+## Tell the host when the hook catches a player or lets go (they get reeled in too).
+func _report_tether() -> void:
+	var g := motor.grapple
+	var now := (g.target as Player).peer_id if alive and g.hooked_player() and g.target is Player else 0
+	if now == _tether_id:
+		return
+	if _tether_id != 0:
+		Match.request_tether(_tether_id, false, peer_id)
+	_tether_id = now
+	if now != 0:
+		Match.request_tether(now, true, peer_id)
+		if DevArgs.sync_log:
+			print("TETHER %d %d" % [peer_id, now])
+
+
+## Someone hooked you (the host says so): you are dragged toward them.
+func tug(by: int, on: bool) -> void:
+	if not on:
+		if by == _tug_by:
+			_tug_by = 0
+		return
+	if not alive or _flying or motor == null:
+		return
+	_tug_by = by
+	_tug_left = motor.tuning.tether_time + 0.3
+	_tug_fresh = true
+	if DevArgs.sync_log:
+		print("TUGGED %d by %d" % [peer_id, by])
+
+
+func _update_tug(delta: float) -> void:
+	if _tug_by == 0:
+		return
+	_tug_left -= delta
+	var other: Player = Net.arena.get_player(_tug_by) if Net.arena else null
+	if _tug_left <= 0.0 or other == null or not other.alive:
+		_tug_by = 0
+		return
+	var to := other.global_position - global_position
+	var dist := to.length()
+	var t := motor.tuning
+	if dist < t.tether_meet:
+		_tug_by = 0
+		return
+	var dir := to / dist
+	var push := Vector3.ZERO
+	var room := t.tug_speed - velocity.dot(dir)
+	if room > 0.0:
+		push = dir * minf(t.tug_accel * delta, room)
+	if _tug_fresh:
+		_tug_fresh = false
+		push.y = maxf(push.y, t.tug_lift)   # yanked off your feet
+	if push != Vector3.ZERO:
+		motor.knock(push)
+
+
+func being_tugged() -> bool:
+	return _tug_by != 0
+
+
+## Alive and drawn: something a hook or a kick can find.
+func visible_in_world() -> bool:
+	return alive and visual.visible and collision_layer != 0
+
+
+## A new kick or rocket burst (yours, or one seen in someone's snapshots): the leg
+## swings and whooshes; the boots flare.
+func _watch_kicks() -> void:
+	var count := _kicks & 3 if is_local else RobotAnimInput.kicks_of(_anim.flags)
+	var flying := flying_kick() if is_local else RobotAnimInput.flying_of(_anim.flags)
+	var boosts := (motor.boosts & 3) if is_local else RobotAnimInput.boosts_of(_anim.flags)
+	if _seen_kicks < 0:
+		_seen_kicks = count
+		_seen_boosts = boosts
+		_seen_flying = flying
+		return
+	if boosts != _seen_boosts:
+		_seen_boosts = boosts
+		if DevArgs.sync_log and not is_local:
+			print("BOOST SEEN %d %d" % [Net.my_id(), peer_id])
+		if alive and visual.visible:
+			_flame_t = 0.45
+			if sounds.own:
+				Sound.play("rocket_boost", 0.0, 0.05)
+			else:
+				Sound.play_at("rocket_boost", global_position + Vector3(0, 0.3, 0), "move", 0.0, 0.05)
+	if flying != _seen_flying:
+		_seen_flying = flying
+		animator.set_flying_kick(flying and alive)
+	if count == _seen_kicks:
+		return
+	_seen_kicks = count
+	if not alive:
+		return
+	animator.kick(flying)
+	if DevArgs.sync_log and not is_local:
+		print("KICK SEEN %d %d%s" % [Net.my_id(), peer_id, " flying" if flying else ""])
+	var sound := "kick" if not flying else "flying_kick"
+	if sounds.own:
+		Sound.play(sound, 0.0, 0.05)
+	elif visual.visible:
+		Sound.play_at(sound, global_position + Vector3(0, 1.0, 0), "move", 0.0, 0.05)
 
 
 ## The glowing trail behind the blade while it cuts: on your first-person arms
@@ -495,6 +723,8 @@ func _check_slam(delta: float) -> void:
 	_slam_wait = maxf(_slam_wait - delta, 0.0)
 	if racing or _slam_wait > 0.0 or motor.impact_speed < Match.SLAM_SPEED or not Match.running:
 		return
+	if (motor.since_boost < 0.4 or _fly_kick > 0.0) and not being_tugged():
+		return   # your own rocket burst or flying kick into a wall doesn't hurt you
 	_slam_wait = 0.5
 	Match.request_slam(motor.impact_speed, motor.impact_point, peer_id)
 
@@ -590,6 +820,9 @@ func dev_swap_after_death() -> void:
 
 func set_dead() -> void:
 	alive = false
+	_fly_kick = 0.0
+	_tug_by = 0
+	_flame_t = 0.0
 	if motor:
 		motor.reset()
 	_rope_on = false
@@ -619,6 +852,10 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	if weapon:
 		weapon.reset()
 	_strike_left = -1.0
+	_kick_strike = -1.0
+	_kick_cool = 0.0
+	_fly_kick = 0.0
+	_tug_by = 0
 	_send_timer = 0.0  # tell everyone at once
 
 
@@ -770,7 +1007,8 @@ func _my_anim_flags() -> int:
 	elif f.y > 0.0:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
-		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings)
+		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
+		_kicks, _fly_kick > 0.0, motor.boosts)
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -832,6 +1070,8 @@ func position_at(t: float) -> Vector3:
 
 
 func teleport(pos: Vector3, yaw: float) -> void:
+	_fly_kick = 0.0
+	_tug_by = 0
 	if motor:
 		motor.reset()
 	global_position = pos
@@ -865,6 +1105,8 @@ func _hold_still() -> void:
 	input.dive = false
 	input.grapple = false
 	input.fire = false
+	input.kick_pressed = false
+	input.boost_pressed = false
 
 
 # ---------------------------------------------------------------------------
@@ -911,6 +1153,34 @@ func _scripted_input(delta: float) -> void:
 				input.fire_pressed = true  # click about 5 times a second
 		if fmod(t, 6.0) < delta and weapon:
 			weapon.start_reload()  # top up now and then (tests the reload animation online)
+	if DevArgs.scripted_kicks:
+		_scripted_kicks(t, delta)
+
+
+func _scripted_kicks(t: float, delta: float) -> void:
+	if fmod(t + 0.7, 3.1) < delta:
+		input.boost_pressed = true   # rocket boots, toward wherever the script is running
+	var g := motor.grapple
+	if g.hooked_player():
+		input.grapple = true
+		input.jump_pressed = false   # a jump would let go of the rope
+		if global_position.distance_to(g.target.global_position) < 9.0:
+			input.kick_pressed = true   # flying kick
+		return
+	var target := _nearest_visible_opponent()
+	if target == null:
+		return
+	var d := global_position.distance_to(target.global_position)
+	if d < 2.6:
+		var to := target.global_position + Vector3(0, 1.0, 0) - eye_position()
+		input.yaw = atan2(-to.x, -to.z)
+		input.kick_pressed = true
+	elif d > 7.0 and d < 35.0 and g.ready_to_fire() and fmod(t + 2.0, 4.3) < 1.5:
+		var to := Grapple.target_point(target) - eye_position()
+		input.yaw = atan2(-to.x, -to.z)
+		input.pitch = atan2(to.y, Vector2(to.x, to.z).length())
+		input.grapple = true
+		input.grapple_pressed = true
 
 
 func _nearest_visible_opponent() -> Player:
@@ -985,3 +1255,60 @@ func _draw_rope(on: bool, anchor: Vector3) -> void:
 	_rope.global_transform = Transform3D(Basis(x, y * dist, z), from + span * 0.5)
 	_hook.global_position = anchor
 
+
+
+# ---------------------------------------------------------------------------
+# Rocket boots: a burst of flame from both feet
+
+func _build_flame() -> void:
+	_flame = Node3D.new()
+	_flame.visible = false
+	visual.add_child(_flame)
+	var outer := StandardMaterial3D.new()
+	outer.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	outer.albedo_color = Color(1.0, 0.55, 0.15, 0.8)
+	outer.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	outer.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	var core := StandardMaterial3D.new()
+	core.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	core.albedo_color = Color(1.0, 0.95, 0.7, 0.9)
+	core.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	core.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	for side in [-1.0, 1.0]:
+		for layer in 2:
+			var cone := CylinderMesh.new()
+			cone.top_radius = 0.11 if layer == 0 else 0.06
+			cone.bottom_radius = 0.0
+			cone.height = 0.75 if layer == 0 else 0.45
+			cone.radial_segments = 8
+			cone.rings = 1
+			cone.material = outer if layer == 0 else core
+			var m := MeshInstance3D.new()
+			m.mesh = cone
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			m.position = Vector3(side * 0.14, -cone.height * 0.5, 0.0)
+			_flame.add_child(m)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.6, 0.25)
+	light.omni_range = 4.0
+	light.light_energy = 2.0
+	light.position = Vector3(0, -0.2, 0)
+	_flame.add_child(light)
+	_flame.position = Vector3(0, 0.08, 0)
+
+
+func _update_flame(delta: float) -> void:
+	if _flame == null:
+		return
+	_flame_t = maxf(_flame_t - delta, 0.0)
+	_flame.visible = _flame_t > 0.0 and alive and visual.visible
+	if not _flame.visible:
+		return
+	var u := _flame_t / 0.45
+	var length := maxf(u * (0.85 + 0.3 * randf()), 0.05)
+	# Point the flames back the way the burst pushes you (away from where you are going).
+	var aim := Vector3.DOWN
+	if velocity.length() > 1.0:
+		aim = visual.global_transform.basis.inverse() * -velocity.normalized()
+	var turn := Quaternion(Vector3.DOWN, aim.normalized()) if aim.normalized().dot(Vector3.UP) < 0.999 else Quaternion(Vector3.RIGHT, PI)
+	_flame.basis = Basis(turn) * Basis.from_scale(Vector3(1.0, length, 1.0))
