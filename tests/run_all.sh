@@ -26,6 +26,7 @@ CHECKS=(
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
   "arena_maps|--script tests/arena_maps_test.gd"
+  "flicker|--script tests/map_flicker_test.gd"
   "halcyon|--script tests/halcyon_test.gd"
   "terminal|--script tests/terminal_test.gd"
   "gravity|--fixed-fps 60 --script tests/gravity_test.gd"

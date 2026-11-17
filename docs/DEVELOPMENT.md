@@ -76,6 +76,10 @@ Quick checks:
   the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
 - breakable walls and floors (`tests/destruction_test.gd`);
+- flicker (`tests/map_flicker_test.gd`), on the Castle, Rail Yard, Lost Temple and Neon
+  Arcade: no two surfaces of different colours share a plane where both can be seen,
+  and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
+  `FLICKER_LIST=40` prints more of what it found;
 - Halcyon (`tests/halcyon_test.gd`): spawn points, pickups, the terminal on its dais,
   bot navigation through every room and level, the hull stays sealed, the reactor pit
   kills;
@@ -248,7 +252,13 @@ stone ramps laid along the wall walks, a gatehouse with a gate tunnel, and a
 central keep whose upper floor (6 m) is reached from a terrace ramp and from the
 west wall walk over a timber bridge, and whose roof deck (12 m) the keep stair
 climbs to. Its palette (`palettes/castle.tres`) shows a breakable kind (the wooden
-hoardings in the bailey).
+hoardings in the bailey). Its small dressing (a coping on every merlon, pilasters and
+torches along the walls, door and window surrounds, the great hall's fittings, market
+goods, ivy, weeds, and the lake and mountains outside) is the scene's `Dressing` branch,
+about 2,000 drawn-only blocks written by `python3 tools/arena/castle_dressing.py`. The
+script reads where the merlons, barrels, crates, carts and hoardings are, so run it
+again after moving them; it replaces only the `Dressing` branch and leaves the rest of
+the scene as it is.
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
@@ -291,8 +301,13 @@ see-through (Halcyon's dome and windows): you look through it, but it is as soli
 any block. The palette's **Surface** list gives a kind a pattern drawn on every surface
 of that kind with no extra blocks (Halcyon): `panels` (seams on walls, now and then a
 hatch or vent slots), `panels_plain`, `tiles`, `plates` (rivets), `grating`, `slats`
-(a vent), `hazard` (slanted stripes), `treads` (grip lines across a ramp) and
-`corrugated` (shipping containers). The patterns are settings of one shader,
+(a vent), `hazard` (slanted stripes), `treads` (grip lines across a ramp),
+`corrugated` (shipping containers), and for buildings and the outdoors: `checker`,
+`pavers` and `slabs` (floors), `bricks`, `blocks` and `blocks_small` (dressed stone; on a
+floor, flagstones), `cobbles`, `planks` and `planks_upright`, `shingles` and `thatch`
+(roofs), `grass`, `dirt`, `gravel` and `tarmac` (soft blotches), `clumps` (leaves),
+`bark`, `strata` (a cliff), `water` (ripples that move), `confetti` (an arcade carpet)
+and `windows` / `windows_lit` (rows of windows on far-off buildings). The patterns are settings of one shader,
 `game/arena/map_surface.gdshader`, listed in `MapScenery.SURFACES`; they are measured
 in metres from where the surface is in the map, so they line up from block to block. A
 kind that glows or is see-through takes no pattern. The MapRoot's inspector also has the map's rules:
@@ -366,6 +381,22 @@ map and its palette from scratch and overwrites hand edits. After moving things,
 `godot --headless --path . --script tests/arena_maps_test.gd` checks that every spawn is
 clear, walls and floors still break, and a bot can walk between every spawn point and to
 each map's floors (the goals are at the top of the test).
+
+Each map file ends with a `details(m)` function: the small things (window frames, lamps,
+signs, pipes, weeds, vines, the street outside the arcade). They are all drawn only, so
+they change neither collision nor the bots' navigation. The builder has helpers for them:
+`strip` (a box), `on_wall` (a piece that stands proud of a wall face), `rod` and `pipe`
+(bars at any angle), `sign`, and `stairs(..., cheek_stop=)` for stair sides that stop
+short of a landing. The rules they keep, which `tests/map_flicker_test.gd` checks:
+
+- Two surfaces of different colours never share a plane. A detail stands proud of the
+  surface behind it, and one laid over another is both a different depth (2 cm or more)
+  and a different outline, so their fronts and their edges are in different planes.
+- Paint on a floor is 2 cm thick or more, and each kind of paint has its own height.
+- A box that wraps a post (a collar, a cap) ends below the post's top.
+- On a wall or floor that breaks, a detail is a thin skin (0.15 m or less) lying
+  inside one panel's outline, so it breaks with the panel. Anything bigger, or
+  anything that spans two panels, would hold the wall up: stand it on its own posts.
 
 ### Halcyon
 
