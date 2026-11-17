@@ -39,6 +39,10 @@ enum Shape { BOX, CYLINDER, TUBE }
 		drawn = v
 		_changed()
 
+## Never breaks, even if its kind can (see the palette's Breakable list). For a
+## landing or a floor a route needs.
+@export var unbreakable := false
+
 ## Multiplied into the kind's colour, to make one block a little lighter or darker.
 @export var tint := Color.WHITE:
 	set(v):
@@ -76,6 +80,8 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["hidden"] = true
 	if tint != Color.WHITE:
 		piece["tint"] = tint
+	if unbreakable:
+		piece["unbreakable"] = true
 	if shape != Shape.BOX:
 		piece["sides"] = sides
 	if shape == Shape.TUBE:

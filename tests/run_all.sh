@@ -27,6 +27,8 @@ echo "== Construction Site: spawn points, bot navigation and every movement rout
 run_script tests/site_test.gd
 echo "== Office: spawn points, bot navigation and every movement route"
 run_script tests/office_test.gd
+echo "== Breakable walls and floors: which pieces break, spawns stay safe, holes let shots through"
+run_script tests/destruction_test.gd
 echo "== Debug menu cheats and the target dummies"
 run_script tests/debug_test.gd
 echo "== Practice mode boots without errors on every map"
@@ -41,6 +43,8 @@ echo "== Sync: 5 players, bad network (100 ms latency, 60 ms jitter, 10% loss) (
 MAP=construction_site tests/run_sync_test.sh 5 "100,60,10"
 echo "== Match: 3 players, laggy network, two matches back to back (Construction Site)"
 MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
+echo "== Breakable walls and floors online: a floor and a wall break, a late joiner sees them, everyone agrees"
+tests/run_break_test.sh
 echo "== Time-limit match (lobby rule) (Testing Grounds)"
 MAP=testing_grounds tests/run_timed_match_test.sh
 echo "== 1v1 bot: every difficulty, plus a fight and a rematch (Testing Grounds)"

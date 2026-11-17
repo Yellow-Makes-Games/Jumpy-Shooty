@@ -53,9 +53,17 @@ results = {}
 ok = True
 hits = misses = heads = 0
 per_gun = {}   # gun -> [shots that hit, shots]
+walls = {}     # path -> what was cracked and broken when each match ended
 for path in sorted(glob.glob(f"{out}/match_*.log")):
     last_shot = ""
+    wall_state = "none"
     for line in open(path, errors="replace"):
+        if line.startswith("BROKEN_STATE "):
+            wall_state = line.split(" ", 1)[1].strip()
+            if wall_state.startswith("0/0 "): wall_state = "none"
+        if line.startswith("MATCH_OVER "):
+            walls.setdefault(path, []).append(wall_state)
+            wall_state = "none"   # the next match starts on a whole map
         if path.endswith("match_1.log") and line.startswith("PELLETS "):
             g = per_gun.setdefault(line.split()[2], [0, 0])
             g[0] += " hit " in last_shot
@@ -101,6 +109,11 @@ else:
         print("FAIL: winner did not reach the kill target"); ok = False
     if sum(r["deaths"] for r in first) < 4:
         print("FAIL: too few deaths"); ok = False
+# Breakable walls and floors: every copy ends each match with the same damage.
+first_walls = list(walls.values())[0] if walls else []
+print("walls at each match end (cracked/broken checksum): " + ", ".join(first_walls))
+if any(w != first_walls for w in walls.values()):
+    print(f"FAIL: copies disagree about broken walls: {walls}"); ok = False
 print("PASS: match test" if ok else "FAIL: match test")
 sys.exit(0 if ok else 1)
 PY

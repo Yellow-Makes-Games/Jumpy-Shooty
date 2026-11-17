@@ -44,6 +44,8 @@ const MELEE := ["sword", "hammer", "dagger"]
 ## pellet) or away from the swing, plus a little lift so it carries off the ground.
 @export var knockback := 1.5
 @export var knockback_up := 0.0
+## Damage to breakable walls and floors, times the weapon's damage (see MapDestruction).
+@export var structure_damage := 1.0
 @export_group("Melee")
 @export var windup := 0.0            ## seconds from the click to the blow landing
 @export var arc_degrees := 0.0       ## hits anyone within this angle of where you look
@@ -117,6 +119,7 @@ static func sniper() -> WeaponData:
 	w.short_name = "Sniper"
 	w.blurb = "Bolt-action. A headshot kills, two body shots do. Pinpoint, slow."
 	w.damage = 75.0
+	w.structure_damage = 1.5
 	w.fire_interval = 1.25
 	w.magazine = 5
 	w.reload_time = 2.4
@@ -153,6 +156,7 @@ static func sword() -> WeaponData:
 	var w := _melee("sword", "Sword")
 	w.blurb = "Two slashes kill. Each swing lunges you forward. Hold to keep swinging."
 	w.damage = 50.0
+	w.structure_damage = 1.5
 	w.fire_interval = 0.55
 	w.windup = 0.12
 	w.max_range = 2.9
@@ -168,8 +172,9 @@ static func sword() -> WeaponData:
 ## Slow and brutal: sends people flying, and into walls hard enough to hurt.
 static func hammer() -> WeaponData:
 	var w := _melee("hammer", "Hammer")
-	w.blurb = "Slow, huge knockback. Smash people into walls for extra damage."
+	w.blurb = "Slow, huge knockback. Smash people into walls, or smash through them."
 	w.damage = 65.0
+	w.structure_damage = 3.0   # knocks holes in walls in two blows
 	w.fire_interval = 1.05
 	w.windup = 0.32
 	w.max_range = 3.1

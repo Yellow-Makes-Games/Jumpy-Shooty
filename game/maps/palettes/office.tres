@@ -66,3 +66,13 @@ glow = Dictionary[String, float]({
 "lamp": 1.2,
 "server_light": 2.0
 })
+breakable = Dictionary[String, float]({
+"carpet": 260.0,
+"carpet_warm": 260.0,
+"glass": 25.0,
+"glass_rail": 40.0,
+"partition": 60.0,
+"shutter": 60.0,
+"wall": 150.0,
+"wall_dark": 150.0
+})
