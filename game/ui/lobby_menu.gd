@@ -6,6 +6,9 @@ var _col: VBoxContainer          # the left column: players, map, rules
 var _side: VBoxContainer         # the right column: your character
 var _list: VBoxContainer
 var _list_scroll: ScrollContainer
+var _page: VBoxContainer
+var _body: ScrollContainer        # everything between the title and the buttons: scrolls if the window is too short
+var _columns: HBoxContainer
 var _start: Button
 var _waiting: Label
 var _info: Label
@@ -36,9 +39,15 @@ func _ready() -> void:
 	_copy = UiKit.button(info_row, "Copy address", func():
 		DisplayServer.clipboard_set(_public_address())
 		_copy.text = "Copied")
+	_page = page
+	_body = ScrollContainer.new()
+	_body.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page.add_child(_body)
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 32)
-	page.add_child(columns)
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body.add_child(columns)
+	_columns = columns
 	_col = VBoxContainer.new()
 	_col.add_theme_constant_override("separation", 12)
 	_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -79,6 +88,19 @@ func _ready() -> void:
 		get_tree().create_timer(3.0).timeout.connect(func():
 			if is_inside_tree() and not Net.in_match:
 				Net.host_start_match())
+
+
+## Keep the Leave and Start buttons on screen: the middle of the page takes the
+## height it needs, but never more than the window has left, and scrolls past that.
+func _process(_delta: float) -> void:
+	if _body == null:
+		return
+	var want := _columns.get_combined_minimum_size().y
+	var others := _page.get_combined_minimum_size().y - _body.custom_minimum_size.y
+	var room := get_viewport_rect().size.y - others - 90.0   # the panel's own margins and a gap above and below
+	var h := floorf(clampf(want, 120.0, maxf(room, 120.0)))
+	if not is_equal_approx(h, _body.custom_minimum_size.y):
+		_body.custom_minimum_size.y = h
 
 
 ## The player list grows with the players, up to about six rows, then scrolls.

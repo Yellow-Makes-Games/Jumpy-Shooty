@@ -24,6 +24,7 @@ Match="*res://game/match/match_state.gd"
 Race="*res://game/match/race_state.gd"
 Game="*res://game/core/game.gd"
 Sound="*res://game/audio/sound.gd"
+Music="*res://game/audio/music.gd"
 
 [display]
 
