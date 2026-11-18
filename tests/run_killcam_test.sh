@@ -23,11 +23,12 @@ PORT=$((25300 + RANDOM % 200))
 # and the Expert bot gets you three times (first to 3, or the time limit).
 OFFLINE=(--fixed-fps 60 --headless --path . -- --game-clock --bot=3 --bot-weapon=rifle --map="$MAP" --scripted-input --sync-log)
 timeout 300 "$GODOT" "${OFFLINE[@]}" --kill-target=3 --time-limit=60 --quit-after=100 --save-killcam=1 > "$OUT/killcam_bot.log" 2>&1 &
-# ...and once more pressing jump every half second, respawning only on a press as in a
+# ...and once more pressing jump every half second (from 2 s, first to 3: a killcam to
+# skip whenever the bot strikes), respawning only on a press as in a
 # real game (--manual-respawn): every killcam is skipped, and jump brings you back.
 PRESSES=()
-for s in $(seq 4 0.5 50); do PRESSES+=("--press=$s:jump"); done
-timeout 240 "$GODOT" "${OFFLINE[@]}" --kill-target=2 --time-limit=50 --quit-after=52 --manual-respawn "${PRESSES[@]}" > "$OUT/killcam_skip.log" 2>&1 &
+for s in $(seq 2 0.5 60); do PRESSES+=("--press=$s:jump"); done
+timeout 240 "$GODOT" "${OFFLINE[@]}" --kill-target=3 --time-limit=60 --quit-after=64 --manual-respawn "${PRESSES[@]}" > "$OUT/killcam_skip.log" 2>&1 &
 # ...and with no key pressed at all: knocked out once, you stay down.
 timeout 120 "$GODOT" "${OFFLINE[@]}" --kill-target=3 --time-limit=25 --quit-after=27 --manual-respawn > "$OUT/killcam_wait.log" 2>&1 &
 wait || true

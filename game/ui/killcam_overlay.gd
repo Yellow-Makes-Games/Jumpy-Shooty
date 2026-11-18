@@ -38,7 +38,7 @@ static func draw(ci: CanvasItem, r: Rect2, view: KillcamView, title: String, foo
 	var spaced := HudStyle.font_spaced()
 	var top := 20.0 * k + spaced.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, int(14 * k)).x
 	if not small:
-		top += 14.0 * k + spaced.get_string_size("THROUGH THEIR EYES", HORIZONTAL_ALIGNMENT_LEFT, -1, int(11 * k)).x
+		top += 14.0 * k + spaced.get_string_size(_how(view), HORIZONTAL_ALIGNMENT_LEFT, -1, int(11 * k)).x
 	block = minf(maxf(maxf(maxf(block, chips), top), 240.0 * k), r.size.x - pad * 2.0)
 	var plate_h := (34.0 + 30.0 + 28.0 + (24.0 if not tags.is_empty() else 0.0)) * k + 12.0
 	ci.draw_rect(Rect2(x - 14.0 * k, y - 18.0 * k, block + 28.0 * k, plate_h), Color(0.02, 0.03, 0.05, 0.5))
@@ -48,7 +48,7 @@ static func draw(ci: CanvasItem, r: Rect2, view: KillcamView, title: String, foo
 	ci.draw_circle(Vector2(x + 6.0 * k, y), 6.0 * k, Color(HudStyle.RED, 1.0 if blink else 0.35))
 	var w := HudStyle.label(ci, Vector2(x + 20.0 * k, y), title, int(14 * k), HudStyle.RED)
 	if not small:
-		HudStyle.label(ci, Vector2(x + 34.0 * k + w, y), "THROUGH THEIR EYES", int(11 * k), Color(1, 1, 1, 0.6))
+		HudStyle.label(ci, Vector2(x + 34.0 * k + w, y), _how(view), int(11 * k), Color(1, 1, 1, 0.6))
 	y += 34.0 * k
 	HudStyle.text(ci, Vector2(x, y), killer_name, int(32 * k), color.lightened(0.3))
 	y += 30.0 * k
@@ -82,7 +82,12 @@ static func draw(ci: CanvasItem, r: Rect2, view: KillcamView, title: String, foo
 		HudStyle.text(ci, Vector2(c.x - total * 0.5, c.y + 90.0 * k), "ELIMINATED", int(24 * k), Color(HudStyle.RED, a))
 		HudStyle.text(ci, Vector2(c.x - total * 0.5 + w1, c.y + 90.0 * k), victim_name, int(24 * k), Color(1, 1, 1, a))
 	# A plain crosshair dot where the killer was aiming.
-	if view.time < clip.kill_time + 0.6:
+	if view.time < clip.kill_time + 0.6 and not view.third_person:
 		var mid := r.position + r.size * 0.5
 		ci.draw_circle(mid, 2.5, Color(1, 1, 1, 0.85))
 		ci.draw_arc(mid, 9.0, 0.0, TAU, 24, Color(1, 1, 1, 0.35), 1.5)
+
+
+## How the killcam is watched: through the killer's eyes, or from behind them (a blow).
+static func _how(view: KillcamView) -> String:
+	return "THIRD PERSON" if view.third_person else "THROUGH THEIR EYES"

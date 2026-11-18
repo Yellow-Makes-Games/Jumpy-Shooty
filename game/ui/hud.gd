@@ -148,6 +148,11 @@ func _ready() -> void:
 	Match.kill_scored.connect(_on_kill_scored)
 
 
+## 0..1: how much of the HUD shows (the end of a match fades it out, see MatchEndFade).
+func set_fade(alpha: float) -> void:
+	_root.modulate.a = alpha
+
+
 func _full_rect(c: Control) -> Control:
 	c.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE

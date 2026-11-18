@@ -65,13 +65,14 @@ def check(name, log):
         bad(f"{name}: nobody got the Golden Gun"); return None
     log = first_match(log)
     me = int(me.group(1))
-    local = lambda pid: pid == me or (pid >= 9001 and name != "Online client")   # (bots run on the host)
-    # Walk the match in order. The host hands the gun over (GOLDEN) just before the
-    # death goes out (KILL_SCORE), and the reload comes with the hand-over too.
+    local = lambda pid: pid == me or (9001 <= pid < 9100 and name != "Online client")   # (bots run on the host)
+    # Walk the match in order. When the holder is killed, the host hands the gun over
+    # (GOLDEN) just before the death goes out, so that kill is the very next line; a
+    # hand-over with no kill after it was a death with nobody to credit.
     events = re.findall(r"^(GOLDEN|GOLDEN_RELOAD|KILL_SCORE) (\d+) (\d+)(?: (\d+))?", log, re.M)
     holder, reloads, kills_with, passes, starts = 0, 0, 0, [], 0
-    last_pass = None   # (from, to): waiting for the kill of `from` that caused it
-    for kind, a, b, c in events:
+    cause = None   # the hand-over just before this event, if the event is its kill
+    for i, (kind, a, b, c) in enumerate(events):
         if kind == "GOLDEN":
             to, frm = int(b), int(c)
             if frm == 0:
@@ -82,16 +83,18 @@ def check(name, log):
                 bad(f"{name}: it went from {frm}, but {holder} had it")
             else:
                 passes.append((frm, to))
-                last_pass = (frm, to)
+                nxt = events[i + 1] if i + 1 < len(events) else None
+                if nxt and nxt[0] == "KILL_SCORE" and int(nxt[3]) == frm:
+                    cause = (frm, to)
             holder = to
         elif kind == "GOLDEN_RELOAD":
             reloads += 1
         else:   # KILL_SCORE seq killer victim
             killer, victim = int(b), int(c)
-            if last_pass and victim == last_pass[0]:
-                if killer != last_pass[1]:
-                    bad(f"{name}: {killer} killed the holder {victim}, but the Golden Gun went to {last_pass[1]}")
-                last_pass = None
+            if cause:
+                if killer != cause[1]:
+                    bad(f"{name}: {killer} killed the holder {victim}, but the Golden Gun went to {cause[1]}")
+                cause = None
             elif victim == holder and killer != victim:
                 bad(f"{name}: {killer} killed the holder {victim} and did not get the Golden Gun")
             elif killer == holder and local(killer):
