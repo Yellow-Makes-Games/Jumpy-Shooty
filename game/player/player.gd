@@ -184,6 +184,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
 		add_child(_trail)
 	Match.melee_landed.connect(_on_melee_landed)
+	Match.ground_slammed.connect(_on_ground_slammed)
 
 
 # ---------------------------------------------------------------------------
@@ -232,18 +233,21 @@ func _physics_process(delta: float) -> void:
 			var boosts := motor.boosts
 			if jetpack:
 				var jet_was_on := jetpack.on
-				velocity = jetpack.step(velocity, mobility_held and not racing, is_on_floor(), motor._wish_dir(input), delta)
+				# (a ground slam is committed: the jetpack does not fire on the way down)
+				velocity = jetpack.step(velocity, mobility_held and not racing and motor.state != MovementController.State.SLAM, is_on_floor(), motor._wish_dir(input), delta)
 				if jetpack.on and is_on_floor():
 					motor.warped = true   # lift off: no floor snap or ground friction this step
 				if jetpack.on and not jet_was_on and DevArgs.sync_log:
 					print("JETPACK %d" % peer_id)
+			motor.hang = _charge >= 0.0 and not (jetpack and jetpack.on)   # winding a melee swing up slows a fall (the jetpack takes over from it)
 			motor.step(self, input, delta)
+			_watch_ground_slam()
 			if hooking and not motor.grapple.attached:
 				sounds.grapple_missed()   # nothing in range to hook
 			if motor.boosts != boosts and DevArgs.sync_log:
 				print("BOOST %d" % peer_id)
 			_check_slam(delta)
-			_update_mobility(delta, mobility_pressed)
+			_update_mobility(delta, mobility_pressed and motor.state != MovementController.State.SLAM)   # (no blinking out of a slam)
 		_report_tether()
 		if Cheats.cooldowns_off() and not is_bot:
 			motor.clear_cooldowns()
@@ -537,6 +541,7 @@ func _fire_round() -> void:
 ## back for the weapon's `windup` first. The host decides what it hit.
 func _update_melee(delta: float) -> void:
 	var data := weapon.data
+	_slam_cool = maxf(_slam_cool - delta, 0.0)
 	if _strike_left >= 0.0:
 		_strike_left -= delta
 		if _strike_left < 0.0:
@@ -549,7 +554,10 @@ func _update_melee(delta: float) -> void:
 		if not Match.running:
 			_charge = -1.0
 		elif not input.fire and _charge >= data.windup:
-			_swing()
+			if input.crouch and can_ground_slam():
+				_ground_slam()   # let go in mid-air with crouch held
+			else:
+				_swing()
 		return
 	var wants := input.fire or _fire_buffer > 0.0
 	if not wants or not Match.running or _strike_left >= 0.0 or not weapon.can_fire():
@@ -584,6 +592,69 @@ func _swing() -> void:
 		motor.knock(ahead * minf(lunge, 14.0 - along))
 	if DevArgs.sync_log:
 		print("ANIM SWING %d %.2f" % [peer_id, _swing_power])
+
+
+# Ground slam (see GroundSlam): let go of a swing wound up in mid-air with crouch held.
+
+## A ground slam could start right now: a melee weapon, in the air with room to fall,
+## not done already this time in the air, and off its cooldown.
+func can_ground_slam() -> bool:
+	return alive and not racing and weapon != null and weapon.data.is_melee() and _slam_cool <= 0.0 \
+		and _fly_kick <= 0.0 and not motor.grapple.hooked_player() and motor.can_slam(self)
+
+
+func _ground_slam() -> void:
+	weapon.fire()
+	_slam_power = weapon.data.charge_of(_charge)
+	_charge = -1.0
+	_slam_cool = GroundSlam.COOLDOWN
+	_slamming = true
+	motor.start_slam(self)
+	if DevArgs.sync_log:
+		print("ANIM GROUND_SLAM %d %.2f" % [peer_id, _slam_power])
+
+
+## Your slam, each step: once it touches down the host is told (it decides who it hit).
+func _watch_ground_slam() -> void:
+	if not _slamming:
+		return
+	var fell := motor.take_slam_landing()
+	if fell >= 0.0:
+		_slamming = false
+		var view_times := {}
+		for p in get_parent().get_children():
+			if p != self and p is Player and p.last_render_time >= 0.0:
+				view_times[p.peer_id] = p.last_render_time
+		Match.request_ground_slam(global_position, view_times, _slam_power, fell, peer_id)
+	elif motor.state != MovementController.State.SLAM:
+		_slamming = false   # it found no floor in time
+
+
+## 0..1: the ground slam's cooldown (1 = ready). The HUD shows it with the moves.
+func ground_slam_readiness() -> float:
+	return 1.0 - _slam_cool / GroundSlam.COOLDOWN
+
+
+func ground_slamming() -> bool:
+	return _slamming
+
+
+## A ground slam landed somewhere. Its own player's copy draws it (once); yours shakes
+## if it was near, and dips hard if it was yours.
+func _on_ground_slammed(attacker: int, _weapon_id: String, at: Vector3, power: float, points: PackedVector3Array) -> void:
+	if attacker == peer_id:
+		_shown_power = maxf(power, MeleeSwing.HEAVY_AT)
+		var color := RobotModel.trim_color(Net.player_color(peer_id))
+		MeleeFx.slam(get_parent().get_parent(), at, color, power)
+		for i in mini(points.size(), 4):
+			MeleeFx.hit(get_parent().get_parent(), points[i], at + Vector3(0, 0.4, 0), color, power)
+	if rig:
+		if attacker == peer_id:
+			_punch += Vector2(randf_range(-0.01, 0.01), -lerpf(0.09, 0.2, power))
+			_punch_roll += randf_range(-0.03, 0.03)
+			rig.kick(lerpf(0.5, 1.0, power))
+		else:
+			shake(clampf(1.0 - global_position.distance_to(at) / 14.0, 0.0, 1.0) * lerpf(0.6, 1.6, power))
 
 
 ## How wound up your swing is right now, 0..1 (0 when not winding up).
@@ -1135,6 +1206,8 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	_seen_wind = -1.0
 	_kick_strike = -1.0
 	_kick_cool = 0.0
+	_slamming = false
+	_slam_cool = 0.0
 	_fly_kick = 0.0
 	_tug_by = 0
 	portal_skip = null

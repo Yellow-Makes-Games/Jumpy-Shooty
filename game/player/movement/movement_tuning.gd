@@ -122,6 +122,16 @@ const BODY_RADIUS := 0.4
 @export var glide_fall_speed := 2.0       ## you sink this fast by the end of the budget; hardly at all at the start
 @export var glide_min_height := 0.5       ## no glide this close above the floor (Shift there is just sprint)
 
+@export_group("Melee in the air")
+@export var hang_time := 0.6              ## winding a melee swing up in mid-air slows your fall: seconds of that per time in the air
+@export var hang_fall_speed := 1.5        ## ...down to sinking this fast (m/s)
+@export var hang_brake := 60.0            ## ...how hard a fall is braked to that (m/s2)
+@export var hang_gravity := 0.25          ## ...and how much of gravity still pulls on you while you rise
+@export var slam_speed := 34.0            ## a ground slam drives you straight down this fast (m/s)
+@export var slam_accel := 220.0           ## ...reaching it this quickly (m/s2)
+@export var slam_min_height := 2.0        ## no slam this close above the floor
+@export var slam_timeout := 3.0           ## a slam that has found no floor after this long is let go
+
 @export_group("Flip")
 @export var flip_burst := 4.5             ## press jump in mid-air: this much speed toward your WASD direction
 @export var flip_up := 4.5                ## and at least this much upward speed

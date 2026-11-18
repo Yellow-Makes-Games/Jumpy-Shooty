@@ -71,6 +71,7 @@ func _ready() -> void:
 	Match.player_died.connect(_on_player_died)
 	Match.player_respawned.connect(_on_player_respawned)
 	Match.melee_landed.connect(_on_melee_landed)
+	Match.ground_slammed.connect(_on_ground_slammed)
 	Match.slammed.connect(_on_slammed)
 
 

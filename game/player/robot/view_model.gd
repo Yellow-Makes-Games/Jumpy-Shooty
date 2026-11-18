@@ -80,6 +80,8 @@ var _swing := MeleeSwing.new("sword", true)
 var _swing_view := Vector2.ZERO   # the swing's chest turn and lean, felt as a turn of the whole view model
 var _hold := 1.0                  # how much the arms hold the melee weapon up
 var _rest := 1.0                  # how much the blade is in its resting lean (0 while winding up or swinging)
+var _airborne := false            # in a plain fall, flip or glide: a melee wind-up takes its mid-air form
+var _was_slam := false            # in a ground slam last frame
 var _cut := 0.0                   # in a blow: the cut is tipped up to cross the middle of the view
 
 
@@ -252,6 +254,13 @@ func update(delta: float) -> void:
 		# The same hold and swing as the body's, with the shoulders turning less so the
 		# weapon stays on screen: winding up draws it back to the right edge of the
 		# view, and the blow sweeps it across.
+		_airborne = motor.state in [S.AIR, S.FLIP, S.GLIDE]
+		var slam := motor.state == S.SLAM
+		if slam:
+			_swing.slam_fall()
+		elif _was_slam:
+			_swing.slam_land(1.0)
+		_was_slam = slam
 		var k := _swing.sample(delta)
 		var shift := MELEE_SHIFT
 		_rest = move_toward(_rest, 0.0 if _swing.active() else 1.0, delta * (12.0 if _swing.active() else 5.0))
@@ -324,6 +333,10 @@ func update(delta: float) -> void:
 		rotation.z -= _kick_side * kick * 0.02
 	if _data.is_melee():
 		rotation.y += MELEE_VIEW_YAW
+		# A mid-air wind-up spins your body: the view stays level and the arms and weapon
+		# go round it, sweeping through the view once a turn.
+		if _swing.spin() != 0.0:
+			basis = Basis(_swing.spin_axis(), _swing.spin()) * basis
 
 
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:

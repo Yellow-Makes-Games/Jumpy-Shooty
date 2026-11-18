@@ -3,7 +3,7 @@
 Status: **not started** · **rough** (exists, placeholder or partial) · **working** (done,
 tested by me) · **verified** (also checked by Austin on a real PC / with a friend).
 
-Last updated: Killcam mode (snipers only, every kill scores its killcam points, first to 10,000 or the most after 10 minutes, +1,500 for the #1 killcam); respawn on a key press (after the 3 s wait, Jump or Fire brings you back, so there is time to change your loadout); killcams. Decisions are in [DESIGN.md](DESIGN.md).
+Last updated: melee in the air (a wind-up hangs you there, every weapon has a mid-air move) and the ground slam; Killcam mode (snipers only, every kill scores its killcam points, first to 10,000 or the most after 10 minutes, +1,500 for the #1 killcam); respawn on a key press (after the 3 s wait, Jump or Fire brings you back, so there is time to change your loadout); killcams. Decisions are in [DESIGN.md](DESIGN.md).
 
 ## Menus and flow
 

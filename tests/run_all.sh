@@ -75,6 +75,8 @@ echo "== Match: 3 players, laggy network, two matches back to back, sounds (Cons
 MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
 echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword bot, sounds (Construction Site)"
 MAP=construction_site tests/run_bot_test.sh
+echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by the host"
+tests/run_slam_test.sh
 echo "== Halcyon online and with bots: a client fires the terminal, a late joiner is told, bots use it and cope"
 tests/run_gravity_test.sh
 echo "== Race mode: bots finish a race, fail conditions, results"

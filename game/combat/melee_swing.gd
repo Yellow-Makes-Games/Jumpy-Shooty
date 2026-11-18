@@ -264,7 +264,7 @@ const SIDE_LEAN := 0.16
 ## How much an elbow gives way to keep its wrist straight (0: not at all).
 const WRIST_EASE := 1.1
 
-enum { REST, WIND, SWING }
+enum { REST, WIND, SWING, SLAM }
 
 var weapon := "sword"
 var two_handed := true
@@ -290,6 +290,19 @@ var _drawn := 0.0          # how far the pose itself has drawn back, 0..1 (it la
 var _wound := false        # wind() was called since the last sample: still holding
 var _stop := 0.0           # hit-stop left: the swing is frozen
 var _clock := 0.0
+var _in_air := false       # the wind-up (or the blow) is a mid-air one
+var _air := 0.0            # how far the pose has gone over to its mid-air form, 0..1
+var _spin := 0.0           # radians the body has spun round in a mid-air wind-up
+var _diving := false       # a mid-air blow is tipping the body over in a dive
+var _leg := [0.0, 0.0, 0.0, 0.0]   # a mid-air move's own legs: right thigh, right knee, left thigh, left knee (radians)
+var _leg_w := 0.0          # ...and how much they take over, 0..1
+var _spin_base := -1.0     # how wound up the swing was when it left the ground (the spin starts from there); -1: not spinning
+var _spinning := false     # a blow is bringing the spin round
+var _spin_from := 0.0      # ...from here...
+var _spin_first := 0.0     # ...to here as it lands (the end of the turn)...
+var _spin_to := 0.0        # ...and on to here by the end of the follow-through
+var _length := 0.0         # how long the blow in flight takes
+var _landed := 0.0         # a ground slam has touched down: 1, easing to 0 as you get back up
 
 
 func _init(weapon_id: String = "sword", in_first_person: bool = false) -> void:
@@ -335,6 +348,11 @@ static func moves(weapon_id: String) -> Dictionary:
 func wind(charge: float, side: int = 0) -> void:
 	_charge = clampf(charge, 0.0, 1.0)
 	_wound = true
+	_in_air = in_air and not _air_move.is_empty()
+	if not _in_air:
+		_spin_base = -1.0
+	elif _spin_base < 0.0:
+		_spin_base = minf(_charge, SPIN_LATE)
 	if _phase == REST or (_phase == SWING and _t >= (STRIKE + FOLLOW) * _pace):
 		_phase = WIND
 		_side = side & 1

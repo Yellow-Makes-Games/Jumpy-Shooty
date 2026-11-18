@@ -58,6 +58,8 @@ extends Node
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
 ## --press=SEC:ACTION   Press an input action (e.g. toggle_camera) SEC seconds after start (repeatable).
 ## --hold=SEC:ACTION:DURATION  Hold an input action down for DURATION seconds, starting SEC seconds after start (repeatable).
+## --from-start         Count the SEC of --hold from when your player is in a running match, not from launch (so a
+##                      scripted move happens at the same moment after spawning online, however long joining took).
 ## --spawn=X,Y,Z,YAW[,PITCH]  Start the local player here (degrees), e.g. to look at the training yard.
 ## --game-clock        Count the SEC of the options below in game time instead of real time. With Godot's own
 ##                      --fixed-fps 60 (before the "--") a scripted run plays out the same however slowly it renders.
@@ -121,6 +123,8 @@ var drives_keys := false     # --hold or --press was given: the player listens e
 var _start_ticks := 0
 var _fixed_step := false     # --game-clock: count game time, so slow rendering does not shift the script
 var _game_time := 0.0
+var from_start := false     # --from-start
+var _since_start := 0.0     # seconds your player has been in a running match
 
 
 func _ready() -> void:
@@ -265,8 +269,10 @@ func _elapsed() -> float:
 
 ## Held actions change on a physics step (before the players run theirs), so the
 ## step that reads them sees the key go down.
-func _physics_process(_delta: float) -> void:
-	var elapsed := _elapsed()
+func _physics_process(delta: float) -> void:
+	if from_start and Match.running and Net.arena and Net.arena.local_player:
+		_since_start += delta
+	var elapsed := _since_start if from_start else _elapsed()
 	for hold in holds.duplicate():
 		if not hold[3] and elapsed >= hold[0]:
 			hold[3] = true

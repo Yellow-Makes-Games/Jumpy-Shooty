@@ -27,6 +27,10 @@ extends RefCounted
 ##             (flip, dive, grapple, a wall), so it works as a way to stop rising or
 ##             falling before the next move. Rocket boots do not end it: they send
 ##             the glide off the way you press instead (see _glide_boost).
+##   SLAM      a ground slam (melee): you drive straight down and nothing stops it
+##             but the floor (see start_slam; Player decides when, GroundSlam what it does)
+## Winding a melee swing up in a plain fall hangs you in the air for a moment (see
+## _hang): hang_time seconds per time in the air, refilled like the glide.
 ##
 ## Rocket boots (E): a burst of speed toward your WASD direction as seen from
 ## where you look (straight where you look if you hold no direction), so you can
@@ -41,7 +45,7 @@ const TUCK_SETTLE_SPEED := 3.0   ## metres per second
 const BELLY_SLOPE := 0.985       ## floor normal's y below this (about 10 degrees): a belly slide never slows to a crawl
 
 ## New states go on the end: the numbers travel in snapshots (Player.make_pose).
-enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE, GLIDE }
+enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE, GLIDE, SLAM }
 
 var tuning: MovementTuning
 var state: State = State.AIR
@@ -90,6 +94,13 @@ var _flip_left := 0.0
 var _glide_left := 0.0        # seconds of glide left for this time in the air
 var _glide_wanted := false    # Shift was pressed in the air and is still held
 var _glide_on := false        # a glide is under way (to notice another move taking over from it)
+var hang := false             ## set every step by the player: winding a melee swing up (the fall slows in mid-air, see _hang)
+var hanging := false          ## the fall is being slowed right now
+var _hang_left := 0.0         # seconds of that left for this time in the air
+var _slam_used := false       # a ground slam has been done this time in the air
+var _slam_time := 0.0         # seconds this slam has lasted
+var _slam_from := 0.0         # the height it started at
+var _slam_landing := -1.0     # a slam just landed, from this many metres up (taken by take_slam_landing), or -1
 
 
 func _init(t: MovementTuning = null) -> void:
@@ -112,8 +123,11 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_flip_used = false
 		_flip_left = 0.0
 		_glide_left = t.glide_time
+		_hang_left = t.hang_time
+		_slam_used = false
 	else:
 		_since_ground += delta
+	hanging = false
 	if input.jump_pressed:
 		_jump_buffer = t.jump_buffer
 	else:
@@ -128,6 +142,10 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 	if state == State.MANTLE:
 		_step_mantle(body, delta)
+		_ease_eye(delta)
+		return
+	if state == State.SLAM:
+		_step_slam(body, delta)
 		_ease_eye(delta)
 		return
 
@@ -151,6 +169,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	if grapple.attached or state == State.WALL_RUN:
 		_flip_used = false   # swinging or wall-running gives your flip back
 		_glide_left = t.glide_time  # ...and refills your glide
+		_hang_left = t.hang_time    # ...and your hang
 
 	# --- Glide: Shift held in the air, having been pressed there. Letting go,
 	# landing or catching the rope ends it. Every other move below simply takes
@@ -288,7 +307,10 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		state = State.FLIP if _flip_left > 0.0 else State.AIR
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.air_accel, delta)
 		if not grounded:
-			vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+			if hang and state == State.AIR and _hang_left > 0.0 and since_boost > 0.3 and not jumping:
+				vel = _hang(vel, delta)
+			else:
+				vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
 
 	if jumping:
 		vel.y = t.jump_velocity
@@ -424,6 +446,11 @@ func reset() -> void:
 	_glide_left = tuning.glide_time
 	_glide_wanted = false
 	_glide_on = false
+	hang = false
+	hanging = false
+	_hang_left = tuning.hang_time
+	_slam_used = false
+	_slam_landing = -1.0
 	if crouched and _shape:
 		_set_height(tuning.stand_height)
 	crouched = false
@@ -654,6 +681,79 @@ func flip_readiness() -> float:
 
 func slide_boost_readiness() -> float:
 	return clampf(_since_slide_boost / tuning.slide_boost_cooldown, 0.0, 1.0)
+
+
+## Winding a melee swing up in mid-air: the fall is braked to a slow sink, and a
+## rise loses most of gravity, for hang_time seconds per time in the air. Sideways
+## speed is kept. Any other move takes over from it (it only works in a plain fall).
+func _hang(vel: Vector3, delta: float) -> Vector3:
+	var t := tuning
+	_hang_left = maxf(_hang_left - delta, 0.0)
+	hanging = true
+	if vel.y > -t.hang_fall_speed:
+		vel.y = maxf(vel.y - t.gravity * t.hang_gravity * WorldGravity.scale * delta, -t.hang_fall_speed)
+	else:
+		vel.y = minf(vel.y + t.hang_brake * delta, -t.hang_fall_speed)
+	return vel
+
+
+## How much of this air time's hang is left, 1..0.
+func hang_readiness() -> float:
+	return clampf(_hang_left / tuning.hang_time, 0.0, 1.0)
+
+
+## A ground slam can start: in the air, not yet done this time in the air, with
+## room to fall, and not in a move that has you tied up.
+func can_slam(body: CharacterBody3D) -> bool:
+	if body.is_on_floor() or _slam_used or state in [State.SLAM, State.MANTLE, State.WALL_RUN, State.BELLY_SLIDE, State.ROLL]:
+		return false
+	return not SurfaceProbe.floor_within(body, tuning.slam_min_height)
+
+
+## Drive straight down (see _step_slam). Nothing stops it but the floor.
+func start_slam(body: CharacterBody3D) -> void:
+	if grapple.attached:
+		grapple.release()
+	if state == State.WALL_RUN:
+		_end_wall_run()
+	state = State.SLAM
+	_slam_used = true
+	_slam_time = 0.0
+	_slam_from = body.global_position.y
+	_slam_landing = -1.0
+	_glide_on = false
+	_glide_wanted = false
+	_flip_left = 0.0
+	_knock = Vector3.ZERO
+	body.velocity = Vector3(body.velocity.x * 0.25, minf(body.velocity.y, 0.0), body.velocity.z * 0.25)
+
+
+## A ground slam: straight down at slam_speed, whatever gravity is doing, with the
+## sideways speed bled away. No move, shove or key changes it; it ends on the floor
+## (take_slam_landing then says from how high), or after slam_timeout with none found.
+func _step_slam(body: CharacterBody3D, delta: float) -> void:
+	var t := tuning
+	_slam_time += delta
+	_knock = Vector3.ZERO
+	var vel := body.velocity
+	var bleed := exp(-8.0 * delta)
+	vel = Vector3(vel.x * bleed, maxf(vel.y - t.slam_accel * delta, -t.slam_speed), vel.z * bleed)
+	body.velocity = vel
+	body.move_and_slide()
+	if body.is_on_floor():
+		_slam_landing = maxf(_slam_from - body.global_position.y, 0.0)
+		state = State.GROUND
+		_since_ground = 0.0
+		body.velocity = Vector3.ZERO
+	elif _slam_time >= t.slam_timeout:
+		state = State.AIR
+
+
+## Has a ground slam just landed? Returns how far it fell (metres) once, then -1.
+func take_slam_landing() -> float:
+	var fell := _slam_landing
+	_slam_landing = -1.0
+	return fell
 
 
 ## How much of this air time's glide is left: 1 = all of it, 0 = spent until you land.

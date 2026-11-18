@@ -42,6 +42,7 @@ const VIEW_UPRIGHT_MAX := 0.6   ## radians of forward lean taken out, at most
 const VIEW_SIDE := 0.10         ## the body may shift this far sideways to stay under the eyes
 const VIEW_NECK_BELOW := 0.12   ## and its neck is kept at least this far below them
 const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right", "glide"]
+const SPIN_PIVOT := Vector3(0.0, 1.0, 0.0)   ## a mid-air melee wind-up spins the body about here (its middle)
 ## Gliding: the legs trail behind you, further back the faster you go, and the
 ## hips tip forward a little into the wind.
 const GLIDE_TRAIL := 42.0       ## degrees the legs trail back at GLIDE_TRAIL_SPEED and above
@@ -420,6 +421,14 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	if _melee:
 		if not inp.alive:
 			_swing.stop()
+		# A ground slam: the weapon overhead on the way down, driven into the floor on landing.
+		_airborne = inp.state in [S.AIR, S.FLIP, S.GLIDE]
+		var slam := inp.state == S.SLAM and inp.alive
+		if slam:
+			_swing.slam_fall()
+		elif _was_slam and inp.alive:
+			_swing.slam_land(1.0)
+		_was_slam = slam
 		_swing_key = _swing.sample(delta)
 		var busy := _swing.active() and inp.alive
 		_hold = move_toward(_hold, 1.0 if busy or (want[0] > 0.0 and inp.alive and _respawn_t < 0.0) else 0.0, delta * 9.0)

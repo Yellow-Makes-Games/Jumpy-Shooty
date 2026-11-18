@@ -125,6 +125,9 @@ Networked and bot runs (real time):
 - bots (`tests/run_bot_test.sh`): a bot of every difficulty finds you and shoots, Expert
   beats Easy on accuracy, the hard bots use the movement set, Rematch works, a
   5-player free-for-all against 4 bots, a sword bot, and your and the bots' sounds;
+- ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
+  the target dummy, and online a client's slam is ruled on by the host, hits the host's
+  player and is heard by both;
 - Halcyon online and with bots (`tests/run_gravity_test.sh`): a client fires the
   terminal on the host, a client across the room cannot, a late joiner is told how far
   along the event is, and bots use the terminal and keep moving in low gravity;

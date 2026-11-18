@@ -118,6 +118,7 @@ func _init() -> void:
 	s.start_reload()
 	_check(not s.is_reloading(), "sword: nothing to reload")
 	_melee_animation()
+	_melee_in_the_air()
 
 	print("WEAPON TEST PASSED" if _ok else "WEAPON TEST FAILED")
 	quit(0 if _ok else 1)
@@ -215,6 +216,98 @@ func _melee_animation() -> void:
 
 ## Poses a skeleton to hold the weapon as key `k` says, and measures how far the left
 ## palm is from where it should be on the handle (0 for a one-handed weapon).
+## Melee off the ground: a weapon's own mid-air wind-up and blow, the ground slam's
+## pose, and how hard a slam hits (GroundSlam).
+func _melee_in_the_air() -> void:
+	var rig := RobotRig.open(Characters.body(Characters.default_id()))
+	var dt := 1.0 / 60.0
+	for id in WeaponData.MELEE:
+		var w := WeaponData.by_id(id)
+		var moves := MeleeSwing.moves(id)
+		for first_person in [false, true]:
+			var what := "%s%s" % [id, " (first person)" if first_person else ""]
+			var ready: Array = MeleeSwing.new(id, first_person).sample(0.0)
+			if moves.has("air"):
+				var anim := MeleeSwing.new(id, first_person)
+				var worst := 0.0
+				var held := 0.0
+				var turned := 0.0
+				while held < w.charge_time + 0.3:
+					held += dt
+					anim.wind(w.charge_of(held), 0, true)
+					var before := anim.spin()
+					worst = maxf(worst, _left_hand_gap(rig, anim.sample(dt), anim.two_handed))
+					turned += absf(angle_difference(before, anim.spin()))
+				_check(anim.air() > 0.95 and anim.winding(), "%s: wound up off the ground, it takes its mid-air form" % what)
+				var turns: float = moves.air.get("turns", 0.0)
+				if turns != 0.0:
+					_check(turned > TAU * absf(turns) * 0.6 and turned < TAU * absf(turns) * 0.97,
+						"%s: and it turns most of the way round as it winds up (%.2f turns)" % [what, turned / TAU])
+				var has_legs: bool = not (moves.air.get("legs", []) as Array).is_empty()
+				var knee_up: bool = has_legs and not anim.legs().is_empty() and float(anim.legs()[0]) > 0.8 and float(anim.legs()[4]) > 0.9
+				var kicked_back := false
+				anim.swing(1.0, 0, true)
+				var cut := false
+				var t := 0.0
+				var last := []
+				while t < anim.length() + 0.8:
+					t += dt
+					cut = cut or anim.cutting()
+					kicked_back = kicked_back or (not anim.legs().is_empty() and float(anim.legs()[0]) < -0.5 and float(anim.legs()[4]) > 0.9)
+					var was := anim.spin()
+					last = anim.sample(dt)
+					turned += absf(angle_difference(was, anim.spin()))
+					worst = maxf(worst, _left_hand_gap(rig, last, anim.two_handed))
+				if turns != 0.0:
+					_check(absf(turned - TAU * absf(turns)) < 0.15, "%s: the blow lands as the spin comes right round (%.2f turns in all)" % [what, turned / TAU])
+				_check(cut and not anim.active() and is_zero_approx(anim.spin()) and is_zero_approx(anim.air()) \
+					and (last[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.02,
+					"%s: the mid-air blow cuts, and ends back at ready with the spin played out" % what)
+				_check(worst < 0.05, "%s: both hands stay on it in mid-air (%.3f m)" % [what, worst])
+				if has_legs:
+					_check(knee_up and kicked_back and anim.legs().is_empty(), "%s: the knee comes up with the wind-up, the leg kicks back with the blow, then the legs are let go" % what)
+			# The ground slam: weapon overhead on the way down, driven into the floor, then back to ready.
+			var slam := MeleeSwing.new(id, first_person)
+			var gap := 0.0
+			slam.wind(1.0, 0, true)
+			slam.sample(dt)
+			var high := -9.0
+			for i in 20:
+				slam.slam_fall()
+				var k: Array = slam.sample(dt)
+				gap = maxf(gap, _left_hand_gap(rig, k, slam.two_handed))
+				high = (k[MeleeSwing.GRIP] as Vector3).y
+			_check(slam.slamming() and slam.glow() > 2.0, "%s: a ground slam holds its pose all the way down" % what)
+			slam.slam_land(1.0)
+			var low := 9.0
+			var hit := 0.0
+			var t2 := 0.0
+			var end := []
+			while t2 < 2.0:
+				t2 += dt
+				end = slam.sample(dt)
+				gap = maxf(gap, _left_hand_gap(rig, end, slam.two_handed))
+				low = minf(low, (end[MeleeSwing.GRIP] as Vector3).y)
+				hit = maxf(hit, slam.landed())
+			_check(high - low > 0.3 and hit > 0.9, "%s: it is driven down into the floor on landing (%.2f m)" % [what, high - low])
+			_check(not slam.active() and (end[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.02, "%s: and it gets back up to ready" % what)
+			_check(gap < 0.05, "%s: both hands stay on it through the slam (%.3f m)" % [what, gap])
+	var sword := WeaponData.by_id("sword")
+	var hammer := WeaponData.by_id("hammer")
+	_check(is_equal_approx(GroundSlam.share(0.5), 1.0) and is_equal_approx(GroundSlam.share(GroundSlam.RADIUS), GroundSlam.EDGE) \
+		and GroundSlam.share(GroundSlam.RADIUS + 0.1) == 0.0 and GroundSlam.share(2.0) > GroundSlam.share(3.0),
+		"ground slam: the whole blow right under you, less toward the rim, nothing past it")
+	_check(GroundSlam.damage(sword, 1.0, 0.0) > GroundSlam.damage(sword, 0.2, 0.0) and GroundSlam.damage(sword, 1.0, 10.0) > GroundSlam.damage(sword, 1.0, 2.0),
+		"ground slam: stronger wound up, and stronger for a long fall")
+	_check(GroundSlam.damage(sword, 0.0, 2.0) > 0.0, "ground slam: even a weak one lands")
+	_check(GroundSlam.damage(hammer, 1.0, 5.0) / hammer.melee_damage(1.0) > GroundSlam.damage(sword, 1.0, 5.0) / sword.melee_damage(1.0),
+		"ground slam: the hammer's is stronger")
+	var up: Array = GroundSlam.shove(sword, 1.0, 5.0, 1.0)
+	_check(float(up[1]) > 0.0 and float(up[0]) > float(GroundSlam.shove(sword, 1.0, 5.0, 0.3)[0]), "ground slam: it throws people up and away, harder close in")
+	_check(GroundSlam.breaks_floor(sword, 1.0) and not GroundSlam.breaks_floor(sword, 0.6) and GroundSlam.breaks_floor(hammer, 0.6),
+		"ground slam: fully wound up it breaks the floor, and the hammer needs less")
+
+
 func _left_hand_gap(rig: RobotRig, k: Array, two_handed: bool) -> float:
 	if not two_handed or (k.size() > MeleeSwing.HANDS and k[MeleeSwing.HANDS] < 0.999):
 		return 0.0   # (one-handed, or the left hand is off the weapon just now)
