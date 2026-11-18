@@ -86,6 +86,9 @@ Quick checks:
 - Halcyon (`tests/halcyon_test.gd`): spawn points, pickups, the terminal on its dais,
   bot navigation through every room and level, the hull stays sealed, the reactor pit
   kills;
+- Cirrus (`tests/cirrus_test.gd`, with `--fixed-fps 60`): spawn points and pickups in
+  both layouts, the bell's rules, what crosses which gap, the move itself (riders are
+  carried, nobody ends up inside anything), the glass, bot routes in both layouts;
 - the map terminal (`tests/terminal_test.gd`): a 2 s hold in range fires its event,
   what cancels a hold, no use during the event or cooldown, one player at a time;
 - low gravity (`tests/gravity_test.gd`): the multiplier's schedule, jump heights,
@@ -238,7 +241,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
-| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -266,8 +269,8 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 | `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (default 10,000) |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
-| `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`...) |
-| `--map-event=SEC` | Start the map's events (Halcyon's low gravity) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
+| `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`...) |
+| `--map-event=SEC` | Start the map's events (Halcyon's low gravity, Cirrus's move to its other layout) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
 | `--eager-terminal` | Bots go for a map terminal whenever one is ready and they have nobody to fight (normally they only try now and then) |
 | `--autopilot` | Your own racer runs the course the way a bot does (race tests and screenshots) |
 | `--bot-level=LEVEL` | With `--autopilot`: at this bot difficulty (default 3, Expert) |
@@ -276,7 +279,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 
 Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`,
 `game/maps/office.tscn`, `game/maps/kilnworks.tscn`, `game/maps/rail_yard.tscn`,
-`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn`, `game/maps/halcyon.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn`, `game/maps/halcyon.tscn`, `game/maps/cirrus.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
 
 The Castle is a good small example of a map with several height levels: a curtain
 wall with a battlement walk at 6 m, four round corner towers at 12 m reached by
@@ -317,6 +320,10 @@ the scene as it is.
 - **MapTerminal**, **GravityEvent** and **MapSpinner** nodes (Halcyon): a console players
   press Interact at, the event it sets off, and scenery that turns. See "Terminals and
   map events" below.
+- **MapIsland**, **MapSpan**, **LayoutEvent** and **MapJumpLink** nodes (Cirrus): a group
+  of blocks with two places to be, a walkway that extends and retracts, the event that
+  flips the map between its two layouts, and a crossing bots are told how to make. See
+  "Maps with two layouts" below.
 - **Label3D** nodes: signs and painted floor numbers.
 - **Environment** (sky, ambient light) and **Sun**: ordinary Godot nodes, so the editor
   shows the map lit the way the game does.
@@ -422,7 +429,8 @@ Shots are corners (`sw`, `ne`, ...), `top` (a plan), `cutY` (a plan with everyth
 height Y sliced off, to see one floor) or a camera `x,y,z:look-x,y,z:fov`. The map can
 also be a scene path (`res://game/maps/my_map.tscn`). A plan shows 92 m from top to
 bottom; `--span=150` fits a map the size of Halcyon (`--shots="cut5.9;cut-0.6"` are its
-main and lower decks).
+main and lower decks). `--layout=1` shows a map with two layouts in its second one
+(`--layout=0.5` half way through the move); the pictures' names then end in `_layoutN`.
 
 ### Rail Yard, Lost Temple and Neon Arcade
 
@@ -500,6 +508,61 @@ Things to keep true when editing it:
   room has its own accent kind: `accent_cyan` and so on). There are no light nodes, so
   it looks the same on every renderer. The sky is `game/maps/sky/halcyon_sky.gdshader`.
 
+### Cirrus
+
+`game/maps/cirrus.tscn` is a university campus on floating islands, open to the sky, for
+up to 16 players: the quad in the middle (a round lawn 22 m across, with the clock tower
+on it, 13 flights of stairs up to the bell at 24 m), five building islands round it
+(Observatory, Labs, Lecture Hall, Cafeteria, Library, each with its own colour), five
+stepping stones between them, and nothing underneath: the Kill Height is -40 m. It is
+about 86 m across in its first layout.
+
+It has **two layouts**, and a player flips between them by pressing Interact at the bell:
+
+- **Hub** (how the scene is laid out, and how every match starts): a skyway from each
+  island to the quad. Neighbouring islands are 16 m apart with a stepping stone off to
+  one side: a jump, a dive or a flip falls short, rocket boots and the grapple cross.
+- **Ring**: every island swings 36 degrees round the quad, moves 5 m in and sinks 15 m.
+  The skyways draw in, and a bridge runs out from each island to the next, so the five
+  make a loop. The quad is left standing 15 m above them with nothing leading to it:
+  the grapple reaches it (a banner mast with a grapple point stands over each island),
+  rocket boots from a deck or a bridge do not.
+
+The move takes 4 s, the bell then stays locked for 60 s, and nothing brings a layout
+back but ringing again. The second layout has its own look (sunset, windows and lamps
+lit). How it works is under "Maps with two layouts" below.
+
+It was laid out by `python3 tools/arena/build_arena_maps.py cirrus` (the layout is
+`tools/arena/cirrus.py`; one island function, five building functions). Like the other
+generated arenas the scene is what you edit from here on, and running the script again
+**overwrites hand edits**. After moving things, `godot --headless --path . --fixed-fps 60
+--script tests/cirrus_test.gd` checks both layouts.
+
+Things to keep true when editing it:
+
+- Everything on a building island goes inside that island's MapIsland node (blocks,
+  spawn points, pickups, signs, its bridge), or it is left behind when the island moves.
+- Spawn points are on the building islands only: none on the quad, the tower, a
+  skyway, a bridge or a stone.
+- The quad must stay out of rocket boots' reach from the Ring's decks and bridges
+  (boots climb about 10.5 m, 12.8 m with a ledge grab): that is why the islands sink
+  15 m. From an upper floor or a roof the boots do get there; that is left in as a
+  route that has to be earned. The Cirrus test tries 252 boot jumps and a grapple
+  from every island.
+- Stairs the bots must use: 2 m wide, no steeper than 31 degrees (4 m up in 6.7 m),
+  steps of 0.25 m or less, 2 m of clear floor before the foot and beyond the head,
+  nothing narrower than 2 m on the way, and the hole in the floor above starting only
+  where the stair still has 2.4 m of headroom. A stair that breaks one of these is
+  walkable for a person and missing from the navigation mesh.
+- The clock tower's stair winds up over itself, so the MapRoot has **Winding Floors**
+  ticked: the navigation mesh is then cut up a way that keeps such a stair (leave it
+  off on other maps: the usual way makes tidier paths in the open).
+- Only the Labs' glass (`glass_lab`) breaks. Its panes ride the island like the walls.
+- Railings (`rail`) are drawn as two bars and posts with an invisible solid panel
+  behind them (`CirrusMap.rail_box`), so they stop a player and hide nothing.
+- The sky, the cloud sea and the ringed planet are `game/maps/sky/cirrus_sky.gdshader`;
+  the LayoutEvent turns its `sunset` and `swirl` up and down.
+
 ### Terminals and map events
 
 A **MapTerminal** is a console players use by pressing **Interact** (`interact` in
@@ -510,6 +573,13 @@ in the Control Room. The rules, which the host decides:
 - it cannot be used while its event is running or cooling down, and a press made then
   does not count later: it takes a new press once it is ready.
 
+Cirrus's bell is a terminal too, with no console: its **Plate** and **Hum** are off (the
+bell is the thing to look at, and the LayoutEvent has its own sounds), its **Light
+Color** is gold, and its **Bot Commit** is 22 m: a bot that has decided to go for it and
+is within that distance (measured flat, so the whole tower counts) keeps going instead
+of dropping the idea at the first enemy it sees. Leave Bot Commit at 0 for a terminal
+that is easy to reach.
+
 A terminal can ask for a hold instead: give its **Channel Time** some seconds (it is 0
 by default). Then Interact must be held that long; letting go cancels, and so does
 leaving the range (walking off, or being knocked out of it) or dying, while taking
@@ -519,7 +589,8 @@ Nothing about it is on the HUD. A ring of light over the console pulses gently w
 is ready, flashes full when someone sets it off (through a hold it fills round in blue,
 for everyone to see), and sits dim while it is locked; a hum winds down as it goes off.
 
-Its **Event** points at a **MapEvent** node in the same scene. The one kind so far is
+Its **Event** points at a **MapEvent** node in the same scene. There are two kinds:
+**LayoutEvent** (Cirrus; see "Maps with two layouts" below) and
 **GravityEvent** (Halcyon's `LowGravity`): gravity eases down to **Gravity Scale** (0.3)
 over **Ease Time** (2 s), stays there for **Duration** (30 s), eases back, and the
 terminal stays locked for **Cooldown** (60 s) more. While it runs every light in the map
@@ -547,14 +618,77 @@ How it works underneath:
 itself from MapBlocks round it) and point its Event at the GravityEvent; fill in Mote
 Volumes if you want motes. Nothing else needs changing: the arena, the network and the
 bots find them in the scene. A different kind of event is a script that extends
-`MapEvent` and fills in `length()` and `_update()`.
+`MapEvent` and fills in `length()` and `_update()`. An event that leaves something
+changed after it ends (a LayoutEvent's layout) keeps it in `state`, which the host
+sends along with the clock; `_on_match_started()` is where it puts things back.
 
 A **MapSpinner** is a group of MapBlocks that turns round its own y axis (tip the node
 over for another axis): Halcyon's centrifuge ring, outside the hull. It is decoration
 only: drawn, never solid, and each copy of the game turns it by its own clock. That is
-why it is not a MapMover, which is still for race maps only (a mover is solid, carries
-riders and runs off the race clock); MapHazard is race-only too, so Halcyon's pit uses
-the Kill Height and its decks are joined by fixed ramps.
+why it is not a MapMover (a mover is solid, carries riders and runs off the race clock,
+so plain movers are for race maps; in an arena the one kind of mover is a MapIsland,
+below, which runs off its LayoutEvent's clock). MapHazard is race-only too, so
+Halcyon's pit uses the Kill Height and its decks are joined by fixed ramps.
+
+### Maps with two layouts
+
+Four node kinds, all in `game/arena/`, none of them tied to Cirrus:
+
+- **MapIsland** (`map_island.gd`, a MapMover): a group with two places to be. Where it
+  sits in the scene is the first; the second is that, swung **Swing** degrees round
+  **Pivot**, pulled **Pull** metres toward the pivot and lowered **Drop** metres. In
+  the game it is one moving body, whatever is in it: blocks, spawn points, weapon and
+  power-up spots, signs, grapple points, MapSpans, jump links and breakable glass all
+  ride along.
+- **MapSpan** (`map_span.gd`): a walkway that runs out and draws back. Each Node3D
+  directly under it is one segment (MapBlocks inside), from the fixed end to the tip,
+  along the span's own +z. **Out In** says which layout it is out in (0 or 1). A
+  segment can be stood on once it is 80% out; going in, whoever is on it falls; coming
+  out, anyone in its way is lifted onto it. Blocks of its **Light Kinds** flash one
+  after another while it moves.
+- **LayoutEvent** (`layout_event.gd`, a MapEvent): each time it is started the map
+  moves to its other layout over **Move Time** (4 s) and stays there; the terminal is
+  then locked for **Cooldown** (60 s). It moves every MapIsland and MapSpan in the
+  map, and blends the look: the second layout's sun, ambient light and **Lit Kinds**
+  (windows and lamps that come on). During the move a bell tolls, the camera rumbles,
+  a fanfare plays, the **Flare Kinds** (engines) burn bright, the clouds swirl and
+  scraps of paper blow through the **Scraps** box; the **Ready Kinds** (the bell) pulse
+  while it can be started and sit dim while it cannot. Nothing is on the HUD.
+- **MapJumpLink** (`map_jump_link.gd`): tells bots how to cross where the navigation
+  mesh has no way. Put it on the floor where the crossing starts; **How** is Grapple
+  (hook the node named in **Hook** and ride the rope) or Leap (run off toward
+  **Landing**); **Layout** is the layout it is for (-1 = always). Bots use one only
+  when walking will not get them where they are going.
+
+How it works underneath:
+
+- The host owns the LayoutEvent: it flips `state` (the layout the map is in, or on its
+  way to) and keeps the clock. Every copy places the islands and spans from those two
+  numbers, so they are in the same place for everyone, also for someone who joins
+  mid-move or long after it (`Net._map_state_request` sends an event that is running
+  or has a `state`). A new match starts in the first layout.
+- `MapRoot.update_movers()` moves each island's body in the physics step, and its node
+  with it, so everything inside rides. Each copy of the game moves its own player, so
+  riders are carried by the engine's moving-platform handling; the player's view turns
+  with the island. Other players are drawn a little in the past, so their positions
+  are carried through `MapRoot.carried()` to where the island is now. Pickups follow
+  through `move_to()`. A grapple hook stays on the body it hit (`Grapple.carrier`) and
+  lets go if that body stops being solid (a span drawing in).
+- Breakable pieces inside an island are built as children of its body
+  (`MapDestruction.add_riding`), so they break as usual wherever the island is.
+- The bots' navigation mesh is baked once per layout: again when a move settles (well
+  under a second), kept per layout, and thrown away when something breaks. While the
+  map moves or the new mesh is not ready (`MapRoot.shifting`, `nav_pending`), bots
+  stand where they are and keep fighting. On a map with drops they also check for
+  floor ahead before a dash, a hop or a dodge.
+
+**To give another map two layouts:** put each part that moves in a MapIsland and set its
+Swing, Pull and Drop (the `--layout=1` preview shows where it ends up); add MapSpans
+for walkways that are there in only one layout; add a LayoutEvent and set the second
+layout's look; add a MapTerminal and point its Event at the LayoutEvent; add a
+MapJumpLink wherever a layout leaves bots no way to walk. Then check, as the Cirrus
+test does, that nobody is left inside geometry after a move in either direction and
+that every spawn point is clear in both layouts.
 
 ### Race maps
 
@@ -739,6 +873,9 @@ python3 tools/audio/make_sfx.py            # every sound (a few seconds)
 python3 tools/audio/make_sfx.py fire_      # only the ones whose names start with fire_
 godot --headless --path . --import
 ```
+
+Cirrus's move has four sounds of its own (`bell_toll`, `campus_fanfare`, `island_move`,
+`bridge_lock`), played by its LayoutEvent.
 
 Two of the sounds loop (`terminal_hum` and `gravity_pad`, for Halcyon's terminal and low
 gravity): every frequency in them fits a whole number of times into the file, so the end
