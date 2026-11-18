@@ -15,6 +15,9 @@ its kind.
   skin_*    takes the skin tone; counts as the head's shell
   flesh_*   takes the skin tone, left out of the measuring (ears, noses)
   hair_*    as built; counts as the head's shell
+  trim_*    takes the second colour (jeans, a belly, a beak: see ROLES)
+  mark_*    takes the detail colour (spots, stripes, horns); so does hair_*
+  hair_*    counts as the head's shell
   eye_*     as built; where glasses go
   accent, visor   the player's colour, as on the robots
 Anything else is as built.
@@ -1129,6 +1132,50 @@ def banana():
     return m
 
 
+## Which of a creature's materials take the creator's second colour ("trim") and its
+## detail colour ("mark"): {creature: {material: role}}. The pieces are modelled under
+## their plain names above (several creatures share "belly", "white", "leather", and
+## it is not the same part on each); the kit is written with the role in front
+## ("trim_denim"), which is what the game goes by. A role ending in "!" leaves the
+## head's pieces of that material alone (a banana's black limbs, not its pupils).
+ROLES = {
+    "human": {"denim": "trim"},
+    "goblin": {"leather": "trim"},
+    "frog": {"belly": "trim", "spot": "mark"},
+    "cat": {"white": "trim", "stripe": "mark"},
+    "rex": {"belly": "trim", "horn": "mark"},
+    "yeti": {"horn": "mark"},
+    "duck": {"beak": "trim"},
+    "jack": {"burlap": "trim", "straw": "mark"},
+    "astronaut": {"detail": "trim"},
+    "imp": {"leather": "trim", "horn": "mark"},
+    "snowman": {"black": "trim"},
+    "shark": {"white": "trim"},
+    "ninja": {"dark": "trim"},
+    "zombie": {"burlap": "trim"},
+    "wizard": {"leather": "trim", "rope": "trim"},
+    "bear": {"belly": "trim"},
+    "mushroom": {"belly": "trim", "white": "mark"},
+    "banana": {"black": "trim!"},
+}
+for _roles in ROLES.values():
+    for _name, _role in _roles.items():
+        MATERIALS["%s_%s" % (_role.rstrip("!"), _name)] = MATERIALS[_name]
+
+
+def _with_roles(name, build):
+    def made():
+        mesh = build()
+        roles = ROLES.get(name, {})
+        for t in mesh.tris:
+            role = roles.get(t.material)
+            if role and not (role.endswith("!") and t.bone == "head"):
+                t.material = "%s_%s" % (role.rstrip("!"), t.material)
+        return mesh
+    return made
+
+
 KITS = {"human": human, "goblin": goblin, "frog": frog, "skeleton": skeleton, "alien": alien, "cat": cat, "rex": rex, "yeti": yeti,
         "duck": duck, "jack": jack, "astronaut": astronaut, "imp": imp, "snowman": snowman, "shark": shark,
         "ninja": ninja, "zombie": zombie, "wizard": wizard, "bear": bear, "mushroom": mushroom, "banana": banana}
+KITS = {k: _with_roles(k, f) for k, f in KITS.items()}

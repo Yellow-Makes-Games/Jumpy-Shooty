@@ -218,6 +218,7 @@ func _refresh() -> void:
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
 		_character.set_color(Net.player_color(Net.my_id()))
+		_character.offer_colors(Teams.mode() == "")   # a team mode dresses you in your team's colour
 		_weapon.select(Net.player_weapon(Net.my_id()))
 		_show_weapon_card(Net.player_weapon(Net.my_id()))
 		_character.set_weapon(Net.player_weapon(Net.my_id()))
@@ -284,6 +285,11 @@ func _build_character(columns: Node) -> void:
 	_robot_panel = _floating(_character.list)
 	_character.list_requested.connect(func(): _robot_panel.open(_character._name_button))
 	_character.create_requested.connect(_open_creator)
+	# Your colour: saved as the one you like, and yours here if nobody else has it.
+	_character.color_picked.connect(func(index: int):
+		Settings.player_color = index
+		Settings.save_settings()
+		Net.set_my_color(index))
 	# Your mobility tool: a button with it on, which opens the mobility window.
 	_mobility_box = VBoxContainer.new()
 	_mobility_box.add_theme_constant_override("separation", 8)

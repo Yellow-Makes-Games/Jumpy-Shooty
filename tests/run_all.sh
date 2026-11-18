@@ -53,6 +53,7 @@ CHECKS=(
   "host_controls|--script tests/host_controls_test.gd"
   "spectator|--script tests/spectator_test.gd"
   "team_modes|--script tests/team_modes_test.gd"
+  "player_color|--script tests/player_color_test.gd"
   "respawn_visible|--script tests/respawn_visible_test.gd"
 )
 # Practice mode boots without errors on every map.

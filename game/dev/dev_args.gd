@@ -10,6 +10,7 @@ extends Node
 ## --autostart=N        Host only: start the match once N players are in the lobby.
 ## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit, templar, or a
 ##                      Character Creator id "custom:n=Name|l=frog|t=human|h=goblin|hat=top_hat") without changing the saved choice.
+## --color=N           Your colour in a free-for-all: a number in Net.PLAYER_COLORS (0 red, 1 blue, 2 green...).
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
@@ -178,6 +179,7 @@ func _ready() -> void:
 					character = value
 				else:
 					push_warning("Unknown character: %s (characters: %s)" % [value, ", ".join(Characters.ids())])
+			"--color": Settings.player_color = clampi(int(value), -1, 15)
 			"--switch-character": switch_character = true
 			"--weapon", "--bot-weapon":
 				if WeaponData.has(value):
