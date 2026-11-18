@@ -2,7 +2,8 @@ class_name MobilityPicker
 extends VBoxContainer
 ## "Mobility" chooser for the menus: a button for each tool on the mobility button
 ## (grappling hook, portal gun, blink) and a line about the one picked (or the one
-## under the mouse). Like WeaponPicker it only reports the choice.
+## under the mouse). Like WeaponPicker it only reports the choice. Only the tools the
+## host allows can be picked (set_allowed); the others are greyed out.
 
 signal picked(id: String)
 
@@ -10,9 +11,10 @@ var current := ""
 
 var _buttons := {}   # mobility id -> Button
 var _blurb: Label
+var _allowed: Array = Mobility.IDS.duplicate()
 
 
-func _init(start: String = "") -> void:
+func _init(start: String = "", allowed: Array = []) -> void:
 	add_theme_constant_override("separation", 8)
 	UiKit.section(self, "Mobility")
 	var row := HBoxContainer.new()
@@ -35,7 +37,21 @@ func _init(start: String = "") -> void:
 		_buttons[id] = b
 	_blurb = UiKit.label(self, "", true, 14)
 	_blurb.custom_minimum_size = Vector2(0, 36)
+	set_allowed(allowed)
 	select(Mobility.valid(start))
+
+
+## Which tools can be picked ([] for every one). Does not change the pick: the screen
+## passes an allowed one to select().
+func set_allowed(ids: Array) -> void:
+	_allowed = LobbySettings.mobility_from(ids)
+	for key in _buttons:
+		_buttons[key].disabled = not key in _allowed
+
+
+## The tools that can be picked.
+func allowed() -> Array:
+	return _allowed.duplicate()
 
 
 ## Show `id` as the pick without reporting it.
@@ -51,6 +67,8 @@ func _show(id: String) -> void:
 
 
 func _on_pressed(id: String) -> void:
+	if not id in _allowed:
+		return
 	Sound.play("ui_select")
 	if id == current:
 		_buttons[id].set_pressed_no_signal(true)

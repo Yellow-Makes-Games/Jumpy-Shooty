@@ -811,13 +811,14 @@ const MOBILITY_ROW := 58.0
 ## button, right mouse, goes on to the next).
 func _draw_mobility_swap(ci: CanvasItem, at: Vector2) -> void:
 	var mine := Net.pending_mobility()
-	var ids := Mobility.IDS
+	var ids := LobbySettings.allowed_mobility()   # only the tools the host allows
 	var gap := 6.0
 	var total := DEATH_W
 	var cell := Vector2((total - (ids.size() - 1) * gap) / ids.size(), 25.0)
 	var x := at.x - total * 0.5
 	HudStyle.label(ci, Vector2(x, at.y - 10.0), "MOBILITY", 11, Color(1, 1, 1, 0.85))
-	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), "%s TO SWITCH" % Settings.action_text("grapple").get_slice(" / ", 0).to_upper(), 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
+	var hint := "%s TO SWITCH" % Settings.action_text("grapple").get_slice(" / ", 0).to_upper() if ids.size() > 1 else "THE HOST'S RULE"
+	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), hint, 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	for i in ids.size():
 		var id: String = ids[i]
 		var r := Rect2(x + i * (cell.x + gap), at.y + 4.0, cell.x, cell.y)

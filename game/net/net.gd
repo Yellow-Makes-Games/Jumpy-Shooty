@@ -100,7 +100,7 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": _local_mobility}}
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	is_online = false
 	players_changed.emit()
 
@@ -116,7 +116,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": _local_mobility}}
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -322,7 +322,7 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 ## lobby allows (see LobbySettings); if not, they get one that is.
 func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "") -> void:
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
-		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": Mobility.valid(mobility)}
+		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": LobbySettings.fit_mobility(Mobility.valid(mobility))}
 	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
 
 
@@ -353,7 +353,7 @@ func confirm_my_character() -> void:
 		set_my_character(_local_character)
 	if players.has(my_id()) and player_loadout_weapon(my_id()) != LobbySettings.fit_weapon(_local_weapon):
 		set_my_weapon(_local_weapon)   # the host gives you an allowed one if this one is not
-	if players.has(my_id()) and player_loadout_mobility(my_id()) != _local_mobility:
+	if players.has(my_id()) and player_loadout_mobility(my_id()) != LobbySettings.fit_mobility(_local_mobility):
 		set_my_mobility(_local_mobility)
 
 
@@ -380,7 +380,7 @@ func pending_weapon() -> String:
 
 
 func pending_mobility() -> String:
-	return _local_mobility
+	return LobbySettings.fit_mobility(_local_mobility)
 
 
 func _on_player_died(victim: int, _killer: int) -> void:
@@ -457,11 +457,12 @@ func _choose_mobility(mobility: String) -> void:
 
 
 func _apply_mobility(id: int, mobility: String) -> void:
-	if not players.has(id) or players[id].get("mobility", "") == Mobility.valid(mobility):
+	mobility = LobbySettings.fit_mobility(Mobility.valid(mobility))   # only what the lobby allows
+	if not players.has(id) or players[id].get("mobility", "") == mobility:
 		return
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
 		return   # mid-fight you can only swap while waiting to respawn
-	players[id]["mobility"] = Mobility.valid(mobility)
+	players[id]["mobility"] = mobility
 	print("[net] %d took the %s" % [id, players[id].mobility])
 	if is_online:
 		_sync_players.rpc(players)
@@ -501,6 +502,7 @@ func _sync_settings(settings: Dictionary) -> void:
 	match_settings = LobbySettings.clean(match_settings)
 	if DevArgs.sync_log:
 		print("LOBBY_SETTINGS %d weapons=%s" % [my_id(), ",".join(LobbySettings.allowed_weapons())])
+		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility())])
 	if is_host() and not in_match:
 		host_fit_loadouts()   # weapons no longer allowed are swapped (everyone is told)
 	elif players.has(my_id()) and not in_match:
@@ -508,8 +510,8 @@ func _sync_settings(settings: Dictionary) -> void:
 	players_changed.emit()  # lobby screens refresh on this
 
 
-## Host: everyone's weapon is one the lobby allows (see LobbySettings); a player with
-## one that is not gets the first that is. Tells everyone if anything changed.
+## Host: everyone's weapon and mobility tool are ones the lobby allows (see
+## LobbySettings); a player with one that is not gets the first that is. Tells everyone if anything changed.
 func host_fit_loadouts() -> void:
 	if not is_host():
 		return
@@ -521,6 +523,11 @@ func host_fit_loadouts() -> void:
 		if players[id].get("weapon", "") != w:
 			players[id]["weapon"] = w
 			changed = true
+		var wanted_mobility := _local_mobility if id == my_id() else str(players[id].get("mobility", ""))
+		var m := LobbySettings.fit_mobility(Mobility.valid(wanted_mobility))
+		if players[id].get("mobility", "") != m:
+			players[id]["mobility"] = m
+			changed = true
 	if changed:
 		_players_updated()
 
@@ -531,6 +538,7 @@ func _log_loadouts() -> void:
 		var ids := players.keys()
 		ids.sort()
 		print("LOADOUTS %d %s" % [my_id(), " ".join(ids.map(func(i): return "%d:%s" % [i, players[i].get("weapon", "")]))])
+		print("MOBILITY_LOADOUTS %d %s" % [my_id(), " ".join(ids.map(func(i): return "%d:%s" % [i, players[i].get("mobility", "")]))])
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -570,7 +578,8 @@ const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston"]   # never the name of
 ## Adds a computer player (offline matches only for now). Returns its id.
 ## Bots take turns through the robots, starting with the one after yours, so in a
 ## 1v1 the bot never plays the robot you picked; colours always differ. Each bot
-## takes a gun at random from those the lobby allows (or `weapon`, if given and allowed).
+## takes a gun and a mobility tool at random from those the lobby allows (or `weapon`
+## and `mobility`, if given and allowed).
 func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int:
 	var id := BOT_ID_BASE
 	while players.has(id):
@@ -578,6 +587,7 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 	var index := id - BOT_ID_BASE
 	var character := player_character(my_id())
 	var guns := LobbySettings.allowed_weapons()
+	var tools := LobbySettings.allowed_mobility()
 	for i in index + 1:
 		character = Characters.next(character)
 	players[id] = {
@@ -585,7 +595,7 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
 		"character": character,
 		"weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)) if weapon != "" else guns[randi() % guns.size()],
-		"mobility": Mobility.valid(mobility) if mobility != "" else Mobility.IDS[randi() % Mobility.IDS.size()],
+		"mobility": LobbySettings.fit_mobility(Mobility.valid(mobility)) if mobility != "" else tools[randi() % tools.size()],
 	}
 	players_changed.emit()
 	return id

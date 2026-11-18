@@ -4,7 +4,8 @@
 #    and one who joins mid-match with another, are both told the setting and given an
 #    allowed weapon; every copy only ever has allowed weapons on record, the host only
 #    judges shots from allowed weapons, and weapons picked on the death screen (the
-#    number keys, --swap-on-death) are allowed ones;
+#    number keys, --swap-on-death) are allowed ones; the same for the mobility tools the
+#    host allows (--allowed-mobility): everyone is told and only has allowed tools;
 #  - Vs Bots with one gun (the bat): you and every bot have it;
 #  - no script errors anywhere.
 # (The rules and the pickers are checked step by step in tests/lobby_settings_test.gd.)
@@ -23,13 +24,13 @@ COMMON=(--scripted-input --scripted-fire --sync-log --map="$MAP")
 timeout 120 "$GODOT" --fixed-fps 60 --headless --path . -- --game-clock --bot=1 --bots=2 --allowed-weapons=bat --weapon=pistol \
   --bot-weapon=sniper --sync-log --map="$MAP" --quit-after=8 > "$OUT/lobby_bots.log" 2>&1 &
 # Online: the host saved the sniper, P2 the pistol, P3 (joins at about 14 s) the rocket launcher.
-"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=sniper --allowed-weapons=shotgun,railgun,smg \
+"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=sniper --allowed-weapons=shotgun,railgun,smg --allowed-mobility=blink,jetpack --mobility=grapple \
   --autostart=2 --rules=kills:30 --time-limit=60 --swap-on-death --quit-after=34 "${COMMON[@]}" > "$OUT/lobby_host.log" 2>&1 &
 sleep 1
-"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --weapon=pistol --swap-on-death --quit-after=32 "${COMMON[@]}" \
+"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --weapon=pistol --mobility=portal --swap-on-death --quit-after=32 "${COMMON[@]}" \
   > "$OUT/lobby_early.log" 2>&1 &
 sleep 13
-"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P3 --weapon=rocket_launcher --swap-on-death --quit-after=17 "${COMMON[@]}" \
+"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P3 --weapon=rocket_launcher --mobility=grapple --swap-on-death --quit-after=17 "${COMMON[@]}" \
   > "$OUT/lobby_late.log" 2>&1 &
 wait || true
 
@@ -68,6 +69,14 @@ for name in ["host", "early", "late"]:
     seen = loadouts(name)
     weapons = {w for l in seen for _, w in l}
     check(bool(seen) and weapons <= ALLOWED, f"{name}: only allowed weapons on record ({sorted(weapons)})")
+    told = [l for l in lines(name) if l.startswith("LOBBY_MOBILITY ")]
+    check(bool(told) and told[-1].endswith("mobility=blink,jetpack"), f"{name}: told the allowed mobility tools ({told[-1] if told else 'never'})")
+    tools = set()
+    for line in lines(name):
+        m = re.match(r"MOBILITY_LOADOUTS [0-9]+ (.*)", line)
+        if m:
+            tools |= {p.split(":")[1] for p in m.group(1).split()}
+    check(bool(tools) and tools <= {"blink", "jetpack"}, f"{name}: only allowed mobility tools on record ({sorted(tools)})")
 late = loadouts("late")
 check(any(len(l) == 3 for l in late), "the late joiner is in the list with the others")
 pellets = [l.split()[2] for l in lines("host") if l.startswith("PELLETS ")]

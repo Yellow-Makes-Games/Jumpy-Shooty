@@ -5,7 +5,8 @@ extends RefCounted
 ## They live in Net.match_settings with the others, so they reach every copy (players
 ## who join later too) the same way; the host enforces them.
 ##
-## Today there is one: which weapons are allowed in a shoot-out ("weapons").
+## Today: which weapons are allowed in a shoot-out ("weapons") and which mobility tools
+## are allowed in any fight ("mobility").
 ##
 ## To add a setting: give it a key and a default in DEFAULTS, make clean() keep only
 ## sensible values for it, put its rules here, and add a control for the host in the
@@ -14,7 +15,9 @@ extends RefCounted
 ## key -> the value when the host has not changed it.
 ## weapons: the ids (from WeaponData) a player may pick; [] means every weapon. One
 ##   id is a single gun for everyone.
-const DEFAULTS := {"weapons": []}
+## mobility: the ids (from Mobility) a player may pick; [] means every tool. One id is
+##   the same tool for everyone.
+const DEFAULTS := {"weapons": [], "mobility": []}
 
 
 ## `settings` with every lobby setting present and valid (unknown weapons dropped,
@@ -25,15 +28,21 @@ static func clean(settings: Dictionary) -> Dictionary:
 		if not s.has(key):
 			s[key] = DEFAULTS[key].duplicate() if DEFAULTS[key] is Array else DEFAULTS[key]
 	s["weapons"] = normalized_weapons(s.get("weapons", []))
+	s["mobility"] = normalized_mobility(s.get("mobility", []))
 	return s
+
+
+## A list of ids from `every` as stored: known ids only, in `every`'s order; [] for all.
+static func _normalized(ids, every: Array) -> Array:
+	if not ids is Array:
+		return []
+	var out := every.filter(func(w): return w in ids)
+	return [] if out.size() == every.size() else out
 
 
 ## A list of weapon ids as stored: known ids only, in WeaponData.IDS order; [] for all.
 static func normalized_weapons(ids) -> Array:
-	if not ids is Array:
-		return []
-	var out := WeaponData.IDS.filter(func(w): return w in ids)
-	return [] if out.size() == WeaponData.IDS.size() else out
+	return _normalized(ids, WeaponData.IDS)
 
 
 ## The weapons a stored list allows ([] allows every weapon).
@@ -115,3 +124,59 @@ static func weapons_summary(ids) -> String:
 	if allowed.size() == 1:
 		return "One gun for everyone: %s" % WeaponData.name_of(allowed[0])
 	return "%d of %d weapons" % [allowed.size(), WeaponData.IDS.size()]
+
+
+# ---------------------------------------------------------------------------
+# Allowed mobility tools. They apply to every fight (shoot-out, Gun Game, Deathmatch,
+# Killcam): a race ignores them, because it always uses the grapple.
+
+## A list of mobility ids as stored: known ids only, in Mobility.IDS order; [] for all.
+static func normalized_mobility(ids) -> Array:
+	return _normalized(ids, Mobility.IDS)
+
+
+## The mobility tools a stored list allows ([] allows every one).
+static func mobility_from(ids) -> Array:
+	var out := normalized_mobility(ids)
+	return Mobility.IDS.duplicate() if out.is_empty() else out
+
+
+## Does the allowed-mobility setting apply to the game that is set up?
+static func mobility_apply() -> bool:
+	return Net.game_kind() != "race"
+
+
+## The mobility tools a player may pick now (every one when the setting does not apply).
+static func allowed_mobility() -> Array:
+	if not mobility_apply():
+		return Mobility.IDS.duplicate()
+	return mobility_from(Net.match_settings.get("mobility", []))
+
+
+## `id` if it may be used, otherwise the first tool that may.
+static func fit_mobility(id: String) -> String:
+	var allowed := allowed_mobility()
+	return id if id in allowed else str(allowed[0])
+
+
+## The one mobility tool everyone has, or "" when there is a choice.
+static func only_mobility() -> String:
+	var allowed := allowed_mobility()
+	return str(allowed[0]) if allowed.size() == 1 else ""
+
+
+## The death screen's mobility button: the next allowed tool after `current`.
+static func next_mobility(current: String) -> String:
+	var allowed := allowed_mobility()
+	var at := allowed.find(current)
+	return str(allowed[(at + 1) % allowed.size()])
+
+
+## A line for the lobby: what the host allows.
+static func mobility_summary(ids) -> String:
+	var allowed := mobility_from(ids)
+	if allowed.size() == Mobility.IDS.size():
+		return "Any mobility tool"
+	if allowed.size() == 1:
+		return "Everyone has the %s" % Mobility.name_of(allowed[0])
+	return ", ".join(allowed.map(func(m): return Mobility.short_name(m)))
