@@ -33,6 +33,11 @@ extends RefCounted
 ##    drops the idea the moment it sees someone. Harder bots try a little more often.
 ##  - Copes with low gravity (WorldGravity): jumps carry further, so it looks further
 ##    ahead for floor before it jumps, hops, dives, flips or boosts.
+##  - Copes with a map that moves (Cirrus's islands): it stands still while the map's
+##    parts are on the move (or runs for the fixed end of a walkway that is being drawn
+##    in), and where walking will not get it somewhere it uses the map's MapJumpLinks:
+##    it grapples across, or runs off an edge to the floor below. On a map of islands
+##    over a drop it leaves the free swinging and the long bursts alone.
 ## How good it is at each of these comes from BotDifficulty.
 
 const ENGAGE_RANGE := 45.0
@@ -74,6 +79,9 @@ const TERMINAL_RANGE := 40.0     ## it only bothers with a terminal this close
 const TERMINAL_THINK := 5.0      ## seconds between thinking about going for one...
 const TERMINAL_CHANCE := [0.04, 0.06, 0.08, 0.1]   ## ...and the chance it does each time (Easy to Expert)
 const TERMINAL_GIVE_UP := 14.0   ## seconds it spends getting there before it drops the idea
+const LINK_SHORT := 3.0          ## a path that ends this far (metres) from where it is going does not get there...
+const LINK_SHORT_UP := 4.0       ## ...nor one that ends this far above or below it: time to look for a MapJumpLink
+const LINK_GIVE_UP := 6.0        ## seconds a crossing may take before it stops trying
 
 var me: Player
 var d: BotDifficulty
@@ -129,6 +137,13 @@ var _state_seen := {}
 var _terminal: MapTerminal       # the map terminal it is walking to or holding, or null
 var _terminal_think := 0.0
 var _terminal_time := 0.0
+var _link: MapJumpLink           # the crossing it is walking to or making, or null
+var _link_flying := false        # it has taken off
+var _link_time := 0.0
+var _link_hooked := false        # grapple crossing: the hook has caught
+var _link_left := false          # it has left the floor
+var _link_wait := 0.0            # seconds before it thinks of a crossing again (after one failed)
+var _open_map := -1              # 1: a map of islands over a drop (see _open()), 0: not, -1: not looked yet
 var _blink_side := 0.0           # it was just hit: blink this way (-1 left, 1 right, 0 no)
 var _jet_time := 0.0             # seconds left of a jetpack burst it is holding
 var _portal_plan := 0.0          # seconds left of a portal trip in progress (0: none)
@@ -205,10 +220,34 @@ func update(delta: float) -> void:
 		_seen.pop_front()
 	var perceived := _perceived() if visible else []
 
+	_link_wait = maxf(_link_wait - delta, 0.0)
+	if _link_flying:
+		_fly_link(delta)   # crossing a gap: nothing else until it is down
+		return
+	var hold := _map_moving()
 	var world_dir := _choose_direction(delta, visible)
 	_hook_frame = false
-	if _terminal != null:
-		input.grapple = false   # no swinging off while it is at (or on its way to) a terminal
+	if hold:
+		# The map's parts are moving: stay put (or get off a walkway that is going), no tricks.
+		world_dir = _hold_spot()
+		input.grapple = false
+		input.jump_pressed = false
+		input.dive_pressed = false
+		input.dive = false
+		input.crouch = false
+		input.crouch_pressed = false
+		input.interact = false
+		_hop_time = 0.0
+		_dodge_time = 0.0
+		_boost_side = 0.0
+		_blink_side = 0.0
+		_jet_time = 0.0
+		_link = null
+		_repath = 0.0
+	elif _terminal != null or _link != null:
+		input.grapple = false   # no swinging off while it is at (or on its way to) a terminal or a crossing
+	if _open() and not hold:
+		world_dir = _mind_the_edge(world_dir)
 	elif me.mobility == Mobility.BLINK:
 		_blink(delta, visible)
 	elif me.mobility == Mobility.JETPACK:
@@ -223,8 +262,10 @@ func update(delta: float) -> void:
 		_aim(delta, perceived, world_dir)
 	_fire(delta, perceived)
 	_kick(delta, visible)
-	if _terminal == null:
+	if _terminal == null and _link == null and not hold:
 		_boost(delta, visible)
+	if _link != null and not hold:
+		_start_link()
 	if DevArgs.sync_log:
 		if me.motor.state != _last_state:
 			_last_state = me.motor.state
@@ -257,6 +298,8 @@ func _reset() -> void:
 	_dodge_time = 0.0
 	_grapple_time = 0.0
 	_terminal = null
+	_link = null
+	_link_flying = false
 	_blink_side = 0.0
 	_portal_plan = 0.0
 	_portal_step = 0
@@ -445,10 +488,11 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		if _melee and dist > FAR:
 			approach = 2.5   # straight at you, weaving a little
 		dir = f.cross(Vector3.UP) * _strafe_dir * d.strafe + f * approach
-		if _blocked(dir) or not _ground_ahead(dir, 1.5):
+		var edge := 3.0 if _open() else 1.5   # (islands over a drop: a low rail is no wall, so look past it)
+		if _blocked(dir) or not _ground_ahead(dir, edge):
 			_strafe_dir = -_strafe_dir
 			dir = f.cross(Vector3.UP) * _strafe_dir * d.strafe + f * approach
-			if not _ground_ahead(dir, 1.5):
+			if not _ground_ahead(dir, edge):
 				# A drop on both sides (it is on stairs or a walkway): keep to the path
 				dir = _follow_path(_target.global_position, delta)
 		# You are on another floor: no strafing about underneath, take the stairs to
@@ -458,17 +502,19 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 			if route != Vector3.ZERO:
 				dir = route
 		input.sprint = d.sprint and dist > FAR and not _corner_ahead
-		if grounded and _rng.randf() < d.jumpiness * delta * 2.5 and (not _light() or _ground_ahead(dir, 3.0 * _air())):
+		if grounded and _rng.randf() < d.jumpiness * delta * 2.5 and (not (_light() or _open()) or _ground_ahead(dir, (5.0 if _open() else 3.0) * _air())):
 			input.jump_pressed = true
 		# At the top of a jump, flip sideways to throw off your aim.
 		if not grounded and absf(me.velocity.y) < 2.0 and _dodge_time <= 0.0 \
+				and (not _open() or _ground_ahead(f.cross(Vector3.UP) * _strafe_dir, 8.0)) \
 				and _rng.randf() < d.jumpiness * d.dodge_chance * delta * 6.0:
 			_dodge_side = _strafe_dir
 			_dodge_time = 0.3
 		# Close the gap fast with a dive (it dives where it looks: at you).
-		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5 and _ground_ahead(f, 8.0 * _air()):
+		var dive_room := (14.0 if _open() else 8.0) * _air()
+		if d.grapples and grounded and dist > FAR + 4.0 and _rng.randf() < delta * 0.5 and _ground_ahead(f, dive_room):
 			_dive(f)
-		elif _melee and grounded and dist > 5.0 and dist < 12.0 and _rng.randf() < delta * 1.2 and _ground_ahead(f, 8.0 * _air()):
+		elif _melee and grounded and dist > 5.0 and dist < 12.0 and _rng.randf() < delta * 1.2 and _ground_ahead(f, dive_room):
 			_dive(f)   # a blade has to get close: dive in
 	else:
 		# Chase to where it last saw or heard you and search round there, or roam.
@@ -477,7 +523,7 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		_chase_tricks(delta, dir, grounded, speed)
 	if _hop_time > 0.0:
 		_hop_time -= delta
-		if not _ground_ahead(dir, 6.0 * _air()):
+		if not _ground_ahead(dir, (9.0 if _open() else 6.0) * _air()):
 			_hop_time = 0.0             # a drop is coming up: stop hopping
 		elif grounded:
 			input.jump_pressed = true   # bunny-hop: jump again the moment it lands
@@ -518,7 +564,7 @@ func _chase_tricks(delta: float, dir: Vector3, grounded: bool, speed: float) -> 
 	if not d.slides or not grounded or speed < 9.0 or _trick_wait > 0.0 or dir.length() < 0.1:
 		return
 	_trick_wait = _rng.randf_range(0.6, 1.6)
-	if not _ground_ahead(dir, 9.0 * _air()):
+	if not _ground_ahead(dir, (14.0 if _open() else 9.0) * _air()):
 		return   # up on a floor or a stair with an edge ahead: no tricks that carry it over
 	var facing := Vector3(me.aim_forward().x, 0.0, me.aim_forward().z).normalized()
 	var straight := facing.angle_to(dir) < deg_to_rad(15.0) and _straight_ahead(dir) > 8.0
@@ -552,7 +598,11 @@ func _terminal_spot(delta: float, visible: bool) -> Vector3:
 		var mine := is_instance_valid(_terminal) and _terminal.phase == MapTerminal.Phase.CHANNEL and _terminal.channeler == me.peer_id
 		if not mine:
 			_terminal_time += delta
-		if not is_instance_valid(_terminal) or visible or (not mine and not _terminal.ready_to_use()) or _terminal_time > TERMINAL_GIVE_UP:
+		# (A terminal that takes a climb in the open to reach, Cirrus's bell, lets a bot that
+		# has got to its foot carry on with someone in sight, and gives it longer to get there.)
+		var committed := is_instance_valid(_terminal) and _terminal.bot_commit > 0.0 and _flat(me.global_position, _terminal.global_position) < _terminal.bot_commit
+		var patience := TERMINAL_GIVE_UP if not is_instance_valid(_terminal) or _terminal.bot_commit <= 0.0 else TERMINAL_GIVE_UP * 2.5
+		if not is_instance_valid(_terminal) or (visible and not committed) or (not mine and not _terminal.ready_to_use()) or _terminal_time > patience:
 			_terminal = null
 	else:
 		_terminal_think -= delta
@@ -567,6 +617,8 @@ func _terminal_spot(delta: float, visible: bool) -> Vector3:
 				_terminal_time = 0.0
 	if _terminal == null:
 		return Vector3.INF
+	if NavigationServer3D.map_get_iteration_id(me.get_world_3d().navigation_map) == 0:
+		return Vector3.INF   # (the navigation map is not ready in the match's first frames)
 	# A spot beside the console, on the side it is coming from.
 	var at := _terminal.global_position
 	var from := Vector3(me.global_position.x - at.x, 0.0, me.global_position.z - at.z)
@@ -603,8 +655,25 @@ func _follow_path(goal: Vector3, delta: float) -> Vector3:
 			if _path.is_empty() or _path[_path.size() - 1].distance_to(point) > 0.05:
 				_path.append(point)
 		_path_index = 1 if _path.size() > 1 else 0
+		_link = _pick_link(pos, goal) if _stops_short(goal) else null
+		if _link != null:
+			# Walking does not get there: walk to the crossing instead.
+			found = NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, pos, _link.takeoff(), true)
+			_path = PackedVector3Array()
+			for point in found:
+				if _path.is_empty() or _path[_path.size() - 1].distance_to(point) > 0.05:
+					_path.append(point)
+			_path_index = 1 if _path.size() > 1 else 0
+	if _link != null:
+		goal = _link.takeoff()
 	while _path_index < _path.size() and _reached(pos, _path_index):
 		_path_index += 1
+	if _path_index >= _path.size() and _link == null and _open() and not _path.is_empty() \
+			and (_flat(_path[_path.size() - 1], goal) > LINK_SHORT or absf(_path[_path.size() - 1].y - goal.y) > LINK_SHORT_UP):
+		# Islands over a drop: the path ends where walking ends (a roof, a stepping stone, the
+		# far side of a gap). Stop there, and think of somewhere else to go.
+		_goal_time = 99.0
+		return Vector3.ZERO
 	var next := goal if _path_index >= _path.size() else _path[_path_index]
 	_corner_ahead = _path_index < _path.size() and _flat(pos, next) < 4.0 and _is_corner(_path_index)
 	var to := next - pos
@@ -699,6 +768,225 @@ func _flat(a: Vector3, b: Vector3) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Maps that move, and gaps only a MapJumpLink crosses
+
+## Are the map's parts on the move (a LayoutEvent), or is the navigation mesh still
+## being redone for where they have got to?
+func _map_moving() -> bool:
+	var map := MapRoot.current
+	return map != null and is_instance_valid(map) and (map.shifting or map.nav_pending)
+
+
+## A map of islands over a drop (it has MapIslands): one where a free swing or a long
+## burst is likelier to end in a fall than on a map with walls round it.
+func _open() -> bool:
+	if _open_map < 0:
+		var map := MapRoot.current
+		_open_map = 0
+		if map != null and is_instance_valid(map):
+			for m in map.movers:
+				if m.node is MapIsland:
+					_open_map = 1
+	return _open_map == 1
+
+
+## Is `point` on the same piece of ground as the bot (the same island, or both on none)?
+func _same_ground(point: Vector3) -> bool:
+	var map := MapRoot.current
+	if map == null or not is_instance_valid(map):
+		return true
+	return map.mover_under(me.global_position) == map.mover_under(point)
+
+
+## Islands over a drop: if the way it is going runs out of floor within the next
+## half second (it came off a vault too fast, an unstick sent it somewhere silly),
+## it stops pushing that way and brakes, and drops whatever trick it was about to do.
+func _mind_the_edge(world_dir: Vector3) -> Vector3:
+	var flat := Vector3(me.velocity.x, 0.0, me.velocity.z)
+	var speed := flat.length()
+	var heading := flat / speed if speed > 2.0 else Vector3(world_dir.x, 0.0, world_dir.z).normalized()
+	if heading.length() < 0.5 or me.motor.grapple.attached:
+		return world_dir
+	if _floor_ahead(heading, clampf(speed * 0.5, 2.0, 6.0)):
+		return world_dir
+	input.jump_pressed = false
+	input.dive_pressed = false
+	input.dive = false
+	input.crouch_pressed = false
+	input.crouch = false
+	input.sprint = false
+	_hop_time = 0.0
+	_slide_time = 0.0
+	_belly_time = 0.0
+	_dodge_time = 0.0
+	_boost_side = 0.0
+	_escape_time = 0.0
+	_stuck_time = 0.0
+	return -heading if speed > 2.0 else Vector3.ZERO
+
+
+## Is there something to stand on for the next `reach` metres this way? Unlike
+## _ground_ahead this counts a staircase, up or down, as floor: it only says no to a
+## real drop.
+func _floor_ahead(dir: Vector3, reach: float) -> bool:
+	var flat := Vector3(dir.x, 0.0, dir.z).normalized()
+	var space := me.get_world_3d().direct_space_state
+	var step := 1.0
+	while step <= reach:
+		var from := me.global_position + flat * step + Vector3(0, 0.7 + 0.8 * step, 0)
+		var to := me.global_position + flat * step - Vector3(0, 1.2 + 0.8 * step, 0)
+		if space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [me.get_rid()])).is_empty():
+			return false
+		step += 1.0
+	return true
+
+
+## While the map moves: nowhere, unless it stands on a walkway that is being drawn in
+## (a MapSpan): then toward that walkway's fixed end, which goes last.
+func _hold_spot() -> Vector3:
+	var from := me.global_position + Vector3(0, 0.5, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 1.5, 0), 1, [me.get_rid()])
+	var hit := me.get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty() or not (hit.collider as Object).has_meta("span"):
+		return Vector3.ZERO
+	var span := (hit.collider as Object).get_meta("span") as MapSpan
+	if span == null or not is_instance_valid(span):
+		return Vector3.ZERO
+	var to := span.global_transform * Vector3(0, 0, -2.0) - me.global_position
+	to.y = 0.0
+	input.sprint = true
+	return to.normalized() if to.length() > 0.3 else Vector3.ZERO
+
+
+## Does the path it has just found stop short of `goal` (somewhere walking cannot reach)?
+func _stops_short(goal: Vector3) -> bool:
+	if _link_wait > 0.0 or me.get_tree().get_nodes_in_group(MapJumpLink.GROUP).is_empty():
+		return false
+	if _path.is_empty():
+		return true
+	var end := _path[_path.size() - 1]
+	return _flat(end, goal) > LINK_SHORT or absf(end.y - goal.y) > LINK_SHORT_UP
+
+
+## Does walking get from `a` to `b`?
+func _walkable(a: Vector3, b: Vector3) -> bool:
+	var path := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, a, b, true)
+	if path.is_empty():
+		return false
+	var end := path[path.size() - 1]
+	return _flat(end, b) < 1.5 and absf(end.y - b.y) < 2.0
+
+
+## The crossing to take to get from `pos` to `goal`: one it can walk to, that comes
+## down somewhere it can walk on from. The nearest such, or null.
+func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
+	var best: MapJumpLink = null
+	var best_cost := INF
+	for n in me.get_tree().get_nodes_in_group(MapJumpLink.GROUP):
+		var link := n as MapJumpLink
+		if link == null or not link.usable():
+			continue
+		if link.how == MapJumpLink.How.GRAPPLE and (me.mobility != Mobility.GRAPPLE or link.hook_point() == Vector3.INF):
+			continue
+		var cost := pos.distance_to(link.takeoff()) + link.landing_point().distance_to(goal)
+		if cost >= best_cost:
+			continue
+		var down := NavigationServer3D.map_get_closest_point(me.get_world_3d().navigation_map, link.landing_point())
+		if not _walkable(pos, link.takeoff()) or _flat(down, goal) > _flat(pos, goal) + 60.0:
+			continue
+		var end := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, down, goal, true)
+		if end.is_empty() or _flat(end[end.size() - 1], goal) > LINK_SHORT or absf(end[end.size() - 1].y - goal.y) > LINK_SHORT_UP:
+			continue
+		best = link
+		best_cost = cost
+	return best
+
+
+## At the crossing it was walking to? Then go.
+func _start_link() -> void:
+	if not is_instance_valid(_link) or not _link.usable():
+		_link = null
+		return
+	if not me.is_on_floor() or _flat(me.global_position, _link.takeoff()) > 0.9 or absf(me.global_position.y - _link.takeoff().y) > 1.5:
+		return
+	if _link.how == MapJumpLink.How.GRAPPLE and not me.motor.grapple.ready_to_fire():
+		input.move = Vector2.ZERO   # wait for the hook
+		return
+	_link_flying = true
+	_link_time = 0.0
+	_link_hooked = false
+	_link_left = false
+	if DevArgs.sync_log:
+		print("BOT_LINK %d %s start" % [me.peer_id, "grapple" if _link.how == MapJumpLink.How.GRAPPLE else "leap"])
+
+
+## One frame of a crossing: aim and hold the rope, or run off the edge, then steer
+## for the landing until it is down.
+func _fly_link(delta: float) -> void:
+	_link_time += delta
+	if not is_instance_valid(_link) or _link_time > LINK_GIVE_UP:
+		_end_link(false)
+		return
+	var pos := me.global_position
+	var land := _link.landing_point()
+	var g := me.motor.grapple
+	var to := Vector3(land.x - pos.x, 0.0, land.z - pos.z)
+	if not me.is_on_floor():
+		_link_left = true
+	elif _link_left and _link_time > 0.4 and not g.attached:
+		_end_link(_flat(pos, land) < 8.0)   # down again
+		return
+	input.grapple = false
+	if _link.how == MapJumpLink.How.GRAPPLE:
+		var hook := _link.hook_point()
+		var eye := me.eye_position()
+		var aim := (hook - eye).normalized()
+		if not _link_hooked:
+			if g.attached:
+				_link_hooked = true
+			elif _link_time > 0.5:
+				_end_link(false)   # the hook did not catch
+				return
+			else:
+				input.yaw = atan2(-aim.x, -aim.z)
+				input.pitch = asin(clampf(aim.y, -1.0, 1.0))
+				input.grapple = true
+				input.grapple_pressed = true
+				return
+		if g.attached:
+			# Ride the rope until close under the hook, or level with it and over the landing.
+			var close := g.rope_origin(me).distance_to(g.anchor) < g.tuning.grapple_pull_stop + 1.5
+			var over := pos.y > land.y + 1.0 and to.length() < 2.5
+			input.grapple = not (close or over)
+			input.yaw = atan2(-aim.x, -aim.z)
+			input.pitch = asin(clampf(aim.y, -1.0, 1.0))
+	else:
+		input.sprint = false
+	# Steer for the landing; ease off (push back against the speed) when about to overshoot.
+	var dir := to.normalized() if to.length() > 0.4 else Vector3.ZERO
+	var flat_speed := Vector3(me.velocity.x, 0.0, me.velocity.z)
+	if _link_left and not g.attached and flat_speed.length() > 1.0 and to.length() < flat_speed.length() * 0.55:
+		dir = -flat_speed.normalized()
+	if _link.how == MapJumpLink.How.LEAP or not g.attached:
+		var face := to if to.length() > 0.5 else Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
+		input.yaw = atan2(-face.x, -face.z)
+		input.pitch = 0.0
+	_set_move(dir)
+
+
+func _end_link(made_it: bool) -> void:
+	if DevArgs.sync_log:
+		print("BOT_LINK %d %s" % [me.peer_id, "landed" if made_it else "failed"])
+	_link = null
+	_link_flying = false
+	input.grapple = false
+	_repath = 0.0
+	_path_goal = Vector3.INF
+	if not made_it:
+		_link_wait = 4.0
+
+
+# ---------------------------------------------------------------------------
 # Movement tricks
 
 func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
@@ -716,6 +1004,21 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 	var side := 1.0 if _rng.randf() < 0.5 else -1.0
 	if _light() and not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0 * _air()):
 		return   # low gravity: a dodge that way would float it off an edge
+	if _open():
+		# Islands over a drop: only dodge toward a side with floor under it (a boost or a blink goes far).
+		if not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0):
+			side = -side
+			if not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0):
+				return
+		if me.jetpack and me.jetpack.fuel > 0.5 and _rng.randf() < d.dodge_chance * 0.7:
+			_jet_time = 0.35
+			return
+		if _rng.randf() < d.dodge_chance and _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 8.0):
+			_dodge_side = side
+			_dodge_time = 0.45
+			if me.is_on_floor():
+				input.jump_pressed = true
+		return
 	if me.jetpack and me.jetpack.fuel > 0.5 and _rng.randf() < d.dodge_chance * 0.7:
 		_jet_time = 0.35   # hop up out of the line of fire
 	if me.blink and me.blink.ready() and _rng.randf() < d.dodge_chance * 0.7:
@@ -766,6 +1069,8 @@ func _grapple(delta: float, visible: bool) -> void:
 	input.grapple = false
 	if visible and _hook_player(delta):
 		return
+	if _open():
+		return   # islands over a drop: a free swing ends in the clouds (crossings go by MapJumpLink)
 	# Toward its target when it can see it, otherwise toward where it is walking.
 	var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
 	if not d.grapples or spot == Vector3.INF or not g.ready_to_fire():
@@ -829,7 +1134,7 @@ func _blink(delta: float, visible: bool) -> void:
 			return   # nothing to land on that way
 		else:
 			dir = (dir + Vector3(0, 0.12, 0)).normalized()
-	if _light() and not _ground_ahead(Vector3(dir.x, 0, dir.z).normalized(), Blink.RANGE):
+	if (_light() or _open()) and not _ground_ahead(Vector3(dir.x, 0, dir.z).normalized(), Blink.RANGE):
 		return
 	input.mobility_dir = dir
 	input.grapple_pressed = true
@@ -923,6 +1228,8 @@ func _hook_player(delta: float) -> bool:
 	var dist := me.global_position.distance_to(_target.global_position)
 	if dist < 7.0 or dist > minf(32.0, g.tuning.grapple_range - 4.0):
 		return false
+	if _open() and not _same_ground(_target.global_position):
+		return false   # across a drop: reeling in would pull them both off
 	if _rng.randf() > delta * (0.45 if d.grapples else 0.15):
 		return false
 	var eye := me.eye_position()
@@ -980,7 +1287,7 @@ func _boost(delta: float, visible: bool) -> void:
 	if visible and _target != null and not g.attached:
 		var to := _target.global_position - me.global_position
 		var far := 6.0 if _melee else FAR + 6.0
-		if to.length() > far and to.length() < 40.0 and _rng.randf() < delta * 0.35 * keen and _ground_ahead(to, 6.0 * _air()):
+		if to.length() > far and to.length() < 40.0 and _rng.randf() < delta * 0.35 * keen and _ground_ahead(to, (16.0 if _open() else 6.0) * _air()):
 			input.boost_pressed = true   # close in
 			input.boost_dir = Vector3(to.x, 0.0, to.z).normalized() + Vector3.UP * 0.25
 
