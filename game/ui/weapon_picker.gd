@@ -8,6 +8,9 @@ extends VBoxContainer
 ## mouse while you look around, with a white mark on each bar where the weapon you
 ## have picked sits, and goes back to your pick when the mouse leaves.
 ##
+## Only the weapons the host allows can be picked (set_allowed): the others are greyed
+## out, and a class with none allowed is left out.
+##
 ## Like CharacterPicker it only reports the choice; the screen decides what to do
 ## with it (save it, tell the lobby, show it in the robot preview's hands).
 
@@ -20,6 +23,8 @@ const TAG_WIDTH := 84.0
 var current := ""
 
 var _cards := {}                   # weapon id -> Card
+var _group_rows := []              # per group in WeaponData.GROUPS: its rows of cards
+var _allowed: Array = WeaponData.IDS.duplicate()
 var _shown := ""                   # the weapon the panel is about (under the mouse, or the pick)
 var _name: Label
 var _class: Label
@@ -42,6 +47,8 @@ class Card extends Button:
 
 	func _draw() -> void:
 		var col := UiKit.ACCENT_DARK if button_pressed else (Color.WHITE if is_hovered() else Color(1, 1, 1, 0.82))
+		if disabled:
+			col = Color(1, 1, 1, 0.22)   # not allowed in this lobby
 		var s := 1.5
 		var iw := HudStyle.weapon_width(id) * s
 		HudStyle.weapon_icon(self, id, Vector2((size.x - iw) * 0.5, 8.0), col, s)
@@ -55,7 +62,7 @@ class Card extends Button:
 		draw_string(f, Vector2((size.x - tw) * 0.5, size.y - 7.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
-func _init(start: String = "") -> void:
+func _init(start: String = "", allowed: Array = []) -> void:
 	add_theme_constant_override("separation", 8)
 	custom_minimum_size = Vector2(520, 0)
 	UiKit.section(self, "Weapon")
@@ -65,10 +72,13 @@ func _init(start: String = "") -> void:
 	add_child(grid)
 	for g in WeaponData.GROUPS:
 		var ids: Array = g[1]
+		var rows := []
+		_group_rows.append(rows)
 		for from in range(0, ids.size(), PER_ROW):
 			var row := HBoxContainer.new()
 			row.add_theme_constant_override("separation", 6)
 			grid.add_child(row)
+			rows.append(row)
 			var tag := Label.new()
 			tag.text = String(g[0]).to_upper() if from == 0 else ""
 			tag.add_theme_font_override("font", HudStyle.font_spaced(1))
@@ -85,7 +95,26 @@ func _init(start: String = "") -> void:
 				pad.custom_minimum_size = Vector2(0, CARD_HEIGHT)
 				row.add_child(pad)
 	_build_panel()
+	set_allowed(allowed)
 	select(WeaponData.valid(start))
+
+
+## Which weapons can be picked ([] for every weapon). Does not change the pick: the
+## screen passes an allowed one to select().
+func set_allowed(ids: Array) -> void:
+	_allowed = LobbySettings.weapons_from(ids)
+	for key in _cards:
+		_cards[key].disabled = not key in _allowed
+		_cards[key].queue_redraw()
+	for g in WeaponData.GROUPS.size():
+		var any: bool = WeaponData.GROUPS[g][1].any(func(w): return w in _allowed)
+		for row in _group_rows[g]:
+			row.visible = any
+
+
+## The weapons that can be picked.
+func allowed() -> Array:
+	return _allowed.duplicate()
 
 
 func _add_card(row: HBoxContainer, id: String, group: ButtonGroup) -> void:
@@ -151,6 +180,8 @@ func _show(id: String) -> void:
 
 
 func _on_pressed(id: String) -> void:
+	if not id in _allowed:
+		return
 	if id == current:
 		_cards[id].set_pressed_no_signal(true)
 		Sound.play("ui_click")

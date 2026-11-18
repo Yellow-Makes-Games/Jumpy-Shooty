@@ -341,32 +341,29 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pick_on_death(event)
 
 
-## Waiting to respawn: the mouse wheel goes through every weapon, and the number keys
-## pick a group (1 sidearms, 2 shotguns... 6 melee; again goes on through the group).
+## Waiting to respawn: the mouse wheel goes through every allowed weapon, and the number
+## keys pick a group (1 sidearms, 2 shotguns... 6 melee; again goes on through the group).
+## With only some weapons allowed (see LobbySettings), the groups are those that have
+## any, numbered from 1; with a single gun there is nothing to pick.
 func _pick_on_death(event: InputEvent) -> void:
 	if GunGame.active():
 		return   # Gun Game hands out the weapons
-	var ids := WeaponData.IDS
-	var current := ids.find(Net.player_weapon(peer_id))
-	var pick := -1
-	var k := _weapon_slot(event, WeaponData.GROUPS.size()) if event else _dev_group
-	if k >= 0:
-		var group: Array = WeaponData.GROUPS[k][1]
-		var at := group.find(ids[current]) if current >= 0 else -1
-		pick = ids.find(group[(at + 1) % group.size()] if at >= 0 else group[0])
-	elif event and event.is_action_pressed("weapon_next"):
-		pick = (current + 1) % ids.size()
+	var k := _weapon_slot(event, LobbySettings.weapon_groups().size()) if event else _dev_group
+	var step := 0
+	if event and event.is_action_pressed("weapon_next"):
+		step = 1
 	elif event and event.is_action_pressed("weapon_prev"):
-		pick = (current - 1 + ids.size()) % ids.size()
-	if pick < 0 or pick == current or alive:
+		step = -1
+	var pick := LobbySettings.death_pick(Net.player_weapon(peer_id), k, step)
+	if pick == "" or alive:
 		return
 	if DevArgs.sync_log:
-		print("SWAP %d %s" % [peer_id, ids[pick]])
+		print("SWAP %d %s" % [peer_id, pick])
 	if not DevArgs.swap_on_death:
-		Settings.weapon = ids[pick]
+		Settings.weapon = pick
 		Settings.save_settings()
-	Sound.play("equip_" + ids[pick])
-	Net.set_my_weapon(ids[pick])
+	Sound.play("equip_" + pick)
+	Net.set_my_weapon(pick)
 
 
 ## Waiting to respawn: the mobility button goes on to the next mobility tool.
@@ -1026,7 +1023,10 @@ func show_shot() -> void:
 
 ## --swap-on-death (tests): just died, so press the next weapon's number key.
 func dev_swap_after_death() -> void:
-	var group := (WeaponData.group_of(Net.player_weapon(peer_id)) + 1) % WeaponData.GROUPS.size()
+	var groups := LobbySettings.weapon_groups()
+	var mine := Net.player_weapon(peer_id)
+	var at := groups.find_custom(func(g): return mine in g[1])
+	var group := (at + 1) % groups.size() if groups.size() > 1 else 0
 	get_tree().create_timer(0.5).timeout.connect(func():
 		if is_instance_valid(self) and is_inside_tree():
 			_dev_group = group

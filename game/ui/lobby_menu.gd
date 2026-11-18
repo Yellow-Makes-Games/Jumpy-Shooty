@@ -18,6 +18,7 @@ var _mode_pick: OptionButton
 var _amount: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
+var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
 var _map_label: Label
 var _map_pick: OptionButton
 var _character: CharacterPicker
@@ -65,6 +66,7 @@ func _ready() -> void:
 	_list_scroll.add_child(_list)
 	_build_map()
 	_build_rules()
+	_build_lobby_settings()
 	_divider(columns)
 	_build_character(columns)
 	_frame.back_button("Leave lobby", Game.leave_to_menu)
@@ -279,6 +281,19 @@ func _build_rules() -> void:
 		Net.set_match_settings(s))
 
 
+# Lobby settings (see LobbySettings): the host picks; everyone else sees them. New
+# settings get their control here.
+func _build_lobby_settings() -> void:
+	_allowed = AllowedWeaponsPicker.new(Net.match_settings.get("weapons", []), Net.is_host())
+	_col.add_child(_allowed)
+	_allowed.changed.connect(func(ids: Array):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["weapons"] = ids
+		Net.set_match_settings(s))
+
+
 func _refresh_rules() -> void:
 	var s: Dictionary = Net.match_settings
 	var race := Net.game_kind() == "race"
@@ -293,14 +308,22 @@ func _refresh_rules() -> void:
 	_game_label.visible = not Net.is_host()
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
+	var only := LobbySettings.only_weapon()
 	if _weapon:
-		# No guns in a race; Gun Game hands them out; a Deathmatch finds them on the map.
-		_weapon.visible = not race and not gun_game and not Net.is_deathmatch()
+		# No guns in a race; Gun Game hands them out; a Deathmatch finds them on the map;
+		# the host may have set one gun for everyone.
+		_weapon.set_allowed(LobbySettings.allowed_weapons())
+		_weapon.visible = not race and not gun_game and not Net.is_deathmatch() and only == ""
 		_no_weapon.visible = not _weapon.visible
 		_mobility.visible = not race   # a race always has the grapple
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
-			else "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.")
+			else ("Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up." if Net.is_deathmatch() \
+			else "One gun for everyone: the %s. The host picked it for this match." % WeaponData.name_of(only)))
+	if _allowed:
+		_allowed.visible = LobbySettings.weapons_apply()   # a shoot-out: everyone picks their own weapon
+		_allowed.set_editable(Net.is_host())
+		_allowed.preferred = Net.player_loadout_weapon(Net.my_id())
 	_rules_label.visible = not Net.is_host() or gun_game
 	_host_rules.visible = Net.is_host() and not gun_game
 	_map_label.text = Maps.label(Net.map_id())
@@ -314,6 +337,8 @@ func _refresh_rules() -> void:
 	_powerups.visible = Net.is_deathmatch()
 	_powerups.disabled = not Net.is_host()   # everyone else just sees the host's choice
 	_powerups.set_pressed_no_signal(Net.powerups_on())
+	if _allowed:
+		_allowed.set_value(s.get("weapons", []))
 	if race:
 		_amount.min_value = 2
 		_amount.max_value = 30
