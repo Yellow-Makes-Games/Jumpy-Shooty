@@ -372,6 +372,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# your speed (bunny-hopping). Air steering can add speed when you strafe
 		# and turn together (air-strafing), but never takes speed away.
 		state = State.FLIP if _flip_left > 0.0 else State.AIR
+		if not grounded:
+			vel = _air_brake(vel, wish, delta)
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.air_accel, delta)
 		if not grounded:
 			if hang and state == State.AIR and _hang_left > 0.0 and since_boost > 0.3 and not jumping:
@@ -1132,6 +1134,20 @@ func _wish_dir(input: PlayerInput) -> Vector3:
 	var m := input.move.limit_length(1.0)
 	var local := Vector3(m.x, 0.0, -m.y)
 	return local.rotated(Vector3.UP, input.yaw).normalized() if local.length_squared() > 0.0001 else Vector3.ZERO
+
+
+## tuning.air_brake (Variant B): pressing against the way you are moving in a jump or
+## fall brakes that motion this much harder, down to a stop and never past it (from
+## there, air steering takes you the other way as usual).
+func _air_brake(vel: Vector3, wish: Vector3, delta: float) -> Vector3:
+	if tuning.air_brake <= 0.0 or wish == Vector3.ZERO:
+		return vel
+	var h := Vector3(vel.x, 0.0, vel.z)
+	var speed := h.length()
+	if speed < 0.01 or h.dot(wish) > -0.5 * speed:
+		return vel   # not pressing against it (within 60 degrees of straight back)
+	var against := -h.dot(wish)   # the speed you are pushing back on
+	return vel + wish * minf(tuning.air_brake * delta, against)
 
 
 ## Speed up toward wish_speed along wish, never cutting speed you already have.
