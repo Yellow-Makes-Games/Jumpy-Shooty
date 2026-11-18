@@ -131,6 +131,27 @@ func run() -> void:
 	pa.free()
 	pb.free()
 
+	# --- Jetpack: holding the button lifts you off the ground and burns fuel; it refills.
+	await get_tree().create_timer(Match.RESPAWN_DELAY + 0.5).timeout
+	me = arena.local_player
+	me.set_mobility(Mobility.JETPACK)
+	var j := _open_spot(me, 6.0)
+	me.teleport(j[0], j[1])
+	await _physics(20)
+	var ground_y := me.global_position.y
+	DevArgs.drives_keys = true   # read the keys even though the mouse is not captured
+	Input.action_press("grapple")
+	await _physics(60)   # half a second at 120 Hz
+	Input.action_release("grapple")
+	await _physics(2)
+	DevArgs.drives_keys = false
+	_check(me.global_position.y > ground_y + 1.0, "holding the jetpack lifts you (%.1f m up)" % (me.global_position.y - ground_y))
+	_check(me.jetpack.fuel < 0.9, "and burns fuel (%.2f left)" % me.jetpack.fuel)
+	_check(RobotAnimInput.jetpack_of(me._my_anim_flags()) == false, "others are told when it stops")
+	var low := me.jetpack.fuel
+	await get_tree().create_timer(1.5).timeout
+	_check(me.jetpack.fuel > low, "the fuel refills when you let go (%.2f)" % me.jetpack.fuel)
+
 	# --- Bots take a tool, and a race always has the grapple.
 	var id: int = net.add_bot(BotDifficulty.EXPERT, "", Mobility.PORTAL)
 	await _frames(10)
@@ -140,8 +161,13 @@ func run() -> void:
 	await _frames(10)
 	var bot2: Player = arena.get_player(id2)
 	_check(bot2 != null and bot2.mobility == Mobility.BLINK and bot2.blink != null, "a bot can carry blink")
+	var id3: int = net.add_bot(BotDifficulty.EXPERT, "", Mobility.JETPACK)
+	await _frames(10)
+	var bot3: Player = arena.get_player(id3)
+	_check(bot3 != null and bot3.jetpack != null, "a bot can carry the jetpack")
 	net.remove_bot(id)
 	net.remove_bot(id2)
+	net.remove_bot(id3)
 	await _frames(5)
 	game.start_practice("rooftop_run", "race")
 	await _frames(40)

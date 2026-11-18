@@ -123,6 +123,7 @@ var _terminal: MapTerminal       # the map terminal it is walking to or holding,
 var _terminal_think := 0.0
 var _terminal_time := 0.0
 var _blink_side := 0.0           # it was just hit: blink this way (-1 left, 1 right, 0 no)
+var _jet_time := 0.0             # seconds left of a jetpack burst it is holding
 var _portal_plan := 0.0          # seconds left of a portal trip in progress (0: none)
 var _portal_step := 0            # 0: shoot the far portal, 1: the near one, 2: walk into it
 
@@ -203,6 +204,8 @@ func update(delta: float) -> void:
 		input.grapple = false   # no swinging off while it is at (or on its way to) a terminal
 	elif me.mobility == Mobility.BLINK:
 		_blink(delta, visible)
+	elif me.mobility == Mobility.JETPACK:
+		_jetpack(delta, visible)
 	elif me.mobility == Mobility.PORTAL:
 		_portal(delta, visible)
 	else:
@@ -250,6 +253,7 @@ func _reset() -> void:
 	_blink_side = 0.0
 	_portal_plan = 0.0
 	_portal_step = 0
+	_jet_time = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -705,6 +709,8 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 	var side := 1.0 if _rng.randf() < 0.5 else -1.0
 	if _light() and not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0 * _air()):
 		return   # low gravity: a dodge that way would float it off an edge
+	if me.jetpack and me.jetpack.fuel > 0.5 and _rng.randf() < d.dodge_chance * 0.7:
+		_jet_time = 0.35   # hop up out of the line of fire
 	if me.blink and me.blink.ready() and _rng.randf() < d.dodge_chance * 0.7:
 		_blink_side = side   # a sideways blink
 		return
@@ -820,6 +826,34 @@ func _blink(delta: float, visible: bool) -> void:
 		return
 	input.mobility_dir = dir
 	input.grapple_pressed = true
+
+
+## Jetpack: short bursts to reach higher ground, to close in on someone far off,
+## and to hop out of the way when hit. It keeps some fuel back.
+func _jetpack(delta: float, visible: bool) -> void:
+	var jet := me.jetpack
+	if jet == null:
+		input.grapple = false
+		return
+	if _jet_time > 0.0:
+		_jet_time -= delta
+		input.grapple = jet.fuel > 0.1
+		return
+	input.grapple = false
+	if jet.fuel < 0.6:
+		return
+	var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
+	if spot == Vector3.INF:
+		return
+	var rate: float = [0.2, 0.5, 0.9, 1.2][d.level]
+	if _rng.randf() > delta * rate:
+		return
+	var to := spot - me.global_position
+	var dist := Vector2(to.x, to.z).length()
+	if to.y > 2.5 and dist < 25.0:
+		_jet_time = clampf(to.y / 6.0 + 0.3, 0.4, 1.4)   # up to their level
+	elif visible and dist > FAR + 6.0 and not _light():
+		_jet_time = 0.5   # a hop over whatever is in the way as it closes in
 
 
 ## Portal gun: with its target far off and in sight, shoot a portal onto the floor

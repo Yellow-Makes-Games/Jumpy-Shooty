@@ -9,20 +9,23 @@ extends RefCounted
 ##             with your speed carried through. Anyone can use anyone's portals.
 ##  - blink:   a short teleport where you look (see Blink), one charge that
 ##             comes back a couple of seconds after you use it.
+##  - jetpack: hold to fly (see Jetpack), on fuel that refills when you let go.
 ##
 ## A race always uses the grapple: the courses are built around it.
 
 const GRAPPLE := "grapple"
 const PORTAL := "portal"
 const BLINK := "blink"
-const IDS := [GRAPPLE, PORTAL, BLINK]
+const JETPACK := "jetpack"
+const IDS := [GRAPPLE, PORTAL, BLINK, JETPACK]
 
-const NAMES := {GRAPPLE: "Grappling Hook", PORTAL: "Portal Gun", BLINK: "Blink"}
-const SHORT := {GRAPPLE: "Grapple", PORTAL: "Portal Gun", BLINK: "Blink"}
+const NAMES := {GRAPPLE: "Grappling Hook", PORTAL: "Portal Gun", BLINK: "Blink", JETPACK: "Jetpack"}
+const SHORT := {GRAPPLE: "Grapple", PORTAL: "Portal Gun", BLINK: "Blink", JETPACK: "Jetpack"}
 const BLURBS := {
 	GRAPPLE: "Hook any surface and swing, or hook a player to reel them in for a flying kick.",
 	PORTAL: "Shoot a blue and an orange portal onto any surface. Step in one, fly out the other at full speed.",
 	BLINK: "Teleport a few metres where you look, keeping your speed. A trail of sparks follows you there.",
+	JETPACK: "Hold to fly up and steer with WASD. Fuel refills when you let go, fastest on the ground.",
 }
 
 
