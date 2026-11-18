@@ -42,7 +42,9 @@ extends MapEvent
 ## How far it leans (0 = not at all).
 @export_range(0.0, 1.0) var warm_amount := 0.35
 ## Kinds from the palette that glow brighter while it runs (rune lines, conduits).
-@export var pulse_kinds: PackedStringArray = []
+## (A typed array, not a packed one: an export drops a packed array from a node whose
+## script does not run in the editor.)
+@export var pulse_kinds: Array[String] = []
 
 const OPEN_SOUND := "surge_open"
 const CLOSE_SOUND := "surge_close"

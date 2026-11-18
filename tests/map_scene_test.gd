@@ -5,6 +5,8 @@ extends SceneTree
 ##  - a block's scale is folded into its size, and a hidden block is left out;
 ##  - the resize handles' face moves keep the opposite face in place;
 ##  - a cone's mesh points outward and comes to its top, and its collision matches it;
+##  - no map scene sets a packed array on a node whose script does not run in the
+##    editor: an export drops those, so the exported game would play without them;
 ##  - race maps: numbered gates ending in one finish, a bot route, hazards, and
 ##    their moving parts build; race maps are only offered for races, arenas only
 ##    for shoot-outs.
@@ -17,6 +19,7 @@ func _initialize() -> void:
 	print("Map scene checks")
 	for id in Maps.ids():
 		_check_map(id)
+	_check_export()
 	_check_modes()
 	_check_blocks()
 	_check_face_moves()
@@ -60,6 +63,33 @@ func _check_map(id: String) -> void:
 	_expect(outside == 0, "every spawn point is inside the map's bounds")
 	_expect(map.find_children("*", "WorldEnvironment", true, false).size() == 1, "has one WorldEnvironment (sky and ambient light)")
 	map.free()
+
+
+## What an export keeps. Godot's export drops a packed array (PackedFloat32Array,
+## PackedStringArray...) that a scene sets on a node whose script is not a @tool
+## script: the setting is there when you play from the editor and gone in the exported
+## game (v0.1.48's crane had lost its stops this way; Cirrus its lit windows). A typed
+## array (Array[float], Array[String]) is kept, so a map script's lists must be those.
+func _check_export() -> void:
+	print("  what an export keeps")
+	var lost := []
+	var dir := "res://game/maps"
+	for file in DirAccess.get_files_at(dir):
+		if not file.ends_with(".tscn"):
+			continue
+		var state := (load(dir.path_join(file)) as PackedScene).get_state()
+		for i in state.get_node_count():
+			var script: Script = null
+			var packed := []
+			for p in state.get_node_property_count(i):
+				var value: Variant = state.get_node_property_value(i, p)
+				if value is Script:
+					script = value
+				elif typeof(value) >= TYPE_PACKED_BYTE_ARRAY:
+					packed.append(String(state.get_node_property_name(i, p)))
+			if not packed.is_empty() and (script == null or not script.is_tool()) and state.get_node_instance(i) == null:
+				lost.append("%s %s: %s" % [file, state.get_node_path(i), ", ".join(packed)])
+	_expect(lost.is_empty(), "no map scene sets a packed array on a node whose script does not run in the editor%s" % ("" if lost.is_empty() else " (an export would drop: %s)" % "; ".join(lost)))
 
 
 func _check_blocks() -> void:

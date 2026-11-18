@@ -1192,9 +1192,12 @@ ones, on purpose. Godot's export drops a packed array (PackedFloat32Array,
 PackedInt32Array, PackedStringArray) that a scene sets on a node whose script does not
 run in the editor: the value is there when you play from the editor and gone in the
 exported game. v0.1.48 shipped that way, with a lever that clacked and a crane with no
-stops. Give a new map script's list settings a typed array, and check them in an
-exported copy (`godot --headless --export-pack "Windows Desktop" out.pck`, then
-`godot --main-pack out.pck`).
+stops, and Cirrus and Empyrean Tower had been losing their lit, flaring and pulsing
+kinds the same way (LayoutEvent and PortalSurgeEvent use typed arrays now too). Give a
+new map script's list settings a typed array; `tests/map_scene_test.gd` fails if a map
+scene sets a packed array on a node whose script is not a `@tool` script. To look at
+an exported copy: `godot --headless --export-pack "Windows Desktop" out.pck`, then
+`godot --main-pack out.pck`.
 
 To put a crane (or anything else that swings a load) on another map: two MapIslands
 with one Pivot (Over Ground ticked if the map has ground under it), a CraneEvent

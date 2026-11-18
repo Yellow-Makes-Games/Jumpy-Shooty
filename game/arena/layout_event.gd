@@ -58,14 +58,16 @@ const MASK := (1 << BITS) - 1
 ## Where the clock's tick comes from (in the map's frame): it is a little louder near here.
 @export var tick_from := Vector3(0, 24, 0)
 
+# (The lists below are typed arrays, not packed ones: an export drops a packed array
+# from a node whose script does not run in the editor. See tests/map_scene_test.gd.)
 @export_group("Arrangements")
 ## Drift: the turns to pick from, in degrees round the middle.
-@export var drift_turns: PackedFloat32Array = [-36.0, 36.0]
+@export var drift_turns: Array[float] = [-36.0, 36.0]
 ## Close: metres nearer the middle.
 @export var close_in := 12.0
 ## Far: metres further out, and the heights to pick from (metres above home).
 @export var far_out := 9.0
-@export var far_heights: PackedFloat32Array = [7.0, -9.0]
+@export var far_heights: Array[float] = [7.0, -9.0]
 ## Split: metres one island stands above home, and the other below.
 @export var split_height := 8.0
 
@@ -79,18 +81,18 @@ const MASK := (1 << BITS) - 1
 ## The fog below the map (what sinking islands vanish into), in the second look.
 @export var fog_color := Color(0.71, 0.49, 0.48)
 ## Kinds that light up in the second look (windows, lamps, light strips), and how bright.
-@export var lit_kinds: PackedStringArray = []
+@export var lit_kinds: Array[String] = []
 @export var lit_glow := 2.4
 
 @export_group("The move")
 ## Kinds that burn bright as the move builds and goes (the islands' engines), and how
 ## many times brighter.
-@export var flare_kinds: PackedStringArray = []
+@export var flare_kinds: Array[String] = []
 @export var flare_gain := 3.5
 ## The colour a doomed island's engines turn while they sputter, and how far it sags.
 ## Doom Kinds turn that colour and flicker too (its lamps: the engines are underneath,
 ## where nobody standing on it can see them).
-@export var doom_kinds: PackedStringArray = []
+@export var doom_kinds: Array[String] = []
 @export var doom_color := Color(1.0, 0.16, 0.08)
 @export var doom_dip := 0.7
 ## Scraps of paper and leaves blown about during a move: how many (0 = none), and the
@@ -455,8 +457,8 @@ func _place() -> void:
 
 func _doom_kinds() -> PackedStringArray:
 	if _all_doom_kinds.is_empty():
-		_all_doom_kinds = flare_kinds.duplicate()
-		_all_doom_kinds.append_array(doom_kinds)
+		_all_doom_kinds = PackedStringArray(flare_kinds)
+		_all_doom_kinds.append_array(PackedStringArray(doom_kinds))
 	return _all_doom_kinds
 
 

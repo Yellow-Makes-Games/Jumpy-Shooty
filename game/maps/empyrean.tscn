@@ -46672,7 +46672,7 @@ open_time = 2.0
 duration = 30.0
 close_time = 2.0
 cooldown = 60.0
-pulse_kinds = PackedStringArray("glow", "conduit")
+pulse_kinds = Array[String](["glow", "conduit"])
 
 [node name="Debris" type="Node3D" parent="."]
 
