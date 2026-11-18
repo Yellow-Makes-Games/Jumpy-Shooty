@@ -12,6 +12,7 @@ signal toggled
 
 const TIME_SCALES := [0.1, 0.25, 0.5, 1.0, 2.0]
 const TIME_LABELS := ["0.1x", "0.25x", "0.5x", "1x", "2x"]
+const RESET_TEXT := "Reset account progress"
 
 var _menu: CanvasLayer
 var _col: VBoxContainer
@@ -21,6 +22,8 @@ var _bot_count: Label
 var _difficulty := 1
 var _saved: Array = []    # [position, yaw, pitch] or empty
 var _spawn_pick: OptionButton
+var _achievement_pick: OptionButton
+var _reset: Button
 
 
 func _ready() -> void:
@@ -176,6 +179,38 @@ func _build() -> void:
 	_bot_count = UiKit.label(_col, "", true, 14)
 	_toggle("Freeze bots (stand still, hold fire)", Cheats.freeze_bots, func(v): Cheats.freeze_bots = v)
 
+	UiKit.section(_col, "Achievements and unlocks")
+	var items := Achievements.item_counts()
+	UiKit.label(_col, "%d of %d achievements done  ·  %d of %d rewards unlocked" % [Achievements.done_count(),
+		Achievements.LIST.size(), items[0], items[1]], true, 14).name = "account"
+	row = _row()
+	var open: Array = Achievements.LIST.filter(func(a): return not Achievements.done(a.id))
+	_achievement_pick = OptionButton.new()
+	_achievement_pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_achievement_pick.clip_text = true
+	_achievement_pick.fit_to_longest_item = false
+	for a in open:
+		_achievement_pick.add_item("%s: %s" % [a.name, a.what])
+	_achievement_pick.disabled = open.is_empty()
+	row.add_child(_achievement_pick)
+	var complete := _small_button(row, "Complete", func():
+		if _achievement_pick.selected >= 0 and _achievement_pick.selected < open.size():
+			_account(Achievements.complete.bind(open[_achievement_pick.selected].id)))
+	complete.size_flags_horizontal = Control.SIZE_SHRINK_END
+	complete.disabled = open.is_empty()
+	row = _row()
+	_small_button(row, "Complete all", func(): _account(Achievements.complete_all))
+	_small_button(row, "Unlock cosmetics", func(): _account(Achievements.unlock_items.bind(false)))
+	_small_button(row, "Unlock cards, icons", func(): _account(Achievements.unlock_items.bind(true)))
+	UiKit.label(_col, "Saved like real progress, so the unlocks carry into online matches.", true, 13)
+	# Resetting cannot be undone, so it takes a second press.
+	_reset = UiKit.button(_col, RESET_TEXT, func():
+		if _reset.text == RESET_TEXT:
+			_reset.text = "Sure? Press again to wipe achievements, medals and unlocks"
+		else:
+			_account(_reset_account))
+	_reset.name = "reset"
+
 	UiKit.section(_col, "Display")
 	_toggle("Show FPS, position and speed", Cheats.show_stats, func(v): Cheats.show_stats = v)
 
@@ -184,6 +219,20 @@ func _build() -> void:
 		Cheats.reset()
 		_build())
 	UiKit.primary_button(_col, "Close", func(): set_open(false))
+
+
+## Change the account (see Achievements), then show the new counts.
+func _account(change: Callable) -> void:
+	change.call()
+	_build()
+
+
+func _reset_account() -> void:
+	Achievements.reset_progress()
+	if Achievements.wear_unlocked():   # the card or icon you had on is locked again
+		Settings.save_settings()
+		if Net.players.has(Net.my_id()):
+			Net.set_my_card(Settings.calling_card, Settings.icon)
 
 
 func _toggle(text: String, value: bool, setter: Callable) -> void:

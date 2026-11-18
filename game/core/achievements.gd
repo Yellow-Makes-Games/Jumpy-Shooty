@@ -522,6 +522,86 @@ func save() -> void:
 	cfg.save(_file)
 
 
+# ---------------------------------------------------------------------------
+# The debug menu (see DebugMenu): earn things without playing for them
+
+## Complete an achievement as if you had just earned it: the count reaches its goal,
+## the toast shows and its rewards unlock. One that counts different things (courses,
+## weapons, medals) is given real ones, and a medal comes with the time that earns it.
+## The lower ones on the same count complete with it, without toasts of their own.
+func complete(id: String) -> void:
+	var waiting := _toasts.size()
+	_complete(by_id(id))
+	_toasts = _toasts.slice(0, waiting) + _toasts.slice(waiting).filter(func(a): return a.id == id)
+	save()
+
+
+## Complete every achievement (with no toasts: there would be minutes of them).
+func complete_all() -> void:
+	for a in LIST:
+		_complete(a)
+	_toasts.clear()
+	save()
+
+
+func _complete(a: Dictionary) -> void:
+	if a.is_empty() or stat(a.stat) >= int(a.goal):
+		return
+	var set_name = SET_STATS.find_key(a.stat)
+	if set_name == null:
+		add(a.stat, int(a.goal) - stat(a.stat))
+		return
+	var tier := MEDAL_NAMES.find(set_name)
+	for thing in (WeaponData.IDS if set_name == "weapons" else MEDALS.keys()):
+		if stat(a.stat) >= int(a.goal):
+			break
+		if tier >= 0:
+			_finished_in(thing, float(MEDALS[thing][tier]))
+		else:
+			_collect(set_name, thing)
+
+
+## Make every reward of a kind yours without completing anything. `cards`: the calling
+## cards and icons; otherwise the Character Creator's parts, accessories and paints.
+func unlock_items(cards: bool) -> void:
+	for key in _by_reward:
+		if (str(key).get_slice(":", 0) in ["card", "icon"]) == cards:
+			_owned[key] = true
+	save()
+	progressed.emit()
+
+
+## Start the account again: every count, medal, best time and unlock is gone, from the
+## file too. What your saved characters wear stays yours (see keep_saved). A calling
+## card or icon you chose may be locked again: see wear_unlocked.
+func reset_progress() -> void:
+	_stats.clear()
+	_done.clear()
+	_owned.clear()
+	_sets.clear()
+	_times.clear()
+	_base.clear()
+	_toasts.clear()
+	_life_kills = 0
+	_nemesis = 0
+	if _file != "" and FileAccess.file_exists(_file):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(_file))
+	keep_saved()
+	save()
+	progressed.emit()
+
+
+## Swap a calling card or icon you chose that is locked (after a reset) for the free
+## one. True if it changed anything: the caller saves the settings and tells the match.
+func wear_unlocked() -> bool:
+	var card := Settings.calling_card if not locked("card:" + Settings.calling_card) else CallingCard.DEFAULT_CARD
+	var icon := Settings.icon if not locked("icon:" + Settings.icon) else CallingCard.DEFAULT_ICON
+	var changed := card != Settings.calling_card or icon != Settings.icon
+	Settings.calling_card = card
+	Settings.icon = icon
+	return changed
+
+
 ## Tests: start from nothing and keep nothing on disk.
 func reset_for_test() -> void:
 	_file = ""

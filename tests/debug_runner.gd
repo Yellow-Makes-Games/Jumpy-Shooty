@@ -168,6 +168,12 @@ func run() -> void:
 	menu.set_open(true)
 	await _frames(2)
 	_check(menu.is_open(), "the debug menu opens in Practice")
+	var reset: Button = menu.find_child("reset", true, false)
+	_check(menu.find_child("account", true, false) != null and reset != null, "it has the achievement and unlock options")
+	if reset:
+		var done_before: int = Achievements.done_count()
+		reset.pressed.emit()
+		_check(reset.text != DebugMenu.RESET_TEXT and Achievements.done_count() == done_before, "resetting the account asks first: one press wipes nothing")
 	menu.set_open(false)
 
 	# Slow motion, and the host still accepts shots at double speed.
