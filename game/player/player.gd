@@ -1560,6 +1560,8 @@ func _animate(delta: float) -> void:
 	_anim.alive = alive
 	_anim.yaw = _visual_yaw
 	var first_person := rig.first_person_amount() if rig and alive else 0.0
+	if first_person > 0.0 and motor and motor.auto_tucked():
+		_anim.crouched = false   # Variant B: your own legs do not pull up for the automatic tuck in first person
 	animator.first_person = first_person > 0.0
 	animator.update(delta, _anim, visual.global_transform)
 	if rig:

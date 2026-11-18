@@ -41,25 +41,26 @@ static func for_variant(id) -> MovementTuning:
 
 
 ## Variant B: its numbers and mechanic switches, set over the classic ones.
-##  - no flips and no glides;
-##  - Space: a jump on the ground; in mid-air, rocket boots (a tap, with the jetpack);
-##    held in the air, it flies the jetpack if you have it (E and right mouse still work);
-##  - legs tucked whenever you are in the air, so edges clear without a key;
+##  - no glides; Space in mid-air flips, once per jump, as in classic (boots stay on E);
+##  - Space held in the air flies the jetpack if you have it (right mouse still does);
+##  - legs tucked whenever you are in the air, so edges clear without a key (your own
+##    body does not show it in first person);
 ##  - Ctrl (or Q) does crouch, slide and dive: forward dives (then a belly slide, then a
 ##    crawl while held), back slides on your back (then a crouch while held), otherwise
 ##    a crouch;
 ##  - stick to a wall you push into in mid-air for 2.5 seconds, then slide slowly down it;
 ##  - in a jump or fall, pressing WASD against the way you are moving brakes you much
-##    harder (air_brake), so momentum is easy to stop.
-## Speeds are classic's.
+##    harder (air_brake), so momentum is easy to stop;
+##  - sideways speed never goes past 27 m/s, whatever got you there (max_speed).
+## Run and sprint speeds are classic's.
 func _apply_b() -> void:
-	flips_on = false
 	glides_on = false
-	space_boost = true
+	space_jetpack = true
 	always_tuck = true
 	ctrl_moves = true
 	wall_sit_time = 2.5
 	air_brake = 30.0
+	max_speed = 27.0
 
 @export_group("Ground")
 @export var run_speed := 8.0          ## top speed you accelerate to while running
@@ -195,10 +196,12 @@ func _apply_b() -> void:
 @export_group("Mechanic switches")
 @export var flips_on := true              ## Space again in mid-air flips (when space_boost is off)
 @export var glides_on := true             ## Shift held in mid-air glides
-@export var space_boost := false          ## Space in mid-air fires the rocket boots; with the jetpack, a tap does, and a hold flies it
-@export var space_hold_time := 0.2        ## with the jetpack: Space held this long in the air flies it (a shorter tap boosts)
+@export var space_boost := false          ## Space in mid-air fires the rocket boots (with space_jetpack and the jetpack: only a tap)
+@export var space_jetpack := false        ## Space held in the air flies the jetpack, if you have it
+@export var space_hold_time := 0.2        ## space_jetpack: Space held this long in the air flies it
 @export var always_tuck := false          ## legs tucked whenever you have been in the air a moment, no key needed
 @export var ctrl_moves := false           ## Ctrl or Q: forward dives, back slides on your back, otherwise crouches (no crouch-slide)
 @export var wall_sit_time := 0.0          ## push into a wall in mid-air: stick to it this long (0 = never)...
 @export var wall_sit_slide_speed := 2.0   ## ...then slide down it this fast while you keep pushing
 @export var air_brake := 0.0              ## in a jump or fall, pressing against your motion brakes it this much harder (m/s2, 0 = off)
+@export var max_speed := 0.0              ## sideways speed never goes past this, whatever the move (m/s, 0 = no limit)
