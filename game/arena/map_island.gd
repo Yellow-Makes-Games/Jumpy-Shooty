@@ -99,7 +99,7 @@ func sputter(amount: float, kinds: PackedStringArray, color: Color, time: float)
 		if mesh == null or not mesh.has_meta("kind") or not kinds.has(mesh.get_meta("kind")):
 			continue
 		if amount <= 0.0:
-			mesh.material_override = map.material_for(mesh.get_meta("kind")) if map else null
+			mesh.material_override = map.riding_material_for(mesh.get_meta("kind")) if map else null   # the one its body was built with
 			continue
 		if not _sputter_mats.has(mesh):
 			var mat := StandardMaterial3D.new()
