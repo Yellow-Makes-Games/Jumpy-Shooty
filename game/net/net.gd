@@ -619,6 +619,8 @@ func _sync_settings(settings: Dictionary) -> void:
 	if DevArgs.sync_log:
 		print("LOBBY_SETTINGS %d weapons=%s" % [my_id(), ",".join(LobbySettings.allowed_weapons())])
 		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility())])
+		print("LOBBY_MAP %d map=%s random=%s pool=%s song=%s" % [my_id(), map_id(), match_settings.random_map,
+			",".join(LobbySettings.map_pool()), match_settings.song])
 	if is_host() and not in_match:
 		host_fit_loadouts()   # weapons no longer allowed are swapped (everyone is told)
 	elif players.has(my_id()) and not in_match:
@@ -982,6 +984,7 @@ func host_start_match(force: bool = false) -> void:
 	if is_online and not force and not all_ready():
 		return
 	_starting = true
+	host_pick_random_map()
 	for id in players:
 		players[id].erase("ready")   # (handing out the weapons below changes the players, which can call this again: dev autostart)
 	host_fit_loadouts()   # nobody starts with a weapon the lobby does not allow
@@ -1001,17 +1004,33 @@ func host_start_match(force: bool = false) -> void:
 var _starting := false
 
 
+## Host: with a random map set (see LobbySettings), pick one of the pool's maps (not the
+## one just played, when the pool has others) and tell everyone, before the match
+## starts. The pick stays in match_settings.map, so a late joiner loads it too.
+func host_pick_random_map() -> void:
+	if not is_host() or not bool(match_settings.get("random_map", false)):
+		return
+	var s := match_settings.duplicate()
+	s["map"] = LobbySettings.pick_map(s.get("map_pool", []), game_kind(), map_id())
+	if DevArgs.sync_log:
+		print("RANDOM_MAP %d %s pool=%s" % [my_id(), s.map, ",".join(LobbySettings.map_pool())])
+	_sync_settings.rpc(s)   # (reliable and in order: everyone has it before the match starts)
+
+
 @rpc("authority", "call_local", "reliable")
 func _start_match() -> void:
 	in_match = true
 	if DevArgs.sync_log:
 		print("MATCH_START %d players" % players.size())
+		print("MATCH_MAP %d %s" % [my_id(), map_id()])
 	match_started.emit()
 
 
 @rpc("authority", "call_remote", "reliable")
 func _late_join() -> void:
 	in_match = true
+	if DevArgs.sync_log:
+		print("MATCH_MAP %d %s (late)" % [my_id(), map_id()])
 	match_started.emit()
 
 

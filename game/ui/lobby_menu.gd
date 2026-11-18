@@ -34,6 +34,10 @@ var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
 var _map_label: Label
 var _map_pick: OptionButton
+var _map_pool: MapPoolPicker   # a random map: the maps it may pick from (the host ticks them)
+var _song_box: HBoxContainer   # the lobby song: the host's pick, or what it is for everyone else
+var _song_pick: OptionButton
+var _song_label: Label
 var _character: CharacterPicker
 var _weapon: WeaponPicker
 var _weapon_box: VBoxContainer   # the right column: your weapon, or a note when the mode has none to pick
@@ -114,6 +118,7 @@ func _ready() -> void:
 	_divider(columns)
 	_build_character(columns)
 	_frame.back_button("Leave lobby", Game.leave_to_menu)
+	_build_song()
 	_waiting = UiKit.label(_frame.footer, "Waiting for the host to start...", true, 17)
 	_waiting.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -306,15 +311,61 @@ func _build_map() -> void:
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()
 	_map_pick.custom_minimum_size = Vector2(0, 44)
-	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
+	Maps.fill(_map_pick, _map_choice(), Net.game_kind(), true)
 	_col.add_child(_map_pick)
 	_map_pick.item_selected.connect(func(_i: int):
 		if _updating:
 			return
 		var s := Net.match_settings.duplicate()
-		s["map"] = Maps.picked(_map_pick)
-		Game.last_map[Net.game_kind()] = s.map
+		var picked := Maps.picked(_map_pick)
+		s["random_map"] = picked == Maps.RANDOM   # the map is picked from the pool as the match starts
+		if picked != Maps.RANDOM:
+			s["map"] = picked
+			Game.last_map[Net.game_kind()] = picked
 		Net.set_match_settings(s))
+	# Random map: the maps it may pick from (only this game's; one always stays ticked).
+	_map_pool = MapPoolPicker.new(Net.match_settings.get("map_pool", []), Net.game_kind(), Net.is_host())
+	_col.add_child(_map_pool)
+	_map_pool.changed.connect(func(ids: Array):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["map_pool"] = ids
+		Net.set_match_settings(s))
+
+
+## What the map drop-down shows: the map, or Random.
+func _map_choice() -> String:
+	return Maps.RANDOM if bool(Net.match_settings.get("random_map", false)) else Net.map_id()
+
+
+# The lobby song (see Music): the host picks it, any time; everyone hears it, in step.
+# In the footer, beside Leave, so the columns keep their room.
+func _build_song() -> void:
+	_song_box = HBoxContainer.new()
+	_song_box.add_theme_constant_override("separation", 8)
+	_frame.footer.add_child(_song_box)
+	var head := UiKit.label(_song_box, "Lobby song", true, 15)
+	head.autowrap_mode = TextServer.AUTOWRAP_OFF
+	head.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_song_pick = OptionButton.new()
+	_song_pick.custom_minimum_size = Vector2(230, 0)
+	_song_pick.add_item(Music.title_of(""))
+	_song_pick.set_item_metadata(0, "")
+	for song in Music.song_names():
+		_song_pick.add_item(Music.title_of(song))
+		_song_pick.set_item_metadata(_song_pick.item_count - 1, song)
+	_song_box.add_child(_song_pick)
+	_song_pick.item_selected.connect(func(i: int):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["song"] = str(_song_pick.get_item_metadata(i))
+		if s != Net.match_settings:
+			Net.set_match_settings(s))
+	_song_label = UiKit.label(_song_box, "", false, 15)
+	_song_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_song_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
 
 # Win condition: the host picks; everyone else sees it.
@@ -475,13 +526,26 @@ func _refresh_rules() -> void:
 	_rules_label.visible = not Net.is_host() or own_rules or golden
 	_host_rules.visible = Net.is_host() and not own_rules
 	_killcam_rules.visible = Net.is_host() and killcam
+	var random := bool(s.get("random_map", false))
 	_map_label.text = Maps.label(Net.map_id())
+	if random:   # everyone else sees the pool below; after a match, what it picked last
+		_map_label.text = "Random map" + ("  ·  last: %s" % Maps.name_of(Net.map_id()) if not Match.last_results.is_empty() else "")
 	_map_label.visible = not Net.is_host()
 	_map_pick.visible = Net.is_host()
+	_map_pool.visible = random
+	_map_pool.set_editable(Net.is_host())
+	_map_pool.set_value(s.get("map_pool", []), Net.game_kind())
+	var song := str(s.get("song", ""))
+	_song_pick.visible = Net.is_host()
+	_song_label.visible = not Net.is_host()
+	_song_label.text = Music.title_of(song)
 	_updating = true
 	for i in _game_row.get_child_count():
 		(_game_row.get_child(i) as Button).set_pressed_no_signal(GunGame.MODES[i] == GunGame.mode_of(s))
-	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
+	Maps.fill(_map_pick, _map_choice(), Net.game_kind(), true)
+	for i in _song_pick.item_count:
+		if str(_song_pick.get_item_metadata(i)) == song:
+			_song_pick.select(i)
 	_mode_pick.select(0 if kills_mode else 1)
 	_killcam_points.set_value_no_signal(KillcamMode.clean_points(s.get("killcam_points")))
 	_killcam_minutes.set_value_no_signal(KillcamMode.clean_minutes(s.get("killcam_minutes")))
@@ -524,6 +588,12 @@ func _address(ip: String) -> String:
 func _dev_lobby_steps() -> void:
 	if not Match.last_results.is_empty():
 		return
+	if DevArgs.song_at >= 0.0 and Net.is_host():
+		get_tree().create_timer(DevArgs.song_at).timeout.connect(func():
+			if is_inside_tree() and not Net.in_match:
+				var s := Net.match_settings.duplicate()
+				s["song"] = DevArgs.song_later
+				Net.set_match_settings(s))
 	if DevArgs.ready_at >= 0.0 and not Net.is_host():
 		get_tree().create_timer(DevArgs.ready_at).timeout.connect(func():
 			if is_inside_tree() and not Net.in_match:

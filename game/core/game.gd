@@ -25,6 +25,9 @@ var last_practice_map := Maps.default_id()
 var last_practice_game := "ffa"
 ## The map last picked for each kind of game, so the menus remember both.
 var last_map := {"ffa": Maps.default_id("ffa"), "dm": Maps.default_id("dm"), "race": Maps.default_id("race")}
+## The maps a random map may pick from in Vs Bots and Practice (as stored; see
+## LobbySettings.pool_for). The menus' map drop-downs offer "Random map" (Maps.RANDOM).
+var last_map_pool: Array = []
 
 
 func _ready() -> void:
@@ -78,18 +81,34 @@ func start_practice(map: String = "", game: String = "") -> void:
 	if map != "":
 		last_practice_map = map
 		last_practice_game = _game_for(map, game)
-		last_map[last_practice_game] = map
+		if map != Maps.RANDOM:
+			last_map[last_practice_game] = map
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
-	Net.match_settings["map"] = _map_choice(last_practice_map)
-	Net.match_settings["game"] = _game_for(Net.match_settings.map, DevArgs.game if DevArgs.game != "" else last_practice_game)
+	Net.match_settings = with_map(Net.match_settings, _map_choice(last_practice_map), DevArgs.game if DevArgs.game != "" else last_practice_game)
 	Net.match_settings["weapons"] = DevArgs.allowed_weapons.duplicate()   # practice: every weapon (unless a test says)
 	Net.match_settings["mobility"] = DevArgs.allowed_mobility.duplicate()   # ...and every mobility tool
 	Net.host_start_match()
 
 
-## `game` if the map can host it, else the map's own kind of game.
+## `game` if the map can host it, else the map's own kind of game. A random map takes
+## `game` as it is.
 func _game_for(map: String, game: String) -> String:
+	if map == Maps.RANDOM:
+		return Maps.valid_game(game)
 	return game if game in Maps.games_of(map) else Maps.game_of(map)
+
+
+## Match settings with the map (or Maps.RANDOM: one from the pool, picked as the match
+## starts; see Net.host_pick_random_map) and kind of game set.
+func with_map(settings: Dictionary, map: String, game: String) -> Dictionary:
+	var s := settings.duplicate()
+	var g := _game_for(map, game)
+	s["random_map"] = map == Maps.RANDOM
+	s["map"] = map if map != Maps.RANDOM else Maps.default_id(g)
+	s["game"] = g
+	if map == Maps.RANDOM:
+		s["map_pool"] = DevArgs.map_pool.duplicate() if not DevArgs.map_pool.is_empty() else last_map_pool.duplicate()
+	return LobbySettings.clean(s)
 
 
 ## An offline match against computer players: a 1v1 with one bot, or a
@@ -129,13 +148,13 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
 		"rules": rules, "weapons": LobbySettings.normalized_weapons(weapons), "mobility": LobbySettings.normalized_mobility(mobility),
 		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes}
-	last_map[last_bot.game] = picked
+	if picked != Maps.RANDOM:
+		last_map[last_bot.game] = picked
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
-	var playing := _map_choice(last_bot.map)
-	Net.match_settings = LobbySettings.clean({"game": _game_for(playing, DevArgs.game if DevArgs.game != "" else last_bot.game),
-		"mode": rules, "kills": kills_to_win, "minutes": 8, "race_minutes": 10, "map": playing,
+	Net.match_settings = with_map({"mode": rules, "kills": kills_to_win, "minutes": 8, "race_minutes": 10,
 		"weapons": last_bot.weapons, "mobility": last_bot.mobility,
-		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes})
+		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes},
+		_map_choice(last_bot.map), DevArgs.game if DevArgs.game != "" else last_bot.game)
 	for i in bots:
 		Net.add_bot(difficulty, DevArgs.bot_weapon, DevArgs.bot_mobility)
 	Net.host_start_match()
@@ -157,7 +176,7 @@ func _map_choice(picked: String) -> String:
 		return DevArgs.map
 	if DevArgs.race:
 		return Maps.default_id("race")
-	return picked if Maps.has(picked) else Maps.default_id()
+	return picked if Maps.has(picked) or picked == Maps.RANDOM else Maps.default_id()
 
 
 func host_online() -> Error:
@@ -165,10 +184,7 @@ func host_online() -> Error:
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
 	var err := Net.host_direct(local_name(), local_character(), port, local_weapon(), local_mobility())
 	if err == OK and (DevArgs.map != "" or DevArgs.race):
-		var with_map := Net.match_settings.duplicate()
-		with_map["map"] = _map_choice("")
-		with_map["game"] = _game_for(with_map.map, DevArgs.game)
-		Net.set_match_settings(with_map)
+		Net.set_match_settings(with_map(Net.match_settings, _map_choice(""), DevArgs.game if DevArgs.game != "" else ("race" if DevArgs.race else "")))
 	elif err == OK and DevArgs.game != "":
 		var with_game := Net.match_settings.duplicate()
 		with_game["game"] = DevArgs.game
@@ -185,7 +201,7 @@ func host_online() -> Error:
 			s.kills = int(amount)
 		Net.set_match_settings(s)
 	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty() and DevArgs.lobby_size == 0 \
-			and DevArgs.points_target == 0):
+			and DevArgs.points_target == 0 and DevArgs.song == ""):
 		var s := Net.match_settings.duplicate()   # tests: lobby settings, in one go
 		if DevArgs.lobby_size > 0:
 			s["max_players"] = DevArgs.lobby_size
@@ -195,6 +211,8 @@ func host_online() -> Error:
 			s["mobility"] = DevArgs.allowed_mobility.duplicate()
 		if DevArgs.points_target > 0:
 			s["killcam_points"] = DevArgs.points_target
+		if DevArgs.song != "":
+			s["song"] = DevArgs.song
 		Net.set_match_settings(s)
 	return err
 

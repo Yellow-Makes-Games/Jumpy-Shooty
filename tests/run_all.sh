@@ -44,6 +44,7 @@ CHECKS=(
   "lobby_settings|--script tests/lobby_settings_test.gd"
   "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
+  "host_controls|--script tests/host_controls_test.gd"
   "spectator|--script tests/spectator_test.gd"
   "team_modes|--script tests/team_modes_test.gd"
 )
@@ -66,7 +67,7 @@ run_check() {  # fails on any script error, even if the script itself reports PA
 export -f run_check
 export OUT
 
-echo "== Quick checks: movement, robots, weapons, sounds, maps and routes, menus, modes, lobby codes, practice on every map"
+echo "== Quick checks: movement, robots, weapons, sounds, maps and routes, menus, modes, lobby codes, random maps and lobby songs, practice on every map"
 if ! printf '%s\n' "${CHECKS[@]}" | xargs -d '\n' -P "${JOBS:-4}" -I{} bash -c 'run_check "$1"' _ {}; then
   for f in "$OUT"/check_*.log; do
     if grep -q "FAIL\|SCRIPT ERROR\|^ERROR" "$f"; then echo "--- $f"; grep -B2 -A4 "FAIL\|SCRIPT ERROR\|^ERROR" "$f" | head -40; fi
@@ -95,6 +96,8 @@ echo "== Lobby settings: the host allows only some weapons and mobility tools; a
 tests/run_lobby_settings_test.sh
 echo "== Lobby: size 3 (a fourth player is refused), ready up, the host kicks the one not ready, then starts"
 tests/run_lobby_test.sh
+echo "== Host controls: a random map from the host's pool for everyone (a late joiner too), and the lobby song the host picks, in step"
+tests/run_host_controls_test.sh
 echo "== Spectating online: a client joins mid-match to watch; nobody sees it"
 tests/run_spectator_test.sh
 echo "ALL TESTS PASSED"
