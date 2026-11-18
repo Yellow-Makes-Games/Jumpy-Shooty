@@ -54,12 +54,14 @@ func _show_main() -> void:
 
 ## Change your robot and (in a shoot-out) your weapon mid-match. In a fight the change
 ## waits for your next respawn; a race has no deaths, so there it happens at once. A
-## Deathmatch only offers the robot: weapons there come off the map.
+## Deathmatch only offers the robot: weapons there come off the map. Only the weapons
+## the host allows can be picked (see LobbySettings); with one gun for everyone, none.
 func _show_loadout() -> void:
 	var me := Net.my_id()
 	var race := Race.active
 	var deathmatch := Net.is_deathmatch() or GunGame.active() or KillcamMode.active()   # weapons come off the map, from the ladder, or it is snipers only
-	var with_weapons := not race and not deathmatch
+	var only := LobbySettings.only_weapon()
+	var with_weapons := not race and not deathmatch and only == ""
 	_frame.clear(1040 if with_weapons else 520)
 	var note := "Your robot changes straight away." if race else "Changes apply the next time you respawn."
 	if deathmatch:
@@ -67,10 +69,12 @@ func _show_loadout() -> void:
 	var dead := not race and not Match.is_alive(me)
 	if dead:
 		note = "Changes apply when you respawn."
+	if only != "" and not race and not deathmatch:
+		note += "  Everyone has the %s this match." % WeaponData.name_of(only)
 	_frame.title("Loadout", "Paused  /  robot, weapon and mobility")
 	UiKit.label(_frame.header, note, true, 15)
 	var picked := {"character": Net.pending_character(), "weapon": Net.pending_weapon(), "mobility": Net.pending_mobility()}
-	var gun: String = picked.weapon if with_weapons else "none"
+	var gun: String = picked.weapon if with_weapons or (only != "" and not race and not deathmatch) else "none"
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 28)
 	_frame.body.add_child(row)
@@ -84,7 +88,7 @@ func _show_loadout() -> void:
 	robots.add_child(moves)
 	if with_weapons:
 		robots.size_flags_horizontal = Control.SIZE_FILL
-		var weapons := WeaponPicker.new(picked.weapon)
+		var weapons := WeaponPicker.new(picked.weapon, LobbySettings.allowed_weapons())
 		weapons.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(weapons)
 		weapons.picked.connect(func(id: String):
@@ -93,10 +97,11 @@ func _show_loadout() -> void:
 	_frame.back_button("Back", _show_main)
 	_frame.main_button("Apply", func():
 		Settings.character = picked.character
-		Settings.weapon = picked.weapon
+		if with_weapons:   # otherwise your saved pick stays for matches that let you choose
+			Settings.weapon = picked.weapon
 		Settings.mobility = picked.mobility
 		Settings.save_settings()
-		Net.set_loadout(picked.character, picked.weapon, picked.mobility)
+		Net.set_loadout(picked.character, picked.weapon if with_weapons else "", picked.mobility)
 		if dead:
 			visible = false   # back to the death screen, to respawn with it
 		else:

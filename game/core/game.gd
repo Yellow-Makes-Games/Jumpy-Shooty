@@ -80,6 +80,7 @@ func start_practice(map: String = "", game: String = "") -> void:
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	Net.match_settings["map"] = _map_choice(last_practice_map)
 	Net.match_settings["game"] = _game_for(Net.match_settings.map, DevArgs.game if DevArgs.game != "" else last_practice_game)
+	Net.match_settings["weapons"] = DevArgs.allowed_weapons.duplicate()   # practice: every weapon (unless a test says)
 	Net.host_start_match()
 
 
@@ -93,7 +94,10 @@ func _game_for(map: String, game: String) -> String:
 ## gun_game: Gun Game rules instead of first to `kills_to_win` (see GunGame).
 ## game: "dm" for a Deathmatch ("" keeps the last one, or follows the map).
 ## rules: "kills", or a free-for-all mode with rules of its own ("gungame", "killcam": GunGame.RULES).
-func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0, rules: String = "kills", game: String = "") -> void:
+## weapons: the weapons allowed in a shoot-out (see LobbySettings; [] all of them,
+## null keeps the last choice).
+func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0, rules: String = "kills", game: String = "",
+		weapons = null) -> void:
 	if not rules in GunGame.RULES:
 		rules = "kills"
 	mode = Mode.BOT
@@ -103,13 +107,18 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	var picked: String = map if map != "" else last_bot.map
 	if game == "":
 		game = str(last_bot.get("game", ""))
+	if weapons == null:
+		weapons = last_bot.get("weapons", [])
+	if not DevArgs.allowed_weapons.is_empty():
+		weapons = DevArgs.allowed_weapons
 	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
-		"rules": rules}
+		"rules": rules, "weapons": LobbySettings.normalized_weapons(weapons)}
 	last_map[last_bot.game] = picked
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	var playing := _map_choice(last_bot.map)
-	Net.match_settings = {"game": _game_for(playing, DevArgs.game if DevArgs.game != "" else last_bot.game),
-		"mode": rules, "kills": kills_to_win, "minutes": 8, "race_minutes": 10, "map": playing}
+	Net.match_settings = LobbySettings.clean({"game": _game_for(playing, DevArgs.game if DevArgs.game != "" else last_bot.game),
+		"mode": rules, "kills": kills_to_win, "minutes": 8, "race_minutes": 10, "map": playing,
+		"weapons": last_bot.weapons})
 	for i in bots:
 		Net.add_bot(difficulty, DevArgs.bot_weapon, DevArgs.bot_mobility)
 	Net.host_start_match()
@@ -152,6 +161,10 @@ func host_online() -> Error:
 			s.minutes = amount
 		elif not kind in GunGame.RULES:
 			s.kills = int(amount)
+		Net.set_match_settings(s)
+	if err == OK and not DevArgs.allowed_weapons.is_empty():
+		var s := Net.match_settings.duplicate()
+		s["weapons"] = DevArgs.allowed_weapons.duplicate()
 		Net.set_match_settings(s)
 	return err
 

@@ -872,13 +872,20 @@ func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
 			HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "NEXT: %s" % WeaponData.name_of(GunGame.weapon_at(lv + 1)).to_upper(), 12,
 				Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
 		return
-	var groups := WeaponData.GROUPS
+	var only := LobbySettings.only_weapon()
+	if only != "":   # the host set one gun for everyone
+		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), "EVERYONE HAS THE %s" % WeaponData.name_of(only).to_upper(), 16, HudStyle.WHITE,
+			HORIZONTAL_ALIGNMENT_CENTER)
+		HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "THE HOST'S RULE FOR THIS MATCH", 12, Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
+		return
+	var groups := LobbySettings.weapon_groups()   # only the weapons the host allows
 	var gap := 6.0
 	var total := DEATH_W
 	var cell := Vector2((total - (groups.size() - 1) * gap) / groups.size(), 25.0)
 	var x := at.x - total * 0.5
 	HudStyle.label(ci, Vector2(x, at.y - 10.0), "COME BACK WITH", 11, Color(1, 1, 1, 0.85))
-	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), "PRESS 1-%d OR SCROLL" % groups.size(), 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
+	var keys := "PRESS 1" if groups.size() == 1 else "PRESS 1-%d" % groups.size()
+	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), keys + " OR SCROLL", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	for g in groups.size():
 		var gx := x + g * (cell.x + gap)
 		var list: Array = groups[g][1]

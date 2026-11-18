@@ -52,7 +52,8 @@ var _upnp_thread: Thread = null
 ## race_minutes: a race's time limit.
 ## map: which map to play (an id from Maps; it must be one for the game).
 ## powerups: Deathmatch only, whether the map's power-ups (ItemPickup) are out.
-var match_settings := {"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id(), "powerups": true}
+## Plus the lobby settings (see LobbySettings), such as which weapons are allowed.
+var match_settings := LobbySettings.clean({"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id(), "powerups": true})
 
 ## The arena currently running, if any. It registers itself here.
 var arena: Node = null
@@ -99,7 +100,7 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon, "mobility": _local_mobility}}
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": _local_mobility}}
 	is_online = false
 	players_changed.emit()
 
@@ -115,7 +116,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon, "mobility": _local_mobility}}
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": _local_mobility}}
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -287,19 +288,26 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 	if players.size() >= MAX_PLAYERS:
 		_refused.rpc_id(id, "The lobby is full.")
 		return
-	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
-		"character": Characters.valid(character), "weapon": WeaponData.valid(weapon), "mobility": Mobility.valid(mobility)}
-	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
+	host_add_player(id, player_name, character, weapon, mobility)
 	_sync_settings.rpc_id(id, match_settings)
 	_sync_players.rpc(players)
 	if in_match:
 		_late_join.rpc_id(id)
 
 
+## Host: put a player who has just connected in the list. Their weapon must be one the
+## lobby allows (see LobbySettings); if not, they get one that is.
+func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "") -> void:
+	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
+		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": Mobility.valid(mobility)}
+	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
+
+
 @rpc("authority", "call_local", "reliable")
 func _sync_players(new_players: Dictionary) -> void:
 	var was_registered := players.has(my_id())
 	players = new_players
+	_log_loadouts()
 	players_changed.emit()
 	if not was_registered and players.has(my_id()) and not is_host():
 		joined_lobby.emit()
@@ -320,18 +328,19 @@ func set_my_character(character: String) -> void:
 func confirm_my_character() -> void:
 	if players.has(my_id()) and player_character(my_id()) != _local_character:
 		set_my_character(_local_character)
-	if players.has(my_id()) and player_loadout_weapon(my_id()) != _local_weapon:
-		set_my_weapon(_local_weapon)
+	if players.has(my_id()) and player_loadout_weapon(my_id()) != LobbySettings.fit_weapon(_local_weapon):
+		set_my_weapon(_local_weapon)   # the host gives you an allowed one if this one is not
 	if players.has(my_id()) and player_loadout_mobility(my_id()) != _local_mobility:
 		set_my_mobility(_local_mobility)
 
 
 ## Pause menu "Loadout": change robot and/or weapon mid-match. It takes effect when
 ## you next respawn: sent now if you are dead (or racing, where nobody dies), else
-## as soon as you die (see _on_player_died).
+## as soon as you die (see _on_player_died). "" keeps the weapon (or mobility) as it is.
 func set_loadout(character: String, weapon: String, mobility: String = "") -> void:
 	_local_character = Characters.valid(character)
-	_local_weapon = WeaponData.valid(weapon)
+	if weapon != "":
+		_local_weapon = WeaponData.valid(weapon)
 	if mobility != "":
 		_local_mobility = Mobility.valid(mobility)
 	if not in_match or not Match.is_alive(my_id()) or Race.active:
@@ -344,7 +353,7 @@ func pending_character() -> String:
 
 
 func pending_weapon() -> String:
-	return _local_weapon
+	return LobbySettings.fit_weapon(_local_weapon)
 
 
 func pending_mobility() -> String:
@@ -393,13 +402,14 @@ func _choose_weapon(weapon: String) -> void:
 
 
 func _apply_weapon(id: int, weapon: String) -> void:
-	if not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
+	weapon = LobbySettings.fit_weapon(WeaponData.valid(weapon))   # only what the lobby allows
+	if not players.has(id) or players[id].get("weapon", "") == weapon:
 		return
 	if in_match and (GunGame.active() or KillcamMode.active()):
 		return   # Gun Game hands out the weapons; Killcam is snipers only
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
 		return   # mid-fight you can only swap while waiting to respawn
-	players[id]["weapon"] = WeaponData.valid(weapon)
+	players[id]["weapon"] = weapon
 	print("[net] %d took the %s" % [id, players[id].weapon])
 	if is_online:
 		_sync_players.rpc(players)
@@ -447,7 +457,7 @@ func host_set_weapon(id: int, weapon: String) -> void:
 		players_changed.emit()
 
 
-## Host only: change the win condition and tell everyone.
+## Host only: change the mode, map, win condition or lobby settings and tell everyone.
 func set_match_settings(settings: Dictionary) -> void:
 	if not is_host():
 		return
@@ -465,7 +475,39 @@ func _sync_settings(settings: Dictionary) -> void:
 		match_settings["map"] = Maps.default_id(game)
 	map = str(match_settings.map)
 	match_settings["game"] = game if game in Maps.games_of(map) else Maps.game_of(map)
+	match_settings = LobbySettings.clean(match_settings)
+	if DevArgs.sync_log:
+		print("LOBBY_SETTINGS %d weapons=%s" % [my_id(), ",".join(LobbySettings.allowed_weapons())])
+	if is_host() and not in_match:
+		host_fit_loadouts()   # weapons no longer allowed are swapped (everyone is told)
+	elif players.has(my_id()) and not in_match:
+		confirm_my_character()   # a weapon allowed again: ask for the one you picked
 	players_changed.emit()  # lobby screens refresh on this
+
+
+## Host: everyone's weapon is one the lobby allows (see LobbySettings); a player with
+## one that is not gets the first that is. Tells everyone if anything changed.
+func host_fit_loadouts() -> void:
+	if not is_host():
+		return
+	var changed := false
+	for id in players:
+		# Your own pick is known here, so you get it back once it is allowed again.
+		var wanted := _local_weapon if id == my_id() else str(players[id].get("weapon", ""))
+		var w := LobbySettings.fit_weapon(WeaponData.valid(wanted))
+		if players[id].get("weapon", "") != w:
+			players[id]["weapon"] = w
+			changed = true
+	if changed:
+		_players_updated()
+
+
+## --sync-log: the weapon everyone has on record.
+func _log_loadouts() -> void:
+	if DevArgs.sync_log:
+		var ids := players.keys()
+		ids.sort()
+		print("LOADOUTS %d %s" % [my_id(), " ".join(ids.map(func(i): return "%d:%s" % [i, players[i].get("weapon", "")]))])
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -505,20 +547,21 @@ const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston"]   # never the name of
 ## Adds a computer player (offline matches only for now). Returns its id.
 ## Bots take turns through the robots, starting with the one after yours, so in a
 ## 1v1 the bot never plays the robot you picked; colours always differ. Each bot
-## takes a gun at random (or `weapon`, if given).
+## takes a gun at random from those the lobby allows (or `weapon`, if given and allowed).
 func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int:
 	var id := BOT_ID_BASE
 	while players.has(id):
 		id += 1
 	var index := id - BOT_ID_BASE
 	var character := player_character(my_id())
+	var guns := LobbySettings.allowed_weapons()
 	for i in index + 1:
 		character = Characters.next(character)
 	players[id] = {
 		"name": "%s (%s)" % [BOT_NAMES[index % BOT_NAMES.size()], BotDifficulty.NAMES[difficulty]],
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
 		"character": character,
-		"weapon": WeaponData.valid(weapon) if weapon != "" else WeaponData.IDS[randi() % WeaponData.IDS.size()],
+		"weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)) if weapon != "" else guns[randi() % guns.size()],
 		"mobility": Mobility.valid(mobility) if mobility != "" else Mobility.IDS[randi() % Mobility.IDS.size()],
 	}
 	players_changed.emit()
@@ -709,6 +752,7 @@ func host_start_match() -> void:
 	if not is_host() or _starting:
 		return
 	_starting = true   # (handing out the weapons below changes the players, which can call this again: dev autostart)
+	host_fit_loadouts()   # nobody starts with a weapon the lobby does not allow
 	if GunGame.active() or KillcamMode.active():   # the first rung of the ladder; Killcam: the sniper
 		for id in players:
 			players[id]["weapon"] = GunGame.weapon_at(0) if GunGame.active() else KillcamMode.WEAPON
@@ -716,6 +760,7 @@ func host_start_match() -> void:
 			_sync_players.rpc(players)
 		else:
 			players_changed.emit()
+	_log_loadouts()
 	_start_match.rpc()
 	_starting = false
 
