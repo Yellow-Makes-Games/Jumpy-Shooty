@@ -10,6 +10,9 @@ colors = Dictionary[String, Color]({
 "cloth_red": Color(0.7, 0.18, 0.14, 1),
 "crystal": Color(0.35, 0.9, 0.85, 1),
 "dirt": Color(0.5, 0.4, 0.28, 1),
+"flower": Color(0.96, 0.92, 0.8, 1),
+"flower_pink": Color(0.92, 0.45, 0.62, 1),
+"foam": Color(0.88, 0.95, 0.95, 1),
 "gold": Color(0.95, 0.74, 0.25, 1),
 "grass": Color(0.36, 0.52, 0.24, 1),
 "grass_dark": Color(0.28, 0.43, 0.2, 1),
@@ -40,6 +43,28 @@ glow = Dictionary[String, float]({
 "crystal": 1.6,
 "gold": 0.3,
 "torch": 2.0
+})
+surface = Dictionary[String, String]({
+"dirt": "dirt",
+"grass": "grass",
+"grass_dark": "grass",
+"leaves": "clumps",
+"leaves_dark": "clumps",
+"leaves_light": "clumps",
+"moss": "grass",
+"paving": "blocks_small",
+"plank": "planks",
+"rock": "strata",
+"rock_dark": "strata",
+"stone": "blocks_small",
+"stone_dark": "blocks_small",
+"temple": "blocks",
+"temple_dark": "blocks",
+"temple_light": "blocks",
+"thatch": "thatch",
+"trunk": "bark",
+"water": "water",
+"wood_wall": "planks_upright"
 })
 breakable = Dictionary[String, float]({
 "cloth_red": 40.0,

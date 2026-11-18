@@ -98,6 +98,15 @@ var _burst_left := 0              # local: rounds of a burst still to fire
 var _akimbo_shots := 0            # akimbo: shots so far (yours, or seen); odd ones leave the left gun
 var _akimbo_left := false         # akimbo: the last shot came from the left gun
 var _burst_wait := 0.0            # local: seconds until the next round of the burst
+## The tool on the mobility button (an id from Mobility): the grapple, the portal
+## gun or blink. A race always has the grapple.
+var mobility := Mobility.GRAPPLE
+var blink: Blink                  # local, with blink
+var portal_gun: PortalGun         # local, with the portal gun
+var jetpack: Jetpack              # local, with the jetpack
+var _seen_jet := false            # the jetpack was firing last frame (its sound and flame)
+## Local: the portal you just came out of. It does nothing until you step clear of it (see Portals).
+var portal_skip: Portal
 
 
 func _init() -> void:
@@ -173,6 +182,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	_build_flame()
 	if motor:
 		motor.grapple.hook_players = not racing
+	set_mobility(Net.player_mobility(id))
 	if WeaponData.melee(robot.weapon):
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
 		add_child(_trail)
@@ -203,7 +213,13 @@ func _physics_process(delta: float) -> void:
 	if alive:
 		_set_crosshair_ray()
 		var was_on := motor.grapple.attached
-		var hooking := input.grapple_pressed and motor.grapple.ready_to_fire()
+		var hooking := input.grapple_pressed and motor.grapple.ready_to_fire() and mobility == Mobility.GRAPPLE
+		# Portal gun and blink take the mobility button: the grapple never sees it.
+		var mobility_pressed := input.grapple_pressed and mobility != Mobility.GRAPPLE
+		var mobility_held := input.grapple and mobility != Mobility.GRAPPLE
+		if mobility != Mobility.GRAPPLE:
+			input.grapple = false
+			input.grapple_pressed = false
 		var fly := Cheats.flying() and not is_bot
 		if fly != _flying:
 			_flying = fly
@@ -218,7 +234,15 @@ func _physics_process(delta: float) -> void:
 				input.glide = false   # mid flying kick: you are already going somewhere
 				input.glide_pressed = false
 			var boosts := motor.boosts
-			motor.hang = _charge >= 0.0   # winding a melee swing up slows a fall
+			if jetpack:
+				var jet_was_on := jetpack.on
+				# (a ground slam is committed: the jetpack does not fire on the way down)
+				velocity = jetpack.step(velocity, mobility_held and not racing and motor.state != MovementController.State.SLAM, is_on_floor(), motor._wish_dir(input), delta)
+				if jetpack.on and is_on_floor():
+					motor.warped = true   # lift off: no floor snap or ground friction this step
+				if jetpack.on and not jet_was_on and DevArgs.sync_log:
+					print("JETPACK %d" % peer_id)
+			motor.hang = _charge >= 0.0 and not (jetpack and jetpack.on)   # winding a melee swing up slows a fall (the jetpack takes over from it)
 			motor.step(self, input, delta)
 			_watch_ground_slam()
 			if hooking and not motor.grapple.attached:
@@ -226,6 +250,7 @@ func _physics_process(delta: float) -> void:
 			if motor.boosts != boosts and DevArgs.sync_log:
 				print("BOOST %d" % peer_id)
 			_check_slam(delta)
+			_update_mobility(delta, mobility_pressed and motor.state != MovementController.State.SLAM)   # (no blinking out of a slam)
 		_report_tether()
 		if Cheats.cooldowns_off() and not is_bot:
 			motor.clear_cooldowns()
@@ -335,6 +360,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		weapon.start_reload()
 	elif racing:
 		pass
+	elif not alive and event.is_action_pressed("grapple"):
+		_next_mobility()
 	elif Net.is_deathmatch():
 		if alive:
 			_switch_weapon(event)   # weapons come off the map, not from a pick while dead
@@ -342,32 +369,42 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pick_on_death(event)
 
 
-## Waiting to respawn: the mouse wheel goes through every weapon, and the number keys
-## pick a group (1 sidearms, 2 shotguns... 6 melee; again goes on through the group).
+## Waiting to respawn: the mouse wheel goes through every allowed weapon, and the number
+## keys pick a group (1 sidearms, 2 shotguns... 6 melee; again goes on through the group).
+## With only some weapons allowed (see LobbySettings), the groups are those that have
+## any, numbered from 1; with a single gun there is nothing to pick.
 func _pick_on_death(event: InputEvent) -> void:
-	if GunGame.active():
-		return   # Gun Game hands out the weapons
-	var ids := WeaponData.IDS
-	var current := ids.find(Net.player_weapon(peer_id))
-	var pick := -1
-	var k := _weapon_slot(event, WeaponData.GROUPS.size()) if event else _dev_group
-	if k >= 0:
-		var group: Array = WeaponData.GROUPS[k][1]
-		var at := group.find(ids[current]) if current >= 0 else -1
-		pick = ids.find(group[(at + 1) % group.size()] if at >= 0 else group[0])
-	elif event and event.is_action_pressed("weapon_next"):
-		pick = (current + 1) % ids.size()
+	if GunGame.active() or KillcamMode.active():
+		return   # Gun Game hands out the weapons; Killcam is snipers only
+	var k := _weapon_slot(event, LobbySettings.weapon_groups().size()) if event else _dev_group
+	var step := 0
+	if event and event.is_action_pressed("weapon_next"):
+		step = 1
 	elif event and event.is_action_pressed("weapon_prev"):
-		pick = (current - 1 + ids.size()) % ids.size()
-	if pick < 0 or pick == current or alive:
+		step = -1
+	var pick := LobbySettings.death_pick(Net.player_weapon(peer_id), k, step)
+	if pick == "" or alive:
 		return
 	if DevArgs.sync_log:
-		print("SWAP %d %s" % [peer_id, ids[pick]])
+		print("SWAP %d %s" % [peer_id, pick])
 	if not DevArgs.swap_on_death:
-		Settings.weapon = ids[pick]
+		Settings.weapon = pick
 		Settings.save_settings()
-	Sound.play("equip_" + ids[pick])
-	Net.set_my_weapon(ids[pick])
+	Sound.play("equip_" + pick)
+	Net.set_my_weapon(pick)
+
+
+## Waiting to respawn: the mobility button goes on to the next mobility tool.
+func _next_mobility() -> void:
+	var pick := LobbySettings.next_mobility(Net.pending_mobility())   # only the tools the host allows
+	if pick == Net.pending_mobility():
+		return   # one tool for everyone
+	Settings.mobility = pick
+	Settings.save_settings()
+	Sound.play("ui_select")
+	Net.set_my_mobility(pick)
+	if DevArgs.sync_log:
+		print("MOBILITY_PICK %d %s" % [peer_id, pick])
 
 
 ## Reads keyboard and mouse into `input`. Mouse look arrives in _unhandled_input.
@@ -1122,7 +1159,10 @@ func show_shot() -> void:
 
 ## --swap-on-death (tests): just died, so press the next weapon's number key.
 func dev_swap_after_death() -> void:
-	var group := (WeaponData.group_of(Net.player_weapon(peer_id)) + 1) % WeaponData.GROUPS.size()
+	var groups := LobbySettings.weapon_groups()
+	var mine := Net.player_weapon(peer_id)
+	var at := groups.find_custom(func(g): return mine in g[1])
+	var group := (at + 1) % groups.size() if groups.size() > 1 else 0
 	get_tree().create_timer(0.5).timeout.connect(func():
 		if is_instance_valid(self) and is_inside_tree():
 			_dev_group = group
@@ -1132,6 +1172,7 @@ func dev_swap_after_death() -> void:
 
 func set_dead() -> void:
 	alive = false
+	portal_skip = null
 	_charge = -1.0
 	_fly_kick = 0.0
 	_tug_by = 0
@@ -1176,6 +1217,13 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	_slam_cool = 0.0
 	_fly_kick = 0.0
 	_tug_by = 0
+	portal_skip = null
+	if blink:
+		blink.reset()
+	if portal_gun:
+		portal_gun.reset()
+	if jetpack:
+		jetpack.reset()
 	_send_timer = 0.0  # tell everyone at once
 
 
@@ -1296,6 +1344,8 @@ func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 	var count := int(data[9])
 	if count != _teleport_count:
 		_teleport_count = count
+		if alive and not _awaiting_respawn and visual.visible and buffer.has_data():
+			_show_warp(latest_position(), Vector3(data[0], data[1], data[2]))   # a blink or a portal, not a respawn
 		buffer.clear_history()  # never blend across a respawn
 		if _awaiting_respawn:
 			_awaiting_respawn = false
@@ -1320,6 +1370,13 @@ func latest_position() -> Vector3:
 		return global_position
 	var last = buffer.snaps[-1]
 	return last.pos + Vector3(0, tuck_offset(last.state), 0)
+
+
+## Newest known velocity: from snapshots, or the body's own for a player with none.
+func latest_velocity() -> Vector3:
+	if not buffer.has_data():
+		return velocity
+	return buffer.snaps[-1].vel
 
 
 func latest_time() -> float:
@@ -1393,7 +1450,7 @@ func _my_anim_flags() -> int:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
-		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive)
+		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive)
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -1446,6 +1503,23 @@ func _target_roll() -> float:
 	return -motor.wall_normal.dot(right) * deg_to_rad(7.0)
 
 
+## What this copy of the game draws for this player right now, for the killcam's
+## recording (see Killcam): [feet, velocity, yaw, pitch, pose, animation flags,
+## rope on, rope anchor, alive, drawn, eye height above the feet, weapon in hand].
+func shown_state() -> Array:
+	var pose := _my_pose() if is_local and motor else _remote_state
+	var eye := motor.eye_height if is_local and motor else eye_for_pose(pose) - tuck_offset(pose)   # (a remote body is drawn lifted by its tuck)
+	return [global_position, velocity, _visual_yaw, _anim.pitch, pose, _anim.flags, _anim.grapple_on and alive,
+		_anim.grapple_anchor, alive, visual.visible and not _awaiting_respawn, eye, robot.weapon if robot else "none"]
+
+
+## Eye height above the feet for a pose (as sent in snapshots).
+static func eye_for_pose(pose: int) -> float:
+	if pose_state(pose) == MovementController.State.BELLY_SLIDE:
+		return 0.55
+	return 1.0 if pose_crouched(pose) else CameraRig.EYE_HEIGHT
+
+
 ## Where this player's feet were at time t (on this player's clock).
 func position_at(t: float) -> Vector3:
 	if not buffer.has_data():
@@ -1455,6 +1529,7 @@ func position_at(t: float) -> Vector3:
 
 
 func teleport(pos: Vector3, yaw: float) -> void:
+	portal_skip = null
 	_fly_kick = 0.0
 	_tug_by = 0
 	if motor:
@@ -1463,6 +1538,138 @@ func teleport(pos: Vector3, yaw: float) -> void:
 	velocity = Vector3.ZERO
 	input.yaw = yaw
 	input.pitch = 0.0
+
+
+## Local: jump to `pos` keeping on the move (blink, a portal). Others see it as a
+## jump, not a dash across the map: the respawn count goes up, so they don't blend
+## from where you were.
+func warp(pos: Vector3, vel: Vector3, yaw: float) -> void:
+	var from := global_position
+	motor.grapple.reset()
+	if motor.state == MovementController.State.MANTLE:
+		motor.state = MovementController.State.AIR
+	global_position = pos
+	velocity = vel
+	motor.warped = true   # off the floor you were on: no snapping back to it, no ground friction
+	input.yaw = yaw
+	_teleport_count += 1
+	_send_timer = 0.0   # tell everyone at once
+	_show_warp(from, pos)
+
+
+# ---------------------------------------------------------------------------
+# Mobility: the grapple, portal gun or blink (see Mobility)
+
+## Change the tool on the mobility button (picked while waiting to respawn).
+func set_mobility(id: String) -> void:
+	var m := Mobility.GRAPPLE if racing else Mobility.valid(id)
+	if mobility == Mobility.PORTAL and m != Mobility.PORTAL and Net.arena and Net.arena.get("portals"):
+		Net.arena.portals.clear(peer_id)   # the old portal gun's portals go with it
+	mobility = m
+	if not is_local:
+		return
+	blink = Blink.new() if mobility == Mobility.BLINK else null
+	portal_gun = PortalGun.new() if mobility == Mobility.PORTAL else null
+	jetpack = Jetpack.new() if mobility == Mobility.JETPACK else null
+	if motor and mobility != Mobility.GRAPPLE:
+		motor.grapple.reset()
+
+
+## 0..1 how ready the mobility tool is (the HUD).
+func mobility_readiness() -> float:
+	match mobility:
+		Mobility.BLINK:
+			return blink.readiness() if blink else 1.0
+		Mobility.PORTAL:
+			return portal_gun.readiness() if portal_gun else 1.0
+		Mobility.JETPACK:
+			return jetpack.readiness() if jetpack else 1.0
+	var g := motor.grapple if motor else null
+	if g and g.cooldown_left > 0.0:
+		return 1.0 - g.cooldown_left / motor.tuning.grapple_cooldown
+	return 1.0
+
+
+## Where the mobility tool aims: the crosshair ray in third person, the eyes otherwise.
+## Bots can pick a direction of their own (PlayerInput.mobility_dir).
+func mobility_aim() -> Array:
+	if input.mobility_dir != Vector3.ZERO:
+		return [eye_position(), input.mobility_dir.normalized()]
+	if input.aim_dir != Vector3.ZERO:
+		return [input.aim_origin, input.aim_dir]
+	return [eye_position(), Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0)) * Vector3.FORWARD]
+
+
+func _update_mobility(delta: float, pressed: bool) -> void:
+	if blink:
+		blink.update(delta)
+		if Cheats.cooldowns_off() and not is_bot:
+			blink.reset()
+		if pressed:
+			_try_blink()
+	if portal_gun:
+		portal_gun.update(delta)
+		if Cheats.cooldowns_off() and not is_bot:
+			portal_gun.cooldown_left = 0.0
+		if pressed:
+			_try_portal()
+	if not racing and Net.arena and Net.arena.get("portals"):
+		Net.arena.portals.check(self)
+
+
+func _try_blink() -> void:
+	if not blink.ready():
+		return
+	var aim := mobility_aim()
+	var dir: Vector3 = aim[1]
+	var to := Blink.destination(self, _shape, dir)
+	if to == Vector3.INF:
+		sounds.grapple_missed()
+		blink._gap = Blink.GAP
+		return
+	blink.charges -= 1
+	blink._gap = Blink.GAP
+	if DevArgs.sync_log:
+		print("BLINK %d %.2f" % [peer_id, global_position.distance_to(to)])
+	warp(to, Blink.carry(velocity, dir), input.yaw)
+
+
+func _try_portal() -> void:
+	if not portal_gun.ready():
+		return
+	portal_gun.cooldown_left = PortalGun.COOLDOWN
+	var aim := mobility_aim()
+	var spot := PortalGun.find_spot(self, aim[0], aim[1])
+	if spot.is_empty():
+		sounds.grapple_missed()   # nothing in range takes a portal
+		return
+	var slot := portal_gun.next_slot
+	portal_gun.next_slot = 1 - slot
+	Net.place_portal(peer_id, slot, spot.at, spot.normal, spot.up)
+
+
+## A flash where a blink or portal trip left from and where it arrived, and its sound.
+func _show_warp(from: Vector3, to: Vector3) -> void:
+	if not is_inside_tree():
+		return
+	var col: Color = Portal.COLORS[0] if mobility == Mobility.BLINK else Portal.COLORS[1]
+	var mid := Vector3(0, body_height() * 0.5, 0)
+	if not (rig and rig.first_person_amount() > 0.5):
+		var fx_parent: Node = Net.arena if Net.arena else get_parent()
+		Portal.flash(fx_parent, from + mid, col)
+		Portal.flash(fx_parent, to + mid, col)
+	if mobility == Mobility.BLINK:
+		Portal.trail(Net.arena if Net.arena else get_parent(), from + mid, to + mid, col)
+	var sound := "blink" if mobility == Mobility.BLINK else "portal_through"
+	if is_local and not is_bot:
+		Sound.play(sound, 0.0, 0.05)
+	else:
+		Sound.play_at(sound, to + mid, "move", 0.0, 0.05)
+
+
+## How tall the body's collision shape is right now (crouching, belly sliding...).
+func body_height() -> float:
+	return (_shape.shape as CapsuleShape3D).height if _shape else CAPSULE_HEIGHT
 
 
 # ---------------------------------------------------------------------------
@@ -1489,6 +1696,7 @@ func _hold_still() -> void:
 	input.crouch = false
 	input.dive = false
 	input.grapple = false
+	input.grapple_pressed = false
 	input.fire = false
 	input.kick_pressed = false
 	input.boost_pressed = false
@@ -1694,6 +1902,15 @@ func _update_flame(delta: float) -> void:
 	if _flame == null:
 		return
 	_flame_t = maxf(_flame_t - delta, 0.0)
+	var jet := RobotAnimInput.jetpack_of(_anim.flags) and alive
+	if jet:
+		_flame_t = maxf(_flame_t, 0.3)   # the jetpack: the boot flames burn for as long as it fires
+		if not _seen_jet and visual.visible:
+			if sounds.own:
+				Sound.play("rocket_boost", -4.0, 0.08)
+			else:
+				Sound.play_at("rocket_boost", global_position + Vector3(0, 0.3, 0), "move", -4.0, 0.08)
+	_seen_jet = jet
 	_flame.visible = _flame_t > 0.0 and alive and visual.visible
 	if not _flame.visible:
 		return

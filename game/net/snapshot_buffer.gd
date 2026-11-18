@@ -66,6 +66,35 @@ func has_data() -> bool:
 	return not snaps.is_empty()
 
 
+## How far behind the newest data we are drawing (seconds), not counting the trip
+## the data took to get here.
+func delay() -> float:
+	return _delay
+
+
+## How fast they were going in the newest state (m/s).
+func speed() -> float:
+	return snaps[-1].vel.length() if not snaps.is_empty() else 0.0
+
+
+## How far their aim swung (degrees, every turn added up) in the last `window`
+## seconds of states: a flick, or the aim tracking someone.
+func aim_travel(window: float) -> float:
+	if snaps.is_empty():
+		return 0.0
+	var from := snaps[-1].t - window
+	var total := 0.0
+	var last := Vector3.ZERO
+	for s in snaps:
+		if s.t < from:
+			continue
+		var aim := Basis.from_euler(Vector3(s.pitch, s.yaw, 0.0)) * Vector3.FORWARD
+		if last != Vector3.ZERO:
+			total += last.angle_to(aim)
+		last = aim
+	return rad_to_deg(total)
+
+
 ## The time, on the sender's clock, that we should be showing right now.
 ## Call once per frame. The delay eases toward its target so time never jumps.
 func render_time(local_time: float, delta: float = 0.016) -> float:

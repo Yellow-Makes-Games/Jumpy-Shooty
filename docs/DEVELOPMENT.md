@@ -31,12 +31,15 @@ one and **Multiplayer → Join lobby** with address `127.0.0.1` in the other.
 
 ## Playing with a friend
 
-**Until Steam is wired in**, connecting works over direct IP:
+**Until Steam is wired in**, connecting is direct (no server). The host's lobby shows a
+**lobby code** (like `ABCD-EFGH`) that stands for the host's address; friends type it into
+the Join box on the Multiplayer page. An IP address works there too.
 
-- **Same home network:** host with **Create lobby**. The lobby shows your local address
-  (for example `192.168.1.20`). Your friend types that into **Join lobby**.
+- **Same home network:** host with **Create lobby**. If the router can't be opened, the
+  lobby's code stands for your local address (for example `192.168.1.20`, shown beside it).
+  Your friend types the code (or that address) into **Join lobby**.
 - **Over the internet:** when you create a lobby, the game asks your router to open
-  UDP port 24680 (UPnP) and the lobby shows your public address with a **Copy address**
+  UDP port 24680 (UPnP) and the lobby shows a code for your public address with a **Copy code**
   button. Send that to friends; they type it into **Join lobby**. If the lobby says the
   router would not open the port, forward UDP 24680 to your PC by hand in the router's
   settings (or UPnP is switched off there, or your provider shares one address between
@@ -76,6 +79,10 @@ Quick checks:
   the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
 - breakable walls and floors (`tests/destruction_test.gd`);
+- flicker (`tests/map_flicker_test.gd`), on the Castle, Rail Yard, Lost Temple and Neon
+  Arcade: no two surfaces of different colours share a plane where both can be seen,
+  and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
+  `FLICKER_LIST=40` prints more of what it found;
 - Halcyon (`tests/halcyon_test.gd`): spawn points, pickups, the terminal on its dais,
   bot navigation through every room and level, the hull stays sealed, the reactor pit
   kills;
@@ -93,6 +100,13 @@ Quick checks:
   (`tests/menu_mode_test.gd`), Deathmatch maps, pickups and inventory
   (`tests/deathmatch_test.gd`), and the debug menu and target dummies in a real
   Practice match (`tests/debug_test.gd`);
+- killcams (`tests/killcam_test.gd`): the kill scores, their breakdown into parts that
+  add up to them, and the pick of the best three,
+  what travels with a death, recording and blending frames, a replay from the killer's
+  eyes (camera, arms, the victim, the shot, slow motion), the best kills playing
+  fullscreen after a match (counting down to the best), the results page with
+  them listed still fits 1600x900, and a killcam saved as a video is a Motion JPEG
+  AVI with every frame and an index, as long as the clip plays;
 - the game boots into practice mode on every map without script errors.
 
 Networked and bot runs (real time):
@@ -111,9 +125,22 @@ Networked and bot runs (real time):
 - bots (`tests/run_bot_test.sh`): a bot of every difficulty finds you and shoots, Expert
   beats Easy on accuracy, the hard bots use the movement set, Rematch works, a
   5-player free-for-all against 4 bots, a sword bot, and your and the bots' sounds;
+- ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
+  the target dummy, and online a client's slam is ruled on by the host, hits the host's
+  player and is heard by both;
 - Halcyon online and with bots (`tests/run_gravity_test.sh`): a client fires the
   terminal on the host, a client across the room cannot, a late joiner is told how far
   along the event is, and bots use the terminal and keep moving in low gravity;
+- killcams (`tests/run_killcam_test.sh`): Vs Bots (in game time), the killcam plays each
+  time the bot gets you and runs until you respawn, Jump skips it (not in its first 0.75 s),
+  with `--manual-respawn` Jump brings you back (and nothing else does), and the results
+  screen plays the best kills and saves the best as a video; online, a host and a client on a laggy network each
+  watch their killcams, score every kill the same, show each killer their kill's points
+  (adding up to its score), pick the same best three and have a clip of each;
+- Killcam mode (`tests/run_killcam_mode_test.sh`): Vs Bots and online, everyone has the
+  sniper rifle (even a client who picked another gun), each player's points are their
+  kills' killcam scores plus the #1 killcam bonus, the match ends at the kill that
+  reaches the target, the rankings go by points, and host and client agree;
 - races (`tests/run_race_test.sh`, in game time): you and 4 bots finish Rooftop Run in
   time order and "Race again" starts another, Easy bots finish, and a hazard, a fall and
   R each send you back. After changing a course, run it on that map:
@@ -219,8 +246,10 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
+| `--manual-respawn` | Respawn only on a Jump or Fire press, as in a real game, even headless or with `--scripted-input` (which otherwise ask to respawn as soon as the wait is over) |
+| `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
-| `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter` or `orbit` without changing your saved choice |
+| `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar` without changing your saved choice |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
 | `--switch-weapon` | With `--auto-return`: pick the next gun in the lobby between matches (for the match test) |
@@ -230,6 +259,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--speed=X` | Game speed, e.g. `0.25` for quarter speed (to film a move in slow motion) |
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
+| `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (default 10,000) |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
 | `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`...) |
 | `--map-event=SEC` | Start the map's events (Halcyon's low gravity) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
@@ -249,15 +279,22 @@ stone ramps laid along the wall walks, a gatehouse with a gate tunnel, and a
 central keep whose upper floor (6 m) is reached from a terrace ramp and from the
 west wall walk over a timber bridge, and whose roof deck (12 m) the keep stair
 climbs to. Its palette (`palettes/castle.tres`) shows a breakable kind (the wooden
-hoardings in the bailey).
+hoardings in the bailey). Its small dressing (a coping on every merlon, pilasters and
+torches along the walls, door and window surrounds, the great hall's fittings, market
+goods, ivy, weeds, and the lake and mountains outside) is the scene's `Dressing` branch,
+about 2,000 drawn-only blocks written by `python3 tools/arena/castle_dressing.py`. The
+script reads where the merlons, barrels, crates, carts and hoardings are, so run it
+again after moving them; it replaces only the `Dressing` branch and leaves the rest of
+the scene as it is.
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
 - **MapBlock** nodes: every floor, wall, crate and girder. A block is a box, cylinder or
   tube with a **Kind** (its colour from the map's palette). Its inspector also has
   **Size**, **Solid** (off = drawn only, like paint on the floor), **Drawn** (off = an
-  invisible wall, shown in the editor as a faint blue box) and **Tint** (to make one block
-  a little lighter or darker).
+  invisible wall, shown in the editor as a faint blue box), **Tint** (to make one block
+  a little lighter or darker), **Material Type** (what it is made of: its footsteps and
+  how it breaks; see below) and a **Breaking** section (see "Breakable walls and floors").
 - Plain **Node3D** groups. Each object (a container, a staircase, the crane) is a group
   grouped the Godot way (the group icon beside it in the Scene tree), so a click in the
   3D view selects the whole object. To change one part, pick the part in the Scene
@@ -292,8 +329,13 @@ see-through (Halcyon's dome and windows): you look through it, but it is as soli
 any block. The palette's **Surface** list gives a kind a pattern drawn on every surface
 of that kind with no extra blocks (Halcyon): `panels` (seams on walls, now and then a
 hatch or vent slots), `panels_plain`, `tiles`, `plates` (rivets), `grating`, `slats`
-(a vent), `hazard` (slanted stripes), `treads` (grip lines across a ramp) and
-`corrugated` (shipping containers). The patterns are settings of one shader,
+(a vent), `hazard` (slanted stripes), `treads` (grip lines across a ramp),
+`corrugated` (shipping containers), and for buildings and the outdoors: `checker`,
+`pavers` and `slabs` (floors), `bricks`, `blocks` and `blocks_small` (dressed stone; on a
+floor, flagstones), `cobbles`, `planks` and `planks_upright`, `shingles` and `thatch`
+(roofs), `grass`, `dirt`, `gravel` and `tarmac` (soft blotches), `clumps` (leaves),
+`bark`, `strata` (a cliff), `water` (ripples that move), `confetti` (an arcade carpet)
+and `windows` / `windows_lit` (rows of windows on far-off buildings). The patterns are settings of one shader,
 `game/arena/map_surface.gdshader`, listed in `MapScenery.SURFACES`; they are measured
 in metres from where the surface is in the map, so they line up from block to block. A
 kind that glows or is see-through takes no pattern. The MapRoot's inspector also has the map's rules:
@@ -302,13 +344,33 @@ kind that glows or is see-through takes no pattern. The MapRoot's inspector also
 
 **Breakable walls and floors.** A palette's **Breakable** list names the kinds that can
 be broken and how much damage a piece of each takes (a pistol shot is 25; below 50 a
-whole pane shatters at once, for glass). Only thin walls and floors of those kinds break
-(at most 0.6 m thick, at least 7 m² of face, solid, drawn, box-shaped), and only in arena
-matches. Tick **Unbreakable** on a block to keep one that a route needs. In the game
-each breakable block is cut into about 2 m pieces. Pieces near a spawn, and pieces that
-something else rests on, hangs from or passes through, never break; thin drawn-only
-blocks lying flat on a breakable one (a ceiling under a floor, a rug, a lamp strip,
-frosting on glass) break along with it. The code is `game/arena/map_destruction.gd`.
+whole pane shatters at once, for glass). Blocks break only in arena matches, never races.
+Each block's **Breaking** section decides for that block:
+
+- **Breakable**: *Default* follows the palette, *Yes* breaks even if the kind is not in
+  the list, *No* never breaks (a landing or a floor a route needs). Maps saved with the
+  old **Unbreakable** tick load as *No*.
+- **Break Settings** (a `BlockBreakable` resource; empty = the palette's numbers, per
+  cell). **Block Health**: the damage it takes (0 = the kind's toughness, or 100 if the
+  palette has none). **Break Mode**: *Per Cell* cuts a thin wall or floor (at most 0.6 m
+  thick, at least 7 m² of face, box-shaped) into about 2 m pieces that each have that
+  health; thicker blocks set to Yes warn in the editor and stay whole. *Whole Block* gives
+  the block (any size or shape: a crate, a pillar) one pool of health and breaks it all
+  at once; what rests on it stays where it is. Save the resource as a `.tres` to share
+  it between blocks. New break settings belong in `game/arena/block_breakable.gd`.
+
+Per cell, pieces near a spawn, and pieces that something else rests on, hangs from or
+passes through, never break; thin drawn-only blocks lying flat on a breakable one (a
+ceiling under a floor, a rug, a lamp strip, frosting on glass) break along with it. A
+whole block only keeps the spawn rule. The bots' navigation mesh is not rebuilt when
+something breaks. The code is `game/arena/map_destruction.gd`.
+
+**Materials.** A block's **Material Type** (concrete, metal, wood, glass, dirt, rubber)
+sets the footsteps on it and the crash, rubble and dust when it breaks. Left blank, it
+comes from the palette's **Material** list (kind -> material), else from the kind's name
+(`glass`, `plank`/`crate` -> wood, `steel`/`girder` -> metal...). The table is
+`game/arena/block_materials.gd`: for now most materials reuse the step and break sounds
+at another pitch, so real sounds can drop in there later without touching any map.
 
 **Trying it.** With a map scene open, press **F6** (run current scene): the game starts in
 practice mode on that map. In the game, all blocks of one kind are merged into a single
@@ -367,6 +429,22 @@ map and its palette from scratch and overwrites hand edits. After moving things,
 `godot --headless --path . --script tests/arena_maps_test.gd` checks that every spawn is
 clear, walls and floors still break, and a bot can walk between every spawn point and to
 each map's floors (the goals are at the top of the test).
+
+Each map file ends with a `details(m)` function: the small things (window frames, lamps,
+signs, pipes, weeds, vines, the street outside the arcade). They are all drawn only, so
+they change neither collision nor the bots' navigation. The builder has helpers for them:
+`strip` (a box), `on_wall` (a piece that stands proud of a wall face), `rod` and `pipe`
+(bars at any angle), `sign`, and `stairs(..., cheek_stop=)` for stair sides that stop
+short of a landing. The rules they keep, which `tests/map_flicker_test.gd` checks:
+
+- Two surfaces of different colours never share a plane. A detail stands proud of the
+  surface behind it, and one laid over another is both a different depth (2 cm or more)
+  and a different outline, so their fronts and their edges are in different planes.
+- Paint on a floor is 2 cm thick or more, and each kind of paint has its own height.
+- A box that wraps a post (a collar, a cap) ends below the post's top.
+- On a wall or floor that breaks, a detail is a thin skin (0.15 m or less) lying
+  inside one panel's outline, so it breaks with the panel. Anything bigger, or
+  anything that spans two panels, would hold the wall up: stand it on its own posts.
 
 ### Halcyon
 
@@ -528,7 +606,7 @@ python3 with numpy):
 
 | File | What it holds |
 | --- | --- |
-| `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit); the unused draft, Brick, is kept |
+| `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit, Templar); the unused draft, Brick, is kept |
 | `rig.py` | The skeleton (bone names and positions) and the pose solver |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
 | `weapons.py` | The four guns' shapes and materials (pistol, shotgun, rifle, sniper), and where the left hand holds each long gun |

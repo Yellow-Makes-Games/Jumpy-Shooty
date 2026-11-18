@@ -16,6 +16,7 @@ echo "== Importing project"
 # Each quick check: "name|args". Logs go to tests/out/check_<name>.log.
 CHECKS=(
   "movement|--fixed-fps 60 --script tests/movement_test.gd"
+  "grapple_points|--script tests/grapple_point_test.gd"
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
   "weapons|--script tests/weapon_test.gd"
   "audio|--script tests/audio_test.gd"
@@ -25,7 +26,9 @@ CHECKS=(
   "ui_layout|--script tests/ui_layout_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
+  "block_settings|--script tests/block_settings_test.gd"
   "arena_maps|--script tests/arena_maps_test.gd"
+  "flicker|--script tests/map_flicker_test.gd"
   "halcyon|--script tests/halcyon_test.gd"
   "terminal|--script tests/terminal_test.gd"
   "gravity|--fixed-fps 60 --script tests/gravity_test.gd"
@@ -33,6 +36,11 @@ CHECKS=(
   "construction_site|--fixed-fps 60 --script tests/site_test.gd"
   "office|--fixed-fps 60 --script tests/office_test.gd"
   "debug|--script tests/debug_test.gd"
+  "killcam|--script tests/killcam_test.gd"
+  "mobility|--fixed-fps 60 --script tests/mobility_test.gd"
+  "lobby_settings|--script tests/lobby_settings_test.gd"
+  "scoreboard|--script tests/scoreboard_test.gd"
+  "lobby_code|--script tests/lobby_code_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
@@ -53,7 +61,7 @@ run_check() {  # fails on any script error, even if the script itself reports PA
 export -f run_check
 export OUT
 
-echo "== Quick checks: movement, robots, weapons, sounds, maps and routes, menus, modes, practice on every map"
+echo "== Quick checks: movement, robots, weapons, sounds, maps and routes, menus, modes, lobby codes, practice on every map"
 if ! printf '%s\n' "${CHECKS[@]}" | xargs -d '\n' -P "${JOBS:-4}" -I{} bash -c 'run_check "$1"' _ {}; then
   for f in "$OUT"/check_*.log; do
     if grep -q "FAIL\|SCRIPT ERROR\|^ERROR" "$f"; then echo "--- $f"; grep -B2 -A4 "FAIL\|SCRIPT ERROR\|^ERROR" "$f" | head -40; fi
@@ -66,8 +74,16 @@ echo "== Match: 3 players, laggy network, two matches back to back, sounds (Cons
 MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
 echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword bot, sounds (Construction Site)"
 MAP=construction_site tests/run_bot_test.sh
+echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by the host"
+tests/run_slam_test.sh
 echo "== Halcyon online and with bots: a client fires the terminal, a late joiner is told, bots use it and cope"
 tests/run_gravity_test.sh
 echo "== Race mode: bots finish a race, fail conditions, results"
 tests/run_race_test.sh
+echo "== Killcam: Vs Bots (watch, skip), online host and laggy client agree on the best kills, results screen plays them"
+tests/run_killcam_test.sh
+echo "== Killcam mode: snipers only, points from killcam scores, the #1 killcam bonus, online agreement"
+tests/run_killcam_mode_test.sh
+echo "== Lobby settings: the host allows only some weapons and mobility tools; an early and a late joiner, the death-screen pick, Vs Bots with one gun; scoreboard points and pings"
+tests/run_lobby_settings_test.sh
 echo "ALL TESTS PASSED"

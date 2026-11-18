@@ -31,7 +31,7 @@ const PLAYER_COLORS := [
 ]
 
 ## peer id -> { "name": String, "color": int, "character": String (see Characters),
-##   "weapon": String (see WeaponData) },
+##   "weapon": String (see WeaponData), "mobility": String (see Mobility) },
 ## plus "bot": true and "difficulty" for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
 var in_match := false
@@ -51,7 +51,15 @@ var _upnp_thread: Thread = null
 ## mode: "kills" (first to `kills`) or "time" (most kills after `minutes`); free-for-all only.
 ## race_minutes: a race's time limit.
 ## map: which map to play (an id from Maps; it must be one for the game).
-var match_settings := {"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id()}
+## powerups: Deathmatch only, whether the map's power-ups (ItemPickup) are out.
+## Plus the lobby settings (see LobbySettings), such as which weapons are allowed.
+var match_settings := LobbySettings.clean({"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id(), "powerups": true})
+
+## Each player's ping to the host in ms (peer id -> ms), measured by the host from its
+## ENet links and sent to everyone every PING_GAP seconds (the Tab scoreboard shows it).
+var pings: Dictionary = {}
+const PING_GAP := 2.0
+var _ping_wait := 0.0
 
 ## The arena currently running, if any. It registers itself here.
 var arena: Node = null
@@ -59,6 +67,7 @@ var arena: Node = null
 var _local_name := "Player"
 var _local_character := Characters.default_id()
 var _local_weapon := WeaponData.default_id()
+var _local_mobility := Mobility.default_id()
 
 
 func _ready() -> void:
@@ -91,17 +100,18 @@ func host_id() -> int:
 
 ## Play alone (bot mode and practice). Uses the offline peer, so the same code
 ## paths run with this player as "host".
-func start_offline(player_name: String, character: String, weapon: String = "") -> void:
+func start_offline(player_name: String, character: String, weapon: String = "", mobility: String = "") -> void:
 	leave()
 	_local_name = player_name
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon}}
+	_local_mobility = Mobility.valid(mobility)
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	is_online = false
 	players_changed.emit()
 
 
-func host_direct(player_name: String, character: String, listen_port: int = DEFAULT_PORT, weapon: String = "") -> Error:
+func host_direct(player_name: String, character: String, listen_port: int = DEFAULT_PORT, weapon: String = "", mobility: String = "") -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(listen_port, MAX_PLAYERS - 1)
@@ -111,7 +121,8 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_name = player_name
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon}}
+	_local_mobility = Mobility.valid(mobility)
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -121,7 +132,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	return OK
 
 
-func join_direct(player_name: String, character: String, address: String, weapon: String = "") -> Error:
+func join_direct(player_name: String, character: String, address: String, weapon: String = "", mobility: String = "") -> Error:
 	leave()
 	var join_port := DEFAULT_PORT
 	if ":" in address:
@@ -137,6 +148,7 @@ func join_direct(player_name: String, character: String, address: String, weapon
 	_local_name = player_name
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
+	_local_mobility = Mobility.valid(mobility)
 	is_online = true
 	print("[net] joining %s:%d" % [address, join_port])
 	return OK
@@ -147,6 +159,7 @@ func leave() -> void:
 	in_match = false
 	is_online = false
 	players.clear()
+	pings.clear()
 	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
@@ -195,6 +208,7 @@ func _upnp_done(upnp: UPNP, ip: String, opened_port: int) -> void:
 		internet_state = "open"
 		public_ip = ip
 		print("[net] router port %d open; public address %s" % [opened_port, ip])
+	print("[net] lobby code %s (%s:%d)" % [lobby_code(), join_ip(), port])
 	internet_changed.emit()
 
 
@@ -212,6 +226,28 @@ func _exit_tree() -> void:
 		_upnp_thread.wait_to_finish()
 
 
+## The lobby code friends type to join us (see LobbyCode): our public address once the
+## router is open, else our address on the local network. "" when not hosting, or
+## while we are still asking the router.
+func lobby_code() -> String:
+	if not is_online or not is_host() or internet_state == "checking":
+		return ""
+	return LobbyCode.encode(join_ip(), port)
+
+
+## The address the lobby code stands for (shown too, for LAN and development use).
+func join_ip() -> String:
+	return public_ip if internet_state == "open" else lan_ip()
+
+
+## Our address on the local network (127.0.0.1 if we cannot find one).
+static func lan_ip() -> String:
+	for ip in IP.get_local_addresses():
+		if ip.begins_with("192.168.") or ip.begins_with("10.") or ip.begins_with("172."):
+			return ip
+	return "127.0.0.1"
+
+
 static func _is_private(ip: String) -> bool:
 	var p := ip.split(".")
 	if p.size() != 4:
@@ -227,7 +263,7 @@ static func _is_private(ip: String) -> bool:
 
 func _on_connected_to_server() -> void:
 	_tune_link(1)
-	_register.rpc_id(1, _local_name, _local_character, _local_weapon)
+	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility)
 
 
 func _on_connection_failed() -> void:
@@ -275,26 +311,33 @@ func _broadcast_players() -> void:
 # Lobby
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register(player_name: String, character: String, weapon: String) -> void:
+func _register(player_name: String, character: String, weapon: String, mobility: String = "") -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
 	if players.size() >= MAX_PLAYERS:
 		_refused.rpc_id(id, "The lobby is full.")
 		return
-	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
-		"character": Characters.valid(character), "weapon": WeaponData.valid(weapon)}
-	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
+	host_add_player(id, player_name, character, weapon, mobility)
 	_sync_settings.rpc_id(id, match_settings)
 	_sync_players.rpc(players)
 	if in_match:
 		_late_join.rpc_id(id)
 
 
+## Host: put a player who has just connected in the list. Their weapon must be one the
+## lobby allows (see LobbySettings); if not, they get one that is.
+func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "") -> void:
+	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
+		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": LobbySettings.fit_mobility(Mobility.valid(mobility))}
+	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
+
+
 @rpc("authority", "call_local", "reliable")
 func _sync_players(new_players: Dictionary) -> void:
 	var was_registered := players.has(my_id())
 	players = new_players
+	_log_loadouts()
 	players_changed.emit()
 	if not was_registered and players.has(my_id()) and not is_host():
 		joined_lobby.emit()
@@ -315,16 +358,21 @@ func set_my_character(character: String) -> void:
 func confirm_my_character() -> void:
 	if players.has(my_id()) and player_character(my_id()) != _local_character:
 		set_my_character(_local_character)
-	if players.has(my_id()) and player_loadout_weapon(my_id()) != _local_weapon:
-		set_my_weapon(_local_weapon)
+	if players.has(my_id()) and player_loadout_weapon(my_id()) != LobbySettings.fit_weapon(_local_weapon):
+		set_my_weapon(_local_weapon)   # the host gives you an allowed one if this one is not
+	if players.has(my_id()) and player_loadout_mobility(my_id()) != LobbySettings.fit_mobility(_local_mobility):
+		set_my_mobility(_local_mobility)
 
 
 ## Pause menu "Loadout": change robot and/or weapon mid-match. It takes effect when
 ## you next respawn: sent now if you are dead (or racing, where nobody dies), else
-## as soon as you die (see _on_player_died).
-func set_loadout(character: String, weapon: String) -> void:
+## as soon as you die (see _on_player_died). "" keeps the weapon (or mobility) as it is.
+func set_loadout(character: String, weapon: String, mobility: String = "") -> void:
 	_local_character = Characters.valid(character)
-	_local_weapon = WeaponData.valid(weapon)
+	if weapon != "":
+		_local_weapon = WeaponData.valid(weapon)
+	if mobility != "":
+		_local_mobility = Mobility.valid(mobility)
 	if not in_match or not Match.is_alive(my_id()) or Race.active:
 		confirm_my_character()
 
@@ -335,7 +383,11 @@ func pending_character() -> String:
 
 
 func pending_weapon() -> String:
-	return _local_weapon
+	return LobbySettings.fit_weapon(_local_weapon)
+
+
+func pending_mobility() -> String:
+	return LobbySettings.fit_mobility(_local_mobility)
 
 
 func _on_player_died(victim: int, _killer: int) -> void:
@@ -380,14 +432,45 @@ func _choose_weapon(weapon: String) -> void:
 
 
 func _apply_weapon(id: int, weapon: String) -> void:
-	if not players.has(id) or players[id].get("weapon", "") == WeaponData.valid(weapon):
+	weapon = LobbySettings.fit_weapon(WeaponData.valid(weapon))   # only what the lobby allows
+	if not players.has(id) or players[id].get("weapon", "") == weapon:
 		return
-	if in_match and GunGame.active():
-		return   # Gun Game hands out the weapons
+	if in_match and (GunGame.active() or KillcamMode.active()):
+		return   # Gun Game hands out the weapons; Killcam is snipers only
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
 		return   # mid-fight you can only swap while waiting to respawn
-	players[id]["weapon"] = WeaponData.valid(weapon)
+	players[id]["weapon"] = weapon
 	print("[net] %d took the %s" % [id, players[id].weapon])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Pick the mobility tool (an id from Mobility): the grapple, the portal gun or blink.
+## Same rules as the weapon: in the lobby, or during a fight while you are dead.
+func set_my_mobility(mobility: String) -> void:
+	_local_mobility = Mobility.valid(mobility)
+	if is_host():
+		_apply_mobility(my_id(), _local_mobility)
+	else:
+		_choose_mobility.rpc_id(1, _local_mobility)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_mobility(mobility: String) -> void:
+	if is_host():
+		_apply_mobility(multiplayer.get_remote_sender_id(), mobility)
+
+
+func _apply_mobility(id: int, mobility: String) -> void:
+	mobility = LobbySettings.fit_mobility(Mobility.valid(mobility))   # only what the lobby allows
+	if not players.has(id) or players[id].get("mobility", "") == mobility:
+		return
+	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
+		return   # mid-fight you can only swap while waiting to respawn
+	players[id]["mobility"] = mobility
+	print("[net] %d took the %s" % [id, players[id].mobility])
 	if is_online:
 		_sync_players.rpc(players)
 	else:
@@ -405,7 +488,7 @@ func host_set_weapon(id: int, weapon: String) -> void:
 		players_changed.emit()
 
 
-## Host only: change the win condition and tell everyone.
+## Host only: change the mode, map, win condition or lobby settings and tell everyone.
 func set_match_settings(settings: Dictionary) -> void:
 	if not is_host():
 		return
@@ -423,7 +506,46 @@ func _sync_settings(settings: Dictionary) -> void:
 		match_settings["map"] = Maps.default_id(game)
 	map = str(match_settings.map)
 	match_settings["game"] = game if game in Maps.games_of(map) else Maps.game_of(map)
+	match_settings = LobbySettings.clean(match_settings)
+	if DevArgs.sync_log:
+		print("LOBBY_SETTINGS %d weapons=%s" % [my_id(), ",".join(LobbySettings.allowed_weapons())])
+		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility())])
+	if is_host() and not in_match:
+		host_fit_loadouts()   # weapons no longer allowed are swapped (everyone is told)
+	elif players.has(my_id()) and not in_match:
+		confirm_my_character()   # a weapon allowed again: ask for the one you picked
 	players_changed.emit()  # lobby screens refresh on this
+
+
+## Host: everyone's weapon and mobility tool are ones the lobby allows (see
+## LobbySettings); a player with one that is not gets the first that is. Tells everyone if anything changed.
+func host_fit_loadouts() -> void:
+	if not is_host():
+		return
+	var changed := false
+	for id in players:
+		# Your own pick is known here, so you get it back once it is allowed again.
+		var wanted := _local_weapon if id == my_id() else str(players[id].get("weapon", ""))
+		var w := LobbySettings.fit_weapon(WeaponData.valid(wanted))
+		if players[id].get("weapon", "") != w:
+			players[id]["weapon"] = w
+			changed = true
+		var wanted_mobility := _local_mobility if id == my_id() else str(players[id].get("mobility", ""))
+		var m := LobbySettings.fit_mobility(Mobility.valid(wanted_mobility))
+		if players[id].get("mobility", "") != m:
+			players[id]["mobility"] = m
+			changed = true
+	if changed:
+		_players_updated()
+
+
+## --sync-log: the weapon everyone has on record.
+func _log_loadouts() -> void:
+	if DevArgs.sync_log:
+		var ids := players.keys()
+		ids.sort()
+		print("LOADOUTS %d %s" % [my_id(), " ".join(ids.map(func(i): return "%d:%s" % [i, players[i].get("weapon", "")]))])
+		print("MOBILITY_LOADOUTS %d %s" % [my_id(), " ".join(ids.map(func(i): return "%d:%s" % [i, players[i].get("mobility", "")]))])
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -463,20 +585,24 @@ const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston"]   # never the name of
 ## Adds a computer player (offline matches only for now). Returns its id.
 ## Bots take turns through the robots, starting with the one after yours, so in a
 ## 1v1 the bot never plays the robot you picked; colours always differ. Each bot
-## takes a gun at random (or `weapon`, if given).
-func add_bot(difficulty: int, weapon: String = "") -> int:
+## takes a gun and a mobility tool at random from those the lobby allows (or `weapon`
+## and `mobility`, if given and allowed).
+func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int:
 	var id := BOT_ID_BASE
 	while players.has(id):
 		id += 1
 	var index := id - BOT_ID_BASE
 	var character := player_character(my_id())
+	var guns := LobbySettings.allowed_weapons()
+	var tools := LobbySettings.allowed_mobility()
 	for i in index + 1:
 		character = Characters.next(character)
 	players[id] = {
 		"name": "%s (%s)" % [BOT_NAMES[index % BOT_NAMES.size()], BotDifficulty.NAMES[difficulty]],
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
 		"character": character,
-		"weapon": WeaponData.valid(weapon) if weapon != "" else WeaponData.IDS[randi() % WeaponData.IDS.size()],
+		"weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)) if weapon != "" else guns[randi() % guns.size()],
+		"mobility": LobbySettings.fit_mobility(Mobility.valid(mobility)) if mobility != "" else tools[randi() % tools.size()],
 	}
 	players_changed.emit()
 	return id
@@ -518,6 +644,18 @@ func player_weapon(id: int) -> String:
 		var held := str(players[id].get("held", "none"))
 		return held if WeaponData.has(held) else "none"
 	return WeaponData.valid(str(players[id].get("weapon", "")))
+
+
+## The mobility tool a player has (an id from Mobility). A race always has the grapple.
+func player_mobility(id: int) -> String:
+	if Race.active or (in_match and game_kind() == "race"):
+		return Mobility.GRAPPLE
+	return player_loadout_mobility(id)
+
+
+## The mobility tool a player picked (whatever the game).
+func player_loadout_mobility(id: int) -> String:
+	return Mobility.valid(str(players[id].get("mobility", ""))) if players.has(id) else Mobility.default_id()
 
 
 ## The weapon a player chose in the lobby or the loadout (what they spawn with
@@ -640,22 +778,34 @@ func is_deathmatch() -> bool:
 	return game_kind() == "dm"
 
 
+## Deathmatch: whether the host turned power-ups on in the lobby (on unless said otherwise).
+func powerups_on() -> bool:
+	return bool(match_settings.get("powerups", true))
+
+
 ## The id of the map being played (or about to be).
 func map_id() -> String:
 	return str(match_settings.get("map", Maps.default_id()))
 
 
 func host_start_match() -> void:
-	if not is_host():
+	if not is_host() or _starting:
 		return
-	if GunGame.active():   # everyone starts on the first rung of the ladder
+	_starting = true   # (handing out the weapons below changes the players, which can call this again: dev autostart)
+	host_fit_loadouts()   # nobody starts with a weapon the lobby does not allow
+	if GunGame.active() or KillcamMode.active():   # the first rung of the ladder; Killcam: the sniper
 		for id in players:
-			players[id]["weapon"] = GunGame.weapon_at(0)
+			players[id]["weapon"] = GunGame.weapon_at(0) if GunGame.active() else KillcamMode.WEAPON
 		if is_online:
 			_sync_players.rpc(players)
 		else:
 			players_changed.emit()
+	_log_loadouts()
 	_start_match.rpc()
+	_starting = false
+
+
+var _starting := false
 
 
 @rpc("authority", "call_local", "reliable")
@@ -752,6 +902,41 @@ func _map_state_request() -> void:
 	for i in terminals.size():
 		var t := terminals[i] as MapTerminal
 		send_terminal_state(i, t.phase, t.channeler, t.progress, to)
+	if arena and is_instance_valid(arena) and arena.portals:   # ...and where everyone's portals are
+		for owner in arena.portals.owners():
+			for slot in 2:
+				var p: Portal = arena.portals.get_portal(owner, slot)
+				if p:
+					_portal_from_host.rpc_id(to, owner, slot, p.frame.origin, p.normal, p.frame.basis.y)
+
+
+# ---------------------------------------------------------------------------
+# Portals (see PortalGun and Portals). The copy that runs a player (you, or the
+# host for a bot) places their portals and tells everyone; each copy moves its own
+# players through them. They go on every copy by itself when their owner dies.
+
+## The local player `owner` (you, or one of the host's bots) put a portal up.
+func place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+	if arena and is_instance_valid(arena) and arena.portals:
+		arena.portals.place(owner, slot, at, normal, up)
+	if is_online:
+		_place_portal.rpc(owner, slot, at, normal, up)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != owner and not (sender == host_id() and is_bot(owner)):
+		return   # only a player's own copy places their portals
+	if arena and is_instance_valid(arena) and arena.portals and Match.is_alive(owner):
+		arena.portals.place(owner, slot, at, normal, up)
+
+
+## Host to a copy that has just joined: a portal that is already up.
+@rpc("authority", "call_remote", "reliable")
+func _portal_from_host(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+	if arena and is_instance_valid(arena) and arena.portals:
+		arena.portals.place(owner, slot, at, normal, up)
 
 
 # ---------------------------------------------------------------------------
@@ -794,7 +979,8 @@ func _sim_receive(sender: int, time: float, data: PackedFloat32Array) -> void:
 	_sim_queue.append([now() + delay, sender, time, data])
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_share_pings(delta)
 	if _sim_queue.is_empty():
 		return
 	var t := now()
@@ -805,3 +991,55 @@ func _process(_delta: float) -> void:
 		else:
 			keep.append(item)
 	_sim_queue = keep
+
+
+# ---------------------------------------------------------------------------
+# Ping: the host knows the round trip to each client (ENet keeps it), so it sends
+# everyone the list now and then. A client knows its own round trip best itself.
+
+## Host: every PING_GAP seconds, tell everyone each player's ping.
+func _share_pings(delta: float) -> void:
+	if not is_host() or not is_online:
+		return
+	_ping_wait -= delta
+	if _ping_wait > 0.0:
+		return
+	_ping_wait = PING_GAP
+	var now_pings := {}
+	for id in players:
+		if id != host_id() and not is_bot(id):
+			var ms := _rtt_to(id)
+			if ms >= 0:
+				now_pings[id] = ms
+	_sync_pings.rpc(now_pings)
+
+
+@rpc("authority", "call_local", "unreliable_ordered")
+func _sync_pings(new_pings: Dictionary) -> void:
+	pings = new_pings
+	if DevArgs.sync_log:
+		var ids := pings.keys()
+		ids.sort()
+		print("PINGS %d %s" % [my_id(), " ".join(ids.map(func(i): return "%d:%d" % [i, pings[i]]))])
+
+
+## The round trip in ms on our ENet link to `id` (-1 if there is none).
+func _rtt_to(id: int) -> int:
+	var peer := multiplayer.multiplayer_peer
+	if peer is ENetMultiplayerPeer:
+		var link: ENetPacketPeer = (peer as ENetMultiplayerPeer).get_peer(id)
+		if link:
+			return int(link.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+	return -1
+
+
+## A player's ping to the host in ms: 0 for the host itself, -1 when there is none
+## (bots, playing offline, or not measured yet). Your own comes from your own link.
+func player_ping(id: int) -> int:
+	if not is_online or is_bot(id) or not players.has(id):
+		return -1
+	if id == host_id():
+		return 0
+	if id == my_id():
+		return _rtt_to(host_id())
+	return int(pings.get(id, -1))

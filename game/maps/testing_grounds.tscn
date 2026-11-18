@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://54hcvu7hy6we" path="res://game/arena/map_block.gd" id="3_jbpnt"]
 [ext_resource type="Script" uid="uid://nastdacq4avs" path="res://game/arena/map_spawn.gd" id="4_1nbxg"]
 [ext_resource type="Script" uid="uid://b8cbf4nhxbmow" path="res://game/arena/map_dummy.gd" id="5_dummy"]
+[ext_resource type="Script" path="res://game/arena/map_grapple_point.gd" id="6_gpoint"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_21ygj"]
 sky_top_color = Color(0.22, 0.38, 0.62, 1)
@@ -397,6 +398,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86, 7.5, -22.5)
 script = ExtResource("3_jbpnt")
 size = Vector3(0.8, 15, 0.8)
 kind = "pillar"
+
+[node name="GrapplePoint" type="Marker3D" parent="GrappleLane"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 68, 13, -30)
+script = ExtResource("6_gpoint")
+
+[node name="GrapplePoint2" type="Marker3D" parent="GrappleLane"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 80, 13, -30)
+script = ExtResource("6_gpoint")
 
 [node name="Pad2" type="Node3D" parent="GrappleLane" unique_id=475622042]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99, 3, -30)

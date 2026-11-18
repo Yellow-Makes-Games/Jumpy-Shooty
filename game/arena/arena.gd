@@ -14,6 +14,10 @@ var dummies: Array = []
 var gates: Array = []
 ## Deathmatch: the map's floating weapons (WeaponPickup), in the order of their index.
 var pickups: Array = []
+## Deathmatch: the map's power-ups (ItemPickup), in the order of their index.
+var items: Array = []
+## Everyone's portals (portal gun: see Portals).
+var portals: Portals
 ## Seconds until the bots' navigation mesh is redone after walls or floors broke.
 var _nav_rebake := 0.0
 var _nav_baking := false
@@ -37,9 +41,14 @@ func _ready() -> void:
 	_spawn_dummies()
 	if Net.is_deathmatch():
 		_spawn_pickups()
+		if Net.powerups_on():
+			_spawn_items()
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
+	portals = Portals.new()
+	portals.name = "Portals"
+	add_child(portals)
 	hud = Hud.new()
 	add_child(hud)
 	pause_menu = PauseMenu.new()
@@ -56,6 +65,7 @@ func _ready() -> void:
 	Match.projectile_fired.connect(_on_projectile_fired)
 	Match.exploded.connect(_on_exploded)
 	Match.pickup_changed.connect(_on_pickup_changed)
+	Match.item_changed.connect(_on_item_changed)
 	_sync_players()
 	_capture_mouse(true)
 	if layout.destruction:
@@ -68,6 +78,7 @@ func _exit_tree() -> void:
 		Net.arena = null
 	Match.pickups_taken.clear()
 	WorldGravity.reset()      # a map event never outlives the map
+	Match.items_taken.clear()
 	Engine.time_scale = 1.0   # the debug menu's slow motion ends with the match
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
@@ -128,6 +139,7 @@ func on_snapshot(sender: int, remote_time: float, data: PackedFloat32Array) -> v
 
 
 func _on_player_died(victim: int, _killer: int) -> void:
+	portals.clear(victim)   # your portals go when you die
 	var p := get_player(victim)
 	if p:
 		p.set_dead()
@@ -204,6 +216,8 @@ func _sync_players() -> void:
 			_spawn(id)
 		else:
 			var p := get_player(id)
+			if p.mobility != Net.player_mobility(id):
+				p.set_mobility(Net.player_mobility(id))   # picked while waiting to respawn
 			if p.character != Net.player_character(id):
 				rebuild_player(id)   # a new robot from the loadout (picked while waiting to respawn)
 			elif not p.racing and p.robot.weapon != Net.player_weapon(id):
@@ -218,6 +232,7 @@ func _sync_players() -> void:
 			p.queue_free()
 		elif not Match.is_alive((p as Player).peer_id) and (p as Player).alive:
 			(p as Player).set_dead()  # joined while they were dead
+	portals.prune()
 	hud.set_players(Net.players)
 
 
@@ -256,6 +271,11 @@ func _menu_open() -> bool:
 	return pause_menu.visible or debug_menu.is_open()
 
 
+## The pause or debug menu is open (keys and clicks are for it, not the game).
+func menu_open() -> bool:
+	return _menu_open()
+
+
 ## The navigation mesh bots walk on. Baked when the match starts with bots, or
 ## when the debug menu adds the first one.
 func ensure_navigation() -> void:
@@ -272,6 +292,7 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 			gone.append(layout.destruction.cell_box(cells[i]).grow(0.15))
 	if gone.is_empty():
 		return
+	portals.remove_in(gone)
 	for p in players_root.get_children():
 		var player := p as Player
 		if not player.is_local or player.motor == null or not player.motor.grapple.attached:
@@ -343,6 +364,30 @@ func _spawn_pickups() -> void:
 		var p := WeaponPickup.make(pickups.size(), w[0], w[1])
 		root.add_child(p)
 		pickups.append(p)
+
+
+func _spawn_items() -> void:
+	var root := Node3D.new()
+	root.name = "Items"
+	add_child(root)
+	for it in layout.item_spawns:
+		var p := ItemPickup.make(items.size(), it[0], it[1])
+		root.add_child(p)
+		items.append(p)
+
+
+## The host says a power-up was taken (by `by`) or is back.
+func _on_item_changed(index: int, taken: bool, by: int) -> void:
+	if index < 0 or index >= items.size():
+		return
+	var item: ItemPickup = items[index]
+	item.set_taken(taken)
+	if not taken:
+		Sound.play_at("ui_click", item.spot, "move", -6.0)
+	elif by == Net.my_id():
+		Sound.play("ui_confirm")
+	elif by != 0:
+		Sound.play_at("ui_confirm", item.spot, "move")
 
 
 ## The host says a weapon was taken (by `by`) or is back.

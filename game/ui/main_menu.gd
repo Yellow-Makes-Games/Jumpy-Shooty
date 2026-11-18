@@ -10,13 +10,14 @@ const NO_WEAPON_NOTES := {
 	"race": "A race has no weapons: it is you, the course and the clock.",
 	"dm": "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.",
 	"gungame": "Gun Game hands out the weapons: every kill moves you to the next one.",
+	"killcam": "Killcam is snipers only: every kill scores its killcam points.",
 }
 
 var _front: Control             # the front page
 var _robot: RobotPreview
 var _frame: MenuFrame           # every other page
 var _name_edit: LineEdit
-var _address_edit: LineEdit
+var _code_edit: LineEdit
 var _status: Label
 
 
@@ -231,8 +232,9 @@ func _start_button(on_press: Callable) -> void:
 
 ## A match page's body: match options on the left, then your robot, then your
 ## weapon. Returns [the options column, a function to call with the mode ("ffa",
-## "dm", "race", "gungame") so the weapon cards give way to a note when the mode
-## doesn't use your pick].
+## "dm", "race", "gungame") and the weapons allowed in a shoot-out (see LobbySettings;
+## [] for all), so the weapon cards offer only those, or give way to a note when the
+## mode doesn't use your pick or there is one gun for everyone].
 func _three_columns() -> Array:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 26)
@@ -264,11 +266,25 @@ func _three_columns() -> Array:
 	right.add_child(none)
 	UiKit.section(none, "Weapon")
 	var note := UiKit.label(UiKit.inset(none), "", true, 17)
-	var set_mode := func(mode: String):
-		var uses_pick := not NO_WEAPON_NOTES.has(mode)
+	var moves := MobilityPicker.new(Game.local_mobility())
+	pick.add_child(moves)   # under the robot: that column has the room
+	moves.picked.connect(func(id: String):
+		Settings.mobility = id
+		Settings.save_settings())
+	var set_mode := func(mode: String, allowed: Array = [], allowed_mobility: Array = []):
+		var guns := LobbySettings.weapons_from(allowed if mode == "ffa" else [])
+		var uses_pick := not NO_WEAPON_NOTES.has(mode) and guns.size() > 1
+		gun.set_allowed(guns)
+		var shown := Game.local_weapon() if Game.local_weapon() in guns else str(guns[0])
+		gun.select(shown)   # your saved pick stays saved; it comes back when it is allowed
+		pick.set_weapon(shown)
 		gun.visible = uses_pick
 		none.visible = not uses_pick
-		note.text = NO_WEAPON_NOTES.get(mode, "")
+		note.text = NO_WEAPON_NOTES.get(mode, "One gun for everyone: the %s." % WeaponData.name_of(guns[0]))
+		moves.visible = mode != "race"   # a race always has the grapple
+		var tools := LobbySettings.mobility_from(allowed_mobility if mode != "race" else [])
+		moves.set_allowed(tools)
+		moves.select(Game.local_mobility() if Game.local_mobility() in tools else str(tools[0]))
 	return [left, set_mode]
 
 
@@ -379,9 +395,12 @@ func _show_bot() -> void:
 	var blurb := UiKit.label(left, "", true, 15)
 	blurb.custom_minimum_size = Vector2(0, 40)
 	var game := str(Game.last_bot.get("game", Maps.game_of(Game.last_bot.map)))
-	if game == "ffa" and str(Game.last_bot.get("rules", "")) == "gungame":
-		game = "gungame"
+	if game == "ffa" and str(Game.last_bot.get("rules", "")) in GunGame.RULES:
+		game = str(Game.last_bot.rules)
 	var map_ref: Array[OptionButton] = [null]   # filled below; see _show_practice
+	var rules_ref: Array[AllowedWeaponsPicker] = [null]   # the weapons allowed; filled below
+	var moves_ref: Array[AllowedMobilityPicker] = [null]  # the mobility tools allowed; filled below
+	var head_ref: Array[Control] = [null]                 # their "Loadout rules" heading; filled below
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
 		var race := g == "race"
@@ -392,7 +411,12 @@ func _show_bot() -> void:
 				t = "%d bot%s (race)" % [n, "" if n == 1 else "s"]
 			count.set_item_text(n - 1, t)
 		blurb.text = (RACE_BLURBS if race else BOT_BLURBS)[level[0]]
-		set_mode.call(g)
+		if rules_ref[0]:
+			rules_ref[0].visible = g == "ffa"   # a shoot-out: you pick the weapons you and the bots may use
+		if moves_ref[0]:
+			moves_ref[0].visible = g != "race"   # a race always has the grapple
+			head_ref[0].visible = g != "race"    # ...and no loadout rules
+		set_mode.call(g, rules_ref[0].value() if rules_ref[0] else [], moves_ref[0].value() if moves_ref[0] else [])
 	for i in seg.get_child_count():
 		(seg.get_child(i) as Button).pressed.connect(func():
 			level[0] = i
@@ -407,10 +431,22 @@ func _show_bot() -> void:
 	left.move_child(left.get_child(mode_row_start + 1), 1)
 	var map := _map_picker(left, Game.last_bot.map, GunGame.game_of_mode(mode[0]))
 	map_ref[0] = map
+	var rules_head := UiKit.section(left, "Loadout rules").get_parent()
+	var rules := AllowedWeaponsPicker.new(Game.last_bot.get("weapons", []), true, false)
+	rules.preferred = Game.local_weapon()
+	left.add_child(rules)
+	rules_ref[0] = rules
+	head_ref[0] = rules_head
+	rules.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
+	var allowed_moves := AllowedMobilityPicker.new(Game.last_bot.get("mobility", []), true, false)
+	left.add_child(allowed_moves)
+	moves_ref[0] = allowed_moves
+	allowed_moves.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
 	show_mode.call(mode[0])
 	_frame.back_button("Back", _show_play)
 	_start_button(func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
-			count.get_selected_id(), mode[0] == "gungame", GunGame.game_of_mode(mode[0])))
+			count.get_selected_id(), mode[0] if mode[0] in GunGame.RULES else "kills", GunGame.game_of_mode(mode[0]), rules.value(),
+			allowed_moves.value()))
 
 
 func _show_multiplayer() -> void:
@@ -423,12 +459,13 @@ func _show_multiplayer() -> void:
 	col.add_child(row)
 	var host := UiKit.inset(row)
 	UiKit.section(host, "Host")
-	UiKit.label(host, "Start a lobby that friends join by your address. You pick the map and rules.", true, 15)
+	UiKit.label(host, "Start a lobby. It shows a lobby code to give your friends. You pick the map and rules.", true, 15)
 	UiKit.primary_button(host, "Create lobby", _on_create)
 	var join := UiKit.inset(row)
 	UiKit.section(join, "Join")
-	UiKit.label(join, "Type the host's address (direct IP; Steam invites come next).", true, 15)
-	_address_edit = UiKit.line_edit(join, "127.0.0.1", Settings.last_address)   # the last address you joined
+	UiKit.label(join, "Lobby code: type the code the host's lobby shows (an IP address works too).", true, 15)
+	_code_edit = UiKit.line_edit(join, "ABCD-EFGH", Settings.last_address)   # the last code you joined
+	_code_edit.text_submitted.connect(func(_t: String): _on_join())
 	UiKit.button(join, "Join lobby", _on_join)
 	_status = UiKit.label(col, "", true, 16)
 	_frame.back_button("Back", _show_main)
@@ -457,8 +494,12 @@ func _on_create() -> void:
 
 func _on_join() -> void:
 	_save_name()
-	var address := _address_edit.text.strip_edges()
-	if address != "" and address != Settings.last_address:
+	var address := _code_edit.text.strip_edges()
+	var bad: String = LobbyCode.parse(address).error
+	if bad != "":
+		_status.text = bad
+		return
+	if address != Settings.last_address:
 		Settings.last_address = address
 		Settings.save_settings()
 	var err := Game.join_online(address)

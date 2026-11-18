@@ -19,10 +19,19 @@ const KILL_HIT_TIME := 0.4
 const NUMBER_TIME := 0.8
 const ARROW_TIME := 1.6
 const CONFIRM_TIME := 1.8
+## Your kill's killcam points: by the crosshair one line at a time, the total for
+## POINTS_TOTAL seconds, then each part ("+60  HEADSHOT") for POINTS_STEP; and the
+## whole list, bottom left, for POINTS_TIME, to read at leisure.
+const POINTS_TOTAL := 0.5
+const POINTS_STEP := 0.225
+const POINTS_TIME := 6.0
+const POINTS_LIST_BOTTOM := 168.0   ## the list's last line, up from the bottom: above the Clean layout's moves
 const DEATH_W := 600.0          ## the death screen's left column
-const BOARD_W := 680.0          ## the scoreboard
+const BOARD_W := 780.0          ## the scoreboard
 const DEATH_GAP := 36.0
 const DEATH_TOP := 104.0
+const RESPAWN_GRACE := 0.5      ## the death screen ignores the respawn key for this long
+                                ## (a press meant to skip the killcam does not respawn you too)
 
 ## Everything the layouts show about the local player, filled in once per frame.
 class View:
@@ -53,6 +62,14 @@ var style := "arcs"
 var grapple := GRAPPLE_NO_TARGET
 var grapple_cooldown := 0.0     ## 1 = just let go, 0 = ready
 var tether := 0.0
+## The mobility tool (see Mobility), and for blink its charges (and how far the next
+## has come back), for the portal gun which of your portals are up and which is next.
+var mobility := Mobility.GRAPPLE
+var blink_charges := 0
+var blink_refill := 1.0
+var portals_up := [false, false]
+var portal_next := 0
+var jet_fuel := 1.0
 
 var _root: Control
 var _flash: ColorRect
@@ -70,6 +87,7 @@ var _hit_time := 0.0
 var _hit_kind := "hit"          # hit, head, kill
 var _confirm := {}              # {name, age}
 var _promo := {}                # Gun Game: {text, sub, age}: you just moved up (or down) the ladder
+var _points := {}               # your last kill's killcam score: {total, parts (KillScore.breakdown), age}
 var _last_head := {}            # target id -> was the last hit on them a headshot
 var _dead := false
 var _killer := 0
@@ -78,6 +96,8 @@ var _killer_dist := -1.0
 var _killed_by_head := false
 var _killer_view: RobotPreview   # the robot that got you, on the death screen
 var _respawn_left := 0.0
+var _screen_age := 0.0          # how long the death screen has been up (not the killcam)
+var _asked := false             # asked to respawn (Match.request_respawn)
 var _pulse := 0.0
 var _board_age := 0.0
 var _race: HudRace
@@ -116,6 +136,7 @@ func _ready() -> void:
 	Match.player_respawned.connect(_on_respawned)
 	Match.gun_game_level.connect(_on_gun_game_level)
 	Match.dummy_hit.connect(_on_dummy_hit)
+	Match.kill_scored.connect(_on_kill_scored)
 
 
 func _full_rect(c: Control) -> Control:
@@ -189,7 +210,18 @@ func update_local(p: Player) -> void:
 
 	var g := p.motor.grapple
 	tether = g.length if g.attached else 0.0
-	if g.attached:
+	mobility = p.mobility
+	if p.blink:
+		blink_charges = p.blink.charges
+		blink_refill = p.blink.recharge_progress()
+	if p.portal_gun and Net.arena and Net.arena.portals:
+		portal_next = p.portal_gun.next_slot
+		portals_up = [Net.arena.portals.get_portal(p.peer_id, 0) != null, Net.arena.portals.get_portal(p.peer_id, 1) != null]
+	if p.jetpack:
+		jet_fuel = p.jetpack.fuel
+	if mobility != Mobility.GRAPPLE:
+		grapple = GRAPPLE_NO_TARGET
+	elif g.attached:
 		grapple = GRAPPLE_ON
 	elif g.cooldown_left > 0.0:
 		grapple = GRAPPLE_COOLING
@@ -199,7 +231,7 @@ func update_local(p: Player) -> void:
 	else:
 		grapple = GRAPPLE_NO_TARGET
 	v.moves = [
-		["GRAPPLE", "RMB", 1.0 - grapple_cooldown if grapple == GRAPPLE_COOLING else 1.0, grapple == GRAPPLE_ON],
+		[mobility.to_upper(), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON],
 		["DIVE", "Q", p.motor.dive_readiness(), false],
 		["FLIP", "SPACE", p.motor.flip_readiness(), false],
 		["GLIDE", "SHIFT", p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE],
@@ -214,7 +246,12 @@ func update_local(p: Player) -> void:
 	_age(delta)
 	if _respawn_left > 0.0:
 		_respawn_left = maxf(_respawn_left - delta, 0.0)
-	_scoreboard.visible = Input.is_action_pressed("scoreboard") or _dead
+	var watching := _dead and Killcam.watching()   # the killcam has the screen while it plays
+	_screen_age = _screen_age + delta if _dead and not watching else 0.0
+	if _dead and not _asked and _respawn_left <= 0.0 and DevArgs.auto_respawn():
+		_ask_respawn()   # tests: nobody is there to press a key
+	_scoreboard.visible = Input.is_action_pressed("scoreboard") or (_dead and not watching)
+	_killer_view.visible = _dead and _killer != 0 and not watching
 	if _scoreboard.visible:
 		_place_scoreboard()
 		_board_age += delta
@@ -249,6 +286,10 @@ func _age(delta: float) -> void:
 		_confirm.age += delta
 		if _confirm.age > CONFIRM_TIME:
 			_confirm = {}
+	if not _points.is_empty():
+		_points.age += delta
+		if _points.age > POINTS_TIME:
+			_points = {}
 	if not _promo.is_empty():
 		_promo.age += delta
 		if _promo.age > 2.2:
@@ -290,6 +331,17 @@ func _on_dummy_hit(shooter: int, _dummy: int, _damage: float, _headshot: bool, k
 		_confirm = {"name": "Target dummy", "age": 0.0}
 
 
+## You got a kill: show what it scored for the killcams, and where the points came from.
+func _on_kill_scored(info: Dictionary) -> void:
+	if int(info.killer) != Net.my_id() or int(info.victim) == Net.my_id():
+		return
+	var parts := KillScore.breakdown(info)
+	_points = {"total": int(info.score), "parts": parts, "age": 0.0}
+	if DevArgs.sync_log:
+		print("KILL_POINTS %d %d %d %s" % [Net.my_id(), int(info.seq), int(info.score),
+			",".join(parts.map(func(p): return "%s=%d" % [p[0], p[1]]))])
+
+
 func _on_died(victim: int, killer: int) -> void:
 	var me := Net.my_id()
 	var head: bool = killer != 0 and _last_head.get(victim, false)
@@ -317,9 +369,36 @@ func _on_died(victim: int, killer: int) -> void:
 			_killer_view.show_robot(Net.player_character(_killer), Net.player_color(_killer))
 		_killer_view.visible = _killer != 0
 		_respawn_left = Match.RESPAWN_DELAY
+		_screen_age = 0.0
+		_asked = false
 		_arrows.clear()
 		_numbers.clear()
 		_refresh_scoreboard()
+
+
+## Dead: Jump or Fire brings you back once the wait is over (you can change your
+## loadout first; see Match.request_respawn). Not while the killcam plays (they skip
+## it there), nor in the first RESPAWN_GRACE seconds of the death screen.
+func _unhandled_input(event: InputEvent) -> void:
+	if not _dead or _asked or Race.active or Killcam.watching() or not Match.respawn_needs_press(Net.my_id()):
+		return
+	if event.is_echo() or not (event.is_action_pressed("jump") or event.is_action_pressed("fire")):
+		return
+	if Net.arena and Net.arena.menu_open():
+		return
+	get_viewport().set_input_as_handled()
+	if _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE:
+		if DevArgs.sync_log:
+			print("RESPAWN TOO SOON %.2f %.2f" % [_respawn_left, _screen_age])
+		return
+	if DevArgs.sync_log:
+		print("RESPAWN BY %s %.2f" % [event.as_text(), _screen_age])
+	_ask_respawn()
+
+
+func _ask_respawn() -> void:
+	_asked = true
+	Match.request_respawn()
 
 
 func _on_respawned(id: int, _spawn_index: int) -> void:
@@ -349,7 +428,11 @@ func _draw_overlay() -> void:
 		if not _scoreboard.visible:
 			_race.draw(ci, size, self)
 	else:
-		if _dead:
+		if _dead and Killcam.watching():
+			var back := "RESPAWN IN %.1f S" % _respawn_left if _respawn_left > 0.0 else ""
+			KillcamOverlay.draw(ci, Rect2(Vector2.ZERO, size), Killcam.view, "KILLCAM",
+				("%s  SKIP" % Settings.action_text("jump").to_upper() + ("   ·   " + back if back != "" else "")) if Killcam.can_skip() else back)
+		elif _dead:
 			_draw_death(ci, size)
 		_draw_score_bar(ci, size)
 		_draw_feed(ci, size)
@@ -363,6 +446,10 @@ func _draw_overlay() -> void:
 		HudStyle.text(ci, Vector2(c.x, c.y + 176.0), _promo.sub, 13, Color(1, 1, 1, 0.8 * pa), HORIZONTAL_ALIGNMENT_CENTER)
 	if Net.is_deathmatch() and not Race.active:
 		_draw_inventory(ci, Vector2(c.x, size.y - 74.0))
+		var boost: float = Match.damage_boost.get(Net.my_id(), 0.0)
+		if boost > 0.0:
+			HudStyle.text(ci, Vector2(c.x, size.y - 104.0), "2× DAMAGE  %d" % ceili(boost), 16,
+				Color(1.0, 0.3, 0.35), HORIZONTAL_ALIGNMENT_CENTER)
 	for n in _numbers:
 		var t: float = n.age / NUMBER_TIME
 		var col: Color = HudStyle.YELLOW if n.head else HudStyle.WHITE
@@ -377,6 +464,86 @@ func _draw_overlay() -> void:
 		HudStyle.text(ci, Vector2(c.x - w * 0.5 + w1, y), _confirm.name, 20, Color(1, 1, 1, a))
 	if grapple == GRAPPLE_ON and tether > 0.0:
 		HudStyle.text(ci, c + Vector2(40, 34), "%d m" % roundi(tether), 13, Color(1.0, 0.7, 0.45))
+	if not _points.is_empty():
+		_draw_points(ci, c)
+
+
+## Your kill's killcam score: one line at a time under the kill confirmation (the
+## total, then each part), and the whole list in the bottom left. No backgrounds.
+func _draw_points(ci: CanvasItem, c: Vector2) -> void:
+	var age: float = _points.age
+	var parts: Array = _points.parts
+	# By the crosshair: the total, then each part in turn.
+	var y := c.y - (100.0 if style == "arcs" else 64.0)
+	if age < POINTS_TOTAL:
+		var a := clampf(age / 0.08, 0.0, 1.0)
+		var pop := 1.0 + 0.3 * clampf(1.0 - age / 0.12, 0.0, 1.0)
+		HudStyle.text(ci, Vector2(c.x, y), "+%d" % int(_points.total), int(24 * pop), Color(HudStyle.ORANGE, a), HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		var i := int((age - POINTS_TOTAL) / POINTS_STEP)
+		if i < parts.size():
+			var into := age - POINTS_TOTAL - i * POINTS_STEP
+			var a := clampf(into / 0.05, 0.0, 1.0) * clampf((POINTS_STEP - into) / 0.05, 0.0, 1.0)
+			var p: Array = parts[i]
+			var num := "+%d" % p[1]
+			var gap := 10.0
+			var w := HudStyle.text_width(num, 20) + gap + HudStyle.text_width(p[0], 15, false)
+			var x := c.x - w * 0.5
+			var nw := HudStyle.text(ci, Vector2(x, y), num, 20, Color(_points_color(p, i), a))
+			HudStyle.text(ci, Vector2(x + nw + gap, y), p[0], 15, Color(1, 1, 1, 0.9 * a), HORIZONTAL_ALIGNMENT_LEFT, false)
+	# Bottom left: all of it, to look over.
+	var fade := clampf((POINTS_TIME - age) / 0.5, 0.0, 1.0) * clampf(age / 0.2, 0.0, 1.0)
+	var lx := HudClean.MARGIN
+	var col := 0.0   # the words line up after the widest "+100"
+	for p in parts:
+		col = maxf(col, HudStyle.text_width("+%d" % p[1], 14) + 10.0)
+	var ly: float = _overlay.size.y - POINTS_LIST_BOTTOM - (parts.size() - 1) * 19.0
+	var hw := HudStyle.label(ci, Vector2(lx, ly - 28.0), "KILLCAM SCORE", 10, Color(1, 1, 1, 0.7 * fade))
+	HudStyle.text(ci, Vector2(lx + hw + 10.0, ly - 29.0), str(int(_points.total)), 20, Color(HudStyle.ORANGE, fade))
+	for i in parts.size():
+		var p: Array = parts[i]
+		HudStyle.text(ci, Vector2(lx, ly), "+%d" % p[1], 14, Color(_points_color(p, i), fade))
+		HudStyle.text(ci, Vector2(lx + col, ly), p[0], 12, Color(1, 1, 1, 0.8 * fade), HORIZONTAL_ALIGNMENT_LEFT, false)
+		ly += 19.0
+
+
+## Gold for the parts that make a highlight (a headshot, a flick, a multikill).
+func _points_color(part: Array, i: int) -> Color:
+	var words := str(part[0])
+	var gold := words == "HEADSHOT" or words.begins_with("TRICKSHOT") or words.begins_with("FLICK") or (words.ends_with(" KILL") and i > 0)
+	return HudStyle.YELLOW if gold else HudStyle.WHITE
+
+
+## Under the crosshair ring: blink's charges (three short arcs, the next one filling
+## up), or the portal gun's two portals (filled when up, the next one to shoot ringed).
+func _draw_mobility_marks(ci: CanvasItem, c: Vector2, ring: float) -> void:
+	match mobility:
+		Mobility.BLINK:
+			var each := 36.0
+			for i in Blink.CHARGES:
+				var from := 90.0 + (i - 1) * (each + 6.0) - each * 0.5
+				HudStyle.arc(ci, c, ring + 6.0, from, from + each, Color(1, 1, 1, 0.15), 3.0)
+				var fill := 1.0 if i < blink_charges else (blink_refill if i == blink_charges else 0.0)
+				if fill > 0.0:
+					var col := Color(Portal.COLORS[0], 0.95) if fill >= 1.0 else Color(1, 1, 1, 0.45)
+					HudStyle.arc(ci, c, ring + 6.0, from, from + each * fill, col, 3.0)
+		Mobility.JETPACK:   # fuel: an arc under the ring, orange when low
+			var span := 110.0
+			var from := 90.0 - span * 0.5
+			HudStyle.arc(ci, c, ring + 6.0, from, from + span, Color(1, 1, 1, 0.15), 3.0)
+			if jet_fuel > 0.01:
+				var col := Color(HudStyle.ORANGE, 0.95) if jet_fuel < Jetpack.RESTART else Color(Portal.COLORS[0], 0.95)
+				HudStyle.arc(ci, c, ring + 6.0, from, from + span * jet_fuel, col, 3.0)
+		Mobility.PORTAL:
+			for i in 2:
+				var at := c + Vector2((i * 2 - 1) * 9.0, ring + 12.0)
+				var col: Color = Portal.COLORS[i]
+				if portals_up[i]:
+					ci.draw_circle(at, 4.5, col)
+				else:
+					HudStyle.arc(ci, at, 4.5, 0, 360, Color(col, 0.6), 1.5)
+				if i == portal_next:
+					HudStyle.arc(ci, at, 7.5, 0, 360, Color(1, 1, 1, 0.8), 1.5)
 
 
 func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
@@ -391,6 +558,7 @@ func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
 			HudStyle.arc(ci, c, ring, -90, -90 + 360.0 * (1.0 - grapple_cooldown), Color(1, 1, 1, 0.6), 2.0)
 		_:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(1, 1, 1, 0.12), 1.5)
+	_draw_mobility_marks(ci, c, ring)
 	match view.crosshair:
 		"spread":   # the shotgun: four brackets on the edge of its cone
 			var r := maxf(view.spread_px, 12.0)
@@ -471,20 +639,27 @@ func _draw_score_bar(ci: CanvasItem, size: Vector2) -> void:
 	var mid := clock if timed else "First to %d" % Match.kill_target
 	var mid_w := _pill(ci, Vector2(cx, y), mid, 28 if timed else 20, HudStyle.WHITE)
 	var gap := mid_w * 0.5 + 10.0
+	var killcam := KillcamMode.active()
 	var mine := "YOU %d" % Match.kills(me)
 	if gun_game:   # how far along the ladder: weapon 5 of 16
 		mine = "YOU %d/%d" % [Match.level(me) + 1, GunGame.steps()]
+	elif killcam:   # points, not kills
+		mine = "YOU %s" % KillcamMode.format(Match.points(me))
 	_pill(ci, Vector2(cx - gap - (HudStyle.text_width(mine, 22) + 32.0) * 0.5, y), mine, 22, HudStyle.ORANGE)
 	if best_id != 0:
 		var theirs := "%s %d" % [Net.player_name(best_id).to_upper(), Match.kills(best_id)]
 		if gun_game:
 			theirs = "%s %d/%d" % [Net.player_name(best_id).to_upper(), Match.level(best_id) + 1, GunGame.steps()]
+		elif killcam:
+			theirs = "%s %s" % [Net.player_name(best_id).to_upper(), KillcamMode.format(Match.points(best_id))]
 		_pill(ci, Vector2(cx + gap + (HudStyle.text_width(theirs, 22) + 32.0) * 0.5, y), theirs, 22, HudStyle.WHITE)
 	var sub := "FIRST TO %d" % Match.kill_target if Match.kill_target > 0 and timed else ("MOST KILLS WINS" if timed else "")
 	if gun_game:
 		var lv := Match.level(me)
 		sub = "GUN GAME  ·  LAST WEAPON: GET A KILL TO WIN" if lv >= GunGame.steps() - 1 \
 			else "GUN GAME  ·  NEXT: %s" % WeaponData.name_of(GunGame.weapon_at(lv + 1)).to_upper()
+	elif killcam:
+		sub = "KILLCAM  ·  FIRST TO %s  ·  #1 KILLCAM +%s AT THE END" % [KillcamMode.format(KillcamMode.target()), KillcamMode.format(KillcamMode.BEST_BONUS)]
 	if sub != "":
 		HudStyle.label(ci, Vector2(cx, y + 34.0), sub, 10, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
 
@@ -604,14 +779,56 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	ci.draw_rect(bar, Color(1, 1, 1, 0.15))
 	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
 	ci.draw_rect(Rect2(bar.position.x + w * progress - 2.0, bar.position.y - 3.0, 4.0, 12.0), Color.WHITE)
-	HudStyle.label(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
-	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	var row := bar.end.y + 18.0
+	if not Match.respawn_needs_press(Net.my_id()):
+		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
+		HudStyle.text(ci, Vector2(bar.end.x, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	elif _asked:
+		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING...", 12, HudStyle.ORANGE)
+	elif _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE:
+		var lw := HudStyle.label(ci, Vector2(bar.position.x, row), "PICK YOUR LOADOUT", 12, Color(1, 1, 1, 0.85))
+		if _respawn_left > 0.0:
+			HudStyle.text(ci, Vector2(bar.position.x + lw + 12.0, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE)
+	else:   # ready: a pulsing call to come back
+		var a := 0.75 + 0.25 * sin(_pulse * 5.0)
+		var keys := "%s OR %s" % [Settings.action_text("jump").to_upper(), Settings.action_text("fire").to_upper()]
+		var w1 := HudStyle.text(ci, Vector2(bar.position.x, row + 2.0), keys, 16, Color(HudStyle.ORANGE, a))
+		HudStyle.label(ci, Vector2(bar.position.x + w1 + 10.0, row + 2.0), "TO RESPAWN", 12, Color(1, 1, 1, a))
+	if Match.respawn_needs_press(Net.my_id()) and not _asked:
+		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0), "ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	var mid := card.position.x + w * 0.5
+	_draw_mobility_swap(ci, Vector2(mid, bar.end.y + 56.0))
 	if Net.is_deathmatch():
-		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
+		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
 			Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 	else:
-		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0))
+		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW))
+
+
+## Height of the death screen's mobility row (the weapons come below it).
+const MOBILITY_ROW := 58.0
+
+
+## While you wait to respawn: the mobility tool you come back with (the mobility
+## button, right mouse, goes on to the next).
+func _draw_mobility_swap(ci: CanvasItem, at: Vector2) -> void:
+	var mine := Net.pending_mobility()
+	var ids := LobbySettings.allowed_mobility()   # only the tools the host allows
+	var gap := 6.0
+	var total := DEATH_W
+	var cell := Vector2((total - (ids.size() - 1) * gap) / ids.size(), 25.0)
+	var x := at.x - total * 0.5
+	HudStyle.label(ci, Vector2(x, at.y - 10.0), "MOBILITY", 11, Color(1, 1, 1, 0.85))
+	var hint := "%s TO SWITCH" % Settings.action_text("grapple").get_slice(" / ", 0).to_upper() if ids.size() > 1 else "THE HOST'S RULE"
+	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), hint, 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
+	for i in ids.size():
+		var id: String = ids[i]
+		var r := Rect2(x + i * (cell.x + gap), at.y + 4.0, cell.x, cell.y)
+		var on := id == mine
+		HudStyle.plate(ci, r, 6.0, Color(HudStyle.CYAN, 0.9) if on else Color(0.04, 0.055, 0.085, 0.88))
+		var col := Color(0.03, 0.06, 0.08) if on else Color(1, 1, 1, 0.78)
+		ci.draw_string(HudStyle.font(true), r.position + Vector2(9.0, 17.0), Mobility.name_of(id).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, col)
+
 
 
 ## Deathmatch: your two weapon slots (keys 1 and 2), each with its weapon's name
@@ -655,6 +872,11 @@ func _draw_inventory(ci: CanvasItem, at: Vector2) -> void:
 ## In Gun Game: the weapon you come back with, and the next one.
 func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
 	var mine := Net.player_weapon(Net.my_id())
+	if KillcamMode.active():
+		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), "SNIPERS ONLY", 16, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "EVERY KILL SCORES ITS KILLCAM POINTS  ·  YOU HAVE %s" % KillcamMode.format(Match.points(Net.my_id())), 12,
+			Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
+		return
 	if GunGame.active():
 		var lv := Match.level(Net.my_id())
 		var line := "WEAPON %d OF %d: %s" % [lv + 1, GunGame.steps(), WeaponData.name_of(mine).to_upper()]
@@ -663,13 +885,20 @@ func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
 			HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "NEXT: %s" % WeaponData.name_of(GunGame.weapon_at(lv + 1)).to_upper(), 12,
 				Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
 		return
-	var groups := WeaponData.GROUPS
+	var only := LobbySettings.only_weapon()
+	if only != "":   # the host set one gun for everyone
+		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), "EVERYONE HAS THE %s" % WeaponData.name_of(only).to_upper(), 16, HudStyle.WHITE,
+			HORIZONTAL_ALIGNMENT_CENTER)
+		HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "THE HOST'S RULE FOR THIS MATCH", 12, Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
+		return
+	var groups := LobbySettings.weapon_groups()   # only the weapons the host allows
 	var gap := 6.0
 	var total := DEATH_W
 	var cell := Vector2((total - (groups.size() - 1) * gap) / groups.size(), 25.0)
 	var x := at.x - total * 0.5
 	HudStyle.label(ci, Vector2(x, at.y - 10.0), "COME BACK WITH", 11, Color(1, 1, 1, 0.85))
-	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), "PRESS 1-%d OR SCROLL" % groups.size(), 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
+	var keys := "PRESS 1" if groups.size() == 1 else "PRESS 1-%d" % groups.size()
+	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), keys + " OR SCROLL", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	for g in groups.size():
 		var gx := x + g * (cell.x + gap)
 		var list: Array = groups[g][1]
@@ -776,8 +1005,11 @@ func _refresh_scoreboard() -> void:
 		return
 	var title := Maps.name_of(Net.map_id())
 	var gun_game := GunGame.active()
+	var killcam := KillcamMode.active()
 	if gun_game:
 		title += "  ·  Gun Game: %d weapons" % GunGame.steps()
+	elif killcam:
+		title += "  ·  Killcam: first to %s" % KillcamMode.format(KillcamMode.target())
 	if Match.kill_target > 0:
 		title += "  ·  First to %d" % Match.kill_target
 	if Match.time_left < 1e8:
@@ -792,19 +1024,42 @@ func _refresh_scoreboard() -> void:
 	var tight := Net.players.size() > 8
 	var dim := Color(1, 1, 1, 0.6)
 	var none := Color(0, 0, 0, 0)
-	_board_row([["#", 22.0, 11, dim, false, false], ["PLAYER", 0.0, 11, dim, false, false],
-		["ROBOT  ·  WEAPON", 190.0, 11, dim, false, false], ["WEAPON #" if gun_game else "KILLS", 70.0, 11, dim, false, true],
-		["DEATHS", 60.0, 11, dim, false, true]], none, false, true)
+	# Every mode shows the score (each kill's killcam points); in Killcam it is the main
+	# column, so kills come next to it instead. Online, each player's ping too.
+	var online := Net.is_online
+	var heads := [["#", 22.0, 11, dim, false, false], ["PLAYER", 0.0, 11, dim, false, false],
+		["ROBOT  ·  WEAPON", 180.0, 11, dim, false, false], ["WEAPON #" if gun_game else ("POINTS" if killcam else "KILLS"), 90.0 if killcam else 64.0, 11, dim, false, true],
+		["KILLS" if killcam else "SCORE", 64.0 if killcam else 80.0, 11, dim, false, true], ["DEATHS", 56.0, 11, dim, false, true]]
+	if online:
+		heads.append(["PING", 52.0, 11, dim, false, true])
+	_board_row(heads, none, false, true)
 	var rank := 0
 	for row in Match.build_results():
 		rank += 1
 		var mine: bool = row.id == Net.my_id()
 		var col := HudStyle.ORANGE if mine else HudStyle.WHITE
-		_board_row([[str(rank), 22.0, 15, dim, true, false],
+		var cells := [[str(rank), 22.0, 15, dim, true, false],
 			[row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 0.0, 17, col, true, false],
-			["%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), _weapon_label(row.id)], 190.0, 14, Color(col, 0.75), false, false],
-			[("%d/%d" % [row.level + 1, GunGame.steps()]) if gun_game else str(row.kills), 70.0, 19, col, true, true],
-			[str(row.deaths), 60.0, 15, Color(col, 0.75), false, true]], Net.player_color(row.id), mine, false, tight)
+			["%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), _weapon_label(row.id)], 180.0, 14, Color(col, 0.75), false, false],
+			[("%d/%d" % [row.level + 1, GunGame.steps()]) if gun_game else (KillcamMode.format(row.points) if killcam else str(row.kills)),
+				90.0 if killcam else 64.0, 19, col, true, true],
+			[str(row.kills) if killcam else KillcamMode.format(row.points), 64.0 if killcam else 80.0, 15, Color(col, 0.85), killcam, true],
+			[str(row.deaths), 56.0, 15, Color(col, 0.75), false, true]]
+		if online:
+			cells.append(_ping_cell(row.id, col))
+		_board_row(cells, Net.player_color(row.id), mine, false, tight)
+
+
+## The scoreboard's ping for one player: ms (yellow from 100, red from 200), HOST
+## for the host, a dash while not measured yet.
+func _ping_cell(id: int, col: Color) -> Array:
+	var ms := Net.player_ping(id)
+	if id == Net.host_id():
+		return ["HOST", 52.0, 11, Color(col, 0.6), false, true]
+	if ms < 0:
+		return ["-", 52.0, 14, Color(col, 0.5), false, true]
+	var tint := Color(col, 0.8) if ms < 100 else (HudStyle.YELLOW if ms < 200 else HudStyle.RED)
+	return [str(ms), 52.0, 14, tint, false, true]
 
 
 ## The race version: place, racer, gates passed, time (or how far along), resets.
@@ -821,19 +1076,25 @@ func _refresh_race_board() -> void:
 	UiKit.clear(_score_rows)
 	var tight := Net.players.size() > 8
 	var dim := Color(1, 1, 1, 0.6)
-	_board_row([["#", 22.0, 11, dim, false, false], ["RACER", 0.0, 11, dim, false, false], ["GATES", 80.0, 11, dim, false, true],
-		["TIME", 110.0, 11, dim, false, true], ["RESETS", 70.0, 11, dim, false, true]], Color(0, 0, 0, 0), false, true)
+	var heads := [["#", 22.0, 11, dim, false, false], ["RACER", 0.0, 11, dim, false, false], ["GATES", 80.0, 11, dim, false, true],
+		["TIME", 110.0, 11, dim, false, true], ["RESETS", 70.0, 11, dim, false, true]]
+	if Net.is_online:
+		heads.append(["PING", 52.0, 11, dim, false, true])
+	_board_row(heads, Color(0, 0, 0, 0), false, true)
 	var rank := 0
 	for row in Race.standings():
 		rank += 1
 		var mine: bool = row.id == Net.my_id()
 		var col := HudStyle.ORANGE if mine else HudStyle.WHITE
-		_board_row([[str(rank), 22.0, 15, dim, true, false],
+		var cells := [[str(rank), 22.0, 15, dim, true, false],
 			[row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 0.0, 17, col, true, false],
 			["%d / %d" % [row.cp, Race.gates], 80.0, 15, Color(col, 0.75), false, true],
 			[Race.format_time(row.time) if row.finished else "racing", 110.0, 17 if row.finished else 14,
 				HudStyle.YELLOW if row.finished else Color(col, 0.6), row.finished, true],
-			[str(row.resets), 70.0, 15, Color(col, 0.75), false, true]], Net.player_color(row.id), mine, false, tight)
+			[str(row.resets), 70.0, 15, Color(col, 0.75), false, true]]
+		if Net.is_online:
+			cells.append(_ping_cell(row.id, col))
+		_board_row(cells, Net.player_color(row.id), mine, false, tight)
 
 
 func _ping_ms() -> int:

@@ -18,6 +18,8 @@ var third_person: bool = false
 const HUD_STYLES := {"arcs": "Twin arcs (around the crosshair)", "clean": "Clean (corners)"}
 var hud_first_person: String = "arcs"
 var hud_third_person: String = "clean"
+## When you are knocked out, watch the kill again from the eyes of whoever got you.
+var killcam: bool = true
 
 # Audio (0..1)
 var master_volume: float = 0.8
@@ -50,7 +52,8 @@ var _applied_fullscreen := false
 var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
-var last_address: String = ""   # the host address you last joined (filled in on the Join box next time)
+var mobility: String = Mobility.default_id()       # the tool on the mobility button: grapple, portal gun or blink (see Mobility)
+var last_address: String = ""   # the lobby code (or address) you last joined (filled in on the Join box next time)
 
 
 func _ready() -> void:
@@ -69,6 +72,7 @@ func load_settings() -> void:
 	third_person = cfg.get_value("camera", "third_person", third_person)
 	hud_first_person = _hud_style(cfg.get_value("hud", "first_person", hud_first_person))
 	hud_third_person = _hud_style(cfg.get_value("hud", "third_person", hud_third_person))
+	killcam = bool(cfg.get_value("hud", "killcam", killcam))
 	master_volume = cfg.get_value("audio", "master_volume", master_volume)
 	music_volume = cfg.get_value("audio", "music_volume", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx_volume", sfx_volume)
@@ -80,6 +84,7 @@ func load_settings() -> void:
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
+	mobility = Mobility.valid(str(cfg.get_value("profile", "mobility", mobility)))
 	last_address = str(cfg.get_value("network", "last_address", last_address))
 	_load_bindings(cfg)
 
@@ -92,6 +97,7 @@ func save_settings() -> void:
 	cfg.set_value("camera", "third_person", third_person)
 	cfg.set_value("hud", "first_person", hud_first_person)
 	cfg.set_value("hud", "third_person", hud_third_person)
+	cfg.set_value("hud", "killcam", killcam)
 	cfg.set_value("audio", "master_volume", master_volume)
 	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("audio", "sfx_volume", sfx_volume)
@@ -102,6 +108,7 @@ func save_settings() -> void:
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
 	cfg.set_value("profile", "weapon", weapon)
+	cfg.set_value("profile", "mobility", mobility)
 	cfg.set_value("network", "last_address", last_address)
 	_save_bindings(cfg)
 	cfg.save(SAVE_PATH)
@@ -223,7 +230,7 @@ const ACTIONS := [
 	["kick", "Kick", ["key:%d" % KEY_F]],
 	["boost", "Rocket boots", ["key:%d" % KEY_E]],
 	["interact", "Interact", ["key:%d" % KEY_G]],
-	["grapple", "Grapple", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
+	["grapple", "Mobility (grapple, portal, blink)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
 	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
 	["weapon_1", "Weapon slot 1", ["key:%d" % KEY_1]],

@@ -18,6 +18,7 @@ const LIST := [
 	{"id": "rivet", "name": "Rivet", "blurb": "Site worker: hard hat, camera-lens eye, hazard stripes, tank backpack."},
 	{"id": "specter", "name": "Specter", "blurb": "Stealth frame: hood with a V visor, trailing scarf, blade fins."},
 	{"id": "orbit", "name": "Orbit", "blurb": "Gyro bot: glowing orb head in gimbal rings, a glowing core in its chest."},
+	{"id": "templar", "name": "Templar", "blurb": "Crusader knight: great helm, white surcoat with a red cross over chain mail."},
 ]
 
 

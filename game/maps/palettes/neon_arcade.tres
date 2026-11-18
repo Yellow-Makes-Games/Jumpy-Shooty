@@ -8,6 +8,7 @@ colors = Dictionary[String, Color]({
 "ac_unit": Color(0.7, 0.72, 0.74, 1),
 "backdrop": Color(0.36, 0.34, 0.44, 1),
 "backdrop_dark": Color(0.26, 0.25, 0.34, 1),
+"beacon": Color(1, 0.2, 0.15, 1),
 "cab_black": Color(0.1, 0.1, 0.13, 1),
 "cab_blue": Color(0.16, 0.3, 0.72, 1),
 "cab_red": Color(0.7, 0.16, 0.22, 1),
@@ -37,6 +38,7 @@ colors = Dictionary[String, Color]({
 "screen": Color(0.3, 0.85, 1, 1),
 "screen_pink": Color(1, 0.35, 0.75, 1),
 "shelf": Color(0.36, 0.3, 0.44, 1),
+"shutter": Color(0.46, 0.48, 0.52, 1),
 "sidewalk": Color(0.6, 0.6, 0.6, 1),
 "sofa": Color(0.2, 0.7, 0.75, 1),
 "stage": Color(0.12, 0.12, 0.16, 1),
@@ -45,12 +47,14 @@ colors = Dictionary[String, Color]({
 "table": Color(0.85, 0.85, 0.9, 1),
 "tile": Color(0.22, 0.22, 0.26, 1),
 "truss": Color(0.3, 0.31, 0.36, 1),
+"tyre": Color(0.08, 0.08, 0.09, 1),
 "wall": Color(0.16, 0.15, 0.22, 1),
 "wall_outer": Color(0.5, 0.48, 0.55, 1),
 "wall_panel": Color(0.26, 0.22, 0.36, 1),
 "window_lit": Color(1, 0.85, 0.55, 1)
 })
 glow = Dictionary[String, float]({
+"beacon": 2.5,
 "dance_pad": 1.2,
 "lamp": 1.5,
 "marquee": 1.4,
@@ -61,6 +65,22 @@ glow = Dictionary[String, float]({
 "screen": 1.6,
 "screen_pink": 1.6,
 "window_lit": 0.8
+})
+surface = Dictionary[String, String]({
+"ac_unit": "slats",
+"backdrop": "windows_lit",
+"backdrop_dark": "windows_lit",
+"carpet": "confetti",
+"mezz_floor": "checker",
+"partition": "panels_plain",
+"roof": "tarmac",
+"shelf": "planks",
+"shutter": "slats",
+"sidewalk": "pavers",
+"stage": "planks",
+"street": "tarmac",
+"wall": "panels",
+"wall_outer": "bricks"
 })
 roughness = 0.7
 breakable = Dictionary[String, float]({

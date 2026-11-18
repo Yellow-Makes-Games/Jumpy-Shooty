@@ -14,11 +14,12 @@
 #    each other as well as you, the robots alternate starting with the one you did
 #    not pick, and the rematch keeps all 4 bots
 #  - a melee bot (sword) rushes in winding its swing up, lands blows and knocks you back
+#  - a blink bot blinks, and a portal-gun bot puts portals up and goes through them
 #  - sounds: your gun, steps, jumps and hit markers play in your head; the bot's shots,
 #    impacts and steps play placed in the world
 #  - there are no script errors
-# The 1v1 bots carry the rifle so their accuracy can be compared; the free-for-all
-# bots take any weapon at random, guns or melee.
+# The 1v1 bots carry the rifle (and the grapple) so their accuracy can be compared;
+# the free-for-all bots take any weapon and mobility tool at random.
 # Usage: [MAP=map_id] tests/run_bot_test.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -35,21 +36,26 @@ fi
 
 for level in 0 1 2 3; do
   character=$([[ $((level % 2)) -eq 0 ]] && echo needle || echo vanguard)
-  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --bot-weapon=rifle --character="$character" --time-limit=45 --quit-after=50 \
+  timeout 120 "$GODOT" "${COMMON[@]}" --bot="$level" --bot-weapon=rifle --bot-mobility=grapple --character="$character" --time-limit=45 --quit-after=50 \
     > "$OUT/bot_$level.log" 2>&1 &
 done
 # Easy against a player who stands still: even the weakest bot must land hits.
-timeout 90 "$GODOT" "${STILL[@]}" --bot=0 --bot-weapon=rifle --time-limit=40 --quit-after=45 \
+timeout 90 "$GODOT" "${STILL[@]}" --bot=0 --bot-weapon=rifle --bot-mobility=grapple --time-limit=40 --quit-after=45 \
   > "$OUT/bot_still.log" 2>&1 &
 # Expert again, but the player fights back; first to 2 so it ends, then rematches.
-timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --scripted-fire --sound-log --kill-target=2 --time-limit=40 \
+timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --bot-mobility=grapple --scripted-fire --sound-log --kill-target=2 --time-limit=40 \
   --auto-return --quit-after=50 > "$OUT/bot_fight.log" 2>&1 &
 # Free-for-all: you plus 4 Hard bots, first to 3 kills, then a rematch.
 timeout 150 "$GODOT" "${COMMON[@]}" --bot=2 --bots=4 --character=vanguard --kill-target=3 --time-limit=25 \
   --auto-return --quit-after=62 > "$OUT/bot_ffa.log" 2>&1 &
 # A sword bot (Hard) against a player who moves on its own.
-timeout 90 "$GODOT" "${COMMON[@]}" --bot=2 --bot-weapon=sword --time-limit=40 --quit-after=45 \
+timeout 90 "$GODOT" "${COMMON[@]}" --bot=2 --bot-weapon=sword --bot-mobility=grapple --time-limit=40 --quit-after=45 \
   > "$OUT/bot_melee.log" 2>&1 &
+# An Expert bot with blink, and one with the portal gun.
+for tool in blink portal; do
+  timeout 90 "$GODOT" "${COMMON[@]}" --bot=3 --bot-weapon=rifle --bot-mobility="$tool" --time-limit=40 --quit-after=45 \
+    > "$OUT/bot_$tool.log" 2>&1 &
+done
 wait || true
 
 python3 - "$OUT" <<'EOF'
@@ -182,6 +188,26 @@ if landed == 0 or knocks == 0:
     print("  FAIL: the sword bot should land blows that knock you back"); fail = True
 if wound == 0:
     print("  FAIL: the sword bot should wind its swings up"); fail = True
+
+log = read("blink")
+blinks = re.findall(r"^BLINK 9001 ([\d.]+)", log, re.M)
+print(f"Blink   blinks {len(blinks)}  shots {len(re.findall(r'^SHOT 9001 ', log, re.M))}  errors {log.count('SCRIPT ERROR')}")
+if log.count("SCRIPT ERROR"):
+    print("  FAIL: script errors"); fail = True
+if not blinks:
+    print("  FAIL: the blink bot never blinked"); fail = True
+if re.search(r"^GRAPPLE|^ROPE SELF 9001 on", log, re.M):
+    print("  FAIL: the blink bot used a grapple"); fail = True
+
+log = read("portal")
+placed = re.findall(r"^PORTAL 1 9001 (\d)", log, re.M)
+through = re.findall(r"^PORTAL_THROUGH 9001 ", log, re.M)
+print(f"Portal  portals {len(placed)} (blue {placed.count('0')}, orange {placed.count('1')})  trips {len(through)}  "
+      f"shots {len(re.findall(r'^SHOT 9001 ', log, re.M))}  errors {log.count('SCRIPT ERROR')}")
+if log.count("SCRIPT ERROR"):
+    print("  FAIL: script errors"); fail = True
+if not placed:
+    print("  note: the portal bot found no spot for a portal this time (it needs its target in sight and far off)")
 
 print("BOT TEST", "FAILED" if fail else "PASSED")
 sys.exit(1 if fail else 0)

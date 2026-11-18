@@ -9,6 +9,32 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - One player hosts; no dedicated servers. If the host leaves, the match ends (no host migration yet).
 - Hits: the host decides, with rewind to what the shooter saw.
 
+## Killcams (2026-11-17)
+
+- Killcam mode (asked for, 2026-11-17): snipers only; every kill scores its killcam
+  points; first to 10,000 or the most after 10 minutes; extra points for the match's #1
+  killcam at the end. My call: the bonus is +1,500 (about three good kills, enough to
+  swing a close match but not a rout), awarded after the match ends, so it can change
+  the winner; both end conditions apply at once; the sniper rifle only (not the other
+  marksman guns).
+
+- Asked for: when you die, watch the kill from the enemy's perspective as a short
+  replay; and the best killcam of the match, or the top three, at the end.
+- As built: the replay plays in the respawn wait and can be skipped (not in its first
+  0.75 s) or switched off; since respawning waits for a key press it plays to its end. When the match ends the top three play fullscreen,
+  counting down to the best, before the results page (asked for, 2026-11-17). Replays are
+  rebuilt from what each copy already receives and draws, not video.
+- The score also rewards momentum, the killer's and the victim's, and how far the
+  killer's aim moved just before the kill (asked for, 2026-11-17).
+- Momentum counts only when both players are moving (their speeds combined, so a
+  stationary killer or victim earns next to none), and trickshots, several tricks in
+  one kill, earn a large combo bonus: the best killcam should be the one viewers agree
+  is the coolest, and motion drives the game (asked for, 2026-11-17).
+- Not decided yet: the rest of the scoring rule that picks the top three (range,
+  headshot, mid-air / rope / wall run / glide, air shot, kicks, crashes, multikills,
+  clutch; ties go to the earlier kill) and all the point values are a first pick,
+  explained in `KillScore` and FEATURES.md; tune them freely.
+
 ## Look and feel (2026-11-15)
 
 - Art style: clean, stylized low-poly.
@@ -23,6 +49,11 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
   hard hat, camera-lens eye, hazard stripes, tank backpack), **Specter** (stealth: hood
   with a V visor, trailing scarf, blade fins) and **Orbit** (glowing orb head in gimbal
   rings, glowing chest core). The bot named Rivet became Gizmo so names do not clash.
+- **Templar** (2026-11-17): a crusader knight built the same way: a flat-topped great
+  helm with a glowing eye slit behind a cross of trim, a white surcoat with a red cross
+  front and back over chain mail, round shoulder plates, elbow and knee plates, a split
+  surcoat skirt and steel sabatons. The red cross stays red; the player colour shows on
+  the helm's cross, the sword belt, the shoulder bands and the surcoat hems.
 - Characters are looks only (2026-11-16): same hitbox, same movement, same animations.
   You pick yours before the round: on the Practice and Vs Bots pages, or in the lobby.
   The choice is remembered. In a 1v1 the bot plays the robot after yours in the list, never your own.
@@ -92,5 +123,5 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 
 ## Still open
 
-- Respawn delay (3 s for now).
+- Respawn delay (3 s for now; then you come back when you press Jump or Fire, asked for 2026-11-17, so there is time to change your loadout).
 - The end of the cut-off sentence in the original brief ("Networking tradeoffs that affect the...").

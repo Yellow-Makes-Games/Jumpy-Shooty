@@ -11,12 +11,17 @@ var _list_scroll: ScrollContainer
 var _start: Button
 var _waiting: Label
 var _info: Label
-var _copy: Button   # copies the host's internet address
+var _code: Label    # the host's lobby code, big
+var _copy: Button   # copies the lobby code
 var _rules_label: Label
 var _host_rules: HBoxContainer
 var _mode_pick: OptionButton
 var _amount: SpinBox
 var _amount_unit: Label
+var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
+var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
+var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
+var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
 var _map_label: Label
 var _map_pick: OptionButton
 var _character: CharacterPicker
@@ -24,6 +29,7 @@ var _weapon: WeaponPicker
 var _weapon_box: VBoxContainer   # the right column: your weapon, or a note when the mode has none to pick
 var _no_weapon: VBoxContainer
 var _no_weapon_note: Label
+var _mobility: MobilityPicker
 var _game_label: Label
 var _game_row: Container   # the host's mode switch
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
@@ -40,8 +46,11 @@ func _ready() -> void:
 	_info = UiKit.label(info_row, "", true, 16)
 	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_copy = UiKit.button(info_row, "Copy address", func():
-		DisplayServer.clipboard_set(_public_address())
+	_code = UiKit.label(info_row, "", false, 26)
+	_code.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_code.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_copy = UiKit.button(info_row, "Copy code", func():
+		DisplayServer.clipboard_set(Net.lobby_code())
 		_copy.text = "Copied")
 	_copy.custom_minimum_size = Vector2(0, 38)
 	_copy.theme_type_variation = "Chip"
@@ -63,6 +72,7 @@ func _ready() -> void:
 	_list_scroll.add_child(_list)
 	_build_map()
 	_build_rules()
+	_build_lobby_settings()
 	_divider(columns)
 	_build_character(columns)
 	_frame.back_button("Leave lobby", Game.leave_to_menu)
@@ -106,15 +116,18 @@ func _refresh() -> void:
 	_waiting.visible = not Net.is_host()
 	_start.disabled = Net.players.size() < 1
 	var where := ""
-	_copy.visible = Net.is_host() and Net.internet_state == "open"
+	var code := Net.lobby_code() if Net.is_host() else ""
+	_code.text = code
+	_code.visible = code != ""
+	_copy.visible = code != ""
 	if Net.is_host():
 		match Net.internet_state:
 			"open":
-				where = "Friends anywhere can join at %s." % _public_address()
+				where = "Friends anywhere join with the lobby code (or at %s)." % _address(Net.join_ip())
 			"checking":
 				where = "Opening your router for internet play..."
 			_:
-				where = "Your router would not open port %d, so only friends on your network can join (at %s)." % [Net.port, _local_ip()]
+				where = "Your router would not open port %d, so only friends on your network can join, with the lobby code (or at %s)." % [Net.port, _address(Net.join_ip())]
 	else:
 		where = "The host picks the map and rules and starts the match."
 	_info.text = "%d of %d players.  %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
@@ -124,6 +137,7 @@ func _refresh() -> void:
 		_character.set_color(Net.player_color(Net.my_id()))
 		_weapon.select(Net.player_weapon(Net.my_id()))
 		_character.set_weapon(Net.player_weapon(Net.my_id()))
+		_mobility.select(Net.player_loadout_mobility(Net.my_id()))
 
 
 ## One player: colour stripe, name, HOST and YOU tags, robot and gun.
@@ -148,7 +162,8 @@ func _player_row(id: int) -> PanelContainer:
 		UiKit.tag(row, "YOU", Color(1, 1, 1, 0.85))
 	if Net.is_bot(id):
 		UiKit.tag(row, "BOT", Color(1, 1, 1, 0.6))
-	var who := UiKit.label(row, "%s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name], true, 14)
+	var who := UiKit.label(row, "%s  ·  %s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name,
+		Mobility.short_name(Net.player_loadout_mobility(id))], true, 14)
 	who.autowrap_mode = TextServer.AUTOWRAP_OFF
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return card
@@ -173,6 +188,12 @@ func _build_character(columns: Node) -> void:
 	_weapon_box.add_child(_no_weapon)
 	UiKit.section(_no_weapon, "Weapon")
 	_no_weapon_note = UiKit.label(UiKit.inset(_no_weapon), "", true, 17)
+	_mobility = MobilityPicker.new(Net.player_loadout_mobility(Net.my_id()))
+	_character.add_child(_mobility)   # under the robot: that column has the room
+	_mobility.picked.connect(func(id: String):
+		Settings.mobility = id
+		Settings.save_settings()
+		Net.set_my_mobility(id))
 	_weapon.picked.connect(func(id: String):
 		Settings.weapon = id
 		Settings.save_settings()
@@ -256,31 +277,80 @@ func _build_rules() -> void:
 			s.minutes = int(v)
 		if s != Net.match_settings:
 			Net.set_match_settings(s))
+	# Deathmatch only: power-ups (health, uber health, double damage) on the map or not.
+	_powerups = CheckButton.new()
+	_powerups.text = "Power-ups (health, uber, double damage)"
+	_powerups.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(_powerups)
+	_powerups.toggled.connect(func(on: bool):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["powerups"] = on
+		Net.set_match_settings(s))
+
+
+# Lobby settings (see LobbySettings): the host picks; everyone else sees them. New
+# settings get their control here.
+func _build_lobby_settings() -> void:
+	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
+	_allowed = AllowedWeaponsPicker.new(Net.match_settings.get("weapons", []), Net.is_host(), false)
+	_col.add_child(_allowed)
+	_allowed.changed.connect(func(ids: Array):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["weapons"] = ids
+		Net.set_match_settings(s))
+	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
+	_col.add_child(_allowed_mobility)
+	_allowed_mobility.changed.connect(func(ids: Array):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["mobility"] = ids
+		Net.set_match_settings(s))
 
 
 func _refresh_rules() -> void:
 	var s: Dictionary = Net.match_settings
 	var race := Net.game_kind() == "race"
 	var gun_game := GunGame.active()
+	var killcam := KillcamMode.active()
+	var own_rules := gun_game or killcam   # a mode with rules of its own: no kills/time choice
 	var kills_mode: bool = s.mode != "time"
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
 	if race:
 		_rules_label.text = "First to the finish  ·  %d minute limit" % int(s.get("race_minutes", 10))
 	if gun_game:
 		_rules_label.text = "Every kill moves you to the next of %d weapons. First to get a kill with the last one (brass knuckles) wins. Kicked to death: back one weapon." % GunGame.steps()
-	_game_label.text = "Gun Game" if gun_game else Maps.GAME_NAMES.get(Net.game_kind(), "")
+	if killcam:
+		_rules_label.text = "Snipers only. Every kill scores its killcam points: range, headshots, momentum (both of you moving), flicks, trickshots. First to %s points, or the most after %d minutes. The match's #1 killcam earns +%s at the end." \
+			% [KillcamMode.format(KillcamMode.target()), int(KillcamMode.TIME_LIMIT / 60.0), KillcamMode.format(KillcamMode.BEST_BONUS)]
+	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else Maps.GAME_NAMES.get(Net.game_kind(), ""))
 	_game_label.visible = not Net.is_host()
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
+	var only := LobbySettings.only_weapon()
 	if _weapon:
-		# No guns in a race; Gun Game hands them out; a Deathmatch finds them on the map.
-		_weapon.visible = not race and not gun_game and not Net.is_deathmatch()
+		# No guns in a race; Gun Game hands them out; Killcam is snipers only; a Deathmatch
+		# finds them on the map; the host may have set one gun for everyone.
+		_weapon.set_allowed(LobbySettings.allowed_weapons())
+		_weapon.visible = not race and not own_rules and not Net.is_deathmatch() and only == ""
 		_no_weapon.visible = not _weapon.visible
+		_mobility.visible = not race   # a race always has the grapple
+		_mobility.set_allowed(LobbySettings.allowed_mobility())
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
+			else ("Killcam is snipers only: every kill scores its killcam points." if killcam \
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
-			else "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.")
-	_rules_label.visible = not Net.is_host() or gun_game
-	_host_rules.visible = Net.is_host() and not gun_game
+			else ("Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up." if Net.is_deathmatch() \
+			else "One gun for everyone: the %s. The host picked it for this match." % WeaponData.name_of(only))))
+	if _allowed:
+		_allowed.visible = LobbySettings.weapons_apply()   # a shoot-out: everyone picks their own weapon
+		_allowed.set_editable(Net.is_host())
+		_allowed.preferred = Net.player_loadout_weapon(Net.my_id())
+	_rules_label.visible = not Net.is_host() or own_rules
+	_host_rules.visible = Net.is_host() and not own_rules
 	_map_label.text = Maps.label(Net.map_id())
 	_map_label.visible = not Net.is_host()
 	_map_pick.visible = Net.is_host()
@@ -289,6 +359,16 @@ func _refresh_rules() -> void:
 		(_game_row.get_child(i) as Button).set_pressed_no_signal(GunGame.MODES[i] == GunGame.mode_of(s))
 	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
 	_mode_pick.select(0 if kills_mode else 1)
+	_powerups.visible = Net.is_deathmatch()
+	_powerups.disabled = not Net.is_host()   # everyone else just sees the host's choice
+	_powerups.set_pressed_no_signal(Net.powerups_on())
+	if _allowed:
+		_allowed.set_value(s.get("weapons", []))
+	if _allowed_mobility:
+		_allowed_mobility.visible = LobbySettings.mobility_apply()   # a race always has the grapple
+		_rules_head.visible = _allowed_mobility.visible   # a race has no loadout rules
+		_allowed_mobility.set_editable(Net.is_host())
+		_allowed_mobility.set_value(s.get("mobility", []))
 	if race:
 		_amount.min_value = 2
 		_amount.max_value = 30
@@ -307,13 +387,7 @@ func _refresh_rules() -> void:
 	_updating = false
 
 
-## What friends type to join over the internet (the port only if it isn't the usual one).
-func _public_address() -> String:
-	return Net.public_ip if Net.port == Net.DEFAULT_PORT else "%s:%d" % [Net.public_ip, Net.port]
-
-
-func _local_ip() -> String:
-	for ip in IP.get_local_addresses():
-		if ip.begins_with("192.168.") or ip.begins_with("10.") or ip.begins_with("172."):
-			return ip
-	return "127.0.0.1"
+## The address the lobby code stands for, for LAN and development use (the port only
+## if it isn't the usual one).
+func _address(ip: String) -> String:
+	return ip if Net.port == Net.DEFAULT_PORT else "%s:%d" % [ip, Net.port]

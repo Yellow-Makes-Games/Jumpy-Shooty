@@ -48,6 +48,7 @@ const BODY_RADIUS := 0.4
 @export var tether_pull_speed := 20.0
 @export var tether_meet := 2.2            ## let go once this close (chest to chest)
 @export var tether_time := 1.6            ## the longest a player stays hooked
+@export var player_magnet := 3.0          ## aim this many degrees off another player and the hook still catches them (0 = exact hits only)
 @export var tug_accel := 30.0             ## how hard the hooked player is dragged toward you
 @export var tug_speed := 11.0             ## up to this speed toward you
 @export var tug_lift := 4.0               ## lifts them off their feet when the hook catches

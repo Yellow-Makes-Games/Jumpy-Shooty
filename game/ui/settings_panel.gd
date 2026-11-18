@@ -17,7 +17,7 @@ const TABS := ["Controls", "Camera & HUD", "Audio", "Graphics"]
 const CHEAT_SHEET := [
 	["move", "Move"], ["sprint", "Sprint; hold in mid-air to glide"], ["jump", "Jump; again in mid-air to flip"],
 	["crouch", "Crouch; slide when moving fast"], ["dive", "Dive (keep holding to land in a belly slide)"],
-	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Grapple"],
+	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Mobility"],
 	["interact", "Interact: press at a map terminal"],
 	["fire", "Shoot; melee: hold to wind up, let go to swing"], ["reload", "Reload"],
 	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"],
@@ -87,6 +87,7 @@ func _show_tab(i: int) -> void:
 			_option("In first person", Settings.HUD_STYLES, Settings.hud_first_person, func(v): Settings.hud_first_person = v)
 			_option("In third person", Settings.HUD_STYLES, Settings.hud_third_person, func(v): Settings.hud_third_person = v)
 			UiKit.label(_page, "Twin arcs keeps health, ammo and move cooldowns round the crosshair. Clean puts them in the bottom corners.", true, 15)
+			_switch("Killcam when you are knocked out (Space skips it)", Settings.killcam, func(v): Settings.killcam = v)
 		2:
 			UiKit.section(_page, "Volume")
 			_slider("Master", 0.0, 1.0, 0.05, Settings.master_volume, func(v): Settings.master_volume = v, true)

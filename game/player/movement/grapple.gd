@@ -80,11 +80,17 @@ func rope_origin(body: Node3D) -> Vector3:
 
 
 ## Finds the point the player is aiming at, if it is in range. Any surface counts.
+## Aim magnets come first: a grapple point (MapGrapplePoint) or another player near
+## the crosshair is caught even without an exact hit. Such a result carries "point"
+## (the spot to hook) in place of "position".
 func find_target(body: CollisionObject3D, input: PlayerInput) -> Dictionary:
 	var eye := body.global_position + Vector3(0, MovementTuning.EYE_HEIGHT, 0)
 	var space := body.get_world_3d().direct_space_state
 	var exclude := [body.get_rid()]
 	var mask := 1 | (1 << 1) if hook_players else 1   # the level, and other players
+	var snap := _magnet_target(body, input, space, eye, exclude)
+	if not snap.is_empty():
+		return snap
 	if input.aim_dir != Vector3.ZERO:
 		# Third person: what is under the crosshair, as long as the eyes can see it too.
 		var from := input.aim_origin
@@ -100,6 +106,42 @@ func find_target(body: CollisionObject3D, input: PlayerInput) -> Dictionary:
 	var aim := Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0)) * Vector3.FORWARD
 	var query := PhysicsRayQueryParameters3D.create(eye, eye + aim * tuning.grapple_range, mask, exclude)
 	return space.intersect_ray(query)
+
+
+## The magnet target nearest the crosshair: a grapple point inside its own cone and
+## reach, or another player inside player_magnet degrees and grapple_range, with
+## nothing solid in the way. Empty if none. The aim ray is the one find_target
+## uses (third person: camera along the crosshair; first person: the eyes).
+func _magnet_target(body: CollisionObject3D, input: PlayerInput, space: PhysicsDirectSpaceState3D,
+		eye: Vector3, exclude: Array) -> Dictionary:
+	var from := eye
+	var dir := Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0)) * Vector3.FORWARD
+	if input.aim_dir != Vector3.ZERO:
+		from = input.aim_origin
+		dir = input.aim_dir
+	var best := {}
+	var best_angle := INF
+	var point := MapGrapplePoint.pick(body.get_tree(), space, eye, from, dir, exclude)
+	if point:
+		best = {"collider": point, "point": point.global_position}
+		best_angle = dir.angle_to(point.global_position - from)
+	if hook_players and tuning.player_magnet > 0.0 and body.get_parent():
+		for other in body.get_parent().get_children():
+			if other == body or not (other is CharacterBody3D) or other.get("alive") != true \
+					or not other.has_method("visible_in_world") or not other.visible_in_world():
+				continue
+			var at := target_point(other)
+			if eye.distance_to(at) > tuning.grapple_range:
+				continue
+			var angle := dir.angle_to(at - from)
+			if rad_to_deg(angle) > tuning.player_magnet or angle >= best_angle:
+				continue
+			var q := PhysicsRayQueryParameters3D.create(eye, at, 1, exclude + [other.get_rid()])
+			if not space.intersect_ray(q).is_empty():
+				continue   # behind a wall
+			best = {"collider": other, "point": at}
+			best_angle = angle
+	return best
 
 
 ## Does this ray hit (find_target's result) land on a player we can hook?
@@ -127,8 +169,9 @@ func try_attach(body: CollisionObject3D, input: PlayerInput) -> bool:
 		return false
 	target = hit_player(hit)
 	_tether_time = 0.0
-	anchor = target_point(target) if target else hit.position
-	length = clamp(rope_origin(body).distance_to(anchor), tuning.grapple_min_length, tuning.grapple_range)
+	anchor = target_point(target) if target else hit.get("point", hit.get("position"))
+	# A grapple point's reach can be longer than grapple_range.
+	length = maxf(rope_origin(body).distance_to(anchor), tuning.grapple_min_length)
 	attached = true
 	return true
 

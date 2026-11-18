@@ -805,6 +805,39 @@ def grapple_miss():
                       (metal_clack(rng, 0.95, 0.6, 0.5) * 0.5, 0.45)))
 
 
+def blink():
+    """Blink: a short teleport. A bright zip of air rushing up and away, a soft
+    electric snap at the start and a low thump as you arrive."""
+    rng = np.random.default_rng(9700)
+    zip_ = sweep_bp(noise(rng, 0.22), 600, 5200, 2.4, 0.6) * env(0.22, 0.07, 0.002) * 0.7
+    snap = hp(noise(rng, 0.03), 3000) * env(0.03, 0.005, 0.0003) * 0.5
+    shimmer = glide(0.2, 900, 2600, "sine") * bell_env(0.2, 0.2, 1.4) * 0.18
+    thump = sine_sweep(0.14, 150, 60, 0.02) * env(0.14, 0.03) * 0.6
+    return finish(mix(snap, zip_, shimmer, (thump, 0.12)))
+
+
+def portal_open():
+    """A portal opening on a surface: a quick spun-up hum that settles into a
+    soft, wobbling tone, with a pop as it lands."""
+    rng = np.random.default_rng(9800)
+    pop = mix(lp(noise(rng, 0.05), 1500) * env(0.05, 0.01, 0.0005), sine_sweep(0.08, 260, 110, 0.012) * env(0.08, 0.02) * 0.7)
+    t = tt(0.5)
+    wobble = 1.0 + 0.03 * np.sin(2 * math.pi * 7.0 * t)
+    hum = np.sin(2 * math.pi * np.cumsum(330.0 * wobble) / SR) * bell_env(0.5, 0.18, 1.6) * 0.3
+    hum += np.sin(2 * math.pi * np.cumsum(495.0 * wobble) / SR) * bell_env(0.5, 0.2, 1.8) * 0.12
+    swirl = sweep_bp(noise(rng, 0.4), 400, 2200, 3.0) * bell_env(0.4, 0.25, 1.4) * 0.35
+    return finish(mix(pop, hum, swirl))
+
+
+def portal_through():
+    """Going through a portal: a deep whoomp, like air pulled through a doorway."""
+    rng = np.random.default_rng(9900)
+    whoomp = lp(noise(rng, 0.4), 700) * bell_env(0.4, 0.3, 1.5) * 0.8
+    drop = sine_sweep(0.3, 220, 70, 0.08) * env(0.3, 0.1) * 0.6
+    air = sweep_bp(noise(rng, 0.35), 3000, 500, 1.8) * bell_env(0.35, 0.2, 1.4) * 0.4
+    return finish(mix(whoomp, drop, air))
+
+
 # ---------------------------------------------------------------------------
 # Menus and match flow
 
@@ -1194,6 +1227,9 @@ def recipes():
     r["grapple_attach"] = grapple_attach
     r["grapple_release"] = grapple_release
     r["grapple_miss"] = grapple_miss
+    r["blink"] = blink
+    r["portal_open"] = portal_open
+    r["portal_through"] = portal_through
     for u in ["ui_hover", "ui_click", "ui_confirm", "ui_back", "ui_toggle", "ui_tick", "ui_select"]:
         r[u] = lambda u=u: ui(u)
     r["match_start"] = match_start

@@ -4,14 +4,18 @@ extends Node
 ##   godot --path . -- --host --name=Austin --autostart=2
 ##
 ## --host               Host a direct-IP lobby straight away.
-## --join=ADDRESS       Join a direct-IP lobby straight away (ADDRESS may include :PORT).
+## --join=CODE          Join a lobby straight away, by its lobby code or by address (ADDRESS may include :PORT).
 ## --port=PORT         Host only: port to listen on (default 24680).
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.
-## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit) without changing the saved choice.
+## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit, templar) without changing the saved choice.
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
+## --allowed-weapons=A,B  Host / Vs Bots: only these weapons may be picked (one id: a single gun for everyone).
+## --allowed-mobility=A,B Host / Vs Bots: only these mobility tools may be picked (one id: the same for everyone).
+## --mobility=ID        Take this mobility tool (grapple, portal, blink) without changing the saved choice.
+## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
 ## --practice           Skip the menus and drop into the arena alone.
@@ -34,14 +38,19 @@ extends Node
 ##                      had fired them (host, practice and bot matches; tests and screenshots).
 ## --eager-terminal    Bots go for a map terminal whenever one is ready and they have nobody to fight (tests;
 ##                      normally they only try now and then).
-## --rules=kills:N | time:MINUTES | gungame  Set the win condition (Gun Game also works with --bot).
+## --rules=kills:N | time:MINUTES | gungame | killcam  Set the win condition (Gun Game and Killcam also work with --bot).
 ## --kill-target=N      Host only: override the kill target for this match.
+## --points=N           Host only, Killcam mode: override the points to win (tests).
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
 ## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings.
 ## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
+## --manual-respawn     Wait for a Jump or Fire press to respawn, as in a real game, even in a
+##                      headless or scripted run (those otherwise ask as soon as the wait is over).
 ## --fall=SEC           Your player falls out of the arena SEC seconds after start (shows the death screen; screenshots).
+## --save-killcam=N     On the results screen, save best kill #N as a video straight away, into the game's
+##                      own data folder (user://killcams) rather than Videos (tests).
 ## --hud=STYLE          Use this HUD layout in both views: arcs or clean (screenshots).
 ## --third-person      Start in third-person view (not saved to settings).
 ## --speed=X            Game speed (0.25: quarter speed, for filming a move in slow motion; Practice and Vs Bots).
@@ -66,6 +75,10 @@ var character := ""
 var switch_character := false
 var weapon := ""
 var bot_weapon := ""
+var allowed_weapons: Array = []   ## --allowed-weapons (see LobbySettings)
+var allowed_mobility: Array = []  ## --allowed-mobility (see LobbySettings)
+var mobility := ""
+var bot_mobility := ""
 var switch_weapon := false
 var swap_on_death := false
 var map := ""
@@ -76,6 +89,7 @@ var bot_level := 3
 var bot := -1
 var bots := 1
 var scripted_input := false
+var manual_respawn := false
 var sync_log := false
 var sound_log := false
 var scripted_fire := false
@@ -86,9 +100,11 @@ var map_event_at := -1.0     # --map-event: seconds after start (-1 = never)
 var scripted_kicks := false
 var auto_return := false
 var kill_target := 0
+var points_target := 0
 var rules := ""
 var time_limit := 0.0
 var quit_after := 0.0
+var save_killcam := 0
 var menu := ""
 var pause_page := ""
 var fall_at := -1.0          # --fall: seconds after start (-1 = never)
@@ -139,6 +155,26 @@ func _ready() -> void:
 						bot_weapon = value
 				else:
 					push_warning("Unknown weapon: %s (weapons: %s)" % [value, ", ".join(WeaponData.IDS)])
+			"--mobility", "--bot-mobility":
+				if Mobility.has(value):
+					if key == "--mobility":
+						mobility = value
+					else:
+						bot_mobility = value
+				else:
+					push_warning("Unknown mobility: %s (mobility: %s)" % [value, ", ".join(Mobility.IDS)])
+			"--allowed-weapons":
+				for w in value.split(",", false):
+					if WeaponData.has(w):
+						allowed_weapons.append(w)
+					else:
+						push_warning("Unknown weapon: %s (weapons: %s)" % [w, ", ".join(WeaponData.IDS)])
+			"--allowed-mobility":
+				for m in value.split(",", false):
+					if Mobility.has(m):
+						allowed_mobility.append(m)
+					else:
+						push_warning("Unknown mobility: %s (mobility: %s)" % [m, ", ".join(Mobility.IDS)])
 			"--switch-weapon": switch_weapon = true
 			"--swap-on-death": swap_on_death = true
 			"--map":
@@ -157,6 +193,7 @@ func _ready() -> void:
 			"--bot": bot = clampi(int(value), 0, 3)
 			"--bots": bots = clampi(int(value), 1, 4)
 			"--scripted-input": scripted_input = true
+			"--manual-respawn": manual_respawn = true
 			"--sync-log": sync_log = true
 			"--sound-log": sound_log = true
 			"--scripted-fire": scripted_fire = true
@@ -173,10 +210,12 @@ func _ready() -> void:
 					Settings.hud_first_person = value
 					Settings.hud_third_person = value
 			"--kill-target": kill_target = int(value)
+			"--points": points_target = int(value)
 			"--rules": rules = value
 			"--time-limit": time_limit = float(value)
 			"--third-person": Settings.third_person = true
 			"--quit-after": quit_after = float(value)
+			"--save-killcam": save_killcam = int(value)
 			"--net-sim":
 				var q := value.split(",")
 				net_sim_latency = float(q[0]) if q.size() > 0 else 0.0
@@ -281,3 +320,9 @@ func _process(delta: float) -> void:
 		quit_after = 0.0
 		Net.leave()
 		get_tree().quit()
+
+
+## Tests: ask to respawn as soon as the wait is over (nobody is there to press a key),
+## unless --manual-respawn.
+func auto_respawn() -> bool:
+	return (scripted_input or DisplayServer.get_name() == "headless") and not manual_respawn

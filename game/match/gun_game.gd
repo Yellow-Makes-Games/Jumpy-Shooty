@@ -28,12 +28,14 @@ static func weapon_at(level: int) -> String:
 
 
 # ---------------------------------------------------------------------------
-# The menus' mode switch: Shoot-out, Gun Game, Deathmatch or Race. Gun Game is a
-# free-for-all ("ffa" maps, the arenas) with its own rules (match_settings.mode =
-# "gungame"); Deathmatch is a game of its own ("dm", on the arenas with weapon pickups).
+# The menus' mode switch: Shoot-out, Gun Game, Killcam, Deathmatch or Race. Gun Game
+# and Killcam are free-for-alls ("ffa" maps, the arenas) with their own rules
+# (match_settings.mode = "gungame" or "killcam", see KillcamMode); Deathmatch is a game of its own ("dm", on the arenas with weapon pickups).
 
-const MODES := ["ffa", "gungame", "dm", "race"]
-const MODE_LABELS := ["Shoot-out", "Gun Game", "Deathmatch", "Race"]
+const MODES := ["ffa", "gungame", "killcam", "dm", "race"]
+const MODE_LABELS := ["Shoot-out", "Gun Game", "Killcam", "Deathmatch", "Race"]
+## The free-for-all modes with rules of their own (match_settings.mode).
+const RULES := ["gungame", "killcam"]
 
 
 ## Which of MODES these match settings are.
@@ -42,10 +44,11 @@ static func mode_of(settings: Dictionary) -> String:
 		return "race"
 	if str(settings.get("game", "")) == "dm" and Maps.fits(str(settings.get("map", "")), "dm"):
 		return "dm"
-	return "gungame" if str(settings.get("mode", "")) == "gungame" else "ffa"
+	var rules := str(settings.get("mode", ""))
+	return rules if rules in RULES else "ffa"
 
 
-## The kind of game a mode is ("ffa", "dm" or "race"; Gun Game is a kind of "ffa").
+## The kind of game a mode is ("ffa", "dm" or "race"; Gun Game and Killcam are kinds of "ffa").
 static func game_of_mode(mode: String) -> String:
 	return mode if mode in ["race", "dm"] else "ffa"
 
@@ -57,8 +60,8 @@ static func with_mode(settings: Dictionary, mode: String, map_for_game: String) 
 	if not Maps.fits(str(s.get("map", "")), game):
 		s["map"] = map_for_game
 	s["game"] = game
-	if mode == "gungame":
-		s["mode"] = "gungame"
-	elif str(s.get("mode", "")) == "gungame":
+	if mode in RULES:
+		s["mode"] = mode
+	elif str(s.get("mode", "")) in RULES:
 		s["mode"] = "kills"
 	return s

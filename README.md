@@ -42,6 +42,11 @@ More detail, including how to play with a friend and run several copies on one P
 | Menu (Loadout: change robot or weapon for your next respawn) | Esc |
 | Debug menu (Practice and Vs Bots only) | F1 |
 
+Right mouse is your **mobility** tool, picked before a match, in the pause menu's Loadout or
+by pressing right mouse while you wait to respawn: the **grappling hook**, the **portal gun**
+(each press puts up your next portal, blue then orange; walk into one and come out of the other
+with your speed carried through; anyone can use anyone's portals, and yours go when you die) or
+**blink** (a short teleport where you look, one charge that recharges, with a trail of sparks to where you land) or the **jetpack** (hold to fly and steer with WASD, on fuel that refills when you let go, fastest on the ground). A race always has the grapple.
 Grapple is right mouse, crouch / slide is Ctrl or C, dive is Q or Alt. Every key except Esc can be
 rebound under **Settings > Controls** (two bindings per action, keys or mouse buttons); a key
 you give to one action is taken off any other that had it, and **Reset controls to defaults**

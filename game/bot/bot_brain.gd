@@ -22,6 +22,9 @@ extends RefCounted
 ##    higher difficulties.
 ##  - Uses the movement set: sprints, slides and bunny-hops while chasing, dives to
 ##    close distance, flips to dodge when hit, grapples toward high ground.
+##  - Uses whatever is on its mobility button (see Mobility): the grapple as above;
+##    blink to close in on you, to reach higher ground and to dodge when hit; the
+##    portal gun to put one portal by you and one at its own feet and step through.
 ##  - Kicks anyone right in front of it, hooks you with the grapple to reel you in
 ##    and finishes with a flying kick, and fires its rocket boots to close in, to
 ##    dodge when hit and to whip round faster on a grapple swing.
@@ -119,6 +122,10 @@ var _state_seen := {}
 var _terminal: MapTerminal       # the map terminal it is walking to or holding, or null
 var _terminal_think := 0.0
 var _terminal_time := 0.0
+var _blink_side := 0.0           # it was just hit: blink this way (-1 left, 1 right, 0 no)
+var _jet_time := 0.0             # seconds left of a jetpack burst it is holding
+var _portal_plan := 0.0          # seconds left of a portal trip in progress (0: none)
+var _portal_step := 0            # 0: shoot the far portal, 1: the near one, 2: walk into it
 
 
 func _init(player: Player, level: int) -> void:
@@ -193,10 +200,16 @@ func update(delta: float) -> void:
 
 	var world_dir := _choose_direction(delta, visible)
 	_hook_frame = false
-	if _terminal == null:
-		_grapple(delta, visible)
-	else:
+	if _terminal != null:
 		input.grapple = false   # no swinging off while it is at (or on its way to) a terminal
+	elif me.mobility == Mobility.BLINK:
+		_blink(delta, visible)
+	elif me.mobility == Mobility.JETPACK:
+		_jetpack(delta, visible)
+	elif me.mobility == Mobility.PORTAL:
+		_portal(delta, visible)
+	else:
+		_grapple(delta, visible)
 	_dodge(delta)
 	_set_move(world_dir)
 	if not _hook_frame:
@@ -237,6 +250,10 @@ func _reset() -> void:
 	_dodge_time = 0.0
 	_grapple_time = 0.0
 	_terminal = null
+	_blink_side = 0.0
+	_portal_plan = 0.0
+	_portal_step = 0
+	_jet_time = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -692,6 +709,11 @@ func _on_hit(shooter: int, target: int, _damage: float, _head: bool) -> void:
 	var side := 1.0 if _rng.randf() < 0.5 else -1.0
 	if _light() and not _ground_ahead(Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * side, 6.0 * _air()):
 		return   # low gravity: a dodge that way would float it off an edge
+	if me.jetpack and me.jetpack.fuel > 0.5 and _rng.randf() < d.dodge_chance * 0.7:
+		_jet_time = 0.35   # hop up out of the line of fire
+	if me.blink and me.blink.ready() and _rng.randf() < d.dodge_chance * 0.7:
+		_blink_side = side   # a sideways blink
+		return
 	if _rng.randf() < d.dodge_chance * 0.5 and me.motor.boost_readiness() >= 1.0:
 		_boost_side = side   # a sideways rocket burst
 		return
@@ -766,6 +788,124 @@ func _grapple(delta: float, visible: bool) -> void:
 	input.grapple_pressed = true
 	_grapple_time = 0.0
 	_grapple_start = me.global_position
+
+
+## Blink: sideways when just hit, toward its target when it is out of range, or up
+## to higher ground it is heading for. Easy bots hardly use it.
+func _blink(delta: float, visible: bool) -> void:
+	input.grapple = false
+	var b := me.blink
+	if b == null or not b.ready():
+		return
+	var dir := Vector3.ZERO
+	if _blink_side != 0.0:
+		dir = Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * _blink_side
+		_blink_side = 0.0
+	else:
+		var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
+		if spot == Vector3.INF:
+			return
+		var rate: float = [0.15, 0.5, 1.0, 1.4][d.level]
+		if _rng.randf() > delta * rate:
+			return
+		var to := spot - me.global_position
+		var flat := Vector3(to.x, 0.0, to.z)
+		var dist := flat.length()
+		var higher := to.y > 2.5 and dist < Blink.RANGE * 1.5
+		var close_in := dist > (FAR + 6.0 if not _melee else 4.0) and (visible or dist > 20.0)
+		if not (higher or close_in) or dist < 0.5:
+			return
+		dir = flat.normalized()
+		if higher:
+			dir = (dir + Vector3(0, clampf(to.y / maxf(dist, 1.0), 0.3, 1.2), 0)).normalized()
+		elif not _ground_ahead(dir, Blink.RANGE):
+			return   # nothing to land on that way
+		else:
+			dir = (dir + Vector3(0, 0.12, 0)).normalized()
+	if _light() and not _ground_ahead(Vector3(dir.x, 0, dir.z).normalized(), Blink.RANGE):
+		return
+	input.mobility_dir = dir
+	input.grapple_pressed = true
+
+
+## Jetpack: short bursts to reach higher ground, to close in on someone far off,
+## and to hop out of the way when hit. It keeps some fuel back.
+func _jetpack(delta: float, visible: bool) -> void:
+	var jet := me.jetpack
+	if jet == null:
+		input.grapple = false
+		return
+	if _jet_time > 0.0:
+		_jet_time -= delta
+		input.grapple = jet.fuel > 0.1
+		return
+	input.grapple = false
+	if jet.fuel < 0.6:
+		return
+	var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
+	if spot == Vector3.INF:
+		return
+	var rate: float = [0.2, 0.5, 0.9, 1.2][d.level]
+	if _rng.randf() > delta * rate:
+		return
+	var to := spot - me.global_position
+	var dist := Vector2(to.x, to.z).length()
+	if to.y > 2.5 and dist < 25.0:
+		_jet_time = clampf(to.y / 6.0 + 0.3, 0.4, 1.4)   # up to their level
+	elif visible and dist > FAR + 6.0 and not _light():
+		_jet_time = 0.5   # a hop over whatever is in the way as it closes in
+
+
+## Portal gun: with its target far off and in sight, shoot a portal onto the floor
+## by them, then one onto the floor just ahead of its own feet, toward them, and walk
+## into it. It comes out of the floor beside them and keeps fighting.
+func _portal(delta: float, visible: bool) -> void:
+	input.grapple = false
+	var gun := me.portal_gun
+	if gun == null or Net.arena == null or Net.arena.portals == null:
+		return
+	if _portal_plan > 0.0:
+		_portal_plan -= delta
+		if _portal_step == 2:
+			var near: Portal = Net.arena.portals.get_portal(me.peer_id, 1)
+			if near == null or me.portal_skip != null:
+				_portal_plan = 0.0   # went through (or it is gone)
+			return
+		if not gun.ready():
+			return
+		var spot := Vector3.INF
+		if _portal_step == 0:
+			if _target == null or not visible:
+				_portal_plan = 0.0
+				return
+			spot = _target.global_position + _target.velocity * 0.3
+		else:
+			var to := (_target.global_position if _target else me.global_position - Vector3.FORWARD.rotated(Vector3.UP, input.yaw)) - me.global_position
+			to.y = 0.0
+			spot = me.global_position + to.normalized() * 2.2
+		var eye := me.eye_position()
+		var dir := (spot + Vector3(0, -0.3, 0) - eye).normalized()
+		var found := PortalGun.find_spot(me, eye, dir)
+		var floor_needed := _portal_step == 1   # its own one goes on the floor, to walk into
+		if found.is_empty() or (floor_needed and (found.normal as Vector3).y < 0.7) or (found.at as Vector3).distance_to(spot) > (6.0 if _portal_step == 0 else 3.5):
+			if DevArgs.sync_log:
+				print("BOT_PORTAL_SKIP %d step %d %s" % [me.peer_id, _portal_step, "none" if found.is_empty() else "%.2f %.1f" % [(found.normal as Vector3).y, (found.at as Vector3).distance_to(spot)]])
+			_portal_plan = 0.0   # no floor there to take a portal
+			return
+		gun.next_slot = _portal_step   # far one blue, near one orange
+		input.mobility_dir = dir
+		input.grapple_pressed = true
+		_portal_step += 1
+		return
+	if not visible or _target == null or not gun.ready() or not me.is_on_floor():
+		return
+	var dist := me.global_position.distance_to(_target.global_position)
+	if dist < maxf(FAR - 4.0, 14.0) or dist > PortalGun.RANGE - 5.0:
+		return
+	if _rng.randf() > delta * [0.1, 0.35, 0.7, 1.0][d.level]:
+		return
+	_portal_plan = 3.0
+	_portal_step = 0
 
 
 ## Hook the target it is fighting, now and then, to reel them in for a flying kick.
