@@ -709,16 +709,16 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	elif _asked:
 		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING...", 12, HudStyle.ORANGE)
 	elif _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE:
-		HudStyle.label(ci, Vector2(bar.position.x, row), "PICK YOUR LOADOUT", 12, Color(1, 1, 1, 0.85))
-		HudStyle.text(ci, Vector2(bar.end.x, row), "%.1f s" % _respawn_left if _respawn_left > 0.0 else "", 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+		var lw := HudStyle.label(ci, Vector2(bar.position.x, row), "PICK YOUR LOADOUT", 12, Color(1, 1, 1, 0.85))
+		if _respawn_left > 0.0:
+			HudStyle.text(ci, Vector2(bar.position.x + lw + 12.0, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE)
 	else:   # ready: a pulsing call to come back
 		var a := 0.75 + 0.25 * sin(_pulse * 5.0)
 		var keys := "%s OR %s" % [Settings.action_text("jump").to_upper(), Settings.action_text("fire").to_upper()]
 		var w1 := HudStyle.text(ci, Vector2(bar.position.x, row + 2.0), keys, 16, Color(HudStyle.ORANGE, a))
 		HudStyle.label(ci, Vector2(bar.position.x + w1 + 10.0, row + 2.0), "TO RESPAWN", 12, Color(1, 1, 1, a))
 	if Match.respawn_needs_press(Net.my_id()) and not _asked:
-		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0 if _respawn_left <= 0.0 and _screen_age >= RESPAWN_GRACE else row + 22.0),
-			"ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
+		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0), "ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	var mid := card.position.x + w * 0.5
 	if Net.is_deathmatch():
 		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
