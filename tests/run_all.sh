@@ -29,6 +29,7 @@ CHECKS=(
   "menu|--script tests/menu_mode_test.gd"
   "ui_layout|--script tests/ui_layout_test.gd"
   "hud_icons|--script tests/hud_icons_test.gd"
+  "kill_feed|--script tests/kill_feed_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
   "block_settings|--script tests/block_settings_test.gd"
@@ -89,6 +90,8 @@ echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by th
 tests/run_slam_test.sh
 echo "== Respawn visibility: players dying and coming back online, a client's respawn news held up behind their snapshots; nobody stays invisible"
 tests/run_respawn_visible_test.sh
+echo "== Kick kills in the kill feed: a client kicked into a wall and kicked down, the boot and the wall on both copies"
+tests/run_kick_feed_test.sh
 echo "== Halcyon online and with bots: a client fires the terminal, a late joiner is told, bots use it and cope"
 tests/run_gravity_test.sh
 echo "== Race mode: bots finish a race, fail conditions, results"

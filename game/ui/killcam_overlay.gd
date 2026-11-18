@@ -28,7 +28,7 @@ static func draw(ci: CanvasItem, r: Rect2, view: KillcamView, title: String, foo
 	var victim_track: KillClip.Track = clip.tracks.get(int(clip.victim))
 	var victim_name: String = victim_track.name if victim_track else Net.player_name(int(clip.victim))
 	var weapon := str(info.get("weapon", ""))
-	var with := "%s  ·  on %s" % ["Bare feet" if weapon in ["kick", "none"] else WeaponData.name_of(weapon), victim_name]
+	var with := "%s  ·  on %s" % ["Kick" if weapon == "kick" else "Bare feet" if weapon == "none" else WeaponData.name_of(weapon), victim_name]
 	var tags := KillScore.words(info)
 	# A dark plate behind the words, so they read over a bright wall or sky.
 	var block := maxf(HudStyle.text_width(killer_name, int(32 * k)), HudStyle.text_width(with, int(15 * k), false))
