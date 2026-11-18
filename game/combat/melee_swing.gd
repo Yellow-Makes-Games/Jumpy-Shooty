@@ -280,13 +280,15 @@ const MOVES := {
 			"end": [Vector3(0.0, -0.12, -0.52), Vector3(0.64, 0.0, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
 			"fp_end": [Vector3(0.1, -0.14, -0.48), Vector3(-0.2, -0.02, -0.98), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
 		},
-		# In mid-air: a tight corkscrew, two quick turns with the dagger tucked in to the chest, into a fast
-		# slash as the second turn comes round.
+		# In mid-air: a tight corkscrew, two quick turns with the dagger drawn back to the ribs, into a stab
+		# lunged straight out and down ahead as the second turn comes round.
 		"air": {
-			"wound": [Vector3(0.12, -0.08, -0.14), Vector3(-0.2, 0.8, -0.56), Vector3(-0.5, -0.5, -0.7), -0.4, -0.1, 0.0],
-			"fp_wound": [Vector3(0.22, -0.14, -0.32), Vector3(0.0, 0.8, -0.6), Vector3(-0.6, -0.45, -0.66), -0.3, -0.05, 0.0],
-			"hit": [Vector3(0.04, -0.14, -0.44), Vector3(-0.5, 0.1, -0.86), Vector3(-0.86, 0.0, 0.5), 0.25, 0.2, 0.0],
-			"end": [Vector3(-0.12, -0.15, -0.3), Vector3(-0.95, 0.0, -0.3), Vector3(-0.3, 0.0, 0.95), 0.7, 0.15, 0.0],
+			"wound": [Vector3(0.3, -0.14, 0.06), Vector3(-0.25, 0.05, -0.97), Vector3(0.0, -1.0, 0.0), -0.6, -0.15, 0.0],
+			"fp_wound": [Vector3(0.28, -0.22, -0.2), Vector3(-0.1, 0.1, -0.99), Vector3(0.0, -1.0, 0.0), -0.4, -0.05, 0.0],
+			"hit": [Vector3(0.02, -0.16, -0.52), Vector3(0.58, -0.2, -0.79), Vector3(0.0, -1.0, 0.0), 0.4, 0.5, 0.0],
+			"fp_hit": [Vector3(0.1, -0.16, -0.46), Vector3(-0.2, -0.2, -0.96), Vector3(0.0, -1.0, 0.0), 0.4, 0.5, 0.0],
+			"end": [Vector3(0.0, -0.17, -0.54), Vector3(0.6, -0.22, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.52, 0.0],
+			"fp_end": [Vector3(0.1, -0.17, -0.48), Vector3(-0.2, -0.22, -0.95), Vector3(0.0, -1.0, 0.0), 0.45, 0.52, 0.0],
 			"axis": Vector3(0.0, 1.0, 0.0),
 			"turns": 2.0,
 		},
