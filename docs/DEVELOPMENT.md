@@ -1187,6 +1187,15 @@ islands over a drop (no free swings on the grapple, no jump or dodge without flo
 sight); Over Ground says this island is a machine on a map with solid ground, so it
 does not count.
 
+Turns, Heights and Route are typed arrays (`Array[float]`, `Array[int]`), not packed
+ones, on purpose. Godot's export drops a packed array (PackedFloat32Array,
+PackedInt32Array, PackedStringArray) that a scene sets on a node whose script does not
+run in the editor: the value is there when you play from the editor and gone in the
+exported game. v0.1.48 shipped that way, with a lever that clacked and a crane with no
+stops. Give a new map script's list settings a typed array, and check them in an
+exported copy (`godot --headless --export-pack "Windows Desktop" out.pck`, then
+`godot --main-pack out.pck`).
+
 To put a crane (or anything else that swings a load) on another map: two MapIslands
 with one Pivot (Over Ground ticked if the map has ground under it), a CraneEvent
 pointing at them, and a MapLever or a plain MapTerminal pointing at the event.

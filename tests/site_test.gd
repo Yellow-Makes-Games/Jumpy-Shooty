@@ -488,6 +488,16 @@ func _crane_checks() -> void:
 	_expect(jib != null and jib.is_ancestor_of(lever), "the lever is inside the jib, so it rides round with the cab")
 	_expect(not lever.bots, "bots leave the lever alone (they cannot walk to it)")
 	_expect(jib != null and hook != null and jib.over_ground and hook.over_ground, "the Jib and Hook are marked Over Ground (bots still play it as a map with a floor)")
+	# The exported game: an export keeps a typed array on this node and drops a packed one
+	# (v0.1.48 shipped a crane with no stops), so the scene must hold plain arrays.
+	var kept := {}
+	var state := (load("res://game/maps/construction_site.tscn") as PackedScene).get_state()
+	for i in state.get_node_count():
+		if state.get_node_name(i) == crane.name:
+			for p in state.get_node_property_count(i):
+				kept[String(state.get_node_property_name(i, p))] = typeof(state.get_node_property_value(i, p))
+	_expect(kept.get("turns") == TYPE_ARRAY and kept.get("heights") == TYPE_ARRAY and kept.get("route") == TYPE_ARRAY,
+		"the scene stores the crane's Turns, Heights and Route as typed arrays (an export drops packed ones)")
 	_expect(crane.route.size() >= 2 and crane.turns.size() == crane.heights.size(), "it has %d stops and a route of %d moves" % [crane.turns.size(), crane.route.size()])
 	if jib == null or hook == null:
 		return

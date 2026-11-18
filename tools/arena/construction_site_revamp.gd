@@ -299,12 +299,17 @@ func crane() -> void:
 	event.set("hook", NodePath("../Hook"))
 	event.set("rope_top", NodePath("../Jib/RopeTop"))
 	event.set("rope_bottom", NodePath("../Hook/RopeBottom"))
-	event.set("turns", PackedFloat32Array(STOP_TURNS))
-	var heights := PackedFloat32Array()
-	for top in STOP_TOPS:
-		heights.append(top - SLAB_TOP)
+	# (Typed arrays, not packed ones: an export drops a packed array from a node whose
+	# script does not run in the editor, and the crane then has no stops.)
+	var turns: Array[float] = []
+	var heights: Array[float] = []
+	for i in STOP_TURNS.size():
+		turns.append(float(STOP_TURNS[i]))
+		heights.append(float(STOP_TOPS[i]) - SLAB_TOP)
+	var route: Array[int] = [0, 1, 0, 2]
+	event.set("turns", turns)
 	event.set("heights", heights)
-	event.set("route", PackedInt32Array([0, 1, 0, 2]))
+	event.set("route", route)
 	event.set("carry_height", CARRY_TOP - SLAB_TOP)
 	event.set("hoist_speed", 7.0)
 	event.set("slew_speed", 10.0)

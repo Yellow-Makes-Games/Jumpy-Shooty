@@ -36,15 +36,18 @@ extends MapEvent
 ## Where it meets the hook block: a marker inside the Hook island.
 @export_node_path("Node3D") var rope_bottom: NodePath
 
+# (Turns, Heights and Route are typed arrays, not packed ones. An export drops a packed
+# array from a node whose script does not run in the editor, as this one does not: the
+# exported game then had a crane with no stops, and its lever did nothing.)
 @export_group("Stops")
 ## For each stop: degrees the jib is turned from where the scene has it (positive is
 ## anticlockwise seen from above).
-@export var turns: PackedFloat32Array = [0.0]
+@export var turns: Array[float] = [0.0]
 ## For each stop: metres the load hangs above (or, negative, below) where the scene has it.
-@export var heights: PackedFloat32Array = [0.0]
+@export var heights: Array[float] = [0.0]
 ## The stops in the order the crane visits them, round and round (numbers into Turns
 ## and Heights, from 0). It starts a match at the first.
-@export var route: PackedInt32Array = [0]
+@export var route: Array[int] = [0]
 ## Metres above where the scene has it that the load is hoisted to before the jib turns.
 @export var carry_height := 12.0
 
