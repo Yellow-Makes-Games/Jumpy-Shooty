@@ -20,6 +20,7 @@ CHECKS=(
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
   "ragdoll|--fixed-fps 60 --script tests/ragdoll_test.gd"
   "custom_character|--script tests/custom_character_test.gd"
+  "gibs|--fixed-fps 60 --script tests/gibs_test.gd"
   "weapons|--script tests/weapon_test.gd"
   "new_weapons|--script tests/new_weapons_test.gd"
   "audio|--script tests/audio_test.gd"
