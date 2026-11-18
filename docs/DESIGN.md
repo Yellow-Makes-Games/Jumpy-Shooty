@@ -30,6 +30,12 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
   stationary killer or victim earns next to none), and trickshots, several tricks in
   one kill, earn a large combo bonus: the best killcam should be the one viewers agree
   is the coolest, and motion drives the game (asked for, 2026-11-17).
+- Kicks and melee scored far too high: grapple-and-kick was the best killcam every
+  time (playtesting, 2026-11-17). On a blow (kick, flying kick, crash, blade) momentum
+  now counts at 40%, and the flick, air shot and trickshot combo do not count, since
+  the reel-in and the kick's fling bring them on their own; the kick bonuses are lower
+  (kick +40, flying kick +60, crash +50). Grapple-and-kick went from about 750 to
+  about 340, against about 780 for a sniper trickshot.
 - Not decided yet: the rest of the scoring rule that picks the top three (range,
   headshot, mid-air / rope / wall run / glide, air shot, kicks, crashes, multikills,
   clutch; ties go to the earlier kill) and all the point values are a first pick,

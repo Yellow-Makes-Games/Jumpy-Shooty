@@ -151,7 +151,7 @@ deaths = [s for s in scores(log) if s[2] == "1"]
 print(f"No key pressed: knocked out {len(deaths)} times, respawned {log.count('RESPAWNED 1')}")
 if len(deaths) != 1 or "RESPAWNED 1" in log:
     bad("with no key pressed you should stay down after your first death")
-if "KILLCAM DONE 1" not in log:
+if "KILLCAM DONE 1" not in log and "KILLCAM NONE 1" not in log:   # (none: knocked out too soon after the start for a replay)
     bad("the killcam should play to its end and give way to the death screen")
 
 # --- Online

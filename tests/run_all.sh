@@ -20,6 +20,7 @@ CHECKS=(
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
   "custom_character|--script tests/custom_character_test.gd"
   "weapons|--script tests/weapon_test.gd"
+  "new_weapons|--script tests/new_weapons_test.gd"
   "audio|--script tests/audio_test.gd"
   "maps|--script tests/map_scene_test.gd"
   "controls|--script tests/controls_check.gd"
@@ -42,6 +43,7 @@ CHECKS=(
   "lobby_settings|--script tests/lobby_settings_test.gd"
   "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
+  "spectator|--script tests/spectator_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
@@ -89,4 +91,6 @@ echo "== Lobby settings: the host allows only some weapons and mobility tools; a
 tests/run_lobby_settings_test.sh
 echo "== Lobby: size 3 (a fourth player is refused), ready up, the host kicks the one not ready, then starts"
 tests/run_lobby_test.sh
+echo "== Spectating online: a client joins mid-match to watch; nobody sees it"
+tests/run_spectator_test.sh
 echo "ALL TESTS PASSED"

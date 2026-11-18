@@ -14090,10 +14090,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.33, 10, -11.67)
 script = ExtResource("90_wpnsp")
 weapon = "sniper"
 
-[node name="Rifle3" type="Marker3D" parent="WeaponSpawns" unique_id=929758739]
+[node name="Minigun" type="Marker3D" parent="WeaponSpawns" unique_id=929758739]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.08, 10, 11.17)
 script = ExtResource("90_wpnsp")
-weapon = "rifle"
+weapon = "minigun"
 
 [node name="Revolver4" type="Marker3D" parent="WeaponSpawns" unique_id=38178621]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.83, 5, 10.92)
@@ -14105,15 +14105,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.33, 5, -11)
 script = ExtResource("90_wpnsp")
 weapon = "spear"
 
-[node name="Hammer6" type="Marker3D" parent="WeaponSpawns" unique_id=942999116]
+[node name="Claws" type="Marker3D" parent="WeaponSpawns" unique_id=942999116]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.42, 10, -11.83)
 script = ExtResource("90_wpnsp")
-weapon = "hammer"
+weapon = "claws"
 
-[node name="GrenadeLauncher7" type="Marker3D" parent="WeaponSpawns" unique_id=1052788921]
+[node name="Mortar" type="Marker3D" parent="WeaponSpawns" unique_id=1052788921]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.83, 10, 11.83)
 script = ExtResource("90_wpnsp")
-weapon = "grenade_launcher"
+weapon = "mortar"
 
 [node name="Dagger8" type="Marker3D" parent="WeaponSpawns" unique_id=113031138]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 5, 10.25)

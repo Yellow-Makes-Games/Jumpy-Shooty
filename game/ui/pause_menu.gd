@@ -37,6 +37,15 @@ func _show_main() -> void:
 	UiKit.primary_button(col, "Resume", func(): visible = false).grab_focus()
 	UiKit.button(col, "Loadout", _show_loadout)
 	UiKit.button(col, "Settings", _show_settings)
+	if Net.spectating():
+		var join := UiKit.button(col, "Stop spectating (join the match)", func():
+			Net.set_spectating(false)
+			visible = false)
+		join.disabled = Net.players.size() >= Net.MAX_PLAYERS
+	elif Game.mode != Game.Mode.PRACTICE:
+		UiKit.button(col, "Spectate (watch with a free camera)", func():
+			Net.set_spectating(true)
+			visible = false)
 	if Net.is_online and Net.is_host():
 		UiKit.button(col, "End match now (show results)", Match.host_end_match)
 	var leave_text := "Leave match"

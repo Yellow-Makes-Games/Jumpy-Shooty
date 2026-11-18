@@ -41,6 +41,7 @@ More detail, including how to play with a friend and run several copies on one P
 | Scoreboard | Tab (hold) |
 | Menu (Loadout: change robot or weapon for your next respawn) | Esc |
 | Debug menu (Practice and Vs Bots only) | F1 |
+| Spectate (fly a noclip camera nobody can see) | Esc > Spectate, or **Join as spectator**; then W A S D fly, Space up, Ctrl / C down, Shift fast |
 
 Right mouse is your **mobility** tool, picked before a match, in the pause menu's Loadout or
 by pressing right mouse while you wait to respawn: the **grappling hook**, the **portal gun**

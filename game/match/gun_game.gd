@@ -2,14 +2,16 @@ class_name GunGame
 extends RefCounted
 ## Gun Game: everyone starts with the same weapon, and every kill moves you on to the
 ## next one on the ladder. The first player to get a kill with the last weapon (brass
-## knuckles) wins. Being kicked to death sends you back one weapon. Arena maps only.
+## knuckles) wins. The ladder runs from the sprayers down to the sidearms: machine guns
+## and rifles, shotguns, marksman rifles, explosives, then pistols and the knuckles. Being kicked to death sends you back one weapon. Arena maps only.
 ##
 ## The host keeps each player's place on the ladder in Match.scores ("level") and
 ## hands out the weapons (Net.host_set_weapon), so it works the same online and with bots.
 
-const LADDER := ["smg", "rifle", "burst_rifle", "lmg", "shotgun", "break_action", "lever_action",
-	"bolt_action", "sniper", "railgun", "rocket_launcher", "grenade_launcher", "machine_pistol",
-	"akimbo", "revolver", "pistol", "brass_knuckles"]
+const LADDER := ["minigun", "smg", "laser_rifle", "rifle", "burst_rifle", "battle_rifle", "lmg",
+	"auto_shotgun", "shotgun", "break_action", "slug_shotgun", "lever_action", "crossbow", "bolt_action",
+	"sniper", "anti_materiel", "railgun", "rocket_launcher", "plasma_cannon", "grenade_launcher", "nail_gun",
+	"machine_pistol", "akimbo", "plasma_pistol", "revolver", "pistol", "derringer", "brass_knuckles"]
 const TIME_LIMIT := 20.0 * 60.0   ## seconds; if nobody finishes, the furthest along wins
 
 

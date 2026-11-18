@@ -23,6 +23,7 @@ extends Node
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
+## --spectate          Watch instead of play: --join joins as a spectator; with --host or --bot, you spectate.
 ## --practice           Skip the menus and drop into the arena alone.
 ## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
@@ -76,6 +77,7 @@ var player_name := ""
 var port := 0
 var autostart := 0
 var practice := false
+var spectate := false
 var character := ""
 var switch_character := false
 var weapon := ""
@@ -151,6 +153,7 @@ func _ready() -> void:
 			"--port": port = int(value)
 			"--autostart": autostart = int(value)
 			"--practice": practice = true
+			"--spectate": spectate = true
 			"--character":
 				if Characters.has(value):
 					character = value

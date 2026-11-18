@@ -107,6 +107,9 @@ Quick checks:
   fullscreen after a match (counting down to the best), the results page with
   them listed still fits 1600x900, and a killcam saved as a video is a Motion JPEG
   AVI with every frame and an index, as long as the clip plays;
+- spectating (`tests/spectator_test.gd`): in a Vs Bots match you switch to spectating and
+  back; a spectator has no robot, score or scoreboard row, the bots play on, and the free
+  camera flies through the floor, faster with Sprint, the way it looks;
 - the game boots into practice mode on every map without script errors.
 
 Networked and bot runs (real time):
@@ -125,6 +128,8 @@ Networked and bot runs (real time):
 - bots (`tests/run_bot_test.sh`): a bot of every difficulty finds you and shoots, Expert
   beats Easy on accuracy, the hard bots use the movement set, Rematch works, a
   5-player free-for-all against 4 bots, a sword bot, and your and the bots' sounds;
+- spectating online (`tests/run_spectator_test.sh`): a client joins mid-match to spectate;
+  it sees both players move, nobody sees it, and it is never on the player list;
 - ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
   the target dummy, and online a client's slam is ruled on by the host, hits the host's
   player and is heard by both;

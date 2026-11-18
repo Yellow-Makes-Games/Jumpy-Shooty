@@ -20,6 +20,8 @@ signal internet_changed                 # host only: internet_state / public_ip 
 const DEFAULT_PORT := 24680
 const BOT_ID_BASE := 9001
 const MAX_PLAYERS := 16
+## Spectators do not take a player's place; this many can watch on top of a full lobby.
+const MAX_SPECTATORS := 8
 ## One colour per player, all different (the first five are the originals).
 const PLAYER_COLORS := [
 	Color(0.95, 0.35, 0.25), Color(0.25, 0.65, 0.95), Color(0.40, 0.85, 0.35),
@@ -34,6 +36,10 @@ const PLAYER_COLORS := [
 ##   "weapon": String (see WeaponData), "mobility": String (see Mobility) },
 ## plus "bot": true and "difficulty" for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
+## Spectators: connected peers who watch with a free-flying camera instead of playing.
+## peer id -> { "name": String }. They are never in `players`, so nothing that counts,
+## spawns, scores or draws players ever sees them: nobody can see or hit a spectator.
+var spectators: Dictionary = {}
 var in_match := false
 var is_online := false
 var port := DEFAULT_PORT  ## the port we are hosting on
@@ -68,6 +74,7 @@ var _local_name := "Player"
 var _local_character := Characters.default_id()
 var _local_weapon := WeaponData.default_id()
 var _local_mobility := Mobility.default_id()
+var _join_spectating := false   # the join under way is to watch, not to play
 
 
 func _ready() -> void:
@@ -114,7 +121,7 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 func host_direct(player_name: String, character: String, listen_port: int = DEFAULT_PORT, weapon: String = "", mobility: String = "") -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_server(listen_port, MAX_PLAYERS - 1)
+	var err := peer.create_server(listen_port, MAX_PLAYERS - 1 + MAX_SPECTATORS)
 	if err != OK:
 		return err
 	multiplayer.multiplayer_peer = peer
@@ -132,7 +139,8 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	return OK
 
 
-func join_direct(player_name: String, character: String, address: String, weapon: String = "", mobility: String = "") -> Error:
+## spectate: join to watch (see set_spectating) rather than to play.
+func join_direct(player_name: String, character: String, address: String, weapon: String = "", mobility: String = "", spectate: bool = false) -> Error:
 	leave()
 	var join_port := DEFAULT_PORT
 	if ":" in address:
@@ -149,8 +157,9 @@ func join_direct(player_name: String, character: String, address: String, weapon
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
+	_join_spectating = spectate
 	is_online = true
-	print("[net] joining %s:%d" % [address, join_port])
+	print("[net] joining %s:%d%s" % [address, join_port, " to spectate" if spectate else ""])
 	return OK
 
 
@@ -159,6 +168,7 @@ func leave() -> void:
 	in_match = false
 	is_online = false
 	players.clear()
+	spectators.clear()
 	pings.clear()
 	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer.close()
@@ -263,7 +273,7 @@ static func _is_private(ip: String) -> bool:
 
 func _on_connected_to_server() -> void:
 	_tune_link(1)
-	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility)
+	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility, _join_spectating)
 
 
 func _on_connection_failed() -> void:
@@ -297,13 +307,15 @@ func _tune_link(id: int) -> void:
 func _on_peer_disconnected(id: int) -> void:
 	if not is_host():
 		return
-	if players.erase(id):
+	var was_spectating := spectators.erase(id)
+	if players.erase(id) or was_spectating:
 		print("[net] %d left" % id)
 		_broadcast_players.call_deferred()
 
 
 func _broadcast_players() -> void:
 	if is_host() and is_online:
+		_sync_spectators.rpc(spectators)
 		_sync_players.rpc(players)
 
 
@@ -311,16 +323,24 @@ func _broadcast_players() -> void:
 # Lobby
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register(player_name: String, character: String, weapon: String, mobility: String = "") -> void:
+func _register(player_name: String, character: String, weapon: String, mobility: String = "", spectate: bool = false) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
-	if players.size() >= LobbySettings.max_players():
+	if spectate and spectators.size() >= MAX_SPECTATORS:
+		_refused.rpc_id(id, "The lobby has no room for more spectators.")
+		_drop_peer_later(id)
+		return
+	if not spectate and players.size() >= LobbySettings.max_players():
 		_refused.rpc_id(id, "The lobby is full (%d players)." % LobbySettings.max_players())
 		_drop_peer_later(id)
 		return
-	host_add_player(id, player_name, character, weapon, mobility)
+	if spectate:
+		host_add_spectator(id, player_name)
+	else:
+		host_add_player(id, player_name, character, weapon, mobility)
 	_sync_settings.rpc_id(id, match_settings)
+	_sync_spectators.rpc(spectators)
 	_sync_players.rpc(players)
 	if in_match:
 		_late_join.rpc_id(id)
@@ -336,12 +356,96 @@ func host_add_player(id: int, player_name: String, character: String, weapon: St
 
 @rpc("authority", "call_local", "reliable")
 func _sync_players(new_players: Dictionary) -> void:
-	var was_registered := players.has(my_id())
+	var was_registered := is_registered()
 	players = new_players
 	_log_loadouts()
 	players_changed.emit()
-	if not was_registered and players.has(my_id()) and not is_host():
+	if not was_registered and is_registered() and not is_host():
 		joined_lobby.emit()
+
+
+## Who is watching. Always sent just before _sync_players (same channel, so in order).
+@rpc("authority", "call_local", "reliable")
+func _sync_spectators(new_spectators: Dictionary) -> void:
+	var was_registered := is_registered()
+	spectators = new_spectators
+	if not was_registered and is_registered() and not is_host():
+		joined_lobby.emit()   # joined to watch
+
+
+## We are in the lobby or match, as a player or a spectator.
+func is_registered() -> bool:
+	return players.has(my_id()) or spectators.has(my_id())
+
+
+# ---------------------------------------------------------------------------
+# Spectating: watch with a free-flying camera (see SpectatorCamera). A spectator has no
+# robot anywhere, is not on the scoreboard and does not count toward a full lobby.
+
+func is_spectator(id: int) -> bool:
+	return spectators.has(id)
+
+
+## This copy of the game is watching rather than playing.
+func spectating() -> bool:
+	return spectators.has(my_id())
+
+
+## Spectators, sorted by id (for lists).
+func spectator_ids() -> Array:
+	var ids := spectators.keys()
+	ids.sort()
+	return ids
+
+
+func spectator_name(id: int) -> String:
+	return str(spectators[id].get("name", "?")) if spectators.has(id) else "?"
+
+
+## Start (on) or stop (off) watching, in the lobby or mid-match. Stopping puts you back
+## in as a player with the loadout you last picked; in a match you drop straight in.
+## Nothing happens if there is no room (16 players, or MAX_SPECTATORS watching).
+func set_spectating(on: bool) -> void:
+	if is_host():
+		host_set_spectating(my_id(), on, _local_character, _local_weapon, _local_mobility)
+	else:
+		_ask_spectate.rpc_id(1, on, _local_character, _local_weapon, _local_mobility)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _ask_spectate(on: bool, character: String, weapon: String, mobility: String) -> void:
+	if is_host():
+		host_set_spectating(multiplayer.get_remote_sender_id(), on, character, weapon, mobility)
+
+
+## Host: move a person between the players and the spectators. Bots never spectate.
+## Returns whether anything changed.
+func host_set_spectating(id: int, on: bool, character: String = "", weapon: String = "", mobility: String = "") -> bool:
+	if on:
+		if not players.has(id) or is_bot(id) or spectators.size() >= MAX_SPECTATORS:
+			return false
+		var name := str(players[id].name)
+		players.erase(id)
+		spectators[id] = {"name": name}
+		print("[net] %d (%s) is spectating" % [id, name])
+	else:
+		if not spectators.has(id) or players.size() >= LobbySettings.max_players():   # no room in the lobby size
+			return false
+		var name := str(spectators[id].name)
+		spectators.erase(id)
+		host_add_player(id, name, character, weapon, mobility)
+		print("[net] %d (%s) stopped spectating" % [id, name])
+	if is_online:
+		_sync_spectators.rpc(spectators)
+	_players_updated()
+	return true
+
+
+## Host: put someone who has just connected to watch in the spectator list.
+func host_add_spectator(id: int, player_name: String) -> void:
+	var wanted := player_name.strip_edges().left(20)
+	spectators[id] = {"name": _unique_name(wanted if wanted != "" else "Spectator")}
+	print("[net] %d joined to spectate as %s" % [id, spectators[id].name])
 
 
 ## Pick the robot you play as. Works in the lobby; the host tells everyone. A change
@@ -627,6 +731,8 @@ func _unique_name(wanted: String) -> String:
 		wanted = "Player"
 	var taken := []
 	for p in players.values():
+		taken.append(p.name)
+	for p in spectators.values():
 		taken.append(p.name)
 	var candidate := wanted
 	var n := 2

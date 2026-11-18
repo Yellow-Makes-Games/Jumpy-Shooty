@@ -16,6 +16,8 @@ extends SceneTree
 const SLAM_SPEED := 17.5
 const SLAM_DAMAGE := 4.0
 const SLAM_MAX := 80.0
+## The blades held in one hand (the rest take both).
+const ONE_HANDED := ["dagger", "brass_knuckles", "mace", "machete", "wrench", "energy_sword", "claws"]
 
 var _ok := true
 
@@ -37,7 +39,7 @@ func _init() -> void:
 			_check(w.damage <= 20.0 and w.knockback < SLAM_SPEED * 0.5, "%s: a tap is weak and slams nobody into a wall" % id)
 			_check(w.charge_damage * w.backstab_multiplier < 100.0, "%s: no blow kills a healthy player outright" % id)
 			_check(w.charge_of(0.0) == 0.0 and w.charge_of(w.charge_time) == 1.0 and w.charge_of(99.0) == 1.0, "%s: wound up after charge_time" % id)
-			_check(w.two_handed == (id not in ["dagger", "brass_knuckles"]), "%s: two-handed unless it cannot be" % id)
+			_check(w.two_handed == (id not in ONE_HANDED), "%s: two-handed unless it is a one-handed blade" % id)
 		else:
 			_check(w.magazine > 0 and w.fire_interval > 0.0 and w.reload_time > 0.0 and w.pellets > 0,
 				"%s: magazine, fire interval, reload and pellets are positive" % id)
