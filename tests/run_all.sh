@@ -100,4 +100,6 @@ echo "== Host controls: a random map from the host's pool for everyone (a late j
 tests/run_host_controls_test.sh
 echo "== Spectating online: a client joins mid-match to watch; nobody sees it"
 tests/run_spectator_test.sh
+echo "== Spectating: the host moves a player to the spectators; Play is refused while the lobby is full, and works once a slot frees up"
+tests/run_spectate_move_test.sh
 echo "ALL TESTS PASSED"
