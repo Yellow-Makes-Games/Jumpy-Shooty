@@ -257,6 +257,10 @@ func _objects() -> void:
 		"the Engine's core and its basin are a hazard; 6 m from the middle is safe floor")
 	var islands := get_nodes_in_group(MapIsland.GROUP)
 	_expect(islands.size() == 3 and islands.all(func(n): return (n as MapIsland).orbit != 0.0), "three chunks of debris orbit")
+	# The debris field is kept thin: the sky round the tower is for swinging through.
+	var debris := map.get_node_or_null("Debris")
+	var pieces := debris.get_child_count() if debris else 0
+	_expect(pieces >= 20 and pieces <= 30, "20 to 30 pieces of debris float round the tower (%d)" % pieces)
 	# The shaft's grapple anchors: from the Engine's floor to the Observatory, never more than 35 m to the next.
 	var heights := [1.5]
 	for n in get_nodes_in_group(MapGrapplePoint.GROUP):

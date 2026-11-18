@@ -702,7 +702,7 @@ def debris(m):
     # Still chunks, hull plates, rune rings and crystal shards, at every height, most within 76 m of the wall.
     n = 0
     tries = 0
-    while n < 46 and tries < 4000:
+    while n < 18 and tries < 4000:
         tries += 1
         y = rng.uniform(-18.0, TOP + 22.0)
         r = ro(max(0.0, min(y, TOP))) + rng.uniform(14.0, 72.0) ** 1.0 * (0.55 if rng.random() < 0.6 else 1.0)
@@ -766,7 +766,9 @@ def anchors(m):
         if not (abs(y - E.RING_Y) < 12.0 and abs((deg - E.PAD_DEG + 180) % 360 - 180) < 45) and not (abs(y - E.RING_Y) < 3.0):
             at = P(r, deg, y)
             m.hook(g, "SkyAnchor", at)
-            m.block(g, "AnchorStone", "rock_dark" if k % 2 else "alloy_dark", (at[0], at[1] - 1.5, at[2]), (1.6, 1.0, 1.6), shape="bevel", bevel=0.35, cols=rot(deg + 30))
+            # (a small buoy, not a rock: these are hooks to swing from, not islands)
+            m.block(g, "AnchorBuoy", "brass" if k % 2 else "alloy_dark", (at[0], at[1] - 0.9, at[2]), (0.7, 0.9, 0.7), shape="bevel", bevel=0.25, cols=rot(deg + 30))
+            m.block(g, "AnchorLight", "glow" if k % 2 else "conduit", (at[0], at[1] - 0.9, at[2]), (0.78, 0.2, 0.78), shape="bevel", bevel=0.2, cols=rot(deg + 30), solid=False)
         y += 3.5
         k += 1
 

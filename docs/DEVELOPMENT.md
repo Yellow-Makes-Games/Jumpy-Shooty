@@ -496,7 +496,14 @@ hatch or vent slots), `panels_plain`, `tiles`, `plates` (rivets), `grating`, `sl
 floor, flagstones), `cobbles`, `planks` and `planks_upright`, `shingles` and `thatch`
 (roofs), `grass`, `dirt`, `gravel` and `tarmac` (soft blotches), `clumps` (leaves),
 `bark`, `strata` (a cliff), `water` (ripples that move), `confetti` (an arcade carpet)
-and `windows` / `windows_lit` (rows of windows on far-off buildings). The patterns are settings of one shader,
+and `windows` / `windows_lit` (rows of windows on far-off buildings), and for a wizard's
+tower (Empyrean Tower): `masonry`, `masonry_small` and `masonry_runes` (stone in courses of
+four heights, every stone its own length; "_runes" cuts a glowing rune into a few),
+`ring_flags` and `ring_flags_cyan` / `_green` / `_teal` / `_violet` / `_stars` (a round
+floor laid in courses round the map's middle, x = 0 and z = 0, with a line of brass
+inlaid every few courses and, on the coloured ones, glowing runes; only for a round
+building that stands on the middle), and `arcane_plates` (riveted metal plates with a
+brass inlay and a rune in a ring on some). The patterns are settings of one shader,
 `game/arena/map_surface.gdshader`, listed in `MapScenery.SURFACES`; they are measured
 in metres from where the surface is in the map, so they line up from block to block. A
 kind that glows or is see-through takes no pattern. The MapRoot's inspector also has the map's rules:
@@ -808,7 +815,10 @@ the Portal Surge: eight MapRingGates in four pairs (1 Engine and Observatory, 2 
 and a debris island, 3 Labs and Summoning Chamber, 4 Menagerie and another island).
 
 It was laid out by `python3 tools/arena/build_arena_maps.py empyrean` (the structure is
-`tools/arena/empyrean.py`, what stands in it `tools/arena/empyrean_dressing.py`). Like the
+`tools/arena/empyrean.py`, what stands in it `tools/arena/empyrean_dressing.py`, and the
+decor laid over both, banners, sconces, lanterns, wall units, turrets and the rest, most
+of it drawn only, `tools/arena/empyrean_decor.py`), followed by
+`tools/arena/migrate_breakable.gd` on the scene so its stained glass breaks. Like the
 other generated arenas the scene is what you edit from here on, and running the script
 again **overwrites hand edits**. After moving things, `godot --headless --path . --script
 tests/empyrean_test.gd` checks the map and `tests/empyrean_play_test.gd` plays its systems

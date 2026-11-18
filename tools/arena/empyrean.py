@@ -115,7 +115,10 @@ def chord(r, n):
 
 COLORS = {
     # the fantasy half: pale stone, brass, dark trim
-    "stone": (0.86, 0.83, 0.78), "stone_floor": (0.72, 0.69, 0.66), "stone_dark": (0.3, 0.27, 0.33),
+    "stone": (0.84, 0.78, 0.68), "stone_floor": (0.7, 0.64, 0.56), "stone_dark": (0.33, 0.28, 0.33),
+    # each tier's own floor: flags laid in rings round the shaft, a rune glowing on some
+    "floor_engine": (0.4, 0.41, 0.47), "floor_library": (0.68, 0.56, 0.42), "floor_labs": (0.52, 0.56, 0.5),
+    "floor_menagerie": (0.46, 0.5, 0.44), "floor_summoning": (0.3, 0.25, 0.37), "floor_observatory": (0.2, 0.22, 0.36),
     "brass": (0.8, 0.6, 0.26), "wood": (0.42, 0.29, 0.2), "roof": (0.3, 0.26, 0.42),
     "rock": (0.42, 0.38, 0.44), "rock_dark": (0.27, 0.24, 0.31),
     # the sci-fi half: gunmetal and silver alloy, darker seams
@@ -134,18 +137,27 @@ COLORS = {
     "books_red": (0.6, 0.2, 0.2), "books_blue": (0.2, 0.3, 0.55), "books_green": (0.22, 0.42, 0.3),
     "leaf": (0.24, 0.6, 0.42), "leaf_alien": (0.5, 0.3, 0.72), "vine": (0.2, 0.44, 0.34), "soil": (0.3, 0.24, 0.2),
     "drone": (0.82, 0.84, 0.9), "planet_holo": (0.3, 0.9, 0.85, 0.4),
+    # decor
+    "cloth_blue": (0.15, 0.22, 0.52), "cloth_red": (0.52, 0.13, 0.17), "cloth_green": (0.15, 0.38, 0.24),
+    "cloth_teal": (0.1, 0.36, 0.4), "cloth_violet": (0.33, 0.16, 0.52), "carpet": (0.42, 0.11, 0.2),
+    "parchment": (0.87, 0.79, 0.6), "flame": (1.0, 0.6, 0.22), "slit": (1.0, 0.74, 0.38),
 }
 GLOW = {"glow": 1.6, "conduit": 2.0, "screen": 1.2, "accent_cyan": 1.8, "accent_gold": 1.6, "accent_green": 1.6,
         "accent_teal": 1.7, "accent_violet": 1.9, "accent_silver": 1.3, "crystal": 2.4, "hazard_glow": 3.0, "jet": 3.0,
         "burn": 1.9, "burn_haze": 1.3, "field": 1.6, "holo": 1.5, "holo_gold": 1.5, "fluid": 1.3, "planet_holo": 1.4,
-        "glass_stained": 0.35}
-SURFACE = {"stone": "blocks", "stone_floor": "pavers", "stone_dark": "blocks_small", "alloy": "panels", "alloy_floor": "plates",
+        "glass_stained": 0.35, "flame": 2.6, "slit": 1.7}
+SURFACE = {"stone": "masonry_runes", "stone_floor": "ring_flags", "stone_dark": "masonry_small",
+           "floor_engine": "ring_flags_cyan", "floor_library": "ring_flags", "floor_labs": "ring_flags_green",
+           "floor_menagerie": "ring_flags_teal", "floor_summoning": "ring_flags_violet", "floor_observatory": "ring_flags_stars", "alloy": "arcane_plates", "alloy_floor": "arcane_plates",
            "alloy_dark": "panels_plain", "ship": "panels_plain", "ramp": "treads", "catwalk": "grating", "roof": "shingles",
            "rock": "strata", "rock_dark": "strata", "wood": "planks"}
-MATERIAL = {"stone": "concrete", "stone_floor": "concrete", "stone_dark": "concrete", "rock": "concrete", "rock_dark": "concrete",
+MATERIAL = {"floor_engine": "concrete", "floor_library": "concrete", "floor_labs": "concrete", "floor_menagerie": "concrete",
+            "floor_summoning": "concrete", "floor_observatory": "concrete", "carpet": "wood",
+            "stone": "concrete", "stone_floor": "concrete", "stone_dark": "concrete", "rock": "concrete", "rock_dark": "concrete",
             "alloy": "metal", "alloy_floor": "metal", "alloy_dark": "metal", "ship": "metal", "ramp": "metal", "catwalk": "metal",
             "brass": "metal", "glass_stained": "glass", "glass_clear": "glass", "wood": "wood", "roof": "concrete"}
 BREAKABLE = {"glass_stained": 25}
+FLOORS = ["floor_engine", "floor_library", "floor_labs", "floor_menagerie", "floor_summoning", "floor_observatory"]
 
 
 class EmpyreanMap(CirrusMap):
@@ -248,8 +260,8 @@ def write_palette(path):
     out.append(dict_lines("colors", "Color", COLORS, color))
     out.append(dict_lines("glow", "float", GLOW, num))
     out.append(dict_lines("surface", "String", SURFACE, lambda v: '"%s"' % v))
-    out.append("surface_scale = 1.5")
-    out.append("surface_strength = 0.6")
+    out.append("surface_scale = 1.2")
+    out.append("surface_strength = 0.9")
     out.append("roughness = 0.82")
     out.append(dict_lines("breakable", "float", BREAKABLE, num))
     out.append(dict_lines("material", "String", MATERIAL, lambda v: '"%s"' % v))
@@ -442,7 +454,7 @@ def tier(m, i):
     Rw = ri(y0 + TIER)                 # the wall's inner face at the tier's top: lanes are measured from here
     corr = list(range(FEAT, SEC))      # c0..c13
     c = lambda k: FEAT + k
-    floor_kind = "stone_floor" if i < 3 else "alloy_floor"
+    floor_kind = FLOORS[i]
     # Where the ramps from the tier below come up through this floor (the mid lane).
     up_lane = (rc(i) - 3.4, rc(i) - 0.6)
     g = m.group("Floors", f)
@@ -533,7 +545,7 @@ def observatory_structure(m):
     up_lane = (rc(i) - 3.4, rc(i) - 0.6)
     c = lambda k: FEAT + k
     holes = {c(4): [up_lane], c(5): [up_lane], c(8): [up_lane], c(9): [up_lane]}
-    ring(m, g, "Floor", "alloy_floor", y0, RS, ri(y0) + 0.6, holes=holes, cuts=up_lane, thick=0.6)
+    ring(m, g, "Floor", FLOORS[5], y0, RS, ri(y0) + 0.6, holes=holes, cuts=up_lane, thick=0.6)
     m.block(g, "ShaftRim", "brass", (0, y0 - 0.2, 0), (2 * RS + 0.1, 0.5, 2 * RS + 0.1), shape="tube", sides=SEG, inner=2 * RS - 0.5, solid=False)
     # The telescope's platform caps the shaft, on two spokes; the gaps look down the whole tower.
     m.cyl(g, "Platform", "alloy_floor", (0, y0 - 0.6, 0), 9.0, 0.6, sides=24)
@@ -858,5 +870,7 @@ def build(path):
     root(m)
     import empyrean_dressing as dressing
     dressing.dress(m, folders)
+    import empyrean_decor as decor
+    decor.decorate(m, folders)
     m.write(path)
     write_palette(path.replace("game/maps/", "game/maps/palettes/").replace(".tscn", ".tres"))
