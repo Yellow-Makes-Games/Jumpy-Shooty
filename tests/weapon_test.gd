@@ -124,53 +124,100 @@ func _init() -> void:
 
 
 ## The wind-up and swing of every melee weapon, on a real robot skeleton: the body
-## coils as the swing is held, the blow starts from there and ends back at ready, and
-## a two-handed weapon has the left hand on its handle the whole way.
+## coils as the swing is held, the blow starts from there and ends back at ready, a
+## tap from each side and the heavy blow of a full wind-up, and a two-handed weapon
+## has the left hand on its handle the whole way.
 func _melee_animation() -> void:
 	var rig := RobotRig.open(Characters.body(Characters.default_id()))
 	var dt := 1.0 / 60.0
 	for id in WeaponData.MELEE:
 		var w := WeaponData.by_id(id)
-		_check(MeleeSwing.KEYS.has(id) and MeleeSwing.PACE.has(id), "%s: has its own swing" % id)
+		var moves := MeleeSwing.moves(id)
+		_check((moves.taps as Array).size() == 2 and moves.has("heavy") and MeleeSwing.PACE.has(id), "%s: has its own taps and heavy blow" % id)
 		_check(MeleeSwing.impact_time(id) < 0.2, "%s: the blow lands straight after letting go" % id)
-		for power in [0.0, 1.0]:
-			var anim := MeleeSwing.new(id)
-			var worst := 0.0
-			var held := 0.0
-			var coiled := 0.0
-			# Hold: a tap's worth, or all the way.
-			while held < (w.windup if power == 0.0 else w.charge_time + 0.4):
-				held += dt
-				anim.wind(w.charge_of(held))
-				worst = maxf(worst, _left_hand_gap(rig, anim.sample(dt), anim.two_handed))
-			coiled = anim.coil()
-			_check(anim.winding(), "%s: holding winds the swing up" % id)
-			if power == 1.0:
-				_check(coiled < -0.95, "%s: fully wound, the body is coiled right round (%.2f)" % [id, coiled])
-			else:
-				_check(coiled < -0.05 and coiled > -0.7, "%s: a tap only draws back a little (%.2f)" % [id, coiled])
-			anim.swing(power)
-			var cut := false
-			var t := 0.0
-			var last := []
-			while t < anim.length() + 0.6:
-				t += dt
-				cut = cut or anim.cutting()
-				last = anim.sample(dt)
-				worst = maxf(worst, _left_hand_gap(rig, last, anim.two_handed))
-			var ready := MeleeSwing.ready(id)
-			_check(cut and not anim.active() and (last[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.005 \
-				and (last[MeleeSwing.BLADE] as Vector3).angle_to(ready[MeleeSwing.BLADE]) < 0.02,
-				"%s: a %s swing cuts and ends back at ready" % [id, "tap" if power == 0.0 else "full"])
-			if w.two_handed:
-				_check(worst < 0.01, "%s: the left hand stays on the handle (%.3f m off at worst)" % [id, worst])
+		for first_person in [false, true]:
+			for blow in [[0.0, 0], [0.0, 1], [1.0, 0], [1.0, 1]]:
+				var power: float = blow[0]
+				var side: int = blow[1]
+				var what := "%s%s %s" % [id, " (first person)" if first_person else "", "full swing" if power == 1.0 else ["tap from the right", "tap from the left"][side]]
+				var anim := MeleeSwing.new(id, first_person)
+				var worst := 0.0
+				var held := 0.0
+				# Hold: a tap's worth, or all the way.
+				while held < (w.windup if power == 0.0 else w.charge_time + 0.4):
+					held += dt
+					anim.wind(w.charge_of(held), side)
+					worst = maxf(worst, _left_hand_gap(rig, anim.sample(dt), anim.two_handed))
+				var coiled := anim.coil()
+				_check(anim.winding(), "%s: holding winds the swing up" % what)
+				if power == 1.0:
+					_check(coiled < -0.95, "%s: fully wound, the weapon is drawn right back (%.2f)" % [what, coiled])
+					_check(anim.glow() > 2.0, "%s: and its glow has built up (%.2f)" % [what, anim.glow()])
+				else:
+					_check(coiled < -0.05 and coiled > -0.7, "%s: a tap only draws back a little (%.2f)" % [what, coiled])
+				anim.swing(power, side)
+				_check(anim.heavy() == (power >= MeleeSwing.HEAVY_AT), "%s: %s the heavy blow" % [what, "is" if power == 1.0 else "is not"])
+				var cut := false
+				var flared := 0.0
+				var t := 0.0
+				var last := []
+				while t < anim.length() + 0.6:
+					t += dt
+					cut = cut or anim.cutting()
+					flared = maxf(flared, anim.glow())
+					last = anim.sample(dt)
+					worst = maxf(worst, _left_hand_gap(rig, last, anim.two_handed))
+				var ready: Array = MeleeSwing.new(id, first_person).sample(0.0)
+				# (At rest the weapon sways a little with the body's breathing.)
+				_check(cut and not anim.active() and (last[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.02 \
+					and (last[MeleeSwing.BLADE] as Vector3).angle_to(ready[MeleeSwing.BLADE]) < 0.06,
+					"%s: cuts and ends back at ready" % what)
+				_check(flared > 2.0 and is_equal_approx(anim.glow(), 1.0), "%s: the glow flares with the blow and settles (%.2f)" % [what, flared])
+				if w.two_handed:
+					_check(worst < 0.01, "%s: the left hand stays on the handle (%.3f m off at worst)" % [what, worst])
+	_check(is_equal_approx(MeleeSwing.hit_stop_time(0.0), 0.05) and is_equal_approx(MeleeSwing.hit_stop_time(1.0), 0.12),
+		"a blow that lands freezes for 0.05 s (a tap) to 0.12 s (a full wind-up)")
+	# The longsword's taps take turns: one sweeps left, the next right; its heavy blow comes down.
+	var sword := MeleeSwing.new("sword")
+	sword.swing(0.0, 0)
+	var from_right := sword.travel()
+	sword.swing(0.0, 1)
+	var from_left := sword.travel()
+	sword.swing(1.0, 0)
+	_check(from_right.x < -0.5 and from_left.x > 0.5, "sword: taps take turns, from the right then from the left")
+	_check(sword.travel().y < -0.4 and sword.travel().x < -0.4, "sword: the heavy blow cuts down and across")
+	# Every weapon's two taps are different blows, and its heavy blow is neither of them.
+	for id in WeaponData.MELEE:
+		var moves := MeleeSwing.moves(id)
+		var a: Dictionary = moves.taps[0]
+		var b: Dictionary = moves.taps[1]
+		_check(a.hit != b.hit or a.get("left", false) != b.get("left", false), "%s: its two taps differ" % id)
+		_check(moves.heavy.wound != a.wound and moves.heavy.wound != b.wound, "%s: its heavy blow winds up its own way" % id)
+	# Brass knuckles: a weapon on each fist. The left hooks, then the right; the uppercut is the right's.
+	var fists := MeleeSwing.new("brass_knuckles")
+	_check(fists.both_fists and not MeleeSwing.new("dagger").both_fists, "brass knuckles: both fists strike (the dagger's free hand does not)")
+	fists.swing(0.0, 0)
+	_check(fists.left_fist() and fists.travel().x > 0.5, "brass knuckles: the first tap is a left hook")
+	var struck := 0.0
+	for i in 8:
+		var key := fists.sample(1.0 / 60.0)
+		struck = maxf(struck, (key[MeleeSwing.GRIP] as Vector3).distance_to(MeleeSwing.ready("brass_knuckles")[MeleeSwing.GRIP]))
+	var guard := (fists.other_fist()[MeleeSwing.GRIP] as Vector3).distance_to(MeleeSwing.ready("brass_knuckles")[MeleeSwing.GRIP])
+	_check(struck > 0.2 and guard < 0.02, "brass knuckles: the left fist swings while the right stays up")
+	fists.swing(0.0, 1)
+	_check(not fists.left_fist() and fists.travel().x < -0.5, "brass knuckles: the next is a right hook")
+	fists.swing(1.0, 0)
+	_check(not fists.left_fist() and fists.heavy() and fists.travel().y > 0.5, "brass knuckles: the heavy blow is a right uppercut")
+	# A full wind-up takes 80% of the time it used to.
+	_check(is_equal_approx(WeaponData.by_id("sword").charge_time, 0.64) and is_equal_approx(WeaponData.by_id("hammer").charge_time, 0.96),
+		"a full wind-up takes 0.64 s with the sword and 0.96 s with the hammer")
 
 
 ## Poses a skeleton to hold the weapon as key `k` says, and measures how far the left
 ## palm is from where it should be on the handle (0 for a one-handed weapon).
 func _left_hand_gap(rig: RobotRig, k: Array, two_handed: bool) -> float:
-	if not two_handed:
-		return 0.0
+	if not two_handed or (k.size() > MeleeSwing.HANDS and k[MeleeSwing.HANDS] < 0.999):
+		return 0.0   # (one-handed, or the left hand is off the weapon just now)
 	var pose := rig.new_pose()
 	MeleeSwing.turn_body(pose, rig.bones, k)
 	MeleeSwing.hold(pose, rig, k, true)

@@ -940,6 +940,19 @@ def hammer_hit():
     return finish(mix(dry, fftconv(lp(dry, 2500), room_ir(rng, 0.7, 2500)) * 0.25))
 
 
+def heavy_hit(seed):
+    """Laid under the clang of a blow that was wound up: a deep thump you feel, a sharp
+    crack on top and a low ring of struck plate."""
+    rng = np.random.default_rng(9450 + seed)
+    k = rng.uniform(0.94, 1.06)
+    thump = sat(sine_sweep(0.5, 120 * k, 36, 0.04) * env(0.5, 0.11, 0.001) * 2.2, 2.6)
+    crack = bp(noise(rng, 0.09), 2300, 0.8) * env(0.09, 0.012, 0.0002) * 1.3
+    plate = modal(rng, 0.7, [176 * k, 262 * k, 431 * k, 705 * k], [0.26, 0.2, 0.13, 0.08], [0.3, 0.26, 0.16, 0.1], 0.02)
+    grit = lp(noise(rng, 0.3), 500) * env(0.3, 0.07, 0.001) * 0.9
+    dry = sat(mix(click(rng, 0.012, 0.0006, 2600), thump, crack, plate, grit), 1.5)
+    return finish(mix(dry, fftconv(lp(dry, 2400), room_ir(rng, 0.7, 2400)) * 0.22))
+
+
 def slam(seed):
     """A robot crashing into a wall: a heavy body thump, buckling metal and debris."""
     rng = np.random.default_rng(9400 + seed)
@@ -1212,6 +1225,8 @@ def recipes():
     for i in range(3):
         r["melee_hit_%d" % (i + 1)] = lambda i=i: melee_hit(i)
     r["hammer_hit"] = hammer_hit
+    for i in range(2):
+        r["heavy_hit_%d" % (i + 1)] = lambda i=i: heavy_hit(i)
     r["kick"] = kick
     r["flying_kick"] = flying_kick
     r["rocket_boost"] = rocket_boost

@@ -118,6 +118,7 @@ var _melee := false       # a melee weapon: held and swung by MeleeSwing, not by
 var _swing := MeleeSwing.new()
 var _hold := 1.0          # how much the arms hold the weapon up (0 in a flip, a roll, a climb)
 var _swing_key: Array = []   # the swing's pose this frame
+var _sink := 0.0             # how far the body has sunk into its knees with the swing, 0..1
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
@@ -190,16 +191,17 @@ func fire(left: bool = false) -> void:
 		_fire_t = 0.0
 
 
-## Winding a melee swing up, this frame: `charge` 0..1 is how far (the body coils with it).
-func wind(charge: float) -> void:
+## Winding a melee swing up, this frame: `charge` 0..1 is how far (the body coils with
+## it), `side` which tap is coming (see MeleeSwing).
+func wind(charge: float, side: int = 0) -> void:
 	if _melee:
-		_swing.wind(charge)
+		_swing.wind(charge, side)
 
 
 ## The swing was let go, `power` 0..1 wound up.
-func swing(power: float) -> void:
+func swing(power: float, side: int = 0) -> void:
 	if _melee:
-		_swing.swing(power)
+		_swing.swing(power, side)
 		_since_fire = 0.0
 
 
@@ -265,8 +267,20 @@ func _apply_kick(delta: float, alive: bool) -> void:
 
 
 ## The blow landed: freeze the swing for a moment so the hit has weight.
-func hit_stop() -> void:
-	_swing.hit_stop()
+func hit_stop(seconds: float = 0.07) -> void:
+	_swing.hit_stop(seconds)
+
+
+## How far a melee swing has turned the chest from where it rests, radians (+ = to the left).
+func melee_turn() -> float:
+	if not _melee or _swing_key.is_empty():
+		return 0.0
+	return (float(_swing_key[MeleeSwing.TURN]) - _swing.rest_turn()) * _hold
+
+
+## The swing itself (its glow, its power, whether it is the heavy blow).
+func melee_swing() -> MeleeSwing:
+	return _swing
 
 
 ## In the middle of a blow (the swing trail is drawn).
@@ -409,7 +423,17 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		_swing_key = _swing.sample(delta)
 		var busy := _swing.active() and inp.alive
 		_hold = move_toward(_hold, 1.0 if busy or (want[0] > 0.0 and inp.alive and _respawn_t < 0.0) else 0.0, delta * 9.0)
+		# On its feet the body sinks into its knees as it coils (less on the run), then turns.
+		var low := MeleeSwing.sink(_swing_key) * _hold * (1.0 - 0.6 * clampf(speed / 6.0, 0.0, 1.0)) if key == "loco" else 0.0
+		_sink = move_toward(_sink, low, delta * 8.0)
+		if _sink > 0.0:
+			rig.sample(_tmp, "crouch_idle", 0.0)
+			_pose.blend_bones(_tmp, _sink, _legs_core)
 		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
+		if model.melee:
+			MeleeModel.set_glow(model.melee, _swing.glow() if inp.alive else 0.0)
+		if model.melee_left:
+			MeleeModel.set_glow(model.melee_left, _swing.glow() if inp.alive else 0.0)
 	_apply_kick(delta, inp.alive)
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward
@@ -449,7 +473,10 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		_pose.pos[_b["pistol_l_slide"]] += Vector3(0.0, 0.035 * _recoil_l, 0.0)
 	if _melee and _hold > 0.0:
 		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
-		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed, clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8, _hold, _hold)
+		# (The swing's own lean is taken out in full, so a thrust stays level as the body leans into it.)
+		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed,
+			clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8 + float(_swing_key[MeleeSwing.LEAN]) * _hold * 0.2, _hold, _hold,
+			Vector3.ZERO, _swing.other_fist(), _swing.left_fist())
 
 	# --- 6 (before the waist turn, which must not move the chest). Grapple arm
 	_grapple_w = move_toward(_grapple_w, 1.0 if (inp.grapple_on and inp.alive) else 0.0, delta * 10.0)

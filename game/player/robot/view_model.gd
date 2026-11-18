@@ -30,21 +30,16 @@ const MELEE_VIEW_YAW := -0.2   ## and turned a little to the right: the weapon r
 ## more of the view than a plain one would. Only at rest: wound up and swinging it is
 ## where every weapon is.
 const MELEE_REST_VIEW := {
-	"sword": Vector3(0.17, -0.27, -0.17),
-	"axe": Vector3(0.13, -0.15, -0.14),
-	"bat": Vector3(0.09, -0.11, -0.09),
+	"sword": Vector3(0.14, -0.04, 0.02),
+	"hammer": Vector3(0.14, -0.04, 0.02),
+	"axe": Vector3(0.14, -0.04, 0.02),
+	"bat": Vector3(0.14, -0.04, 0.02),
 	"spear": Vector3(0.04, -0.03, 0.0),
 	"dagger": Vector3(0.085, -0.14, -0.09),
 	"brass_knuckles": Vector3(0.0, -0.04, 0.0),
 }
-## The weapons swung flat from the side: at rest the blade leans in across the view
-## (clear of the crosshair), and wound up it is raised by the right shoulder, where
-## you can still see it. Directions in the hold frame (see MeleeSwing).
-const MELEE_CUT_TILT := 0.22   ## radians the blow is tipped up, so it sweeps across the crosshair and not under it
-const MELEE_SWUNG := ["sword", "hammer", "axe", "bat"]
-const MELEE_REST_BLADE := Vector3(-0.1, 0.86, -0.5)
-const MELEE_WOUND_BLADE := Vector3(0.42, 0.85, 0.3)
-const MELEE_WOUND_SHIFT := Vector3(-0.04, 0.06, -0.06)   ## wound up, the hands come up and forward into view
+## A blow is tipped up this much (radians), so it sweeps across the crosshair and not under it.
+const MELEE_CUT_TILT := 0.22
 ## In these the hands are busy (climbing, tucked): the weapon is not held up.
 const MELEE_BUSY := ["fp_mantle", "fp_tuck", "fp_dive"]
 
@@ -81,7 +76,7 @@ var _arm_l: PackedInt32Array
 var _weapon := "pistol"
 var _data: WeaponData
 var _fire_t := -1.0
-var _swing := MeleeSwing.new()
+var _swing := MeleeSwing.new("sword", true)
 var _swing_view := Vector2.ZERO   # the swing's chest turn and lean, felt as a turn of the whole view model
 var _hold := 1.0                  # how much the arms hold the melee weapon up
 var _rest := 1.0                  # how much the blade is in its resting lean (0 while winding up or swinging)
@@ -133,22 +128,22 @@ func fire(left: bool = false) -> void:
 
 
 ## Winding a melee swing up, this frame: `charge` 0..1 is how far.
-func wind(charge: float) -> void:
+func wind(charge: float, side: int = 0) -> void:
 	if _data.is_melee():
-		_swing.wind(charge)
+		_swing.wind(charge, side)
 		_since_fire = 0.0
 
 
 ## The swing was let go, `power` 0..1 wound up.
-func swing(power: float) -> void:
+func swing(power: float, side: int = 0) -> void:
 	if _data.is_melee():
-		_swing.swing(power)
+		_swing.swing(power, side)
 		_since_fire = 0.0
 
 
 ## The blow landed: freeze the swing for a moment so the hit has weight.
-func hit_stop() -> void:
-	_swing.hit_stop()
+func hit_stop(seconds: float = 0.07) -> void:
+	_swing.hit_stop(seconds)
 
 
 ## In the middle of a blow (the swing trail is drawn).
@@ -158,7 +153,7 @@ func cutting() -> bool:
 
 ## The blade's edge, base and tip, as world positions that line up on screen.
 func edge() -> Array:
-	var e := MeleeModel.edge(model.melee)
+	var e := MeleeModel.edge(model.melee_left if _swing.left_fist() and model.melee_left else model.melee)
 	return [_on_screen(e[0]), _on_screen(e[1])]
 
 
@@ -260,20 +255,17 @@ func update(delta: float) -> void:
 		var k := _swing.sample(delta)
 		var shift := MELEE_SHIFT
 		_rest = move_toward(_rest, 0.0 if _swing.active() else 1.0, delta * (12.0 if _swing.active() else 5.0))
-		if _weapon in MELEE_SWUNG:
-			if _swing.winding():
-				shift += MELEE_WOUND_SHIFT * clampf(-_swing.coil(), 0.0, 1.0)
-			var blade: Vector3 = k[MeleeSwing.BLADE]
-			blade = blade.slerp(MELEE_REST_BLADE.normalized(), smoothstep(0.0, 1.0, _rest))
-			if _swing.winding():
-				blade = blade.slerp(MELEE_WOUND_BLADE.normalized(), 0.75 * clampf(-_swing.coil(), 0.0, 1.0))
-			k[MeleeSwing.BLADE] = blade
 		_hold = move_toward(_hold, 0.0 if key in MELEE_BUSY and not _swing.active() else 1.0, delta * 9.0)
 		var chest: int = rig.bones["chest"]
 		_pose.rot[chest] = Quaternion(Vector3.UP, k[MeleeSwing.TURN] * MELEE_TURN * _hold) * _pose.rot[chest]
 		_cut = move_toward(_cut, 1.0 if _swing.active() and not _swing.winding() else 0.0, delta * 14.0)
-		MeleeSwing.hold(_pose, rig, k, _swing.two_handed, MELEE_CUT_TILT * _cut, _hold, _hold * (1.0 - _grapple_w), shift)
+		MeleeSwing.hold(_pose, rig, k, _swing.two_handed, MELEE_CUT_TILT * _cut, _hold, _hold * (1.0 - _grapple_w), shift,
+			_swing.other_fist(), _swing.left_fist())
 		_swing_view = Vector2(k[MeleeSwing.TURN] * 0.4, k[MeleeSwing.LEAN]) * _hold
+		if model.melee:
+			MeleeModel.set_glow(model.melee, _swing.glow())
+		if model.melee_left:
+			MeleeModel.set_glow(model.melee_left, _swing.glow())
 
 	_recoil *= exp(-delta * 18.0)
 	_recoil_l *= exp(-delta * 18.0)

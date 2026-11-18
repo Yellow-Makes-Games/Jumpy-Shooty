@@ -87,7 +87,7 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol"]
 @export var fuse := 6.0               ## seconds before it blows up in mid-air anyway
 @export_group("Melee")
 @export var windup := 0.0            ## the shortest wind-up: a tap still draws back this long before it swings
-@export var charge_time := 0.8       ## seconds of holding the button for a full wind-up
+@export var charge_time := 0.64       ## seconds of holding the button for a full wind-up
 @export var charge_damage := 0.0     ## damage of a fully wound-up blow (`damage` is a tap's)
 @export var charge_knockback := 0.0  ## knockback of a fully wound-up blow (`knockback` is a tap's)
 @export var charge_knockback_up := 0.0
@@ -206,7 +206,7 @@ static func sword() -> WeaponData:
 	w.structure_damage = 1.5
 	w.fire_interval = 0.6
 	w.windup = 0.1
-	w.charge_time = 0.8
+	w.charge_time = 0.64
 	w.max_range = 3.3
 	w.arc_degrees = 60.0
 	w.lunge = 5.0
@@ -229,7 +229,7 @@ static func hammer() -> WeaponData:
 	w.structure_damage = 4.0   # a full swing knocks a hole in a wall
 	w.fire_interval = 0.9
 	w.windup = 0.14
-	w.charge_time = 1.2
+	w.charge_time = 0.96
 	w.max_range = 3.1
 	w.arc_degrees = 65.0
 	w.lunge = 3.0
@@ -250,7 +250,7 @@ static func dagger() -> WeaponData:
 	w.charge_damage = 30.0
 	w.fire_interval = 0.3
 	w.windup = 0.06
-	w.charge_time = 0.45
+	w.charge_time = 0.36
 	w.max_range = 2.4
 	w.arc_degrees = 40.0
 	w.lunge = 4.0
@@ -535,7 +535,7 @@ static func brass_knuckles() -> WeaponData:
 	w.charge_damage = 32.0
 	w.fire_interval = 0.3
 	w.windup = 0.05
-	w.charge_time = 0.4
+	w.charge_time = 0.32
 	w.max_range = 2.2
 	w.arc_degrees = 45.0
 	w.lunge = 4.5
@@ -557,7 +557,7 @@ static func spear() -> WeaponData:
 	w.charge_damage = 45.0
 	w.fire_interval = 0.7
 	w.windup = 0.1
-	w.charge_time = 0.8
+	w.charge_time = 0.64
 	w.max_range = 4.2
 	w.arc_degrees = 22.0
 	w.lunge = 8.0
@@ -580,7 +580,7 @@ static func axe() -> WeaponData:
 	w.structure_damage = 3.5
 	w.fire_interval = 0.8
 	w.windup = 0.12
-	w.charge_time = 1.0
+	w.charge_time = 0.8
 	w.max_range = 3.0
 	w.arc_degrees = 55.0
 	w.lunge = 3.5
@@ -601,7 +601,7 @@ static func bat() -> WeaponData:
 	w.charge_damage = 30.0
 	w.fire_interval = 0.75
 	w.windup = 0.12
-	w.charge_time = 0.9
+	w.charge_time = 0.72
 	w.max_range = 3.0
 	w.arc_degrees = 75.0
 	w.lunge = 3.0
