@@ -49,7 +49,24 @@ func _ready() -> void:
 		elif not results.is_empty():
 			title = "%s wins" % results[0].name
 		var killcam: bool = not results.is_empty() and results[0].get("killcam", false)
-		if killcam:
+		var teams := str(results[0].get("teams", "")) if not results.is_empty() else ""
+		if teams != "":
+			# A team mode: your team won, lost or drew; the score in rounds or captures.
+			var scores: Array = results[0].get("scores", [0, 0])
+			var winner := -1 if int(scores[0]) == int(scores[1]) else (0 if int(scores[0]) > int(scores[1]) else 1)
+			var mine := results.filter(func(r): return r.id == Net.my_id())
+			var my_team: int = int(mine[0].get("team", -1)) if not mine.is_empty() else -1
+			won = winner >= 0 and my_team == winner
+			if winner < 0:
+				title = "Draw"
+			elif my_team < 0:
+				title = "%s wins" % Teams.team_name(winner)
+			else:
+				title = "Victory" if won else "Defeat"
+			sub += "  ·  %s  ·  Red %d - %d Blue" % [Teams.MODE_NAMES.get(teams, ""), int(scores[0]), int(scores[1])]
+			if winner >= 0:
+				sub += "  ·  %s team wins" % Teams.team_name(winner)
+		elif killcam:
 			won = results[0].id == Net.my_id() and int(results[0].points) > 0
 			title = "Victory" if won else "%s wins" % results[0].name
 			sub += "  ·  Killcam  ·  %s scored %s points" % ["You" if won else results[0].name, KillcamMode.format(int(results[0].points))]

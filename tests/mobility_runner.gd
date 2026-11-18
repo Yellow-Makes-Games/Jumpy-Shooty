@@ -115,6 +115,20 @@ func run() -> void:
 				var out := me.velocity.dot(on_wall.normal)
 				_check(me.global_position.distance_to(on_wall.global_position) < 2.5 and out > 2.0,
 					"in through the floor, out of the wall, moving away from it (%.1f m/s)" % out)
+	# Too far apart: the new one closes the other.
+	var span_from: Vector3 = a[0]
+	arena.portals.place(me.peer_id, 0, span_from, Vector3.UP, Vector3.FORWARD)
+	arena.portals.place(me.peer_id, 1, span_from + Vector3(Portals.MAX_SPAN - 5.0, 0, 0), Vector3.UP, Vector3.FORWARD)
+	_check(arena.portals.get_portal(me.peer_id, 0) != null and arena.portals.get_portal(me.peer_id, 1) != null,
+		"two portals within %d m of each other both stay" % int(Portals.MAX_SPAN))
+	arena.portals.place(me.peer_id, 0, span_from + Vector3(Portals.MAX_SPAN - 5.0, 0, Portals.MAX_SPAN - 10.0), Vector3.UP, Vector3.FORWARD)
+	await _frames(2)
+	_check(arena.portals.get_portal(me.peer_id, 0) != null and arena.portals.get_portal(me.peer_id, 1) != null,
+		"moving one still in range keeps the pair")
+	arena.portals.place(me.peer_id, 1, span_from - Vector3(Portals.MAX_SPAN, 0, 0), Vector3.UP, Vector3.FORWARD)
+	await _frames(2)
+	_check(arena.portals.get_portal(me.peer_id, 1) != null and arena.portals.get_portal(me.peer_id, 0) == null,
+		"a portal put up too far from the other closes it")
 	# Your portals go when you die.
 	match_state._host_damage(9001, net.my_id(), 500.0)
 	await _frames(5)

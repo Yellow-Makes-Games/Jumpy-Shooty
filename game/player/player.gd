@@ -148,7 +148,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	var gun := Net.player_weapon(id) if not racing else "none"
 	if DevArgs.sync_log:   # which gun each copy shows each player holding
 		print("GUN %s %d %d %s" % ["SELF" if local else "SEEN", Net.my_id(), id, gun])
-	robot = RobotModel.new().build(character, Net.player_color(id), false, gun)
+	robot = RobotModel.new().build(character, Net.player_color(id), false, gun, false, Teams.paint_for(id))
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 	sounds = PlayerSounds.new(self, local and not bot, gun)
@@ -1269,7 +1269,7 @@ func change_weapon(gun: String) -> void:
 	var was_visible := visual.visible
 	visual.remove_child(robot)
 	robot.queue_free()
-	robot = RobotModel.new().build(character, color, false, gun)
+	robot = RobotModel.new().build(character, color, false, gun, false, Teams.paint_for(peer_id))
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 	sounds = PlayerSounds.new(self, is_local and not is_bot, gun)

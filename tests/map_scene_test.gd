@@ -4,6 +4,7 @@ extends SceneTree
 ##    points inside its bounds, and every block's kind has a colour in the palette;
 ##  - a block's scale is folded into its size, and a hidden block is left out;
 ##  - the resize handles' face moves keep the opposite face in place;
+##  - a cone's mesh points outward and comes to its top, and its collision matches it;
 ##  - race maps: numbered gates ending in one finish, a bot route, hazards, and
 ##    their moving parts build; race maps are only offered for races, arenas only
 ##    for shoot-outs.
@@ -143,6 +144,53 @@ func _check_face_moves() -> void:
 	_expect(c.size.is_equal_approx(Vector3(3, 1, 3)) and c.position == Vector3.ZERO, "a cylinder's side handle sets its diameter")
 	b.free()
 	c.free()
+	_check_cone()
+
+
+## A cone: its mesh and its collision are the same flat-sided shape, narrowing to its
+## top, and you stand on it only where it is gentle enough.
+func _check_cone() -> void:
+	print("  cones")
+	var k := MapBlock.new()
+	k.shape = MapBlock.Shape.CONE
+	k.size = Vector3(4, 2, 4)
+	k.sides = 16
+	k.move_face(0, 3.0, 0.1)
+	_expect(k.size.is_equal_approx(Vector3(6, 2, 6)), "a cone's side handle sets the diameter of its foot (%s)" % k.size)
+	k.size = Vector3(4, 2, 4)
+	var piece := k.to_piece(Transform3D.IDENTITY)
+	_expect(piece.shape == "cone" and piece.top == 0.0, "a cone's piece says cone, with its top (%s)" % piece.get("top"))
+	var mesh: ArrayMesh = MapMesher.build([piece])[k.kind]
+	var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_NORMAL]
+	var hi := -INF
+	var widest_at_top := 0.0
+	var outward := true
+	for i in verts.size():
+		hi = maxf(hi, verts[i].y)
+		if is_equal_approx(verts[i].y, 1.0):
+			widest_at_top = maxf(widest_at_top, Vector2(verts[i].x, verts[i].z).length())
+	for t in range(0, verts.size(), 3):
+		var mid := (verts[t] + verts[t + 1] + verts[t + 2]) / 3.0
+		var n := normals[t]
+		# The triangle's own winding must agree with its normal (Godot: clockwise is the front).
+		var wound := (verts[t + 2] - verts[t]).cross(verts[t + 1] - verts[t])
+		if wound.dot(n) <= 0.0 or (n.y > -0.99 and Vector2(n.x, n.z).dot(Vector2(mid.x, mid.z)) < 0.0):
+			outward = false
+	_expect(is_equal_approx(hi, 1.0) and widest_at_top < 0.001, "it comes to a point at the top (%.3f m wide there)" % widest_at_top)
+	_expect(outward, "every face points outward and is wound to be seen from outside")
+	var map := MapRoot.new()
+	var shape := map._collision_shape(piece) as ConvexPolygonShape3D
+	_expect(shape != null and shape.points.size() == 17, "its collision is a convex hull of the same 17 corners (%s)" % [shape.points.size() if shape else "none"])
+	k.top = 1.0
+	var cut := k.to_piece(Transform3D.IDENTITY)
+	var cut_shape := map._collision_shape(cut) as ConvexPolygonShape3D
+	_expect(cut_shape != null and cut_shape.points.size() == 32, "with a top it is cut off flat (%d corners)" % (cut_shape.points.size() if cut_shape else 0))
+	# A steep cone sheds you; a low one you can stand on.
+	var side := MapMesher.cone_side_normal(Vector3(1, 0, 0), Vector3(cos(TAU / 16), 0, sin(TAU / 16)), 2.0, 0.0, 2.0)
+	_expect(absf(rad_to_deg(acos(side.y)) - 45.0) < 1.5, "the side of a cone as tall as it is wide-at-the-foot-halved slopes about 45 degrees (%.1f)" % rad_to_deg(acos(side.y)))
+	map.free()
+	k.free()
 
 
 func _expect(ok: bool, what: String) -> void:

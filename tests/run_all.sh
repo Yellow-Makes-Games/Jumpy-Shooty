@@ -45,6 +45,7 @@ CHECKS=(
   "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
   "spectator|--script tests/spectator_test.gd"
+  "team_modes|--script tests/team_modes_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon cirrus testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
@@ -90,6 +91,8 @@ echo "== Killcam mode: snipers only, points from killcam scores, the #1 killcam 
 tests/run_killcam_mode_test.sh
 echo "== Lobby settings: the host allows only some weapons and mobility tools; an early and a late joiner, the death-screen pick, Vs Bots with one gun; scoreboard points and pings"
 tests/run_lobby_settings_test.sh
+echo "== Lobby: size 3 (a fourth player is refused), ready up, the host kicks the one not ready, then starts"
+tests/run_lobby_test.sh
 echo "== Spectating online: a client joins mid-match to watch; nobody sees it"
 tests/run_spectator_test.sh
 echo "ALL TESTS PASSED"

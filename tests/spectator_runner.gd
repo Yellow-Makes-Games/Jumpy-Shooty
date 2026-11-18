@@ -49,11 +49,29 @@ func run() -> void:
 		_expect(cam.global_position.x < -5.0 and absf(cam.global_position.z) < 0.5, "forward is where it looks (%s)" % cam.global_position)
 		cam.scripted = {}
 
+	print("  watching a player")
+	arena.spectator_follow(1)
+	await _seconds(0.4)
+	var fc: FollowCamera = arena.follow_cam
+	_expect(fc != null and fc.is_current() and Net.players.has(fc.target), "Fire locks onto a player and watches them (%s)" % (fc.target_name() if fc else "none"))
+	if fc:
+		var first := fc.target
+		var d := fc.global_position.distance_to(arena.get_player(fc.target).global_position)
+		_expect(d > 0.5 and d < 6.0, "in third person, from behind them (%.1f m)" % d)
+		fc.cycle(1)
+		_expect(fc.target != first, "Fire again moves on to the other player")
+		_expect(arena.hud.follow_name == Net.player_name(first) or arena.hud.follow_name != "", "the HUD names who you watch")
+		arena.spectator_free()
+		await _frames(2)
+		_expect(arena.follow_cam == null and cam.is_current(), "Interact flies free again")
+	arena.spectator_follow(1)
+	await _frames(2)
+
 	print("  back in")
 	Net.set_spectating(false)
 	await _frames(5)
 	_expect(not Net.spectating() and Net.players.has(me) and Net.players.size() == 3, "you play again")
-	_expect(arena.spectator_cam == null and not arena.hud.spectating, "the spectator camera is gone")
+	_expect(arena.spectator_cam == null and arena.follow_cam == null and not arena.hud.spectating, "the spectator camera is gone")
 	_expect(arena.local_player != null and arena.get_player(me) != null, "your robot is back")
 	_expect(Match.scores.has(me) and Match.is_alive(me), "you are scored and alive")
 	_finish()

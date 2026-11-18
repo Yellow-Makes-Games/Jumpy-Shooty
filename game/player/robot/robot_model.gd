@@ -37,12 +37,16 @@ static func trim_color(player_color: Color) -> Color:
 
 ## Any character (a robot's id, or a custom one's; see Characters): its model,
 ## put together from its parts if it is a custom character. arms: the first-person
-## arms model instead of the full body.
-func build(character: String, player_color: Color, viewmodel: bool = false, gun: String = "pistol", arms: bool = false) -> RobotModel:
+## arms model instead of the full body. team_paint: the armour all in this colour (the
+## team modes paint everyone in their team's colour; alpha 0 leaves it as it is).
+func build(character: String, player_color: Color, viewmodel: bool = false, gun: String = "pistol", arms: bool = false,
+		team_paint: Color = Color(0, 0, 0, 0)) -> RobotModel:
 	var custom: CustomCharacter = CustomCharacter.parse(character) if Characters.is_custom(character) else null
 	var path := Characters.arms(character) if arms else Characters.body(character)
-	return _setup(path, player_color, viewmodel, gun, custom if not arms else null,
-		CustomCharacter.paint_color(custom.paint) if custom else Color(0, 0, 0, 0))
+	var paint := CustomCharacter.paint_color(custom.paint) if custom else Color(0, 0, 0, 0)
+	if team_paint.a > 0.0:
+		paint = team_paint
+	return _setup(path, player_color, viewmodel, gun, custom if not arms else null, paint)
 
 
 ## viewmodel: draw with the first-person shader (own field of view, never clips into walls).

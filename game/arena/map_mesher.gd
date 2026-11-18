@@ -37,6 +37,7 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 		match piece.shape:
 			"cyl": _prism(buf, piece, 0.0)
 			"tube": _prism(buf, piece, piece.get("inner", 0.0))
+			"cone": _cone(buf, piece)
 			_: _box(buf, piece)
 	var result := {}
 	for kind in by_kind:
@@ -103,6 +104,54 @@ static func _prism(buf: Array, piece: Dictionary, inner: float) -> void:
 		else:
 			_tri(buf, xf * up, xf * (d1 * r + up), xf * (d0 * r + up), xf.basis * Vector3.UP, color)
 			_tri(buf, xf * -up, xf * (d0 * r - up), xf * (d1 * r - up), xf.basis * Vector3.DOWN, color)
+
+
+## A cone with flat sides, coming to a point (top = 0) or cut off flat at the top.
+## Its corners: cone_points() (the collision shape is built from the same points).
+static func _cone(buf: Array, piece: Dictionary) -> void:
+	var xf: Transform3D = piece.xf
+	var color: Color = piece.get("tint", Color.WHITE)
+	var sides: int = piece.get("sides", 12)
+	var r: float = piece.size.x * 0.5
+	var rt: float = minf(piece.get("top", 0.0) * 0.5, r)
+	var up := Vector3(0, piece.size.y * 0.5, 0)
+	for i in sides:
+		var d0 := Vector3(cos(TAU * i / sides), 0, sin(TAU * i / sides))
+		var d1 := Vector3(cos(TAU * (i + 1) / sides), 0, sin(TAU * (i + 1) / sides))
+		var b0 := d0 * r - up
+		var b1 := d1 * r - up
+		var n := cone_side_normal(d0, d1, r, rt, piece.size.y)
+		if rt > 0.0:
+			_quad(buf, xf * b1, xf * b0, xf * (d0 * rt + up), xf * (d1 * rt + up), xf.basis * n, color)
+			_tri(buf, xf * up, xf * (d1 * rt + up), xf * (d0 * rt + up), xf.basis * Vector3.UP, color)
+		else:
+			_tri(buf, xf * b1, xf * b0, xf * up, xf.basis * n, color)
+		_tri(buf, xf * -up, xf * b0, xf * b1, xf.basis * Vector3.DOWN, color)
+
+
+## The outward normal of the cone's side between the corners `d0` and `d1` (unit
+## directions round its axis), for a foot radius `r`, top radius `rt` and `height`.
+static func cone_side_normal(d0: Vector3, d1: Vector3, r: float, rt: float, height: float) -> Vector3:
+	var mid := (d0 + d1) * 0.5           # the middle of that side, at radius 1 (flat part)
+	var flat := mid.length()
+	return (mid / flat * height + Vector3.UP * (r - rt) * flat).normalized()
+
+
+## A cone's corners in its own frame: the foot's ring, then the top's ring (or the tip).
+static func cone_points(piece: Dictionary) -> PackedVector3Array:
+	var sides: int = piece.get("sides", 12)
+	var r: float = piece.size.x * 0.5
+	var rt: float = minf(piece.get("top", 0.0) * 0.5, r)
+	var hy: float = piece.size.y * 0.5
+	var pts := PackedVector3Array()
+	for i in sides:
+		pts.append(Vector3(cos(TAU * i / sides) * r, -hy, sin(TAU * i / sides) * r))
+	if rt > 0.0:
+		for i in sides:
+			pts.append(Vector3(cos(TAU * i / sides) * rt, hy, sin(TAU * i / sides) * rt))
+	else:
+		pts.append(Vector3(0, hy, 0))
+	return pts
 
 
 static func _tri(buf: Array, a: Vector3, b: Vector3, c: Vector3, n: Vector3, color: Color) -> void:

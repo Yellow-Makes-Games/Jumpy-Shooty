@@ -5,7 +5,9 @@ extends Camera3D
 ## sends nothing over the network.
 ##
 ## Mouse to look. Move keys fly where you look; Jump rises and Crouch sinks straight up
-## and down; hold Sprint to go fast, Dive (or Kick) to creep.
+## and down; hold Sprint to go fast, Dive (or Kick) to creep. Fire (or Mobility) locks
+## onto a player and watches them from behind in third person (a FollowCamera, see
+## Arena.spectator_follow); Interact flies free again from there.
 
 const SPEED := 12.0         ## metres per second
 const FAST := 3.5           ## Sprint multiplies the speed by this
@@ -47,7 +49,20 @@ func place_like(from: Camera3D) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	if Net.arena and not event.is_echo() and captured and not _menu_open():
+		var follow: FollowCamera = Net.arena.follow_cam
+		if follow == null and (event.is_action_pressed("fire") or event.is_action_pressed("grapple")):
+			Net.arena.spectator_follow(1 if event.is_action_pressed("fire") else -1)
+			get_viewport().set_input_as_handled()
+			return
+		if follow != null and event.is_action_pressed("interact"):
+			Net.arena.spectator_free()
+			get_viewport().set_input_as_handled()
+			return
+	if not current:
+		return   # watching a player: the mouse does not look about
+	if event is InputEventMouseMotion and captured:
 		var sens := deg_to_rad(Settings.mouse_sensitivity)
 		yaw -= event.relative.x * sens
 		var dy: float = event.relative.y * sens * (-1.0 if Settings.invert_y else 1.0)
@@ -57,6 +72,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	fov = Settings.field_of_view
+	if not current:
+		return   # watching a player (the keys are theirs to switch players)
 	var wish := wish_velocity()
 	velocity = velocity.lerp(wish, clampf(ACCEL * delta, 0.0, 1.0))
 	global_position += velocity * delta

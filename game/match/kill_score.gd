@@ -35,10 +35,18 @@ const GLIDING := 40          ## ...gliding (on top of MID_AIR)
 const AIR_SHOT := 35         ## the victim was in the air
 const MULTI := 90            ## per earlier kill by the same killer in the last MULTI_WINDOW seconds
 const MULTI_WINDOW := 4.0
-const KICK := 60
-const FLYING_KICK := 100
-const SMASHED := 70          ## shoved or reeled into a wall
+## Blows: a kick, a flying kick, a crash into a wall, a blade. Close up, the moves that
+## make a shot special come with the blow anyway (a grapple reels you in fast and in the
+## air, the kick flings the target fast and into the air, you turn to face them), so on
+## a blow: momentum counts at BLOW_MOTION of its points, and the flick, the air shot and
+## the trickshot combo do not count. That keeps grapple-and-kick a good killcam, not
+## the best one every time (players found it was).
+const KICK := 40
+const FLYING_KICK := 60
+const SMASHED := 50          ## shoved or reeled into a wall
 const MELEE := 30
+const BLOW_MOTION := 0.4
+const BLOWS := 128 | 256 | 512 | 1024   ## T_KICK | T_FLYING_KICK | T_SMASHED | T_MELEE
 const CLUTCH := 40           ## the killer had CLUTCH_HP or less left
 const CLUTCH_HP := 25.0
 ## Momentum (m/s, the whole velocity). Sprinting is 11.5; a swing, a dive or a rocket
@@ -161,12 +169,18 @@ static func parts(tags: int, streak: int, distance: float, speed: float = 0.0, t
 		add.call("GLIDING", GLIDING)
 	if tags & T_HEADSHOT:
 		add.call("HEADSHOT", HEADSHOT)
-	add.call("FLICK %d°" % roundi(flick), mini(int(maxf(flick - FLICK_FROM, 0.0)), FLICK_MAX))
-	add.call("MOMENTUM %d · %d M/S" % [roundi(minf(speed, SPEED_CAP)), roundi(minf(target, SPEED_CAP))], motion_points(speed, target))
+	var blow := is_blow(tags)
+	if not blow:   # (aim counts for shots; on a blow you just face them)
+		add.call("FLICK %d°" % roundi(flick), mini(int(maxf(flick - FLICK_FROM, 0.0)), FLICK_MAX))
+	var motion := motion_points(speed, target)
+	if blow:
+		add.call("MOMENTUM %d M/S (BLOW)" % roundi(minf(speed, SPEED_CAP)), int(motion * BLOW_MOTION))
+	else:
+		add.call("MOMENTUM %d · %d M/S" % [roundi(minf(speed, SPEED_CAP)), roundi(minf(target, SPEED_CAP))], motion)
 	var tricks := trick_count(tags)
 	if tricks >= 2:
 		add.call("TRICKSHOT ×%d" % tricks, TRICK * (tricks - 1))
-	if tags & T_AIR_SHOT:
+	if tags & T_AIR_SHOT and not blow:
 		add.call("AIR SHOT", AIR_SHOT)
 	if tags & T_CLUTCH:
 		add.call("CLUTCH", CLUTCH)
@@ -180,8 +194,15 @@ static func motion_points(speed: float, target: float) -> int:
 	return mini(int(maxf(both - MOTION_FROM, 0.0) * MOTION_PER), MOTION_MAX)
 
 
-## How many tricks a kill had at once (see TRICK).
+## A kick, a flying kick, a crash into a wall or a blade, not a shot (see BLOWS).
+static func is_blow(tags: int) -> bool:
+	return (tags & BLOWS) != 0
+
+
+## How many tricks a kill had at once (see TRICK). A blow has none: tricks are for shots.
 static func trick_count(tags: int) -> int:
+	if is_blow(tags):
+		return 0
 	var n := 0
 	for t in TRICKS:
 		if tags & t:
@@ -224,13 +245,14 @@ static func tag_words(tags: int, streak: int, distance: float, speed: float = 0.
 		out.append("MID-AIR")
 	if tags & T_HEADSHOT:
 		out.append("HEADSHOT")
-	if tags & T_FLICK:
+	var blow := is_blow(tags)   # (a blow flings the target: its speed and the air say little)
+	if tags & T_FLICK and not blow:
 		out.append("FLICK %d°" % roundi(flick))
 	if tags & T_FAST:
 		out.append("%d M/S" % roundi(minf(speed, SPEED_CAP)))
-	if tags & T_TARGET_FAST:
+	if tags & T_TARGET_FAST and not blow:
 		out.append("TARGET AT %d M/S" % roundi(minf(target, SPEED_CAP)))
-	if tags & T_AIR_SHOT:
+	if tags & T_AIR_SHOT and not blow:
 		out.append("AIR SHOT")
 	if tags & T_MELEE:
 		out.append("CUT DOWN")

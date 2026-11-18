@@ -3,8 +3,8 @@ extends SceneTree
 ## both can be seen. The renderer cannot tell which of two such surfaces is in front,
 ## so the spot flickers between the two colours as the camera moves ("z-fighting").
 ##
-## It looks at every drawn face of every block (boxes at any angle, cylinders and
-## tubes, all six sides, not only floors), pairs up the ones that face the same way
+## It looks at every drawn face of every block (boxes at any angle, cylinders, tubes
+## and cones, every side, not only floors), pairs up the ones that face the same way
 ## in the same plane, and fails if two of different kind or tint overlap somewhere
 ## that no other block covers. It also fails if a sign (Label3D) lies in the surface
 ## of the wall behind it.
@@ -15,7 +15,7 @@ extends SceneTree
 ## can still flicker far away on the Compatibility renderer).
 
 ## The maps this test holds to it.
-const MAPS := ["castle", "rail_yard", "lost_temple", "neon_arcade"]
+const MAPS := ["castle", "castle_v2", "rail_yard", "lost_temple", "neon_arcade"]
 
 const SAME_PLANE := 0.004    ## metres: closer than this is the same plane
 const MIN_AREA := 0.0015     ## m2: a smaller overlap than this is not seen
@@ -160,6 +160,8 @@ func _faces(piece: Dictionary) -> Array:
 			var dv: Vector3 = face[2] * h
 			out.append(_face([xf * (c - du - dv), xf * (c + du - dv), xf * (c + du + dv), xf * (c - du + dv)], xf.basis * face[0]))
 		return out
+	if piece.shape == "cone":
+		return _cone_faces(piece)
 	var sides: int = piece.get("sides", 12)
 	var r: float = piece.size.x * 0.5
 	var ri: float = piece.get("inner", 0.0) * 0.5 if piece.shape == "tube" else 0.0
@@ -184,6 +186,33 @@ func _faces(piece: Dictionary) -> Array:
 	if ri <= 0.0:
 		out.append(_face(top, xf.basis * Vector3.UP))
 		out.append(_face(bottom, xf.basis * Vector3.DOWN))
+	return out
+
+
+func _cone_faces(piece: Dictionary) -> Array:
+	var xf: Transform3D = piece.xf
+	var out := []
+	var sides: int = piece.get("sides", 12)
+	var r: float = piece.size.x * 0.5
+	var rt: float = minf(piece.get("top", 0.0) * 0.5, r)
+	var up := Vector3(0, piece.size.y * 0.5, 0)
+	var top := []
+	var bottom := []
+	for i in sides:
+		var d0 := Vector3(cos(TAU * i / sides), 0, sin(TAU * i / sides))
+		var d1 := Vector3(cos(TAU * (i + 1) / sides), 0, sin(TAU * (i + 1) / sides))
+		var n := MapMesher.cone_side_normal(d0, d1, r, rt, piece.size.y)
+		var pts := [xf * (d1 * r - up), xf * (d0 * r - up)]
+		if rt > 0.0:
+			pts.append_array([xf * (d0 * rt + up), xf * (d1 * rt + up)])
+			top.append(xf * (d0 * rt + up))
+		else:
+			pts.append(xf * up)
+		out.append(_face(pts, xf.basis * n))
+		bottom.append(xf * (d0 * r - up))
+	if rt > 0.0:
+		out.append(_face(top, xf.basis * Vector3.UP))
+	out.append(_face(bottom, xf.basis * Vector3.DOWN))
 	return out
 
 
@@ -247,7 +276,7 @@ func _solid(piece: Dictionary) -> Dictionary:
 		var d: float = piece.size.x
 		box = xf * AABB(Vector3(-d, -piece.size.y, -d) * 0.5, Vector3(d, piece.size.y, d))
 	return {"inv": xf.affine_inverse(), "half": piece.size * 0.5, "shape": piece.shape, "box": box,
-		"sides": piece.get("sides", 12), "inner": piece.get("inner", 0.0) * 0.5}
+		"sides": piece.get("sides", 12), "inner": piece.get("inner", 0.0) * 0.5, "top": piece.get("top", 0.0) * 0.5}
 
 
 const BUCKET := 6.0
@@ -291,7 +320,10 @@ func _covered(point: Vector3, skip_a: int, skip_b: int, solids: Array, grid: Dic
 					return true
 				continue
 			var reach := Vector2(local.x, local.z).length()
-			var flat_reach: float = half.x * cos(PI / s.sides)   # the flat sides come in a little
+			var radius: float = half.x
+			if s.shape == "cone":   # narrows from the foot to the top
+				radius = lerpf(half.x, minf(s.top, half.x), (local.y + half.y) / (2.0 * half.y))
+			var flat_reach: float = radius * cos(PI / s.sides)   # the flat sides come in a little
 			if reach <= flat_reach and (s.shape != "tube" or reach >= s.inner):
 				return true
 	return false

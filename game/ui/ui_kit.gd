@@ -346,23 +346,24 @@ static func segmented(parent: Node, options: Array, current: int, on_pick: Calla
 		var grid := GridContainer.new()
 		grid.columns = columns
 		grid.add_theme_constant_override("h_separation", 6)
-		grid.add_theme_constant_override("v_separation", 6)
+		grid.add_theme_constant_override("v_separation", 4 if options.size() > 6 else 6)
 		row = grid
 	else:
 		row = HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 	parent.add_child(row)
 	var group := ButtonGroup.new()
+	var compact := columns > 0 and options.size() > 6   # a long grid (the seven modes): lower rows, smaller text
 	for i in options.size():
 		var b := Button.new()
 		b.text = options[i]
 		b.toggle_mode = true
 		b.button_group = group
 		b.button_pressed = i == current
-		b.custom_minimum_size = Vector2(0, 44)
+		b.custom_minimum_size = Vector2(0, 32 if compact else 44)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.clip_text = true
-		b.add_theme_font_size_override("font_size", 18)
+		b.add_theme_font_size_override("font_size", 16 if compact else 18)
 		b.pressed.connect(func(): on_pick.call(i))
 		row.add_child(b)
 	return row

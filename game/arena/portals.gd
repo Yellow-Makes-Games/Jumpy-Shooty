@@ -20,6 +20,10 @@ const EXIT_SPEED_UP := 5.0
 ## to one side: popping out of a floor, you land back on it without going round again.
 const SKIP_CLEAR := 2.5
 
+## A player's two portals can be at most this far apart. Putting one up further
+## than this from the other closes the other: the new one starts a fresh pair.
+const MAX_SPAN := 45.0
+
 ## owner id -> [Portal or null, Portal or null]
 var _pairs := {}
 
@@ -34,6 +38,10 @@ func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3) -> void:
 	p.name = "Portal_%d_%d" % [owner, slot]
 	add_child(p)
 	pair[slot] = p
+	var other: Portal = pair[1 - slot]
+	if other and is_instance_valid(other) and other.frame.origin.distance_to(at) > MAX_SPAN:
+		other.queue_free()   # too far apart to link
+		pair[1 - slot] = null
 	_pairs[owner] = pair
 	Sound.play_at("portal_open", at + n * 0.3, "move", 0.0, 0.05)
 	if DevArgs.sync_log:

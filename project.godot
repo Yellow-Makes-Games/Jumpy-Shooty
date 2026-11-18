@@ -22,6 +22,7 @@ DevArgs="*res://game/dev/dev_args.gd"
 Net="*res://game/net/net.gd"
 Match="*res://game/match/match_state.gd"
 Race="*res://game/match/race_state.gd"
+Teams="*res://game/match/team_play.gd"
 Killcam="*res://game/match/killcam.gd"
 Game="*res://game/core/game.gd"
 Sound="*res://game/audio/sound.gd"
@@ -36,7 +37,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/map_tools/plugin.cfg")
+enabled=PackedStringArray("res://addons/map_tools/plugin.cfg", "res://addons/mesh_pick/plugin.cfg")
 
 [physics]
 

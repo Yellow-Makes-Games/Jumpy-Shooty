@@ -79,7 +79,7 @@ Quick checks:
   the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
 - breakable walls and floors (`tests/destruction_test.gd`);
-- flicker (`tests/map_flicker_test.gd`), on the Castle, Rail Yard, Lost Temple and Neon
+- flicker (`tests/map_flicker_test.gd`), on the Castle, Castle 2, Rail Yard, Lost Temple and Neon
   Arcade: no two surfaces of different colours share a plane where both can be seen,
   and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
   `FLICKER_LIST=40` prints more of what it found;
@@ -267,7 +267,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--speed=X` | Game speed, e.g. `0.25` for quarter speed (to film a move in slow motion) |
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
-| `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (default 10,000) |
+| `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (a lobby setting, so clients play to it too; default 5,000) |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
 | `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`...) |
 | `--map-event=SEC` | Start the map's events (Halcyon's low gravity, Cirrus's move to its other layout) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
@@ -295,10 +295,39 @@ script reads where the merlons, barrels, crates, carts and hoardings are, so run
 again after moving them; it replaces only the `Dressing` branch and leaves the rest of
 the scene as it is.
 
+`game/maps/castle_v2.tscn` (test map `castle_v2`, "Castle 2") is a refreshed Castle:
+72 m across instead of 60, a wall walk that runs all
+the way round over flush corner bastions, a stair up each wall with a landing from
+its head into the bastion, a keep with doors on
+every side and ramps inside, four bridges from the keep to the walls, and in each
+quarter a climb chain (2.2 m, then 4.2 m) up to a bridge. Two scripts first wrote it. The
+layout (everything solid, the spawns and pickups) comes from
+`godot --headless --path . --script tools/arena/castle_v2_blockout.gd` (the numbers are
+at the top). The detail on top comes from
+`godot --headless --path . --script tools/arena/castle_v2_dressing.gd`: about 1,500
+blocks (copings, pilasters, torches, door frames, the hall's fittings, a
+canopy and its goods in each quarter, paint on the ground, a jetty outside). Nearly
+all are drawn only. About 100 are solid (the ones the script wraps in `hard()`): the
+canopy roofs with their beams and brackets, the counters, racks, troughs and basins
+under them, the well head, the market booth's awning, the crane jib, the hall's
+benches and fireplace, and the gatehouse winch. A canopy roof slopes 33 degrees from
+4.3 m at the wall to 3.45 m, so you can stand on it and ledge-climb from its top to
+the wall walk. The spawns and pickups are where the block-out put them. Each quarter has a colour (stables gold,
+training yard red, well court blue, market green) that its bastion flag, the keep's
+banners and the pennants under the bridges repeat, so you can tell which way you face
+in a map that is the same on all four sides. The dressing script removes its own
+earlier pieces first (they carry the meta `dressing`), so it can be run again; the
+block-out script starts over from the old Castle. The scene is edited by hand now
+(blocks were moved in the editor), so both scripts refuse to run unless
+`CASTLE_V2_REBUILD=1` is set: a run would throw the hand edits away. Try the map with
+`--map=castle_v2 --practice`.
+
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
-- **MapBlock** nodes: every floor, wall, crate and girder. A block is a box, cylinder or
-  tube with a **Kind** (its colour from the map's palette). Its inspector also has
+- **MapBlock** nodes: every floor, wall, crate and girder. A block is a box, cylinder,
+  tube or cone with a **Kind** (its colour from the map's palette). A cone's Size is the
+  diameter of its foot and its height; **Top** is the diameter at the top (0 comes to a
+  point), and it collides as the same flat-sided shape you see. Its inspector also has
   **Size**, **Solid** (off = drawn only, like paint on the floor), **Drawn** (off = an
   invisible wall, shown in the editor as a faint blue box), **Tint** (to make one block
   a little lighter or darker), **Material Type** (what it is made of: its footsteps and

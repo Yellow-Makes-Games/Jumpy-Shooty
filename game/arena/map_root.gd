@@ -611,6 +611,10 @@ func _collision_shape(piece: Dictionary) -> Shape3D:
 		c.radius = piece.size.x * 0.5
 		c.height = piece.size.y
 		return c
+	if piece.shape == "cone":
+		var cone := ConvexPolygonShape3D.new()
+		cone.points = MapMesher.cone_points(piece)   # the same flat sides you see
+		return cone
 	var box := BoxShape3D.new()
 	box.size = piece.size
 	return box

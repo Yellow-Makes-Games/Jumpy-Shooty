@@ -13,7 +13,7 @@ extends Node
 signal players_changed
 signal joined_lobby                     # we are connected and registered
 signal join_failed(reason: String)
-signal session_ended(reason: String)    # host left, or we were refused
+signal session_ended(reason: String)    # host left, or we were refused or kicked
 signal match_started
 signal internet_changed                 # host only: internet_state / public_ip changed
 
@@ -329,9 +329,11 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 	var id := multiplayer.get_remote_sender_id()
 	if spectate and spectators.size() >= MAX_SPECTATORS:
 		_refused.rpc_id(id, "The lobby has no room for more spectators.")
+		_drop_peer_later(id)
 		return
-	if not spectate and players.size() >= MAX_PLAYERS:
-		_refused.rpc_id(id, "The lobby is full.")
+	if not spectate and players.size() >= LobbySettings.max_players():
+		_refused.rpc_id(id, "The lobby is full (%d players)." % LobbySettings.max_players())
+		_drop_peer_later(id)
 		return
 	if spectate:
 		host_add_spectator(id, player_name)
@@ -349,6 +351,8 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "") -> void:
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
 		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": LobbySettings.fit_mobility(Mobility.valid(mobility))}
+	if in_match and Teams.active():
+		players[id]["team"] = Teams.smaller_team()   # joining a team match: onto the smaller team
 	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
 
 
@@ -427,7 +431,7 @@ func host_set_spectating(id: int, on: bool, character: String = "", weapon: Stri
 		spectators[id] = {"name": name}
 		print("[net] %d (%s) is spectating" % [id, name])
 	else:
-		if not spectators.has(id) or players.size() >= MAX_PLAYERS:
+		if not spectators.has(id) or players.size() >= LobbySettings.max_players():   # no room in the lobby size
 			return false
 		var name := str(spectators[id].name)
 		spectators.erase(id)
@@ -657,6 +661,73 @@ func _refused(reason: String) -> void:
 	session_ended.emit(reason)
 
 
+## Host: cut a peer off a moment after telling it why (so the message gets there), in
+## case it does not leave by itself.
+func _drop_peer_later(id: int) -> void:
+	get_tree().create_timer(1.0).timeout.connect(func():
+		var peer := multiplayer.multiplayer_peer
+		if is_host() and peer is ENetMultiplayerPeer and (peer as ENetMultiplayerPeer).get_peer(id):
+			(peer as ENetMultiplayerPeer).disconnect_peer(id))
+
+
+# ---------------------------------------------------------------------------
+# Kick and ready (online lobby)
+
+## Host: remove a player from the lobby (not mid-match). They are told and sent back to
+## the main menu.
+func host_kick(id: int) -> void:
+	if not is_host() or not is_online or in_match or id == host_id() or not players.has(id) or is_bot(id):
+		return
+	print("[net] kicked %d (%s)" % [id, player_name(id)])
+	if DevArgs.sync_log:
+		print("KICKED %d" % id)
+	players.erase(id)
+	_refused.rpc_id(id, "The host removed you from the lobby.")
+	_drop_peer_later(id)
+	_players_updated()
+
+
+## Whether a player has said they are ready in the lobby. The host is ready when it
+## presses Start; bots are always ready.
+func is_ready(id: int) -> bool:
+	return id == host_id() or is_bot(id) or bool(players[id].get("ready", false)) if players.has(id) else false
+
+
+## The players the host is still waiting for (not ready yet).
+func not_ready() -> Array:
+	var ids := players.keys().filter(func(i): return not is_ready(i))
+	ids.sort()
+	return ids
+
+
+## Everyone is ready (the host can start).
+func all_ready() -> bool:
+	return not_ready().is_empty()
+
+
+## Say you are ready (or not) in the lobby; the host tells everyone.
+func set_my_ready(on: bool) -> void:
+	if is_host():
+		_apply_ready(my_id(), on)
+	else:
+		_choose_ready.rpc_id(1, on)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_ready(on: bool) -> void:
+	if is_host():
+		_apply_ready(multiplayer.get_remote_sender_id(), on)
+
+
+func _apply_ready(id: int, on: bool) -> void:
+	if not players.has(id) or in_match or bool(players[id].get("ready", false)) == on:
+		return
+	players[id]["ready"] = on
+	if DevArgs.sync_log:
+		print("READY %d %s" % [id, "on" if on else "off"])
+	_players_updated()
+
+
 func _unique_name(wanted: String) -> String:
 	if wanted == "":
 		wanted = "Player"
@@ -684,7 +755,7 @@ func _free_color() -> int:
 
 
 ## Names for computer players, so several bots can be told apart on the scoreboard.
-const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston"]   # never the name of a robot you can play
+const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston", "Widget", "Ratchet", "Dynamo"]   # never the name of a robot you can play
 
 
 ## Adds a computer player (offline matches only for now). Returns its id.
@@ -709,6 +780,8 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 		"weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)) if weapon != "" else guns[randi() % guns.size()],
 		"mobility": LobbySettings.fit_mobility(Mobility.valid(mobility)) if mobility != "" else tools[randi() % tools.size()],
 	}
+	if in_match and Teams.active():
+		players[id]["team"] = Teams.smaller_team()   # the debug menu adding one mid-match
 	players_changed.emit()
 	return id
 
@@ -865,7 +938,11 @@ func _players_updated() -> void:
 		players_changed.emit()
 
 
+## A player's colour (their robot, name and stripes): in a team mode, their team's.
 func player_color(id: int) -> Color:
+	var team := Teams.team_of(id)
+	if team >= 0:
+		return Teams.team_color(team)
 	return PLAYER_COLORS[players[id].color] if players.has(id) else Color.WHITE
 
 
@@ -893,18 +970,25 @@ func map_id() -> String:
 	return str(match_settings.get("map", Maps.default_id()))
 
 
-func host_start_match() -> void:
+## Host: start the match. Online, only once everyone is ready (see all_ready), unless
+## `force` (dev autostart). Everyone's ready goes back to off for the next lobby.
+func host_start_match(force: bool = false) -> void:
 	if not is_host() or _starting:
 		return
-	_starting = true   # (handing out the weapons below changes the players, which can call this again: dev autostart)
+	if is_online and not force and not all_ready():
+		return
+	_starting = true
+	for id in players:
+		players[id].erase("ready")   # (handing out the weapons below changes the players, which can call this again: dev autostart)
 	host_fit_loadouts()   # nobody starts with a weapon the lobby does not allow
-	if GunGame.active() or KillcamMode.active():   # the first rung of the ladder; Killcam: the sniper
+	var teams_before := players.values().map(func(p): return p.get("team", -1))
+	Teams.host_assign()   # team modes: everyone onto Red or Blue (otherwise no teams)
+	var teams_changed := teams_before != players.values().map(func(p): return p.get("team", -1))
+	if GunGame.active() or KillcamMode.active() or teams_changed:   # the first rung of the ladder; Killcam: the sniper
 		for id in players:
-			players[id]["weapon"] = GunGame.weapon_at(0) if GunGame.active() else KillcamMode.WEAPON
-		if is_online:
-			_sync_players.rpc(players)
-		else:
-			players_changed.emit()
+			if GunGame.active() or KillcamMode.active():
+				players[id]["weapon"] = GunGame.weapon_at(0) if GunGame.active() else KillcamMode.WEAPON
+	_players_updated()   # the weapons and teams above, and nobody ready any more
 	_log_loadouts()
 	_start_match.rpc()
 	_starting = false
@@ -916,6 +1000,8 @@ var _starting := false
 @rpc("authority", "call_local", "reliable")
 func _start_match() -> void:
 	in_match = true
+	if DevArgs.sync_log:
+		print("MATCH_START %d players" % players.size())
 	match_started.emit()
 
 
