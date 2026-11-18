@@ -7,6 +7,10 @@ extends Marker3D
 ## walks to the nearest link, hooks the grapple point the link names and lets the
 ## rope carry it over.
 ##
+## A link set to Lift is a one-way trip up a MapLiftWell: put it at the beam's foot
+## (as the lift's child, say) with Landing on the floor to get off at; one link for
+## each floor. Bots take a lift when where they are going is well above them.
+##
 ## Put one on the floor where the crossing starts, a little back from the edge.
 ## Inside a MapIsland it rides the island, like its hook and landing if they are
 ## inside one too. Bots only use a link when walking will not get them where they
@@ -16,6 +20,7 @@ extends Marker3D
 enum How {
 	GRAPPLE,   ## aim at Hook, fire the grapple, ride the rope, let go and steer to Landing
 	LEAP,      ## run at Landing and off the edge, steering in the air (a drop to somewhere lower)
+	LIFT,      ## walk into the tractor beam here (a MapLiftWell), ride it up, steer out to Landing
 }
 
 const GROUP := "map_jump_links"
