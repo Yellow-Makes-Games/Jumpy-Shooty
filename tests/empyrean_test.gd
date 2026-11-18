@@ -69,9 +69,133 @@ func _run() -> void:
 	_pickups()
 	_objects()
 	_breaks()
+	_planes()
+	_river()
 	await _routes()
+	_drawing()      # (last: it builds the map a second time, and taking that copy away clears the gravity zones)
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
+
+
+## No two drawn faces of different kinds lie in one plane, facing the same way and
+## overlapping: there the graphics card cannot tell which is in front and the two
+## colours flicker. (The generator settles these itself: tools/arena/empyrean_planes.py.)
+func _planes() -> void:
+	print("  no flicker")
+	var faces := {}     # normal -> [[plane's distance, centre, u, v, half u, half v, kind, block]]
+	for n in map.find_children("*", "Node3D", true, false):
+		var b := n as MapBlock
+		if b == null or not b.drawn:
+			continue
+		var xf := b.global_transform
+		var half := b.size * 0.5
+		var rounded := b.shape in [MapBlock.Shape.CYLINDER, MapBlock.Shape.TUBE, MapBlock.Shape.CONE, MapBlock.Shape.DOME]
+		for axis in 3:
+			if rounded and axis != 1:
+				continue
+			for way: float in [-1.0, 1.0]:
+				if b.shape == MapBlock.Shape.DOME or (b.shape == MapBlock.Shape.CONE and way > 0.0 and b.top <= 0.01):
+					continue
+				var nrm := (xf.basis[axis] * way).normalized()
+				var c := xf.origin + xf.basis[axis] * half[axis] * way
+				var shrink := 0.7 if rounded else 1.0
+				var key := Vector3i(roundi(nrm.x * 300), roundi(nrm.y * 300), roundi(nrm.z * 300))
+				if not faces.has(key):
+					faces[key] = []
+				faces[key].append([nrm.dot(c), c, xf.basis[(axis + 1) % 3].normalized(), xf.basis[(axis + 2) % 3].normalized(),
+					half[(axis + 1) % 3] * shrink, half[(axis + 2) % 3] * shrink, String(b.kind), b])
+	var clashes := []
+	for key in faces:
+		var list: Array = faces[key]
+		list.sort_custom(func(a, b): return a[0] < b[0])
+		for i in list.size():
+			var j := i + 1
+			while j < list.size() and list[j][0] - list[i][0] < 0.0015:
+				var A: Array = list[i]
+				var B: Array = list[j]
+				j += 1
+				if A[6] != B[6] and A[7] != B[7] and _covers(A, B) and _covers(B, A) and clashes.size() < 8:
+					clashes.append("%s and %s at %s" % [A[7].name, B[7].name, (A[1] as Vector3).snappedf(0.1)])
+	_expect(clashes.is_empty(), "no two faces of different kinds share a plane %s" % [clashes])
+
+
+func _covers(A: Array, B: Array) -> bool:
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for su: float in [-1.0, 1.0]:
+		for sv: float in [-1.0, 1.0]:
+			var p: Vector3 = B[1] + B[2] * B[4] * su + B[3] * B[5] * sv - A[1]
+			var q := Vector2(p.dot(A[2]), p.dot(A[3]))
+			lo = lo.min(q)
+			hi = hi.max(q)
+	var w := minf(hi.x, A[4]) - maxf(lo.x, -A[4])
+	var h := minf(hi.y, A[5]) - maxf(lo.y, -A[5])
+	return w > 0.03 and h > 0.03 and w * h > 0.01
+
+
+## The river of magic and the threads off it run clear of everything solid in the shaft:
+## no point of any of them is inside a bridge, a rail or a floating stone, or nearer one
+## than the stream is thick.
+func _river() -> void:
+	print("  the river")
+	var worst := INF
+	var where := ""
+	for n in map.find_children("*", "Node3D", true, false):
+		var s := n as MapMagicStream
+		if s == null:
+			continue
+		var reach := s.width * 0.5 * 1.35 + 0.1
+		var total := 0.0
+		for i in range(1, s.path.size()):
+			total += s.path[i].distance_to(s.path[i - 1])
+		var run := 0.0
+		for i in range(1, s.path.size()):
+			run += s.path[i].distance_to(s.path[i - 1])
+			if run < s.taper.x + 1.0 or run > total - s.taper.y - 1.0:
+				continue        # (its two ends: it rises out of the core crystal's tip and pours into the pool under the Observatory, and a thread ends in its intake)
+			for u: float in [0.0, 0.5]:
+				var p: Vector3 = s.global_transform * s.path[i - 1].lerp(s.path[i], u)
+				for dir: Vector3 in [Vector3.UP, Vector3.DOWN, Vector3.RIGHT, Vector3.LEFT, Vector3.FORWARD, Vector3.BACK]:
+					var hit := _ray(p, p + dir * 3.0)
+					var gap: float = 3.0 if hit.is_empty() else p.distance_to(hit.position)
+					if hit.is_empty() and not _ray(p + dir * 3.0, p).is_empty():
+						gap = 0.0       # (it started inside something: only the way back in finds the wall)
+					if gap - reach < worst:
+						worst = gap - reach
+						where = "%s at %s" % [s.name, p.snappedf(0.1)]
+	_expect(worst >= 0.0, "the river and its threads touch nothing solid (closest: %.2f m to spare, %s)" % [worst, where])
+
+
+## How the map asks to be drawn: its decoration casts no shadow, and its small pieces
+## are in their own meshes, a cube at a time, left out from far off.
+func _drawing() -> void:
+	print("  drawing")
+	_expect(not map.decor_shadows and map.detail_range >= 60.0 and map.detail_chunk >= 20.0, "decoration casts no shadow; small pieces are left out beyond %d m" % int(map.detail_range))
+	var built: MapRoot = Maps.make(ID)
+	root.add_child(built)
+	built.build(true)
+	var whole := 0
+	var decor := 0
+	var detail := 0
+	var shadowed := 0
+	for c in built.get_children():
+		var mesh := c as MeshInstance3D
+		if mesh == null or not String(mesh.name).begins_with("Mesh_"):
+			continue
+		if String(mesh.name).contains("_detail_"):
+			detail += 1
+			if mesh.visibility_range_end <= 0.0 or mesh.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+				shadowed += 1
+		elif String(mesh.name).ends_with("_decor"):
+			decor += 1
+			if mesh.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+				shadowed += 1
+		else:
+			whole += 1
+	_expect(whole >= 20 and decor >= 20 and detail >= 100 and shadowed == 0, "%d meshes of structure, %d of decoration, %d cubes of small pieces" % [whole, decor, detail])
+	root.remove_child(built)
+	built.free()
+	MapRoot.current = map
 
 
 func _ray(from: Vector3, to: Vector3) -> Dictionary:

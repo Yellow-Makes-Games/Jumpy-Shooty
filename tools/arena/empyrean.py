@@ -226,7 +226,7 @@ class EmpyreanMap(CirrusMap):
         out += ["", '[node name="Environment" type="WorldEnvironment" parent="."]', 'environment = SubResource("Environment_1")', ""]
         out += ['[node name="Sun" type="DirectionalLight3D" parent="."]', "transform = %s" % xform((X, cross(Z, X), Z), (0, 0, 0)),
                 "light_color = %s" % color(col), "light_energy = %s" % fmt(energy), "shadow_enabled = true",
-                "directional_shadow_max_distance = 260.0", ""]
+                "directional_shadow_max_distance = 150.0", "directional_shadow_mode = 1", ""]
         for n in self.nodes:
             groups = [v for k, v in n.props if k == "groups"]
             out.append('[node name="%s" type="%s" parent="%s"%s]' % (n.name, n.type, n.parent, " groups=%s" % groups[0] if groups else ""))
@@ -589,8 +589,78 @@ def roof(m):
 # ---------------------------------------------------------------------------
 # The shaft: the engine's core at the bottom, bridges, lifts and things to hook
 
+BRIDGE_TURNS = (165.0, 15.0, 135.0)
+
+
+def bridges():
+    """The bridges across the shaft: (height, angle, tier). One at every tier's floor but
+    the Engine's and at every upper hall, turned so no two line up."""
+    out = []
+    for i in range(5):
+        for y in (TIER * i, TIER * i + L3):
+            if y > 0.0:
+                out.append((y, BRIDGE_TURNS[len(out) % 3], i))
+    return out
+
+
+# The river of magic that climbs the shaft (drawn in empyrean_magic.py). Its course is
+# worked out here because the shaft's floating stones have to keep clear of it.
+RIVER_FOOT, RIVER_HEAD = 11.0, TIER * 5 - 1.1       # the core crystal's tip; just under the Observatory's platform
+RIVER_R = 3.0            # how far from the shaft's middle it runs
+RIVER_HOLD = (3.4, 2.0)  # from this far below a bridge (its banners hang there) to this far above, it hardly turns...
+RIVER_SLOW = 4.0         # ...this many degrees a metre, so it passes square on to the bridge, well clear of its rails
+
+
+def _river_knots():
+    """(height, angle) corners of the river's course: about a turn every 24 m, and at
+    every bridge it is square on to it (90 degrees round from the bridge's ends)."""
+    prev_y, prev_a = RIVER_FOOT, 60.0
+    knots = [(prev_y, prev_a)]
+    for y, d, _i in bridges():
+        base = (d + 90.0) % 180.0
+        want = prev_a + 15.0 * (y - prev_y)
+        a = base + 180.0 * round((want - base) / 180.0)
+        if a < prev_a + 25.0:
+            a += 180.0
+        knots += [(y - RIVER_HOLD[0], a - RIVER_SLOW * RIVER_HOLD[0]), (y + RIVER_HOLD[1], a + RIVER_SLOW * RIVER_HOLD[1])]
+        prev_y, prev_a = y, a
+    knots.append((RIVER_HEAD, prev_a + 15.0 * (RIVER_HEAD - prev_y)))
+    return knots
+
+
+_KNOTS = _river_knots()
+
+
+def river_angle(y):
+    y = min(max(y, RIVER_FOOT), RIVER_HEAD)
+    for (y0, a0), (y1, a1) in zip(_KNOTS, _KNOTS[1:]):
+        if y <= y1:
+            return a0 + (a1 - a0) * (y - y0) / (y1 - y0)
+    return _KNOTS[-1][1]
+
+
+def river_at(y):
+    """Where the river's middle is at height y (its corners rounded over a metre)."""
+    deg = sum(river_angle(y + d) for d in (-0.5, -0.25, 0.0, 0.25, 0.5)) / 5.0
+    u = min(max((y - RIVER_FOOT) / 3.5, 0.0), 1.0)
+    return P(RIVER_R * u * u * (3 - 2 * u), deg, y)
+
+
+def stone_at(y):
+    """Where the floating stone (and its grapple anchor) at height y hangs: across the
+    shaft from the river, clear of the two lift beams."""
+    deg = (river_angle(y - 1.6) + 180.0) % 360.0
+    while min(abs((deg - a + 180) % 360 - 180) for a in (LIFT_A, LIFT_B)) < 40.0:
+        deg = (deg + 50.0) % 360.0
+    return P(4.6, deg, y)
+
+
+STONES = []      # where shaft() hung the floating stones (their grapple anchors), for the river's clearance check
+
+
 def shaft(m):
     f = m.folder("Shaft")
+    del STONES[:]
     g = m.group("Core", f)
     # The Arcane Engine's core: a crystal standing in a sunken, glowing basin. The basin and
     # everything within 3.4 m of the middle is deadly (a MapHazard): touch it and you die.
@@ -612,31 +682,23 @@ def shaft(m):
             m.block(sp, "Emitter", "accent_cyan", P(size * 0.5 - 0.2, q * 90.0), (0.8, 0.7, 0.8), shape="bevel", bevel=0.15, solid=False)
     # Bridges: at every tier's floor and at every upper hall, turned so no two line up.
     g = m.group("Bridges", f)
-    turns = [165.0, 15.0, 135.0]
-    n = 0
-    for i in range(TIERS):
-        for y in ((TIER * i,) if i == 5 else (TIER * i, TIER * i + L3)):
-            if y == 0.0 or i == 5:
-                continue
-            deg = turns[n % 3]
-            n += 1
-            kind = "stone_floor" if n % 2 else "alloy_floor"
-            m.pb(g, "Bridge", kind, -RS - 0.3, RS + 0.3, deg, 3.2, y - 0.5, y)
-            for side in (-1, 1):
-                th = math.radians(deg + 90.0)
-                off = (math.sin(th) * 1.7 * side, 0, math.cos(th) * 1.7 * side)
-                a, b = P(-RS + 1.0, deg, y + 0.45), P(RS - 1.0, deg, y + 0.45)
-                m.bar(g, "BridgeRail", "brass" if n % 2 else "alloy_dark", tuple(p + o for p, o in zip(a, off)), tuple(p + o for p, o in zip(b, off)), thick=0.9, wide=0.2)
-            m.block(g, "BridgeLamp", ACCENT[i], P(0, 0, y - 0.6), (1.2, 0.2, 1.2), shape="cyl", sides=12, solid=False)
+    for n, (y, deg, i) in enumerate(bridges(), 1):
+        kind = "stone_floor" if n % 2 else "alloy_floor"
+        m.pb(g, "Bridge", kind, -RS - 0.3, RS + 0.3, deg, 3.2, y - 0.5, y)
+        for side in (-1, 1):
+            th = math.radians(deg + 90.0)
+            off = (math.sin(th) * 1.7 * side, 0, math.cos(th) * 1.7 * side)
+            a, b = P(-RS + 1.0, deg, y + 0.45), P(RS - 1.0, deg, y + 0.45)
+            m.bar(g, "BridgeRail", "brass" if n % 2 else "alloy_dark", tuple(p + o for p, o in zip(a, off)), tuple(p + o for p, o in zip(b, off)), thick=0.9, wide=0.2)
+        m.block(g, "BridgeLamp", ACCENT[i], P(0, 0, y - 0.6), (1.2, 0.2, 1.2), shape="cyl", sides=12, solid=False)
     # Floating stones and grapple anchors up the shaft: never more than 25 m to the next one.
     g = m.group("Anchors", f)
     y = 12.0
     k = 0
     while y < TOP - 8.0:
-        deg = (k * 97.0 + 40.0) % 360.0
-        if min(abs((deg - a + 180) % 360 - 180) for a in (LIFT_A, LIFT_B)) < 40.0:
-            deg += 55.0
-        at = P(4.6, deg, y)
+        at = stone_at(y)
+        deg = math.degrees(math.atan2(at[0], at[2]))
+        STONES.append(at)
         m.block(g, "FloatingStone", "rock" if k % 2 else "alloy_dark", (at[0], at[1] - 1.6, at[2]), (2.2, 1.4, 2.2), shape="bevel", bevel=0.45, cols=rot(deg + 20))
         m.block(g, "StoneRune", ACCENT[min(int(y // TIER), 5)], (at[0], at[1] - 0.86, at[2]), (1.2, 0.08, 1.2), shape="cyl", sides=10, solid=False)
         m.hook(g, "ShaftAnchor", at)
@@ -849,8 +911,11 @@ def build(path):
                                "fog_density = 0.0", "fog_sky_affect = 0.0", "fog_height = %s" % fmt(KILL + 30.0), "fog_height_density = 0.045"]},
                     (24.0, 250.0, (0.82, 0.78, 1.0), 0.75),
                     {"face_shade": "Vector3(0.9, 0.8, 0.66)", "kill_height": fmt(KILL), "bounds": "Rect2(0, 0, 0, 0)",
-                     "swing_point": "Vector3(4.6, 33, 3.9)", "winding_floors": "true", "bots_grapple": "true",
-                     "gravity_outside": "0.4"})
+                     "swing_point": vec(stone_at(33.0)), "winding_floors": "true", "bots_grapple": "true",
+                     "gravity_outside": "0.4",
+                     # Drawing: the biggest map by far. Its decoration casts no shadow, and the small pieces
+                     # of it are left out beyond 80 m (in cubes a tier high, so those behind you are not drawn).
+                     "decor_shadows": "false", "detail_range": "80.0", "detail_size": "1.5", "detail_chunk": fmt(TIER)})
     m.folder("Exterior")
     zones(m)
     folders = [tier(m, i) for i in range(5)] + [observatory_structure(m)]
@@ -870,5 +935,7 @@ def build(path):
     decor.decorate(m, folders)
     import empyrean_magic as magic
     magic.enchant(m, folders)
+    import empyrean_planes as planes
+    print("  settled %d faces that shared a plane with another" % planes.settle(m))
     m.write(path)
     write_palette(path.replace("game/maps/", "game/maps/palettes/").replace(".tscn", ".tres"))

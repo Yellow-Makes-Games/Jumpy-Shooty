@@ -61,6 +61,11 @@ const SOLID_KINDS := [Kind.PAGES, Kind.BOOKS, Kind.CANDLES]
 	set(v):
 		power = v
 		_rebuild()
+## It is not drawn from farther than this (metres from the middle of the box; 0: always).
+@export var draw_range := 90.0:
+	set(v):
+		draw_range = v
+		_rebuild()
 ## Does it answer to players near it (see MapMagicField)?
 @export var reacts := true
 ## A different number lays the pieces out differently.
@@ -196,6 +201,9 @@ func _rebuild() -> void:
 	inst.multimesh = mm
 	inst.material_override = _mat
 	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if draw_range > 0.0:
+		inst.visibility_range_end = draw_range + size.length() * 0.5
+		inst.visibility_range_end_margin = draw_range * 0.1
 	inst.set_meta("magic", true)
 	add_child(inst, false, Node.INTERNAL_MODE_FRONT)
 	if kind == Kind.STARS:

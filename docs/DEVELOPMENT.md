@@ -112,7 +112,8 @@ Quick checks:
   multiplied with an event's, never touching projectiles, gone with the map;
 - tractor-beam lifts (`tests/lift_test.gd`, with `--fixed-fps 60`): 9 m/s, the hover at
   the top, leaving sideways at any height, what the beam leaves alone;
-- Empyrean Tower (`tests/empyrean_test.gd`): no bounds and the burn layer, the gravity
+- Empyrean Tower (`tests/empyrean_test.gd`): no two faces that would flicker, the river
+  of magic clear of everything in the shaft, how it asks to be drawn, no bounds and the burn layer, the gravity
   zones, force fields that stop nothing, spawn points (none sees the altar) and pickups,
   the altar, four pairs of gates and the lifts, only the glass breaks, and on the bots'
   navigation mesh every tier from its neighbours, every storey, the docking ring and the
@@ -911,7 +912,9 @@ It was laid out by `python3 tools/arena/build_arena_maps.py empyrean` (the struc
 `tools/arena/empyrean.py`, what stands in it `tools/arena/empyrean_dressing.py`, and the
 decor laid over both, banners, sconces, lanterns, wall units, turrets and the rest, most
 of it drawn only, `tools/arena/empyrean_decor.py`, and the magic,
-`tools/arena/empyrean_magic.py`: see "Living magic" below), followed by
+`tools/arena/empyrean_magic.py`: see "Living magic" below; its last step,
+`tools/arena/empyrean_planes.py`, moves by a few millimetres every face that shares a
+plane with a face of another kind, so nothing flickers), followed by
 `tools/arena/migrate_breakable.gd` on the scene so its stained glass breaks. Like the
 other generated arenas the scene is what you edit from here on, and running the script
 again **overwrites hand edits**. After moving things, `godot --headless --path . --script
@@ -941,6 +944,29 @@ Things to keep true when editing it:
   spawn points are on still islands a grapple swing from the tower, so **Bots Grapple** is
   ticked too, and each of those islands has a MapJumpLink back (under `Debris/Ways`).
 - No spawn point that can see the altar, and no weapon within 12 m of it.
+- No two faces of different kinds in one plane, facing the same way and overlapping (a
+  carpet level with a strip of light in the floor, a landing level with the floor it
+  lands on): the two flicker. Lay one a centimetre proud of the other.
+  `godot --headless --path . --script tools/arena/find_shared_planes.gd -- --map=empyrean`
+  lists them (it works on any map), and `tests/empyrean_test.gd` fails on one.
+- The river of magic passes every bridge square on to it, three metres to one side, from
+  below the bridge's banners to above its rails, and the shaft's floating stones hang
+  across the shaft from it (`river_at`, `bridges` and `stone_at` in empyrean.py). The
+  generator stops if the river or a thread off it comes too near any of them, and the
+  test checks the built map with rays.
+- It is drawn with care, because it is far the biggest map (about 350,000 triangles;
+  the next has 42,000). On its MapRoot, under **Drawing**: **Decor Shadows** is off
+  (blocks that are drawn only cast no shadow, which is most of its triangles drawn once
+  instead of three times), and **Detail Range** is 80 (drawn-only blocks no bigger than
+  **Detail Size**, 1.5 m, are not drawn from farther off; they are meshed in cubes of
+  **Detail Chunk** metres so that works). Its sun's shadow reaches 150 m in two steps.
+  A MapMagic box is not drawn beyond its **Draw Range** (90 m). `tools/perf/draw_load.sh
+  --map=empyrean` counts the triangles and draw calls in a frame from six viewpoints
+  (about 630,000 and 570; before these settings 1,730,000 and 600).
+- Bots: its navigation mesh has about 8,800 polygons, more than the navigation server
+  will search by default (4,096), which is why `BotBrain._nav_path` asks with a higher
+  limit. `godot --headless --path . --script tools/perf/bot_load.gd -- --perf-map=empyrean`
+  prints what a four-bot match costs a frame; compare it with `--perf-map=cirrus`.
 - Nothing solid inside a lift's beam, and a floor or a balcony edge within a step of it
   at every level bots get off at (each has a MapJumpLink set to Lift, with its Landing).
 - Keep the kerb round the core's basin (0.35 m: more than the bots' navigation mesh
