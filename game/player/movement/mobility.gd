@@ -23,7 +23,7 @@ const NAMES := {GRAPPLE: "Grappling Hook", PORTAL: "Portal Gun", BLINK: "Blink",
 const SHORT := {GRAPPLE: "Grapple", PORTAL: "Portal Gun", BLINK: "Blink", JETPACK: "Jetpack"}
 const BLURBS := {
 	GRAPPLE: "Hook any surface and swing, or hook a player to reel them in for a flying kick.",
-	PORTAL: "Shoot a blue and an orange portal onto any surface. Step in one, fly out the other at full speed.",
+	PORTAL: "Shoot a blue and an orange portal onto any surface. Step in one, fly out the other at full speed. Up to 45 m apart.",
 	BLINK: "Teleport a few metres where you look, keeping your speed. A trail of sparks follows you there.",
 	JETPACK: "Hold to fly up and steer with WASD. Fuel refills when you let go, fastest on the ground.",
 }
