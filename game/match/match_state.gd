@@ -424,6 +424,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var bodies := _rewound_bodies(shooter, view_times)   # [id, feet, height, facing yaw]
 	var breaks := _breakables()
 
+	var pull := -1.0 if weapon.pull else 1.0   # the harpoon reels them in instead of pushing them away
 	var damage := {}   # target id -> total damage of this shot
 	var heads := {}    # target id -> a pellet hit the head
 	var shove := {}    # target id -> knockback of this shot (each pellet pushes along its path)
@@ -455,7 +456,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 				var dmg := weapon.damage_at(hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0)
 				damage[b[0]] = damage.get(b[0], 0.0) + dmg
 				shove[b[0]] = shove.get(b[0], Vector3.ZERO) \
-					+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
+					+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
 				heads[b[0]] = heads.get(b[0], false) or hit.head
 				if DevArgs.sync_log:
 					log.append("hit %d at %.2f m%s" % [b[0], hit.height, " head" if hit.head else ""])
@@ -484,7 +485,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0)
 			damage[best_target] = damage.get(best_target, 0.0) + dmg
 			shove[best_target] = shove.get(best_target, Vector3.ZERO) \
-				+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback + Vector3.UP * weapon.knockback_up
+				+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
 			heads[best_target] = heads.get(best_target, false) or best_head
 		elif wall_cell >= 0:
 			breaks.damage(wall_cell, weapon.damage_at(origin.distance_to(end)) * weapon.structure_damage)
@@ -589,6 +590,7 @@ func _physics_process(delta: float) -> void:
 		p.t += delta
 		# Into someone (not the shooter: it leaves from inside them)?
 		var direct := 0
+		var head := false
 		var at := to
 		var best := INF
 		for b in _live_bodies(p.shooter):
@@ -600,11 +602,12 @@ func _physics_process(delta: float) -> void:
 					best = d
 					direct = b[0]
 					at = pts[0]
+					head = pts[0].y - b[1].y >= b[2] - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
 		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1))
 		if wall and from.distance_to(wall.position) < best:
 			_host_explode(id, wall.position + wall.normal * 0.05, 0, wall.collider, wall.normal)
 		elif direct != 0:
-			_host_explode(id, at, direct)
+			_host_explode(id, at, direct, null, Vector3.UP, head)
 		elif p.t >= w.fuse:
 			_host_explode(id, to, 0)
 		else:
@@ -626,7 +629,9 @@ func _live_bodies(except: int = 0) -> Array:
 	return out
 
 
-func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, normal: Vector3 = Vector3.UP) -> void:
+## `head`: a direct hit to the head (a crossbow bolt or a nail does the weapon's headshot damage).
+## A dart (not WeaponData.explosive) hurts only whoever it hit directly.
+func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, normal: Vector3 = Vector3.UP, head: bool = false) -> void:
 	var p: Dictionary = _projectiles.get(id, {})
 	_projectiles.erase(id)
 	if p.is_empty():
@@ -640,6 +645,8 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 		var feet: Vector3 = b[1]
 		var near := Geometry3D.get_closest_point_to_segment(at, feet + Vector3(0, Player.CAPSULE_RADIUS, 0),
 			feet + Vector3(0, b[2] - Player.CAPSULE_RADIUS, 0))
+		if not w.explosive and b[0] != direct:
+			continue
 		var d := 0.0 if b[0] == direct else maxf(at.distance_to(near) - Player.CAPSULE_RADIUS, 0.0)
 		if d > w.splash_radius:
 			continue
@@ -647,6 +654,8 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 			continue   # behind a wall
 		var f := 1.0 if d <= w.splash_inner else clampf(1.0 - (d - w.splash_inner) / (w.splash_radius - w.splash_inner), 0.0, 1.0)
 		var dmg := w.damage * f * (w.self_damage if b[0] == shooter else 1.0)
+		if b[0] == direct and head:
+			dmg *= w.headshot_multiplier
 		var away := feet + Vector3(0, b[2] * 0.5, 0) - at
 		away = away.normalized() if away.length_squared() > 0.0001 else Vector3.UP
 		hits.append([b[0], dmg, away * w.knockback * f + Vector3.UP * w.knockback_up * f])

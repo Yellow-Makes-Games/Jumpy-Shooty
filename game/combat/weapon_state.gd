@@ -3,11 +3,17 @@ extends RefCounted
 ## The local player's copy of a weapon: ammo, fire cooldown and reloading.
 ## Most guns reload the whole magazine at once. The shotgun loads a shell at a time
 ## (WeaponData.reload_per_round) and can fire between shells, which stops the reload.
+## Energy weapons (WeaponData.recharge) never reload: the battery refills itself a
+## moment after the last shot, and emptying it overheats the gun (a reload, of sorts).
+## The minigun (WeaponData.spin_up) fires slower until its barrels are spun up.
 
 var data: WeaponData
 var ammo := 0
 var _cooldown := 0.0
 var _reload_left := 0.0
+var _since_fire := 99.0   # seconds since the last shot (energy weapons start refilling after a moment)
+var _refill := 0.0        # part of a round the battery has refilled
+var spin := 0.0           ## the minigun: how spun up the barrels are, 0..1 (Player spins them)
 
 
 func _init(d: WeaponData) -> void:
@@ -36,6 +42,14 @@ func round_progress() -> float:
 
 func update(delta: float) -> void:
 	_cooldown = max(_cooldown - delta, 0.0)
+	_since_fire += delta
+	if data.recharge > 0.0 and _reload_left <= 0.0 and ammo < data.magazine and _since_fire >= data.recharge_delay:
+		_refill += data.recharge * delta
+		while _refill >= 1.0 and ammo < data.magazine:
+			_refill -= 1.0
+			ammo += 1
+	else:
+		_refill = 0.0
 	if _reload_left > 0.0:
 		_reload_left -= delta
 		if _reload_left <= 0.0:
@@ -71,7 +85,8 @@ func fire() -> bool:
 		return true
 	_reload_left = 0.0   # a shell-by-shell reload stops for the shot
 	ammo -= 1
-	_cooldown = data.fire_interval
+	_cooldown = data.interval_at(spin)
+	_since_fire = 0.0
 	if ammo <= 0:
 		start_reload()
 	return true
@@ -87,3 +102,6 @@ func reset() -> void:
 	ammo = data.magazine
 	_cooldown = 0.0
 	_reload_left = 0.0
+	_since_fire = 99.0
+	_refill = 0.0
+	spin = 0.0

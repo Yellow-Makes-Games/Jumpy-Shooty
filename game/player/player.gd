@@ -473,6 +473,9 @@ func _update_weapon(delta: float) -> void:
 	if weapon.data.is_melee():
 		_update_melee(delta)
 		return
+	if weapon.data.spin_up > 0.0:   # the minigun: holding the trigger spins the barrels up
+		var spinning: bool = input.fire and Match.running and weapon.ammo > 0 and not weapon.is_reloading()
+		weapon.spin = clampf(weapon.spin + (delta if spinning else -2.0 * delta) / weapon.data.spin_up, 0.0, 1.0)
 	if _burst_left > 0:   # the rest of a burst, a round every burst_gap seconds
 		_burst_wait -= delta
 		if _burst_wait <= 0.0 and Match.running and weapon.ammo > 0 and not weapon.is_reloading():

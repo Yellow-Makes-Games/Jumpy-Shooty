@@ -359,8 +359,8 @@ func _play_event(e: Dictionary) -> void:
 			var rocket := _fx.get_node_or_null("Projectile_%d" % int(e.id))
 			if rocket:
 				rocket.queue_free()
-			ShotFx.explosion(_fx, e.at, WeaponData.by_id(str(e.weapon)).splash_radius)
-			_sound("explosion", e.at, false)
+			ShotFx.landed(_fx, e.at, WeaponData.by_id(str(e.weapon)))
+			_sound(ShotFx.landed_sound(WeaponData.by_id(str(e.weapon))), e.at, false)
 		"melee":
 			if mine and _view and str(e.weapon) not in ["kick", "flying_kick"] and not (e.points as PackedVector3Array).is_empty():
 				_view.hit_stop()

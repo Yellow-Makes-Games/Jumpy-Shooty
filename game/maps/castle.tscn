@@ -2483,20 +2483,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 16.5)
 script = ExtResource("5_wdpoi")
 weapon = "smg"
 
-[node name="Sword" type="Marker3D" parent="WeaponSpawns" unique_id=1169905772]
+[node name="Scythe" type="Marker3D" parent="WeaponSpawns" unique_id=1169905772]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 28.5)
 script = ExtResource("5_wdpoi")
-weapon = "sword"
+weapon = "scythe"
 
 [node name="Axe" type="Marker3D" parent="WeaponSpawns" unique_id=57513512]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.5, 0, 9.4)
 script = ExtResource("5_wdpoi")
 weapon = "axe"
 
-[node name="Revolver" type="Marker3D" parent="WeaponSpawns" unique_id=1501740142]
+[node name="Derringer" type="Marker3D" parent="WeaponSpawns" unique_id=1501740142]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 6, -28.3)
 script = ExtResource("5_wdpoi")
-weapon = "revolver"
+weapon = "derringer"
 
 [node name="BurstRifle" type="Marker3D" parent="WeaponSpawns" unique_id=1613338875]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 6, 28.3)
@@ -2518,10 +2518,10 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 6, 3)
 script = ExtResource("5_wdpoi")
 weapon = "machine_pistol"
 
-[node name="Rifle" type="Marker3D" parent="WeaponSpawns" unique_id=1950622954]
+[node name="LaserRifle" type="Marker3D" parent="WeaponSpawns" unique_id=1950622954]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 6, 3)
 script = ExtResource("5_wdpoi")
-weapon = "rifle"
+weapon = "laser_rifle"
 
 [node name="Hammer" type="Marker3D" parent="WeaponSpawns" unique_id=165815042]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 6, -4.5)

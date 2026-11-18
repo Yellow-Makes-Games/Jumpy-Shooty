@@ -180,8 +180,10 @@ func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
 	if node:
 		node.queue_free()
 	var w := WeaponData.by_id(weapon_id)
-	ShotFx.explosion(self, at, w.splash_radius)
-	Sound.play_at("explosion", at, "fire", 0.0, 0.05)
+	ShotFx.landed(self, at, w)
+	Sound.play_at(ShotFx.landed_sound(w), at, "fire", 0.0, 0.05)
+	if not w.explosive:
+		return   # a nail or a bolt: no blast, no shake
 	var d := at.distance_to(Sound.listener_position())
 	if d > 40.0 and d < INF:
 		Sound.play_at("explosion_far", at, "far", 0.0, 0.05)

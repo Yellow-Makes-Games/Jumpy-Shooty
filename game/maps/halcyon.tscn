@@ -19867,15 +19867,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 0, 0.5)
 script = ExtResource("4_weapon")
 weapon = "burst_rifle"
 
-[node name="Sword12" type="Marker3D" parent="WeaponSpawns"]
+[node name="Machete" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34.5, 0, 56.5)
 script = ExtResource("4_weapon")
-weapon = "sword"
+weapon = "machete"
 
-[node name="LeverAction13" type="Marker3D" parent="WeaponSpawns"]
+[node name="Crossbow" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6, 14.5)
 script = ExtResource("4_weapon")
-weapon = "lever_action"
+weapon = "crossbow"
 
 [node name="BoltAction14" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, -6, -45)
@@ -19887,7 +19887,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, -6, 45)
 script = ExtResource("4_weapon")
 weapon = "hammer"
 
-[node name="MachinePistol16" type="Marker3D" parent="WeaponSpawns"]
+[node name="PlasmaPistol" type="Marker3D" parent="WeaponSpawns"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6, 24)
 script = ExtResource("4_weapon")
-weapon = "machine_pistol"
+weapon = "plasma_pistol"
