@@ -7,6 +7,10 @@ extends SceneTree
 ##  - rockets and grenades fly exactly the same path either way: the host's copy
 ##    (Match) and the one everyone sees (Projectile);
 ##  - the event turns MapSpinners (the centrifuge) down to half speed and back;
+##  - gravity zones (MapGravityZone, Empyrean Tower): 1.0 inside a zone and the map's
+##    Gravity Outside (0.4) everywhere else, eased over about a second when a body
+##    crosses, multiplied with a map event's, never touching projectiles, and exactly
+##    1.0 again on a map without zones;
 ##  - gravity is back at 1.0 when the match ends mid-event, when the next match
 ##    starts, and when the map is unloaded.
 ## Run: godot --headless --path . --script tests/gravity_test.gd
@@ -31,6 +35,7 @@ func _run() -> void:
 	await _jumps()
 	_light_moves()
 	_projectiles()
+	await _zones()
 	_cleanup()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -153,11 +158,11 @@ func _jumps() -> void:
 
 
 ## Stands the body on the floor, jumps once and returns how high its feet got.
-func _jump_height(scale: float) -> float:
+func _jump_height(scale: float, from: Vector3 = Vector3(0, 0.05, 0)) -> float:
 	WorldGravity.scale = scale
 	motor = MovementController.new()
 	input = PlayerInput.new()
-	body.global_position = Vector3(0, 0.05, 0)
+	body.global_position = from
 	body.velocity = Vector3.ZERO
 	var top := 0.0
 	var jumped := false
@@ -185,6 +190,7 @@ func _light_moves() -> void:
 	for scale in [1.0, 0.3]:
 		WorldGravity.scale = scale
 		var m := MovementController.new()
+		m.call("_update_gravity", body, 0.0)   # (what step() does first: this body's gravity)
 		m.state = MovementController.State.GLIDE
 		m.set("_glide_left", 1.0)
 		var floated: Vector3 = m.call("_glide", Vector3(5, 0, 0), 0.1)
@@ -243,6 +249,113 @@ func _projectiles() -> void:
 	WorldGravity.reset()
 
 
+## A map with gravity zones: a tower that tapers (a round zone, half as wide at the
+## top) with normal gravity inside and 40% everywhere outside it.
+func _zones() -> void:
+	print("  gravity zones")
+	var map := MapRoot.new()
+	map.gravity_outside = 0.4
+	var zone := MapGravityZone.new()
+	zone.shape = MapGravityZone.Shape.ROUND
+	zone.size = Vector3(20, 30, 20)
+	zone.top = 0.5
+	zone.position = Vector3(0, 15, 0)
+	map.add_child(zone)
+	root.add_child(map)
+	map.build(false)
+	_expect(is_equal_approx(WorldGravity.zone_at(Vector3(0, 1, 0)), 1.0), "inside the tower: 1.0")
+	_expect(is_equal_approx(WorldGravity.zone_at(Vector3(9.5, 1, 0)), 1.0) and is_equal_approx(WorldGravity.zone_at(Vector3(10.5, 1, 0)), 0.4),
+		"the wall line at its foot is the edge (10 m out)")
+	_expect(is_equal_approx(WorldGravity.zone_at(Vector3(4.5, 29, 0)), 1.0) and is_equal_approx(WorldGravity.zone_at(Vector3(6, 29, 0)), 0.4),
+		"it tapers with the tower (5 m out at the top)")
+	_expect(is_equal_approx(WorldGravity.zone_at(Vector3(0, 31, 0)), 0.4) and is_equal_approx(WorldGravity.zone_at(Vector3(300, 500, -900)), 0.4),
+		"above it and far off in the sky: 0.4")
+	# A body standing inside, then outside (the floor from the jump test is under both).
+	motor = MovementController.new()
+	input = PlayerInput.new()
+	body.velocity = Vector3.ZERO
+	body.global_position = Vector3(0, 0.05, 0)
+	for i in 30:
+		await physics_frame
+		motor.step(body, input, STEP)
+	_expect(is_equal_approx(motor.gravity_scale, 1.0), "a player inside: 1.0 (%.3f)" % motor.gravity_scale)
+	# Walks out through the wall line: the change eases over about a second.
+	body.global_position = Vector3(14, 0.05, 0)
+	await physics_frame
+	motor.step(body, input, STEP)
+	var first := motor.gravity_scale
+	_expect(first > 0.97, "a step past the doorway: hardly changed (%.3f): it never snaps" % first)
+	var biggest := 0.0
+	var before := first
+	var took := 0.0
+	for i in 240:
+		await physics_frame
+		motor.step(body, input, STEP)
+		biggest = maxf(biggest, absf(motor.gravity_scale - before))
+		before = motor.gravity_scale
+		if took == 0.0 and is_equal_approx(motor.gravity_scale, 0.4):
+			took = (i + 2) * STEP
+	_expect(is_equal_approx(motor.gravity_scale, 0.4), "a player outside: 0.4 (%.3f)" % motor.gravity_scale)
+	_expect(absf(took - 1.0) < 0.1, "the blend takes about 1 s (%.2f s)" % took)
+	_expect(biggest < 0.02, "and no step of it jumps (%.3f at most)" % biggest)
+	# A respawn or a teleport (motor.reset()) takes the new place's gravity at once.
+	motor.reset()
+	body.global_position = Vector3(0, 0.05, 0)
+	await physics_frame
+	motor.step(body, input, STEP)
+	_expect(is_equal_approx(motor.gravity_scale, 1.0), "respawned inside: 1.0 at once")
+	motor.reset()
+	body.global_position = Vector3(14, 0.05, 0)
+	await physics_frame
+	motor.step(body, input, STEP)
+	_expect(is_equal_approx(motor.gravity_scale, 0.4), "respawned outside: 0.4 at once")
+	# Jumps: about 1.2 m inside, about 3 m outside (1.2 / 0.4).
+	var inside := await _jump_height(1.0, Vector3(0, 0.05, 0))
+	var outside := await _jump_height(1.0, Vector3(14, 0.05, 0))
+	_expect(absf(inside - 1.2) < 0.15, "a jump inside: about 1.2 m (%.2f m)" % inside)
+	_expect(absf(outside - 3.0) < 0.3, "a jump outside: about 3 m (%.2f m)" % outside)
+	# A map event multiplies with the zone (Halcyon's 0.3 here: 0.3 inside, 0.12 outside).
+	var e := _event()
+	e.host_start()
+	_step(e, 10.0)
+	motor.reset()
+	body.global_position = Vector3(0, 0.05, 0)
+	motor.step(body, input, STEP)
+	_expect(is_equal_approx(motor.gravity_scale, 0.3), "mid-event, inside: 0.3 (%.3f)" % motor.gravity_scale)
+	motor.reset()
+	body.global_position = Vector3(14, 0.05, 0)
+	motor.step(body, input, STEP)
+	_expect(is_equal_approx(motor.gravity_scale, 0.12), "mid-event, outside: 0.3 x 0.4 = 0.12 (%.3f)" % motor.gravity_scale)
+	e.free()
+	# Projectiles do not read zones: the same path inside and outside.
+	for id in ["grenade_launcher", "rocket_launcher"]:
+		var data := WeaponData.by_id(id)
+		var ends := []
+		for from in [Vector3(0, 10, 0), Vector3(40, 10, 0)]:   # in the tower, out in the sky
+			var p := Projectile.make(1, data, from, Vector3(0, 0.4, 1), Vector3.INF, Color.WHITE)
+			root.add_child(p)
+			p.set_physics_process(false)
+			for i in 20:
+				p._physics_process(STEP)
+			ends.append(p.global_position - from)
+			p.free()
+		_expect((ends[0] as Vector3).is_equal_approx(ends[1]), "a %s round flies the same path inside and outside" % data.id.replace("_", " "))
+	# The zones go with the map; a map without any is exactly 1.0 everywhere.
+	map.free()
+	_expect(WorldGravity.zones.is_empty() and is_equal_approx(WorldGravity.outside, 1.0), "the map is unloaded: no zones left behind")
+	var plain := MapRoot.new()
+	root.add_child(plain)
+	WorldGravity.set_zones([{"inv": Transform3D.IDENTITY, "half": Vector3(5, 5, 5), "round": false, "top": 1.0, "scale": 0.4}], 0.4)   # (as if left over)
+	plain.build(false)
+	motor.reset()
+	body.global_position = Vector3(14, 0.05, 0)
+	motor.step(body, input, STEP)
+	_expect(is_equal_approx(WorldGravity.zone_at(Vector3(14, 1, 0)), 1.0) and is_equal_approx(WorldGravity.zone_at(Vector3.ZERO), 1.0)
+		and motor.gravity_scale == 1.0, "a map with no zones: exactly 1.0 everywhere")
+	plain.free()
+	WorldGravity.reset()
+
+
 func _cleanup() -> void:
 	print("  gravity always comes back")
 	var rules := root.get_node_or_null("/root/Match")
@@ -259,7 +372,7 @@ func _cleanup() -> void:
 	e.host_start()
 	_step(e, 10.0)
 	if net:
-		_expect(net.match_started.is_connected(e.stop), "and for the start of the next one")
+		_expect(net.match_started.is_connected(e._on_match_started), "and for the start of the next one")
 	e.stop()
 	_expect(is_equal_approx(WorldGravity.scale, 1.0) and not e.running, "the next match starts: 1.0, event over")
 	e.host_start()

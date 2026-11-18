@@ -1419,8 +1419,195 @@ def bridge_lock():
     return finish(mix(dry, (wet, 0.0, 0.22)), fade=0.05)
 
 
+# ---------------------------------------------------------------------------
+# Empyrean Tower: the Portal Surge (see PortalSurgeEvent and MapRingGate). Wondrous,
+# never an alarm: nothing harsh, nothing that pulses fast.
+
+def surge_open():
+    """The ring gates powering up, about 2.4 s: a shimmer that rises (a D major chord's
+    notes climbing an octave, soft and glassy) over a mechanical whine as the gates'
+    machinery spins up, ending in a gentle bloom as the portals form."""
+    rng = np.random.default_rng(7301)
+    seconds = 2.4
+    t = tt(seconds)
+    p = np.clip(t / 2.0, 0.0, 1.0)
+    rise = p ** 1.6
+    shimmer = np.zeros_like(t)
+    for f, gain, lag in ((293.66, 1.0, 0.0), (369.99, 0.8, 0.12), (440.0, 0.7, 0.24), (587.33, 0.55, 0.36)):
+        fr = f * (1.0 + rise)                       # each note climbs an octave
+        ph = 2 * math.pi * np.cumsum(fr) / SR
+        swell = np.clip((t - lag) / 0.5, 0.0, 1.0) ** 1.5
+        shimmer += gain * swell * (np.sin(ph) + 0.25 * np.sin(2 * ph + 0.5)) * (0.8 + 0.2 * np.sin(2 * math.pi * 5.0 * t + lag * 9.0))
+    air = sweep_bp(noise(rng, seconds), 900.0, 5200.0, q=2.2, curve=1.5) * (0.15 + 0.85 * rise)
+    # The whine: a motor spinning up from 70 Hz to 420 Hz, dull steel rather than a siren.
+    wf = 70.0 + 350.0 * p ** 1.3
+    wph = 2 * math.pi * np.cumsum(wf) / SR
+    whine = np.sin(wph) + 0.4 * np.sin(2 * wph + 0.3) + 0.2 * np.sin(3 * wph + 1.2) + 0.1 * np.sin(5 * wph)
+    whine = lp(whine, 1800.0) * (0.25 + 0.75 * p) * (0.85 + 0.15 * np.sin(2 * math.pi * (4.0 + 10.0 * p) * t))
+    loud = np.clip(t / 0.25, 0.0, 1.0) * (0.25 + 0.75 * p ** 1.2) * np.clip((seconds - t) / 0.45, 0.0, 1.0) ** 0.8
+    x = (shimmer / np.max(np.abs(shimmer)) * 0.6 + air / np.max(np.abs(air)) * 0.3 + whine / np.max(np.abs(whine)) * 0.38) * loud
+    bloom = lp(noise(rng, 0.5), 900.0) * bell_env(0.5, 0.25, 1.6) * 0.35 + sine_sweep(0.5, 180.0, 90.0, 0.12) * env(0.5, 0.16, 0.02) * 0.4
+    return finish(mix(x, (bloom, 1.95, 0.6)), floor_db=-60.0, fade=0.08)
+
+
+def surge_close():
+    """The portals collapsing, about 2 s: a soft whoosh of air drawn inward and falling in
+    pitch, the gates' whine winding down under it. No thump at the end: it just goes."""
+    rng = np.random.default_rng(7302)
+    seconds = 2.1
+    t = tt(seconds)
+    p = np.clip(t / seconds, 0.0, 1.0)
+    whoosh = sweep_bp(noise(rng, seconds), 3200.0, 280.0, q=1.4, curve=0.7) * bell_env(seconds, 0.3, 1.5)
+    low = lp(noise(rng, seconds), 240.0) * bell_env(seconds, 0.45, 1.6) * 2.0
+    wf = 400.0 - 320.0 * p ** 0.7
+    wph = 2 * math.pi * np.cumsum(wf) / SR
+    whine = lp(np.sin(wph) + 0.35 * np.sin(2 * wph + 0.4) + 0.15 * np.sin(3 * wph), 1500.0) * (1.0 - p) ** 1.3 * np.clip(t / 0.1, 0.0, 1.0)
+    tail = np.sin(2 * math.pi * np.cumsum(880.0 - 440.0 * p) / SR) * (1.0 - p) ** 2 * np.clip(t / 0.15, 0.0, 1.0)
+    x = whoosh / np.max(np.abs(whoosh)) * 0.75 + low / np.max(np.abs(low)) * 0.3 + whine / np.max(np.abs(whine)) * 0.3 + tail * 0.1
+    return finish(x, floor_db=-58.0, fade=0.15)
+
+
+def gate_hum():
+    """An open ring gate, heard near it: a soft hum on D (146.8 Hz) with a fifth and an
+    octave, slowly beating, and a breath of air through the ring. Loops (4 s); each gate
+    plays its own, placed in the world, faded in and out by the gate."""
+    seconds = 4.0
+    rng = np.random.default_rng(7303)
+    t = tt(seconds)
+    step = 1.0 / seconds
+    x = np.zeros_like(t)
+    for f, gain in ((73.42, 0.5), (146.83, 1.0), (220.0, 0.5), (293.66, 0.4), (440.0, 0.14), (587.33, 0.08)):
+        for detune, share in ((0.0, 0.6), (0.25, 0.25), (-0.5, 0.15)):
+            fv = round((f + detune) / step) * step
+            x += gain * share * np.sin(2 * math.pi * fv * t + rng.uniform(0, 2 * math.pi))
+    x *= 0.86 + 0.14 * np.sin(2 * math.pi * 0.5 * t)       # a slow breath, two a loop
+    air = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 1400.0)) ** 2) / 1.2))
+    return _looped(x / np.max(np.abs(x)) + 0.12 * air)
+
+
+# ---------------------------------------------------------------------------
+# Empyrean Tower's tiers: a quiet sound of its own in each (MapAmbientSound loops them,
+# placed in the room). Magic heard from the next room: soft, no attack, no voices, far
+# under the fighting. Every one loops: its tones are whole numbers of cycles long, its
+# noise is built looping, and anything struck is laid in round the join.
+
+def _lay(x, at, snippet, gain=1.0):
+    """Adds `snippet` into the loop x starting `at` seconds in, wrapping round its end."""
+    start = int(at * SR) % len(x)
+    idx = (start + np.arange(len(snippet))) % len(x)
+    np.add.at(x, idx, snippet * gain)
+
+
+def _ping(f, seconds, tau, partials=((1, 1.0), (2.76, 0.35), (5.4, 0.12))):
+    t = tt(seconds)
+    y = sum(g * np.sin(2 * math.pi * f * k * t) * np.exp(-t / (tau / (1 + 0.6 * i))) for i, (k, g) in enumerate(partials))
+    return y * np.clip(t / 0.004, 0.0, 1.0)
+
+
+def _drone(seconds, rng, notes, wobble=0.14):
+    t = tt(seconds)
+    step = 1.0 / seconds
+    x = np.zeros_like(t)
+    for f, gain in notes:
+        for detune, share in ((0.0, 0.6), (0.3, 0.25), (-0.45, 0.15)):
+            fv = round((f + detune) / step) * step
+            x += gain * share * np.sin(2 * math.pi * fv * t + rng.uniform(0, 2 * math.pi))
+    x *= (1.0 - wobble) + wobble * np.sin(2 * math.pi * 2 * step * t)
+    return x / np.max(np.abs(x))
+
+
+def magic_engine():
+    """The Arcane Engine: a low hum on A with a fifth, and lightning ticking in its jars."""
+    seconds = 6.0
+    rng = np.random.default_rng(8101)
+    x = _drone(seconds, rng, ((55.0, 1.0), (110.0, 0.7), (164.8, 0.3), (220.0, 0.12))) * 0.8
+    for _ in range(46):
+        k = n(rng.uniform(0.004, 0.02))
+        tick = rng.uniform(-1.0, 1.0, k) * np.exp(-np.arange(k) / (k * 0.3))
+        _lay(x, rng.uniform(0, seconds), np.diff(tick, prepend=0.0), rng.uniform(0.1, 0.4))
+    x += 0.05 * _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 3200.0)) ** 2) / 0.6))
+    return _looped(x)
+
+
+def magic_library():
+    """The Grand Library: pages turning somewhere overhead, and now and then one soft high note."""
+    seconds = 8.0
+    rng = np.random.default_rng(8102)
+    rustle = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 4200.0)) ** 2) / 0.5))
+    t = tt(seconds)
+    swell = np.zeros_like(t)
+    for _ in range(11):                       # each turn of a page: a short breath of it
+        at, wide = rng.uniform(0, seconds), rng.uniform(0.08, 0.22)
+        d = np.minimum(np.abs(t - at), seconds - np.abs(t - at))
+        swell += np.exp(-(d / wide) ** 2) * rng.uniform(0.4, 1.0)
+    x = rustle * swell * 0.5
+    for f, at in ((880.0, 0.7), (1318.5, 3.4), (1174.7, 5.9)):
+        _lay(x, at, _ping(f, 2.6, 0.9), 0.09)
+    return _looped(x)
+
+
+def magic_labs():
+    """The Alchemy Labs: something simmering, bubbles rising through it."""
+    seconds = 6.0
+    rng = np.random.default_rng(8103)
+    x = 0.3 * _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 260.0)) ** 2) / 1.4))
+    for _ in range(34):
+        length = rng.uniform(0.035, 0.09)
+        f0 = rng.uniform(260.0, 620.0)
+        tb = tt(length)
+        blip = np.sin(2 * math.pi * (f0 * tb + f0 * 0.9 * tb * tb / length)) * np.sin(math.pi * tb / length) ** 2
+        _lay(x, rng.uniform(0, seconds), blip, rng.uniform(0.12, 0.4))
+    return _looped(x)
+
+
+def magic_menagerie():
+    """The Menagerie: still air, and small bright things moving in it, like far-off glass chimes."""
+    seconds = 8.0
+    rng = np.random.default_rng(8104)
+    x = 0.35 * _drone(seconds, rng, ((392.0, 0.5), (587.3, 0.4), (784.0, 0.25)), wobble=0.3)
+    x += 0.08 * _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 2400.0)) ** 2) / 0.8))
+    scale = (1568.0, 1760.0, 2093.0, 2349.3, 2637.0)
+    for _ in range(13):
+        _lay(x, rng.uniform(0, seconds), _ping(scale[rng.integers(len(scale))], 1.4, 0.35), rng.uniform(0.04, 0.12))
+    return _looped(x)
+
+
+def magic_summoning():
+    """The Summoning Chamber: a deep, slow drone on D, something bowed far above it."""
+    seconds = 8.0
+    rng = np.random.default_rng(8105)
+    x = _drone(seconds, rng, ((36.71, 0.8), (73.42, 1.0), (110.0, 0.45), (146.83, 0.2)), wobble=0.22)
+    high = _drone(seconds, rng, ((880.0, 1.0), (1318.5, 0.4)), wobble=0.5)
+    t = tt(seconds)
+    x += 0.07 * high * (0.5 + 0.5 * np.sin(2 * math.pi * t / seconds - 1.0))
+    x += 0.04 * _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 500.0)) ** 2) / 1.0))
+    return _looped(x)
+
+
+def magic_observatory():
+    """The Observatory: a glassy shimmer, each note swelling and fading in its own time, a few far pings."""
+    seconds = 8.0
+    rng = np.random.default_rng(8106)
+    t = tt(seconds)
+    step = 1.0 / seconds
+    x = np.zeros_like(t)
+    for k, f in enumerate((659.3, 987.8, 1318.5, 1480.0, 1975.5)):
+        fv = round(f / step) * step
+        swell = 0.5 + 0.5 * np.sin(2 * math.pi * (k % 3 + 1) * step * t + rng.uniform(0, 2 * math.pi))
+        x += (0.8 / (1 + k * 0.5)) * swell ** 2 * np.sin(2 * math.pi * fv * t + rng.uniform(0, 2 * math.pi))
+    x /= np.max(np.abs(x))
+    for f, at in ((2637.0, 1.1), (3136.0, 4.3), (2349.3, 6.6)):
+        _lay(x, at, _ping(f, 1.8, 0.5), 0.07)
+    return _looped(x)
+
+
 def recipes():
     r = {}
+    for make in (magic_engine, magic_library, magic_labs, magic_menagerie, magic_summoning, magic_observatory):
+        r[make.__name__] = make
+    r["surge_open"] = surge_open
+    r["surge_close"] = surge_close
+    r["gate_hum"] = gate_hum
     r["terminal_hum"] = terminal_hum
     r["gravity_pad"] = gravity_pad
     r["bell_toll"] = bell_toll

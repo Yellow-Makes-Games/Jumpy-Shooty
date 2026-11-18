@@ -40,6 +40,9 @@ var _anchor_on_carrier := Vector3.ZERO
 ## Can the hook catch players? (Not in a race.)
 var hook_players := true
 var _tether_time := 0.0
+## The body's gravity as a share of normal (its MovementController sets it every step:
+## see MovementController.gravity_scale).
+var gravity_scale := 1.0
 
 
 func _init(t: MovementTuning) -> void:
@@ -252,7 +255,7 @@ func _reel_to_player(body: Node3D, vel: Vector3, delta: float) -> Vector3:
 	if room > 0.0:
 		vel += dir * minf(tuning.tether_pull_accel * delta, room)
 	# Gravity is mostly cancelled while you are reeled in, so you fly at them, not under them.
-	vel.y += tuning.gravity * WorldGravity.scale * 0.6 * delta
+	vel.y += tuning.gravity * gravity_scale * 0.6 * delta
 	return vel
 
 
