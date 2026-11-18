@@ -38,6 +38,17 @@ static func weapon_at(level: int) -> String:
 
 const MODES := ["ffa", "gungame", "killcam", "golden", "snd", "ctf", "dm", "race"]
 const MODE_LABELS := ["Shoot-out", "Gun Game", "Killcam", "Golden Gun", "Search & Destroy", "Capture the Flag", "Deathmatch", "Race"]
+## A line about each of MODES (the lobby's mode window shows it for the one under the mouse).
+const MODE_BLURBS := [
+	"Everyone for themselves with the weapon they picked. First to the kill target, or the most kills when time runs out.",
+	"Every kill moves you to the next weapon on the ladder. First to get a kill with the last one wins; kicked to death, you go back one.",
+	"Snipers only, and style wins: every kill scores its killcam points for range, headshots, momentum, flicks and trickshots.",
+	"One player holds the Golden Gun: one round, and whoever it hits dies. Kill the holder to take it.",
+	"Two teams, no respawns in a round. The attackers plant a bomb on site A or B; the defenders stop them or defuse it.",
+	"Two teams. Take the other team's flag and bring it home to your own to score.",
+	"Everyone starts unarmed. Weapons float about the map: walk over one to pick it up, and carry two.",
+	"Run a course against the clock and the others, with the grappling hook. No weapons.",
+]
 ## The arena modes with rules of their own (match_settings.mode).
 const RULES := ["gungame", "killcam", "golden", "snd", "ctf"]
 
