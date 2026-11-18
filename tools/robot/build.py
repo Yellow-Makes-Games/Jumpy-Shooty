@@ -2,6 +2,7 @@
 """Builds the robot model files the game loads.
 
     python3 tools/robot/build.py            # writes every playable character into game/player/robot/
+    python3 tools/robot/build.py --kits     # only the Character Creator's bodies that are not robots (quick)
     python3 tools/robot/build.py --drafts DIR   # writes every draft design into DIR, for comparing looks
 
 Each playable character (designs.PLAYABLE) gets NAME.glb (the full body) and
@@ -10,11 +11,16 @@ set of animations: designs.py is each robot's shape, weapons.py the guns every r
 carries, animations.py the moves and weapon_anims.py the long guns' versions of them.
 After changing either, run this and then open the project in Godot (it re-imports
 the files on its own).
+
+The Character Creator's other bodies (creatures.KITS: people, goblins, frogs...) go
+into game/player/robot/kits/ as NAME.glb: body parts only, no guns and no
+animations. The game puts them on a robot's skeleton.
 """
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import creatures  # noqa: E402
 import designs  # noqa: E402
 from glb import write_model  # noqa: E402
 from kit import Tri  # noqa: E402
@@ -47,7 +53,23 @@ def slim(mesh, k):
         mesh.tris[i] = Tri(pts, t.material, t.bone)
 
 
+def write_kits(out):
+    """The bodies that are not robots: each a small file of parts (see creatures.py)."""
+    os.makedirs(out, exist_ok=True)
+    for name, fn in creatures.KITS.items():
+        mesh = fn()
+        used = {t.material for t in mesh.tris}
+        materials = {k: v for k, v in creatures.MATERIALS.items() if k in used}
+        if used - set(materials):
+            raise SystemExit("%s uses materials creatures.MATERIALS does not have: %s" % (name, sorted(used - set(materials))))
+        write_model(os.path.join(out, name + ".glb"), BODY, mesh, materials, [], name=name.capitalize())
+        print("kits/%s.glb: %d triangles" % (name, mesh.count()))
+
+
 def main():
+    if "--kits" in sys.argv:
+        write_kits(os.path.join(ROOT, "game", "player", "robot", "kits"))
+        return
     if "--drafts" in sys.argv:
         out = sys.argv[sys.argv.index("--drafts") + 1]
         os.makedirs(out, exist_ok=True)
@@ -56,6 +78,7 @@ def main():
             mesh = fn()
             write_model(os.path.join(out, name + ".glb"), BODY, mesh, designs.MATERIALS, clips)
             print("%s: %d triangles" % (name, mesh.count()))
+        write_kits(out)
         return
     import animations
     import weapon_anims
@@ -73,6 +96,7 @@ def main():
         slim(arms, designs.FP_SLIM.get(name, 1.0))
         write_model(os.path.join(out, name + "_arms.glb"), BODY, arms, designs.MATERIALS, arm_clips, name=name.capitalize() + "Arms")
         print("%s_arms.glb: %d triangles, %d clips" % (name, arms.count(), len(arm_clips)))
+    write_kits(os.path.join(out, "kits"))
 
 
 if __name__ == "__main__":

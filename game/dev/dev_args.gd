@@ -9,7 +9,7 @@ extends Node
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.
 ## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit, templar, or a
-##                      Character Creator id "custom:n=Name|l=kestrel|t=templar|h=rivet|hat=top_hat") without changing the saved choice.
+##                      Character Creator id "custom:n=Name|l=frog|t=human|h=goblin|hat=top_hat") without changing the saved choice.
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).

@@ -535,7 +535,7 @@ func _show_multiplayer() -> void:
 # Character Creator
 
 func _show_creator() -> void:
-	_page(1280, "Character Creator", "Mix any robot's head, torso and legs, then dress it up")
+	_page(1280, "Character Creator", "Robot, dude, goblin, frog: mix any head, torso and legs, then dress it up")
 	var start := Game.local_character()
 	if not Characters.is_custom(start) and not Settings.custom_characters.is_empty():
 		start = Settings.custom_characters[-1]
