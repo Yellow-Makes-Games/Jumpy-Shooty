@@ -115,6 +115,12 @@ COLORS = {
     "equipment": (0.55, 0.58, 0.62), "equipment_dark": (0.26, 0.28, 0.32), "telescope": (0.93, 0.93, 0.9),
     "statue": (0.36, 0.52, 0.46), "kiosk": (0.82, 0.3, 0.26), "banner_gold": (0.92, 0.72, 0.2), "banner_red": (0.72, 0.18, 0.2),
     "banner_blue": (0.2, 0.34, 0.7), "awning": (0.95, 0.92, 0.84),
+    # decor
+    "pot": (0.72, 0.42, 0.3), "leaves_dark": (0.2, 0.44, 0.24), "ivy": (0.22, 0.42, 0.2),
+    "flower_red": (0.86, 0.22, 0.2), "flower_yellow": (0.96, 0.8, 0.22), "flower_white": (0.97, 0.95, 0.9), "flower_pink": (0.92, 0.5, 0.66),
+    "cushion_blue": (0.26, 0.4, 0.62), "cushion_green": (0.3, 0.48, 0.36), "rug_red": (0.6, 0.2, 0.2), "rug_blue": (0.2, 0.3, 0.5),
+    "rug_cream": (0.88, 0.82, 0.68), "frame": (0.3, 0.2, 0.14), "canvas": (0.94, 0.9, 0.8), "glass_ware": (0.8, 0.95, 1.0, 0.36),
+    "star_panel": (0.1, 0.13, 0.26),
 }
 GLOW = {"engine": 2.2, "lamp": 0.35, "window_lit": 0.2, "span_light": 2.4, "screen": 1.3, "clock_face": 0.5}
 # The game's usual patterns, drawn twice the size and under half as strong (see
@@ -123,7 +129,7 @@ SURFACE = {
     "stone": "blocks", "stone_warm": "blocks", "stone_dark": "blocks", "paving": "slabs", "path": "slabs",
     "lawn": "grass", "hedge": "clumps", "leaves": "clumps", "leaves_gold": "clumps", "bark": "bark", "rock": "strata",
     "rock_dark": "strata", "roof_terracotta": "shingles", "roof_slate": "shingles", "floor_wood": "planks",
-    "floor_tile": "tiles", "bridge_deck": "plates", "soil": "dirt",
+    "floor_tile": "tiles", "bridge_deck": "plates", "soil": "dirt", "ivy": "clumps", "leaves_dark": "clumps",
 }
 SURFACE_SCALE = 2.0
 SURFACE_STRENGTH = 0.45
@@ -132,6 +138,7 @@ MATERIAL = {
     "shelf": "wood", "table": "wood", "bark": "wood", "bridge_deck": "metal", "rail": "metal", "mast": "metal",
     "brass": "metal", "bell": "metal", "equipment": "metal", "equipment_dark": "metal", "telescope": "metal",
     "statue": "metal", "dome_copper": "metal", "glass_lab": "glass", "glass_window": "glass", "glass_sky": "glass",
+    "glass_ware": "glass", "ivy": "dirt", "leaves_dark": "dirt", "pot": "concrete", "frame": "wood",
 }
 BREAKABLE = {"glass_lab": 25}   # the labs' glass walls: a pistol shot shatters a pane. No other glass breaks.
 
@@ -572,6 +579,283 @@ def stairs(m, g, name, a, b, width, fill=True, base=None, sides=(True, True), si
 
 
 # ---------------------------------------------------------------------------
+# Decor: plants, furniture, lights. Small things are drawn only (solid=False), so
+# nothing snags a slide, a wall run or a swing; only big pieces (shelves, counters,
+# desks, large planters, tree trunks) are solid, as cover. Lamps are the kind "lamp":
+# they come on at sunset with the windows, and turn red on an island that is doomed.
+
+def _turn(face, lo, hi):
+    """A box given in a thing's own frame (it looks along its own +z) as map offsets, for
+    a thing that looks along `face` (+z, -z, +x or -x)."""
+    (x0, y0, z0), (x1, y1, z1) = lo, hi
+    if face == "+z":
+        return (x0, y0, z0), (x1, y1, z1)
+    if face == "-z":
+        return (-x1, y0, -z1), (-x0, y1, -z0)
+    if face == "+x":
+        return (z0, y0, x0), (z1, y1, x1)
+    return (-z1, y0, -x1), (-z0, y1, -x0)
+
+
+def part(m, g, name, kind, at, face, lo, hi, bevel=None, **kw):
+    """One box of a piece of furniture standing at `at` (x, y, z) and looking along `face`."""
+    a, b = _turn(face, lo, hi)
+    a = tuple(p + q for p, q in zip(at, a))
+    b = tuple(p + q for p, q in zip(at, b))
+    kw.setdefault("solid", False)
+    if bevel:
+        return m.bev(g, name, kind, a, b, bevel, **kw)
+    return m.box(g, name, kind, a, b, **kw)
+
+
+def ball(m, g, name, kind, at, size, sides=8, **kw):
+    """A round lump: a dome and its mirror image under it. `at` is its middle."""
+    kw.setdefault("solid", False)
+    m.dome(g, name, kind, at, (size, size * 0.5, size), sides=sides, **kw)
+    m.dome(g, name, kind, at, (size, size * 0.5, size), sides=sides, flip=True, **kw)
+
+
+def clump(m, g, kind, at, size, tint=None):
+    """A clump of leaves: round on top, shallower underneath."""
+    m.dome(g, "Leaves", kind, at, (size, size * 0.5, size), sides=8, solid=False, tint=tint)
+    m.dome(g, "Leaves", kind, at, (size, size * 0.3, size), sides=8, flip=True, solid=False, tint=(0.86, 0.86, 0.86))
+
+
+def potted(m, g, x, z, y=0.0, size=1.0, kind="leaves", pot="pot"):
+    """A plant in a pot: a low bushy one."""
+    s = size
+    m.cone(g, "Pot", pot, (x, y + 0.5 * s, z), 0.62 * s, 0.5 * s, top=0.42 * s, sides=10, flip=True, solid=False)
+    m.cyl(g, "PotRim", pot, (x, y + 0.5 * s, z), 0.7 * s, 0.07 * s, sides=10, solid=False, tint=(0.9, 0.9, 0.9))
+    clump(m, g, kind, (x, y + 0.82 * s, z), 0.95 * s)
+    clump(m, g, kind, (x + 0.2 * s, y + 1.12 * s, z - 0.12 * s), 0.6 * s, tint=(1.08, 1.08, 1.0))
+
+
+def floor_plant(m, g, x, z, y=0.0, size=1.0, kind="leaves_dark", pot="planter"):
+    """A tall plant in a tub: a stem and three clumps up it."""
+    s = size
+    m.cyl(g, "Tub", pot, (x, y, z), 0.74 * s, 0.56 * s, sides=10, solid=False)
+    m.cyl(g, "TubSoil", "soil", (x, y + 0.56 * s, z), 0.62 * s, 0.03, sides=10, solid=False)
+    m.cyl(g, "Stem", "bark", (x, y + 0.56 * s, z), 0.09 * s, 1.5 * s, sides=6, solid=False)
+    for dx, dy, dz, r in ((0.0, 2.1, 0.0, 1.0), (0.32, 1.55, 0.18, 0.8), (-0.28, 1.25, -0.22, 0.74)):
+        clump(m, g, kind, (x + dx * s, y + dy * s, z + dz * s), r * s, tint=(1.06, 1.06, 1.0) if dy > 2 else None)
+
+
+FLOWERS = ["flower_red", "flower_yellow", "flower_white", "flower_pink"]
+
+
+def planter_box(m, g, lo, hi, y=0.0, height=0.5, flowers=True, hedge=True, seed=0):
+    """A planter from (x, z) `lo` to `hi`: solid, low enough to vault, a hedge in it and
+    flowers along its edges."""
+    (x0, z0), (x1, z1) = lo, hi
+    m.bev(g, "PlanterBox", "planter", (x0, y, z0), (x1, y + height, z1), 0.07)
+    m.strip(g, "PlanterSoil", "soil", (x0 + 0.1, y + height, z0 + 0.1), (x1 - 0.1, y + height + 0.03, z1 - 0.1))
+    along_x = (x1 - x0) >= (z1 - z0)
+    if hedge:
+        if along_x:
+            m.bev(g, "Hedge", "hedge", (x0 + 0.5, y + height, z0 + 0.22), (x1 - 0.5, y + height + 0.55, z1 - 0.22), 0.2, solid=False)
+        else:
+            m.bev(g, "Hedge", "hedge", (x0 + 0.22, y + height, z0 + 0.5), (x1 - 0.22, y + height + 0.55, z1 - 0.5), 0.2, solid=False)
+    if flowers:
+        length = (x1 - x0) if along_x else (z1 - z0)
+        n = max(2, int(length / 0.55))
+        for i in range(n):
+            u = 0.3 + (length - 0.6) * i / (n - 1)
+            kind = FLOWERS[(i + seed) % 4]
+            side = -1 if i % 2 else 1
+            if along_x:
+                at = (x0 + u, y + height + 0.1, (z0 + z1) / 2 + side * ((z1 - z0) / 2 - 0.16)) if hedge else (x0 + u, y + height + 0.1, (z0 + z1) / 2 + side * 0.12)
+            else:
+                at = ((x0 + x1) / 2 + side * ((x1 - x0) / 2 - 0.16), y + height + 0.1, z0 + u) if hedge else ((x0 + x1) / 2 + side * 0.12, y + height + 0.1, z0 + u)
+            m.dome(g, "Flower", kind, at, (0.3, 0.2, 0.3), sides=6, solid=False)
+
+
+def flower_bed(m, g, x, z, y=0.0, size=2.0, seed=0):
+    """A round bed of flowers on a lawn: drawn only."""
+    m.cyl(g, "Bed", "soil", (x, y, z), size, 0.08, sides=12, solid=False)
+    clump(m, g, "hedge", (x, y + 0.3, z), size * 0.45)
+    for i in range(7):
+        a = math.radians(i * 360.0 / 7 + seed * 20.0)
+        m.dome(g, "Flower", FLOWERS[(i + seed) % 4], (x + math.sin(a) * size * 0.34, y + 0.08, z + math.cos(a) * size * 0.34), (0.42, 0.3, 0.42), sides=6, solid=False)
+
+
+def shrub(m, g, x, z, y=0.0, size=1.2, kind="hedge"):
+    m.dome(g, "Shrub", kind, (x, y, z), (size, size * 0.62, size), sides=8, solid=False)
+    m.dome(g, "Shrub", kind, (x + size * 0.34, y, z + size * 0.2), (size * 0.66, size * 0.44, size * 0.66), sides=8, solid=False, tint=(1.08, 1.08, 1.0))
+
+
+def hanging_basket(m, g, x, y, z, drop=0.9, seed=0):
+    """A basket of flowers hanging `drop` metres under (x, y, z)."""
+    m.strip(g, "BasketChain", "metal", (x - 0.02, y - drop + 0.2, z - 0.02), (x + 0.02, y, z + 0.02))
+    m.dome(g, "Basket", "pot", (x, y - drop + 0.2, z), (0.6, 0.32, 0.6), sides=8, flip=True, solid=False)
+    clump(m, g, "leaves", (x, y - drop + 0.3, z), 0.74)
+    for i in range(3):
+        a = math.radians(i * 120.0 + seed * 40.0)
+        m.dome(g, "Flower", FLOWERS[(i + seed) % 4], (x + math.sin(a) * 0.26, y - drop + 0.36, z + math.cos(a) * 0.26), (0.26, 0.2, 0.26), sides=6, solid=False)
+
+
+def ivy(m, g, axis, face, out, u0, u1, y0, y1, seed=0):
+    """Ivy up an outside wall: rounded clumps lying against it (thick at the foot, thinning
+    out and wandering toward the top), each bulging a different amount so no two share a
+    plane. Drawn only."""
+    rng = __import__("random").Random(1000 + seed)
+    if axis == "x":
+        cols = ((1, 0, 0), (0, 0, out), (0, -out, 0))
+    else:
+        cols = ((0, -out, 0), (out, 0, 0), (0, 0, 1))
+    rows = max(2, int(round((y1 - y0) / 0.95)))
+    across = max(1, int(round((u1 - u0) / 1.05)))
+    k = 0
+    for r in range(rows):
+        up = r / max(1, rows - 1)
+        for c in range(across):
+            if rng.random() < up * 0.62:
+                continue    # bare wall showing through, more of it higher up
+            w = rng.uniform(1.0, 1.7) * (1.0 - 0.3 * up)
+            h = rng.uniform(1.0, 1.6) * (1.0 - 0.25 * up)
+            d = rng.uniform(0.14, 0.3) * (1.0 - 0.4 * up)
+            u = u0 + (c + 0.5 + rng.uniform(-0.3, 0.3)) * (u1 - u0) / across
+            u = min(max(u, u0 + w * 0.4), u1 - w * 0.4)
+            y = max(y0 + h * 0.3, y0 + (r + 0.5 + rng.uniform(-0.3, 0.3)) * (y1 - y0) / rows)
+            tint = ((1.0, 1.0, 1.0), (0.86, 0.9, 0.86), (1.06, 1.08, 0.98))[k % 3]
+            k += 1
+            at = (u, y, face + out * d * 0.5) if axis == "x" else (face + out * d * 0.5, y, u)
+            size = (w, d, h) if axis == "x" else (h, d, w)
+            m.block(g, "Ivy", "ivy", at, size, cols=cols, shape="dome", sides=7, solid=False, tint=tint)
+
+
+def chair(m, g, x, z, y=0.0, face="+z", kind="table", seat="seat"):
+    """A plain chair: drawn only."""
+    at = (x, y, z)
+    part(m, g, "ChairSeat", seat, at, face, (-0.24, 0.42, -0.24), (0.24, 0.5, 0.24), bevel=0.03)
+    part(m, g, "ChairBack", kind, at, face, (-0.24, 0.5, -0.26), (0.24, 0.98, -0.2), bevel=0.025)
+    for sx in (-1, 1):
+        part(m, g, "ChairLegs", kind, at, face, (sx * 0.22 - 0.025, 0, -0.22), (sx * 0.22 + 0.025, 0.42, 0.22), tint=(0.8, 0.8, 0.8))
+
+
+def armchair(m, g, x, z, y=0.0, face="+z", kind="cushion_blue"):
+    """A low upholstered armchair: drawn only."""
+    at = (x, y, z)
+    part(m, g, "ArmchairSeat", kind, at, face, (-0.46, 0.1, -0.4), (0.46, 0.5, 0.46), bevel=0.1)
+    part(m, g, "ArmchairBack", kind, at, face, (-0.46, 0.38, -0.52), (0.46, 1.05, -0.3), bevel=0.1, tint=(0.9, 0.9, 0.9))
+    for sx in (-1, 1):
+        part(m, g, "ArmchairArm", kind, at, face, (sx * 0.43 - 0.11, 0.3, -0.42), (sx * 0.43 + 0.11, 0.72, 0.42), bevel=0.08, tint=(0.94, 0.94, 0.94))
+
+
+def stool(m, g, x, z, y=0.0, height=0.66):
+    m.cyl(g, "StoolSeat", "seat", (x, y + height - 0.07, z), 0.42, 0.07, sides=10, solid=False)
+    m.cyl(g, "StoolLeg", "metal", (x, y, z), 0.07, height - 0.07, sides=6, solid=False)
+    m.cyl(g, "StoolFoot", "metal", (x, y, z), 0.36, 0.03, sides=10, solid=False)
+
+
+def side_table(m, g, x, z, y=0.0, kind="table"):
+    m.cyl(g, "SideTable", kind, (x, y + 0.5, z), 0.66, 0.05, sides=12, solid=False)
+    m.cyl(g, "SideTableLeg", "metal", (x, y, z), 0.07, 0.5, sides=6, solid=False)
+
+
+def rug(m, g, lo, hi, y=0.0, kind="rug_red", border="rug_cream"):
+    """A rug from (x, z) `lo` to `hi`: two thin layers on the floor."""
+    (x0, z0), (x1, z1) = lo, hi
+    m.strip(g, "RugBorder", border, (x0, y + 0.03, z0), (x1, y + 0.045, z1))
+    m.strip(g, "Rug", kind, (x0 + 0.25, y + 0.045, z0 + 0.25), (x1 - 0.25, y + 0.058, z1 - 0.25))
+
+
+def ceiling_light(m, g, x, y, z, drop=0.5, size=0.6):
+    """A lamp hanging `drop` metres under a ceiling at height y."""
+    m.strip(g, "LightRod", "metal", (x - 0.025, y - drop, z - 0.025), (x + 0.025, y, z + 0.025))
+    m.cone(g, "LightShade", "brass", (x, y - drop - 0.02, z), size, 0.22, top=size * 0.3, sides=10, solid=False)
+    m.dome(g, "Light", "lamp", (x, y - drop, z), (size * 0.7, size * 0.36, size * 0.7), sides=8, flip=True, solid=False)
+
+
+def strip_light(m, g, lo, hi, y):
+    """A long light flat under a ceiling at height y, from (x, z) `lo` to `hi`."""
+    (x0, z0), (x1, z1) = lo, hi
+    m.strip(g, "StripLightCase", "metal", (x0 - 0.04, y - 0.06, z0 - 0.04), (x1 + 0.04, y, z1 + 0.04))
+    m.strip(g, "StripLight", "lamp", (x0, y - 0.1, z0), (x1, y - 0.06, z1))
+
+
+def chandelier(m, g, x, y, z, drop=3.0, size=2.4, lamps=6):
+    """A ring of lamps hanging `drop` metres under a ceiling at height y."""
+    m.strip(g, "ChandelierRod", "metal", (x - 0.03, y - drop + 0.2, z - 0.03), (x + 0.03, y, z + 0.03))
+    m.block(g, "ChandelierRing", "brass", (x, y - drop, z), (size, 0.1, size), shape="tube", sides=18, inner=size - 0.24, solid=False)
+    m.cone(g, "ChandelierCrown", "brass", (x, y - drop, z), size * 0.5, 0.5, top=0.08, sides=10, solid=False)
+    for i in range(lamps):
+        a = math.radians(i * 360.0 / lamps)
+        ball(m, g, "ChandelierLamp", "lamp", (x + math.sin(a) * (size / 2 - 0.06), y - drop + 0.17, z + math.cos(a) * (size / 2 - 0.06)), 0.28, sides=6)
+
+
+def sconce(m, g, axis, face, out, u, y):
+    """A wall lamp."""
+    m.on_wall(g, "SconcePlate", "brass", axis, face, out, u - 0.1, u + 0.1, y - 0.22, y + 0.12, depth=0.07)
+    at = (u, y + 0.12, face + out * 0.2) if axis == "x" else (face + out * 0.2, y + 0.12, u)
+    m.cone(g, "SconceCup", "brass", at, 0.34, 0.2, top=0.16, sides=8, flip=True, solid=False)
+    m.dome(g, "SconceLamp", "lamp", at, (0.34, 0.24, 0.34), sides=8, solid=False)
+
+
+def picture(m, g, axis, face, out, u, y, w=1.4, h=1.0, colours=("accent_blue", "banner_gold"), seed=0):
+    """A framed picture with no words in it: two or three flat shapes."""
+    m.on_wall(g, "PictureFrame", "frame", axis, face, out, u - w / 2 - 0.07, u + w / 2 + 0.07, y - h / 2 - 0.07, y + h / 2 + 0.07, depth=0.05)
+    m.on_wall(g, "PictureCanvas", "canvas", axis, face, out, u - w / 2, u + w / 2, y - h / 2, y + h / 2, depth=0.02, lift=0.05)
+    a = 0.12 + 0.1 * (seed % 3)
+    m.on_wall(g, "PictureShape", colours[0], axis, face, out, u - w / 2 + 0.1, u - w / 2 + 0.1 + w * (0.4 + a), y - h / 2 + 0.1, y + h * (a - 0.1), depth=0.012, lift=0.07)
+    m.on_wall(g, "PictureShape", colours[1], axis, face, out, u + w * (0.1 - a / 2), u + w / 2 - 0.12, y - h * 0.1, y + h / 2 - 0.1, depth=0.012, lift=0.082)
+
+
+def bin_(m, g, x, z, y=0.0):
+    m.cone(g, "Bin", "metal", (x, y + 0.7, z), 0.5, 0.7, top=0.38, sides=10, flip=True, solid=False)
+    m.cyl(g, "BinRim", "brass", (x, y + 0.7, z), 0.54, 0.05, sides=10, solid=False)
+
+
+def monitor(m, g, x, y, z, face="+z"):
+    """A screen on a stand, on a desk top at height y, looking along `face`."""
+    at = (x, y, z)
+    part(m, g, "Monitor", "equipment_dark", at, face, (-0.42, 0.16, -0.035), (0.42, 0.7, 0.035), bevel=0.03)
+    part(m, g, "MonitorScreen", "screen", at, face, (-0.37, 0.21, 0.035), (0.37, 0.65, 0.045))
+    part(m, g, "MonitorStand", "equipment_dark", at, face, (-0.05, 0.0, -0.04), (0.05, 0.16, 0.04))
+    part(m, g, "MonitorFoot", "equipment_dark", at, face, (-0.2, 0.0, -0.13), (0.2, 0.025, 0.13))
+
+
+def glassware(m, g, x, y, z, seed=0):
+    """Three bits of lab glass on a bench top at height y."""
+    m.cyl(g, "Beaker", "glass_ware", (x, y, z), 0.2, 0.26, sides=8, solid=False)
+    m.cone(g, "Flask", "glass_ware", (x + 0.3, y, z + 0.06), 0.26, 0.3, top=0.08, sides=8, solid=False)
+    m.cyl(g, "FlaskNeck", "glass_ware", (x + 0.3, y + 0.3, z + 0.06), 0.08, 0.12, sides=6, solid=False)
+    m.cyl(g, "BeakerFill", FLOWERS[seed % 4] if seed % 2 else "accent_teal", (x, y, z), 0.16, 0.12 + 0.03 * (seed % 3), sides=8, solid=False)
+    m.cyl(g, "TestTube", "glass_ware", (x - 0.24, y, z - 0.04), 0.07, 0.3, sides=6, solid=False)
+
+
+def books(m, g, x, face_x, z0, z1, y, seed, depth=0.07, count=None, along="z"):
+    """A row of books on a shelf whose face is at x (`face_x` +1 or -1 is the way it faces),
+    from z0 to z1: groups of different heights and colours, with a gap here and there.
+    along="x": the shelf runs along x instead (read x as z and z as x)."""
+    rng = __import__("random").Random(seed)
+    kinds = ["books_red", "books_blue", "books_green", "books_gold"]
+    n = count or max(4, int((z1 - z0) / 0.6))
+    w = (z1 - z0) / n
+    for i in range(n):
+        if rng.random() < 0.12:
+            continue    # a gap: books out on loan
+        a = z0 + i * w + 0.03
+        b = z0 + (i + 1) * w - (0.03 if rng.random() < 0.7 else 0.16)
+        h = rng.uniform(0.42, 0.72)
+        xa, xb = sorted((x, x + face_x * depth))
+        tint = (1.0, 1.0, 1.0) if rng.random() < 0.6 else (0.86, 0.86, 0.86)
+        if along == "z":
+            m.strip(g, "Books", kinds[rng.randrange(4)], (xa, y, a), (xb, y + h, b), tint=tint)
+        else:
+            m.strip(g, "Books", kinds[rng.randrange(4)], (a, y, xa), (b, y + h, xb), tint=tint)
+
+
+def umbrella_table(m, g, x, z, y, kind):
+    """A terrace table under a parasol, with two chairs: drawn only."""
+    m.cyl(g, "CafeTable", "table", (x, y + 0.7, z), 1.2, 0.07, sides=14, solid=False)
+    m.cyl(g, "ParasolPole", "metal", (x, y, z), 0.08, 2.5, sides=6, solid=False)
+    m.cone(g, "Parasol", kind, (x, y + 2.2, z), 3.2, 0.7, top=0.1, sides=10, solid=False)
+    m.cone(g, "ParasolTrim", "awning", (x, y + 2.14, z), 3.3, 0.08, top=3.2, sides=10, solid=False)
+    chair(m, g, x - 0.95, z, y, "+x")
+    chair(m, g, x + 0.95, z, y, "-x")
+
+
+# ---------------------------------------------------------------------------
 # The quad and the clock tower (they never move)
 
 def quad(m):
@@ -616,6 +900,28 @@ def quad(m):
         bench(m, b, 0, 0)
         # A spawn point for when no island has room (they are all on the move): facing out.
         m.spawn(polar(10.5, deg + 18.0), polar(30.0, deg + 18.0)[::2])
+    # Flower beds and shrubs on the lawn (drawn only: nothing to trip on), ivy and shrubs
+    # round the tower's foot, lamps round the rim.
+    gd = m.group("Garden", g, grouped=False)
+    for i, (_n, deg, _a, _r) in enumerate(ISLANDS):
+        x, _y, z = polar(11.6, deg + 27.0)
+        flower_bed(m, gd, x, z, 0, 2.2, seed=i)
+        x, _y, z = polar(11.2, deg - 9.0)
+        flower_bed(m, gd, x, z, 0, 1.8, seed=i + 2)
+        x, _y, z = polar(12.6, deg + 9.0)
+        shrub(m, gd, x, z, 0, 1.2)
+        x, _y, z = polar(12.0, deg + 44.0)
+        lamp_post(m, gd, x, z, 0, 3.4)
+    O = TOWER_OUT
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            shrub(m, gd, sx * (O + 1.3), sz * (O - 1.6), 0, 1.5)
+            shrub(m, gd, sx * (O - 1.8), sz * (O + 1.2), 0, 1.3)
+    ivy(m, gd, "x", O, 1, -4.3, -1.0, 0, 8.5, seed=20)       # south face (no door), either side of its slits
+    ivy(m, gd, "x", O, 1, 1.0, 4.3, 0, 6.0, seed=24)
+    ivy(m, gd, "z", O, 1, -4.2, 4.2, 0, 6.5, seed=21)        # east face (no door)
+    ivy(m, gd, "x", -O, -1, 2.0, 4.3, 0, 7.5, seed=22)       # north face, beside the door
+    ivy(m, gd, "z", -O, -1, -4.3, -2.0, 0, 6.0, seed=23)     # west face, beside the door
     tower(m, g)
     return g
 
@@ -784,6 +1090,21 @@ def island(m, name, deg, accent, roof_kind, building):
         m.strip(d, "Banner", accent, (sx * 5.0 + 0.14, height - 3.0, ZT + 3.16), (sx * 5.0 + 1.4, height - 0.2, ZT + 3.24))
         m.dome(d, "Finial", "brass", (sx * 5.0, height, ZT + 3.2), (0.44, 0.26, 0.44), sides=8, solid=False)
     m.node("ArrivalHook", g, "hook", [("transform", xform(IDENTITY, (5.0, 9.3, ZT + 3.2))), ("reach", "60.0")], type_="Marker3D")
+    # Green on the plaza, clear of the middle where people land: a planter at each corner
+    # of the tip, a tree in a tub and a bench either side, a bin by a lamp.
+    gd = m.group("Garden", g, grouped=False)
+    for i, sx in enumerate((-1, 1)):
+        x0, x1 = sorted((sx * 8.2, sx * 11.6))
+        planter_box(m, gd, (x0, ZT + 0.5), (x1, ZT + 1.4), seed=i + int(deg) % 4)
+        m.cyl(gd, "TreeTub", "planter", (sx * 11.2, 0, ZT + 4.6), 2.2, 0.5, sides=12)
+        m.cyl(gd, "TreeTubSoil", "soil", (sx * 11.2, 0.5, ZT + 4.6), 1.9, 0.04, sides=12, solid=False)
+        tree(m, gd, sx * 11.2, ZT + 4.6, 0.5, kind="leaves_gold" if (i + int(deg) // 36) % 2 else "leaves", size=0.85)
+        for a in range(5):
+            th = math.radians(a * 72.0 + 20.0)
+            m.dome(gd, "Flower", FLOWERS[(a + i) % 4], (sx * 11.2 + math.sin(th) * 0.75, 0.54, ZT + 4.6 + math.cos(th) * 0.75), (0.3, 0.2, 0.3), sides=6, solid=False)
+        bench(m, gd, sx * 11.2, ZT + 7.0)
+        shrub(m, gd, sx * (edge_x(ZT + 7.6) - 1.4), ZT + 7.6, 0, 1.1)
+    bin_(m, gd, -(edge_x(ZT + 0.6) - 1.5), ZT + 0.7)
     building(m, g, accent, roof_kind)
     return g
 
@@ -814,6 +1135,9 @@ def stones(m):
             m.cyl(g, "Soil", "soil", (0, 1.1, 1.15), 2.0, 0.06, sides=12, solid=False)
             tree(m, g, 0, 1.15, 1.1, kind="leaves_gold" if i % 2 else "leaves", size=0.62)
         lamp_post(m, g, -1.5, -0.9, 0.6, 3.4)
+        shrub(m, g, 1.4, -0.9, 0.6, 0.9)
+        for a in range(3):
+            m.dome(g, "Flower", FLOWERS[(a + i) % 4], (0.9 + 0.5 * a, 0.6, -1.5 + 0.3 * (a % 2)), (0.3, 0.2, 0.3), sides=6, solid=False)
     return f
 
 
@@ -914,7 +1238,6 @@ def library(m, g, accent, roof_kind):
     m.weapon_in(pe, (-1.0, 15.0, 4.8), "rocket_launcher")
     # Shelf stacks on the ground: lanes running front to back, books on both faces.
     st = m.group("Stacks", b, grouped=False)
-    books = ["books_red", "books_blue", "books_green", "books_gold"]
     for i, x in enumerate((-10.8, -8.0, 5.0, 7.8, 10.6)):
         z0, z1 = (1.6, 8.6) if x < 0 else (1.6, 8.8)
         s = m.group("Stack", st)
@@ -922,19 +1245,22 @@ def library(m, g, accent, roof_kind):
         m.bev(s, "Shelf", "shelf", (x - 0.35, 0, z0), (x + 0.35, 3.2, z1), 0.06, solid=False)
         m.bev(s, "ShelfTop", "shelf", (x - 0.45, 3.2, z0 - 0.1), (x + 0.45, 3.32, z1 + 0.1), 0.04, solid=False, tint=(0.85, 0.85, 0.85))
         for j in range(3):
+            m.strip(s, "ShelfBoard", "shelf", (x - 0.44, 0.28 + j * 0.95, z0 + 0.05), (x + 0.44, 0.34 + j * 0.95, z1 - 0.05), tint=(0.85, 0.85, 0.85))
             for face in (-1, 1):
-                x0, x1 = sorted((x + face * 0.35, x + face * 0.41))
-                m.strip(s, "Books", books[(i + j) % 4], (x0, 0.35 + j * 0.95, z0 + 0.2), (x1, 1.05 + j * 0.95, z1 - 0.2))
+                books(m, s, x + face * 0.35, face, z0 + 0.2, z1 - 0.2, 0.34 + j * 0.95, seed=i * 10 + j * 2 + (face > 0))
     # Shelves along the mezzanine walls.
     m.box(st, "WallShelf", "shelf", (-13.0, F2, IZ1 - 0.6), (-7.5, F2 + 2.6, IZ1 - 0.05))
-    m.strip(st, "Books", "books_red", (-12.9, F2 + 0.4, IZ1 - 0.66), (-7.6, F2 + 2.2, IZ1 - 0.6))
+    for j in range(3):
+        books(m, st, IZ1 - 0.6, -1, -12.9, -7.6, F2 + 0.25 + j * 0.8, seed=60 + j, along="x")
     m.box(st, "WallShelf", "shelf", (IX1 - 0.6, F3, 3.0), (IX1 - 0.05, F3 + 2.6, 7.4))
-    m.strip(st, "Books", "books_gold", (IX1 - 0.66, F3 + 0.4, 3.1), (IX1 - 0.6, F3 + 2.2, 7.3))
+    for j in range(3):
+        books(m, st, IX1 - 0.6, -1, 3.1, 7.3, F3 + 0.25 + j * 0.8, seed=70 + j)
     # The reading room: tables under the skylight, a lamp on each.
     for x in (-2.6, 1.4):
         table(m, st, (x - 0.7, 2.6), (x + 0.7, 6.0))
         m.dome(st, "ReadingLamp", "lamp", (x, 0.78, 4.3), (0.44, 0.3, 0.44), sides=8, solid=False)
     door_banners(m, sh, accent, 0.0, pz + 0.9, 4.6, 7.8, 3.5)
+    library_decor(m, b, accent, top)
     sp = m.group("Spawns", g, grouped=False)
     m.spawn_in(sp, (-12.4, 0, 10.6), (-12.4, 0.0))           # behind the west stacks, looking down the wall lane
     m.spawn_in(sp, (-10.0, F2, 3.0), (0.0, 5.0))             # west mezzanine, looking over the hall
@@ -983,8 +1309,13 @@ def lecture_hall(m, g, accent, roof_kind):
         y = F2 * (i + 1) / N
         m.box(hall, "Tier", "stone_dark", (x0, 0, 1.0), (x1, y, 11.2))
         for z0, z1 in ((1.5, 5.6), (6.6, 10.7)):
-            m.bev(hall, "Seats", "seat", (x0 + 0.3, y, z0), (x0 + 1.0, y + 0.45, z1), 0.08)
-            m.bev(hall, "SeatBacks", "seat", (x0 + 0.12, y + 0.3, z0), (x0 + 0.34, y + 1.0, z1), 0.06, solid=False, tint=(0.85, 0.85, 0.85))
+            # (one solid lump per row to bump into; a seat and a back for each place, drawn)
+            m.box(hall, "SeatsBody", "seat", (x0 + 0.3, y, z0), (x0 + 1.0, y + 0.45, z1), drawn=False)
+            m.strip(hall, "SeatPlinth", "metal", (x0 + 0.5, y, z0 + 0.1), (x0 + 0.86, y + 0.3, z1 - 0.1))
+            for k in range(5):
+                za = z0 + k * 0.82
+                m.bev(hall, "Seat", "seat", (x0 + 0.36, y + 0.3, za + 0.06), (x0 + 1.0, y + 0.46, za + 0.76), 0.06, solid=False)
+                m.bev(hall, "SeatBack", "seat", (x0 + 0.14, y + 0.3, za + 0.06), (x0 + 0.36, y + 1.05, za + 0.76), 0.07, solid=False, tint=(0.86, 0.86, 0.86))
     floor(m, hall, "Concourse", "floor_wood", IX0, CX, IZ0, IZ1, F2, 0.3)
     m.box(hall, "ConcourseBase", "stone_dark", (IX0, 0, IZ0), (CX, F2 - 0.3, IZ1))
     # An aisle up each side wall: ground to the concourse.
@@ -1004,6 +1335,7 @@ def lecture_hall(m, g, accent, roof_kind):
     m.rail(b, "BalconyRail", "rail", (BX0 - 2.7, 5.8), (BX0 - 2.7, 10.9), F2, 1.0)
     m.rail(b, "BalconyRail", "rail", (BX0 - 2.7, 5.86), (BX0 - 0.2, 5.86), F2, 1.0)
     m.rail(b, "BalconyRail", "rail", (BX0 - 2.7, 10.84), (BX0 - 0.2, 10.84), F2, 1.0)
+    lecture_decor(m, b, accent, top)
     sp = m.group("Spawns", g, grouped=False)
     m.spawn_in(sp, (11.6, 0.6, 8.6), (0.0, 6.0))             # the stage, looking up the tiers
     m.spawn_in(sp, (-10.8, F2, 3.4), (0.0, 6.0))             # the concourse, looking down at the stage
@@ -1074,8 +1406,7 @@ def labs(m, g, accent, roof_kind):
     for x in (-9.2, 0.0, 9.2):
         counter(m, gl, (x - 2.0, 12.2), (x + 2.0, 13.3))
         m.cyl(gl, "Flask", "equipment", (x - 1.2, 1.05, 12.75), 0.5, 0.7, sides=10, solid=False)
-        m.dome(gl, "FlaskTop", "glass_lab", (x - 1.2, 1.75, 12.75), (0.5, 0.3, 0.5), sides=10, solid=False)
-        m.strip(gl, "Readout", "screen", (x + 0.3, 1.05, 12.9), (x + 1.3, 1.7, 13.0))
+        m.dome(gl, "FlaskTop", "glass_ware", (x - 1.2, 1.75, 12.75), (0.5, 0.3, 0.5), sides=10, solid=False)
     m.cyl(gl, "Tank", "equipment_dark", (-12.6, 0, 6.5), 1.3, 2.4, sides=12)
     m.dome(gl, "TankTop", "equipment_dark", (-12.6, 2.4, 6.5), (1.3, 0.5, 1.3), sides=12, solid=False)
     m.cyl(gl, "Centrifuge", "equipment", (12.3, 0, 6.5), 1.6, 1.2, sides=14)
@@ -1100,6 +1431,7 @@ def labs(m, g, accent, roof_kind):
     m.rail(up, "BalconyRail", "rail", (0.66, BZ0 - 2.5), (6.54, BZ0 - 2.5), F2, 1.0)
     m.rail(up, "BalconyRail", "rail", (0.66, BZ0 - 2.5), (0.66, BZ0 - 0.2), F2, 1.0)
     m.rail(up, "BalconyRail", "rail", (6.54, BZ0 - 2.5), (6.54, BZ0 - 0.2), F2, 1.0)
+    labs_decor(m, b, accent, top)
     sp = m.group("Spawns", g, grouped=False)
     m.spawn_in(sp, (-9.0, 0, 9.6), (-12.4, 3.4))             # lab 1, looking at its door
     m.spawn_in(sp, (11.0, F2, 9.0), (2.0, 6.0))              # upstairs, the east end
@@ -1160,21 +1492,21 @@ def cafeteria(m, g, accent, roof_kind):
     m.rail(ba, "Rail", "rail", (sx1, 1.0), (sx0 + 0.2, 1.0), F2, 1.0)
     m.rail(ba, "Rail", "rail", (sx0 + 0.2, IZ0 + 0.1), (sx0 + 0.2, 1.0), F2, 1.0)
     stairs(m, ba, "StairUp", (sx0, 0, -0.1), (sx1, F2, -0.1), SW, sides=(False, True))
-    # Long tables (benches both sides of the front row, one side of the back one, so
+    # Long tables (chairs both sides of the front row, one side of the back one, so
     # there is room to walk all round), and the serving counter at the west end.
     hall = m.group("Hall", b, grouped=False)
     for z, bench_at in ((4.6, (-1.1, 1.1)), (9.4, (-1.1,))):
         for x in (-4.8, 3.6):
             table(m, hall, (x - 2.6, z - 0.5), (x + 2.6, z + 0.5))
             for dz in bench_at:
-                m.bev(hall, "BenchSeat", "table", (x - 2.6, 0.34, z + dz - 0.2), (x + 2.6, 0.44, z + dz + 0.2), 0.03, tint=(0.85, 0.85, 0.85))
-                for lx in (x - 2.2, x + 2.2):
-                    m.strip(hall, "BenchLeg", "metal", (lx - 0.05, 0, z + dz - 0.16), (lx + 0.05, 0.34, z + dz + 0.16))
+                for dx in (-1.95, -0.65, 0.65, 1.95):
+                    chair(m, hall, x + dx, z + dz * 0.8, 0, "-z" if dz > 0 else "+z")
     counter(m, hall, (-12.8, 1.6), (-11.8, 8.2))
     m.strip(hall, "MenuBoard", "screen", (IX0, 2.4, 2.2), (IX0 + 0.08, 4.0, 7.6))
     m.strip(hall, "HeatLamp", "lamp", (-12.7, 2.2, 2.0), (-11.9, 2.3, 7.8))
     for x in (-7.0, 0.0, 7.0):   # (narrow shelves to eat at, against the windows: the balcony stays clear to walk)
         m.bev(hall, "BalconyShelf", "table", (x - 1.6, F2 + 0.95, IZ1 - 0.45), (x + 1.6, F2 + 1.05, IZ1), 0.03)
+    cafeteria_decor(m, b, accent, top)
     sp = m.group("Spawns", g, grouped=False)
     m.spawn_in(sp, (9.0, 0, 11.6), (0.0, 6.0))               # by the windows, looking down the hall
     m.spawn_in(sp, (-12.0, F2, 6.0), (0.0, 6.0))             # the balcony's west end
@@ -1267,6 +1599,7 @@ def observatory(m, g, accent, roof_kind):
     m.block(scope, "Eyepiece", "brass", (0, -0.35, -0.65), (0.6, 0.9, 0.6), cols=tilt, shape="cyl", sides=8, solid=False)
     m.block(scope, "Fork", "equipment", (0, -0.2, 0), (2.4, 0.6, 0.9), shape="bevel", bevel=0.1, solid=False)
     m.block(scope, "Counterweight", "equipment_dark", (0, -0.2, -1.7), (1.0, 1.0, 1.0), cols=tilt, shape="cyl", sides=10, solid=False)
+    observatory_decor(m, b, accent, T, C, x0, x1)
     sp = m.group("Spawns", g, grouped=False)
     m.spawn_in(sp, (9.0, 0, 2.0), (0.0, 6.0))                # the hall
     m.spawn_in(sp, (-9.0, T, 2.0), (-9.0, -12.0))            # the terrace, west of the dome, looking at the quad
@@ -1276,6 +1609,301 @@ def observatory(m, g, accent, roof_kind):
     m.weapon_in(w, (-9.0, 0, 3.0), "battle_rifle")
     m.weapon_in(w, (0, 0, ZT + 2.6), "revolver")
     m.weapon_in(w, (-11.0, T, 7.5), "harpoon_gun")           # the terrace
+
+
+# ---------------------------------------------------------------------------
+# Decor, building by building (see the helpers above: small things are drawn only)
+
+def library_decor(m, b, accent, top):
+    d = m.group("Decor", b, grouped=False)
+    # The reading room: chairs at the tables, a rug under them, a globe.
+    rug(m, d, (-4.4, 1.9), (3.2, 6.7), kind="rug_red")
+    for x in (-2.6, 1.4):
+        for z in (3.4, 5.2):
+            chair(m, d, x - 1.15, z, 0, "+x")
+            chair(m, d, x + 1.15, z, 0, "-x")
+        m.cyl(d, "LampStem", "brass", (x, 0.78, 4.3), 0.06, 0.34, sides=6, solid=False)
+        m.cone(d, "LampShade", accent, (x, 1.06, 4.3), 0.5, 0.26, top=0.2, sides=10, solid=False)
+        m.strip(d, "OpenBook", "canvas", (x - 0.3, 0.78, 3.2), (x + 0.3, 0.81, 3.6))
+        m.strip(d, "OpenBook", "books_green", (x - 0.2, 0.78, 5.0), (x + 0.16, 0.86, 5.3))
+    m.cyl(d, "GlobeStand", "frame", (3.9, 0, 8.6), 0.5, 0.9, sides=8, solid=False)
+    m.block(d, "GlobeRing", "brass", (3.9, 1.4, 8.6), (1.2, 0.05, 1.2), cols=((0.92, 0.39, 0), (-0.39, 0.92, 0), (0, 0, 1)), shape="tube", sides=16, inner=1.06, solid=False)
+    ball(m, d, "Globe", "accent_blue", (3.9, 1.4, 8.6), 0.96, sides=10)
+    m.dome(d, "GlobeLand", "cushion_green", (3.9, 1.42, 8.6), (0.99, 0.34, 0.99), sides=5, solid=False)
+    # Armchairs under the front windows, either side of the door.
+    for sx, kind in ((-1, "cushion_blue"), (1, "cushion_green")):
+        armchair(m, d, sx * 8.2, -0.5, 0, "+z", kind)
+        armchair(m, d, sx * 9.9, -0.5, 0, "+z", kind)
+        side_table(m, d, sx * 9.05, -0.6)
+        floor_plant(m, d, sx * 12.9, -0.5, 0, 1.0)
+        rug(m, d, (sx * 9.05 - 2.0, -1.0), (sx * 9.05 + 2.0, 1.2), kind="rug_blue")
+    floor_plant(m, d, 2.6, -0.6, 0, 0.9)
+    floor_plant(m, d, -2.6, -0.6, 0, 0.9)
+    # The west mezzanine: a long desk against the wall, chairs, a rug and armchairs.
+    table(m, d, (-13.7, 2.4), (-12.8, 5.8), y=F2)
+    for z in (3.2, 4.9):
+        chair(m, d, -12.25, z, F2, "-x")
+        m.cyl(d, "LampStem", "brass", (-13.3, F2 + 0.78, z), 0.06, 0.34, sides=6, solid=False)
+        m.cone(d, "LampShade", accent, (-13.3, F2 + 1.06, z), 0.46, 0.24, top=0.18, sides=10, solid=False)
+    rug(m, d, (-11.4, 6.8), (-7.2, 9.0), y=F2, kind="rug_red")
+    armchair(m, d, -10.2, 8.3, F2, "-z", "cushion_green")
+    armchair(m, d, -8.5, 8.3, F2, "-z", "cushion_green")
+    potted(m, d, -6.6, 0.4, F2, 0.9)
+    floor_plant(m, d, -13.1, -0.5, F2, 0.9)
+    # The top mezzanine: armchairs by the shelf, plants.
+    rug(m, d, (9.0, 8.4), (13.2, 12.6), y=F3, kind="rug_blue")
+    armchair(m, d, 10.2, 11.8, F3, "-z", "cushion_blue")
+    armchair(m, d, 12.0, 11.8, F3, "-z", "cushion_blue")
+    side_table(m, d, 11.1, 12.0, F3)
+    floor_plant(m, d, 13.1, 0.0, F3, 0.9)
+    potted(m, d, 6.6, 12.8, F3, 0.9)
+    # Lights: under each mezzanine, and long ones down from the roof.
+    for x, z in ((-10.0, 4.0), (-10.0, 11.0), (-3.6, 11.4)):
+        ceiling_light(m, d, x, F2 - 0.3, z, 0.4)
+    for x, z in ((10.0, 3.0), (10.0, 9.0), (-8.0, 11.4), (0.0, 11.4)):
+        ceiling_light(m, d, x, F3 - 0.3, z, 0.5)
+    for x, z in ((10.0, 5.0), (-9.0, 11.4), (10.0, 11.0), (-9.5, 3.0)):
+        ceiling_light(m, d, x, top, z, 1.4, 0.8)
+    # Pictures, and lamps by the door.
+    picture(m, d, "x", IZ1, -1, 11.6, 2.4, 1.6, 1.1, ("accent_blue", "banner_gold"), 0)
+    picture(m, d, "z", IX0, 1, 10.6, 2.3, 1.5, 1.1, ("accent_red", "canvas"), 1)
+    picture(m, d, "z", IX1, -1, 10.8, 2.3, 1.5, 1.1, ("cushion_green", "banner_gold"), 2)
+    picture(m, d, "z", IX0, 1, 10.5, F2 + 2.2, 1.6, 1.1, ("banner_gold", "accent_blue"), 1)
+    for x in (-2.5, 2.5):
+        sconce(m, d, "x", BZ0 - 0.2, -1, x, 3.1)
+    bin_(m, d, 2.3, 12.9)
+    # Outside: ivy up the back and the west wall, a garden on the roof.
+    ivy(m, d, "x", BZ1 + 0.2, 1, -7.7, -5.8, 0, 8.5, seed=1)
+    ivy(m, d, "x", BZ1 + 0.2, 1, 5.8, 7.7, 0, 7.0, seed=2)
+    ivy(m, d, "z", BX0 - 0.2, -1, 9.0, 13.2, 0, 9.5, seed=3)
+    R = top + 0.35
+    planter_box(m, d, (-11.0, 10.4), (-4.0, 11.6), y=R, seed=0)
+    planter_box(m, d, (-12.6, 1.0), (-11.4, 8.0), y=R, seed=1)
+    potted(m, d, 12.4, 11.8, R, 1.2)
+    potted(m, d, 6.6, 0.2, R, 1.2)
+    shrub(m, d, -7.4, 0.6, R, 1.4)
+
+
+def lecture_decor(m, b, accent, top):
+    d = m.group("Decor", b, grouped=False)
+    # The stage: curtains either side of the screen, a proper lectern, plants.
+    for z0 in (1.02, 10.5):
+        for k in range(4):
+            m.cyl(d, "Curtain", "seat", (IX1 - 0.3, 0.6, z0 + 0.1 + k * 0.17), 0.24, 9.5, sides=8, solid=False, tint=(1.0, 1.0, 1.0) if k % 2 else (0.84, 0.84, 0.84))
+    m.bev(d, "CurtainPelmet", "seat", (IX1 - 0.52, 9.9, 1.0), (IX1 - 0.04, 10.7, 11.2), 0.1, solid=False, tint=(0.8, 0.8, 0.8))
+    m.strip(d, "PelmetTrim", "brass", (IX1 - 0.56, 9.86, 1.0), (IX1 - 0.5, 9.94, 11.2))
+    m.wedge(d, "LecternTop", "frame", (10.3, 1.8, 5.45), (11.2, 2.0, 6.75), tall="+x", solid=False)
+    m.strip(d, "LecternMic", "metal", (10.9, 2.0, 6.08), (10.94, 2.32, 6.12))
+    stool(m, d, 11.9, 6.1, 0.6)
+    floor_plant(m, d, 9.7, 1.6, 0.6, 1.0)
+    floor_plant(m, d, 9.7, 10.6, 0.6, 1.0)
+    rug(m, d, (9.6, 3.6), (12.6, 8.6), y=0.6, kind="rug_red")
+    # The concourse: plants, a bench against the wall, pictures.
+    floor_plant(m, d, -8.2, 6.1, F2, 0.9)
+    potted(m, d, -8.2, -0.7, F2, 0.9)
+    potted(m, d, -8.2, 12.9, F2, 0.9)
+    for z, colours, seed in ((2.6, ("accent_red", "banner_gold"), 0), (5.0, ("accent_blue", "canvas"), 1)):
+        picture(m, d, "z", IX0, 1, z, F2 + 2.2, 1.5, 1.1, colours, seed)
+    # Sound panels down both side walls over the aisles, and hanging lights.
+    for i, x in enumerate((-4.6, -1.0, 2.6)):
+        m.on_wall(d, "SoundPanel", "cushion_blue" if i % 2 else accent, "x", IZ1, -1, x - 1.2, x + 1.2, 7.4, 9.4, depth=0.1)
+        m.on_wall(d, "SoundPanel", accent if i % 2 else "cushion_blue", "x", IZ0, 1, x + 0.4, x + 2.8, 7.2, 9.2, depth=0.1)
+    for x in (-5.0, 1.5):
+        for z in (3.4, 8.8):
+            ceiling_light(m, d, x, top, z, 1.2, 0.9)
+    for x in (10.5, 12.5):
+        for z in (3.0, 9.2):
+            m.cone(d, "StageLight", "equipment_dark", (x, top - 0.5, z), 0.5, 0.5, top=0.26, sides=8, solid=False)
+            m.dome(d, "StageLamp", "lamp", (x, top - 0.5, z), (0.4, 0.14, 0.4), sides=8, flip=True, solid=False)
+    # Booth: a chair at the projector.
+    chair(m, d, -12.6, 10.0, 8.8, "+x")
+    # Outside: lamps by the door, ivy, planters and a bench on the flat of the roof.
+    for x in (4.9, 9.5):
+        sconce(m, d, "x", BZ0 - 0.2, -1, x, 3.1)
+    ivy(m, d, "x", BZ1 + 0.2, 1, -12.8, -10.2, 0, 6.2, seed=4)
+    ivy(m, d, "x", BZ1 + 0.2, 1, 10.4, 13.2, 0, 5.4, seed=5)
+    ivy(m, d, "z", BX1 + 0.2, 1, -0.8, 3.0, 0, 5.8, seed=6)
+    R = top + 0.35
+    planter_box(m, d, (-12.6, 0.0), (-8.6, 1.2), y=R, seed=2)
+    planter_box(m, d, (-12.6, 11.0), (-8.6, 12.2), y=R, seed=3)
+    bench(m, d, -10.6, 8.6, R)
+    potted(m, d, -6.6, 12.0, R, 1.2)
+    potted(m, d, -1.4, 0.2, R, 1.1)
+
+
+def labs_decor(m, b, accent, top):
+    d = m.group("Decor", b, grouped=False)
+    cz = 3.4
+    # The three labs: a workbench in the middle of each with a screen, glass and stools;
+    # stools at the wall benches; a cabinet against each inner wall.
+    for i, (x, z) in enumerate(((-9.2, 6.9), (0.0, 5.9), (9.2, 6.5))):
+        counter(m, d, (x - 1.6, z - 0.55), (x + 1.6, z + 0.55), height=0.95)
+        monitor(m, d, x - 0.9, 0.95, z, "+z")
+        glassware(m, d, x + 0.4, 0.95, z - 0.1, seed=i)
+        m.cyl(d, "Microscope", "equipment_dark", (x + 1.15, 0.95, z + 0.1), 0.26, 0.06, sides=8, solid=False)
+        m.cyl(d, "MicroscopeArm", "equipment", (x + 1.15, 1.01, z + 0.18), 0.08, 0.4, sides=6, solid=False)
+        m.cone(d, "MicroscopeEye", "equipment_dark", (x + 1.15, 1.2, z + 0.06), 0.16, 0.3, top=0.08, sides=6, solid=False)
+        stool(m, d, x - 0.7, z + 1.0)
+        stool(m, d, x + 0.7, z + 1.0)
+        for dx in (-0.9, 0.9):
+            stool(m, d, [-9.2, 0.0, 9.2][i] + dx, 11.7)
+        monitor(m, d, [-9.2, 0.0, 9.2][i] + 0.2, 1.05, 12.9, "-z")
+        glassware(m, d, [-9.2, 0.0, 9.2][i] + 1.2, 1.05, 12.7, seed=i + 3)
+        strip_light(m, d, (x - 1.4, 8.4), (x + 1.4, 8.7), F2 - 0.3)
+    for sx in (-1, 1):
+        x0, x1 = sorted((sx * 4.72, sx * 5.34))
+        m.bev(d, "Cabinet", "counter", (x0, 0, 9.0), (x1, 2.3, 12.0), 0.05)
+        face = x1 if sx > 0 else x0
+        for z in (10.0, 11.0):
+            m.strip(d, "CabinetSeam", "metal", (face - 0.01 if sx < 0 else face, 0.1, z - 0.015), (face if sx < 0 else face + 0.01, 2.2, z + 0.015))
+        for z in (9.9, 10.1, 10.9, 11.1):
+            m.strip(d, "CabinetHandle", "brass", (face - 0.04 if sx < 0 else face, 1.0, z - 0.02), (face if sx < 0 else face + 0.04, 1.3, z + 0.02))
+    # The corridor: plants by the door, a bench under the window, lights, pictures.
+    floor_plant(m, d, 1.3, -0.7, 0, 0.9)
+    floor_plant(m, d, 5.9, -0.7, 0, 0.9)
+    bench(m, d, 10.0, -0.75)
+    bin_(m, d, 12.9, 2.7)
+    for x in (-9.0, -3.0, 3.0, 9.0):
+        strip_light(m, d, (x - 0.9, 2.1), (x + 0.9, 2.35), F2 - 0.3)
+    picture(m, d, "x", IZ0, 1, 6.8, 2.4, 1.0, 1.3, (accent, "canvas"), 0)
+    # Upstairs: two more workbenches, stools at the wall benches, plants, lights.
+    for i, x in enumerate((-9.5, 2.0)):
+        counter(m, d, (x - 1.6, 6.0), (x + 1.6, 7.1), y=F2, height=0.95)
+        monitor(m, d, x + 0.8, F2 + 0.95, 6.55, "+z")
+        glassware(m, d, x - 0.6, F2 + 0.95, 6.5, seed=i + 6)
+        stool(m, d, x - 0.7, 7.6, F2)
+        stool(m, d, x + 0.7, 7.6, F2)
+    for x in (-10.0, 0.5, 10.5):
+        stool(m, d, x - 0.8, 11.7, F2)
+        monitor(m, d, x + 1.0, F2 + 1.05, 12.9, "-z")
+    floor_plant(m, d, 13.0, -0.5, F2, 1.0)
+    floor_plant(m, d, -13.0, 11.0, F2, 1.0)
+    potted(m, d, 7.0, -0.6, F2, 0.9)
+    for x in (-9.0, -1.5, 3.0, 10.0):
+        strip_light(m, d, (x - 1.2, 8.3), (x + 1.2, 8.6), top)
+        strip_light(m, d, (x - 1.2, 2.6), (x + 1.2, 2.9), top)
+    picture(m, d, "z", IX1, -1, 4.0, F2 + 2.4, 1.6, 1.1, (accent, "banner_gold"), 2)
+    # The balcony over the door: two plants.
+    potted(m, d, 1.3, BZ0 - 2.0, F2, 0.8)
+    potted(m, d, 5.9, BZ0 - 2.0, F2, 0.8)
+    # Outside: lamps by the door, ivy, planters on the roof.
+    for x in (1.3, 5.9):
+        sconce(m, d, "x", BZ0 - 0.2, -1, x, 3.0)
+    ivy(m, d, "x", BZ1 + 0.2, 1, -6.6, -3.4, 0, 5.2, seed=7)
+    ivy(m, d, "x", BZ1 + 0.2, 1, 3.4, 6.6, 0, 6.4, seed=8)
+    ivy(m, d, "z", BX0 - 0.2, -1, 4.0, 8.4, 0, 5.0, seed=9)
+    R = top + 0.35
+    planter_box(m, d, (-12.6, 0.0), (-8.0, 1.2), y=R, seed=1)
+    planter_box(m, d, (1.6, 0.0), (7.6, 1.2), y=R, seed=2)
+    potted(m, d, 12.4, 11.8, R, 1.2)
+
+
+def cafeteria_decor(m, b, accent, top):
+    d = m.group("Decor", b, grouped=False)
+    # On the tables: a vase and plates. On the counter: trays, a glass guard, stools.
+    for z in (4.6, 9.4):
+        for i, x in enumerate((-4.8, 3.6)):
+            m.cyl(d, "Vase", "glass_ware", (x, 0.78, z), 0.14, 0.24, sides=8, solid=False)
+            m.dome(d, "VaseFlower", FLOWERS[(i + int(z)) % 4], (x, 1.02, z), (0.3, 0.2, 0.3), sides=6, solid=False)
+            for dx in (-1.6, 1.5):
+                m.cyl(d, "Plate", "canvas", (x + dx, 0.78, z + 0.05), 0.34, 0.025, sides=10, solid=False)
+    for i, z in enumerate((2.4, 4.0, 5.6, 7.2)):
+        m.bev(d, "Tray", "equipment", (-12.7, 1.05, z - 0.3), (-11.95, 1.09, z + 0.3), 0.015, solid=False)
+        m.dome(d, "Dish", FLOWERS[i % 4] if i % 2 else "banner_gold", (-12.32, 1.09, z), (0.42, 0.16, 0.42), sides=8, solid=False)
+    m.strip(d, "CounterGuard", "glass_ware", (-11.86, 1.35, 1.8), (-11.82, 1.9, 8.0))
+    for z in (1.8, 8.0):
+        m.strip(d, "GuardPost", "metal", (-11.88, 1.05, z - 0.03), (-11.8, 1.9, z + 0.03))
+    for z in (2.6, 4.2, 5.8, 7.4):
+        stool(m, d, -11.1, z)
+    m.bev(d, "DrinksMachine", "equipment", (-13.7, 0, 8.5), (-13.0, 2.1, 9.2), 0.06, solid=False)
+    m.strip(d, "DrinksPanel", "screen", (-13.0, 1.1, 8.6), (-12.98, 1.8, 9.1))
+    # Plants, a couple of small tables on the west balcony, bins.
+    floor_plant(m, d, 13.1, 1.9, 0, 1.1)
+    floor_plant(m, d, -13.1, 12.9, 0, 1.1)
+    floor_plant(m, d, 13.1, 12.9, 0, 1.1)
+    potted(m, d, -7.0, -0.7, 0, 1.0)
+    bin_(m, d, -2.2, -0.8)
+    for z in (4.6, 8.2):
+        m.cyl(d, "CafeTable", "table", (-12.4, F2 + 0.72, z), 1.0, 0.06, sides=12, solid=False)
+        m.cyl(d, "CafeTableLeg", "metal", (-12.4, F2, z), 0.08, 0.72, sides=6, solid=False)
+        chair(m, d, -12.4, z - 0.85, F2, "+z")
+        chair(m, d, -12.4, z + 0.85, F2, "-z")
+    floor_plant(m, d, 13.1, 12.8, F2, 1.0)
+    floor_plant(m, d, -13.1, -0.5, F2, 1.0)
+    potted(m, d, 13.1, -0.5, F2, 0.9)
+    # Chandeliers over the hall, lamps under the balcony, pictures.
+    for x in (-4.8, 3.6):
+        chandelier(m, d, x, top, 6.4, 3.2, 2.6)
+    for x, z in ((-9.0, 1.0), (-1.5, 1.2), (-8.0, 11.5), (0.0, 11.5), (8.0, 11.5), (12.0, 6.4), (-12.0, 6.4)):
+        ceiling_light(m, d, x, F2 - 0.3, z, 0.4)
+    picture(m, d, "z", IX1, -1, 0.2, 2.4, 1.3, 1.0, (accent, "canvas"), 0)
+    picture(m, d, "z", IX1, -1, 12.0, F2 + 2.3, 1.6, 1.1, ("accent_red", "banner_gold"), 1)
+    picture(m, d, "x", IZ0, 1, -11.0, F2 + 2.3, 1.4, 1.0, ("cushion_green", accent), 2)
+    # The terrace under the awning: chairs at the tables, hanging baskets, planters along
+    # its edge, lamps by the door.
+    for x in (2.0, 7.0, 11.0):
+        chair(m, d, x - 0.95, BZ0 - 2.2, 0, "+x")
+        chair(m, d, x + 0.95, BZ0 - 2.2, 0, "-x")
+    for i, x in enumerate((-11.0, -8.0, -1.0, 4.5, 9.0)):
+        hanging_basket(m, d, x, 4.55, BZ0 - 3.0, 0.95, seed=i)
+    planter_box(m, d, (-12.0, BZ0 - 4.1), (-7.9, BZ0 - 3.3), seed=0)
+    planter_box(m, d, (4.9, BZ0 - 4.1), (8.9, BZ0 - 3.3), seed=2)
+    for x in (-6.6, -2.2):
+        sconce(m, d, "x", BZ0 - 0.2, -1, x, 3.1)
+    # Outside: ivy, and tables under parasols on the roof.
+    ivy(m, d, "z", BX1 + 0.2, 1, 9.0, 13.0, 0, 5.6, seed=10)
+    ivy(m, d, "z", BX0 - 0.2, -1, 0.0, 4.6, 0, 5.2, seed=11)
+    R = top + 0.35
+    umbrella_table(m, d, -8.0, 3.0, R, accent)
+    umbrella_table(m, d, -8.0, 10.0, R, accent)
+    umbrella_table(m, d, 8.0, 10.0, R, accent)
+    planter_box(m, d, (3.6, 0.0), (10.6, 1.2), y=R, seed=1)
+    potted(m, d, -12.4, 6.4, R, 1.2)
+
+
+def observatory_decor(m, b, accent, T, C, x0, x1):
+    d = m.group("Decor", b, grouped=False)
+    # The hall: screens on the desk, a chair, armchairs under the back window, star charts.
+    for x in (-11.2, -9.7, -8.2):
+        monitor(m, d, x, 1.05, 9.5, "-z")
+    chair(m, d, -9.7, 8.4, 0, "+z")
+    rug(m, d, (7.2, 9.6), (11.8, 13.0), kind="rug_blue")
+    armchair(m, d, 8.5, 10.6, 0, "+z", "cushion_blue")
+    armchair(m, d, 10.5, 10.6, 0, "+z", "cushion_blue")
+    side_table(m, d, 9.5, 11.6)
+    rng = __import__("random").Random(77)
+    for x in (-4.0, 4.0):
+        m.on_wall(d, "ChartFrame", "brass", "x", BZ0 + 0.2, 1, x - 1.6, x + 1.6, 1.3, 3.9, depth=0.04)
+        m.on_wall(d, "Chart", "star_panel", "x", BZ0 + 0.2, 1, x - 1.5, x + 1.5, 1.4, 3.8, depth=0.03, lift=0.04)
+        m.block(d, "ChartRing", "brass", (x + 0.3, 2.6, BZ0 + 0.285), (1.7, 0.012, 1.7), cols=LIE_Z, shape="tube", sides=20, inner=1.62, solid=False)
+        m.block(d, "ChartRing", "brass", (x - 0.5, 2.3, BZ0 + 0.3), (0.9, 0.012, 0.9), cols=LIE_Z, shape="tube", sides=16, inner=0.84, solid=False)
+        for k in range(12):
+            u, v, s = x + rng.uniform(-1.35, 1.35), rng.uniform(1.55, 3.65), rng.choice((0.05, 0.07, 0.1))
+            m.on_wall(d, "Star", "lamp", "x", BZ0 + 0.2, 1, u - s / 2, u + s / 2, v - s / 2, v + s / 2, depth=0.012, lift=0.075)
+    floor_plant(m, d, 2.6, -0.6, 0, 0.9)
+    floor_plant(m, d, -2.6, -0.6, 0, 0.9)
+    floor_plant(m, d, 12.5, -0.5, 0, 1.0)
+    potted(m, d, -12.6, 12.6, 0, 1.0)
+    for x, z in ((-7.0, 3.0), (7.0, 3.0), (7.0, 9.0), (-3.0, 8.4)):
+        ceiling_light(m, d, x, F2, z, 0.4)
+    picture(m, d, "z", x1 - 0.2, -1, 1.5, 2.4, 1.5, 1.1, (accent, "banner_gold"), 0)
+    # The terrace: a long planter down the west side, plants at the dome's door.
+    planter_box(m, d, (x0 + 0.5, 2.6), (x0 + 1.5, 6.4), y=T, seed=3)
+    potted(m, d, C[0] - 7.2, C[1] - 1.7, T, 0.9)
+    potted(m, d, C[0] - 7.2, C[1] + 1.7, T, 0.9)
+    potted(m, d, 12.4, 12.6, T, 1.1)
+    shrub(m, d, -12.4, 0.0, T, 1.3)
+    # Inside the dome: a control desk with screens against the east wall.
+    counter(m, d, (C[0] + 3.6, C[1] - 1.4), (C[0] + 4.4, C[1] + 1.4), y=T, height=0.95, kind="equipment")
+    monitor(m, d, C[0] + 4.1, T + 0.95, C[1] - 0.6, "-x")
+    monitor(m, d, C[0] + 4.1, T + 0.95, C[1] + 0.6, "-x")
+    stool(m, d, C[0] + 3.0, C[1], T)
+    # Outside: lamps by the door, ivy.
+    for x in (-2.5, 2.5):
+        sconce(m, d, "x", BZ0 - 0.2, -1, x, 3.1)
+    ivy(m, d, "x", BZ1 + 0.2, 1, -12.4, -6.0, 0, 5.3, seed=12)
+    ivy(m, d, "z", x0 - 0.2, -1, 8.0, 13.0, 0, 5.2, seed=13)
+    ivy(m, d, "z", x1 + 0.2, 1, 1.9, 4.7, 0, 5.0, seed=14)
 
 
 BUILDINGS = {"Observatory": observatory, "Labs": labs, "LectureHall": lecture_hall, "Cafeteria": cafeteria, "Library": library}

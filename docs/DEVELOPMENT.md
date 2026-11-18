@@ -598,6 +598,16 @@ Things to keep true when editing it:
 - Everything on a building island goes inside that island's MapIsland node (blocks,
   spawn points, pickups, its mast and its two crossings), or it is left behind when
   the island moves.
+- **Decor**: each building has a Decor group and each plaza and the quad a Garden
+  group (about 2,500 of the map's 5,283 blocks). Small things are drawn only, so you
+  walk and shoot straight through them: chairs, stools, armchairs, rugs, pot plants,
+  shrubs, flower beds, hanging baskets, ivy, books, pictures, screens, glassware and
+  every light. Big things are solid cover: shelves, counters, workbenches, desks,
+  cabinets, benches, the planter boxes and tree tubs. Keep it that way, and keep
+  solid pieces out of the walking lanes, off spawn points and pickups, and off the
+  middle of each island's tip, where people land. Ivy is round clumps lying on the
+  wall, never flat rectangles. Lights are the kind `lamp`, so they come on at sunset
+  with the windows and go red on a doomed island.
 - Spawn points are on the building islands, plus the five on the quad's lawn for when no
   island has room. None on the tower or a stone.
 - An island's line from the quad (and the line 36 degrees either side of it, where it

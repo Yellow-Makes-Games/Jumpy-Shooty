@@ -898,8 +898,16 @@ func _grapple_plan(p: Dictionary) -> void:
 	var over := Vector2(body.global_position.x - hook.x, body.global_position.z - hook.z).length() < 3.0
 	if g.attached and (g.rope_origin(body).distance_to(g.anchor) < 5.5 or over):
 		input.grapple = false
-	if not input.grapple and not body.is_on_floor():
-		input.move = Vector2(0, 1)   # drift on in over the lawn
+	if not input.grapple:
+		# Let go: steer for the landing, and stand still once down near it.
+		var land: Vector3 = (p.link as MapJumpLink).landing_point() if p.has("link") else hook
+		var to := Vector3(land.x - body.global_position.x, 0, land.z - body.global_position.z)
+		input.pitch = 0.0
+		if to.length() > 1.2:
+			input.yaw = atan2(-to.x, -to.z)
+		var speed := Vector3(body.velocity.x, 0, body.velocity.z)
+		var overshooting := speed.length() > 1.0 and to.length() < speed.length() * 0.55
+		input.move = Vector2(0, -1 if overshooting else 1) if to.length() > 1.2 else Vector2.ZERO
 
 
 func _expect(ok: bool, what: String) -> void:
