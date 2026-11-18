@@ -1,6 +1,8 @@
 extends Control
 ## Multiplayer lobby: shows who is connected and who is hosting, and lets each
-## player pick their robot and their gun. The host starts the match; anyone can leave.
+## player pick their robot and their gun. Everyone else readies up (Ready); the host
+## starts the match once they all have, can kick a player, and sets the lobby size.
+## Anyone can leave.
 ## Three columns in a MenuFrame (the match, your robot, your weapon); Leave and Start
 ## stay on screen at any window size.
 
@@ -11,6 +13,9 @@ var _list_scroll: ScrollContainer
 var _watching: Label     # who is spectating
 var _spectate: Button    # watch instead of play, or play again
 var _start: Button
+var _ready_button: Button   # everyone but the host: ready up (press again to take it back)
+var _size_box: HBoxContainer   # the host's lobby size
+var _size: SpinBox
 var _waiting: Label
 var _info: Label
 var _code: Label    # the host's lobby code, big
@@ -56,6 +61,25 @@ func _ready() -> void:
 		_copy.text = "Copied")
 	_copy.custom_minimum_size = Vector2(0, 38)
 	_copy.theme_type_variation = "Chip"
+	# The host: how many players the lobby takes (see LobbySettings.max_players).
+	_size_box = HBoxContainer.new()
+	_size_box.add_theme_constant_override("separation", 8)
+	info_row.add_child(_size_box)
+	var size_label := UiKit.label(_size_box, "Lobby size", true, 15)
+	size_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	size_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_size = SpinBox.new()
+	_size.min_value = LobbySettings.MIN_PLAYERS
+	_size.max_value = Net.MAX_PLAYERS
+	_size.custom_minimum_size = Vector2(96, 38)
+	_size_box.add_child(_size)
+	_size.value_changed.connect(func(v: float):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["max_players"] = int(v)
+		if s != Net.match_settings:
+			Net.set_match_settings(s))
 	# Three columns: the match (players, mode, map, rules), your robot, your weapon.
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 26)
@@ -91,15 +115,17 @@ func _ready() -> void:
 	_waiting.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_waiting.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_start = _frame.main_button("Start match", Net.host_start_match)
+	_ready_button = _frame.main_button("Ready", func(): Net.set_my_ready(not Net.is_ready(Net.my_id())))
+	_start = _frame.main_button("Start match", func(): Net.host_start_match())
 	Net.players_changed.connect(_refresh)
 	Net.internet_changed.connect(_refresh)
 	_refresh()
+	_dev_lobby_steps()
 	# Dev/test: the host starts the next match on its own.
 	if DevArgs.autostart > 0 and Net.is_host() and Net.players.size() >= DevArgs.autostart:
 		get_tree().create_timer(3.0).timeout.connect(func():
 			if is_inside_tree() and not Net.in_match:
-				Net.host_start_match())
+				Net.host_start_match(true))
 
 
 ## A thin upright line between two columns.
@@ -110,10 +136,11 @@ func _divider(row: Node) -> void:
 	row.add_child(line)
 
 
-## The player list grows with the players, up to about four rows, then scrolls.
+## The player list grows with the players, up to three rows, then scrolls (so the lobby
+## fits the screen whoever is in it).
 func _fit_list() -> void:
 	if is_instance_valid(_list_scroll):
-		_list_scroll.custom_minimum_size.y = minf(_list.get_combined_minimum_size().y, 186.0)
+		_list_scroll.custom_minimum_size.y = minf(_list.get_combined_minimum_size().y, 124.0)
 
 
 func _refresh() -> void:
@@ -126,10 +153,21 @@ func _refresh() -> void:
 	var watchers := Net.spectator_ids().map(func(id): return Net.spectator_name(id) + (" (you)" if id == Net.my_id() else ""))
 	_watching.text = "Spectating: %s" % ", ".join(watchers) if not watchers.is_empty() else "Nobody is spectating."
 	_spectate.text = "Play" if Net.spectating() else "Spectate"
-	_spectate.disabled = Net.spectating() and Net.players.size() >= Net.MAX_PLAYERS
+	_spectate.disabled = Net.spectating() and Net.players.size() >= LobbySettings.max_players()
 	_start.visible = Net.is_host()
+	_ready_button.visible = not Net.is_host()
 	_waiting.visible = not Net.is_host()
-	_start.disabled = Net.players.size() < 1
+	var waiting_for := Net.not_ready().size()
+	_start.disabled = Net.players.size() < 1 or waiting_for > 0
+	_start.text = "START MATCH" if waiting_for == 0 else ("WAITING FOR %d TO READY UP" % waiting_for)
+	var me_ready := Net.is_ready(Net.my_id())
+	_ready_button.text = "READY  ·  PRESS TO UNDO" if me_ready else "READY UP"
+	_waiting.text = "Waiting for the host to start..." if me_ready else "Ready up when you have picked your loadout."
+	_size_box.visible = Net.is_host() and Net.is_online
+	_updating = true
+	_size.min_value = maxi(LobbySettings.MIN_PLAYERS, Net.players.size())   # never below who is already here
+	_size.set_value_no_signal(LobbySettings.max_players())
+	_updating = false
 	var where := ""
 	var code := Net.lobby_code() if Net.is_host() else ""
 	_code.text = code
@@ -145,7 +183,7 @@ func _refresh() -> void:
 				where = "Your router would not open port %d, so only friends on your network can join, with the lobby code (or at %s)." % [Net.port, _address(Net.join_ip())]
 	else:
 		where = "The host picks the map and rules and starts the match."
-	_info.text = "%d of %d players.  %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
+	_info.text = "%d of %d players.  %s" % [Net.players.size(), LobbySettings.max_players(), where]
 	if Net.spectating():
 		_info.text = "You are spectating: you will watch the match with a free camera.  " + _info.text
 	_refresh_rules()
@@ -179,10 +217,22 @@ func _player_row(id: int) -> PanelContainer:
 		UiKit.tag(row, "YOU", Color(1, 1, 1, 0.85))
 	if Net.is_bot(id):
 		UiKit.tag(row, "BOT", Color(1, 1, 1, 0.6))
+	elif id != Net.host_id():   # the host is ready when it presses Start
+		var ready := Net.is_ready(id)
+		UiKit.tag(row, "READY" if ready else "NOT READY", Color(0.45, 0.95, 0.5) if ready else Color(1, 1, 1, 0.45))
 	var who := UiKit.label(row, "%s  ·  %s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name,
 		Mobility.short_name(Net.player_loadout_mobility(id))], true, 14)
 	who.autowrap_mode = TextServer.AUTOWRAP_OFF
+	who.clip_text = true
+	who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	who.custom_minimum_size = Vector2(60, 0)
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if Net.is_host() and Net.is_online and id != Net.my_id() and not Net.is_bot(id):
+		var kick := UiKit.button(row, "Kick", func(): Net.host_kick(id))
+		kick.theme_type_variation = "Chip"
+		kick.custom_minimum_size = Vector2(0, 28)
+		kick.add_theme_font_size_override("font_size", 13)
+		kick.tooltip_text = "Remove %s from the lobby" % Net.player_name(id)
 	return card
 
 
@@ -242,7 +292,9 @@ func _build_map() -> void:
 			return
 		var m: String = GunGame.MODES[i]
 		var g := GunGame.game_of_mode(m)
-		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 2)
+		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 3)   # 3 across: two rows for the five modes
+	for b in _game_row.get_children():
+		(b as Button).add_theme_font_size_override("font_size", 16)   # "Deathmatch" in a third of the column
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()
@@ -408,3 +460,24 @@ func _refresh_rules() -> void:
 ## if it isn't the usual one).
 func _address(ip: String) -> String:
 	return ip if Net.port == Net.DEFAULT_PORT else "%s:%d" % [ip, Net.port]
+
+
+## Dev/test: ready up, kick a player and start once everyone is ready, on their own
+## (--ready-at, --kick-at, --start-when-ready), the first time the lobby opens.
+func _dev_lobby_steps() -> void:
+	if not Match.last_results.is_empty():
+		return
+	if DevArgs.ready_at >= 0.0 and not Net.is_host():
+		get_tree().create_timer(DevArgs.ready_at).timeout.connect(func():
+			if is_inside_tree() and not Net.in_match:
+				Net.set_my_ready(true))
+	if DevArgs.kick_at >= 0.0 and Net.is_host():
+		get_tree().create_timer(DevArgs.kick_at).timeout.connect(func():
+			for id in Net.players:
+				if is_inside_tree() and Net.player_name(id) == DevArgs.kick_name:
+					Net.host_kick(id)
+					return)
+	if DevArgs.start_when_ready and Net.is_host():
+		Net.players_changed.connect(func():
+			if is_inside_tree() and not Net.in_match and Net.players.size() >= 2 and Net.all_ready():
+				Net.host_start_match())
