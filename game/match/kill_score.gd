@@ -77,62 +77,94 @@ const AIRBORNE := [S.AIR, S.GRAPPLE, S.WALL_RUN, S.FLIP, S.DIVE, S.GLIDE]
 ## cause ("", "kick", "flying_kick", "slam"), melee, streak (earlier kills in the window),
 ## killer_hp, killer_speed and victim_speed (m/s), flick (degrees)}. Returns [score, tag bits].
 static func score(facts: Dictionary) -> Array:
-	var points := BASE
 	var tags := 0
 	var dist := float(facts.get("distance", 0.0))
-	points += mini(int(maxf(dist - RANGE_FROM, 0.0) * RANGE_PER), RANGE_MAX)
 	if dist >= LONG_SHOT:
 		tags |= T_LONG
 	if facts.get("headshot", false):
-		points += HEADSHOT
 		tags |= T_HEADSHOT
 	var ks := int(facts.get("killer_state", S.GROUND))
 	if ks in AIRBORNE:
-		points += MID_AIR
 		tags |= T_MID_AIR
 		if ks == S.GRAPPLE:
-			points += ON_ROPE
 			tags |= T_ROPE
 		elif ks == S.WALL_RUN:
-			points += WALL_RUN
 			tags |= T_WALL
 		elif ks == S.GLIDE:
-			points += GLIDING
 			tags |= T_GLIDE
 	if int(facts.get("victim_state", S.GROUND)) in AIRBORNE:
-		points += AIR_SHOT
 		tags |= T_AIR_SHOT
 	match str(facts.get("cause", "")):
 		"kick":
-			points += KICK
 			tags |= T_KICK
 		"flying_kick":
-			points += FLYING_KICK
 			tags |= T_FLYING_KICK
 		"slam":
-			points += SMASHED
 			tags |= T_SMASHED
 		_:
 			if facts.get("melee", false):
-				points += MELEE
 				tags |= T_MELEE
-	points += MULTI * int(facts.get("streak", 0))
 	if float(facts.get("killer_hp", 100.0)) <= CLUTCH_HP:
-		points += CLUTCH
 		tags |= T_CLUTCH
 	var speed := float(facts.get("killer_speed", 0.0))
-	points += mini(int(maxf(speed - SPEED_FROM, 0.0) * SPEED_PER), SPEED_MAX)
 	if speed >= FAST:
 		tags |= T_FAST
 	var target := float(facts.get("victim_speed", 0.0))
-	points += mini(int(maxf(target - SPEED_FROM, 0.0) * TARGET_PER), TARGET_MAX)
 	if target >= FAST:
 		tags |= T_TARGET_FAST
 	var flick := float(facts.get("flick", 0.0))
-	points += mini(int(maxf(flick - FLICK_FROM, 0.0)), FLICK_MAX)
 	if flick >= FLICK:
 		tags |= T_FLICK
-	return [points, tags]
+	var total := 0
+	for part in parts(tags, int(facts.get("streak", 0)), dist, speed, target, flick):
+		total += int(part[1])
+	return [total, tags]
+
+
+## Where a kill's points came from, as [words, points] (none of them 0), the base first:
+## [["KILL", 100], ["HEADSHOT", 60], ["SPEED 24 M/S", 60], ["FLICK 95°", 75]].
+## They add up to its score. From the facts score() sends with the death, so every
+## copy can show them (the host scores from the same rounded numbers it sends).
+static func parts(tags: int, streak: int, distance: float, speed: float = 0.0, target: float = 0.0, flick: float = 0.0) -> Array:
+	var out: Array = [["KILL", BASE]]
+	var add := func(words: String, points: int) -> void:
+		if points != 0:
+			out.append([words, points])
+	if streak >= 1:
+		add.call(tag_words(0, streak, 0.0)[0], MULTI * streak)
+	if tags & T_FLYING_KICK:
+		add.call("FLYING KICK", FLYING_KICK)
+	elif tags & T_KICK:
+		add.call("KICKED OUT", KICK)
+	if tags & T_SMASHED:
+		add.call("SMASHED INTO A WALL", SMASHED)
+	if tags & T_MELEE:
+		add.call("CUT DOWN", MELEE)
+	if tags & T_MID_AIR:
+		add.call("MID-AIR", MID_AIR)
+	if tags & T_ROPE:
+		add.call("ON THE ROPE", ON_ROPE)
+	elif tags & T_WALL:
+		add.call("OFF THE WALL", WALL_RUN)
+	elif tags & T_GLIDE:
+		add.call("GLIDING", GLIDING)
+	if tags & T_HEADSHOT:
+		add.call("HEADSHOT", HEADSHOT)
+	add.call("FLICK %d°" % roundi(flick), mini(int(maxf(flick - FLICK_FROM, 0.0)), FLICK_MAX))
+	add.call("SPEED %d M/S" % roundi(speed), mini(int(maxf(speed - SPEED_FROM, 0.0) * SPEED_PER), SPEED_MAX))
+	add.call("TARGET AT %d M/S" % roundi(target), mini(int(maxf(target - SPEED_FROM, 0.0) * TARGET_PER), TARGET_MAX))
+	if tags & T_AIR_SHOT:
+		add.call("AIR SHOT", AIR_SHOT)
+	if tags & T_CLUTCH:
+		add.call("CLUTCH", CLUTCH)
+	add.call("RANGE %d M" % roundi(distance), mini(int(maxf(distance - RANGE_FROM, 0.0) * RANGE_PER), RANGE_MAX))
+	return out
+
+
+## parts() for a kill info (see Match.kill_info).
+static func breakdown(info: Dictionary) -> Array:
+	return parts(int(info.get("tags", 0)), int(info.get("streak", 0)), float(info.get("distance", 0.0)),
+		float(info.get("speed", 0.0)), float(info.get("target_speed", 0.0)), float(info.get("flick", 0.0)))
 
 
 ## The words for a kill (see Match.kill_info), most telling first:

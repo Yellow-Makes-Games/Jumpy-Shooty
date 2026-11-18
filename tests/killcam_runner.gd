@@ -92,6 +92,37 @@ func _scores() -> void:
 	var words := KillScore.tag_words(rope[1] | KillScore.T_HEADSHOT | KillScore.T_LONG | KillScore.T_FLICK | KillScore.T_FAST | KillScore.T_TARGET_FAST,
 		2, 42.4, 24.2, 19.6, 95.4)
 	_expect(words == ["TRIPLE KILL", "ON THE ROPE", "HEADSHOT", "FLICK 95°", "24 M/S", "TARGET AT 20 M/S", "42 M"], "the words come most telling first (%s)" % [words])
+	print("  where a kill's points came from")
+	var facts := {"distance": 42.4, "headshot": true, "killer_state": S.GRAPPLE, "victim_state": S.AIR, "streak": 1,
+		"killer_hp": 20.0, "killer_speed": 24.2, "victim_speed": 19.6, "flick": 95.0}
+	var scored := KillScore.score(facts)
+	var parts := KillScore.parts(scored[1], 1, 42.4, 24.2, 19.6, 95.0)
+	var sum := 0
+	for p in parts:
+		sum += int(p[1])
+	_expect(sum == scored[0], "the parts add up to the score (%d of %d: %s)" % [sum, scored[0], parts])
+	_expect(parts[0] == ["KILL", KillScore.BASE] and parts.size() == 11, "the base first, then one part per bonus (%d parts)" % parts.size())
+	_expect(["HEADSHOT", KillScore.HEADSHOT] in parts and ["DOUBLE KILL", KillScore.MULTI] in parts and ["FLICK 95°", 75] in parts,
+		"a part has its words and its points")
+	_expect(KillScore.parts(0, 0, 6.0) == [["KILL", KillScore.BASE]], "a plain kill is the base alone")
+	for i in 200:   # every copy's breakdown, from the numbers sent, adds up to the host's score
+		var f := {"distance": randf_range(0.0, 80.0), "headshot": randf() < 0.5, "killer_state": [S.GROUND, S.AIR, S.GRAPPLE, S.WALL_RUN, S.GLIDE].pick_random(),
+			"victim_state": [S.GROUND, S.AIR].pick_random(), "cause": ["", "kick", "flying_kick", "slam"].pick_random(), "melee": randf() < 0.3,
+			"streak": randi_range(0, 3), "killer_hp": randf_range(1.0, 100.0), "killer_speed": randf_range(0.0, 40.0),
+			"victim_speed": randf_range(0.0, 40.0), "flick": float(randi_range(0, 200))}
+		f.distance = float(roundi(f.distance * 10.0)) / 10.0
+		f.killer_speed = float(roundi(f.killer_speed * 10.0)) / 10.0
+		f.victim_speed = float(roundi(f.victim_speed * 10.0)) / 10.0
+		var s := KillScore.score(f)
+		var info := {"tags": s[1], "streak": f.streak, "distance": f.distance, "speed": f.killer_speed, "target_speed": f.victim_speed, "flick": f.flick}
+		var total := 0
+		for p in KillScore.breakdown(info):
+			total += int(p[1])
+		if total != s[0]:
+			_expect(false, "the breakdown of %s adds up to %d, not %d" % [f, total, s[0]])
+			break
+		if i == 199:
+			_expect(true, "200 random kills: every breakdown adds up to the score")
 	print("  speed and aim from a player's recent states")
 	var buf := SnapshotBuffer.new()
 	for i in 41:   # one second at 40 a second: turning 90° over the last half, ending at 25 m/s

@@ -1188,10 +1188,19 @@ func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool) -
 	recent.append(now)
 	_recent_kills[killer] = recent
 	_kill_seq += 1
+	# Scored from the numbers as they travel (see kill_info), so every copy's breakdown
+	# of the points (KillScore.breakdown) adds up to the same score.
+	var dm := roundi(float(facts.distance) * 10.0)
+	var speed_dm := roundi(float(facts.killer_speed) * 10.0)
+	var target_dm := roundi(float(facts.victim_speed) * 10.0)
+	var flick := roundi(float(facts.flick))
+	facts.distance = float(dm) / 10.0
+	facts.killer_speed = float(speed_dm) / 10.0
+	facts.victim_speed = float(target_dm) / 10.0
+	facts.flick = float(flick)
 	var result := KillScore.score(facts)
-	return [_kill_seq, result[0], result[1], recent.size() - 1, roundi(float(facts.distance) * 10.0),
-		"kick" if cause == "kick" else weapon, roundi(float(facts.killer_speed) * 10.0),
-		roundi(float(facts.victim_speed) * 10.0), roundi(float(facts.flick))]
+	return [_kill_seq, result[0], result[1], recent.size() - 1, dm,
+		"kick" if cause == "kick" else weapon, speed_dm, target_dm, flick]
 
 
 @rpc("authority", "call_local", "reliable")

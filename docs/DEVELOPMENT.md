@@ -97,7 +97,8 @@ Quick checks:
   (`tests/menu_mode_test.gd`), Deathmatch maps, pickups and inventory
   (`tests/deathmatch_test.gd`), and the debug menu and target dummies in a real
   Practice match (`tests/debug_test.gd`);
-- killcams (`tests/killcam_test.gd`): the kill scores and the pick of the best three,
+- killcams (`tests/killcam_test.gd`): the kill scores, their breakdown into parts that
+  add up to them, and the pick of the best three,
   what travels with a death, recording and blending frames, a replay from the killer's
   eyes (camera, arms, the victim, the shot, slow motion), the best kills playing
   fullscreen after a match (counting down to the best), the results page with
@@ -125,10 +126,10 @@ Networked and bot runs (real time):
   terminal on the host, a client across the room cannot, a late joiner is told how far
   along the event is, and bots use the terminal and keep moving in low gravity;
 - killcams (`tests/run_killcam_test.sh`): Vs Bots (in game time), the killcam plays each
-  time the bot gets you and runs until you respawn, Jump skips it, and the results
+  time the bot gets you and runs until you respawn, Jump skips it (not in its first 0.75 s), and the results
   screen plays the best kills and saves the best as a video; online, a host and a client on a laggy network each
-  watch their killcams, score every kill the same, pick the same best three and have
-  a clip of each;
+  watch their killcams, score every kill the same, show each killer their kill's points
+  (adding up to its score), pick the same best three and have a clip of each;
 - races (`tests/run_race_test.sh`, in game time): you and 4 bots finish Rooftop Run in
   time order and "Race again" starts another, Easy bots finish, and a hazard, a fall and
   R each send you back. After changing a course, run it on that map:

@@ -126,6 +126,11 @@ if skips < 1 or skips < len(plays(log)) - 1:
     bad("pressing jump should skip the killcam")
 if "KILLCAM SKIP BY" not in log:
     bad("the skip should come from the jump key")
+early = [float(t) for t in re.findall(r"^KILLCAM SKIP BY .* ([\d.]+)$", log, re.M) if float(t) < 0.75]
+if early:
+    bad(f"a killcam was skipped before it had played 0.75 s ({early})")
+if "KILLCAM TOO SOON" not in log:
+    bad("a press right as the killcam starts should not skip it (none was too soon)")
 
 # --- Online
 host, client = read("host"), read("client")
@@ -152,6 +157,18 @@ for name, l in [("host", host), ("client", client)]:
             bad(f"{name}: killcam {int(seq)} is not of a kill on this copy's player by its killer")
         if (frames < 10 and first < -1.0) or last < -0.5:   # (a kill in the first second has little before it)
             bad(f"{name}: killcam {int(seq)} has too little of the killer's recording ({int(frames)} frames, {first} to {last} s)")
+# The killer sees the points their kill scored, and where they came from.
+by_seq = {s[0]: s for s in hs}
+points = []
+for name, l in [("host", host), ("client", client)]:
+    for me, seq, total, parts in re.findall(r"^KILL_POINTS (\d+) (\d+) (\d+) (.*)$", l, re.M):
+        points.append(seq)
+        got = sum(int(x.rsplit("=", 1)[1]) for x in parts.split(","))
+        if got != int(total) or seq not in by_seq or by_seq[seq][1] != me or by_seq[seq][3] != total:
+            bad(f"{name}: kill {seq}'s points ({parts}) should add up to its score {by_seq.get(seq)} and show to its killer")
+print(f"  points shown to the killer for {len(points)} of {len(hs)} kills")
+if len(points) < len(hs) - 1:
+    bad("each kill's points should show to its killer")
 hb, cb = best_kills(host), best_kills(client)
 if not hb or hb != cb:
     bad(f"the copies picked different best kills: host {hb}, client {cb}")

@@ -19,6 +19,8 @@ const KILL_HIT_TIME := 0.4
 const NUMBER_TIME := 0.8
 const ARROW_TIME := 1.6
 const CONFIRM_TIME := 1.8
+const POINTS_TIME := 3.2        ## your kill's killcam points stay up this long
+const POINTS_STEP := 0.07       ## ...counting in one line after another
 const DEATH_W := 600.0          ## the death screen's left column
 const BOARD_W := 680.0          ## the scoreboard
 const DEATH_GAP := 36.0
@@ -70,6 +72,7 @@ var _hit_time := 0.0
 var _hit_kind := "hit"          # hit, head, kill
 var _confirm := {}              # {name, age}
 var _promo := {}                # Gun Game: {text, sub, age}: you just moved up (or down) the ladder
+var _points := {}               # your last kill's killcam score: {total, parts (KillScore.breakdown), age}
 var _last_head := {}            # target id -> was the last hit on them a headshot
 var _dead := false
 var _killer := 0
@@ -116,6 +119,7 @@ func _ready() -> void:
 	Match.player_respawned.connect(_on_respawned)
 	Match.gun_game_level.connect(_on_gun_game_level)
 	Match.dummy_hit.connect(_on_dummy_hit)
+	Match.kill_scored.connect(_on_kill_scored)
 
 
 func _full_rect(c: Control) -> Control:
@@ -249,6 +253,10 @@ func _age(delta: float) -> void:
 		_confirm.age += delta
 		if _confirm.age > CONFIRM_TIME:
 			_confirm = {}
+	if not _points.is_empty():
+		_points.age += delta
+		if _points.age > POINTS_TIME:
+			_points = {}
 	if not _promo.is_empty():
 		_promo.age += delta
 		if _promo.age > 2.2:
@@ -288,6 +296,17 @@ func _on_dummy_hit(shooter: int, _dummy: int, _damage: float, _headshot: bool, k
 		_hit_time = KILL_HIT_TIME
 		_hit_kind = "kill"
 		_confirm = {"name": "Target dummy", "age": 0.0}
+
+
+## You got a kill: show what it scored for the killcams, and where the points came from.
+func _on_kill_scored(info: Dictionary) -> void:
+	if int(info.killer) != Net.my_id() or int(info.victim) == Net.my_id():
+		return
+	var parts := KillScore.breakdown(info)
+	_points = {"total": int(info.score), "parts": parts, "age": 0.0}
+	if DevArgs.sync_log:
+		print("KILL_POINTS %d %d %d %s" % [Net.my_id(), int(info.seq), int(info.score),
+			",".join(parts.map(func(p): return "%s=%d" % [p[0], p[1]]))])
 
 
 func _on_died(victim: int, killer: int) -> void:
@@ -350,8 +369,9 @@ func _draw_overlay() -> void:
 			_race.draw(ci, size, self)
 	else:
 		if _dead and Killcam.watching():
+			var back := "BACK IN %.1f S" % _respawn_left
 			KillcamOverlay.draw(ci, Rect2(Vector2.ZERO, size), Killcam.view, "KILLCAM",
-				"%s  SKIP   ·   BACK IN %.1f S" % [Settings.action_text("jump").to_upper(), _respawn_left])
+				"%s  SKIP   ·   %s" % [Settings.action_text("jump").to_upper(), back] if Killcam.can_skip() else back)
 		elif _dead:
 			_draw_death(ci, size)
 		_draw_score_bar(ci, size)
@@ -384,6 +404,43 @@ func _draw_overlay() -> void:
 		HudStyle.text(ci, Vector2(c.x - w * 0.5 + w1, y), _confirm.name, 20, Color(1, 1, 1, a))
 	if grapple == GRAPPLE_ON and tether > 0.0:
 		HudStyle.text(ci, c + Vector2(40, 34), "%d m" % roundi(tether), 13, Color(1.0, 0.7, 0.45))
+	if not _points.is_empty():
+		_draw_points(ci, c)
+
+
+## Your kill's killcam score, right of the crosshair: the total, then each part of it
+## ("+60  HEADSHOT"), counting in one after another and fading out together.
+func _draw_points(ci: CanvasItem, c: Vector2) -> void:
+	var age: float = _points.age
+	var fade := clampf((POINTS_TIME - age) / 0.5, 0.0, 1.0)
+	var parts: Array = _points.parts
+	var x := c.x + 240.0   # clear of the ammo count beside the crosshair
+	var y := c.y - 80.0
+	var col := 0.0         # the words line up after the widest "+100"
+	var words_w := 0.0
+	for p in parts:
+		col = maxf(col, HudStyle.text_width("+%d" % p[1], 14) + 10.0)
+		words_w = maxf(words_w, HudStyle.text_width(p[0], 12, false))
+	var w := maxf(col + words_w, 150.0)
+	var h := 66.0 + parts.size() * 19.0
+	HudStyle.plate(ci, Rect2(x - 10.0, y - 20.0, w + 20.0, h), 6.0, Color(0.02, 0.03, 0.05, 0.45 * fade))
+	ci.draw_rect(Rect2(x - 10.0, y - 20.0, 3.0, h), Color(HudStyle.ORANGE, fade))
+	HudStyle.label(ci, Vector2(x, y - 6.0), "KILLCAM SCORE", 10, Color(1, 1, 1, 0.65 * fade))
+	var shown := mini(parts.size(), int(age / POINTS_STEP) + 1)
+	var running := 0
+	for i in shown:
+		running += int(parts[i][1])
+	var pop := 1.0 + 0.25 * clampf(1.0 - (age - (parts.size() - 1) * POINTS_STEP) / 0.15, 0.0, 1.0) if shown == parts.size() else 1.0
+	HudStyle.text(ci, Vector2(x, y + 16.0), "%d" % (running if shown < parts.size() else int(_points.total)), int(26 * pop), Color(HudStyle.ORANGE, fade))
+	var ly := y + 46.0
+	for i in shown:
+		var p: Array = parts[i]
+		var a := clampf((age - i * POINTS_STEP) / 0.12, 0.0, 1.0) * fade
+		var words := str(p[0])
+		var gold: bool = words == "HEADSHOT" or words.begins_with("FLICK") or (words.ends_with(" KILL") and i > 0)
+		HudStyle.text(ci, Vector2(x, ly), "+%d" % p[1], 14, Color(HudStyle.YELLOW if gold else HudStyle.WHITE, a))
+		HudStyle.text(ci, Vector2(x + col, ly), words, 12, Color(1, 1, 1, 0.75 * a), HORIZONTAL_ALIGNMENT_LEFT, false)
+		ly += 19.0
 
 
 func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
