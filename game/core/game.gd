@@ -57,8 +57,40 @@ func local_character() -> String:
 ## release build. The playtest build workflow stamps the version tag into the project
 ## (application/config/version) before it exports the game.
 func version_label() -> String:
-	var v := str(ProjectSettings.get_setting("application/config/version", "")).strip_edges()
+	var v := version()
 	return v if v != "" else "DEV BUILD"
+
+
+## The release this copy is ("v0.1.29"), or "" for a build that is not a release
+## (the editor, a local export). --fake-version=vX.Y.Z pretends (tests).
+func version() -> String:
+	if DevArgs.fake_version != "":
+		return DevArgs.fake_version
+	return str(ProjectSettings.get_setting("application/config/version", "")).strip_edges()
+
+
+## Compares two release versions ("v0.1.29"): -1 if a is older than b, 0 if the
+## same, 1 if newer.
+static func compare_versions(a: String, b: String) -> int:
+	var pa := a.trim_prefix("v").split(".")
+	var pb := b.trim_prefix("v").split(".")
+	for i in maxi(pa.size(), pb.size()):
+		var x := int(pa[i]) if i < pa.size() else 0
+		var y := int(pb[i]) if i < pb.size() else 0
+		if x != y:
+			return -1 if x < y else 1
+	return 0
+
+
+## What to tell a player whose copy is on `mine` when the host is on `host`: both
+## versions, and that whoever is behind should update. "" when they match or either
+## is not a release build.
+static func version_mismatch_text(host: String, mine: String) -> String:
+	if host == "" or mine == "" or compare_versions(host, mine) == 0:
+		return ""
+	if compare_versions(mine, host) < 0:
+		return "The host is on %s and you are on %s. Update your game to %s or newer to join (the latest is on the Releases page)." % [host, mine, host]
+	return "The host is on %s and you are on %s. The host needs to update their game to %s for you to join." % [host, mine, mine]
 
 
 ## The mobility tool this copy of the game takes into a match.
@@ -255,6 +287,8 @@ func _on_joined_lobby() -> void:
 
 
 func _on_join_failed(reason: String) -> void:
+	if DevArgs.sync_log:
+		print("JOIN_FAILED %s" % reason)
 	goto_main_menu(reason)
 
 

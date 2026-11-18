@@ -16,6 +16,7 @@ extends Node
 ## --allowed-weapons=A,B  Host / Vs Bots: only these weapons may be picked (one id: a single gun for everyone).
 ## --allowed-mobility=A,B Host / Vs Bots: only these mobility tools may be picked (one id: the same for everyone).
 ## --lobby-size=N       Host: the lobby takes at most N players (2 to 16).
+## --fake-version=vX.Y.Z Pretend this copy is that release (the version check when joining; tests).
 ## --ready-at=SEC       Lobby: say you are ready SEC seconds after the lobby opens (tests).
 ## --kick-at=SEC:NAME   Host: kick the player called NAME SEC seconds after the lobby opens (tests).
 ## --start-when-ready   Host: start the match as soon as everyone (at least 2) is ready (tests).
@@ -91,6 +92,7 @@ var bot_weapon := ""
 var allowed_weapons: Array = []   ## --allowed-weapons (see LobbySettings)
 var allowed_mobility: Array = []  ## --allowed-mobility (see LobbySettings)
 var lobby_size := 0               ## --lobby-size
+var fake_version := ""            ## --fake-version
 var ready_at := -1.0              ## --ready-at
 var kick_at := -1.0               ## --kick-at (when)
 var kick_name := ""               ## --kick-at (who)
@@ -196,6 +198,7 @@ func _ready() -> void:
 					else:
 						push_warning("Unknown weapon: %s (weapons: %s)" % [w, ", ".join(WeaponData.IDS)])
 			"--lobby-size": lobby_size = int(value)
+			"--fake-version": fake_version = value
 			"--ready-at": ready_at = float(value)
 			"--kick-at":
 				kick_at = float(value.get_slice(":", 0))

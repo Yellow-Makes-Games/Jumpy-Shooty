@@ -96,6 +96,8 @@ echo "== Lobby settings: the host allows only some weapons and mobility tools; a
 tests/run_lobby_settings_test.sh
 echo "== Lobby: size 3 (a fourth player is refused), ready up, the host kicks the one not ready, then starts"
 tests/run_lobby_test.sh
+echo "== Version check: a host on v0.1.30; older and newer copies are kept out and told why, the same version and a dev build join"
+tests/run_version_check_test.sh
 echo "== Host controls: a random map from the host's pool for everyone (a late joiner too), and the lobby song the host picks, in step"
 tests/run_host_controls_test.sh
 echo "== Spectating online: a client joins mid-match to watch; nobody sees it"
