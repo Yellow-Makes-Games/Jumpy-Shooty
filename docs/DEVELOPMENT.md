@@ -1288,7 +1288,7 @@ python3 with numpy):
 | `creatures.py` | The Character Creator's creatures (a person, a goblin, a frog...): each one's shape, modelled round the same skeleton, and their materials. `KITS` lists them |
 | `rig.py` | The skeleton (bone names and positions) and the pose solver |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
-| `weapons.py` | The four guns' shapes and materials (pistol, shotgun, rifle, sniper), and where the left hand holds each long gun |
+| `weapons.py` | Every gun's shape and materials, and where the left hand holds each long gun |
 | `weapon_anims.py` | The long guns' own clips: how each is held, carried when sprinting, fired (pump, bolt), reloaded, and the first-person arm poses for each |
 | `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and guns), and for each creature `game/player/robot/kits/NAME.glb` (its mesh only: no guns, no animations). `--kits` writes only the creatures (a few seconds) |
 
@@ -1417,6 +1417,16 @@ its `color` and `accent`, the plate's colour (`back`) and `shape`, and if it sho
 stand out the rim's metal (`rim`: `BRONZE` or `GOLD`) and `rays`.
 It is free unless an achievement's `rewards` name it (`"card:<id>"`, `"icon:<id>"`).
 The picker, the lobby and the test read the tables.
+
+**Guns** share the melee weapons' look (gunmetal frame, armour-plate panels, steel
+barrels, lit parts in the player's trim colour: the `glow` kind, which
+`RobotModel.set_gun_glow` can dim and brighten). Each is built round fixed points: the
+barrel line and muzzle (`rig.py`), where the hands go (`weapons.SUPPORT`, and the bolts,
+handles and magazines in `weapon_anims.py`). Keep those where they are when reshaping
+one. Each gun's vents are added with `_vent()`: they do not move yet (the reloads will
+give them a bone). To look at guns on their own: `tools/combat/gun_preview.sh OUT_DIR
+--guns=pistol,rifle`; for before/after sheets of every gun by family:
+`python3 tools/combat/gun_sheet.py OUT_DIR BEFORE.glb`.
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted

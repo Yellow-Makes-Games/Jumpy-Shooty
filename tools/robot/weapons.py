@@ -8,9 +8,24 @@ right fist closes on the grip) and tied to the three gun bones:
                 receiver until a reload brings it out)
 
 Every robot carries every gun in its model file; the game shows only the one the
-player picked. A gun's triangles use materials named "<gun>.<kind>" (kinds: gun,
-detail, accent, lens), so the game can tell which surfaces belong to which gun.
+player picked. A gun's triangles use materials named "<gun>.<kind>" (see KINDS), so
+the game can tell which surfaces belong to which gun.
+
+The look: made in the same factory as the robots and the melee weapons. A gunmetal
+frame, armour-plate panels on its flanks, steel barrels, a near-black grip, and lit
+parts in the player's trim colour ("glow": a channel along the gun and a window in
+its power cell). Each keeps the outline of the real gun it is named after, a little
+chunkier. What a reload moves is on the slide and magazine bones; each gun's vents
+(the part a reload will snap open) are added with _vent().
+
+The barrel line, the muzzle and where the hands go (SUPPORT, and the bolts, handles
+and magazines in weapon_anims.py) are fixed points: a new shape has to be built
+round them.
 """
+import math
+
+import numpy as np
+
 from kit import Part, loft, rect, box, prism, ball
 from rig import BODY, GUN_REST
 
@@ -49,14 +64,29 @@ SUPPORT = {
     "plasma_cannon": {"grip": (0.0, 0.02, -0.30)},
 }
 
+def _lin(r, g, b):
+    """A colour as the game's own code writes it (sRGB), turned into what a model file holds (linear)."""
+    return tuple(round(((c + 0.055) / 1.055) ** 2.4 if c > 0.04045 else c / 12.92, 4) for c in (r, g, b))
+
+
+# The first five are the melee weapons' own colours (MeleeModel.KINDS), so a gun and a
+# blade look cut from the same stock.
 KINDS = {
-    "gun": {"color": (0.17, 0.18, 0.21), "metallic": 0.6, "roughness": 0.4},
-    "detail": {"color": (0.36, 0.38, 0.42), "metallic": 0.3, "roughness": 0.5},
-    "accent": {"color": (0.95, 0.35, 0.25), "metallic": 0.1, "roughness": 0.5},
+    "dark": {"color": _lin(0.17, 0.18, 0.21), "metallic": 0.4, "roughness": 0.45},     # the gunmetal frame
+    "plate": {"color": _lin(0.90, 0.91, 0.93), "metallic": 0.1, "roughness": 0.55},    # the robots' armour plate
+    "steel": {"color": _lin(0.78, 0.80, 0.83), "metallic": 0.55, "roughness": 0.3},    # barrels and bare metal
+    "detail": {"color": _lin(0.36, 0.38, 0.42), "metallic": 0.3, "roughness": 0.5},
+    "grip": {"color": _lin(0.10, 0.10, 0.11), "metallic": 0.05, "roughness": 0.75},
+    "accent": {"color": (0.95, 0.35, 0.25), "metallic": 0.1, "roughness": 0.5},    # paint in the player's colour
+    # Lit parts. The game shows them in the player's trim colour and can dim and brighten
+    # them (RobotModel.set_gun_glow).
+    "glow": {"color": (0.95, 0.35, 0.25), "metallic": 0.0, "roughness": 0.4, "emission": (0.95, 0.35, 0.25)},
     "lens": {"color": (0.05, 0.10, 0.14), "metallic": 0.2, "roughness": 0.15, "emission": (0.10, 0.45, 0.60)},
-    "polymer": {"color": (0.27, 0.28, 0.30), "metallic": 0.05, "roughness": 0.75},
-    "wood": {"color": (0.42, 0.25, 0.13), "metallic": 0.0, "roughness": 0.7},
 }
+
+# The bone each gun's vents ride on. They do not move yet: the reloads will give them
+# a bone of their own to snap open on.
+VENT_BONE = "pistol"
 
 
 def materials():
@@ -78,9 +108,119 @@ def _run(secs):
     return loft(secs).rot(pitch=-90)
 
 
-def _tube(r, back, front, y, sides=8, x=0.0):
-    """A round bar along the barrel line from `back` to `front` metres ahead of the grip."""
-    return prism(sides, r, front - back, phase=0.39).rot(pitch=-90).move(x, y, -(back + front) / 2.0)
+def _tube(r, back, front, y, sides=8, x=0.0, r_front=None):
+    """A round bar along the barrel line from `back` to `front` metres ahead of the grip
+    (r_front: a different radius at the front, for a cone)."""
+    return prism(sides, r, front - back, r_top=r_front, phase=0.39).rot(pitch=-90).move(x, y, -(back + front) / 2.0)
+
+
+def _rings(r, starts, length, y, sides=8, x=0.0):
+    """Short collars round the barrel line, one starting at each of `starts`."""
+    out = Part([])
+    for f in starts:
+        out = out + _tube(r, f, f + length, y, sides, x)
+    return out
+
+
+def _ears(p):
+    """Triangles (index triples) filling the outline p (counter-clockwise, no crossings)."""
+    idx = list(range(len(p)))
+    out = []
+    while len(idx) > 3:
+        for k in range(len(idx)):
+            i, j, l = idx[k - 1], idx[k], idx[(k + 1) % len(idx)]
+            a, b, c = p[i], p[j], p[l]
+            if (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) <= 1e-12:
+                continue   # a corner that turns inwards
+
+            def inside(q):
+                d1 = (b[0] - a[0]) * (q[1] - a[1]) - (b[1] - a[1]) * (q[0] - a[0])
+                d2 = (c[0] - b[0]) * (q[1] - b[1]) - (c[1] - b[1]) * (q[0] - b[0])
+                d3 = (a[0] - c[0]) * (q[1] - c[1]) - (a[1] - c[1]) * (q[0] - c[0])
+                return d1 > 1e-12 and d2 > 1e-12 and d3 > 1e-12
+            if any(inside(p[m]) for m in idx if m not in (i, j, l)):
+                continue
+            out.append((i, j, l))
+            idx.pop(k)
+            break
+        else:
+            break
+    out.append(tuple(idx[:3]))
+    return out
+
+
+def _slab(outline, x0, x1, bevel=0.0, cap0=True):
+    """A plate cut out of the gun's side view: `outline` is [(forward, up), ...] round its
+    edge, and it runs across the gun from x0 to x1. bevel: how far the face at x1 is set
+    in from the edge all round (a pressed panel, not a slab)."""
+    p = [(float(f), float(y)) for f, y in outline]
+    n = len(p)
+    if sum(p[i][0] * p[(i + 1) % n][1] - p[(i + 1) % n][0] * p[i][1] for i in range(n)) < 0:
+        p.reverse()
+    s = 1.0 if x1 > x0 else -1.0
+    normals = []
+    for i in range(n):
+        a, b = p[i], p[(i + 1) % n]
+        length = math.hypot(b[0] - a[0], b[1] - a[1]) or 1.0
+        normals.append(((b[1] - a[1]) / length, -(b[0] - a[0]) / length))
+    face = p
+    if bevel > 0.0:
+        face = []
+        for i in range(n):
+            n1, n2 = normals[i - 1], normals[i]
+            k = max(1.0 + n1[0] * n2[0] + n1[1] * n2[1], 0.35)
+            face.append((p[i][0] - bevel * (n1[0] + n2[0]) / k, p[i][1] - bevel * (n1[1] + n2[1]) / k))
+    xb = x1 - s * bevel if bevel > 0.0 else x1
+    tris = []
+
+    def at(q, x):
+        return np.array([x, q[1], -q[0]])
+
+    def tri(a, b, c, out):
+        if np.dot(np.cross(b - a, c - a), out) < 0:
+            b, c = c, b
+        tris.append([a, b, c])
+
+    for i in range(n):
+        j = (i + 1) % n
+        out = np.array([0.0, normals[i][1], -normals[i][0]])
+        tri(at(p[i], x0), at(p[j], x0), at(p[j], xb), out)
+        tri(at(p[i], x0), at(p[j], xb), at(p[i], xb), out)
+        if bevel > 0.0:
+            lean = out + np.array([s, 0.0, 0.0])
+            tri(at(p[i], xb), at(p[j], xb), at(face[j], x1), lean)
+            tri(at(p[i], xb), at(face[j], x1), at(face[i], x1), lean)
+    fill = _ears(p)
+    for i, j, l in fill:
+        if cap0:
+            tri(at(p[i], x0), at(p[j], x0), at(p[l], x0), np.array([-s, 0.0, 0.0]))
+        tri(at(face[i], x1), at(face[j], x1), at(face[l], x1), np.array([s, 0.0, 0.0]))
+    return Part([t for t in tris if np.linalg.norm(np.cross(t[1] - t[0], t[2] - t[0])) > 1e-10])
+
+
+def _both(part):
+    """The part and its mirror image on the gun's other side."""
+    return part + part.mirrored()
+
+
+def _core(outline, w, bevel=0.0):
+    """A slab on the gun's centre line, w wide (see _slab)."""
+    return _both(_slab(outline, 0.0, -w / 2.0, bevel, cap0=False))
+
+
+def _panels(outline, x, thick=0.005, bevel=0.002):
+    """A pair of panels, one on each flank: `outline` in the side view, standing from x
+    out to x + thick."""
+    return _both(_slab(outline, -x, -x - thick, bevel, cap0=False))
+
+
+def _slats(f0, n, pitch, y0, y1, x, t=0.006, lean=0.006, thick=0.004):
+    """A row of n slanted vent slats on each flank, the first at f0, `pitch` apart."""
+    out = Part([])
+    for i in range(n):
+        f = f0 + i * pitch
+        out = out + _panels([(f, y0), (f + t, y0), (f + t + lean, y1), (f + lean, y1)], x, thick, 0.0)
+    return out
 
 
 def _add(mesh, gun, kind, bone, part):
@@ -88,705 +228,876 @@ def _add(mesh, gun, kind, bone, part):
     mesh.add(_place(part, "pistol_l" if bone.startswith("pistol_l") else "pistol"), "%s.%s" % (gun, kind), bone)
 
 
+def _vent(mesh, gun, kind, part, bone=VENT_BONE):
+    """The gun's vents: the part a reload will snap open."""
+    _add(mesh, gun, kind, bone, part)
+
+
+def _grip(pitch=-16.0, w=0.036, h=0.112, d=0.05, y=-0.035, z=0.02):
+    """The pistol grip in the right fist."""
+    return box(w, h, d, 0.011).rot(pitch=pitch).move(0, y, z)
+
+
+def _guard(front=0.08, drop=-0.014):
+    """The trigger guard: a bar under the trigger and a slanted bar up to the frame."""
+    return _core([(0.012, drop - 0.006), (front - 0.012, drop - 0.006), (front + 0.004, 0.026), (front - 0.008, 0.026),
+                  (front - 0.018, drop + 0.006), (0.012, drop + 0.006)], 0.012)
+
+
+def _cell(w, h, d, pitch=0.0, y=0.0, z=0.0, window=0.5):
+    """A power cell (most guns' magazine): [its body, the lit window down its front, its
+    base pad], to be added as "detail", "glow" and "accent"."""
+    body = box(w, h, d, 0.006).rot(pitch=pitch).move(0, y, z)
+    lit = box(w + 0.003, h * window, d * 0.34).move(0, -h * (1.0 - window) * 0.25, -d * 0.36).rot(pitch=pitch).move(0, y, z)
+    pad = box(w + 0.004, 0.012, d + 0.004, 0.006).move(0, -h / 2.0 + 0.002, 0).rot(pitch=pitch).move(0, y, z)
+    return body, lit, pad
+
+
+def _stock(mesh, g, back, top, heel, toe, w=0.042, neck=-0.045, open_frame=False):
+    """A shoulder stock running back from the receiver to the butt at `back`: its top
+    line at `top`, the butt from `heel` (top) down to `toe`. A gunmetal spine, an armour
+    cheek panel on each flank and a butt pad in the player's colour. open_frame: a
+    skeleton stock (two bars and the butt)."""
+    if open_frame:
+        spine = _core([(neck, top), (back + 0.03, top - 0.004), (back + 0.03, top - 0.03), (neck, top - 0.03)], w * 0.6, 0.003)
+        strut = _core([(neck + 0.02, toe + 0.05), (neck + 0.02, toe + 0.074), (back + 0.03, toe + 0.03), (back + 0.03, toe + 0.006)], w * 0.6, 0.003)
+        butt = _core([(back + 0.04, heel), (back + 0.008, heel - 0.006), (back + 0.008, toe + 0.006), (back + 0.04, toe)], w, 0.005)
+        _add(mesh, g, "dark", "pistol", spine + strut + butt)
+        _add(mesh, g, "plate", "pistol", _panels([(neck - 0.005, top - 0.004), (back + 0.07, top - 0.007), (back + 0.07, top - 0.026),
+                                                (neck - 0.005, top - 0.026)], w * 0.3, 0.004))
+    else:
+        body = _core([(neck, top), (back + 0.03, top - 0.003), (back + 0.008, heel - 0.004), (back + 0.008, toe + 0.006),
+                      (back + 0.035, toe), (back + 0.10, toe + 0.05), (neck, top - 0.058)], w, 0.006)
+        _add(mesh, g, "dark", "pistol", body)
+        _add(mesh, g, "plate", "pistol", _panels([(neck - 0.012, top - 0.008), (back + 0.045, top - 0.012), (back + 0.045, toe + 0.026),
+                                                (back + 0.105, toe + 0.064), (neck - 0.012, top - 0.047)], w / 2.0 - 0.001, 0.005))
+    _add(mesh, g, "accent", "pistol", _core([(back + 0.008, heel - 0.002), (back - 0.008, heel - 0.008), (back - 0.008, toe + 0.008),
+                                            (back + 0.008, toe + 0.002)], w + 0.006, 0.004))
+
+
+def _dot_sight(f, y, w=0.03, h=0.034, length=0.06):
+    """A small reflex sight: [its housing, its lens], the lens facing the shooter."""
+    housing = _core([(f, y), (f + length, y), (f + length, y + h), (f + length - 0.014, y + h + 0.006),
+                     (f + 0.012, y + h + 0.006), (f, y + h * 0.5)], w, 0.004)
+    lens = box(w - 0.008, h - 0.008, 0.003).move(0, y + h * 0.5 + 0.004, -f + 0.0005)
+    return housing, lens
+
+
+def _scope(f0, f1, y, r=0.019, bell=0.028):
+    """A telescopic sight from f0 to f1 on the line y: [tube, mounts, front lens, a band
+    in the player's colour]."""
+    tube = (_tube(r * 1.25, f0, f0 + 0.03, y, 8) + _tube(r, f0 + 0.03, f1 - 0.07, y, 8)
+            + _tube(r, f1 - 0.07, f1 - 0.045, y, 8, r_front=bell) + _tube(bell, f1 - 0.045, f1, y, 8))
+    span = f1 - f0
+    mounts = (_core([(f0 + span * 0.22, y - r - 0.03), (f0 + span * 0.22 + 0.022, y - r - 0.03), (f0 + span * 0.22 + 0.018, y), (f0 + span * 0.22 + 0.004, y)], 0.022)
+              + _core([(f0 + span * 0.58, y - r - 0.03), (f0 + span * 0.58 + 0.022, y - r - 0.03), (f0 + span * 0.58 + 0.018, y), (f0 + span * 0.58 + 0.004, y)], 0.022))
+    lens = _tube(bell * 0.84, f1 - 0.002, f1 + 0.002, y, 8)
+    band = _tube(r * 1.12, f0 + span * 0.40, f0 + span * 0.40 + 0.016, y, 8)
+    return tube, mounts, lens, band
+
+
 # ---------------------------------------------------------------------------
+# Sidearms
 
 def pistol(mesh):
-    """A chunky sidearm, about 26 cm long."""
+    """A chunky sidearm, about 26 cm: armour plates on the slide with a lit channel under
+    their step, a cooling grille on the dust cover, and a power cell in the grip whose
+    lit base shows under it."""
     g = "pistol"
-    grip = box(0.036, 0.115, 0.05, 0.008).rot(pitch=-14).move(0, -0.035, 0.018)
-    frame = loft([rect(0.036, 0.19, 0.022, 0.006, cz=-0.06), rect(0.036, 0.20, 0.05, 0.006, cz=-0.06)])
-    guard = box(0.014, 0.012, 0.065).move(0, -0.012, -0.045) + box(0.014, 0.04, 0.012).move(0, 0.004, -0.078)
-    under = box(0.03, 0.022, 0.07).move(0, 0.012, -0.12)   # rail block under the barrel
-    _add(mesh, g, "gun", "pistol", grip + frame + guard)
-    _add(mesh, g, "detail", "pistol", under)
-    slide = loft([rect(0.042, 0.235, 0.05, 0.008, cz=-0.06), rect(0.042, 0.235, 0.078, 0.012, cz=-0.06),
-                  rect(0.03, 0.235, 0.09, 0.006, cz=-0.06)])
-    _add(mesh, g, "gun", "pistol_slide", slide)
-    _add(mesh, g, "accent", "pistol_slide", box(0.044, 0.008, 0.10).move(0, 0.066, -0.02))
-    _add(mesh, g, "detail", "pistol", prism(6, 0.011, 0.02).rot(pitch=90).move(0, 0.064, -0.185))
+    _add(mesh, g, "grip", "pistol", _grip(-14, 0.038, 0.112, 0.05, -0.036, 0.018))
+    frame = _core([(-0.068, 0.05), (0.178, 0.05), (0.178, 0.03), (0.163, 0.004), (0.092, 0.004), (0.078, 0.024),
+                   (-0.03, 0.024), (-0.068, 0.036)], 0.038, 0.004)
+    _add(mesh, g, "dark", "pistol", frame + _guard(0.076))
+    _vent(mesh, g, "detail", _slats(0.098, 4, 0.015, 0.009, 0.027, 0.019, t=0.007, lean=0.005, thick=0.003))
+    slide = _core([(-0.068, 0.052), (0.176, 0.052), (0.176, 0.082), (0.16, 0.092), (-0.05, 0.092), (-0.068, 0.08)], 0.04, 0.006)
+    _add(mesh, g, "dark", "pistol_slide", slide)
+    _add(mesh, g, "plate", "pistol_slide", _panels([(-0.03, 0.056), (0.088, 0.056), (0.106, 0.071), (0.168, 0.071), (0.168, 0.084),
+                                                   (0.156, 0.088), (-0.03, 0.088)], 0.019, 0.005))
+    _add(mesh, g, "glow", "pistol_slide", _panels([(0.101, 0.057), (0.167, 0.057), (0.167, 0.066), (0.112, 0.066)], 0.0195, 0.002, 0.0))
+    _add(mesh, g, "detail", "pistol_slide", _slats(-0.062, 4, 0.008, 0.058, 0.086, 0.0195, t=0.004, lean=0.003, thick=0.003)
+         + box(0.022, 0.008, 0.012).move(0, 0.096, 0.052) + box(0.006, 0.009, 0.014).move(0, 0.0965, -0.162))
+    _add(mesh, g, "steel", "pistol", _tube(0.013, 0.17, 0.198, 0.068, 8))
+    _add(mesh, g, "detail", "pistol", _tube(0.0155, 0.183, 0.191, 0.068, 8))
     _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.11, 0.034).rot(pitch=-14).move(0, -0.045, 0.02))
-
-
-def shotgun(mesh):
-    """Pump-action, about 80 cm: a short stock, a thick barrel over a magazine tube,
-    and a ribbed pump in the player's colour that racks back after every shot."""
-    g = "shotgun"
-    grip = box(0.038, 0.12, 0.052, 0.009).rot(pitch=-20).move(0, -0.035, 0.022)
-    guard = box(0.014, 0.012, 0.07).move(0, -0.014, -0.045) + box(0.014, 0.045, 0.012).move(0, 0.002, -0.08)
-    receiver = _run([_sec(0.052, 0.07, -0.05, 0.058, ch=0.012), _sec(0.052, 0.07, 0.17, 0.058, ch=0.012),
-                     _sec(0.046, 0.05, 0.19, 0.06, ch=0.01)])
-    stock = _run([_sec(0.046, 0.06, -0.04, 0.05, ch=0.01), _sec(0.04, 0.05, -0.12, 0.035, ch=0.01),
-                  _sec(0.046, 0.10, -0.21, 0.02, ch=0.012), _sec(0.046, 0.105, -0.23, 0.02, ch=0.012)])
-    _add(mesh, g, "gun", "pistol", grip + guard + receiver)
-    _add(mesh, g, "polymer", "pistol", stock)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.05, 0.11, -0.232, 0.02, ch=0.012), _sec(0.05, 0.11, -0.25, 0.02, ch=0.012)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.017, 0.17, 0.58, 0.072, 8) + _tube(0.012, 0.17, 0.50, 0.036, 8))
-    _add(mesh, g, "gun", "pistol", _tube(0.02, 0.555, 0.60, 0.072, 8) + box(0.008, 0.012, 0.012).move(0, 0.094, -0.585))
-    _add(mesh, g, "gun", "pistol", _tube(0.014, 0.50, 0.52, 0.036, 8))   # magazine tube cap
-    pump = _run([_sec(0.046, 0.044, 0.21, 0.036, ch=0.012), _sec(0.056, 0.054, 0.24, 0.036, ch=0.015),
-                 _sec(0.056, 0.054, 0.36, 0.036, ch=0.015), _sec(0.046, 0.044, 0.39, 0.036, ch=0.012)])
-    _add(mesh, g, "polymer", "pistol_slide", pump)
-    ribs = Part([])
-    for i in range(4):
-        ribs = ribs + _run([_sec(0.059, 0.057, 0.26 + i * 0.03, 0.036, ch=0.016), _sec(0.059, 0.057, 0.272 + i * 0.03, 0.036, ch=0.016)])
-    _add(mesh, g, "accent", "pistol_slide", ribs)
-    # One shell, for reloads: hidden inside the receiver until a reload brings it out.
-    _add(mesh, g, "accent", "pistol_mag", _tube(0.011, 0.02, 0.07, 0.05, 6))
-    _add(mesh, g, "detail", "pistol_mag", _tube(0.0115, 0.0, 0.02, 0.05, 6))
-
-
-def rifle(mesh):
-    """Assault rifle, about 80 cm: fixed stock, a curved magazine, a long handguard with
-    accent stripes, a red-dot sight, and a charging handle on the left side."""
-    g = "rifle"
-    grip = box(0.034, 0.11, 0.048, 0.008).rot(pitch=-18).move(0, -0.034, 0.02)
-    guard = box(0.012, 0.012, 0.065).move(0, -0.012, -0.042) + box(0.012, 0.04, 0.012).move(0, 0.002, -0.076)
-    lower = _run([_sec(0.044, 0.035, -0.06, 0.035, ch=0.008), _sec(0.044, 0.035, 0.13, 0.035, ch=0.008)])
-    upper = _run([_sec(0.046, 0.04, -0.06, 0.07, ch=0.008), _sec(0.046, 0.04, 0.18, 0.07, ch=0.008)])
-    magwell = _run([_sec(0.04, 0.04, 0.04, 0.005, ch=0.006), _sec(0.04, 0.04, 0.12, 0.005, ch=0.006)])
-    stock = _run([_sec(0.04, 0.05, -0.05, 0.045, ch=0.01), _sec(0.032, 0.04, -0.10, 0.045, ch=0.008),
-                  _sec(0.04, 0.10, -0.20, 0.025, ch=0.012), _sec(0.04, 0.10, -0.215, 0.025, ch=0.012)])
-    _add(mesh, g, "gun", "pistol", grip + guard + lower + upper + magwell)
-    _add(mesh, g, "polymer", "pistol", stock)
-    hand = _run([_sec(0.05, 0.052, 0.17, 0.052, ch=0.014), _sec(0.05, 0.052, 0.43, 0.052, ch=0.014)])
-    _add(mesh, g, "polymer", "pistol", hand)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.053, 0.014, 0.22, 0.058), _sec(0.053, 0.014, 0.38, 0.058)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.011, 0.43, 0.52, 0.052, 6) + _tube(0.017, 0.52, 0.565, 0.052, 6))
-    rail = box(0.022, 0.01, 0.30).move(0, 0.095, -0.12)
-    sight = _run([_sec(0.034, 0.04, 0.02, 0.118, ch=0.008), _sec(0.034, 0.042, 0.09, 0.119, ch=0.008)])
-    _add(mesh, g, "detail", "pistol", rail + sight)
-    _add(mesh, g, "lens", "pistol", _run([_sec(0.024, 0.028, 0.0905, 0.121), _sec(0.024, 0.028, 0.093, 0.121)]))
-    _add(mesh, g, "gun", "pistol", box(0.008, 0.03, 0.012).move(0, 0.092, -0.40))   # front sight post
-    # Curved magazine
-    mag = loft([rect(0.03, 0.075, 0.0, 0.008, cz=-0.08), rect(0.03, 0.075, -0.07, 0.008, cz=-0.09),
-                rect(0.03, 0.07, -0.15, 0.008, cz=-0.11), rect(0.03, 0.068, -0.19, 0.008, cz=-0.125)])
-    _add(mesh, g, "detail", "pistol_mag", mag)
-    _add(mesh, g, "accent", "pistol_mag", rect_box(0.032, 0.012, 0.072, -0.185, -0.125))
-    # Charging handle on the left of the receiver: pulled back on a reload.
-    _add(mesh, g, "gun", "pistol_slide", box(0.03, 0.018, 0.035, 0.005).move(-0.035, 0.07, -0.13))
-
-
-def rect_box(w, h, d, y, z):
-    return box(w, h, d, 0.004).move(0, y, z)
-
-
-def sniper(mesh):
-    """Bolt-action sniper rifle, about 1.1 m: long thin barrel with a muzzle brake, a big
-    scope, a skeleton stock, a box magazine and a bolt worked from the left side."""
-    g = "sniper"
-    grip = box(0.034, 0.11, 0.048, 0.008).rot(pitch=-16).move(0, -0.034, 0.02)
-    guard = box(0.012, 0.012, 0.07).move(0, -0.012, -0.045) + box(0.012, 0.04, 0.012).move(0, 0.002, -0.08)
-    receiver = _run([_sec(0.046, 0.05, -0.06, 0.06, ch=0.01), _sec(0.046, 0.05, 0.20, 0.06, ch=0.01)])
-    fore = _run([_sec(0.05, 0.05, 0.12, 0.035, ch=0.014), _sec(0.05, 0.05, 0.44, 0.035, ch=0.014),
-                 _sec(0.036, 0.036, 0.47, 0.04, ch=0.01)])
-    # Skeleton stock: a top bar, a bottom bar and the butt
-    stock = (_run([_sec(0.032, 0.03, -0.05, 0.065, ch=0.006), _sec(0.032, 0.03, -0.20, 0.062, ch=0.006)])
-             + _run([_sec(0.03, 0.025, -0.02, -0.005, ch=0.006), _sec(0.03, 0.025, -0.20, -0.02, ch=0.006)])
-             + _run([_sec(0.04, 0.12, -0.20, 0.025, ch=0.012), _sec(0.04, 0.12, -0.235, 0.025, ch=0.012)]))
-    _add(mesh, g, "gun", "pistol", grip + guard + receiver)
-    _add(mesh, g, "polymer", "pistol", fore + stock)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.042, 0.124, -0.236, 0.025, ch=0.012), _sec(0.042, 0.124, -0.25, 0.025, ch=0.012)]))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.053, 0.012, 0.18, 0.045), _sec(0.053, 0.012, 0.42, 0.045)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.012, 0.44, 0.80, 0.058, 6))
-    _add(mesh, g, "gun", "pistol", _tube(0.02, 0.80, 0.86, 0.058, 6))   # muzzle brake
-    # Scope on two rings
-    tube = _run([_sec(0.03, 0.03, -0.06, 0.125, ch=0.01), _sec(0.04, 0.04, -0.035, 0.125, ch=0.013),
-                 _sec(0.03, 0.03, -0.01, 0.125, ch=0.01), _sec(0.03, 0.03, 0.14, 0.125, ch=0.01),
-                 _sec(0.052, 0.052, 0.20, 0.125, ch=0.017), _sec(0.052, 0.052, 0.24, 0.125, ch=0.017)])
-    rings = box(0.02, 0.04, 0.016).move(0, 0.095, -0.02) + box(0.02, 0.04, 0.016).move(0, 0.095, -0.14)
-    _add(mesh, g, "gun", "pistol", tube + rings)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.034, 0.034, 0.06, 0.125, ch=0.011), _sec(0.034, 0.034, 0.075, 0.125, ch=0.011)]))
-    _add(mesh, g, "lens", "pistol", _run([_sec(0.044, 0.044, 0.2405, 0.125, ch=0.014), _sec(0.044, 0.044, 0.243, 0.125, ch=0.014)]))
-    _add(mesh, g, "detail", "pistol_mag", box(0.03, 0.075, 0.07, 0.008).move(0, -0.005, -0.10))
-    # The bolt: a cocking handle on the left with a ball knob.
-    _add(mesh, g, "detail", "pistol_slide", box(0.02, 0.022, 0.07, 0.004).move(-0.03, 0.06, -0.035))
-    _add(mesh, g, "gun", "pistol_slide", prism(6, 0.007, 0.05).rot(roll=90).move(-0.06, 0.06, -0.02))
-    _add(mesh, g, "accent", "pistol_slide", ball(0.014).move(-0.088, 0.06, -0.02))
-
-
-# ---------------------------------------------------------------------------
-# The newer guns
-
-def _grip(pitch=-16.0, w=0.034, h=0.11):
-    return box(w, h, 0.048, 0.008).rot(pitch=pitch).move(0, -0.034, 0.02)
-
-
-def _guard():
-    return box(0.012, 0.012, 0.068).move(0, -0.012, -0.044) + box(0.012, 0.04, 0.012).move(0, 0.002, -0.078)
+    _add(mesh, g, "glow", "pistol_mag", box(0.032, 0.01, 0.042, 0.006).move(0, -0.058, 0).rot(pitch=-14).move(0, -0.045, 0.02))
 
 
 def revolver(mesh):
-    """A big six-shooter, about 34 cm: a long ribbed barrel, a fluted cylinder that
-    swings out to the left for reloads, a hammer that cocks back after every shot."""
+    """A big six-shooter, about 34 cm: a slab-sided barrel with an armour panel and a lit
+    channel along it, a cylinder with a lit band that swings out to the left for reloads,
+    and a hammer that cocks back after every shot."""
     g = "revolver"
-    grip = box(0.036, 0.12, 0.05, 0.012).rot(pitch=-22).move(0, -0.04, 0.024)
-    frame = (_run([_sec(0.036, 0.06, -0.03, 0.04, ch=0.008), _sec(0.036, 0.06, 0.10, 0.04, ch=0.008)])
-             + box(0.03, 0.014, 0.04).move(0, 0.075, -0.06))
-    _add(mesh, g, "gun", "pistol", grip.move(0, 0, 0) + frame + _guard())
-    _add(mesh, g, "wood", "pistol", box(0.04, 0.09, 0.044, 0.012).rot(pitch=-22).move(0, -0.05, 0.026))
-    _add(mesh, g, "gun", "pistol", _tube(0.014, 0.10, 0.285, 0.066, 8))
-    _add(mesh, g, "detail", "pistol", box(0.018, 0.016, 0.18).move(0, 0.082, -0.19)
-         + box(0.006, 0.014, 0.01).move(0, 0.094, -0.275))
-    _add(mesh, g, "accent", "pistol", box(0.04, 0.008, 0.05).move(0, 0.064, -0.11))
+    _add(mesh, g, "grip", "pistol", box(0.038, 0.12, 0.05, 0.012).rot(pitch=-22).move(0, -0.04, 0.024))
+    _add(mesh, g, "plate", "pistol", box(0.044, 0.066, 0.028, 0.008).rot(pitch=-22).move(0, -0.046, 0.027))
+    _add(mesh, g, "detail", "pistol", box(0.042, 0.012, 0.054, 0.012).move(0, -0.062, 0).rot(pitch=-22).move(0, -0.04, 0.024))
+    frame = (_core([(-0.04, 0.012), (0.022, 0.012), (0.022, 0.084), (-0.012, 0.084), (-0.04, 0.052)], 0.038, 0.005)
+             + _core([(0.0, 0.076), (0.116, 0.076), (0.116, 0.09), (0.0, 0.09)], 0.026, 0.003)
+             + _core([(0.0, 0.006), (0.116, 0.006), (0.116, 0.019), (0.0, 0.019)], 0.022, 0.003))
+    barrel = _core([(0.1, 0.036), (0.236, 0.036), (0.281, 0.054), (0.281, 0.086), (0.272, 0.092), (0.1, 0.092)], 0.03, 0.005)
+    _add(mesh, g, "dark", "pistol", frame + barrel + _guard(0.074))
+    _add(mesh, g, "plate", "pistol", _panels([(0.114, 0.056), (0.262, 0.056), (0.272, 0.062), (0.272, 0.084), (0.114, 0.084)], 0.0145, 0.004))
+    _add(mesh, g, "glow", "pistol", _panels([(0.114, 0.042), (0.238, 0.042), (0.252, 0.051), (0.114, 0.051)], 0.0148, 0.002, 0.0))
+    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.274, 0.287, 0.066, 8))
+    vents = Part([])
+    for f in (0.128, 0.162, 0.196, 0.23):
+        vents = vents + box(0.016, 0.006, 0.02).move(0, 0.094, -f)
+    _vent(mesh, g, "detail", vents)
+    _add(mesh, g, "detail", "pistol", box(0.006, 0.012, 0.012).move(0, 0.097, -0.268))
     # The cylinder, on the magazine bone: it swings out to the side.
-    _add(mesh, g, "detail", "pistol_mag", _tube(0.03, 0.025, 0.098, 0.046, 6))
-    _add(mesh, g, "accent", "pistol_mag", _tube(0.031, 0.055, 0.065, 0.046, 6))
-    _add(mesh, g, "gun", "pistol", _tube(0.008, 0.098, 0.105, 0.046, 6))   # the crane
+    _add(mesh, g, "steel", "pistol_mag", _tube(0.031, 0.025, 0.098, 0.046, 6))
+    _add(mesh, g, "glow", "pistol_mag", _tube(0.0325, 0.052, 0.066, 0.046, 6))
+    _add(mesh, g, "detail", "pistol_mag", _tube(0.0325, 0.084, 0.092, 0.046, 6))
+    _add(mesh, g, "dark", "pistol", _tube(0.008, 0.098, 0.105, 0.046, 6))   # the crane
     # The hammer, on the slide bone: it rocks back after a shot.
-    _add(mesh, g, "gun", "pistol_slide", box(0.012, 0.03, 0.016, 0.003).rot(pitch=20).move(0, 0.078, 0.022))
+    _add(mesh, g, "detail", "pistol_slide", box(0.012, 0.03, 0.016, 0.003).rot(pitch=20).move(0, 0.078, 0.022))
 
 
 def machine_pistol(mesh):
-    """A boxy full-auto sidearm, about 27 cm: an extended magazine, a compensator and a
-    folding front hand stop."""
+    """A boxy full-auto sidearm, about 27 cm: a long power cell with a lit window, a finned
+    compensator and a hand stop under the muzzle."""
     g = "machine_pistol"
-    grip = box(0.034, 0.11, 0.05, 0.008).rot(pitch=-12).move(0, -0.035, 0.018)
-    frame = loft([rect(0.034, 0.19, 0.022, 0.006, cz=-0.06), rect(0.034, 0.20, 0.05, 0.006, cz=-0.06)])
-    _add(mesh, g, "gun", "pistol", grip + frame + _guard())
-    _add(mesh, g, "detail", "pistol", box(0.022, 0.03, 0.012).move(0, -0.0, -0.17))   # hand stop
-    slide = loft([rect(0.04, 0.22, 0.05, 0.008, cz=-0.06), rect(0.04, 0.22, 0.08, 0.01, cz=-0.06)])
-    _add(mesh, g, "gun", "pistol_slide", slide)
-    _add(mesh, g, "accent", "pistol_slide", box(0.042, 0.008, 0.06).move(0, 0.064, 0.0))
-    _add(mesh, g, "detail", "pistol", _tube(0.016, 0.17, 0.235, 0.064, 6))   # compensator
-    _add(mesh, g, "accent", "pistol", _tube(0.017, 0.215, 0.225, 0.064, 6))
-    mag = box(0.026, 0.21, 0.034, 0.004).rot(pitch=-12).move(0, -0.08, 0.012)
-    _add(mesh, g, "polymer", "pistol_mag", mag)
-    _add(mesh, g, "accent", "pistol_mag", box(0.028, 0.014, 0.036).rot(pitch=-12).move(0, -0.18, 0.0))
+    _add(mesh, g, "grip", "pistol", _grip(-12, 0.036, 0.11, 0.05, -0.035, 0.018))
+    frame = _core([(-0.066, 0.05), (0.175, 0.05), (0.175, 0.024), (-0.03, 0.024), (-0.066, 0.036)], 0.036, 0.004)
+    stop = _core([(0.146, 0.026), (0.182, 0.026), (0.176, -0.014), (0.16, -0.014)], 0.024, 0.004)
+    _add(mesh, g, "dark", "pistol", frame + _guard(0.076))
+    _add(mesh, g, "detail", "pistol", stop)
+    _vent(mesh, g, "detail", _slats(0.086, 4, 0.014, 0.028, 0.046, 0.018, t=0.006, lean=0.004, thick=0.003))
+    slide = _core([(-0.066, 0.052), (0.172, 0.052), (0.172, 0.084), (-0.05, 0.084), (-0.066, 0.074)], 0.04, 0.005)
+    _add(mesh, g, "dark", "pistol_slide", slide)
+    _add(mesh, g, "plate", "pistol_slide", _panels([(-0.024, 0.056), (0.164, 0.056), (0.164, 0.069), (0.062, 0.069), (0.048, 0.081),
+                                                   (-0.024, 0.081)], 0.019, 0.005))
+    _add(mesh, g, "glow", "pistol_slide", _panels([(0.067, 0.072), (0.164, 0.072), (0.164, 0.08), (0.058, 0.08)], 0.0195, 0.002, 0.0))
+    _add(mesh, g, "detail", "pistol_slide", _slats(-0.06, 4, 0.008, 0.058, 0.08, 0.0195, t=0.004, lean=0.003, thick=0.003)
+         + box(0.02, 0.007, 0.012).move(0, 0.088, 0.05))
+    _add(mesh, g, "steel", "pistol", _tube(0.016, 0.172, 0.237, 0.064, 6))
+    _add(mesh, g, "detail", "pistol", _rings(0.0185, (0.184, 0.203, 0.222), 0.008, 0.064, 6))
+    cell = box(0.027, 0.21, 0.036, 0.005)
+    lit = box(0.031, 0.07, 0.012).move(0, -0.056, -0.014)
+    pad = box(0.032, 0.014, 0.041, 0.006).move(0, -0.1, 0)
+    for kind, part in (("detail", cell), ("glow", lit), ("accent", pad)):
+        _add(mesh, g, kind, "pistol_mag", part.rot(pitch=-12).move(0, -0.08, 0.012))
 
 
-def break_action(mesh):
-    """A side-by-side double barrel, about 85 cm, with a wooden stock and fore-end. The
-    barrels and fore-end (on the magazine bone) tip down on their hinge to reload."""
-    g = "break_action"
-    grip = box(0.036, 0.11, 0.05, 0.01).rot(pitch=-22).move(0, -0.034, 0.024)
-    receiver = _run([_sec(0.05, 0.06, -0.04, 0.05, ch=0.012), _sec(0.05, 0.06, 0.13, 0.05, ch=0.012)])
-    stock = _run([_sec(0.044, 0.06, -0.04, 0.04, ch=0.012), _sec(0.04, 0.05, -0.11, 0.03, ch=0.012),
-                  _sec(0.046, 0.11, -0.22, 0.012, ch=0.014), _sec(0.046, 0.115, -0.25, 0.012, ch=0.014)])
-    _add(mesh, g, "gun", "pistol", receiver + _guard())
-    _add(mesh, g, "wood", "pistol", grip + stock)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.05, 0.12, -0.252, 0.012, ch=0.014), _sec(0.05, 0.12, -0.27, 0.012, ch=0.014)]))
-    _add(mesh, g, "detail", "pistol", box(0.012, 0.016, 0.03).rot(pitch=-30).move(0, 0.085, 0.0))   # top lever
-    barrels = _tube(0.017, 0.13, 0.66, 0.066, 8, x=-0.017) + _tube(0.017, 0.13, 0.66, 0.066, 8, x=0.017)
-    _add(mesh, g, "detail", "pistol_mag", barrels)
-    _add(mesh, g, "gun", "pistol_mag", box(0.072, 0.018, 0.53).move(0, 0.05, -0.395)
-         + box(0.006, 0.008, 0.5).move(0, 0.088, -0.40))
-    _add(mesh, g, "wood", "pistol_mag", _run([_sec(0.06, 0.04, 0.14, 0.03, ch=0.012), _sec(0.064, 0.045, 0.36, 0.03, ch=0.014)]))
-    _add(mesh, g, "accent", "pistol_mag", _run([_sec(0.068, 0.02, 0.36, 0.035), _sec(0.068, 0.02, 0.38, 0.035)]))
-
-
-def smg(mesh):
-    """A compact submachine gun, about 55 cm: a boxy receiver, a straight magazine in
-    the grip's front, a vertical foregrip and a skeleton stock."""
-    g = "smg"
-    receiver = _run([_sec(0.046, 0.065, -0.06, 0.05, ch=0.01), _sec(0.046, 0.065, 0.30, 0.05, ch=0.01)])
-    _add(mesh, g, "gun", "pistol", _grip(-14) + _guard() + receiver)
-    _add(mesh, g, "polymer", "pistol", box(0.03, 0.085, 0.036, 0.008).move(0, -0.035, -0.215))   # foregrip
-    _add(mesh, g, "detail", "pistol", _tube(0.022, 0.30, 0.42, 0.052, 8))   # shroud
-    _add(mesh, g, "gun", "pistol", _tube(0.012, 0.42, 0.47, 0.052, 6))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.049, 0.012, 0.0, 0.07), _sec(0.049, 0.012, 0.22, 0.07)]))
-    stock = (_run([_sec(0.02, 0.018, -0.06, 0.06), _sec(0.02, 0.018, -0.22, 0.055)])
-             + _run([_sec(0.02, 0.018, -0.06, 0.02), _sec(0.02, 0.018, -0.22, 0.03)])
-             + box(0.036, 0.09, 0.02, 0.006).move(0, 0.042, 0.225))
-    _add(mesh, g, "polymer", "pistol", stock)
-    _add(mesh, g, "detail", "pistol", box(0.02, 0.022, 0.06).move(0, 0.094, -0.06) + box(0.024, 0.03, 0.01).move(0, 0.1, -0.03))
-    _add(mesh, g, "lens", "pistol", box(0.016, 0.018, 0.003).move(0, 0.104, -0.025))
-    _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.17, 0.034, 0.004).move(0, -0.06, -0.085))
-    _add(mesh, g, "accent", "pistol_mag", box(0.028, 0.014, 0.036).move(0, -0.142, -0.085))
-    _add(mesh, g, "gun", "pistol_slide", box(0.012, 0.016, 0.03, 0.004).move(-0.03, 0.07, -0.1))
-
-
-def burst_rifle(mesh):
-    """A sleek burst rifle, about 85 cm: a smooth shroud over the barrel, a long top
-    sight with a glowing lens, a box magazine and a charging handle at the back."""
-    g = "burst_rifle"
-    upper = _run([_sec(0.05, 0.06, -0.06, 0.06, ch=0.014), _sec(0.05, 0.06, 0.20, 0.06, ch=0.014),
-                  _sec(0.054, 0.07, 0.24, 0.056, ch=0.018), _sec(0.054, 0.07, 0.50, 0.056, ch=0.018),
-                  _sec(0.04, 0.05, 0.56, 0.056, ch=0.012)])
-    _add(mesh, g, "gun", "pistol", _grip(-18) + _guard() + upper)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.057, 0.016, 0.27, 0.074), _sec(0.057, 0.016, 0.46, 0.074)])
-         + _run([_sec(0.057, 0.008, 0.27, 0.036), _sec(0.057, 0.008, 0.46, 0.036)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.011, 0.56, 0.62, 0.056, 6))
-    stock = _run([_sec(0.044, 0.055, -0.05, 0.05, ch=0.012), _sec(0.04, 0.06, -0.16, 0.04, ch=0.012),
-                  _sec(0.046, 0.11, -0.22, 0.025, ch=0.014), _sec(0.046, 0.11, -0.24, 0.025, ch=0.014)])
-    _add(mesh, g, "polymer", "pistol", stock)
-    _add(mesh, g, "detail", "pistol", _run([_sec(0.03, 0.03, -0.04, 0.11, ch=0.008), _sec(0.03, 0.03, 0.16, 0.11, ch=0.008)]))
-    _add(mesh, g, "lens", "pistol", _run([_sec(0.022, 0.022, 0.161, 0.11), _sec(0.022, 0.022, 0.164, 0.11)]))
-    _add(mesh, g, "detail", "pistol_mag", box(0.028, 0.14, 0.05, 0.006).rot(pitch=8).move(0, -0.045, -0.10))
-    _add(mesh, g, "accent", "pistol_mag", box(0.03, 0.014, 0.052).rot(pitch=8).move(0, -0.11, -0.11))
-    _add(mesh, g, "gun", "pistol_slide", box(0.03, 0.016, 0.03, 0.005).move(-0.034, 0.075, 0.02))
-
-
-def lmg(mesh):
-    """A belt-fed light machine gun, about 1 m: a big receiver with a top cover, a box
-    of ammunition hanging underneath, a vented barrel shroud and a carry handle."""
-    g = "lmg"
-    receiver = _run([_sec(0.062, 0.08, -0.07, 0.05, ch=0.014), _sec(0.062, 0.08, 0.24, 0.05, ch=0.014)])
-    _add(mesh, g, "gun", "pistol", _grip(-18, 0.036) + _guard() + receiver)
-    stock = _run([_sec(0.05, 0.07, -0.06, 0.045, ch=0.014), _sec(0.046, 0.08, -0.2, 0.03, ch=0.014),
-                  _sec(0.05, 0.12, -0.25, 0.02, ch=0.016), _sec(0.05, 0.12, -0.27, 0.02, ch=0.016)])
-    _add(mesh, g, "polymer", "pistol", stock)
-    _add(mesh, g, "polymer", "pistol", _run([_sec(0.056, 0.05, 0.24, 0.03, ch=0.014), _sec(0.056, 0.05, 0.42, 0.03, ch=0.014)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.026, 0.24, 0.66, 0.06, 8))
-    vents = Part([])
-    for i in range(5):
-        vents = vents + _tube(0.028, 0.45 + i * 0.04, 0.47 + i * 0.04, 0.06, 8)
-    _add(mesh, g, "accent", "pistol", vents)
-    _add(mesh, g, "gun", "pistol", _tube(0.012, 0.66, 0.76, 0.06, 6) + _tube(0.02, 0.76, 0.80, 0.06, 6))
-    _add(mesh, g, "detail", "pistol", box(0.016, 0.05, 0.016).move(0, 0.112, -0.10) + box(0.016, 0.05, 0.016).move(0, 0.112, -0.26)
-         + box(0.018, 0.016, 0.19).move(0, 0.14, -0.18))   # carry handle
-    _add(mesh, g, "gun", "pistol_slide", box(0.064, 0.018, 0.2, 0.004).move(0, 0.095, -0.06))   # the top cover
-    box_mag = box(0.07, 0.11, 0.12, 0.01).move(0, -0.04, -0.12)
-    _add(mesh, g, "polymer", "pistol_mag", box_mag)
-    _add(mesh, g, "accent", "pistol_mag", box(0.072, 0.02, 0.122).move(0, -0.08, -0.12))
-    _add(mesh, g, "detail", "pistol", box(0.012, 0.012, 0.18).rot(pitch=8).move(-0.025, 0.02, -0.52)
-         + box(0.012, 0.012, 0.18).rot(pitch=8).move(0.025, 0.02, -0.52))   # folded bipod
-
-
-def lever_action(mesh):
-    """A lever-action rifle, about 95 cm: wood stock and fore-end, a tube magazine under
-    the octagonal barrel, and the lever loop behind the trigger."""
-    g = "lever_action"
-    grip = box(0.034, 0.10, 0.046, 0.01).rot(pitch=-24).move(0, -0.03, 0.026)
-    receiver = _run([_sec(0.04, 0.07, -0.03, 0.05, ch=0.01), _sec(0.04, 0.07, 0.15, 0.05, ch=0.01)])
-    stock = _run([_sec(0.038, 0.06, -0.04, 0.035, ch=0.012), _sec(0.036, 0.05, -0.12, 0.025, ch=0.012),
-                  _sec(0.042, 0.11, -0.24, 0.0, ch=0.014), _sec(0.042, 0.115, -0.26, 0.0, ch=0.014)])
-    _add(mesh, g, "gun", "pistol", receiver)
-    _add(mesh, g, "wood", "pistol", grip + stock + _run([_sec(0.042, 0.04, 0.15, 0.035, ch=0.012), _sec(0.042, 0.04, 0.42, 0.035, ch=0.012)]))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.044, 0.12, -0.262, 0.0, ch=0.014), _sec(0.044, 0.12, -0.275, 0.0, ch=0.014)])
-         + box(0.042, 0.012, 0.03).move(0, 0.03, -0.43))
-    _add(mesh, g, "detail", "pistol", _tube(0.013, 0.15, 0.78, 0.066, 8) + _tube(0.009, 0.15, 0.70, 0.04, 6))
-    _add(mesh, g, "gun", "pistol", box(0.006, 0.016, 0.01).move(0, 0.086, -0.75) + box(0.016, 0.012, 0.012).move(0, 0.084, -0.12))
-    _add(mesh, g, "detail", "pistol", box(0.006, 0.01, 0.03).move(-0.021, 0.055, -0.06))   # loading gate
-    # The lever loop, on the slide bone: it swings down about its pin and back.
-    lever = (box(0.01, 0.01, 0.075).move(0, -0.012, -0.03) + box(0.01, 0.06, 0.01).move(0, -0.04, 0.008)
-             + box(0.01, 0.01, 0.05).move(0, -0.07, -0.01) + box(0.01, 0.05, 0.01).move(0, -0.045, -0.036))
-    _add(mesh, g, "gun", "pistol_slide", lever)
-    _add(mesh, g, "accent", "pistol_slide", box(0.012, 0.012, 0.03).move(0, -0.072, -0.01))
-    _add(mesh, g, "detail", "pistol_mag", _tube(0.007, 0.02, 0.06, 0.055, 6))   # one round, for reloads (hidden in the action)
-
-
-def bolt_action(mesh):
-    """A bolt-action rifle, about 1 m, with iron sights: a full-length wooden stock, a
-    bolt worked from the left side, like the sniper's."""
-    g = "bolt_action"
-    receiver = _run([_sec(0.04, 0.045, -0.05, 0.06, ch=0.01), _sec(0.04, 0.045, 0.16, 0.06, ch=0.01)])
-    stock = (_run([_sec(0.044, 0.05, -0.04, 0.03, ch=0.012), _sec(0.04, 0.045, -0.12, 0.025, ch=0.012),
-                   _sec(0.046, 0.115, -0.24, 0.004, ch=0.014), _sec(0.046, 0.12, -0.26, 0.004, ch=0.014)])
-             + _run([_sec(0.046, 0.05, 0.0, 0.03, ch=0.014), _sec(0.046, 0.05, 0.55, 0.04, ch=0.014),
-                     _sec(0.03, 0.03, 0.6, 0.048, ch=0.01)]))
-    _add(mesh, g, "gun", "pistol", receiver + _guard())
-    _add(mesh, g, "wood", "pistol", _grip(-20, 0.036) + stock)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.048, 0.125, -0.262, 0.004, ch=0.014), _sec(0.048, 0.125, -0.275, 0.004, ch=0.014)])
-         + _run([_sec(0.05, 0.01, 0.34, 0.068), _sec(0.05, 0.01, 0.36, 0.068)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.011, 0.16, 0.80, 0.06, 6))
-    _add(mesh, g, "gun", "pistol", box(0.006, 0.022, 0.012).move(0, 0.078, -0.77) + box(0.022, 0.02, 0.016).move(0, 0.09, -0.12)
-         + box(0.004, 0.012, 0.014).move(-0.008, 0.105, -0.12) + box(0.004, 0.012, 0.014).move(0.008, 0.105, -0.12))
-    _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.03, 0.06, 0.006).move(0, 0.01, -0.09))
-    _add(mesh, g, "detail", "pistol_slide", box(0.02, 0.022, 0.07, 0.004).move(-0.026, 0.06, -0.03))
-    _add(mesh, g, "gun", "pistol_slide", prism(6, 0.007, 0.045).rot(roll=90).move(-0.055, 0.06, -0.01))
-    _add(mesh, g, "accent", "pistol_slide", ball(0.013).move(-0.08, 0.06, -0.01))
-
-
-def railgun(mesh):
-    """A railgun, about 1 m: two long rails over a glowing coil, a power cell that
-    clips in behind the grip, and a sleeve that snaps back when it fires."""
-    g = "railgun"
-    body = _run([_sec(0.06, 0.07, -0.07, 0.05, ch=0.018), _sec(0.06, 0.08, 0.22, 0.05, ch=0.02),
-                 _sec(0.05, 0.06, 0.28, 0.05, ch=0.016)])
-    _add(mesh, g, "gun", "pistol", _grip(-14, 0.036) + _guard() + body)
-    stock = _run([_sec(0.05, 0.07, -0.06, 0.05, ch=0.016), _sec(0.04, 0.06, -0.18, 0.04, ch=0.014),
-                  _sec(0.05, 0.12, -0.24, 0.025, ch=0.018), _sec(0.05, 0.12, -0.26, 0.025, ch=0.018)])
-    _add(mesh, g, "polymer", "pistol", stock)
-    rails = (_run([_sec(0.05, 0.016, 0.22, 0.098), _sec(0.05, 0.016, 0.80, 0.098)])
-             + _run([_sec(0.05, 0.016, 0.22, 0.026), _sec(0.05, 0.016, 0.78, 0.026)]))
-    _add(mesh, g, "gun", "pistol", rails)
-    _add(mesh, g, "detail", "pistol", _tube(0.012, 0.28, 0.78, 0.062, 6))
-    coils = Part([])
-    for i in range(6):
-        coils = coils + _tube(0.026, 0.32 + i * 0.075, 0.345 + i * 0.075, 0.062, 8)
-    _add(mesh, g, "lens", "pistol", coils)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.064, 0.02, -0.02, 0.07), _sec(0.064, 0.02, 0.2, 0.07)]))
-    _add(mesh, g, "detail", "pistol", _run([_sec(0.028, 0.03, -0.02, 0.112, ch=0.008), _sec(0.028, 0.03, 0.14, 0.112, ch=0.008)]))
-    _add(mesh, g, "lens", "pistol", _run([_sec(0.02, 0.02, 0.141, 0.112), _sec(0.02, 0.02, 0.144, 0.112)]))
-    _add(mesh, g, "gun", "pistol_slide", _tube(0.034, 0.24, 0.30, 0.062, 8))   # the recoil sleeve
-    _add(mesh, g, "detail", "pistol_mag", box(0.034, 0.07, 0.07, 0.008).move(0, -0.005, 0.105))
-    _add(mesh, g, "lens", "pistol_mag", box(0.036, 0.012, 0.05).move(0, 0.01, 0.105))
-
-
-def rocket_launcher(mesh):
-    """A shoulder rocket launcher, about 1.05 m: a fat tube with a flared back blast
-    cone, a front handle and a sight box. The rocket (magazine bone) goes in at the back."""
-    g = "rocket_launcher"
-    y = 0.115
-    tube = prism(10, 0.058, 0.86, phase=0.31).rot(pitch=-90).move(0, y, -0.25)
-    _add(mesh, g, "polymer", "pistol", tube)
-    _add(mesh, g, "gun", "pistol", prism(10, 0.068, 0.06, phase=0.31).rot(pitch=-90).move(0, y, -0.65)
-         + prism(10, 0.06, 0.12, r_top=0.078, phase=0.31).rot(pitch=90).move(0, y, 0.22))
-    _add(mesh, g, "accent", "pistol", prism(10, 0.06, 0.05, phase=0.31).rot(pitch=-90).move(0, y, -0.4)
-         + prism(10, 0.06, 0.05, phase=0.31).rot(pitch=-90).move(0, y, 0.0))
-    _add(mesh, g, "gun", "pistol", box(0.03, 0.11, 0.05, 0.008).rot(pitch=-12).move(0, -0.03, 0.02)
-         + box(0.03, 0.04, 0.10).move(0, 0.045, -0.02) + _guard())
-    _add(mesh, g, "gun", "pistol", box(0.03, 0.09, 0.04, 0.008).move(0, 0.01, -0.24) + box(0.03, 0.04, 0.05).move(0, 0.05, -0.24))
-    _add(mesh, g, "detail", "pistol", box(0.04, 0.05, 0.09, 0.008).move(-0.075, y + 0.02, -0.12))
-    _add(mesh, g, "lens", "pistol", box(0.032, 0.036, 0.004).move(-0.075, y + 0.02, -0.166))
-    # The rocket: its nose shows in the tube's mouth; a reload brings a new one in from behind.
-    _add(mesh, g, "accent", "pistol_mag", prism(8, 0.04, 0.08, r_top=0.005).rot(pitch=-90).move(0, y, -0.72))
-    _add(mesh, g, "detail", "pistol_mag", prism(8, 0.04, 0.5).rot(pitch=-90).move(0, y, -0.43))
-
-
-def grenade_launcher(mesh):
-    """A revolving grenade launcher, about 75 cm: a fat six-round drum (magazine bone),
-    a short wide barrel, a folding stock and a ladder sight."""
-    g = "grenade_launcher"
-    frame = _run([_sec(0.05, 0.05, -0.06, 0.04, ch=0.012), _sec(0.05, 0.05, 0.10, 0.04, ch=0.012)])
-    _add(mesh, g, "gun", "pistol", _grip(-18, 0.036) + _guard() + frame)
-    _add(mesh, g, "gun", "pistol", box(0.02, 0.15, 0.02).move(0, 0.07, -0.20) + box(0.02, 0.02, 0.26).move(0, 0.135, -0.18))
-    _add(mesh, g, "detail", "pistol", _tube(0.034, 0.26, 0.48, 0.07, 10))
-    _add(mesh, g, "gun", "pistol", _tube(0.04, 0.48, 0.52, 0.07, 10))
-    _add(mesh, g, "polymer", "pistol", _run([_sec(0.05, 0.05, 0.26, 0.03, ch=0.014), _sec(0.05, 0.05, 0.40, 0.03, ch=0.014)]))
-    stock = (_run([_sec(0.02, 0.02, -0.06, 0.05), _sec(0.02, 0.02, -0.25, 0.04)])
-             + box(0.04, 0.11, 0.02, 0.008).move(0, 0.02, 0.255))
-    _add(mesh, g, "polymer", "pistol", stock)
-    _add(mesh, g, "detail", "pistol", box(0.012, 0.04, 0.01).move(0, 0.12, -0.05) + box(0.012, 0.03, 0.01).move(0, 0.11, -0.46))
-    _add(mesh, g, "detail", "pistol_mag", _tube(0.068, 0.10, 0.26, 0.07, 6))
-    _add(mesh, g, "accent", "pistol_mag", _tube(0.07, 0.16, 0.19, 0.07, 6))
-    _add(mesh, g, "gun", "pistol_slide", box(0.03, 0.03, 0.02).move(0, 0.06, 0.02))   # the hammer
+def _akimbo_one(mesh, g, side):
+    frame_b, slide_b, mag_b = "pistol" + side, "pistol" + side + "_slide", "pistol" + side + "_mag"
+    _add(mesh, g, "grip", frame_b, box(0.034, 0.11, 0.046, 0.009).rot(pitch=-12).move(0, -0.034, 0.016))
+    frame = _core([(-0.058, 0.048), (0.16, 0.048), (0.16, 0.03), (0.146, 0.008), (0.088, 0.008), (0.074, 0.024),
+                   (-0.028, 0.024), (-0.058, 0.034)], 0.034, 0.004)
+    _add(mesh, g, "dark", frame_b, frame + _guard(0.072))
+    _vent(mesh, g, "detail", _slats(0.094, 3, 0.015, 0.012, 0.027, 0.017, t=0.007, lean=0.004, thick=0.003), frame_b)
+    slide = _core([(-0.058, 0.05), (0.158, 0.05), (0.158, 0.076), (0.146, 0.086), (-0.044, 0.086), (-0.058, 0.076)], 0.036, 0.005)
+    _add(mesh, g, "dark", slide_b, slide)
+    # A low armour band along the slide, lit ports above it.
+    _add(mesh, g, "plate", slide_b, _panels([(-0.03, 0.053), (0.152, 0.053), (0.152, 0.066), (-0.03, 0.066)], 0.017, 0.005))
+    ports = Part([])
+    for i in range(3):
+        f = 0.062 + i * 0.03
+        ports = ports + _panels([(f, 0.07), (f + 0.02, 0.07), (f + 0.024, 0.08), (f + 0.004, 0.08)], 0.0175, 0.002, 0.0)
+    _add(mesh, g, "glow", slide_b, ports)
+    _add(mesh, g, "detail", slide_b, box(0.032, 0.032, 0.03, 0.008).move(0, 0.064, -0.18)
+         + box(0.008, 0.01, 0.012).move(0, 0.09, -0.148) + box(0.02, 0.007, 0.012).move(0, 0.089, 0.044))
+    _add(mesh, g, "steel", frame_b, _tube(0.0095, 0.158, 0.2, 0.064, 6))
+    _add(mesh, g, "detail", mag_b, box(0.025, 0.13, 0.031).rot(pitch=-12).move(0, -0.05, 0.02))
+    _add(mesh, g, "glow", mag_b, box(0.031, 0.012, 0.038, 0.005).rot(pitch=-12).move(0, -0.115, 0.034))
 
 
 def akimbo(mesh):
     """Akimbo: a matched pair of compact pistols, one in each fist. Slimmer than the
-    pistol, with a ported slide, a muzzle brake and an extended magazine. The same gun
-    is built twice: on the right-hand gun bones and on the left ("pistol_l"...)."""
-    g = "akimbo"
+    pistol, with lit ports along the slide, a muzzle brake and an extended power cell. The
+    same gun is built twice: on the right-hand gun bones and on the left ("pistol_l"...)."""
     for side in ("", "_l"):
-        frame_b, slide_b, mag_b = "pistol" + side, "pistol" + side + "_slide", "pistol" + side + "_mag"
-        grip = box(0.032, 0.11, 0.046, 0.008).rot(pitch=-12).move(0, -0.034, 0.016)
-        frame = loft([rect(0.032, 0.18, 0.022, 0.006, cz=-0.055), rect(0.032, 0.19, 0.048, 0.006, cz=-0.055)])
-        guard = box(0.012, 0.011, 0.06).move(0, -0.012, -0.042) + box(0.012, 0.038, 0.011).move(0, 0.004, -0.074)
-        _add(mesh, g, "gun", frame_b, grip + frame + guard)
-        _add(mesh, g, "detail", frame_b, box(0.026, 0.018, 0.06).move(0, 0.014, -0.115))   # rail under the barrel
-        slide = loft([rect(0.036, 0.215, 0.048, 0.007, cz=-0.055), rect(0.036, 0.215, 0.074, 0.011, cz=-0.055),
-                      rect(0.026, 0.215, 0.084, 0.006, cz=-0.055)])
-        _add(mesh, g, "gun", slide_b, slide)
-        # Ports cut along the slide (lighter strips), and a stripe in the player's colour.
-        ports = Part([])
-        for i in range(3):
-            ports = ports + box(0.038, 0.012, 0.016).move(0, 0.072, -0.11 - i * 0.03)
-        _add(mesh, g, "detail", slide_b, ports)
-        _add(mesh, g, "accent", slide_b, box(0.038, 0.007, 0.07).move(0, 0.064, -0.0))
-        _add(mesh, g, "detail", slide_b, box(0.03, 0.03, 0.03, 0.006).move(0, 0.062, -0.18))   # muzzle brake
-        _add(mesh, g, "gun", slide_b, box(0.008, 0.012, 0.012).move(0, 0.09, -0.15))          # front sight
-        _add(mesh, g, "lens", frame_b, prism(6, 0.009, 0.02).rot(pitch=90).move(0, 0.062, -0.197))
-        _add(mesh, g, "detail", mag_b, box(0.024, 0.13, 0.03).rot(pitch=-12).move(0, -0.05, 0.02))
-        _add(mesh, g, "accent", mag_b, box(0.03, 0.014, 0.036).rot(pitch=-12).move(0, -0.115, 0.034))   # base pad
+        _akimbo_one(mesh, "akimbo", side)
 
-
-# ---------------------------------------------------------------------------
-# The third batch
 
 def derringer(mesh):
-    """A pocket pistol, about 14 cm: two short barrels one over the other, a bird's-head grip."""
+    """A pocket pistol, about 14 cm: two short barrels one over the other inside an armour
+    shroud with a lit slit between them, and a bird's-head grip."""
     g = "derringer"
-    grip = box(0.03, 0.09, 0.042, 0.01).rot(pitch=-24).move(0, -0.03, 0.022)
-    frame = _run([_sec(0.03, 0.05, -0.02, 0.04, ch=0.008), _sec(0.03, 0.05, 0.04, 0.04, ch=0.008)])
-    _add(mesh, g, "gun", "pistol", frame + box(0.012, 0.01, 0.04).move(0, -0.012, -0.03))
-    _add(mesh, g, "wood", "pistol", grip)
-    barrels = _tube(0.013, 0.03, 0.135, 0.076, 8) + _tube(0.013, 0.03, 0.135, 0.05, 8)
-    _add(mesh, g, "detail", "pistol", barrels)
-    _add(mesh, g, "accent", "pistol", _tube(0.0135, 0.115, 0.125, 0.076, 8) + _tube(0.0135, 0.115, 0.125, 0.05, 8))
-    _add(mesh, g, "gun", "pistol", box(0.006, 0.008, 0.01).move(0, 0.092, -0.12))
-    _add(mesh, g, "gun", "pistol_slide", box(0.01, 0.026, 0.014, 0.003).rot(pitch=24).move(0, 0.07, 0.01))   # the hammer
-    _add(mesh, g, "accent", "pistol_mag", box(0.02, 0.05, 0.028).rot(pitch=-24).move(0, -0.045, 0.024))
+    _add(mesh, g, "grip", "pistol", box(0.032, 0.09, 0.042, 0.011).rot(pitch=-24).move(0, -0.03, 0.022))
+    _add(mesh, g, "plate", "pistol", box(0.037, 0.05, 0.022, 0.006).rot(pitch=-24).move(0, -0.034, 0.024))
+    frame = _core([(-0.024, 0.014), (0.042, 0.014), (0.042, 0.066), (-0.008, 0.066), (-0.024, 0.05)], 0.032, 0.004)
+    block = _core([(0.03, 0.034), (0.128, 0.034), (0.135, 0.041), (0.135, 0.085), (0.128, 0.092), (0.03, 0.092)], 0.026, 0.004)
+    _add(mesh, g, "dark", "pistol", frame + block + box(0.012, 0.01, 0.04).move(0, -0.012, -0.03))
+    _add(mesh, g, "plate", "pistol", _panels([(0.04, 0.067), (0.128, 0.067), (0.128, 0.088), (0.04, 0.088)], 0.0125, 0.004)
+         + _panels([(0.04, 0.038), (0.128, 0.038), (0.128, 0.059), (0.04, 0.059)], 0.0125, 0.004))
+    _add(mesh, g, "glow", "pistol", _panels([(0.04, 0.06), (0.13, 0.06), (0.13, 0.066), (0.04, 0.066)], 0.0128, 0.002, 0.0))
+    _add(mesh, g, "steel", "pistol", _tube(0.0105, 0.126, 0.138, 0.076, 8) + _tube(0.0105, 0.126, 0.138, 0.05, 8))
+    _vent(mesh, g, "detail", box(0.012, 0.005, 0.016).move(0, 0.0945, -0.06) + box(0.012, 0.005, 0.016).move(0, 0.0945, -0.084)
+          + box(0.012, 0.005, 0.016).move(0, 0.0945, -0.108))
+    _add(mesh, g, "detail", "pistol_slide", box(0.01, 0.026, 0.014, 0.003).rot(pitch=24).move(0, 0.07, 0.01))   # the hammer
+    _add(mesh, g, "glow", "pistol_mag", box(0.02, 0.04, 0.024).rot(pitch=-24).move(0, -0.034, 0.023))
 
 
 def flare_gun(mesh):
-    """A flare pistol, about 25 cm: a fat, short barrel with a bright band, a chunky polymer frame."""
+    """A flare pistol, about 25 cm: a fat, short armour barrel with two bright bands, a ring
+    of cooling fins behind them and a lit bore."""
     g = "flare_gun"
-    grip = box(0.038, 0.11, 0.05, 0.012).rot(pitch=-16).move(0, -0.036, 0.02)
-    frame = _run([_sec(0.04, 0.05, -0.03, 0.038, ch=0.01), _sec(0.04, 0.05, 0.06, 0.038, ch=0.01)])
-    _add(mesh, g, "polymer", "pistol", grip + frame)
-    _add(mesh, g, "gun", "pistol", _guard())
-    _add(mesh, g, "accent", "pistol", _tube(0.027, 0.03, 0.2, 0.062, 10))
-    _add(mesh, g, "gun", "pistol", _tube(0.03, 0.2, 0.235, 0.062, 10) + _tube(0.029, 0.02, 0.045, 0.062, 10))
-    _add(mesh, g, "lens", "pistol", _tube(0.02, 0.234, 0.237, 0.062, 10))
-    _add(mesh, g, "gun", "pistol_slide", box(0.012, 0.03, 0.016, 0.003).rot(pitch=20).move(0, 0.078, 0.028))   # the hammer
+    _add(mesh, g, "grip", "pistol", box(0.04, 0.11, 0.05, 0.012).rot(pitch=-16).move(0, -0.036, 0.02))
+    frame = _core([(-0.036, 0.012), (0.066, 0.012), (0.066, 0.064), (-0.012, 0.064), (-0.036, 0.044)], 0.042, 0.005)
+    _add(mesh, g, "dark", "pistol", frame + _guard(0.074))
+    _add(mesh, g, "plate", "pistol", _tube(0.029, 0.045, 0.2, 0.062, 10))
+    _add(mesh, g, "accent", "pistol", _rings(0.0305, (0.066, 0.156), 0.024, 0.062, 10))
+    _add(mesh, g, "dark", "pistol", _tube(0.032, 0.198, 0.235, 0.062, 10) + _tube(0.031, 0.02, 0.047, 0.062, 10))
+    _add(mesh, g, "glow", "pistol", _tube(0.022, 0.2335, 0.2375, 0.062, 10))
+    _vent(mesh, g, "detail", _rings(0.0335, (0.1, 0.113, 0.126, 0.139), 0.006, 0.062, 10))
+    _add(mesh, g, "detail", "pistol_slide", box(0.012, 0.03, 0.016, 0.003).rot(pitch=20).move(0, 0.078, 0.028))   # the hammer
     _add(mesh, g, "detail", "pistol_mag", box(0.028, 0.1, 0.034, 0.006).rot(pitch=-16).move(0, -0.045, 0.02))
 
 
 def plasma_pistol(mesh):
-    """An energy pistol, about 24 cm: a sleek shell over glowing coils, an emitter at the
-    front and a battery in the grip."""
+    """An energy pistol, about 24 cm: an armour shell in two halves over lit coils, an
+    emitter at the front, a vent flap on top and a battery in the grip."""
     g = "plasma_pistol"
-    grip = box(0.034, 0.11, 0.05, 0.01).rot(pitch=-14).move(0, -0.035, 0.018)
-    body = _run([_sec(0.04, 0.05, -0.05, 0.06, ch=0.014), _sec(0.046, 0.06, 0.04, 0.06, ch=0.018),
-                 _sec(0.04, 0.05, 0.17, 0.06, ch=0.014), _sec(0.03, 0.036, 0.2, 0.062, ch=0.01)])
-    _add(mesh, g, "gun", "pistol", grip + _guard())
-    _add(mesh, g, "detail", "pistol", body)
-    coils = Part([])
-    for i in range(3):
-        coils = coils + _tube(0.025, 0.06 + i * 0.035, 0.075 + i * 0.035, 0.062, 8)
-    _add(mesh, g, "lens", "pistol", coils + _tube(0.012, 0.2, 0.222, 0.062, 8))
-    _add(mesh, g, "accent", "pistol", box(0.042, 0.008, 0.08).move(0, 0.092, -0.03))
-    _add(mesh, g, "gun", "pistol_slide", box(0.03, 0.012, 0.04, 0.003).move(0, 0.09, 0.03))
-    _add(mesh, g, "polymer", "pistol_mag", box(0.026, 0.1, 0.034, 0.004).rot(pitch=-14).move(0, -0.045, 0.02))
-    _add(mesh, g, "lens", "pistol_mag", box(0.028, 0.012, 0.036).rot(pitch=-14).move(0, -0.1, 0.034))
+    _add(mesh, g, "grip", "pistol", _grip(-14, 0.036, 0.11, 0.05, -0.035, 0.018))
+    core = _run([_sec(0.038, 0.046, -0.05, 0.06, ch=0.012), _sec(0.042, 0.052, 0.04, 0.06, ch=0.014),
+                 _sec(0.036, 0.044, 0.17, 0.06, ch=0.012), _sec(0.026, 0.03, 0.2, 0.062, ch=0.008)])
+    _add(mesh, g, "dark", "pistol", core + _guard(0.076) + _core([(-0.02, 0.02), (0.07, 0.02), (0.07, 0.04), (-0.02, 0.04)], 0.03, 0.003))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.048, 0.04), (0.046, 0.034), (0.046, 0.086), (-0.03, 0.088), (-0.048, 0.07)], 0.019, 0.006, 0.003)
+         + _panels([(0.166, 0.04), (0.198, 0.05), (0.198, 0.074), (0.166, 0.084)], 0.015, 0.006, 0.003))
+    _add(mesh, g, "glow", "pistol", _rings(0.027, (0.06, 0.096, 0.132), 0.02, 0.062, 8) + _tube(0.008, 0.221, 0.2255, 0.062, 8))
+    _add(mesh, g, "steel", "pistol", _tube(0.0125, 0.2, 0.2225, 0.062, 8))
+    _add(mesh, g, "detail", "pistol", _rings(0.0145, (0.206,), 0.007, 0.062, 8))
+    _vent(mesh, g, "detail", _slats(-0.034, 4, 0.014, 0.048, 0.08, 0.025, t=0.006, lean=0.005, thick=0.003))
+    _add(mesh, g, "detail", "pistol_slide", box(0.03, 0.012, 0.04, 0.003).move(0, 0.092, 0.03))
+    _add(mesh, g, "accent", "pistol_slide", box(0.032, 0.004, 0.012).move(0, 0.099, 0.03))
+    _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.1, 0.034, 0.004).rot(pitch=-14).move(0, -0.045, 0.02))
+    _add(mesh, g, "glow", "pistol_mag", box(0.03, 0.012, 0.04, 0.005).rot(pitch=-14).move(0, -0.1, 0.034))
 
 
-def auto_shotgun(mesh):
-    """A drum-fed automatic shotgun, about 80 cm: a boxy receiver, a fat drum under it,
-    a vented barrel shroud and a fixed stock."""
-    g = "auto_shotgun"
-    receiver = _run([_sec(0.056, 0.075, -0.06, 0.05, ch=0.014), _sec(0.056, 0.075, 0.22, 0.05, ch=0.014)])
-    _add(mesh, g, "gun", "pistol", _grip(-18, 0.036) + _guard() + receiver)
-    stock = _run([_sec(0.048, 0.065, -0.05, 0.045, ch=0.014), _sec(0.044, 0.07, -0.18, 0.035, ch=0.014),
-                  _sec(0.048, 0.115, -0.24, 0.02, ch=0.016), _sec(0.048, 0.115, -0.26, 0.02, ch=0.016)])
-    _add(mesh, g, "polymer", "pistol", stock)
-    _add(mesh, g, "polymer", "pistol", _run([_sec(0.054, 0.05, 0.22, 0.034, ch=0.014), _sec(0.054, 0.05, 0.42, 0.034, ch=0.014)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.024, 0.22, 0.6, 0.066, 8))
-    vents = Part([])
-    for i in range(4):
-        vents = vents + _tube(0.026, 0.44 + i * 0.035, 0.455 + i * 0.035, 0.066, 8)
-    _add(mesh, g, "accent", "pistol", vents)
-    _add(mesh, g, "gun", "pistol", _tube(0.02, 0.6, 0.64, 0.066, 8) + box(0.02, 0.03, 0.12).move(0, 0.1, -0.06))
-    _add(mesh, g, "lens", "pistol", box(0.016, 0.018, 0.003).move(0, 0.108, -0.121))
-    drum = prism(10, 0.075, 0.06, phase=0.31).rot(roll=90).move(0, -0.06, -0.12)
-    _add(mesh, g, "detail", "pistol_mag", drum)
-    _add(mesh, g, "accent", "pistol_mag", prism(10, 0.04, 0.064, phase=0.31).rot(roll=90).move(0, -0.06, -0.12))
-    _add(mesh, g, "gun", "pistol_slide", box(0.012, 0.016, 0.03, 0.004).move(-0.032, 0.07, -0.1))
+# ---------------------------------------------------------------------------
+# Shotguns
 
-
-def slug_shotgun(mesh):
-    """A slug gun, about 85 cm: a pump shotgun with a long rifled barrel under a heat
-    shield, a red-dot sight and a wooden stock and pump."""
-    g = "slug_shotgun"
-    grip = box(0.038, 0.12, 0.052, 0.009).rot(pitch=-20).move(0, -0.035, 0.022)
-    receiver = _run([_sec(0.05, 0.07, -0.05, 0.058, ch=0.012), _sec(0.05, 0.07, 0.17, 0.058, ch=0.012)])
-    stock = _run([_sec(0.046, 0.06, -0.04, 0.05, ch=0.01), _sec(0.04, 0.05, -0.12, 0.035, ch=0.01),
-                  _sec(0.046, 0.10, -0.21, 0.02, ch=0.012), _sec(0.046, 0.105, -0.24, 0.02, ch=0.012)])
-    _add(mesh, g, "gun", "pistol", receiver + _guard())
-    _add(mesh, g, "wood", "pistol", grip + stock)
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.05, 0.11, -0.242, 0.02, ch=0.012), _sec(0.05, 0.11, -0.26, 0.02, ch=0.012)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.015, 0.17, 0.66, 0.072, 8) + _tube(0.012, 0.17, 0.48, 0.036, 8))
-    shield = _run([_sec(0.04, 0.02, 0.2, 0.095), _sec(0.04, 0.02, 0.56, 0.095)])
-    _add(mesh, g, "gun", "pistol", shield + box(0.03, 0.03, 0.06).move(0, 0.11, -0.06))
-    _add(mesh, g, "lens", "pistol", box(0.022, 0.022, 0.003).move(0, 0.112, -0.091))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.044, 0.008, 0.3, 0.106), _sec(0.044, 0.008, 0.46, 0.106)]))
-    pump = _run([_sec(0.046, 0.044, 0.21, 0.036, ch=0.012), _sec(0.056, 0.054, 0.24, 0.036, ch=0.015),
-                 _sec(0.056, 0.054, 0.36, 0.036, ch=0.015), _sec(0.046, 0.044, 0.39, 0.036, ch=0.012)])
-    _add(mesh, g, "wood", "pistol_slide", pump)
-    _add(mesh, g, "accent", "pistol_mag", _tube(0.011, 0.02, 0.07, 0.05, 6))
+def _shotgun_body(mesh, g, back, sight_port=False):
+    """What the two pump guns share: the grip, a receiver with an armour panel and the lit
+    channel under its step, the stock, and one charge shell for reloads (hidden inside
+    the receiver until a reload brings it out)."""
+    _add(mesh, g, "grip", "pistol", box(0.04, 0.12, 0.052, 0.011).rot(pitch=-20).move(0, -0.035, 0.022))
+    receiver = _core([(-0.055, 0.03), (0.19, 0.022), (0.2, 0.04), (0.2, 0.088), (0.18, 0.096), (-0.03, 0.096), (-0.055, 0.08)], 0.05, 0.006)
+    _add(mesh, g, "dark", "pistol", receiver + _guard(0.082))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.036, 0.058), (0.108, 0.058), (0.124, 0.071), (0.188, 0.071), (0.188, 0.09), (-0.02, 0.09),
+                                             (-0.036, 0.08)], 0.0245, 0.005))
+    _add(mesh, g, "glow", "pistol", _panels([(0.118, 0.054), (0.19, 0.054), (0.19, 0.066), (0.132, 0.066)], 0.025, 0.002, 0.0))
+    _stock(mesh, g, back, 0.082, 0.076, -0.034, 0.046)
+    _add(mesh, g, "glow", "pistol_mag", _tube(0.011, 0.02, 0.07, 0.05, 6))
     _add(mesh, g, "detail", "pistol_mag", _tube(0.0115, 0.0, 0.02, 0.05, 6))
 
 
+def _pump(kind_body, kind_ribs):
+    """The pump (on the slide bone: the left fist rides on it): [body, ribs]."""
+    body = _run([_sec(0.05, 0.046, 0.21, 0.036, ch=0.013), _sec(0.06, 0.058, 0.236, 0.036, ch=0.016),
+                 _sec(0.06, 0.058, 0.364, 0.036, ch=0.016), _sec(0.05, 0.046, 0.39, 0.036, ch=0.013)])
+    ribs = Part([])
+    for i in range(4):
+        ribs = ribs + _run([_sec(0.063, 0.061, 0.256 + i * 0.03, 0.036, ch=0.017), _sec(0.063, 0.061, 0.268 + i * 0.03, 0.036, ch=0.017)])
+    return (kind_body, body), (kind_ribs, ribs)
+
+
+def shotgun(mesh):
+    """Pump-action, about 80 cm: a thick barrel under a slatted heat shield, a charge tube
+    below it, and a ribbed pump in the player's colour that racks back after every shot."""
+    g = "shotgun"
+    _shotgun_body(mesh, g, -0.25)
+    _add(mesh, g, "steel", "pistol", _tube(0.019, 0.19, 0.585, 0.072, 8))
+    _add(mesh, g, "dark", "pistol", _tube(0.023, 0.552, 0.602, 0.072, 8) + _tube(0.014, 0.19, 0.515, 0.036, 8)
+         + box(0.008, 0.012, 0.012).move(0, 0.098, -0.585))
+    _add(mesh, g, "detail", "pistol", _tube(0.0165, 0.5, 0.522, 0.036, 8))
+    slats = Part([])
+    for i in range(7):
+        slats = slats + box(0.03, 0.006, 0.02, 0.004).move(0, 0.094, -(0.235 + i * 0.04))
+    _vent(mesh, g, "detail", slats)
+    for kind, part in _pump("grip", "accent"):
+        _add(mesh, g, kind, "pistol_slide", part)
+
+
+def slug_shotgun(mesh):
+    """A slug gun, about 85 cm: a pump shotgun with a long rifled barrel under an armour
+    heat shield, a reflex sight and an armour-clad pump."""
+    g = "slug_shotgun"
+    _shotgun_body(mesh, g, -0.26)
+    _add(mesh, g, "steel", "pistol", _tube(0.017, 0.19, 0.66, 0.072, 8))
+    _add(mesh, g, "detail", "pistol", _tube(0.0205, 0.628, 0.662, 0.072, 8) + _tube(0.0165, 0.46, 0.482, 0.036, 8))
+    _add(mesh, g, "dark", "pistol", _tube(0.014, 0.19, 0.48, 0.036, 8))
+    _add(mesh, g, "plate", "pistol", _core([(0.205, 0.087), (0.555, 0.087), (0.575, 0.094), (0.555, 0.105), (0.205, 0.105)], 0.042, 0.004))
+    _add(mesh, g, "glow", "pistol", box(0.01, 0.004, 0.3).move(0, 0.1055, -0.38))
+    _vent(mesh, g, "dark", _slats(0.235, 8, 0.038, 0.089, 0.102, 0.0205, t=0.012, lean=0.006, thick=0.002))
+    housing, lens = _dot_sight(0.02, 0.096, 0.03, 0.032, 0.064)
+    _add(mesh, g, "dark", "pistol", housing)
+    _add(mesh, g, "lens", "pistol", lens)
+    for kind, part in _pump("plate", "dark"):
+        _add(mesh, g, kind, "pistol_slide", part)
+
+
+def break_action(mesh):
+    """A side-by-side double barrel, about 85 cm, with an armour stock and fore-end and a
+    lit rib between the barrels. The barrels and fore-end (on the magazine bone) tip down
+    on their hinge to reload."""
+    g = "break_action"
+    _add(mesh, g, "grip", "pistol", box(0.038, 0.11, 0.05, 0.011).rot(pitch=-22).move(0, -0.034, 0.024))
+    receiver = _core([(-0.046, 0.024), (0.13, 0.02), (0.13, 0.084), (-0.02, 0.088), (-0.046, 0.07)], 0.052, 0.006)
+    _add(mesh, g, "dark", "pistol", receiver + _guard(0.08))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.03, 0.034), (0.118, 0.03), (0.118, 0.076), (-0.012, 0.08), (-0.03, 0.064)], 0.0255, 0.005))
+    _vent(mesh, g, "detail", _slats(0.0, 4, 0.024, 0.04, 0.066, 0.0305, t=0.008, lean=0.006, thick=0.003))
+    _add(mesh, g, "detail", "pistol", box(0.012, 0.016, 0.03).rot(pitch=-30).move(0, 0.09, 0.0))   # top lever
+    _stock(mesh, g, -0.27, 0.07, 0.068, -0.045, 0.046)
+    _add(mesh, g, "steel", "pistol_mag", _tube(0.018, 0.13, 0.66, 0.066, 8, x=-0.018) + _tube(0.018, 0.13, 0.66, 0.066, 8, x=0.018))
+    _add(mesh, g, "dark", "pistol_mag", box(0.074, 0.018, 0.53).move(0, 0.05, -0.395)
+         + _run([_sec(0.08, 0.044, 0.6, 0.066, ch=0.014), _sec(0.08, 0.044, 0.628, 0.066, ch=0.014)]))
+    _add(mesh, g, "glow", "pistol_mag", box(0.007, 0.006, 0.44).move(0, 0.086, -0.37))
+    _add(mesh, g, "plate", "pistol_mag", _run([_sec(0.066, 0.044, 0.14, 0.03, ch=0.014), _sec(0.07, 0.05, 0.36, 0.03, ch=0.016)]))
+    _add(mesh, g, "accent", "pistol_mag", _run([_sec(0.073, 0.022, 0.36, 0.035), _sec(0.073, 0.022, 0.38, 0.035)]))
+
+
+def auto_shotgun(mesh):
+    """A drum-fed automatic shotgun, about 80 cm: a boxy armoured receiver, a fat drum
+    with a lit hub under it, a ringed barrel shroud and a fixed stock."""
+    g = "auto_shotgun"
+    _add(mesh, g, "grip", "pistol", _grip(-18, 0.038))
+    receiver = _core([(-0.066, 0.016), (0.214, 0.012), (0.225, 0.03), (0.225, 0.09), (-0.04, 0.094), (-0.066, 0.07)], 0.056, 0.007)
+    guard = _run([_sec(0.054, 0.05, 0.22, 0.034, ch=0.014), _sec(0.054, 0.05, 0.42, 0.034, ch=0.014)])
+    _add(mesh, g, "dark", "pistol", receiver + guard + _guard(0.08))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.05), (0.118, 0.05), (0.134, 0.063), (0.212, 0.063), (0.212, 0.087), (-0.03, 0.089),
+                                             (-0.046, 0.076)], 0.0275, 0.005)
+         + _panels([(0.236, 0.016), (0.41, 0.016), (0.41, 0.05), (0.236, 0.05)], 0.0265, 0.004))
+    _add(mesh, g, "glow", "pistol", _panels([(0.128, 0.046), (0.214, 0.046), (0.214, 0.058), (0.142, 0.058)], 0.028, 0.002, 0.0))
+    _add(mesh, g, "detail", "pistol", _tube(0.026, 0.225, 0.6, 0.066, 8))
+    _vent(mesh, g, "accent", _rings(0.0285, (0.44, 0.475, 0.51, 0.545), 0.016, 0.066, 8))
+    _add(mesh, g, "dark", "pistol", _tube(0.022, 0.598, 0.642, 0.066, 8))
+    housing, lens = _dot_sight(0.0, 0.092, 0.03, 0.032, 0.064)
+    _add(mesh, g, "dark", "pistol", housing)
+    _add(mesh, g, "lens", "pistol", lens)
+    _stock(mesh, g, -0.26, 0.086, 0.08, -0.04, 0.048)
+    _add(mesh, g, "detail", "pistol_mag", prism(10, 0.076, 0.062, phase=0.31).rot(roll=90).move(0, -0.06, -0.12))
+    _add(mesh, g, "dark", "pistol_mag", prism(10, 0.08, 0.02, phase=0.31).rot(roll=90).move(0, -0.06, -0.12))
+    _add(mesh, g, "glow", "pistol_mag", prism(10, 0.034, 0.067, phase=0.31).rot(roll=90).move(0, -0.06, -0.12))
+    _add(mesh, g, "detail", "pistol_slide", box(0.014, 0.016, 0.03, 0.004).move(-0.033, 0.07, -0.1))
+
+
 def air_cannon(mesh):
-    """A compressed-air cannon, about 75 cm: a wide barrel ending in a flared bell, an air
-    tank slung underneath (its magazine) and a front handle under the tank."""
+    """A compressed-air cannon, about 75 cm: a wide armour barrel ending in a flared bell
+    with a lit throat, an air tank slung underneath (its magazine) and a front handle."""
     g = "air_cannon"
-    body = _run([_sec(0.06, 0.08, -0.06, 0.05, ch=0.018), _sec(0.06, 0.08, 0.16, 0.05, ch=0.018)])
-    _add(mesh, g, "gun", "pistol", _grip(-16, 0.036) + _guard() + body)
-    _add(mesh, g, "polymer", "pistol", _run([_sec(0.04, 0.05, -0.05, 0.05, ch=0.012), _sec(0.04, 0.11, -0.22, 0.03, ch=0.014),
-                                            _sec(0.04, 0.11, -0.24, 0.03, ch=0.014)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.04, 0.16, 0.52, 0.075, 10))
-    _add(mesh, g, "gun", "pistol", prism(10, 0.046, 0.1, r_top=0.075, phase=0.31).rot(pitch=-90).move(0, 0.075, -0.57))
-    _add(mesh, g, "accent", "pistol", _tube(0.043, 0.3, 0.33, 0.075, 10) + _tube(0.043, 0.42, 0.45, 0.075, 10))
-    _add(mesh, g, "lens", "pistol", box(0.03, 0.01, 0.06).move(0, 0.1, -0.08))
-    _add(mesh, g, "gun", "pistol", box(0.03, 0.08, 0.036, 0.008).move(0, -0.03, -0.30))   # front handle
-    _add(mesh, g, "detail", "pistol_mag", _tube(0.028, 0.06, 0.26, 0.0, 10))
-    _add(mesh, g, "accent", "pistol_mag", _tube(0.03, 0.12, 0.15, 0.0, 10))
+    _add(mesh, g, "grip", "pistol", _grip(-16, 0.038))
+    body = _core([(-0.066, 0.014), (0.16, 0.014), (0.172, 0.03), (0.172, 0.104), (0.15, 0.117), (-0.03, 0.117), (-0.066, 0.08)], 0.06, 0.008)
+    bracket = _core([(0.262, -0.004), (0.336, -0.004), (0.346, 0.042), (0.252, 0.042)], 0.03, 0.004)
+    _add(mesh, g, "dark", "pistol", body + bracket + _guard(0.08))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.05), (0.158, 0.05), (0.158, 0.108), (-0.02, 0.108), (-0.046, 0.082)], 0.0295, 0.005)
+         + _tube(0.041, 0.172, 0.5, 0.075, 10))
+    _vent(mesh, g, "detail", _slats(-0.02, 5, 0.028, 0.06, 0.098, 0.0345, t=0.009, lean=0.007, thick=0.003))
+    _add(mesh, g, "accent", "pistol", _rings(0.0435, (0.3, 0.42), 0.03, 0.075, 10))
+    _add(mesh, g, "dark", "pistol", _tube(0.046, 0.495, 0.62, 0.075, 10, r_front=0.078))
+    _add(mesh, g, "glow", "pistol", _tube(0.05, 0.6, 0.6215, 0.075, 10, r_front=0.066) + box(0.03, 0.006, 0.06).move(0, 0.119, -0.08))
+    _add(mesh, g, "grip", "pistol", box(0.032, 0.085, 0.038, 0.009).move(0, -0.032, -0.30))
+    _stock(mesh, g, -0.24, 0.086, 0.08, -0.03, 0.044)
+    _add(mesh, g, "steel", "pistol_mag", _tube(0.03, 0.06, 0.26, 0.0, 10))
+    _add(mesh, g, "glow", "pistol_mag", _tube(0.032, 0.12, 0.15, 0.0, 10))
+    _add(mesh, g, "detail", "pistol_mag", _tube(0.024, 0.255, 0.275, 0.0, 10) + _tube(0.032, 0.062, 0.076, 0.0, 10))
 
 
-def minigun(mesh):
-    """A minigun, about 1 m: six barrels round a spindle, a motor housing behind them,
-    an ammunition box under the left side (its top lid opens to reload), a carry handle
-    and a front handle under the barrels."""
-    g = "minigun"
-    y = 0.05
-    housing = _run([_sec(0.08, 0.09, -0.08, y, ch=0.02), _sec(0.08, 0.09, 0.2, y, ch=0.02), _sec(0.07, 0.08, 0.24, y, ch=0.018)])
-    _add(mesh, g, "gun", "pistol", _grip(-18, 0.036) + _guard() + housing)
-    _add(mesh, g, "polymer", "pistol", _run([_sec(0.05, 0.07, -0.06, 0.045, ch=0.014), _sec(0.05, 0.11, -0.2, 0.03, ch=0.014),
-                                            _sec(0.05, 0.11, -0.22, 0.03, ch=0.014)]))
-    barrels = Part([])
-    import math
-    for i in range(6):
-        a = i * math.pi / 3.0
-        barrels = barrels + _tube(0.011, 0.24, 0.86, y + 0.026 * math.sin(a), 6, x=0.026 * math.cos(a))
-    _add(mesh, g, "detail", "pistol", barrels)
-    _add(mesh, g, "gun", "pistol", _tube(0.044, 0.26, 0.3, y, 10) + _tube(0.044, 0.56, 0.59, y, 10) + _tube(0.042, 0.82, 0.85, y, 10))
-    _add(mesh, g, "accent", "pistol", _tube(0.046, 0.3, 0.33, y, 10))
-    _add(mesh, g, "detail", "pistol", box(0.016, 0.05, 0.016).move(0, 0.12, -0.0) + box(0.016, 0.05, 0.016).move(0, 0.12, -0.18)
-         + box(0.018, 0.016, 0.2).move(0, 0.15, -0.09))   # carry handle
-    _add(mesh, g, "gun", "pistol", box(0.03, 0.08, 0.036, 0.008).move(0, -0.03, -0.30))   # front handle
-    _add(mesh, g, "gun", "pistol_slide", box(0.07, 0.018, 0.14, 0.004).move(0, 0.1, -0.06))    # the top lid
-    _add(mesh, g, "polymer", "pistol_mag", box(0.07, 0.1, 0.13, 0.01).move(0, -0.05, -0.12))
-    _add(mesh, g, "accent", "pistol_mag", box(0.072, 0.02, 0.132).move(0, -0.085, -0.12))
+# ---------------------------------------------------------------------------
+# Automatics
+
+def _handle(x, y, z, w=0.03):
+    """A charging handle on the left of the receiver (on the slide bone: a reload pulls it back)."""
+    return box(w, 0.018, 0.034, 0.005).move(x, y, z)
+
+
+def _add_cell(mesh, g, w, h, d, pitch, y, z, window=0.5):
+    """A power cell on the magazine bone: grey body, lit window, base pad in the player's colour."""
+    body, lit, pad = _cell(w, h, d, pitch, y, z, window)
+    _add(mesh, g, "detail", "pistol_mag", body)
+    _add(mesh, g, "glow", "pistol_mag", lit)
+    _add(mesh, g, "accent", "pistol_mag", pad)
+
+
+def _add_sight(mesh, g, f, y, w=0.03, h=0.034, length=0.064):
+    housing, lens = _dot_sight(f, y, w, h, length)
+    _add(mesh, g, "dark", "pistol", housing)
+    _add(mesh, g, "lens", "pistol", lens)
+
+
+def _add_scope(mesh, g, f0, f1, y, r=0.019, bell=0.028):
+    tube, mounts, lens, band = _scope(f0, f1, y, r, bell)
+    _add(mesh, g, "dark", "pistol", tube)
+    _add(mesh, g, "detail", "pistol", mounts)
+    _add(mesh, g, "lens", "pistol", lens)
+    _add(mesh, g, "accent", "pistol", band)
+
+
+def smg(mesh):
+    """A compact submachine gun, about 55 cm: a boxy armoured receiver, a straight power
+    cell ahead of the grip, a vertical foregrip, a slotted barrel shroud and a skeleton stock."""
+    g = "smg"
+    _add(mesh, g, "grip", "pistol", _grip(-14) + box(0.032, 0.085, 0.038, 0.009).move(0, -0.035, -0.215))
+    receiver = _core([(-0.066, 0.02), (0.3, 0.02), (0.31, 0.034), (0.31, 0.076), (0.29, 0.088), (-0.04, 0.088), (-0.066, 0.07)], 0.046, 0.006)
+    _add(mesh, g, "dark", "pistol", receiver + _guard(0.078))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.05), (0.158, 0.05), (0.174, 0.064), (0.296, 0.064), (0.296, 0.074), (0.284, 0.083),
+                                             (-0.03, 0.083), (-0.046, 0.072)], 0.0225, 0.005))
+    _add(mesh, g, "glow", "pistol", _panels([(0.168, 0.047), (0.298, 0.047), (0.298, 0.059), (0.182, 0.059)], 0.023, 0.002, 0.0))
+    _add(mesh, g, "detail", "pistol", _tube(0.024, 0.31, 0.42, 0.052, 8))
+    _vent(mesh, g, "dark", _rings(0.0255, (0.33, 0.355, 0.38), 0.011, 0.052, 8))
+    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.42, 0.472, 0.052, 6))
+    _stock(mesh, g, -0.235, 0.078, 0.086, -0.006, 0.036, open_frame=True)
+    _add_sight(mesh, g, 0.03, 0.088, 0.026, 0.028, 0.056)
+    _add_cell(mesh, g, 0.027, 0.17, 0.036, 0.0, -0.06, -0.085)
+    _add(mesh, g, "detail", "pistol_slide", _handle(-0.03, 0.07, -0.1, 0.016))
+
+
+def rifle(mesh):
+    """Assault rifle, about 80 cm: an armoured receiver and handguard, a curved power
+    cell with a lit front, a reflex sight, and a charging handle on the left side."""
+    g = "rifle"
+    _add(mesh, g, "grip", "pistol", _grip(-18))
+    receiver = _core([(-0.066, 0.018), (0.035, 0.018), (0.035, -0.012), (0.126, -0.012), (0.134, 0.03), (0.186, 0.03), (0.186, 0.092),
+                      (-0.04, 0.092), (-0.066, 0.07)], 0.046, 0.006)
+    hand = _run([_sec(0.046, 0.05, 0.18, 0.052, ch=0.014), _sec(0.046, 0.05, 0.43, 0.052, ch=0.014)])
+    _add(mesh, g, "dark", "pistol", receiver + hand + _guard(0.076) + box(0.008, 0.03, 0.012).move(0, 0.092, -0.40))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.056), (0.088, 0.056), (0.104, 0.069), (0.179, 0.069), (0.179, 0.088), (-0.03, 0.088),
+                                             (-0.046, 0.078)], 0.0225, 0.005)
+         + _panels([(0.196, 0.034), (0.416, 0.034), (0.428, 0.046), (0.428, 0.07), (0.196, 0.07)], 0.0225, 0.005))
+    _add(mesh, g, "glow", "pistol", _panels([(0.098, 0.052), (0.181, 0.052), (0.181, 0.064), (0.112, 0.064)], 0.023, 0.002, 0.0))
+    _vent(mesh, g, "dark", _slats(0.226, 6, 0.031, 0.04, 0.064, 0.0275, t=0.01, lean=0.007, thick=0.002))
+    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.43, 0.525, 0.052, 6))
+    _add(mesh, g, "detail", "pistol", _tube(0.018, 0.518, 0.567, 0.052, 6) + box(0.022, 0.008, 0.2).move(0, 0.096, -0.075))
+    _add_sight(mesh, g, 0.02, 0.1, 0.032, 0.034, 0.07)
+    _stock(mesh, g, -0.215, 0.084, 0.078, -0.025, 0.042)
+    # The curved cell: its body, the lit strip down its front, and its base pad.
+    mag = loft([rect(0.032, 0.075, 0.0, 0.008, cz=-0.08), rect(0.032, 0.075, -0.07, 0.008, cz=-0.09),
+                rect(0.032, 0.07, -0.15, 0.008, cz=-0.11), rect(0.032, 0.068, -0.19, 0.008, cz=-0.125)])
+    lit = loft([rect(0.035, 0.014, -0.03, cz=-0.119), rect(0.035, 0.014, -0.07, cz=-0.1235), rect(0.035, 0.014, -0.15, cz=-0.141),
+                rect(0.035, 0.014, -0.17, cz=-0.148)])
+    _add(mesh, g, "detail", "pistol_mag", mag)
+    _add(mesh, g, "glow", "pistol_mag", lit)
+    _add(mesh, g, "accent", "pistol_mag", box(0.035, 0.012, 0.074, 0.004).move(0, -0.185, -0.125))
+    _add(mesh, g, "detail", "pistol_slide", _handle(-0.036, 0.07, -0.13))
+
+
+def burst_rifle(mesh):
+    """A sleek burst rifle, about 85 cm: a long armour shroud split by a lit line, a long
+    top sight with a glowing lens, a box cell and a charging handle at the back."""
+    g = "burst_rifle"
+    _add(mesh, g, "grip", "pistol", _grip(-18))
+    core = _run([_sec(0.046, 0.056, -0.06, 0.06, ch=0.014), _sec(0.046, 0.056, 0.2, 0.06, ch=0.014),
+                 _sec(0.05, 0.064, 0.24, 0.056, ch=0.018), _sec(0.05, 0.064, 0.5, 0.056, ch=0.018),
+                 _sec(0.036, 0.044, 0.56, 0.056, ch=0.012)])
+    sight = _core([(-0.04, 0.086), (0.16, 0.086), (0.16, 0.122), (0.14, 0.128), (-0.02, 0.128), (-0.04, 0.11)], 0.03, 0.005)
+    _add(mesh, g, "dark", "pistol", core + sight + _guard(0.078))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.04), (0.19, 0.04), (0.19, 0.084), (-0.03, 0.084), (-0.046, 0.07)], 0.0225, 0.005)
+         + _panels([(0.236, 0.063), (0.5, 0.063), (0.54, 0.064), (0.5, 0.086), (0.236, 0.086)], 0.0245, 0.005)
+         + _panels([(0.236, 0.027), (0.5, 0.027), (0.54, 0.047), (0.5, 0.05), (0.236, 0.05)], 0.0245, 0.005))
+    _add(mesh, g, "glow", "pistol", _panels([(0.236, 0.051), (0.525, 0.051), (0.525, 0.062), (0.236, 0.062)], 0.025, 0.002, 0.0))
+    _vent(mesh, g, "detail", _slats(0.02, 5, 0.03, 0.048, 0.076, 0.0275, t=0.009, lean=0.007, thick=0.003))
+    _add(mesh, g, "steel", "pistol", _tube(0.011, 0.56, 0.622, 0.056, 6))
+    _add(mesh, g, "lens", "pistol", box(0.022, 0.022, 0.003).move(0, 0.107, -0.1605))
+    _stock(mesh, g, -0.24, 0.084, 0.08, -0.03, 0.044)
+    _add_cell(mesh, g, 0.03, 0.14, 0.05, 8.0, -0.045, -0.10)
+    _add(mesh, g, "detail", "pistol_slide", _handle(-0.036, 0.075, 0.02))
 
 
 def battle_rifle(mesh):
-    """A battle rifle, about 95 cm: a long barrel with a flash hider, a straight magazine,
-    a wooden stock and handguard, and a low-power scope."""
+    """A battle rifle, about 95 cm: a long barrel with a muzzle brake, a straight cell, an
+    armour handguard with cooling slots, and a low-power scope."""
     g = "battle_rifle"
-    lower = _run([_sec(0.044, 0.035, -0.06, 0.035, ch=0.008), _sec(0.044, 0.035, 0.14, 0.035, ch=0.008)])
-    upper = _run([_sec(0.046, 0.042, -0.06, 0.07, ch=0.008), _sec(0.046, 0.042, 0.2, 0.07, ch=0.008)])
-    _add(mesh, g, "gun", "pistol", _grip(-16) + _guard() + lower + upper)
-    stock = _run([_sec(0.042, 0.055, -0.05, 0.045, ch=0.012), _sec(0.036, 0.05, -0.12, 0.035, ch=0.01),
-                  _sec(0.044, 0.11, -0.23, 0.02, ch=0.014), _sec(0.044, 0.11, -0.25, 0.02, ch=0.014)])
-    _add(mesh, g, "wood", "pistol", stock + _run([_sec(0.05, 0.05, 0.19, 0.05, ch=0.014), _sec(0.05, 0.05, 0.46, 0.05, ch=0.014)]))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.046, 0.115, -0.252, 0.02, ch=0.014), _sec(0.046, 0.115, -0.268, 0.02, ch=0.014)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.011, 0.46, 0.68, 0.056, 6) + _tube(0.016, 0.68, 0.72, 0.056, 6))
-    _add(mesh, g, "gun", "pistol", _run([_sec(0.03, 0.03, -0.02, 0.12, ch=0.01), _sec(0.036, 0.036, 0.16, 0.12, ch=0.012)])
-         + box(0.02, 0.04, 0.016).move(0, 0.095, -0.02) + box(0.02, 0.04, 0.016).move(0, 0.095, -0.13))
-    _add(mesh, g, "lens", "pistol", _run([_sec(0.03, 0.03, 0.161, 0.12, ch=0.01), _sec(0.03, 0.03, 0.164, 0.12, ch=0.01)]))
-    _add(mesh, g, "detail", "pistol_mag", box(0.028, 0.13, 0.05, 0.006).move(0, -0.04, -0.09))
-    _add(mesh, g, "accent", "pistol_mag", box(0.03, 0.012, 0.052).move(0, -0.1, -0.09))
-    _add(mesh, g, "gun", "pistol_slide", box(0.03, 0.016, 0.03, 0.005).move(-0.035, 0.07, -0.12))
+    _add(mesh, g, "grip", "pistol", _grip(-16))
+    receiver = _core([(-0.066, 0.018), (0.14, 0.018), (0.15, 0.03), (0.2, 0.03), (0.2, 0.094), (-0.04, 0.094), (-0.066, 0.072)], 0.048, 0.006)
+    cap = _run([_sec(0.057, 0.057, 0.452, 0.05, ch=0.017), _sec(0.048, 0.048, 0.482, 0.052, ch=0.014)])
+    _add(mesh, g, "dark", "pistol", receiver + cap + _guard(0.078))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.054), (0.098, 0.054), (0.114, 0.067), (0.192, 0.067), (0.192, 0.09), (-0.03, 0.09),
+                                             (-0.046, 0.078)], 0.0235, 0.005)
+         + _run([_sec(0.054, 0.054, 0.2, 0.05, ch=0.016), _sec(0.054, 0.054, 0.455, 0.05, ch=0.016)]))
+    _add(mesh, g, "glow", "pistol", _panels([(0.108, 0.05), (0.194, 0.05), (0.194, 0.062), (0.122, 0.062)], 0.024, 0.002, 0.0))
+    _vent(mesh, g, "dark", _slats(0.236, 5, 0.04, 0.04, 0.062, 0.027, t=0.014, lean=0.008, thick=0.002))
+    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.46, 0.685, 0.056, 6))
+    _add(mesh, g, "detail", "pistol", _run([_sec(0.034, 0.034, 0.672, 0.056, ch=0.01), _sec(0.034, 0.034, 0.722, 0.056, ch=0.01)]))
+    _add_scope(mesh, g, -0.03, 0.17, 0.127, 0.017, 0.022)
+    _stock(mesh, g, -0.25, 0.086, 0.08, -0.035, 0.044)
+    _add_cell(mesh, g, 0.03, 0.13, 0.052, 0.0, -0.04, -0.09)
+    _add(mesh, g, "detail", "pistol_slide", _handle(-0.037, 0.07, -0.12))
+
+
+def _ammo_box(mesh, g, w, h, d, y, z):
+    """A box of ammunition on the magazine bone: a lit gauge on each flank, a band in the player's colour."""
+    _add(mesh, g, "detail", "pistol_mag", box(w, h, d, 0.012).move(0, y, z))
+    _add(mesh, g, "glow", "pistol_mag", _panels([(-z - d * 0.3, y - h * 0.22), (-z + d * 0.3, y - h * 0.22), (-z + d * 0.3, y + h * 0.18),
+                                                (-z - d * 0.3, y + h * 0.18)], w / 2.0, 0.002, 0.0))
+    _add(mesh, g, "accent", "pistol_mag", box(w + 0.003, 0.018, d + 0.003, 0.012).move(0, y - h * 0.38, z))
+
+
+def _carry_handle(f0, f1, y):
+    return (box(0.016, 0.05, 0.016).move(0, y, -f0) + box(0.016, 0.05, 0.016).move(0, y, -f1)
+            + box(0.018, 0.016, f1 - f0 + 0.03, 0.004).move(0, y + 0.028, -(f0 + f1) / 2.0))
+
+
+def lmg(mesh):
+    """A belt-fed light machine gun, about 1 m: a big armoured receiver with a top cover,
+    a box of ammunition hanging underneath, a ringed barrel shroud and a carry handle."""
+    g = "lmg"
+    _add(mesh, g, "grip", "pistol", _grip(-18, 0.038))
+    receiver = _core([(-0.076, 0.012), (0.24, 0.012), (0.25, 0.03), (0.25, 0.088), (-0.05, 0.088), (-0.076, 0.066)], 0.062, 0.008)
+    guard = _run([_sec(0.056, 0.05, 0.25, 0.03, ch=0.014), _sec(0.056, 0.05, 0.42, 0.03, ch=0.014)])
+    _add(mesh, g, "dark", "pistol", receiver + guard + _guard(0.08))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.056, 0.036), (0.138, 0.036), (0.154, 0.05), (0.24, 0.05), (0.24, 0.082), (-0.04, 0.082),
+                                             (-0.056, 0.068)], 0.0305, 0.005))
+    _add(mesh, g, "glow", "pistol", _panels([(0.148, 0.032), (0.242, 0.032), (0.242, 0.045), (0.162, 0.045)], 0.031, 0.002, 0.0))
+    _add(mesh, g, "detail", "pistol", _tube(0.028, 0.25, 0.66, 0.06, 8) + _carry_handle(0.10, 0.26, 0.112)
+         + box(0.012, 0.012, 0.18).rot(pitch=8).move(-0.027, 0.02, -0.52) + box(0.012, 0.012, 0.18).rot(pitch=8).move(0.027, 0.02, -0.52))
+    _vent(mesh, g, "accent", _rings(0.0305, (0.45, 0.49, 0.53, 0.57, 0.61), 0.02, 0.06, 8))
+    _add(mesh, g, "steel", "pistol", _tube(0.013, 0.66, 0.76, 0.06, 6))
+    _add(mesh, g, "dark", "pistol", _tube(0.021, 0.755, 0.802, 0.06, 6))
+    _stock(mesh, g, -0.27, 0.086, 0.08, -0.04, 0.05)
+    _add(mesh, g, "dark", "pistol_slide", box(0.066, 0.016, 0.2, 0.005).move(0, 0.095, -0.06))   # the top cover
+    _add(mesh, g, "plate", "pistol_slide", box(0.048, 0.005, 0.15, 0.004).move(0, 0.1045, -0.06))
+    _ammo_box(mesh, g, 0.072, 0.11, 0.12, -0.04, -0.12)
+
+
+def minigun(mesh):
+    """A minigun, about 1 m: six barrels round a spindle, an armoured motor housing behind
+    them with a lit ring, an ammunition box underneath (its top lid opens to reload), a
+    carry handle and a front handle under the barrels."""
+    g = "minigun"
+    y = 0.05
+    _add(mesh, g, "grip", "pistol", _grip(-18, 0.038) + box(0.032, 0.085, 0.038, 0.009).move(0, -0.032, -0.30))
+    housing = _run([_sec(0.08, 0.092, -0.08, y, ch=0.022), _sec(0.08, 0.092, 0.2, y, ch=0.022), _sec(0.07, 0.08, 0.24, y, ch=0.018)])
+    bracket = _core([(0.275, -0.004), (0.325, -0.004), (0.335, 0.012), (0.265, 0.012)], 0.03, 0.004)
+    _add(mesh, g, "dark", "pistol", housing + bracket + _guard(0.08))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.062, 0.03), (0.078, 0.03), (0.094, 0.044), (0.19, 0.044), (0.19, 0.08), (-0.046, 0.08),
+                                             (-0.062, 0.066)], 0.0395, 0.005))
+    _add(mesh, g, "glow", "pistol", _panels([(0.088, 0.026), (0.192, 0.026), (0.192, 0.04), (0.102, 0.04)], 0.04, 0.002, 0.0)
+         + _tube(0.0475, 0.3, 0.326, y, 10))
+    _vent(mesh, g, "detail", _slats(-0.04, 4, 0.026, 0.05, 0.074, 0.0445, t=0.009, lean=0.007, thick=0.003))
+    barrels = Part([])
+    for i in range(6):
+        a = i * math.pi / 3.0
+        barrels = barrels + _tube(0.011, 0.24, 0.86, y + 0.026 * math.sin(a), 6, x=0.026 * math.cos(a))
+    _add(mesh, g, "steel", "pistol", barrels)
+    _add(mesh, g, "dark", "pistol", _tube(0.045, 0.26, 0.3, y, 10) + _tube(0.045, 0.56, 0.59, y, 10) + _tube(0.043, 0.82, 0.85, y, 10))
+    _add(mesh, g, "detail", "pistol", _carry_handle(0.0, 0.18, 0.12))
+    _stock(mesh, g, -0.225, 0.088, 0.084, -0.03, 0.05)
+    _add(mesh, g, "dark", "pistol_slide", box(0.07, 0.016, 0.14, 0.005).move(0, 0.1, -0.06))    # the top lid
+    _add(mesh, g, "plate", "pistol_slide", box(0.05, 0.005, 0.1, 0.004).move(0, 0.1095, -0.06))
+    _ammo_box(mesh, g, 0.072, 0.1, 0.13, -0.05, -0.12)
 
 
 def laser_rifle(mesh):
-    """A laser rifle, about 85 cm: a smooth white shell with a glowing strip along it, a
-    lensed emitter at the front and a power cell behind the grip."""
+    """A laser rifle, about 85 cm: a smooth armour shell in two halves with a lit line
+    between them, a finned emitter at the front and a power cell behind the grip."""
     g = "laser_rifle"
-    shell = _run([_sec(0.05, 0.07, -0.08, 0.055, ch=0.02), _sec(0.056, 0.08, 0.1, 0.06, ch=0.024),
-                  _sec(0.05, 0.06, 0.5, 0.06, ch=0.02), _sec(0.036, 0.04, 0.6, 0.06, ch=0.014)])
-    _add(mesh, g, "detail", "pistol", shell)
-    _add(mesh, g, "gun", "pistol", _grip(-16) + _guard())
-    _add(mesh, g, "polymer", "pistol", _run([_sec(0.04, 0.06, -0.07, 0.05, ch=0.014), _sec(0.04, 0.11, -0.24, 0.03, ch=0.016),
-                                            _sec(0.04, 0.11, -0.26, 0.03, ch=0.016)]))
-    _add(mesh, g, "lens", "pistol", _run([_sec(0.058, 0.012, 0.12, 0.064), _sec(0.052, 0.012, 0.5, 0.064)]))
-    _add(mesh, g, "gun", "pistol", _tube(0.022, 0.6, 0.66, 0.06, 8))
-    _add(mesh, g, "lens", "pistol", _tube(0.016, 0.66, 0.665, 0.06, 8))
-    _add(mesh, g, "accent", "pistol", _tube(0.024, 0.62, 0.635, 0.06, 8)
-         + _run([_sec(0.03, 0.02, -0.02, 0.105), _sec(0.03, 0.02, 0.14, 0.105)]))
+    _add(mesh, g, "grip", "pistol", _grip(-16))
+    core = _run([_sec(0.044, 0.06, -0.08, 0.055, ch=0.016), _sec(0.05, 0.07, 0.1, 0.06, ch=0.02),
+                 _sec(0.044, 0.052, 0.5, 0.06, ch=0.016), _sec(0.03, 0.034, 0.6, 0.06, ch=0.012)])
+    sight = _core([(-0.02, 0.092), (0.14, 0.092), (0.14, 0.112), (0.0, 0.117), (-0.02, 0.108)], 0.026, 0.004)
+    _add(mesh, g, "dark", "pistol", core + sight + _guard(0.078))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.062, 0.067), (0.1, 0.07), (0.5, 0.068), (0.578, 0.064), (0.5, 0.088), (0.1, 0.098),
+                                             (-0.062, 0.088)], 0.0235, 0.005, 0.003)
+         + _panels([(-0.022, 0.026), (0.1, 0.022), (0.5, 0.032), (0.578, 0.054), (0.5, 0.056), (0.1, 0.056), (-0.022, 0.052)], 0.0235, 0.005, 0.003))
+    _add(mesh, g, "glow", "pistol", _panels([(-0.022, 0.057), (0.56, 0.057), (0.56, 0.066), (-0.022, 0.066)], 0.024, 0.002, 0.0)
+         + _tube(0.016, 0.659, 0.667, 0.06, 8))
+    _vent(mesh, g, "detail", _slats(-0.056, 3, 0.024, 0.07, 0.086, 0.0285, t=0.009, lean=0.006, thick=0.003))
+    _add(mesh, g, "steel", "pistol", _tube(0.021, 0.6, 0.661, 0.06, 8))
+    _add(mesh, g, "detail", "pistol", _rings(0.0245, (0.61, 0.63), 0.009, 0.06, 8))
+    _add(mesh, g, "lens", "pistol", box(0.018, 0.012, 0.003).move(0, 0.103, -0.1405))
+    _stock(mesh, g, -0.26, 0.084, 0.082, -0.03, 0.042)
     _add(mesh, g, "detail", "pistol_mag", box(0.034, 0.07, 0.07, 0.008).move(0, -0.005, 0.105))
-    _add(mesh, g, "lens", "pistol_mag", box(0.036, 0.012, 0.05).move(0, 0.01, 0.105))
+    _add(mesh, g, "glow", "pistol_mag", box(0.037, 0.03, 0.05).move(0, -0.01, 0.105))
 
 
 def nail_gun(mesh):
-    """An industrial nail gun, about 60 cm: a boxy body with a pressure housing on top, a
-    short nose, a long strip of nails slanting under it, and a vertical foregrip."""
+    """An industrial nail gun, about 60 cm: an armoured body with a pressure housing in the
+    player's colour on top, a short steel nose, a long strip of nails slanting under it,
+    and a vertical foregrip."""
     g = "nail_gun"
-    body = _run([_sec(0.05, 0.08, -0.06, 0.055, ch=0.014), _sec(0.05, 0.08, 0.3, 0.055, ch=0.014)])
-    _add(mesh, g, "gun", "pistol", _grip(-14, 0.036) + _guard() + body)
-    _add(mesh, g, "accent", "pistol", _tube(0.034, 0.0, 0.2, 0.11, 8))
-    _add(mesh, g, "detail", "pistol", _tube(0.035, 0.05, 0.07, 0.11, 8) + _tube(0.035, 0.13, 0.15, 0.11, 8))
-    _add(mesh, g, "gun", "pistol", _run([_sec(0.034, 0.04, 0.3, 0.05, ch=0.01), _sec(0.024, 0.03, 0.5, 0.05, ch=0.008)]))
-    _add(mesh, g, "polymer", "pistol", box(0.03, 0.085, 0.036, 0.008).move(0, -0.035, -0.22))
-    _add(mesh, g, "polymer", "pistol", _run([_sec(0.024, 0.02, -0.06, 0.05), _sec(0.024, 0.02, -0.2, 0.045)])
-         + box(0.04, 0.09, 0.02, 0.006).move(0, 0.04, 0.205))
+    _add(mesh, g, "grip", "pistol", _grip(-14, 0.038) + box(0.032, 0.085, 0.038, 0.009).move(0, -0.035, -0.22))
+    body = _core([(-0.066, 0.018), (0.3, 0.018), (0.31, 0.03), (0.31, 0.086), (0.29, 0.094), (-0.04, 0.094), (-0.066, 0.07)], 0.05, 0.007)
+    _add(mesh, g, "dark", "pistol", body + _guard(0.078))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.044, 0.03), (0.3, 0.03), (0.3, 0.058), (0.2, 0.058), (0.184, 0.072), (-0.044, 0.072)], 0.0245, 0.005))
+    _add(mesh, g, "glow", "pistol", _panels([(0.194, 0.063), (0.302, 0.063), (0.302, 0.075), (0.18, 0.075)], 0.025, 0.002, 0.0))
+    _vent(mesh, g, "detail", _slats(-0.02, 5, 0.03, 0.036, 0.066, 0.0295, t=0.009, lean=0.007, thick=0.003))
+    _add(mesh, g, "accent", "pistol", _tube(0.035, 0.0, 0.2, 0.112, 8))
+    _add(mesh, g, "detail", "pistol", _rings(0.0365, (-0.004, 0.09, 0.184), 0.02, 0.112, 8))
+    _add(mesh, g, "steel", "pistol", _run([_sec(0.034, 0.04, 0.3, 0.05, ch=0.01), _sec(0.022, 0.026, 0.5, 0.05, ch=0.007)]))
+    _add(mesh, g, "detail", "pistol", _run([_sec(0.03, 0.034, 0.47, 0.05, ch=0.009), _sec(0.03, 0.034, 0.488, 0.05, ch=0.009)]))
+    _stock(mesh, g, -0.22, 0.076, 0.085, -0.005, 0.036, open_frame=True)
     _add(mesh, g, "detail", "pistol_mag", box(0.022, 0.03, 0.2, 0.004).rot(pitch=10).move(0, -0.03, -0.18))
-    _add(mesh, g, "accent", "pistol_mag", box(0.024, 0.012, 0.03).rot(pitch=10).move(0, -0.045, -0.27))
+    _add(mesh, g, "glow", "pistol_mag", box(0.025, 0.012, 0.03).rot(pitch=10).move(0, -0.045, -0.27))
+
+
+# ---------------------------------------------------------------------------
+# Precision
+
+def _bolt(mesh, g, x, y, z, r=0.014, length=0.07):
+    """A bolt on the slide bone, worked from the left: its body, the stem, and a ball knob."""
+    _add(mesh, g, "steel", "pistol_slide", box(0.02, 0.022, length, 0.004).move(x + 0.058, y, z - 0.015))
+    _add(mesh, g, "dark", "pistol_slide", prism(6, 0.007, 0.05).rot(roll=90).move(x + 0.027, y, z))
+    _add(mesh, g, "accent", "pistol_slide", ball(r).move(x, y, z))
+
+
+def lever_action(mesh):
+    """A lever-action rifle, about 95 cm: an armour stock and fore-end, a charge tube
+    under the eight-sided barrel, and the lever loop behind the trigger."""
+    g = "lever_action"
+    _add(mesh, g, "grip", "pistol", box(0.036, 0.10, 0.046, 0.011).rot(pitch=-24).move(0, -0.03, 0.026))
+    receiver = _core([(-0.036, 0.012), (0.15, 0.012), (0.16, 0.03), (0.16, 0.088), (-0.01, 0.088), (-0.036, 0.066)], 0.042, 0.006)
+    bands = (_core([(0.44, 0.03), (0.462, 0.03), (0.462, 0.082), (0.44, 0.082)], 0.032, 0.004)
+             + _core([(0.68, 0.03), (0.7, 0.03), (0.7, 0.082), (0.68, 0.082)], 0.032, 0.004))
+    _add(mesh, g, "dark", "pistol", receiver + bands + _tube(0.01, 0.15, 0.70, 0.04, 6)
+         + box(0.006, 0.018, 0.012).move(0, 0.088, -0.752) + box(0.016, 0.012, 0.012).move(0, 0.094, -0.12))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.022, 0.046), (0.068, 0.046), (0.084, 0.06), (0.152, 0.06), (0.152, 0.083), (-0.006, 0.083),
+                                             (-0.022, 0.07)], 0.0205, 0.005)
+         + _run([_sec(0.046, 0.044, 0.162, 0.035, ch=0.013), _sec(0.046, 0.044, 0.42, 0.035, ch=0.013)]))
+    _add(mesh, g, "glow", "pistol", _panels([(0.078, 0.042), (0.154, 0.042), (0.154, 0.056), (0.092, 0.056)], 0.021, 0.002, 0.0))
+    _add(mesh, g, "accent", "pistol", _run([_sec(0.049, 0.047, 0.418, 0.035, ch=0.014), _sec(0.049, 0.047, 0.436, 0.035, ch=0.014)]))
+    vents = Part([])
+    for f in (0.03, 0.058, 0.086):
+        vents = vents + box(0.022, 0.006, 0.016, 0.004).move(0, 0.09, -f)
+    _vent(mesh, g, "detail", vents)
+    _add(mesh, g, "steel", "pistol", _tube(0.014, 0.15, 0.78, 0.066, 8))
+    _add(mesh, g, "detail", "pistol", box(0.006, 0.01, 0.03).move(-0.022, 0.055, -0.06))   # loading gate
+    _stock(mesh, g, -0.275, 0.064, 0.058, -0.058, 0.044, neck=-0.03)
+    # The lever loop, on the slide bone: it swings down about its pin and back.
+    lever = (box(0.01, 0.01, 0.075).move(0, -0.012, -0.03) + box(0.01, 0.06, 0.01).move(0, -0.04, 0.008)
+             + box(0.01, 0.01, 0.05).move(0, -0.07, -0.01) + box(0.01, 0.05, 0.01).move(0, -0.045, -0.036))
+    _add(mesh, g, "detail", "pistol_slide", lever)
+    _add(mesh, g, "accent", "pistol_slide", box(0.012, 0.012, 0.03).move(0, -0.072, -0.01))
+    _add(mesh, g, "glow", "pistol_mag", _tube(0.007, 0.02, 0.06, 0.055, 6))   # one round, for reloads (hidden in the action)
+
+
+def bolt_action(mesh):
+    """A bolt-action rifle, about 1 m, with iron sights: a full-length armour fore-end with
+    a lit line along it, and a bolt worked from the left side, like the sniper's."""
+    g = "bolt_action"
+    _add(mesh, g, "grip", "pistol", _grip(-20, 0.038))
+    receiver = _core([(-0.056, 0.036), (0.16, 0.036), (0.17, 0.046), (0.17, 0.078), (0.16, 0.086), (-0.03, 0.086), (-0.056, 0.07)], 0.042, 0.006)
+    under = _run([_sec(0.04, 0.03, -0.03, 0.022, ch=0.01), _sec(0.04, 0.03, 0.56, 0.03, ch=0.01)])
+    _add(mesh, g, "dark", "pistol", receiver + under + _guard(0.078)
+         + box(0.006, 0.022, 0.012).move(0, 0.08, -0.77) + box(0.022, 0.02, 0.016).move(0, 0.094, -0.12))
+    _add(mesh, g, "plate", "pistol", _run([_sec(0.05, 0.03, 0.0, 0.045, ch=0.012), _sec(0.05, 0.03, 0.55, 0.05, ch=0.012),
+                                          _sec(0.032, 0.024, 0.6, 0.052, ch=0.008)]))
+    _add(mesh, g, "glow", "pistol", _panels([(0.2, 0.042), (0.5, 0.047), (0.5, 0.054), (0.2, 0.049)], 0.0252, 0.002, 0.0))
+    _add(mesh, g, "accent", "pistol", _run([_sec(0.053, 0.034, 0.52, 0.05, ch=0.013), _sec(0.053, 0.034, 0.54, 0.05, ch=0.013)]))
+    _vent(mesh, g, "detail", _slats(0.09, 3, 0.022, 0.062, 0.08, 0.021, t=0.008, lean=0.005, thick=0.003))
+    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.16, 0.80, 0.06, 6))
+    _add(mesh, g, "detail", "pistol", _tube(0.0155, 0.772, 0.802, 0.06, 6))
+    _stock(mesh, g, -0.275, 0.068, 0.064, -0.058, 0.046)
+    _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.03, 0.06, 0.006).move(0, 0.01, -0.09))
+    _bolt(mesh, g, -0.08, 0.06, -0.01, 0.013)
+
+
+def sniper(mesh):
+    """Bolt-action sniper rifle, about 1.1 m: a long thin barrel with a muzzle brake, a big
+    scope, a skeleton stock, a box cell and a bolt worked from the left side."""
+    g = "sniper"
+    _add(mesh, g, "grip", "pistol", _grip(-16))
+    receiver = _core([(-0.066, 0.032), (0.2, 0.032), (0.21, 0.044), (0.21, 0.08), (0.2, 0.088), (-0.04, 0.088), (-0.066, 0.072)], 0.046, 0.006)
+    brake = _run([_sec(0.04, 0.036, 0.795, 0.058, ch=0.011), _sec(0.04, 0.036, 0.862, 0.058, ch=0.011)])
+    _add(mesh, g, "dark", "pistol", receiver + brake + _guard(0.078))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.05), (0.098, 0.05), (0.114, 0.063), (0.2, 0.063), (0.2, 0.083), (-0.03, 0.083),
+                                             (-0.046, 0.072)], 0.0225, 0.005)
+         + _run([_sec(0.052, 0.05, 0.215, 0.035, ch=0.015), _sec(0.052, 0.05, 0.44, 0.035, ch=0.015), _sec(0.036, 0.036, 0.47, 0.04, ch=0.01)]))
+    _add(mesh, g, "glow", "pistol", _panels([(0.108, 0.046), (0.202, 0.046), (0.202, 0.058), (0.122, 0.058)], 0.023, 0.002, 0.0))
+    _add(mesh, g, "accent", "pistol", _panels([(0.25, 0.04), (0.42, 0.04), (0.42, 0.05), (0.25, 0.05)], 0.0262, 0.002, 0.0)
+         + _panels([(0.812, 0.05), (0.846, 0.05), (0.846, 0.066), (0.812, 0.066)], 0.0202, 0.002, 0.0))
+    _vent(mesh, g, "dark", _slats(0.25, 5, 0.034, 0.018, 0.034, 0.0262, t=0.012, lean=0.006, thick=0.002))
+    _add(mesh, g, "steel", "pistol", _tube(0.013, 0.44, 0.80, 0.058, 6))
+    _add_scope(mesh, g, -0.06, 0.25, 0.128, 0.02, 0.029)
+    _stock(mesh, g, -0.25, 0.082, 0.088, -0.035, 0.042, open_frame=True)
+    _add_cell(mesh, g, 0.032, 0.075, 0.07, 0.0, -0.005, -0.10, 0.6)
+    _bolt(mesh, g, -0.088, 0.06, -0.02)
+
+
+def anti_materiel(mesh):
+    """An anti-materiel rifle, about 1.35 m: a heavy barrel in an armour shroud with a huge
+    muzzle brake, a big scope, a box cell, a bipod folded under and a bolt on the left."""
+    g = "anti_materiel"
+    _add(mesh, g, "grip", "pistol", _grip(-16, 0.038))
+    receiver = _core([(-0.086, 0.026), (0.26, 0.026), (0.27, 0.04), (0.27, 0.086), (0.26, 0.094), (-0.06, 0.094), (-0.086, 0.076)], 0.056, 0.007)
+    fore = _run([_sec(0.058, 0.05, 0.272, 0.035, ch=0.016), _sec(0.058, 0.05, 0.5, 0.035, ch=0.016)])
+    brake = _run([_sec(0.074, 0.05, 1.02, 0.06, ch=0.014), _sec(0.074, 0.05, 1.122, 0.06, ch=0.014)])
+    _add(mesh, g, "dark", "pistol", receiver + fore + brake + _guard(0.08))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.066, 0.048), (0.128, 0.048), (0.144, 0.062), (0.26, 0.062), (0.26, 0.089), (-0.05, 0.089),
+                                             (-0.066, 0.078)], 0.0275, 0.005)
+         + _run([_sec(0.05, 0.044, 0.272, 0.066, ch=0.014), _sec(0.05, 0.044, 0.56, 0.066, ch=0.014), _sec(0.04, 0.036, 0.6, 0.062, ch=0.012)]))
+    _add(mesh, g, "glow", "pistol", _panels([(0.138, 0.044), (0.262, 0.044), (0.262, 0.058), (0.152, 0.058)], 0.028, 0.002, 0.0))
+    _vent(mesh, g, "dark", _slats(0.3, 7, 0.036, 0.056, 0.078, 0.025, t=0.014, lean=0.008, thick=0.002))
+    _add(mesh, g, "accent", "pistol", _panels([(1.044, 0.05), (1.098, 0.05), (1.098, 0.07), (1.044, 0.07)], 0.037, 0.002, 0.0))
+    _add(mesh, g, "steel", "pistol", _tube(0.019, 0.26, 1.03, 0.06, 6))
+    _add(mesh, g, "detail", "pistol", box(0.014, 0.014, 0.26).rot(pitch=6).move(-0.032, 0.02, -0.66)
+         + box(0.014, 0.014, 0.26).rot(pitch=6).move(0.032, 0.02, -0.66) + _rings(0.022, (0.7, 0.86), 0.02, 0.06, 6))
+    _add_scope(mesh, g, -0.08, 0.28, 0.14, 0.022, 0.032)
+    _stock(mesh, g, -0.28, 0.094, 0.1, -0.04, 0.05)
+    _add_cell(mesh, g, 0.038, 0.1, 0.09, 0.0, -0.02, -0.12, 0.6)
+    _bolt(mesh, g, -0.092, 0.065, -0.02, 0.016, 0.08)
+
+
+def railgun(mesh):
+    """A railgun, about 1 m: two long armoured rails over lit coils, a power cell that
+    clips in behind the grip, and a sleeve that snaps back when it fires."""
+    g = "railgun"
+    _add(mesh, g, "grip", "pistol", _grip(-14, 0.038))
+    body = _core([(-0.076, 0.016), (0.22, 0.016), (0.28, 0.03), (0.28, 0.094), (0.22, 0.1), (-0.05, 0.1), (-0.076, 0.076)], 0.06, 0.008)
+    rails = (_core([(0.22, 0.088), (0.8, 0.088), (0.8, 0.1), (0.76, 0.108), (0.22, 0.108)], 0.05, 0.004)
+             + _core([(0.22, 0.016), (0.76, 0.016), (0.79, 0.026), (0.79, 0.036), (0.22, 0.036)], 0.05, 0.004))
+    sight = _core([(-0.02, 0.098), (0.14, 0.098), (0.14, 0.126), (0.0, 0.131), (-0.02, 0.12)], 0.028, 0.004)
+    _add(mesh, g, "dark", "pistol", body + rails + sight + _guard(0.08))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.056, 0.05), (0.098, 0.05), (0.114, 0.064), (0.21, 0.064), (0.21, 0.094), (-0.04, 0.094),
+                                             (-0.056, 0.08)], 0.0295, 0.005)
+         + _panels([(0.3, 0.091), (0.77, 0.091), (0.742, 0.105), (0.3, 0.105)], 0.0245, 0.004)
+         + _panels([(0.3, 0.019), (0.752, 0.019), (0.774, 0.033), (0.3, 0.033)], 0.0245, 0.004))
+    _add(mesh, g, "glow", "pistol", _panels([(0.108, 0.046), (0.214, 0.046), (0.214, 0.06), (0.122, 0.06)], 0.03, 0.002, 0.0)
+         + _rings(0.026, [0.32 + i * 0.075 for i in range(6)], 0.025, 0.062, 8))
+    _vent(mesh, g, "detail", _slats(-0.03, 4, 0.024, 0.068, 0.09, 0.0345, t=0.008, lean=0.006, thick=0.003))
+    _add(mesh, g, "steel", "pistol", _tube(0.012, 0.28, 0.78, 0.062, 6))
+    _add(mesh, g, "lens", "pistol", box(0.02, 0.02, 0.003).move(0, 0.113, -0.1405))
+    _stock(mesh, g, -0.26, 0.092, 0.086, -0.035, 0.05)
+    _add(mesh, g, "detail", "pistol_slide", _tube(0.036, 0.24, 0.30, 0.062, 8))   # the recoil sleeve
+    _add(mesh, g, "detail", "pistol_mag", box(0.034, 0.07, 0.07, 0.008).move(0, -0.005, 0.105))
+    _add(mesh, g, "glow", "pistol_mag", box(0.037, 0.03, 0.05).move(0, -0.01, 0.105))
 
 
 def crossbow(mesh):
-    """A crossbow, about 85 cm: a stock with a rail on top, bow limbs across the front with
-    the string drawn back to the latch, and a bolt on the rail (its magazine)."""
+    """A crossbow, about 85 cm: an armoured tiller with a rail on top, bow limbs across the
+    front with lit tips and a lit string drawn back to the latch, and a bolt on the rail
+    (its magazine)."""
     g = "crossbow"
-    _add(mesh, g, "gun", "pistol", _grip(-18) + _guard())
-    stock = _run([_sec(0.04, 0.06, -0.06, 0.04, ch=0.012), _sec(0.04, 0.06, 0.1, 0.045, ch=0.012),
-                  _sec(0.034, 0.04, 0.52, 0.05, ch=0.01)])
-    _add(mesh, g, "wood", "pistol", stock + _run([_sec(0.04, 0.06, -0.05, 0.035, ch=0.012), _sec(0.04, 0.11, -0.24, 0.02, ch=0.014),
-                                                 _sec(0.04, 0.11, -0.26, 0.02, ch=0.014)]))
-    _add(mesh, g, "detail", "pistol", box(0.016, 0.01, 0.56).move(0, 0.065, -0.26))   # the rail
-    _add(mesh, g, "gun", "pistol", box(0.05, 0.03, 0.05, 0.008).move(0, 0.06, -0.52))  # the riser
-    import math
+    _add(mesh, g, "grip", "pistol", _grip(-18))
+    tiller = _core([(-0.066, 0.014), (0.1, 0.018), (0.52, 0.034), (0.52, 0.064), (-0.04, 0.064), (-0.066, 0.05)], 0.04, 0.006)
+    _add(mesh, g, "dark", "pistol", tiller + _guard(0.078) + box(0.056, 0.034, 0.05, 0.01).move(0, 0.06, -0.52))
+    _add(mesh, g, "plate", "pistol", _panels([(0.0, 0.026), (0.1, 0.028), (0.49, 0.04), (0.49, 0.058), (0.0, 0.058)], 0.0195, 0.004))
     limbs = Part([])
-    for side in (-1.0, 1.0):
-        limbs = limbs + box(0.28, 0.014, 0.03, 0.004).rot(yaw=side * 14.0).move(side * 0.15, 0.06, -0.495)
-    _add(mesh, g, "polymer", "pistol", limbs)
-    _add(mesh, g, "accent", "pistol", box(0.02, 0.018, 0.032).move(-0.285, 0.06, -0.46) + box(0.02, 0.018, 0.032).move(0.285, 0.06, -0.46))
     string = Part([])
     for side in (-1.0, 1.0):
+        limbs = limbs + box(0.28, 0.016, 0.032, 0.005).rot(yaw=side * 14.0).move(side * 0.15, 0.06, -0.495)
         string = string + box(0.004, 0.004, 0.33).rot(yaw=side * 60.0).move(side * 0.14, 0.072, -0.37)
-    _add(mesh, g, "detail", "pistol", string)
-    _add(mesh, g, "gun", "pistol", box(0.03, 0.03, 0.05).move(0, 0.1, -0.02))
-    _add(mesh, g, "lens", "pistol", box(0.02, 0.02, 0.003).move(0, 0.1, -0.046))
-    _add(mesh, g, "detail", "pistol_mag", _tube(0.006, 0.0, 0.5, 0.076, 6))
+    _add(mesh, g, "plate", "pistol", limbs)
+    _add(mesh, g, "glow", "pistol", string + box(0.022, 0.02, 0.034).move(-0.285, 0.06, -0.46) + box(0.022, 0.02, 0.034).move(0.285, 0.06, -0.46)
+         + _panels([(0.12, 0.04), (0.47, 0.05), (0.47, 0.055), (0.12, 0.045)], 0.0238, 0.002, 0.0))
+    _add(mesh, g, "steel", "pistol", box(0.016, 0.008, 0.56).move(0, 0.067, -0.26))   # the rail
+    vents = Part([])
+    for f in (0.502, 0.52, 0.538):
+        vents = vents + box(0.042, 0.006, 0.01).move(0, 0.08, -f)
+    _vent(mesh, g, "detail", vents)
+    _add_sight(mesh, g, -0.01, 0.066, 0.028, 0.03, 0.05)
+    _stock(mesh, g, -0.26, 0.066, 0.076, -0.035, 0.042)
+    _add(mesh, g, "steel", "pistol_mag", _tube(0.006, 0.0, 0.5, 0.076, 6))
     _add(mesh, g, "accent", "pistol_mag", prism(4, 0.014, 0.06, r_top=0.0).rot(pitch=-90).move(0, 0.076, -0.53)
          + box(0.002, 0.024, 0.05).move(0, 0.086, -0.03))
 
 
-def anti_materiel(mesh):
-    """An anti-materiel rifle, about 1.35 m: a heavy fluted barrel with a huge muzzle
-    brake, a big scope, a box magazine, a bipod folded under and a bolt on the left."""
-    g = "anti_materiel"
-    receiver = _run([_sec(0.054, 0.06, -0.08, 0.06, ch=0.012), _sec(0.054, 0.06, 0.26, 0.06, ch=0.012)])
-    _add(mesh, g, "gun", "pistol", _grip(-16, 0.036) + _guard() + receiver)
-    stock = (_run([_sec(0.046, 0.06, -0.06, 0.05, ch=0.012), _sec(0.04, 0.07, -0.18, 0.04, ch=0.012)])
-             + _run([_sec(0.05, 0.14, -0.22, 0.03, ch=0.016), _sec(0.05, 0.14, -0.26, 0.03, ch=0.016)]))
-    _add(mesh, g, "polymer", "pistol", stock + _run([_sec(0.056, 0.05, 0.2, 0.035, ch=0.016), _sec(0.056, 0.05, 0.5, 0.035, ch=0.016)]))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.052, 0.145, -0.262, 0.03, ch=0.016), _sec(0.052, 0.145, -0.28, 0.03, ch=0.016)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.018, 0.26, 1.02, 0.06, 6))
-    _add(mesh, g, "gun", "pistol", _run([_sec(0.07, 0.045, 1.02, 0.06, ch=0.012), _sec(0.07, 0.045, 1.12, 0.06, ch=0.012)]))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.074, 0.012, 1.05, 0.06), _sec(0.074, 0.012, 1.09, 0.06)]))
-    tube = _run([_sec(0.034, 0.034, -0.08, 0.135, ch=0.012), _sec(0.044, 0.044, -0.05, 0.135, ch=0.015),
-                 _sec(0.034, 0.034, -0.02, 0.135, ch=0.012), _sec(0.034, 0.034, 0.16, 0.135, ch=0.012),
-                 _sec(0.06, 0.06, 0.22, 0.135, ch=0.02), _sec(0.06, 0.06, 0.27, 0.135, ch=0.02)])
-    rings = box(0.022, 0.05, 0.018).move(0, 0.1, -0.02) + box(0.022, 0.05, 0.018).move(0, 0.1, -0.16)
-    _add(mesh, g, "gun", "pistol", tube + rings)
-    _add(mesh, g, "lens", "pistol", _run([_sec(0.05, 0.05, 0.2705, 0.135, ch=0.016), _sec(0.05, 0.05, 0.273, 0.135, ch=0.016)]))
-    _add(mesh, g, "detail", "pistol", box(0.014, 0.014, 0.26).rot(pitch=6).move(-0.03, 0.02, -0.66)
-         + box(0.014, 0.014, 0.26).rot(pitch=6).move(0.03, 0.02, -0.66))   # folded bipod
-    _add(mesh, g, "detail", "pistol_mag", box(0.036, 0.1, 0.09, 0.008).move(0, -0.02, -0.12))
-    _add(mesh, g, "accent", "pistol_mag", box(0.038, 0.014, 0.092).move(0, -0.068, -0.12))
-    _add(mesh, g, "detail", "pistol_slide", box(0.02, 0.024, 0.08, 0.004).move(-0.034, 0.065, -0.035))
-    _add(mesh, g, "gun", "pistol_slide", prism(6, 0.008, 0.05).rot(roll=90).move(-0.065, 0.065, -0.02))
-    _add(mesh, g, "accent", "pistol_slide", ball(0.016).move(-0.092, 0.065, -0.02))
-
-
 def harpoon_gun(mesh):
-    """A harpoon gun, about 95 cm: a launch tube over a gas cylinder, a stock, and the
-    harpoon itself (its magazine) with its barbed head out of the front."""
+    """A harpoon gun, about 95 cm: an armour launch tube over a gas cylinder in the player's
+    colour, a stock, and the harpoon itself (its magazine) with its barbed head out of the front."""
     g = "harpoon_gun"
-    body = _run([_sec(0.05, 0.07, -0.06, 0.05, ch=0.014), _sec(0.05, 0.07, 0.16, 0.05, ch=0.014)])
-    _add(mesh, g, "gun", "pistol", _grip(-16, 0.036) + _guard() + body)
-    _add(mesh, g, "polymer", "pistol", _run([_sec(0.04, 0.05, -0.05, 0.05, ch=0.012), _sec(0.04, 0.11, -0.24, 0.03, ch=0.014),
-                                            _sec(0.04, 0.11, -0.26, 0.03, ch=0.014)]))
-    _add(mesh, g, "detail", "pistol", _tube(0.024, 0.16, 0.66, 0.065, 8))
-    _add(mesh, g, "gun", "pistol", _tube(0.028, 0.6, 0.66, 0.065, 8))
-    _add(mesh, g, "accent", "pistol", _tube(0.022, 0.18, 0.5, 0.018, 8))   # the gas cylinder
-    _add(mesh, g, "gun", "pistol", _tube(0.024, 0.16, 0.2, 0.018, 8) + _tube(0.024, 0.48, 0.52, 0.018, 8))
-    _add(mesh, g, "detail", "pistol", box(0.012, 0.03, 0.01).move(0, 0.1, -0.62))   # the front sight
-    _add(mesh, g, "detail", "pistol_mag", _tube(0.007, 0.1, 0.76, 0.065, 6))
-    head = prism(4, 0.02, 0.1, r_top=0.0).rot(pitch=-90).move(0, 0.065, -0.81)
-    barbs = (box(0.004, 0.006, 0.05).rot(yaw=30).move(0.012, 0.065, -0.77) + box(0.004, 0.006, 0.05).rot(yaw=-30).move(-0.012, 0.065, -0.77))
-    _add(mesh, g, "accent", "pistol_mag", head + barbs)
+    _add(mesh, g, "grip", "pistol", _grip(-16, 0.038))
+    body = _core([(-0.066, 0.012), (0.16, 0.012), (0.17, 0.026), (0.17, 0.086), (0.15, 0.094), (-0.04, 0.094), (-0.066, 0.07)], 0.05, 0.007)
+    _add(mesh, g, "dark", "pistol", body + _guard(0.078) + _tube(0.03, 0.596, 0.662, 0.065, 8)
+         + _tube(0.0255, 0.16, 0.2, 0.018, 8) + _tube(0.0255, 0.48, 0.52, 0.018, 8))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.046, 0.046), (0.068, 0.046), (0.084, 0.06), (0.16, 0.06), (0.16, 0.088), (-0.03, 0.088),
+                                             (-0.046, 0.076)], 0.0245, 0.005)
+         + _tube(0.026, 0.17, 0.6, 0.065, 8))
+    _add(mesh, g, "glow", "pistol", _panels([(0.078, 0.042), (0.162, 0.042), (0.162, 0.056), (0.092, 0.056)], 0.025, 0.002, 0.0))
+    _add(mesh, g, "accent", "pistol", _tube(0.023, 0.18, 0.5, 0.018, 8))   # the gas cylinder
+    _vent(mesh, g, "detail", _rings(0.0285, (0.49, 0.512, 0.534, 0.556), 0.009, 0.065, 8))
+    _add(mesh, g, "detail", "pistol", box(0.012, 0.03, 0.01).move(0, 0.102, -0.62))   # the front sight
+    _stock(mesh, g, -0.26, 0.086, 0.082, -0.03, 0.044)
+    _add(mesh, g, "steel", "pistol_mag", _tube(0.007, 0.1, 0.76, 0.065, 6) + prism(4, 0.02, 0.1, r_top=0.0).rot(pitch=-90).move(0, 0.065, -0.81))
+    _add(mesh, g, "accent", "pistol_mag", box(0.004, 0.006, 0.05).rot(yaw=30).move(0.012, 0.065, -0.77)
+         + box(0.004, 0.006, 0.05).rot(yaw=-30).move(-0.012, 0.065, -0.77) + _tube(0.011, 0.735, 0.752, 0.065, 6))
+
+
+# ---------------------------------------------------------------------------
+# Heavies
+
+def _round(n, r, back, front, y, r_front=None):
+    """A fat tube along the barrel line (a launcher's)."""
+    return prism(n, r, front - back, r_top=r_front, phase=0.31).rot(pitch=-90).move(0, y, -(back + front) / 2.0)
+
+
+def _launcher_handles(mesh, g):
+    """What the two shoulder launchers share: the grip and trigger under the tube, and the front handle."""
+    _add(mesh, g, "grip", "pistol", box(0.032, 0.11, 0.05, 0.01).rot(pitch=-12).move(0, -0.03, 0.02)
+         + box(0.032, 0.09, 0.04, 0.01).move(0, 0.008, -0.24))
+    _add(mesh, g, "dark", "pistol", _core([(-0.035, 0.024), (0.075, 0.024), (0.085, 0.066), (-0.045, 0.066)], 0.032, 0.004)
+         + _core([(0.21, 0.03), (0.27, 0.03), (0.28, 0.066), (0.2, 0.066)], 0.032, 0.004) + _guard(0.078))
+
+
+def rocket_launcher(mesh):
+    """A shoulder rocket launcher, about 1.05 m: a fat armour tube with a flared back blast
+    cone, a lit conduit along each flank, a front handle and a sight box. The rocket
+    (magazine bone) goes in at the back."""
+    g = "rocket_launcher"
+    y = 0.115
+    _launcher_handles(mesh, g)
+    _add(mesh, g, "plate", "pistol", _round(10, 0.06, -0.18, 0.68, y))
+    _add(mesh, g, "dark", "pistol", _round(10, 0.07, 0.61, 0.684, y) + _round(10, 0.078, -0.28, -0.16, y, r_front=0.06)
+         + _round(10, 0.064, 0.12, 0.3, y))
+    _add(mesh, g, "accent", "pistol", _round(10, 0.0625, 0.38, 0.43, y) + _round(10, 0.0625, -0.03, 0.02, y))
+    _add(mesh, g, "glow", "pistol", box(0.008, 0.014, 0.16).move(-0.0625, y, -0.21) + box(0.008, 0.014, 0.16).move(0.0625, y, -0.21))
+    _vent(mesh, g, "detail", _round(10, 0.065, -0.14, -0.126, y) + _round(10, 0.065, -0.112, -0.098, y) + _round(10, 0.065, -0.084, -0.07, y))
+    _add(mesh, g, "dark", "pistol", box(0.042, 0.052, 0.09, 0.009).move(-0.078, y + 0.02, -0.12))
+    _add(mesh, g, "lens", "pistol", box(0.032, 0.036, 0.004).move(-0.078, y + 0.02, -0.166))
+    # The rocket: its nose shows in the tube's mouth; a reload brings a new one in from behind.
+    _add(mesh, g, "accent", "pistol_mag", prism(8, 0.04, 0.08, r_top=0.005).rot(pitch=-90).move(0, y, -0.72))
+    _add(mesh, g, "steel", "pistol_mag", prism(8, 0.04, 0.5).rot(pitch=-90).move(0, y, -0.43))
+    _add(mesh, g, "glow", "pistol_mag", prism(8, 0.042, 0.02).rot(pitch=-90).move(0, y, -0.2))
+
+
+def grenade_launcher(mesh):
+    """A revolving grenade launcher, about 75 cm: a fat six-round drum with a lit band
+    (magazine bone), a short wide armour barrel, a skeleton stock and a bridge over the drum."""
+    g = "grenade_launcher"
+    _add(mesh, g, "grip", "pistol", _grip(-18, 0.038))
+    shield = _core([(-0.066, 0.012), (0.1, 0.012), (0.1, 0.112), (0.072, 0.15), (0.04, 0.15), (0.0, 0.088), (-0.066, 0.06)], 0.05, 0.006)
+    bridge = (_core([(0.04, 0.132), (0.31, 0.132), (0.31, 0.142), (0.29, 0.15), (0.04, 0.15)], 0.024, 0.004)
+              + _core([(0.262, 0.098), (0.31, 0.098), (0.31, 0.136), (0.262, 0.136)], 0.024, 0.003))
+    guard = _run([_sec(0.052, 0.05, 0.26, 0.03, ch=0.015), _sec(0.052, 0.05, 0.4, 0.03, ch=0.015)])
+    _add(mesh, g, "dark", "pistol", shield + bridge + guard + _guard(0.08) + _tube(0.042, 0.474, 0.522, 0.07, 10)
+         + _tube(0.012, 0.09, 0.27, 0.07, 6))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.042, 0.028), (0.088, 0.028), (0.088, 0.104), (0.064, 0.136), (0.047, 0.136), (0.008, 0.08), (-0.042, 0.056)], 0.0245, 0.004)
+         + _tube(0.036, 0.262, 0.478, 0.07, 10))
+    _add(mesh, g, "glow", "pistol", _tube(0.028, 0.5195, 0.5235, 0.07, 10))
+    _vent(mesh, g, "detail", _rings(0.039, (0.3, 0.326, 0.352), 0.011, 0.07, 10))
+    _add(mesh, g, "detail", "pistol", box(0.012, 0.016, 0.01).move(0, 0.158, -0.07) + box(0.012, 0.03, 0.01).move(0, 0.12, -0.46))
+    _stock(mesh, g, -0.25, 0.072, 0.076, -0.035, 0.04, open_frame=True)
+    _add(mesh, g, "steel", "pistol_mag", _tube(0.069, 0.10, 0.26, 0.07, 6))
+    _add(mesh, g, "glow", "pistol_mag", _tube(0.071, 0.165, 0.19, 0.07, 6))
+    _add(mesh, g, "detail", "pistol_mag", _tube(0.071, 0.236, 0.25, 0.07, 6))
+    _add(mesh, g, "detail", "pistol_slide", box(0.03, 0.03, 0.02).move(0, 0.08, 0.03))   # the hammer
 
 
 def mortar(mesh):
-    """A hand mortar, about 85 cm: a fat, short tube in the shoulder, a base plate at the
-    back, a front handle and a range sight. The shell (magazine bone) shows in the mouth."""
+    """A hand mortar, about 85 cm: a fat, short tube in two armour sleeves, a base plate
+    with a lit ring at the back, a front handle and a range sight. The shell (magazine
+    bone) shows in the mouth."""
     g = "mortar"
     y = 0.115
-    _add(mesh, g, "detail", "pistol", prism(10, 0.07, 0.66, phase=0.31).rot(pitch=-90).move(0, y, -0.2))
-    _add(mesh, g, "gun", "pistol", prism(10, 0.08, 0.05, phase=0.31).rot(pitch=-90).move(0, y, -0.52)
-         + prism(10, 0.09, 0.04, phase=0.31).rot(pitch=-90).move(0, y, 0.14))
-    _add(mesh, g, "accent", "pistol", prism(10, 0.073, 0.04, phase=0.31).rot(pitch=-90).move(0, y, -0.3)
-         + prism(10, 0.073, 0.04, phase=0.31).rot(pitch=-90).move(0, y, -0.05))
-    _add(mesh, g, "gun", "pistol", box(0.03, 0.11, 0.05, 0.008).rot(pitch=-12).move(0, -0.03, 0.02)
-         + box(0.03, 0.04, 0.10).move(0, 0.045, -0.02) + _guard())
-    _add(mesh, g, "gun", "pistol", box(0.03, 0.09, 0.04, 0.008).move(0, 0.01, -0.24) + box(0.03, 0.04, 0.05).move(0, 0.05, -0.24))
-    _add(mesh, g, "detail", "pistol", box(0.012, 0.06, 0.04).move(0.085, y + 0.03, -0.1))
-    _add(mesh, g, "lens", "pistol", box(0.012, 0.02, 0.004).move(0.085, y + 0.05, -0.122))
+    _launcher_handles(mesh, g)
+    _add(mesh, g, "dark", "pistol", _round(10, 0.07, -0.13, 0.53, y) + _round(10, 0.082, 0.49, 0.546, y) + _round(10, 0.092, -0.165, -0.12, y))
+    _add(mesh, g, "plate", "pistol", _round(10, 0.075, 0.33, 0.47, y) + _round(10, 0.075, 0.08, 0.27, y))
+    _add(mesh, g, "accent", "pistol", _round(10, 0.073, 0.28, 0.32, y) + _round(10, 0.073, 0.03, 0.07, y))
+    _add(mesh, g, "glow", "pistol", _round(10, 0.086, -0.12, -0.108, y))
+    _vent(mesh, g, "detail", _round(10, 0.076, -0.09, -0.076, y) + _round(10, 0.076, -0.06, -0.046, y) + _round(10, 0.076, -0.03, -0.016, y))
+    _add(mesh, g, "dark", "pistol", box(0.014, 0.064, 0.044, 0.005).move(0.088, y + 0.03, -0.1))
+    _add(mesh, g, "lens", "pistol", box(0.012, 0.02, 0.004).move(0.088, y + 0.05, -0.1235))
     _add(mesh, g, "accent", "pistol_mag", prism(8, 0.055, 0.1, r_top=0.02).rot(pitch=-90).move(0, y, -0.58))
-    _add(mesh, g, "detail", "pistol_mag", prism(8, 0.055, 0.2).rot(pitch=-90).move(0, y, -0.43))
+    _add(mesh, g, "steel", "pistol_mag", prism(8, 0.055, 0.2).rot(pitch=-90).move(0, y, -0.43))
 
 
 def plasma_cannon(mesh):
-    """A plasma cannon, about 85 cm: a bulky body round a glowing chamber, emitter rings
-    down the barrel and a power cell behind the grip."""
+    """A plasma cannon, about 85 cm: a bulky armoured body round a lit chamber that bulges
+    out of both flanks, a lit conductor through emitter rings down the barrel and a power
+    cell behind the grip."""
     g = "plasma_cannon"
+    _add(mesh, g, "grip", "pistol", _grip(-18, 0.038))
     body = _run([_sec(0.07, 0.09, -0.07, 0.06, ch=0.024), _sec(0.08, 0.1, 0.06, 0.065, ch=0.03),
                  _sec(0.07, 0.09, 0.24, 0.065, ch=0.026)])
-    _add(mesh, g, "gun", "pistol", body)
-    _add(mesh, g, "polymer", "pistol", _grip(-18, 0.036) + _guard()
-         + _run([_sec(0.05, 0.06, -0.06, 0.05, ch=0.014), _sec(0.05, 0.11, -0.24, 0.03, ch=0.016), _sec(0.05, 0.11, -0.26, 0.03, ch=0.016)]))
-    _add(mesh, g, "lens", "pistol", ball(0.05).move(0.0, 0.07, -0.12) + _tube(0.016, 0.24, 0.6, 0.07, 8))
-    rings = Part([])
-    for i in range(4):
-        rings = rings + _tube(0.04, 0.3 + i * 0.08, 0.33 + i * 0.08, 0.07, 10)
-    _add(mesh, g, "detail", "pistol", rings + _tube(0.05, 0.58, 0.62, 0.07, 10))
-    _add(mesh, g, "accent", "pistol", _run([_sec(0.084, 0.02, 0.0, 0.07), _sec(0.084, 0.02, 0.16, 0.07)]))
+    rings = _rings(0.042, (0.3, 0.38, 0.46, 0.54), 0.03, 0.07, 10)
+    _add(mesh, g, "dark", "pistol", body + rings + _tube(0.052, 0.574, 0.622, 0.07, 10) + _guard(0.08))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.056, 0.03), (0.07, 0.024), (0.07, 0.108), (-0.03, 0.106), (-0.056, 0.09)], 0.036, 0.006, 0.003)
+         + _panels([(0.168, 0.028), (0.234, 0.034), (0.234, 0.1), (0.168, 0.106)], 0.036, 0.006, 0.003))
+    _add(mesh, g, "glow", "pistol", ball(0.054).move(0.0, 0.068, -0.12) + _tube(0.016, 0.24, 0.6, 0.07, 8))
+    _vent(mesh, g, "detail", _slats(-0.04, 4, 0.026, 0.044, 0.094, 0.042, t=0.009, lean=0.007, thick=0.003))
+    _add(mesh, g, "detail", "pistol", _rings(0.045, (0.31, 0.39, 0.47, 0.55), 0.01, 0.07, 10))
+    _stock(mesh, g, -0.26, 0.092, 0.086, -0.03, 0.05)
     _add(mesh, g, "detail", "pistol_mag", box(0.04, 0.07, 0.07, 0.008).move(0, -0.005, 0.11))
-    _add(mesh, g, "lens", "pistol_mag", box(0.042, 0.012, 0.05).move(0, 0.01, 0.11))
+    _add(mesh, g, "glow", "pistol_mag", box(0.043, 0.03, 0.05).move(0, -0.01, 0.11))
 
 
 BUILD = {"pistol": pistol, "shotgun": shotgun, "rifle": rifle, "sniper": sniper, "revolver": revolver,

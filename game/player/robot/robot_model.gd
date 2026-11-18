@@ -6,6 +6,7 @@ extends Node3D
 
 const VIEW_SHADER := "res://game/player/robot/viewmodel.gdshader"
 const VISOR_ENERGY := 1.6
+const GUN_GLOW_ENERGY := 1.4   ## a gun's glowing strips and cells ("<gun>.glow"), as bright as the melee weapons' edges
 const GOLD := Color(1.0, 0.76, 0.22)   ## the Golden Gun
 ## Left out of the body you see in first person: the camera sits inside the head,
 ## and the arms and gun are drawn by ViewModel.
@@ -49,6 +50,7 @@ var melee: Node3D                 ## the sword, hammer or dagger in the fist (se
 var melee_left: Node3D            ## the left fist's brass knuckles, if any
 
 var _glow_materials: Array = []   # [material, is_shader]
+var _gun_glow: Array = []         # [material, its colour]: the gun's lit parts (see set_gun_glow)
 var _glow_color := Color.WHITE
 
 
@@ -115,7 +117,8 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 	for i in mesh.mesh.get_surface_count():
 		var base: StandardMaterial3D = mesh.mesh.surface_get_material(i)
 		var kind := material_kind(Characters.material_role(plain, base.resource_name) if plain != "" else base.resource_name)
-		var color := trim if kind == "accent" else base.albedo_color
+		var gun_glow := kind == "glow" and "." in base.resource_name   # a gun's lit parts, in the player's trim colour
+		var color := trim if kind == "accent" or gun_glow else base.albedo_color
 		var channel: int = CHANNELS.get(kind, -1)
 		var painted := channel >= 0 and colors[channel].a > 0.0
 		if painted:
@@ -132,8 +135,11 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 			if kind == "visor":
 				sm.set_shader_parameter("emission", trim * VISOR_ENERGY)
 				_glow_materials.append([sm, true])
+			elif gun_glow:
+				sm.set_shader_parameter("emission", color * GUN_GLOW_ENERGY)
+				_gun_glow.append([sm, color])
 			mesh.set_surface_override_material(i, sm)
-		elif kind == "accent" or kind == "visor" or painted or gilded:
+		elif kind == "accent" or kind == "visor" or gun_glow or painted or gilded:
 			var m: StandardMaterial3D = base.duplicate()
 			if kind == "visor":
 				m.emission_enabled = true
@@ -145,6 +151,11 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 				if gilded:
 					m.metallic = 0.9
 					m.roughness = 0.25
+				if gun_glow:
+					m.emission_enabled = true
+					m.emission = color
+					m.emission_energy_multiplier = GUN_GLOW_ENERGY
+					_gun_glow.append([m, color])
 			mesh.set_surface_override_material(i, m)
 	if viewmodel:
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -478,6 +489,16 @@ func set_power(power: float) -> void:
 			(entry[0] as ShaderMaterial).set_shader_parameter("emission", _glow_color * VISOR_ENERGY * power)
 		else:
 			(entry[0] as StandardMaterial3D).emission_energy_multiplier = VISOR_ENERGY * power
+
+
+## How brightly the gun's glowing parts shine: 1 = as at rest. (Nothing drives this
+## yet: it is here for the reloads to use.)
+func set_gun_glow(amount: float) -> void:
+	for entry in _gun_glow:
+		if entry[0] is ShaderMaterial:
+			(entry[0] as ShaderMaterial).set_shader_parameter("emission", (entry[1] as Color) * GUN_GLOW_ENERGY * amount)
+		else:
+			(entry[0] as StandardMaterial3D).emission_energy_multiplier = GUN_GLOW_ENERGY * amount
 
 
 func set_layer(layer: int) -> void:
