@@ -605,7 +605,9 @@ Things to keep true when editing it:
   every light. Big things are solid cover: shelves, counters, workbenches, desks,
   cabinets, benches, the planter boxes and tree tubs. Keep it that way, and keep
   solid pieces out of the walking lanes, off spawn points and pickups, and off the
-  middle of each island's tip, where people land. Ivy is round clumps lying on the
+  middle of each island's tip, where people land, and at least 4 m from the quad's
+  masts (a lamp post 2 m from one knocked a player landing off the grapple right off
+  the lawn). Ivy is round clumps lying on the
   wall, never flat rectangles. Lights are the kind `lamp`, so they come on at sunset
   with the windows and go red on a doomed island.
 - Spawn points are on the building islands, plus the five on the quad's lawn for when no
