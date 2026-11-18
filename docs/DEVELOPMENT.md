@@ -292,13 +292,21 @@ stone ramps laid along the wall walks, a gatehouse with a gate tunnel, and a
 central keep whose upper floor (6 m) is reached from a terrace ramp and from the
 west wall walk over a timber bridge, and whose roof deck (12 m) the keep stair
 climbs to. Its palette (`palettes/castle.tres`) shows a breakable kind (the wooden
-hoardings in the bailey). Its small dressing (a coping on every merlon, pilasters and
-torches along the walls, door and window surrounds, the great hall's fittings, market
-goods, ivy, weeds, and the lake and mountains outside) is the scene's `Dressing` branch,
-about 2,000 drawn-only blocks written by `python3 tools/arena/castle_dressing.py`. The
-script reads where the merlons, barrels, crates, carts and hoardings are, so run it
-again after moving them; it replaces only the `Dressing` branch and leaves the rest of
-the scene as it is.
+hoardings in the bailey). The scene is grouped by object, and each object holds its
+own dressing: a merlon's coping is in its `Merlon` group, a torch's arm, cup and flame
+are one `Torch` group, a tower's windows and flag are in the tower, and the lake,
+causeway, boats, shores and mountains are under `Outside`. Small things you would move
+as one (a torch, a shield, a barrel and its hoops, a pine, a mountain) are selection
+groups: a click in the viewport picks the whole thing. To work on one piece, pick it in
+the Scene dock. The dressing was first written by `tools/arena/castle_dressing.py`,
+but the scene is now edited by hand and that script must not be run on it again.
+You die only by falling into the lake (Kill Height -5, just under the water; the
+Bounds are a far safety net). Outside the walls a 60 degree rock slope (`Outside/Shore`)
+runs into the water: too steep to stand on, not steep enough to wall-run, so anyone who
+drops off a wall slides in. Invisible blockers close the two footholds the walls leave:
+the gate mouth in front of the portcullis, and the wall tops in front of each tower.
+Nothing solid may stick out past the walls' outer faces (x and z of plus or minus 30).
+The causeway starts 40 m out from the gate.
 
 `game/maps/castle_v2.tscn` (test map `castle_v2`, "Castle 2") is a refreshed Castle:
 72 m across instead of 60, a wall walk that runs all

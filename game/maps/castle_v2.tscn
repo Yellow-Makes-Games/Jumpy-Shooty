@@ -9962,13 +9962,6 @@ size = Vector3(20, 0.025, 21)
 kind = "sand"
 solid = false
 
-[node name="Chalk" type="Node3D" parent="Quarters/SouthEastTrainingYard/GroundPaint" unique_id=2015998813]
-transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.75, 0.02, 15.559999)
-script = ExtResource("3_ou8y5")
-size = Vector3(0.119999886, 0.04, 6.5)
-kind = "cloth"
-solid = false
-
 [node name="YardDressing" type="Node3D" parent="Quarters/SouthEastTrainingYard" unique_id=1180232304]
 metadata/dressing = true
 
@@ -12680,7 +12673,7 @@ kind = "rock"
 solid = false
 
 [node name="Boulder5" type="Node3D" parent="Outside/Boulders" unique_id=2129687875]
-transform = Transform3D(-0.1235, 0, 0.9924, 0, 1, 0, -0.9924, 0, -0.1235, -1.6306, -3.8824, -45.0992)
+transform = Transform3D(-0.1235, 0, 0.9924, 0, 1, 0, -0.9924, 0, -0.1235, -6.0069757, -3.8824, -45.0992)
 script = ExtResource("3_ou8y5")
 size = Vector3(3.2894, 2.3699, 3.9096)
 kind = "rock"
