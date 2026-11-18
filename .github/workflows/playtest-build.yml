@@ -1,8 +1,10 @@
-# Exports the Windows build on every push to main and publishes it to the
-# playtest-build branch as JumpyShooty-windows.zip, so the download link
-# https://github.com/Yellow-Makes-Games/Jumpy-Shooty/raw/playtest-build/JumpyShooty-windows.zip
-# always has the latest main. The branch is replaced by one fresh commit each
-# time (keeping its README.md), so old 60 MB zips don't pile up in history.
+# Exports the Windows build on every push to main and attaches it to that
+# commit's GitHub Release (created by the Version tag workflow) as
+# JumpyShooty-windows-<version tag>.zip, so it unzips to a folder carrying the
+# version, e.g.
+# https://github.com/Yellow-Makes-Games/Jumpy-Shooty/releases/download/v0.1.1/JumpyShooty-windows-v0.1.1.zip
+# The link to share, which always shows the newest build:
+# https://github.com/Yellow-Makes-Games/Jumpy-Shooty/releases/latest
 name: Playtest build
 
 on:
@@ -14,7 +16,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: playtest-build
+  # Per commit: every release gets its own build, so a newer push must not
+  # cancel an older one.
+  group: playtest-build-${{ github.sha }}
   cancel-in-progress: true
 
 env:
@@ -64,24 +68,40 @@ jobs:
           mkdir -p builds/windows
           godot --headless --path . --export-release "Windows Desktop" builds/windows/JumpyShooty.exe
           test -s builds/windows/JumpyShooty.exe
-          cd builds/windows && zip -9 -q ../JumpyShooty-windows.zip JumpyShooty.exe
-          ls -lh ../JumpyShooty-windows.zip
 
-      - name: Publish to playtest-build
+      # The Version tag workflow tags this same push a few seconds in, well
+      # before the export above finishes; the wait covers a slow or queued run.
+      - name: Find this commit's version tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          subject="$(git log -1 --format=%s)"
-          sha="$(git rev-parse --short HEAD)"
-          mkdir -p "$RUNNER_TEMP/publish" && cd "$RUNNER_TEMP/publish"
-          git init -q -b playtest-build
-          if git -C "$GITHUB_WORKSPACE" fetch -q --depth=1 origin playtest-build; then
-            git -C "$GITHUB_WORKSPACE" show FETCH_HEAD:README.md > README.md || true
+          version=""
+          for _ in $(seq 30); do
+            version=$(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v" \
+              --jq '.[] | "\(.object.sha) \(.ref | sub("^refs/tags/"; ""))"' |
+              awk -v sha="$GITHUB_SHA" '$1 == sha && $2 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $2 }' | head -n1)
+            [ -n "$version" ] && break
+            sleep 10
+          done
+          if [ -z "$version" ]; then
+            echo "::error::No version tag on $GITHUB_SHA, so there is no release to attach the build to"
+            exit 1
           fi
-          cp "$GITHUB_WORKSPACE/builds/JumpyShooty-windows.zip" .
-          git add -A
-          git -c user.name="github-actions[bot]" \
-              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -q -m "Playtest build (Windows) from ${sha}: ${subject}"
-          git remote add origin "$(git -C "$GITHUB_WORKSPACE" remote get-url origin)"
-          auth="$(git -C "$GITHUB_WORKSPACE" config --get http.https://github.com/.extraheader)"
-          git -c http.https://github.com/.extraheader="$auth" push --force origin playtest-build
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "ZIP_NAME=JumpyShooty-windows-$version.zip" >> "$GITHUB_ENV"
+
+      - name: Zip
+        run: |
+          set -euo pipefail
+          cd builds/windows && zip -9 -q "../$ZIP_NAME" JumpyShooty.exe
+          ls -lh "../$ZIP_NAME"
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "$VERSION" "builds/$ZIP_NAME" --repo "$GITHUB_REPOSITORY" --clobber
+          url="https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/$ZIP_NAME"
+          echo "Attached [$ZIP_NAME]($url) to $VERSION" >> "$GITHUB_STEP_SUMMARY"
