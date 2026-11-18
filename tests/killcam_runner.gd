@@ -102,6 +102,29 @@ func _scores() -> void:
 	_expect(KillScore.trick_count(four[1]) == 4 and "TRICKSHOT" in KillScore.words({"tags": four[1]}), "four tricks at once is a trickshot")
 	_expect(KillScore.parts(four[1], 0, 40.0, 0.0, 0.0, 95.0).has(["TRICKSHOT ×4", 3 * KillScore.TRICK]), "...worth %d on top" % (3 * KillScore.TRICK))
 	_expect(KillScore.trick_count(KillScore.score({"headshot": true, "distance": 6.0})[1]) == 0, "a headshot on the ground close by is no trick")
+	print("  blows (kicks, crashes, blades) against shots")
+	# Grapple in and flying-kick them: on the rope, both fast (the reel, then the kick's
+	# fling), the target in the air, a turn to face them. Playtesters found this won every match.
+	var grapple_kick := {"distance": 2.5, "killer_state": S.GRAPPLE, "victim_state": S.AIR, "cause": "flying_kick",
+		"killer_speed": 26.0, "victim_speed": 40.0, "flick": 90.0}
+	var gk := KillScore.score(grapple_kick)
+	var gk_parts := KillScore.parts(gk[1], 0, 2.5, 26.0, 40.0, 90.0)
+	_expect(KillScore.is_blow(gk[1]) and KillScore.trick_count(gk[1]) == 0, "a flying kick is a blow: no trickshot")
+	_expect(not gk_parts.any(func(p): return str(p[0]).begins_with("FLICK") or p[0] == "AIR SHOT"),
+		"...and no flick or air shot points (%s)" % [gk_parts])
+	var gk_motion: Array = gk_parts.filter(func(p): return str(p[0]).begins_with("MOMENTUM"))
+	_expect(gk_motion.size() == 1 and int(gk_motion[0][1]) == int(KillScore.motion_points(26.0, 40.0) * KillScore.BLOW_MOTION),
+		"...and momentum at %d%% (%s)" % [roundi(KillScore.BLOW_MOTION * 100.0), gk_motion])
+	var words_gk := KillScore.words({"tags": gk[1], "speed": 26.0, "target_speed": 40.0, "flick": 90.0})
+	_expect(not words_gk.any(func(w): return str(w).begins_with("FLICK") or str(w).begins_with("TARGET AT") or w == "AIR SHOT" or w == "TRICKSHOT"),
+		"its tags leave out what the blow did on its own (%s)" % [words_gk])
+	# A sniper trickshot: off a rope swing, a flick onto a target in the air, 40 m off, both moving.
+	var snipe := KillScore.score({"distance": 40.0, "headshot": true, "killer_state": S.GRAPPLE, "victim_state": S.AIR,
+		"killer_speed": 24.0, "victim_speed": 14.0, "flick": 90.0})
+	_expect(snipe[0] > gk[0] + 200, "a sniper trickshot beats grapple-and-kick by a long way (%d against %d)" % [snipe[0], gk[0]])
+	var shot_from_rope := KillScore.score({"distance": 25.0, "killer_state": S.GRAPPLE, "killer_speed": 22.0, "victim_speed": 9.0})
+	_expect(shot_from_rope[0] >= gk[0] - 60, "even a plain shot off the rope at a moving target is in the same league (%d against %d)" % [shot_from_rope[0], gk[0]])
+	_expect(gk[0] > KillScore.score({"distance": 2.0, "cause": "kick"})[0] + 150, "grapple-and-kick still beats a kick on the ground (it is a good killcam, just not the best every time)")
 	var flick := KillScore.score({"flick": 95.0})
 	_expect(flick[0] == KillScore.BASE + 75 and flick[1] & KillScore.T_FLICK, "a 95° flick adds a point a degree past 20, and a tag (%d)" % flick[0])
 	_expect(KillScore.score({"flick": 15.0}) == [KillScore.BASE, 0], "steady aim is no bonus")
