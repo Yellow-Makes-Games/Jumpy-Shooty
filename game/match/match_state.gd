@@ -57,7 +57,9 @@ const SLAM_MAX := 80.0
 const SHOVE_CREDIT := 3.0
 ## A killing blow that does this much more damage than the health left blows the body
 ## apart (giblets, see death_fx), and so does a blast at GIB_BLAST of its full strength or more.
-const GIB_OVERKILL := 50.0
+## 75, not 50: a sniper headshot on a full-health player is 150 damage, 50 over, and should
+## not blow them apart every time; one on a hurt player, or an anti-materiel headshot, does.
+const GIB_OVERKILL := 75.0
 const GIB_BLAST := 0.5
 ## kill_target 0 means "no kill target" (time-limit matches).
 var kill_target := 15
