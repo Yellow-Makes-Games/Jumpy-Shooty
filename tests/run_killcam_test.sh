@@ -23,10 +23,13 @@ PORT=$((25300 + RANDOM % 200))
 # and the Expert bot gets you three times (first to 3, or the time limit).
 OFFLINE=(--fixed-fps 60 --headless --path . -- --game-clock --bot=3 --bot-weapon=rifle --map="$MAP" --scripted-input --sync-log)
 timeout 300 "$GODOT" "${OFFLINE[@]}" --kill-target=3 --time-limit=60 --quit-after=100 --save-killcam=1 > "$OUT/killcam_bot.log" 2>&1 &
-# ...and once more pressing jump every half second: every killcam is skipped.
+# ...and once more pressing jump every half second, respawning only on a press as in a
+# real game (--manual-respawn): every killcam is skipped, and jump brings you back.
 PRESSES=()
 for s in $(seq 4 0.5 50); do PRESSES+=("--press=$s:jump"); done
-timeout 240 "$GODOT" "${OFFLINE[@]}" --kill-target=2 --time-limit=50 --quit-after=52 "${PRESSES[@]}" > "$OUT/killcam_skip.log" 2>&1 &
+timeout 240 "$GODOT" "${OFFLINE[@]}" --kill-target=2 --time-limit=50 --quit-after=52 --manual-respawn "${PRESSES[@]}" > "$OUT/killcam_skip.log" 2>&1 &
+# ...and with no key pressed at all: knocked out once, you stay down.
+timeout 120 "$GODOT" "${OFFLINE[@]}" --kill-target=3 --time-limit=25 --quit-after=27 --manual-respawn > "$OUT/killcam_wait.log" 2>&1 &
 wait || true
 # Online (real time): a host and a client who move and shoot on their own; first to 4.
 COMMON=(--scripted-input --scripted-fire --sync-log --map="$MAP" --quit-after=150)
@@ -126,6 +129,30 @@ if skips < 1 or skips < len(plays(log)) - 1:
     bad("pressing jump should skip the killcam")
 if "KILLCAM SKIP BY" not in log:
     bad("the skip should come from the jump key")
+early = [float(t) for t in re.findall(r"^KILLCAM SKIP BY .* ([\d.]+)$", log, re.M) if float(t) < 0.75]
+if early:
+    bad(f"a killcam was skipped before it had played 0.75 s ({early})")
+if "KILLCAM TOO SOON" not in log:
+    bad("a press right as the killcam starts should not skip it (none was too soon)")
+asks = [float(t) for t in re.findall(r"^RESPAWN BY .* ([\d.]+)$", log, re.M)]
+back = log.count("RESPAWNED 1")
+print(f"Respawning on a press: deaths {len(scores(log))}, respawned {back}, pressed after {asks} s of the death screen")
+if back < 1 or back != len(asks):
+    bad("pressing jump on the death screen should bring you back, and only a press should")
+if any(t < 0.5 for t in asks):
+    bad("a press in the death screen's first half second should not respawn you")
+if "RESPAWN TOO SOON" not in log or re.search(r"^RESPAWN_ASK 1 \S+ early", log, re.M):
+    bad("presses before the wait is over should be ignored, and none should reach the host")
+
+log = read("wait")
+if "SCRIPT ERROR" in log:
+    bad("wait match: script errors")
+deaths = [s for s in scores(log) if s[2] == "1"]
+print(f"No key pressed: knocked out {len(deaths)} times, respawned {log.count('RESPAWNED 1')}")
+if len(deaths) != 1 or "RESPAWNED 1" in log:
+    bad("with no key pressed you should stay down after your first death")
+if "KILLCAM DONE 1" not in log:
+    bad("the killcam should play to its end and give way to the death screen")
 
 # --- Online
 host, client = read("host"), read("client")
@@ -152,6 +179,18 @@ for name, l in [("host", host), ("client", client)]:
             bad(f"{name}: killcam {int(seq)} is not of a kill on this copy's player by its killer")
         if (frames < 10 and first < -1.0) or last < -0.5:   # (a kill in the first second has little before it)
             bad(f"{name}: killcam {int(seq)} has too little of the killer's recording ({int(frames)} frames, {first} to {last} s)")
+# The killer sees the points their kill scored, and where they came from.
+by_seq = {s[0]: s for s in hs}
+points = []
+for name, l in [("host", host), ("client", client)]:
+    for me, seq, total, parts in re.findall(r"^KILL_POINTS (\d+) (\d+) (\d+) (.*)$", l, re.M):
+        points.append(seq)
+        got = sum(int(x.rsplit("=", 1)[1]) for x in parts.split(","))
+        if got != int(total) or seq not in by_seq or by_seq[seq][1] != me or by_seq[seq][3] != total:
+            bad(f"{name}: kill {seq}'s points ({parts}) should add up to its score {by_seq.get(seq)} and show to its killer")
+print(f"  points shown to the killer for {len(points)} of {len(hs)} kills")
+if len(points) < len(hs) - 1:
+    bad("each kill's points should show to its killer")
 hb, cb = best_kills(host), best_kills(client)
 if not hb or hb != cb:
     bad(f"the copies picked different best kills: host {hb}, client {cb}")

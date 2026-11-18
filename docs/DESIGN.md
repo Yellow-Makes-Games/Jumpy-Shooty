@@ -13,12 +13,16 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 
 - Asked for: when you die, watch the kill from the enemy's perspective as a short
   replay; and the best killcam of the match, or the top three, at the end.
-- As built: the replay plays in the respawn wait (it never makes the wait longer) and
-  can be skipped or switched off. When the match ends the top three play fullscreen,
+- As built: the replay plays in the respawn wait and can be skipped (not in its first
+  0.75 s) or switched off; since respawning waits for a key press it plays to its end. When the match ends the top three play fullscreen,
   counting down to the best, before the results page (asked for, 2026-11-17). Replays are
   rebuilt from what each copy already receives and draws, not video.
 - The score also rewards momentum, the killer's and the victim's, and how far the
   killer's aim moved just before the kill (asked for, 2026-11-17).
+- Momentum counts only when both players are moving (their speeds combined, so a
+  stationary killer or victim earns next to none), and trickshots, several tricks in
+  one kill, earn a large combo bonus: the best killcam should be the one viewers agree
+  is the coolest, and motion drives the game (asked for, 2026-11-17).
 - Not decided yet: the rest of the scoring rule that picks the top three (range,
   headshot, mid-air / rope / wall run / glide, air shot, kicks, crashes, multikills,
   clutch; ties go to the earlier kill) and all the point values are a first pick,
@@ -109,5 +113,5 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 
 ## Still open
 
-- Respawn delay (3 s for now).
+- Respawn delay (3 s for now; then you come back when you press Jump or Fire, asked for 2026-11-17, so there is time to change your loadout).
 - The end of the cut-off sentence in the original brief ("Networking tradeoffs that affect the...").

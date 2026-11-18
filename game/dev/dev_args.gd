@@ -43,6 +43,8 @@ extends Node
 ## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings.
 ## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
+## --manual-respawn     Wait for a Jump or Fire press to respawn, as in a real game, even in a
+##                      headless or scripted run (those otherwise ask as soon as the wait is over).
 ## --fall=SEC           Your player falls out of the arena SEC seconds after start (shows the death screen; screenshots).
 ## --save-killcam=N     On the results screen, save best kill #N as a video straight away, into the game's
 ##                      own data folder (user://killcams) rather than Videos (tests).
@@ -79,6 +81,7 @@ var bot_level := 3
 var bot := -1
 var bots := 1
 var scripted_input := false
+var manual_respawn := false
 var sync_log := false
 var sound_log := false
 var scripted_fire := false
@@ -167,6 +170,7 @@ func _ready() -> void:
 			"--bot": bot = clampi(int(value), 0, 3)
 			"--bots": bots = clampi(int(value), 1, 4)
 			"--scripted-input": scripted_input = true
+			"--manual-respawn": manual_respawn = true
 			"--sync-log": sync_log = true
 			"--sound-log": sound_log = true
 			"--scripted-fire": scripted_fire = true
@@ -288,3 +292,9 @@ func _process(delta: float) -> void:
 		quit_after = 0.0
 		Net.leave()
 		get_tree().quit()
+
+
+## Tests: ask to respawn as soon as the wait is over (nobody is there to press a key),
+## unless --manual-respawn.
+func auto_respawn() -> bool:
+	return (scripted_input or DisplayServer.get_name() == "headless") and not manual_respawn

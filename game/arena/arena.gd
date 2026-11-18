@@ -271,6 +271,11 @@ func _menu_open() -> bool:
 	return pause_menu.visible or debug_menu.is_open()
 
 
+## The pause or debug menu is open (keys and clicks are for it, not the game).
+func menu_open() -> bool:
+	return _menu_open()
+
+
 ## The navigation mesh bots walk on. Baked when the match starts with bots, or
 ## when the debug menu adds the first one.
 func ensure_navigation() -> void:

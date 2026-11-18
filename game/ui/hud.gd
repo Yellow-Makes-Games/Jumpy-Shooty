@@ -19,10 +19,19 @@ const KILL_HIT_TIME := 0.4
 const NUMBER_TIME := 0.8
 const ARROW_TIME := 1.6
 const CONFIRM_TIME := 1.8
+## Your kill's killcam points: by the crosshair one line at a time, the total for
+## POINTS_TOTAL seconds, then each part ("+60  HEADSHOT") for POINTS_STEP; and the
+## whole list, bottom left, for POINTS_TIME, to read at leisure.
+const POINTS_TOTAL := 0.5
+const POINTS_STEP := 0.225
+const POINTS_TIME := 6.0
+const POINTS_LIST_BOTTOM := 168.0   ## the list's last line, up from the bottom: above the Clean layout's moves
 const DEATH_W := 600.0          ## the death screen's left column
 const BOARD_W := 680.0          ## the scoreboard
 const DEATH_GAP := 36.0
 const DEATH_TOP := 104.0
+const RESPAWN_GRACE := 0.5      ## the death screen ignores the respawn key for this long
+                                ## (a press meant to skip the killcam does not respawn you too)
 
 ## Everything the layouts show about the local player, filled in once per frame.
 class View:
@@ -77,6 +86,7 @@ var _hit_time := 0.0
 var _hit_kind := "hit"          # hit, head, kill
 var _confirm := {}              # {name, age}
 var _promo := {}                # Gun Game: {text, sub, age}: you just moved up (or down) the ladder
+var _points := {}               # your last kill's killcam score: {total, parts (KillScore.breakdown), age}
 var _last_head := {}            # target id -> was the last hit on them a headshot
 var _dead := false
 var _killer := 0
@@ -85,6 +95,8 @@ var _killer_dist := -1.0
 var _killed_by_head := false
 var _killer_view: RobotPreview   # the robot that got you, on the death screen
 var _respawn_left := 0.0
+var _screen_age := 0.0          # how long the death screen has been up (not the killcam)
+var _asked := false             # asked to respawn (Match.request_respawn)
 var _pulse := 0.0
 var _board_age := 0.0
 var _race: HudRace
@@ -123,6 +135,7 @@ func _ready() -> void:
 	Match.player_respawned.connect(_on_respawned)
 	Match.gun_game_level.connect(_on_gun_game_level)
 	Match.dummy_hit.connect(_on_dummy_hit)
+	Match.kill_scored.connect(_on_kill_scored)
 
 
 func _full_rect(c: Control) -> Control:
@@ -229,6 +242,9 @@ func update_local(p: Player) -> void:
 	if _respawn_left > 0.0:
 		_respawn_left = maxf(_respawn_left - delta, 0.0)
 	var watching := _dead and Killcam.watching()   # the killcam has the screen while it plays
+	_screen_age = _screen_age + delta if _dead and not watching else 0.0
+	if _dead and not _asked and _respawn_left <= 0.0 and DevArgs.auto_respawn():
+		_ask_respawn()   # tests: nobody is there to press a key
 	_scoreboard.visible = Input.is_action_pressed("scoreboard") or (_dead and not watching)
 	_killer_view.visible = _dead and _killer != 0 and not watching
 	if _scoreboard.visible:
@@ -265,6 +281,10 @@ func _age(delta: float) -> void:
 		_confirm.age += delta
 		if _confirm.age > CONFIRM_TIME:
 			_confirm = {}
+	if not _points.is_empty():
+		_points.age += delta
+		if _points.age > POINTS_TIME:
+			_points = {}
 	if not _promo.is_empty():
 		_promo.age += delta
 		if _promo.age > 2.2:
@@ -306,6 +326,17 @@ func _on_dummy_hit(shooter: int, _dummy: int, _damage: float, _headshot: bool, k
 		_confirm = {"name": "Target dummy", "age": 0.0}
 
 
+## You got a kill: show what it scored for the killcams, and where the points came from.
+func _on_kill_scored(info: Dictionary) -> void:
+	if int(info.killer) != Net.my_id() or int(info.victim) == Net.my_id():
+		return
+	var parts := KillScore.breakdown(info)
+	_points = {"total": int(info.score), "parts": parts, "age": 0.0}
+	if DevArgs.sync_log:
+		print("KILL_POINTS %d %d %d %s" % [Net.my_id(), int(info.seq), int(info.score),
+			",".join(parts.map(func(p): return "%s=%d" % [p[0], p[1]]))])
+
+
 func _on_died(victim: int, killer: int) -> void:
 	var me := Net.my_id()
 	var head: bool = killer != 0 and _last_head.get(victim, false)
@@ -333,9 +364,36 @@ func _on_died(victim: int, killer: int) -> void:
 			_killer_view.show_robot(Net.player_character(_killer), Net.player_color(_killer))
 		_killer_view.visible = _killer != 0
 		_respawn_left = Match.RESPAWN_DELAY
+		_screen_age = 0.0
+		_asked = false
 		_arrows.clear()
 		_numbers.clear()
 		_refresh_scoreboard()
+
+
+## Dead: Jump or Fire brings you back once the wait is over (you can change your
+## loadout first; see Match.request_respawn). Not while the killcam plays (they skip
+## it there), nor in the first RESPAWN_GRACE seconds of the death screen.
+func _unhandled_input(event: InputEvent) -> void:
+	if not _dead or _asked or Race.active or Killcam.watching() or not Match.respawn_needs_press(Net.my_id()):
+		return
+	if event.is_echo() or not (event.is_action_pressed("jump") or event.is_action_pressed("fire")):
+		return
+	if Net.arena and Net.arena.menu_open():
+		return
+	get_viewport().set_input_as_handled()
+	if _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE:
+		if DevArgs.sync_log:
+			print("RESPAWN TOO SOON %.2f %.2f" % [_respawn_left, _screen_age])
+		return
+	if DevArgs.sync_log:
+		print("RESPAWN BY %s %.2f" % [event.as_text(), _screen_age])
+	_ask_respawn()
+
+
+func _ask_respawn() -> void:
+	_asked = true
+	Match.request_respawn()
 
 
 func _on_respawned(id: int, _spawn_index: int) -> void:
@@ -366,8 +424,9 @@ func _draw_overlay() -> void:
 			_race.draw(ci, size, self)
 	else:
 		if _dead and Killcam.watching():
+			var back := "RESPAWN IN %.1f S" % _respawn_left if _respawn_left > 0.0 else ""
 			KillcamOverlay.draw(ci, Rect2(Vector2.ZERO, size), Killcam.view, "KILLCAM",
-				"%s  SKIP   ·   BACK IN %.1f S" % [Settings.action_text("jump").to_upper(), _respawn_left])
+				("%s  SKIP" % Settings.action_text("jump").to_upper() + ("   ·   " + back if back != "" else "")) if Killcam.can_skip() else back)
 		elif _dead:
 			_draw_death(ci, size)
 		_draw_score_bar(ci, size)
@@ -400,6 +459,54 @@ func _draw_overlay() -> void:
 		HudStyle.text(ci, Vector2(c.x - w * 0.5 + w1, y), _confirm.name, 20, Color(1, 1, 1, a))
 	if grapple == GRAPPLE_ON and tether > 0.0:
 		HudStyle.text(ci, c + Vector2(40, 34), "%d m" % roundi(tether), 13, Color(1.0, 0.7, 0.45))
+	if not _points.is_empty():
+		_draw_points(ci, c)
+
+
+## Your kill's killcam score: one line at a time under the kill confirmation (the
+## total, then each part), and the whole list in the bottom left. No backgrounds.
+func _draw_points(ci: CanvasItem, c: Vector2) -> void:
+	var age: float = _points.age
+	var parts: Array = _points.parts
+	# By the crosshair: the total, then each part in turn.
+	var y := c.y - (100.0 if style == "arcs" else 64.0)
+	if age < POINTS_TOTAL:
+		var a := clampf(age / 0.08, 0.0, 1.0)
+		var pop := 1.0 + 0.3 * clampf(1.0 - age / 0.12, 0.0, 1.0)
+		HudStyle.text(ci, Vector2(c.x, y), "+%d" % int(_points.total), int(24 * pop), Color(HudStyle.ORANGE, a), HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		var i := int((age - POINTS_TOTAL) / POINTS_STEP)
+		if i < parts.size():
+			var into := age - POINTS_TOTAL - i * POINTS_STEP
+			var a := clampf(into / 0.05, 0.0, 1.0) * clampf((POINTS_STEP - into) / 0.05, 0.0, 1.0)
+			var p: Array = parts[i]
+			var num := "+%d" % p[1]
+			var gap := 10.0
+			var w := HudStyle.text_width(num, 20) + gap + HudStyle.text_width(p[0], 15, false)
+			var x := c.x - w * 0.5
+			var nw := HudStyle.text(ci, Vector2(x, y), num, 20, Color(_points_color(p, i), a))
+			HudStyle.text(ci, Vector2(x + nw + gap, y), p[0], 15, Color(1, 1, 1, 0.9 * a), HORIZONTAL_ALIGNMENT_LEFT, false)
+	# Bottom left: all of it, to look over.
+	var fade := clampf((POINTS_TIME - age) / 0.5, 0.0, 1.0) * clampf(age / 0.2, 0.0, 1.0)
+	var lx := HudClean.MARGIN
+	var col := 0.0   # the words line up after the widest "+100"
+	for p in parts:
+		col = maxf(col, HudStyle.text_width("+%d" % p[1], 14) + 10.0)
+	var ly: float = _overlay.size.y - POINTS_LIST_BOTTOM - (parts.size() - 1) * 19.0
+	var hw := HudStyle.label(ci, Vector2(lx, ly - 28.0), "KILLCAM SCORE", 10, Color(1, 1, 1, 0.7 * fade))
+	HudStyle.text(ci, Vector2(lx + hw + 10.0, ly - 29.0), str(int(_points.total)), 20, Color(HudStyle.ORANGE, fade))
+	for i in parts.size():
+		var p: Array = parts[i]
+		HudStyle.text(ci, Vector2(lx, ly), "+%d" % p[1], 14, Color(_points_color(p, i), fade))
+		HudStyle.text(ci, Vector2(lx + col, ly), p[0], 12, Color(1, 1, 1, 0.8 * fade), HORIZONTAL_ALIGNMENT_LEFT, false)
+		ly += 19.0
+
+
+## Gold for the parts that make a highlight (a headshot, a flick, a multikill).
+func _points_color(part: Array, i: int) -> Color:
+	var words := str(part[0])
+	var gold := words == "HEADSHOT" or words.begins_with("TRICKSHOT") or words.begins_with("FLICK") or (words.ends_with(" KILL") and i > 0)
+	return HudStyle.YELLOW if gold else HudStyle.WHITE
 
 
 ## Under the crosshair ring: blink's charges (three short arcs, the next one filling
@@ -653,8 +760,23 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	ci.draw_rect(bar, Color(1, 1, 1, 0.15))
 	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
 	ci.draw_rect(Rect2(bar.position.x + w * progress - 2.0, bar.position.y - 3.0, 4.0, 12.0), Color.WHITE)
-	HudStyle.label(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
-	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	var row := bar.end.y + 18.0
+	if not Match.respawn_needs_press(Net.my_id()):
+		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
+		HudStyle.text(ci, Vector2(bar.end.x, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	elif _asked:
+		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING...", 12, HudStyle.ORANGE)
+	elif _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE:
+		var lw := HudStyle.label(ci, Vector2(bar.position.x, row), "PICK YOUR LOADOUT", 12, Color(1, 1, 1, 0.85))
+		if _respawn_left > 0.0:
+			HudStyle.text(ci, Vector2(bar.position.x + lw + 12.0, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE)
+	else:   # ready: a pulsing call to come back
+		var a := 0.75 + 0.25 * sin(_pulse * 5.0)
+		var keys := "%s OR %s" % [Settings.action_text("jump").to_upper(), Settings.action_text("fire").to_upper()]
+		var w1 := HudStyle.text(ci, Vector2(bar.position.x, row + 2.0), keys, 16, Color(HudStyle.ORANGE, a))
+		HudStyle.label(ci, Vector2(bar.position.x + w1 + 10.0, row + 2.0), "TO RESPAWN", 12, Color(1, 1, 1, a))
+	if Match.respawn_needs_press(Net.my_id()) and not _asked:
+		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0), "ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	var mid := card.position.x + w * 0.5
 	_draw_mobility_swap(ci, Vector2(mid, bar.end.y + 56.0))
 	if Net.is_deathmatch():

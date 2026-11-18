@@ -36,11 +36,14 @@ const STREAK_LEAD := 1.0        ## a multikill starts this long before its first
 const VIEW_INTERP := 0.085      ## how far in the past a player's game typically draws others (SnapshotBuffer)
 const KEEP := 3                 ## clips kept for the results screen
 const MIN_LEAD := 1.0           ## the death killcam needs this much of the killer before the kill
+const SKIP_AFTER := 0.75        ## the death killcam can be skipped once it has played this long
+                                ## (so a jump or shot already on its way as you die does not skip it)
 
 ## The best kills' clips, by kill number (see Match.kill_log).
 var clips: Dictionary = {}
 ## The death killcam playing now, or null.
 var view: KillcamView = null
+var watched := 0.0              ## seconds the death killcam has been playing
 
 var _tracks: Dictionary = {}    # id -> KillClip.Track, the last HISTORY seconds
 var _events: Array = []         # shots and so on, the last HISTORY seconds
@@ -87,6 +90,8 @@ func _recording() -> bool:
 
 
 func _process(delta: float) -> void:
+	if watching():
+		watched += delta
 	if not _recording():
 		return
 	_clock += delta
@@ -243,6 +248,11 @@ func watching() -> bool:
 	return view != null and is_instance_valid(view)
 
 
+## The death killcam has played long enough to be skipped (see SKIP_AFTER).
+func can_skip() -> bool:
+	return watching() and watched >= SKIP_AFTER
+
+
 func _start_death_cam(clip: KillClip) -> void:
 	stop()
 	var arena := Net.arena
@@ -252,6 +262,7 @@ func _start_death_cam(clip: KillClip) -> void:
 		return
 	var playing := KillcamView.new()
 	view = playing
+	watched = 0.0
 	view.setup(clip, false)
 	arena.add_child(view)
 	arena.players_root.visible = false   # the replay's bodies stand in for the live ones
@@ -259,8 +270,11 @@ func _start_death_cam(clip: KillClip) -> void:
 		var kt: KillClip.Track = clip.tracks[clip.killer]
 		print("KILLCAM PLAY %d %d %d %d %.2f %.2f" % [Net.my_id(), clip.killer, int(clip.info.seq), kt.frames.size(), kt.first_time() - clip.kill_time, kt.last_time() - clip.kill_time])
 	view.finished.connect(func():
-		if DevArgs.sync_log and view == playing:   # (not one that was just stopped)
-			print("KILLCAM DONE %d" % Net.my_id()))
+		if view != playing:
+			return   # (one that was just stopped)
+		if DevArgs.sync_log:
+			print("KILLCAM DONE %d" % Net.my_id())
+		stop())   # on to the death screen, to pick a loadout and respawn
 	started.emit()
 
 
@@ -296,7 +310,10 @@ func _on_respawned(id: int, _spawn: int) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if watching() and not event.is_echo() and (event.is_action_pressed("jump") or event.is_action_pressed("fire")):
-		if DevArgs.sync_log:
-			print("KILLCAM SKIP BY %s" % event.as_text())
-		skip()
-		get_viewport().set_input_as_handled()
+		if can_skip():
+			if DevArgs.sync_log:
+				print("KILLCAM SKIP BY %s %.2f" % [event.as_text(), watched])
+			skip()
+		elif DevArgs.sync_log:
+			print("KILLCAM TOO SOON %.2f" % watched)
+		get_viewport().set_input_as_handled()   # (too soon: still the killcam's, not the game's)
