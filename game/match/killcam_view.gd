@@ -262,7 +262,7 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 	g.root.name = "Ghost_%d" % id
 	add_child(g.root)
 	g.root.add_child(g.visual)
-	g.robot = RobotModel.new().setup(Characters.body(track.character), track.color, false, weapon)
+	g.robot = RobotModel.new().build(track.character, track.color, false, weapon)
 	g.visual.add_child(g.robot)
 	g.animator = RobotAnimator.new(g.robot)
 	var rope := _make_rope()

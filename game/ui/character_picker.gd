@@ -5,6 +5,8 @@ extends VBoxContainer
 ## name over it and arrows either side to step through the others; under the stage,
 ## a button for every robot and a line about the one picked.
 ##
+## Characters made in the Character Creator come after the robots.
+##
 ## The picker only reports the choice; the screen using it decides what to do with
 ## it (save it, tell the lobby).
 
@@ -18,6 +20,9 @@ var current := ""
 var _color := Color.WHITE
 var _weapon := "pistol"
 var _buttons := {}                 # character id -> Button
+var _ids: Array = []               # every character offered, in order
+var _grid: GridContainer
+var _group := ButtonGroup.new()
 var _blurb: Label
 var _stage: Control
 var _preview: RobotPreview
@@ -41,29 +46,39 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: 
 	_arrow("<", Control.PRESET_CENTER_LEFT, -1)
 	_arrow(">", Control.PRESET_CENTER_RIGHT, 1)
 	# A grid, so the buttons stay compact however many robots there are.
-	var buttons := GridContainer.new()
-	buttons.columns = COLUMNS
-	buttons.add_theme_constant_override("h_separation", 6)
-	buttons.add_theme_constant_override("v_separation", 6)
-	add_child(buttons)
-	var group := ButtonGroup.new()
-	for c in Characters.LIST:
-		var b := Button.new()
-		b.text = c.name
-		b.toggle_mode = true
-		b.button_group = group
-		b.theme_type_variation = "Chip"
-		b.custom_minimum_size = Vector2(0, 36)
-		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.clip_text = true
-		b.add_theme_font_size_override("font_size", 14)
-		b.pressed.connect(_on_pressed.bind(c.id))
-		b.set_meta("sfx", "select")
-		buttons.add_child(b)
-		_buttons[c.id] = b
+	_grid = GridContainer.new()
+	_grid.columns = COLUMNS
+	_grid.add_theme_constant_override("h_separation", 6)
+	_grid.add_theme_constant_override("v_separation", 6)
+	add_child(_grid)
+	for id in Characters.ids() + Settings.custom_characters:
+		_add_button(id)
 	_blurb = UiKit.label(self, "", true, 15)
 	_blurb.custom_minimum_size = Vector2(0, 40)
 	select(Characters.valid(start))
+
+
+func _add_button(id: String) -> void:
+	id = Characters.valid(id)
+	if _buttons.has(id):
+		return
+	var b := Button.new()
+	b.text = Characters.name_of(id)
+	b.toggle_mode = true
+	b.button_group = _group
+	b.theme_type_variation = "Chip"
+	b.custom_minimum_size = Vector2(0, 36)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.clip_text = true
+	b.add_theme_font_size_override("font_size", 14)
+	if Characters.is_custom(id):
+		b.add_theme_color_override("font_color", UiKit.CYAN)
+		b.tooltip_text = Characters.info(id).blurb
+	b.pressed.connect(_on_pressed.bind(id))
+	b.set_meta("sfx", "select")
+	_grid.add_child(b)
+	_buttons[id] = b
+	_ids.append(id)
 
 
 ## An arrow at the side of the stage that steps to the next or the last robot.
@@ -76,8 +91,7 @@ func _arrow(text: String, side: Control.LayoutPreset, step: int) -> void:
 	b.tooltip_text = "Next robot" if step > 0 else "Previous robot"
 	b.set_meta("sfx", "select")
 	b.pressed.connect(func():
-		var ids := Characters.ids()
-		_on_pressed(ids[posmod(ids.find(current) + step, ids.size())]))
+		_on_pressed(_ids[posmod(_ids.find(current) + step, _ids.size())]))
 	_stage.add_child(b)
 	b.set_anchors_and_offsets_preset(side, Control.PRESET_MODE_MINSIZE, 8)
 
@@ -110,8 +124,7 @@ func _draw_stage() -> void:
 		_stage.draw_arc(Vector2.ZERO, 132.0, a, a + 0.5, 12, Color(UiKit.CYAN, 0.55), 3.0, true)
 	_stage.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	# Its name and where it is in the list.
-	var ids := Characters.ids()
-	HudStyle.label(_stage, Vector2(16, 20), "UNIT %d / %d" % [ids.find(current) + 1, ids.size()], 11, Color(UiKit.CYAN, 0.9))
+	HudStyle.label(_stage, Vector2(16, 20), ("CUSTOM %d / %d" if Characters.is_custom(current) else "UNIT %d / %d") % [_ids.find(current) + 1, _ids.size()], 11, Color(UiKit.CYAN, 0.9))
 	HudStyle.text(_stage, Vector2(16, 44), Characters.name_of(current).to_upper(), 28, Color.WHITE)
 	HudStyle.brackets(_stage, r.grow(-8.0), 12.0, Color(1, 1, 1, 0.25), 1.5)
 
@@ -122,6 +135,7 @@ func select(id: String) -> void:
 	id = Characters.valid(id)
 	if id == current:
 		return
+	_add_button(id)   # someone's custom character this copy hasn't saved
 	current = id
 	for key in _buttons:
 		_buttons[key].set_pressed_no_signal(key == id)

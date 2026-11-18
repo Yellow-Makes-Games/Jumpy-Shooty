@@ -82,7 +82,7 @@ func setup(player: Player, color: Color) -> void:
 	name = "ViewModel"
 	_data = player.weapon.data if player.weapon else WeaponData.pistol()
 	_weapon = _data.id if player.weapon else "none"   # Deathmatch, nothing picked up yet: empty hands
-	model = RobotModel.new().setup(Characters.arms(Net.player_character(player.peer_id)), color, true, _weapon)
+	model = RobotModel.new().build(Net.player_character(player.peer_id), color, true, _weapon, true)
 	model.position = -EYE
 	model.set_layer(Player.VIEWMODEL_LAYER)
 	add_child(model)
