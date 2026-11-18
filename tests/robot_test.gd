@@ -23,14 +23,18 @@ const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_
 const BODY_BONES := ["root", "hips", "spine", "chest", "head", "upper_arm_l", "forearm_l", "hand_l",
 	"upper_arm_r", "forearm_r", "hand_r", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r",
 	"foot_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper",
-	"pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo", "muzzle_akimbo_l"]
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo", "muzzle_akimbo_l",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 const LONG_GUNS := ["shotgun", "rifle", "sniper"]
 ## Each long gun's own versions of these (e.g. "aim_rifle"); the pump and bolt guns also have "fire".
 const GUN_BODY_CLIPS := ["aim", "carry", "reload", "respawn"]
 const GUN_ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
-	"pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo_l"]
+	"pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo_l",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 ## Akimbo (a pistol in each hand) has its own aim and reload, and first-person poses.
 const AKIMBO_BODY_CLIPS := ["aim_akimbo", "reload_akimbo"]
 const AKIMBO_ARM_CLIPS := ["fp_idle_akimbo", "fp_sprint_akimbo", "fp_one_hand_akimbo", "fp_wall_r_akimbo",

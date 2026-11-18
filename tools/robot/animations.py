@@ -11,7 +11,7 @@ Looping clips must return the same pose at t = 0 and t = duration.
 import math
 from m3 import euler
 import numpy as np
-from rig import Clip, keyed, mix, mirror, merged, ease
+from rig import HANDS, Clip, keyed, mix, mirror, merged, ease
 
 TAU = math.tau
 
@@ -476,7 +476,7 @@ def body_clips():
         Clip("reload", 1.3, reload),
         Clip("death", 1.3, death),
         Clip("respawn", 0.6, respawn),
-    ] + view_clips()
+    ] + view_clips() + hand_clips()
 
 
 # ---------------------------------------------------------------------------
@@ -560,6 +560,15 @@ def view_roll(t):
         (0.30, _seen(58.0, (100.0, 66.0), (94.0, 60.0)), "linear"),
         (0.45, _seen(16.0, (84.0, 112.0), (70.0, 104.0)), "out"),
     ])
+
+
+def hand_clips():
+    """Each hand pose (rig.HANDS) as a clip one frame long, both hands held that way:
+    the game blends a hand to one where the other clips cannot know how it is held (a
+    blade's handle in the fist: game/player/robot/hands.gd)."""
+    def held(how):
+        return lambda t: {"fingers_l": how, "fingers_r": how}
+    return [Clip("hand_" + how, 1 / 30, held(how)) for how in HANDS]
 
 
 def view_clips():
@@ -690,4 +699,4 @@ def arms_clips():
         Clip("fp_mantle", 0.45, fp_mantle),
         Clip("fp_raise", 0.4, fp_raise),
         Clip("fp_reload", 1.3, fp_reload),
-    ]
+    ] + hand_clips()

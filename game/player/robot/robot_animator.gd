@@ -143,8 +143,8 @@ func _init(robot: RobotModel) -> void:
 	_tmp = rig.new_pose()
 	_aim = rig.new_pose()
 	_b = rig.bones
-	_arm_r = _bones(["upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag"])
-	_arm_l = _bones(["upper_arm_l", "forearm_l", "hand_l", "pistol_l", "pistol_l_slide", "pistol_l_mag"])
+	_arm_r = _bones(["upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag"] + Hands.RIGHT)
+	_arm_l = _bones(["upper_arm_l", "forearm_l", "hand_l", "pistol_l", "pistol_l_slide", "pistol_l_mag"] + Hands.LEFT)
 	_legs_core = _bones(["hips", "spine", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r"])
 	for i in rig.bone_names.size():
 		if not (i in _arm_r or i in _arm_l):
@@ -554,6 +554,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	_power = move_toward(_power, power_target, delta * (12.0 if power_target < _power else 2.5))
 	model.set_power(_power)
 
+	if _akimbo:
+		Hands.set_hand(_pose, rig, "gun", 1.0, true)   # the left hand has a gun of its own, whatever the arm is doing
 	_pose.apply(model.skeleton)
 
 

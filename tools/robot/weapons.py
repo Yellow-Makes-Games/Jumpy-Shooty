@@ -35,34 +35,38 @@ IDS = ("pistol", "shotgun", "rifle", "sniper", "revolver", "machine_pistol", "br
        "derringer", "flare_gun", "plasma_pistol", "auto_shotgun", "slug_shotgun", "air_cannon", "minigun",
        "battle_rifle", "laser_rifle", "nail_gun", "crossbow", "anti_materiel", "harpoon_gun", "mortar", "plasma_cannon")
 
-# Where the left fist holds each gun (gun space), and on which bone: the shotgun's
-# hand rides on the pump. The pistol is held in both hands round the grip instead.
+# Where the left fist holds each gun (gun space: the middle of the fist), and on which
+# bone: the shotgun's hand rides on the pump. Under a fore-end the hand is cupped, palm
+# up, and the point is 2 cm above the fore-end's underside (the palm is that far from
+# the middle of the fist); "upright": an upright handle, held like a second grip. The
+# pistol is held in both hands round the grip instead.
 SUPPORT = {
-    "shotgun": {"grip": (0.0, 0.020, -0.30), "on": "pistol_slide"},
-    "rifle": {"grip": (0.0, 0.010, -0.235)},
-    "sniper": {"grip": (0.0, 0.012, -0.30)},
-    "break_action": {"grip": (0.0, 0.022, -0.30), "on": "pistol_mag"},   # the fore-end swings down with the barrels
-    "smg": {"grip": (0.0, -0.045, -0.215)},            # the vertical foregrip
-    "burst_rifle": {"grip": (0.0, 0.012, -0.25)},
-    "lmg": {"grip": (0.0, 0.0, -0.27)},
-    "lever_action": {"grip": (0.0, 0.022, -0.28)},
-    "bolt_action": {"grip": (0.0, 0.016, -0.29)},
-    "railgun": {"grip": (0.0, 0.005, -0.27)},
-    "rocket_launcher": {"grip": (0.0, -0.02, -0.24)},  # the front handle under the tube
+    "shotgun": {"grip": (0.0, 0.027, -0.30), "on": "pistol_slide"},
+    "rifle": {"grip": (0.0, 0.047, -0.235)},
+    "sniper": {"grip": (0.0, 0.030, -0.30)},
+    "break_action": {"grip": (0.0, 0.025, -0.30), "on": "pistol_mag"},   # the fore-end swings down with the barrels
+    "smg": {"grip": (0.0, -0.045, -0.215), "upright": True},            # the vertical foregrip
+    "burst_rifle": {"grip": (0.0, 0.044, -0.25)},
+    "lmg": {"grip": (0.0, 0.025, -0.27)},
+    "lever_action": {"grip": (0.0, 0.033, -0.28)},
+    "bolt_action": {"grip": (0.0, 0.027, -0.29)},
+    "railgun": {"grip": (0.0, 0.036, -0.27)},
+    "rocket_launcher": {"grip": (0.0, -0.02, -0.24), "upright": True},  # the front handle under the tube
     "grenade_launcher": {"grip": (0.0, 0.025, -0.28)},
-    "auto_shotgun": {"grip": (0.0, 0.02, -0.30)},
-    "slug_shotgun": {"grip": (0.0, 0.020, -0.30), "on": "pistol_slide"},
-    "air_cannon": {"grip": (0.0, -0.045, -0.30)},        # the front handle under the tank
-    "minigun": {"grip": (0.0, -0.045, -0.30)},           # the front handle under the barrels
-    "battle_rifle": {"grip": (0.0, 0.012, -0.27)},
-    "laser_rifle": {"grip": (0.0, 0.01, -0.26)},
-    "nail_gun": {"grip": (0.0, -0.045, -0.22)},          # the vertical foregrip
-    "crossbow": {"grip": (0.0, 0.012, -0.25)},
-    "anti_materiel": {"grip": (0.0, 0.012, -0.32)},
-    "harpoon_gun": {"grip": (0.0, 0.0, -0.30)},
-    "mortar": {"grip": (0.0, -0.02, -0.24)},             # the front handle under the tube
-    "plasma_cannon": {"grip": (0.0, 0.02, -0.30)},
+    "auto_shotgun": {"grip": (0.0, 0.029, -0.30)},
+    "slug_shotgun": {"grip": (0.0, 0.027, -0.30), "on": "pistol_slide"},
+    "air_cannon": {"grip": (0.0, -0.045, -0.30), "upright": True},      # the front handle under the tank
+    "minigun": {"grip": (0.0, -0.045, -0.30), "upright": True},         # the front handle under the barrels
+    "battle_rifle": {"grip": (0.0, 0.043, -0.27)},
+    "laser_rifle": {"grip": (0.0, 0.046, -0.26)},
+    "nail_gun": {"grip": (0.0, -0.045, -0.22), "upright": True},        # the vertical foregrip
+    "crossbow": {"grip": (0.0, 0.044, -0.25)},
+    "anti_materiel": {"grip": (0.0, 0.030, -0.32)},
+    "harpoon_gun": {"grip": (0.0, 0.015, -0.30)},                       # the gas cylinder
+    "mortar": {"grip": (0.0, -0.02, -0.24), "upright": True},           # the front handle under the tube
+    "plasma_cannon": {"grip": (0.0, 0.048, -0.30)},
 }
+
 
 def _lin(r, g, b):
     """A colour as the game's own code writes it (sRGB), turned into what a model file holds (linear)."""

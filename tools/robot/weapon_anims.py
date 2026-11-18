@@ -103,6 +103,11 @@ RELOAD = {"shotgun": 0.5, "rifle": 1.9, "sniper": 2.4, "break_action": 1.7, "smg
 FIRE = {"shotgun": 0.6, "sniper": 1.1, "lever_action": 0.66, "bolt_action": 0.95, "railgun": 0.5,
         "slug_shotgun": 0.7, "anti_materiel": 1.8}
 LOOPED = ("shotgun", "lever_action", "bolt_action", "grenade_launcher", "slug_shotgun")   # a round at a time
+# The left hand under a fore-end: palm up, the fingers across under the gun and up its
+# right side (the fist's turn, relative to the gun's). A gun held by an upright handle
+# (weapons.SUPPORT: "upright") is held as the forearm comes, like a second grip.
+CUPPED = (-90.0, 0.0, 90.0)
+UPRIGHT = (0.0, 0.0, 0.0)      # ...the left fist turned as the right one is on the grip, the wrist behind the handle
 POLE_R = (0.7, -1.0, 0.1)
 POLE_L = (-0.6, -1.0, 0.2)
 
@@ -122,6 +127,9 @@ def support(gun, **extra):
     """The left fist on the gun's support point (the pump, the handguard)."""
     s = SUPPORT[gun]
     out = {"grip": s["grip"], "on": s.get("on", "pistol"), "pole": POLE_L}
+    out["hand"] = UPRIGHT if s.get("upright") else CUPPED
+    if s.get("upright"):
+        out["fingers"] = "foregrip"
     out.update(extra)
     return out
 
@@ -588,7 +596,8 @@ def _mirror_arm(arm):
 
 def _pair(right_arm, **more):
     spec = {"arm_r": right_arm, "arm_l": _mirror_arm(right_arm),
-            "slide": 0.0, "mag": (0.0, 0.0, 0.0), "slide_l": 0.0, "mag_l": (0.0, 0.0, 0.0)}
+            "slide": 0.0, "mag": (0.0, 0.0, 0.0), "slide_l": 0.0, "mag_l": (0.0, 0.0, 0.0),
+            "fingers_l": "gun"}   # the left hand has a gun of its own
     spec.update(more)
     return spec
 
