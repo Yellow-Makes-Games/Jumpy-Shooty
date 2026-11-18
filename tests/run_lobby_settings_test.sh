@@ -64,7 +64,7 @@ def loadouts(name):
 
 for name in ["host", "early", "late"]:
     told = [l for l in lines(name) if l.startswith("LOBBY_SETTINGS ")]
-    check(bool(told) and told[-1].endswith("weapons=shotgun,railgun,smg"), f"{name}: told the allowed weapons ({told[-1] if told else 'never'})")
+    check(bool(told) and told[-1].endswith("weapons=shotgun,smg,railgun"), f"{name}: told the allowed weapons ({told[-1] if told else 'never'})")
     seen = loadouts(name)
     weapons = {w for l in seen for _, w in l}
     check(bool(seen) and weapons <= ALLOWED, f"{name}: only allowed weapons on record ({sorted(weapons)})")

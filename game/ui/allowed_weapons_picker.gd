@@ -52,7 +52,8 @@ func _init(ids: Array = [], editable: bool = true) -> void:
 		tag.add_theme_font_override("font", HudStyle.font_spaced(1))
 		tag.add_theme_font_size_override("font_size", 10)
 		tag.add_theme_color_override("font_color", Color(UiKit.CYAN, 0.8))
-		tag.custom_minimum_size = Vector2(TAG_WIDTH, 0)
+		tag.custom_minimum_size = Vector2(TAG_WIDTH, 32)   # level with the first row of chips
+		tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		tag.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		row.add_child(tag)
 		var flow := HFlowContainer.new()
