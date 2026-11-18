@@ -14,6 +14,11 @@ extends HBoxContainer
 ## Each part is a row: < its name >. The arrows step through the choices; a click
 ## on the name lists them all. A colour is a button showing it; a click opens the
 ## palette.
+##
+## Some parts, accessories and paints are unlocked by achievements (see
+## Achievements). A locked one can be tried on (its name is drawn in orange and
+## the line under the parts says what it needs) but not saved; a locked paint is
+## greyed out in the palette.
 
 signal changed
 
@@ -22,6 +27,7 @@ const ROW_LABEL := 100.0
 const BODY_PARTS := ["head", "torso", "legs"]
 const WHOLE := "whole"       ## the row that changes head, torso and legs together
 const PALETTE_COLUMNS := 6
+const LOCKED := Color(1.0, 0.62, 0.3)   ## a locked choice's name
 
 var current := CustomCharacter.new()   ## what is on the stage now
 var status: Label                      ## a line under the parts ("Saved.")
@@ -136,6 +142,9 @@ func _build_parts() -> void:
 	col.add_child(_saved)
 	status = UiKit.label(col, "", true, 15)
 	status.custom_minimum_size = Vector2(0, 22)
+	status.autowrap_mode = TextServer.AUTOWRAP_OFF   # one line, cut short if need be: the page keeps its height
+	status.clip_text = true
+	status.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_refresh_saved()
 
 
@@ -201,7 +210,12 @@ func open_palette(key: String) -> void:
 	for pair in CustomCharacter.BODY_COLORS:
 		if pair[0] == key:
 			title = pair[1]
-	var entries := palette_of(key).map(func(p): return {"id": p.id, "name": p.name if p.id != "" else "As it comes", "color": p.color, "as_built": p.id == ""})
+	var entries := []
+	for p in palette_of(key):
+		var e := {"id": p.id, "name": p.name if p.id != "" else "As it comes", "color": p.color, "as_built": p.id == ""}
+		if key != "s" and p.id != "" and Achievements.locked("paint:" + p.id):
+			e["off"] = "locked. " + Achievements.requirement("paint:" + p.id)
+		entries.append(e)
 	_palette.open(_colors[key], title, entries, color_of(key), func(id): pick_color(key, id))
 
 
@@ -298,7 +312,7 @@ func open_list(key: String) -> void:
 	_list.clear()
 	var now := _chosen(key)
 	for choice in _choices(key):
-		_list.add_radio_check_item(choice.name)
+		_list.add_radio_check_item(choice.name if not Achievements.locked(_item_key(key, choice.id)) else "%s  (locked)" % choice.name)
 		_list.set_item_checked(_list.item_count - 1, choice.id == now)
 	# Under the name, as wide as it; no taller than most of the window (it scrolls).
 	var from: Button = _rows[key]
@@ -312,7 +326,7 @@ func open_list(key: String) -> void:
 
 func randomize_parts() -> void:
 	var keep := current.name
-	current = CustomCharacter.random()
+	current = CustomCharacter.random(null, func(key: String): return not Achievements.locked(key))   # only what you have
 	current.name = keep
 	_refresh()
 
@@ -344,11 +358,44 @@ func _refresh() -> void:
 		var b: Button = _colors[slot]
 		b.disabled = current.accessories.get(slot, "") == ""
 		b.icon = SwatchPalette.swatch(_palette_color(slot, current.color_of(slot)), current.color_of(slot) == "")
+	for key in _rows:
+		var item := _item_key(key, _chosen(key))
+		var is_locked := (item != "" and Achievements.locked(item)) if key != WHOLE else BODY_PARTS.any(func(part): return Achievements.locked("part:" + current.part(part)))
+		var shown: Button = _rows[key]
+		for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			if is_locked:
+				shown.add_theme_color_override(state, LOCKED)
+			else:
+				shown.remove_theme_color_override(state)
+		shown.tooltip_text = "Click to see every choice" if not is_locked or key == WHOLE else "Locked. %s" % Achievements.requirement(item)
 	_preview.show_robot(current.to_id(), Net.menu_color(), "none")
 	if status:
-		status.text = ""
+		status.text = locked_note()
+		status.add_theme_color_override("font_color", LOCKED if status.text != "" else UiKit.TEXT_DIM)
 	_refresh_saved()
 	changed.emit()
+
+
+## The item (see Achievements) a row's choice is: "part:frog", "hat:crown"; "" for none.
+static func _item_key(key: String, id: String) -> String:
+	if id == "":
+		return ""
+	return "part:" + id if key == WHOLE or key in BODY_PARTS else "%s:%s" % [key, id]
+
+
+## Whether the character on the stage can be saved: nothing on it is still locked.
+func can_save() -> bool:
+	return Achievements.locked_in(current).is_empty()
+
+
+## What is locked on the character on the stage and what the first of them needs
+## ("" when nothing is): "Locked: Crown. Warlord: Get 500 kills (37 / 500)".
+func locked_note() -> String:
+	var keys := Achievements.locked_in(current)
+	if keys.is_empty():
+		return ""
+	var names := ", ".join(keys.slice(0, 2).map(Achievements.item_name)) + (" and %d more" % (keys.size() - 2) if keys.size() > 2 else "")
+	return "Locked: %s.  %s" % [names, Achievements.requirement(keys[0])]
 
 
 ## The saved characters, as buttons that load them; the one with this name is lit.
@@ -377,8 +424,12 @@ func _refresh_saved() -> void:
 		_saved.add_child(b)
 
 
-## Keep it (under its name: saving again with the same name replaces it). Returns its id.
+## Keep it (under its name: saving again with the same name replaces it). Returns its
+## id, or "" if it wears something still locked (the line under the parts says what).
 func save() -> String:
+	if not can_save():
+		status.text = locked_note()
+		return ""
 	current.name = CustomCharacter.clean_name(_name.text)
 	_name.text = current.name
 	var replacing := Settings.custom_index(current.name) >= 0

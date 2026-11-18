@@ -1,0 +1,409 @@
+extends Node
+## Achievements: things you do in matches (kills, headshots, wins, races finished...)
+## counted across every game you play, each unlocking something for the Character
+## Creator (a hat, a pair of wings, a whole body, a paint).
+##
+## Only your own player counts, in any match with someone to play against: online,
+## or against bots. The counts are kept in a file of their own (user://achievements.cfg),
+## apart from the settings.
+##
+## An item is a key: "part:ninja" (a body for the head, torso or legs), "paint:gold",
+## or "<slot>:<accessory>" ("hat:crown"). Anything no achievement names is free from
+## the start. Locks are about what you can make and save in the creator: a character
+## someone else plays, or one you saved before a lock existed, is always drawn in full
+## (whatever your saved characters wear is yours to keep).
+##
+##   Achievements.locked("hat:crown")            is it still locked?
+##   Achievements.requirement("hat:crown")       "Warlord: 500 kills (37 / 500)"
+##   Achievements.locked_in(character)           the locked items a character uses
+##   Achievements.add("headshots")               count one (the game does this itself)
+
+signal unlocked(id: String)   ## an achievement was just completed
+signal progressed             ## a count changed
+
+const FILE := "user://achievements.cfg"
+const SAVE_EVERY := 8.0       ## seconds: counts are written at most this often mid-match
+const TOAST_TIME := 5.0
+
+## Every achievement, in the order the page shows them. stat: what it counts (see
+## _on_kill and the other hooks); goal: how many; what: the line under its name;
+## rewards: the items it unlocks.
+const LIST := [
+	{"id": "first_blood", "name": "First Blood", "stat": "kills", "goal": 1, "what": "Get a kill", "rewards": ["hat:party"]},
+	{"id": "kills_25", "name": "Warming Up", "stat": "kills", "goal": 25, "what": "Get 25 kills", "rewards": ["hat:bandana", "neck:dog_tags"]},
+	{"id": "kills_100", "name": "Centurion", "stat": "kills", "goal": 100, "what": "Get 100 kills", "rewards": ["hat:viking", "shoulder:pauldrons"]},
+	{"id": "kills_250", "name": "Veteran", "stat": "kills", "goal": 250, "what": "Get 250 kills", "rewards": ["shoulder:bandolier", "back:banner"]},
+	{"id": "kills_500", "name": "Warlord", "stat": "kills", "goal": 500, "what": "Get 500 kills", "rewards": ["hat:crown", "paint:silver"]},
+	{"id": "kills_1000", "name": "Legend", "stat": "kills", "goal": 1000, "what": "Get 1000 kills", "rewards": ["hat:halo", "back:wings", "paint:gold"]},
+	{"id": "headshots_10", "name": "Sharp Eye", "stat": "headshots", "goal": 10, "what": "Get 10 headshot kills", "rewards": ["face:monocle"]},
+	{"id": "headshots_50", "name": "Marksman", "stat": "headshots", "goal": 50, "what": "Get 50 headshot kills", "rewards": ["face:eye_patch", "face:aviators"]},
+	{"id": "headshots_200", "name": "Deadeye", "stat": "headshots", "goal": 200, "what": "Get 200 headshot kills", "rewards": ["face:laser_visor", "hat:cowboy"]},
+	{"id": "long_10", "name": "Long Arm", "stat": "long_shots", "goal": 10, "what": "Get 10 kills from 30 m or more", "rewards": ["back:quiver"]},
+	{"id": "long_50", "name": "Eagle Eye", "stat": "long_shots", "goal": 50, "what": "Get 50 kills from 30 m or more", "rewards": ["shoulder:drone"]},
+	{"id": "air_25", "name": "Airborne", "stat": "air_kills", "goal": 25, "what": "Get 25 kills while in the air", "rewards": ["hat:propeller"]},
+	{"id": "rope_25", "name": "Swinger", "stat": "rope_kills", "goal": 25, "what": "Get 25 kills while on the grapple", "rewards": ["tail:monkey_tail"]},
+	{"id": "wall_10", "name": "Wall Crawler", "stat": "wall_kills", "goal": 10, "what": "Get 10 kills while wall-running", "rewards": ["part:ninja"]},
+	{"id": "glide_10", "name": "Night Glider", "stat": "glide_kills", "goal": 10, "what": "Get 10 kills while gliding", "rewards": ["back:bat_wings"]},
+	{"id": "air_shot_25", "name": "Clay Pigeon", "stat": "air_shots", "goal": 25, "what": "Kill 25 players who are in the air", "rewards": ["part:duck"]},
+	{"id": "fast_25", "name": "Speed Demon", "stat": "fast_kills", "goal": 25, "what": "Get 25 kills while moving at 18 m/s or faster", "rewards": ["back:rocket_pack"]},
+	{"id": "flick_15", "name": "Flick of the Wrist", "stat": "flicks", "goal": 15, "what": "Get 15 flick kills", "rewards": ["face:three_d"]},
+	{"id": "kick_10", "name": "Boot Camp", "stat": "kicks", "goal": 10, "what": "Get 10 kills with a kick", "rewards": ["hat:hard_hat"]},
+	{"id": "flying_kick_10", "name": "Flying Lesson", "stat": "flying_kicks", "goal": 10, "what": "Get 10 kills with a flying kick", "rewards": ["part:astronaut"]},
+	{"id": "smash_10", "name": "Crash Test", "stat": "smashes", "goal": 10, "what": "Smash 10 players into a wall", "rewards": ["hat:traffic_cone"]},
+	{"id": "melee_25", "name": "Blade Dancer", "stat": "melee_kills", "goal": 25, "what": "Get 25 kills with a melee weapon", "rewards": ["back:sword", "back:shield"]},
+	{"id": "double_10", "name": "Double Trouble", "stat": "doubles", "goal": 10, "what": "Get 10 double kills (two within 4 seconds)", "rewards": ["hat:jester"]},
+	{"id": "triple_3", "name": "Hat Trick", "stat": "triples", "goal": 3, "what": "Get 3 triple kills", "rewards": ["part:imp", "hat:devil_horns", "tail:devil_tail"]},
+	{"id": "trick_10", "name": "Show-off", "stat": "trickshots", "goal": 10, "what": "Get 10 trickshots (two tricks or more in one kill)", "rewards": ["face:heart_shades"]},
+	{"id": "trick_50", "name": "Trickshot Artist", "stat": "trickshots", "goal": 50, "what": "Get 50 trickshots", "rewards": ["hat:unicorn", "back:butterfly_wings"]},
+	{"id": "clutch_10", "name": "By a Thread", "stat": "clutches", "goal": 10, "what": "Get 10 kills with 25 health or less", "rewards": ["neck:medal"]},
+	{"id": "win_1", "name": "Winner", "stat": "wins", "goal": 1, "what": "Win a match", "rewards": ["neck:gold_chain"]},
+	{"id": "win_10", "name": "Champion", "stat": "wins", "goal": 10, "what": "Win 10 matches", "rewards": ["waist:champion_belt"]},
+	{"id": "win_50", "name": "Dynasty", "stat": "wins", "goal": 50, "what": "Win 50 matches", "rewards": ["neck:ruff", "shoulder:epaulettes"]},
+	{"id": "matches_10", "name": "Regular", "stat": "matches", "goal": 10, "what": "Play 10 matches to the end", "rewards": ["hat:headphones", "shoulder:boombox"]},
+	{"id": "deaths_50", "name": "Bag of Bones", "stat": "deaths", "goal": 50, "what": "Die 50 times", "rewards": ["part:skeleton"]},
+	{"id": "deaths_200", "name": "Back for More", "stat": "deaths", "goal": 200, "what": "Die 200 times", "rewards": ["part:zombie"]},
+	{"id": "race_1", "name": "Finisher", "stat": "races", "goal": 1, "what": "Finish a race", "rewards": ["face:goggles"]},
+	{"id": "race_10", "name": "Speedrunner", "stat": "races", "goal": 10, "what": "Finish 10 races", "rewards": ["back:surfboard"]},
+	{"id": "race_win_3", "name": "First Past the Post", "stat": "race_wins", "goal": 3, "what": "Win 3 races against other racers", "rewards": ["tail:power_cord"]},
+	{"id": "race_clean_3", "name": "Clean Run", "stat": "clean_races", "goal": 3, "what": "Finish 3 races without going back to a checkpoint", "rewards": ["hat:mohawk"]},
+	{"id": "race_tour", "name": "Grand Tour", "stat": "courses", "goal": 4, "what": "Finish 4 different race courses", "rewards": ["part:yeti"]},
+]
+
+## --unlock-all: nothing is locked (testing, or just dressing up).
+var unlock_all := false
+
+var _stats := {}        # stat -> int
+var _done := {}         # achievement id -> true: the ones already announced
+var _owned := {}        # item key -> true: yours whatever the counts say (worn by a character you saved)
+var _courses := {}      # race course id -> true: the ones you have finished
+var _base := {}         # stat -> its count when the file was last read or written (see save)
+var _by_reward := {}    # item key -> its achievement
+var _file := FILE       # "" keeps nothing (tests)
+var _dirty := false
+var _since_save := 0.0
+var _toasts: Array = []        # achievements waiting to be shown
+var _toast: Control
+var _toast_left := 0.0
+var _layer: CanvasLayer
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS   # the toast shows over a paused game too
+	for a in LIST:
+		for key in a.rewards:
+			_by_reward[key] = a
+	unlock_all = DevArgs.unlock_all
+	_load()
+	Match.kill_scored.connect(_on_kill)
+	Match.player_died.connect(_on_died)
+	Match.match_over.connect(_on_match_over)
+	Race.gate_passed.connect(_on_gate)
+
+
+# ---------------------------------------------------------------------------
+# Counts
+
+func stat(name: String) -> int:
+	return int(_stats.get(name, 0))
+
+
+## Count `n` more of something, and announce any achievement that completes.
+func add(name: String, n: int = 1) -> void:
+	if n <= 0:
+		return
+	_stats[name] = stat(name) + n
+	_dirty = true
+	for a in LIST:
+		if a.stat == name and not _done.has(a.id) and stat(name) >= int(a.goal):
+			_done[a.id] = true
+			print("[achievements] %s" % a.name)
+			_toasts.append(a)
+			unlocked.emit(a.id)
+	progressed.emit()
+
+
+func by_id(id: String) -> Dictionary:
+	for a in LIST:
+		if a.id == id:
+			return a
+	return {}
+
+
+func done(id: String) -> bool:
+	var a := by_id(id)
+	return not a.is_empty() and stat(a.stat) >= int(a.goal)
+
+
+func done_count() -> int:
+	return LIST.filter(func(a): return stat(a.stat) >= int(a.goal)).size()
+
+
+## "37 / 200" (never past the goal).
+func progress_text(a: Dictionary) -> String:
+	return "%d / %d" % [mini(stat(a.stat), int(a.goal)), int(a.goal)]
+
+
+# ---------------------------------------------------------------------------
+# Items
+
+## Whether an item still has to be earned.
+func locked(key: String) -> bool:
+	if unlock_all or _owned.has(key) or not _by_reward.has(key):
+		return false
+	var a: Dictionary = _by_reward[key]
+	return stat(a.stat) < int(a.goal)
+
+
+## The achievement that unlocks an item ({} if it is free).
+func achievement_for(key: String) -> Dictionary:
+	return _by_reward.get(key, {})
+
+
+## What a locked item needs, with how far along you are: "Warlord: Get 500 kills (37 / 500)".
+func requirement(key: String) -> String:
+	var a := achievement_for(key)
+	return "" if a.is_empty() else "%s: %s (%s)" % [a.name, a.what, progress_text(a)]
+
+
+## Every item a character uses (see the keys above), each once.
+static func keys_of(c: CustomCharacter) -> Array:
+	var out := []
+	for part in [c.head, c.torso, c.legs]:
+		if not ("part:" + part) in out:
+			out.append("part:" + part)
+	for slot in CustomCharacter.SLOTS:
+		if c.accessories.get(slot, "") != "":
+			out.append("%s:%s" % [slot, c.accessories[slot]])
+	for paint in [c.paint, c.paint2, c.paint3] + CustomCharacter.SLOTS.map(func(s): return c.color_of(s)):
+		if paint != "" and not ("paint:" + paint) in out:
+			out.append("paint:" + paint)
+	return out
+
+
+## The locked items a character uses: it can be looked at, but not saved.
+func locked_in(c: CustomCharacter) -> Array:
+	return keys_of(c).filter(locked)
+
+
+## An item's name as the creator shows it: "Crown", "Ninja", "Gold paint".
+static func item_name(key: String) -> String:
+	var kind := key.get_slice(":", 0)
+	var id := key.get_slice(":", 1)
+	match kind:
+		"part": return Characters.part_name(id)
+		"paint": return "%s paint" % CustomCharacter.paint_name(id)
+	return CustomCharacter.accessory_name(kind, id)
+
+
+## How many items are locked behind achievements, and how many of those you have.
+func item_counts() -> Array:
+	var have := 0
+	for key in _by_reward:
+		if not locked(key):
+			have += 1
+	return [have, _by_reward.size()]
+
+
+# ---------------------------------------------------------------------------
+# What the game tells us
+
+func _mine(id: int) -> bool:
+	return id != 0 and id == Net.my_id() and Net.players.has(id) and not Net.is_bot(id)
+
+
+func _on_kill(info: Dictionary) -> void:
+	if not _mine(int(info.killer)) or int(info.victim) == int(info.killer):
+		return
+	var tags := int(info.tags)
+	add("kills")
+	for pair in [[KillScore.T_HEADSHOT, "headshots"], [KillScore.T_LONG, "long_shots"], [KillScore.T_MID_AIR, "air_kills"],
+			[KillScore.T_ROPE, "rope_kills"], [KillScore.T_WALL, "wall_kills"], [KillScore.T_GLIDE, "glide_kills"],
+			[KillScore.T_AIR_SHOT, "air_shots"], [KillScore.T_KICK | KillScore.T_FLYING_KICK, "kicks"],
+			[KillScore.T_FLYING_KICK, "flying_kicks"], [KillScore.T_SMASHED, "smashes"], [KillScore.T_MELEE, "melee_kills"],
+			[KillScore.T_CLUTCH, "clutches"], [KillScore.T_FAST, "fast_kills"], [KillScore.T_FLICK, "flicks"]]:
+		if tags & int(pair[0]):
+			add(pair[1])
+	if int(info.streak) == 1:   # (the second kill of a run: counted once per run)
+		add("doubles")
+	if int(info.streak) == 2:
+		add("triples")
+	if KillScore.trick_count(tags) >= 2:
+		add("trickshots")
+
+
+func _on_died(victim: int, _killer: int) -> void:
+	if _mine(victim) and not Race.active:
+		add("deaths")
+
+
+## A match that ran to its end, with someone to play against. A win: top of the
+## table, or on the team that won.
+func _on_match_over(results: Array) -> void:
+	var me := Net.my_id()
+	for i in results.size():
+		var row: Dictionary = results[i]
+		if int(row.get("id", 0)) != me or not _mine(me) or results.size() < 2:
+			continue
+		add("matches")
+		if not row.get("race", false):   # (a race's win is counted as you cross the line)
+			if row.has("team_won"):
+				if row.team_won:
+					add("wins")
+			elif i == 0:
+				add("wins")
+	save()
+
+
+func _on_gate(id: int, _number: int, _time: float, finished: bool) -> void:
+	if not finished or not _mine(id):
+		return
+	add("races")
+	if Race.resets(id) == 0:
+		add("clean_races")
+	if Race.progress.size() >= 2 and Race.place(id) == 1:
+		add("race_wins")
+	var course := str(Net.match_settings.get("map", ""))
+	if course != "" and not _courses.has(course):
+		_courses[course] = true
+		add("courses")
+	save()
+
+
+# ---------------------------------------------------------------------------
+# The file
+
+func _load() -> void:
+	_stats.clear()
+	_done.clear()
+	_owned.clear()
+	_courses.clear()
+	_read()
+	_base = _stats.duplicate()
+	for a in LIST:   # nothing already earned is announced again
+		if stat(a.stat) >= int(a.goal):
+			_done[a.id] = true
+	keep_saved()
+
+
+## Add what the file holds to what is in memory (items and courses: both lots).
+func _read() -> void:
+	var cfg := ConfigFile.new()
+	if _file == "" or cfg.load(_file) != OK:
+		return
+	for name in cfg.get_section_keys("stats") if cfg.has_section("stats") else PackedStringArray():
+		_stats[name] = stat(name) + maxi(int(cfg.get_value("stats", name, 0)), 0)
+	for key in cfg.get_value("items", "owned", []):
+		_owned[str(key)] = true
+	for course in cfg.get_value("races", "courses", []):
+		_courses[str(course)] = true
+
+
+## Whatever your saved characters (and the one you play as) wear is yours to keep:
+## a lock never takes away something you already made.
+func keep_saved() -> void:
+	var ids: Array = Settings.custom_characters.duplicate()
+	if Characters.is_custom(Settings.character):
+		ids.append(Settings.character)
+	for id in ids:
+		for key in keys_of(CustomCharacter.parse(id)):
+			if _by_reward.has(key) and not _owned.has(key):
+				_owned[key] = true
+				_dirty = true
+
+
+## Write the counts. Two copies of the game on one PC (a host and a client, say) share
+## the file, so this adds what this copy counted since it last looked to what the
+## file holds now, instead of writing over it.
+func save() -> void:
+	_dirty = false
+	_since_save = 0.0
+	if _file == "":
+		return
+	var counted := {}
+	for name in _stats:
+		counted[name] = stat(name) - int(_base.get(name, 0))
+	_stats = counted
+	_read()
+	_stats["courses"] = _courses.size()
+	_base = _stats.duplicate()
+	var cfg := ConfigFile.new()
+	for name in _stats:
+		cfg.set_value("stats", name, _stats[name])
+	cfg.set_value("items", "owned", _owned.keys())
+	cfg.set_value("races", "courses", _courses.keys())
+	cfg.save(_file)
+
+
+## Tests: start from nothing and keep nothing on disk.
+func reset_for_test() -> void:
+	_file = ""
+	unlock_all = false
+	_stats.clear()
+	_done.clear()
+	_owned.clear()
+	_courses.clear()
+	_base.clear()
+	_toasts.clear()
+	_dirty = false
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
+		if _dirty:
+			save()
+
+
+func _process(delta: float) -> void:
+	_since_save += delta
+	if _dirty and _since_save >= SAVE_EVERY:
+		save()
+	if _toast_left > 0.0:
+		_toast_left -= delta
+		if _toast and is_instance_valid(_toast):
+			_toast.modulate.a = clampf(minf(_toast_left, TOAST_TIME - _toast_left) * 4.0, 0.0, 1.0)
+		if _toast_left <= 0.0 and _toast and is_instance_valid(_toast):
+			_toast.queue_free()
+			_toast = null
+	elif not _toasts.is_empty():
+		_show_toast(_toasts.pop_front())
+
+
+# ---------------------------------------------------------------------------
+# The toast: a card at the top of the screen when an achievement completes
+
+func _show_toast(a: Dictionary) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	if _layer == null:
+		_layer = CanvasLayer.new()
+		_layer.layer = 90
+		add_child(_layer)
+	var card := PanelContainer.new()
+	card.theme = UiKit.make_theme()
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box := UiKit.cut_box(Color(0.05, 0.07, 0.10, 0.94), 10, 22, 12)
+	box.border_width_left = 4
+	box.border_color = UiKit.ACCENT
+	card.add_theme_stylebox_override("panel", box)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(col)
+	var kicker := UiKit.label(col, "ACHIEVEMENT", false, 12)
+	kicker.add_theme_font_override("font", HudStyle.font_spaced(3))
+	kicker.add_theme_color_override("font_color", UiKit.CYAN)
+	var name_label := UiKit.label(col, str(a.name).to_upper(), false, 24)
+	name_label.add_theme_font_override("font", HudStyle.font(true))
+	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	var reward := UiKit.label(col, "Unlocked: %s" % ", ".join(a.rewards.map(item_name)), true, 15)
+	reward.autowrap_mode = TextServer.AUTOWRAP_OFF
+	for l in [kicker, name_label, reward]:
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_layer.add_child(card)
+	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
+	card.position.y = 96
+	card.modulate.a = 0.0
+	_toast = card
+	_toast_left = TOAST_TIME
+	if Sound.has_sound("ui_confirm"):
+		Sound.play("ui_confirm")

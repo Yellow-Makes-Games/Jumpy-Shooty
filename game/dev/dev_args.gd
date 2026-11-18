@@ -27,6 +27,7 @@ extends Node
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
+## --unlock-all        Nothing in the Character Creator is locked behind an achievement (see Achievements).
 ## --spectate          Watch instead of play: --join joins as a spectator; with --host or --bot, you spectate.
 ## --practice           Skip the menus and drop into the arena alone.
 ## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
@@ -59,7 +60,7 @@ extends Node
 ## --points=N           Host or --bot, Killcam mode: set the points to win (a lobby setting, so clients see it too).
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
-## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, creator.
+## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, creator, achievements.
 ## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
 ## --manual-respawn     Wait for a Jump or Fire press to respawn, as in a real game, even in a
@@ -89,6 +90,7 @@ var port := 0
 var autostart := 0
 var practice := false
 var spectate := false
+var unlock_all := false
 var character := ""
 var switch_character := false
 var weapon := ""
@@ -174,6 +176,7 @@ func _ready() -> void:
 			"--autostart": autostart = int(value)
 			"--practice": practice = true
 			"--spectate": spectate = true
+			"--unlock-all": unlock_all = true
 			"--character":
 				if Characters.has(value):
 					character = value
