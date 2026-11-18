@@ -83,6 +83,7 @@ func _ready() -> void:
 	multiplayer.connected_to_server.connect(_on_connected_to_server)
 	multiplayer.connection_failed.connect(_on_connection_failed)
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	_setup_version_check()
 	(func(): Match.player_died.connect(_on_player_died)).call_deferred()   # Match is the next autoload
 
 
@@ -232,6 +233,7 @@ func _close_router_port() -> void:
 
 
 func _exit_tree() -> void:
+	_drop_version_check()
 	_close_router_port()
 	if _upnp_thread:
 		_upnp_thread.wait_to_finish()
@@ -280,6 +282,80 @@ func _on_connected_to_server() -> void:
 func _on_connection_failed() -> void:
 	leave()
 	join_failed.emit("Could not reach the host.")
+
+
+# ---------------------------------------------------------------------------
+# Version check. Before a copy joins, the two say which release they are, in the
+# multiplayer API's authentication step: plain bytes, not RPCs, so it works between
+# any two versions (RPCs only line up between copies of the same version). The
+# joining copy compares: a different release leaves and says which version each side
+# is on (and who should update). A build that is not a release (the editor, a local
+# export, the tests) says "" and is let through.
+
+const HELLO := "jumpy-shooty|"   ## then the version; the format must never change
+
+var _version_refusal := ""   # the joiner: why it is leaving (shown instead of "could not reach")
+
+
+func _setup_version_check() -> void:
+	var api := multiplayer as SceneMultiplayer
+	if api == null:
+		return
+	api.auth_timeout = 5.0
+	api.auth_callback = _on_auth
+	api.peer_authenticating.connect(_say_hello)
+
+
+## A link is starting: tell the other side which release this copy is.
+func _say_hello(id: int) -> void:
+	(multiplayer as SceneMultiplayer).send_auth(id, (HELLO + Game.version()).to_utf8_buffer())
+
+
+## The multiplayer API outlives this node: let go of its callbacks (else they keep this
+## script loaded at exit).
+func _drop_version_check() -> void:
+	var api := multiplayer as SceneMultiplayer
+	if api == null:
+		return
+	api.auth_callback = Callable()
+	if api.peer_authenticating.is_connected(_say_hello):
+		api.peer_authenticating.disconnect(_say_hello)
+
+
+## The other side's hello: the host lets the joiner in (the joiner decides whether
+## the versions go together); the joiner checks the host's version.
+func _on_auth(id: int, data: PackedByteArray) -> void:
+	var api := multiplayer as SceneMultiplayer
+	var text := data.get_string_from_utf8()
+	var theirs := text.trim_prefix(HELLO) if text.begins_with(HELLO) else ""
+	if is_host():
+		if DevArgs.sync_log:
+			print("VERSION_HELLO %d %s" % [id, theirs if theirs != "" else "dev"])
+		api.complete_auth(id)
+		return
+	var why := Game.version_mismatch_text(theirs, Game.version())
+	if why == "":
+		api.complete_auth(id)
+		return
+	print("[net] the host is on %s, this copy on %s: not joining" % [theirs, Game.version()])
+	if DevArgs.sync_log:
+		print("VERSION_MISMATCH %s %s" % [theirs, Game.version()])
+	_version_refusal = why
+	_leave_for_version.call_deferred()
+
+
+## This copy is a client whose link to the host is up (past the version check), so
+## messages to the host get there.
+func connected_to_host() -> bool:
+	var peer := multiplayer.multiplayer_peer
+	return peer != null and not is_host() and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED and 1 in multiplayer.get_peers()
+
+
+func _leave_for_version() -> void:
+	var why := _version_refusal
+	_version_refusal = ""
+	leave()
+	join_failed.emit(why)
 
 
 func _on_server_disconnected() -> void:
