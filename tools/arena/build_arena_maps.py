@@ -1,5 +1,5 @@
 """Builds the arena maps made from code: python3 tools/arena/build_arena_maps.py [name...]
-(rail_yard, lost_temple, neon_arcade, halcyon, cirrus; all of them when none are given). Writes
+(rail_yard, lost_temple, neon_arcade, halcyon, cirrus, empyrean; all of them when none are given). Writes
 game/maps/NAME.tscn and game/maps/palettes/NAME.tres, overwriting any hand edits."""
 import os
 import sys
@@ -30,6 +30,12 @@ except ImportError:
 try:
     import cirrus  # noqa: E402
     MAPS["cirrus"] = cirrus
+except ImportError:
+    pass
+
+try:
+    import empyrean  # noqa: E402
+    MAPS["empyrean"] = empyrean
 except ImportError:
     pass
 

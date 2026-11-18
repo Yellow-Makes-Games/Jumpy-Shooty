@@ -64,7 +64,7 @@ var _looks := false
 var _time := 0.0
 var _closing_played := false
 ## Tests: the Portals node to hand the open pairs to, instead of the arena's.
-var portals_override: Portals
+var portals_override: Node
 
 
 func length() -> float:
@@ -170,14 +170,16 @@ func gates() -> Array:
 	return _gates
 
 
-func _portals() -> Portals:
+## The arena's Portals node (found by name, not by type: like the other map nodes this
+## script must load in tests that run without the game's autoloads, which Portals uses).
+func _portals() -> Node:
 	if portals_override != null:
 		return portals_override if is_instance_valid(portals_override) else null
 	var net := autoload("Net")
 	var arena: Node = net.arena if net else null
 	if arena == null or not is_instance_valid(arena):
 		return null
-	return arena.get("portals") as Portals
+	return arena.get("portals") as Node
 
 
 func _link(on: bool) -> void:
@@ -189,7 +191,7 @@ func _link(on: bool) -> void:
 			_linked = false
 		return
 	_linked = on
-	portals.set_map_pairs(_pairs if on else [])
+	portals.call("set_map_pairs", _pairs if on else [])
 
 
 # ---------------------------------------------------------------------------
