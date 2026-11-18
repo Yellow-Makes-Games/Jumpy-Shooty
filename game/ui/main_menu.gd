@@ -271,7 +271,7 @@ func _three_columns() -> Array:
 	moves.picked.connect(func(id: String):
 		Settings.mobility = id
 		Settings.save_settings())
-	var set_mode := func(mode: String, allowed: Array = []):
+	var set_mode := func(mode: String, allowed: Array = [], allowed_mobility: Array = []):
 		var guns := LobbySettings.weapons_from(allowed if mode == "ffa" else [])
 		var uses_pick := not NO_WEAPON_NOTES.has(mode) and guns.size() > 1
 		gun.set_allowed(guns)
@@ -282,6 +282,9 @@ func _three_columns() -> Array:
 		none.visible = not uses_pick
 		note.text = NO_WEAPON_NOTES.get(mode, "One gun for everyone: the %s." % WeaponData.name_of(guns[0]))
 		moves.visible = mode != "race"   # a race always has the grapple
+		var tools := LobbySettings.mobility_from(allowed_mobility if mode != "race" else [])
+		moves.set_allowed(tools)
+		moves.select(Game.local_mobility() if Game.local_mobility() in tools else str(tools[0]))
 	return [left, set_mode]
 
 
@@ -396,6 +399,8 @@ func _show_bot() -> void:
 		game = str(Game.last_bot.rules)
 	var map_ref: Array[OptionButton] = [null]   # filled below; see _show_practice
 	var rules_ref: Array[AllowedWeaponsPicker] = [null]   # the weapons allowed; filled below
+	var moves_ref: Array[AllowedMobilityPicker] = [null]  # the mobility tools allowed; filled below
+	var head_ref: Array[Control] = [null]                 # their "Loadout rules" heading; filled below
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
 		var race := g == "race"
@@ -408,7 +413,10 @@ func _show_bot() -> void:
 		blurb.text = (RACE_BLURBS if race else BOT_BLURBS)[level[0]]
 		if rules_ref[0]:
 			rules_ref[0].visible = g == "ffa"   # a shoot-out: you pick the weapons you and the bots may use
-		set_mode.call(g, rules_ref[0].value() if rules_ref[0] else [])
+		if moves_ref[0]:
+			moves_ref[0].visible = g != "race"   # a race always has the grapple
+			head_ref[0].visible = g != "race"    # ...and no loadout rules
+		set_mode.call(g, rules_ref[0].value() if rules_ref[0] else [], moves_ref[0].value() if moves_ref[0] else [])
 	for i in seg.get_child_count():
 		(seg.get_child(i) as Button).pressed.connect(func():
 			level[0] = i
@@ -423,15 +431,22 @@ func _show_bot() -> void:
 	left.move_child(left.get_child(mode_row_start + 1), 1)
 	var map := _map_picker(left, Game.last_bot.map, GunGame.game_of_mode(mode[0]))
 	map_ref[0] = map
-	var rules := AllowedWeaponsPicker.new(Game.last_bot.get("weapons", []))
+	var rules_head := UiKit.section(left, "Loadout rules").get_parent()
+	var rules := AllowedWeaponsPicker.new(Game.last_bot.get("weapons", []), true, false)
 	rules.preferred = Game.local_weapon()
 	left.add_child(rules)
 	rules_ref[0] = rules
+	head_ref[0] = rules_head
 	rules.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
+	var allowed_moves := AllowedMobilityPicker.new(Game.last_bot.get("mobility", []), true, false)
+	left.add_child(allowed_moves)
+	moves_ref[0] = allowed_moves
+	allowed_moves.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
 	show_mode.call(mode[0])
 	_frame.back_button("Back", _show_play)
 	_start_button(func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
-			count.get_selected_id(), mode[0] if mode[0] in GunGame.RULES else "kills", GunGame.game_of_mode(mode[0]), rules.value()))
+			count.get_selected_id(), mode[0] if mode[0] in GunGame.RULES else "kills", GunGame.game_of_mode(mode[0]), rules.value(),
+			allowed_moves.value()))
 
 
 func _show_multiplayer() -> void:

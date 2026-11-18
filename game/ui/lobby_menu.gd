@@ -20,6 +20,8 @@ var _amount: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
+var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
+var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
 var _map_label: Label
 var _map_pick: OptionButton
 var _character: CharacterPicker
@@ -291,13 +293,22 @@ func _build_rules() -> void:
 # Lobby settings (see LobbySettings): the host picks; everyone else sees them. New
 # settings get their control here.
 func _build_lobby_settings() -> void:
-	_allowed = AllowedWeaponsPicker.new(Net.match_settings.get("weapons", []), Net.is_host())
+	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
+	_allowed = AllowedWeaponsPicker.new(Net.match_settings.get("weapons", []), Net.is_host(), false)
 	_col.add_child(_allowed)
 	_allowed.changed.connect(func(ids: Array):
 		if _updating:
 			return
 		var s := Net.match_settings.duplicate()
 		s["weapons"] = ids
+		Net.set_match_settings(s))
+	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
+	_col.add_child(_allowed_mobility)
+	_allowed_mobility.changed.connect(func(ids: Array):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["mobility"] = ids
 		Net.set_match_settings(s))
 
 
@@ -328,6 +339,7 @@ func _refresh_rules() -> void:
 		_weapon.visible = not race and not own_rules and not Net.is_deathmatch() and only == ""
 		_no_weapon.visible = not _weapon.visible
 		_mobility.visible = not race   # a race always has the grapple
+		_mobility.set_allowed(LobbySettings.allowed_mobility())
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
 			else ("Killcam is snipers only: every kill scores its killcam points." if killcam \
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
@@ -352,6 +364,11 @@ func _refresh_rules() -> void:
 	_powerups.set_pressed_no_signal(Net.powerups_on())
 	if _allowed:
 		_allowed.set_value(s.get("weapons", []))
+	if _allowed_mobility:
+		_allowed_mobility.visible = LobbySettings.mobility_apply()   # a race always has the grapple
+		_rules_head.visible = _allowed_mobility.visible   # a race has no loadout rules
+		_allowed_mobility.set_editable(Net.is_host())
+		_allowed_mobility.set_value(s.get("mobility", []))
 	if race:
 		_amount.min_value = 2
 		_amount.max_value = 30

@@ -13,6 +13,7 @@ extends Node
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
 ## --allowed-weapons=A,B  Host / Vs Bots: only these weapons may be picked (one id: a single gun for everyone).
+## --allowed-mobility=A,B Host / Vs Bots: only these mobility tools may be picked (one id: the same for everyone).
 ## --mobility=ID        Take this mobility tool (grapple, portal, blink) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
@@ -72,6 +73,7 @@ var switch_character := false
 var weapon := ""
 var bot_weapon := ""
 var allowed_weapons: Array = []   ## --allowed-weapons (see LobbySettings)
+var allowed_mobility: Array = []  ## --allowed-mobility (see LobbySettings)
 var mobility := ""
 var bot_mobility := ""
 var switch_weapon := false
@@ -162,6 +164,12 @@ func _ready() -> void:
 						allowed_weapons.append(w)
 					else:
 						push_warning("Unknown weapon: %s (weapons: %s)" % [w, ", ".join(WeaponData.IDS)])
+			"--allowed-mobility":
+				for m in value.split(",", false):
+					if Mobility.has(m):
+						allowed_mobility.append(m)
+					else:
+						push_warning("Unknown mobility: %s (mobility: %s)" % [m, ", ".join(Mobility.IDS)])
 			"--switch-weapon": switch_weapon = true
 			"--swap-on-death": swap_on_death = true
 			"--map":

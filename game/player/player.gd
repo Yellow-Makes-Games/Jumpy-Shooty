@@ -378,7 +378,9 @@ func _pick_on_death(event: InputEvent) -> void:
 
 ## Waiting to respawn: the mobility button goes on to the next mobility tool.
 func _next_mobility() -> void:
-	var pick := Mobility.next(Net.pending_mobility())
+	var pick := LobbySettings.next_mobility(Net.pending_mobility())   # only the tools the host allows
+	if pick == Net.pending_mobility():
+		return   # one tool for everyone
 	Settings.mobility = pick
 	Settings.save_settings()
 	Sound.play("ui_select")

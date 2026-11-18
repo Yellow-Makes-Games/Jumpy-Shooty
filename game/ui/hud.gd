@@ -27,7 +27,7 @@ const POINTS_STEP := 0.225
 const POINTS_TIME := 6.0
 const POINTS_LIST_BOTTOM := 168.0   ## the list's last line, up from the bottom: above the Clean layout's moves
 const DEATH_W := 600.0          ## the death screen's left column
-const BOARD_W := 680.0          ## the scoreboard
+const BOARD_W := 780.0          ## the scoreboard
 const DEATH_GAP := 36.0
 const DEATH_TOP := 104.0
 const RESPAWN_GRACE := 0.5      ## the death screen ignores the respawn key for this long
@@ -811,13 +811,14 @@ const MOBILITY_ROW := 58.0
 ## button, right mouse, goes on to the next).
 func _draw_mobility_swap(ci: CanvasItem, at: Vector2) -> void:
 	var mine := Net.pending_mobility()
-	var ids := Mobility.IDS
+	var ids := LobbySettings.allowed_mobility()   # only the tools the host allows
 	var gap := 6.0
 	var total := DEATH_W
 	var cell := Vector2((total - (ids.size() - 1) * gap) / ids.size(), 25.0)
 	var x := at.x - total * 0.5
 	HudStyle.label(ci, Vector2(x, at.y - 10.0), "MOBILITY", 11, Color(1, 1, 1, 0.85))
-	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), "%s TO SWITCH" % Settings.action_text("grapple").get_slice(" / ", 0).to_upper(), 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
+	var hint := "%s TO SWITCH" % Settings.action_text("grapple").get_slice(" / ", 0).to_upper() if ids.size() > 1 else "THE HOST'S RULE"
+	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), hint, 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	for i in ids.size():
 		var id: String = ids[i]
 		var r := Rect2(x + i * (cell.x + gap), at.y + 4.0, cell.x, cell.y)
@@ -1021,20 +1022,42 @@ func _refresh_scoreboard() -> void:
 	var tight := Net.players.size() > 8
 	var dim := Color(1, 1, 1, 0.6)
 	var none := Color(0, 0, 0, 0)
-	_board_row([["#", 22.0, 11, dim, false, false], ["PLAYER", 0.0, 11, dim, false, false],
-		["ROBOT  ·  WEAPON", 190.0, 11, dim, false, false], ["WEAPON #" if gun_game else ("POINTS" if killcam else "KILLS"), 90.0 if killcam else 70.0, 11, dim, false, true],
-		["DEATHS", 60.0, 11, dim, false, true]], none, false, true)
+	# Every mode shows the score (each kill's killcam points); in Killcam it is the main
+	# column, so kills come next to it instead. Online, each player's ping too.
+	var online := Net.is_online
+	var heads := [["#", 22.0, 11, dim, false, false], ["PLAYER", 0.0, 11, dim, false, false],
+		["ROBOT  ·  WEAPON", 180.0, 11, dim, false, false], ["WEAPON #" if gun_game else ("POINTS" if killcam else "KILLS"), 90.0 if killcam else 64.0, 11, dim, false, true],
+		["KILLS" if killcam else "SCORE", 64.0 if killcam else 80.0, 11, dim, false, true], ["DEATHS", 56.0, 11, dim, false, true]]
+	if online:
+		heads.append(["PING", 52.0, 11, dim, false, true])
+	_board_row(heads, none, false, true)
 	var rank := 0
 	for row in Match.build_results():
 		rank += 1
 		var mine: bool = row.id == Net.my_id()
 		var col := HudStyle.ORANGE if mine else HudStyle.WHITE
-		_board_row([[str(rank), 22.0, 15, dim, true, false],
+		var cells := [[str(rank), 22.0, 15, dim, true, false],
 			[row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 0.0, 17, col, true, false],
-			["%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), _weapon_label(row.id)], 190.0, 14, Color(col, 0.75), false, false],
+			["%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), _weapon_label(row.id)], 180.0, 14, Color(col, 0.75), false, false],
 			[("%d/%d" % [row.level + 1, GunGame.steps()]) if gun_game else (KillcamMode.format(row.points) if killcam else str(row.kills)),
-				90.0 if killcam else 70.0, 19, col, true, true],
-			[str(row.deaths), 60.0, 15, Color(col, 0.75), false, true]], Net.player_color(row.id), mine, false, tight)
+				90.0 if killcam else 64.0, 19, col, true, true],
+			[str(row.kills) if killcam else KillcamMode.format(row.points), 64.0 if killcam else 80.0, 15, Color(col, 0.85), killcam, true],
+			[str(row.deaths), 56.0, 15, Color(col, 0.75), false, true]]
+		if online:
+			cells.append(_ping_cell(row.id, col))
+		_board_row(cells, Net.player_color(row.id), mine, false, tight)
+
+
+## The scoreboard's ping for one player: ms (yellow from 100, red from 200), HOST
+## for the host, a dash while not measured yet.
+func _ping_cell(id: int, col: Color) -> Array:
+	var ms := Net.player_ping(id)
+	if id == Net.host_id():
+		return ["HOST", 52.0, 11, Color(col, 0.6), false, true]
+	if ms < 0:
+		return ["-", 52.0, 14, Color(col, 0.5), false, true]
+	var tint := Color(col, 0.8) if ms < 100 else (HudStyle.YELLOW if ms < 200 else HudStyle.RED)
+	return [str(ms), 52.0, 14, tint, false, true]
 
 
 ## The race version: place, racer, gates passed, time (or how far along), resets.
@@ -1051,19 +1074,25 @@ func _refresh_race_board() -> void:
 	UiKit.clear(_score_rows)
 	var tight := Net.players.size() > 8
 	var dim := Color(1, 1, 1, 0.6)
-	_board_row([["#", 22.0, 11, dim, false, false], ["RACER", 0.0, 11, dim, false, false], ["GATES", 80.0, 11, dim, false, true],
-		["TIME", 110.0, 11, dim, false, true], ["RESETS", 70.0, 11, dim, false, true]], Color(0, 0, 0, 0), false, true)
+	var heads := [["#", 22.0, 11, dim, false, false], ["RACER", 0.0, 11, dim, false, false], ["GATES", 80.0, 11, dim, false, true],
+		["TIME", 110.0, 11, dim, false, true], ["RESETS", 70.0, 11, dim, false, true]]
+	if Net.is_online:
+		heads.append(["PING", 52.0, 11, dim, false, true])
+	_board_row(heads, Color(0, 0, 0, 0), false, true)
 	var rank := 0
 	for row in Race.standings():
 		rank += 1
 		var mine: bool = row.id == Net.my_id()
 		var col := HudStyle.ORANGE if mine else HudStyle.WHITE
-		_board_row([[str(rank), 22.0, 15, dim, true, false],
+		var cells := [[str(rank), 22.0, 15, dim, true, false],
 			[row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 0.0, 17, col, true, false],
 			["%d / %d" % [row.cp, Race.gates], 80.0, 15, Color(col, 0.75), false, true],
 			[Race.format_time(row.time) if row.finished else "racing", 110.0, 17 if row.finished else 14,
 				HudStyle.YELLOW if row.finished else Color(col, 0.6), row.finished, true],
-			[str(row.resets), 70.0, 15, Color(col, 0.75), false, true]], Net.player_color(row.id), mine, false, tight)
+			[str(row.resets), 70.0, 15, Color(col, 0.75), false, true]]
+		if Net.is_online:
+			cells.append(_ping_cell(row.id, col))
+		_board_row(cells, Net.player_color(row.id), mine, false, tight)
 
 
 func _ping_ms() -> int:

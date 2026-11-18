@@ -9,7 +9,10 @@ extends Node
 ##  - the death screen's keys and scroll go through the allowed weapons only;
 ##  - the weapon pickers: the lobby's offers only allowed weapons (and gives way to a
 ##    note with one gun), the host's control changes the setting, the pause menu's
-##    Loadout offers only allowed weapons (none with one gun).
+##    Loadout offers only allowed weapons (none with one gun);
+##  - allowed mobility tools: the host enforces them for itself, remote players and
+##    bots; the death screen's mobility button and every mobility picker go through the
+##    allowed tools only; a race ignores the setting; the host's control changes it.
 ## Started by tests/lobby_settings_test.gd.
 
 var _fails: Array[String] = []
@@ -26,6 +29,7 @@ func run() -> void:
 	_host_control()
 	await _lobby_menu()
 	await _loadout_menu()
+	await _mobility()
 	Net.leave()
 	if _fails.is_empty():
 		print("PASS: every check passed")
@@ -204,3 +208,96 @@ func _loadout_menu() -> void:
 		menu.queue_free()
 		Net.in_match = false
 		await get_tree().process_frame
+
+
+func _mobility() -> void:
+	print("  allowed mobility")
+	_expect(LobbySettings.clean({}).get("mobility") == [], "a missing mobility setting means any tool")
+	_expect(LobbySettings.normalized_mobility(["jetpack", "nonsense", "grapple"]) == ["grapple", "jetpack"], "mobility ids are cleaned and ordered")
+	Net.start_offline("Host", "needle", "pistol", "portal")
+	var s := Net.match_settings.duplicate()
+	s["game"] = "ffa"
+	s["map"] = Maps.default_id("ffa")
+	s["mode"] = "kills"
+	s["weapons"] = []
+	s["mobility"] = ["blink", "jetpack"]
+	Net.set_match_settings(s)
+	_expect(Net.player_loadout_mobility(1) == "blink", "the host's portal gun is not allowed, so it gets the first allowed tool")
+	_expect(Net.pending_mobility() == "blink", "the pause menu would show the allowed tool")
+	Net.set_my_mobility("grapple")
+	_expect(Net.player_loadout_mobility(1) == "blink", "picking a tool that is not allowed changes nothing")
+	Net.set_my_mobility("jetpack")
+	_expect(Net.player_loadout_mobility(1) == "jetpack", "picking an allowed tool works")
+	Net.host_add_player(2, "Client", "orbit", "rifle", "grapple")
+	_expect(Net.player_loadout_mobility(2) == "blink", "a player who joins with a tool that is not allowed gets an allowed one")
+	Net._apply_mobility(2, "portal")
+	_expect(Net.player_loadout_mobility(2) == "blink", "a client asking for a tool that is not allowed is refused")
+	_expect(LobbySettings.next_mobility("blink") == "jetpack" and LobbySettings.next_mobility("jetpack") == "blink",
+		"the death screen's mobility button goes through the allowed tools only")
+	var ok := true
+	for i in 12:
+		var id := Net.add_bot(1)
+		ok = ok and Net.player_loadout_mobility(id) in ["blink", "jetpack"]
+		Net.remove_bot(id)
+	_expect(ok, "bots take a mobility tool at random from the allowed ones")
+	var forced := Net.add_bot(1, "", "grapple")
+	_expect(Net.player_loadout_mobility(forced) == "blink", "a --bot-mobility that is not allowed gives way to an allowed one")
+	Net.remove_bot(forced)
+	s = Net.match_settings.duplicate()
+	s["mobility"] = ["jetpack"]
+	Net.set_match_settings(s)
+	_expect(Net.player_loadout_mobility(1) == "jetpack" and Net.player_loadout_mobility(2) == "jetpack" and LobbySettings.only_mobility() == "jetpack",
+		"one tool: everyone is given it")
+	_expect(LobbySettings.next_mobility("jetpack") == "jetpack", "one tool: the mobility button changes nothing")
+	s = Net.match_settings.duplicate()
+	s["mobility"] = ["blink"]
+	s["game"] = "dm"
+	s["map"] = Maps.default_id("dm")
+	Net.set_match_settings(s)
+	_expect(LobbySettings.mobility_apply() and LobbySettings.only_mobility() == "blink", "a Deathmatch keeps to the allowed tools too")
+	s["game"] = "race"
+	s["map"] = Maps.default_id("race")
+	Net.set_match_settings(s)
+	_expect(not LobbySettings.mobility_apply() and LobbySettings.allowed_mobility() == Mobility.IDS, "a race ignores the setting (always the grapple)")
+	s["game"] = "ffa"
+	s["map"] = Maps.default_id("ffa")
+	s["mobility"] = ["grapple", "blink"]
+	Net.set_match_settings(s)
+	var picker := MobilityPicker.new("portal", LobbySettings.allowed_mobility())
+	_expect(picker.allowed() == ["grapple", "blink"] and picker._buttons["portal"].disabled and not picker._buttons["blink"].disabled,
+		"the mobility picker greys out tools that are not allowed")
+	picker.free()
+	var c := AllowedMobilityPicker.new(["grapple", "blink"])
+	var got := []
+	c.changed.connect(func(ids: Array): got.append(ids))
+	c._on_chip("blink")
+	_expect(c.value() == ["grapple"], "the host's control: unticking a tool")
+	c._on_chip("grapple")
+	_expect(c.value() == ["grapple"], "the host's control: the last tool cannot be unticked")
+	for m in ["portal", "blink", "jetpack"]:
+		c._on_chip(m)
+	_expect(c.value() == [] and got.size() == 4, "the host's control: ticking every tool is any tool (%d changes)" % got.size())
+	c.free()
+	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
+	get_tree().root.add_child(lobby)
+	await get_tree().process_frame
+	var control: AllowedMobilityPicker = lobby.find_children("*", "AllowedMobilityPicker", true, false)[0]
+	var mine: MobilityPicker = lobby.find_children("*", "MobilityPicker", true, false)[0]
+	_expect(control.is_visible_in_tree() and control._edit.visible, "the host sees the Mobility allowed control in the lobby")
+	_expect(mine.allowed() == ["grapple", "blink"], "the lobby's mobility picker offers only the allowed tools")
+	control._on_chip("grapple")
+	await get_tree().process_frame
+	_expect(Net.match_settings.mobility == ["blink"] and Net.player_loadout_mobility(1) == "blink", "the host's control changes the lobby setting and everyone's tool")
+	lobby.queue_free()
+	await get_tree().process_frame
+	Net.in_match = true
+	var menu := PauseMenu.new()
+	get_tree().root.add_child(menu)
+	await get_tree().process_frame
+	menu.call("_show_loadout")
+	await get_tree().process_frame
+	var moves: MobilityPicker = menu.find_children("*", "MobilityPicker", true, false)[0]
+	_expect(moves.allowed() == ["blink"] and moves.current == "blink", "the pause menu Loadout offers only the allowed tools")
+	menu.queue_free()
+	Net.in_match = false
+	await get_tree().process_frame

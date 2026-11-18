@@ -82,7 +82,7 @@ func _show_loadout() -> void:
 	robots.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(robots)
 	robots.picked.connect(func(id: String): picked.character = id)
-	var moves := MobilityPicker.new(picked.mobility)
+	var moves := MobilityPicker.new(picked.mobility, LobbySettings.allowed_mobility())
 	moves.picked.connect(func(id: String): picked.mobility = id)
 	moves.visible = not race   # a race always has the grapple
 	robots.add_child(moves)
