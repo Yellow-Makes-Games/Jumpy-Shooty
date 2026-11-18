@@ -18,6 +18,7 @@ CHECKS=(
   "movement|--fixed-fps 60 --script tests/movement_test.gd"
   "grapple_points|--script tests/grapple_point_test.gd"
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
+  "custom_character|--script tests/custom_character_test.gd"
   "weapons|--script tests/weapon_test.gd"
   "audio|--script tests/audio_test.gd"
   "maps|--script tests/map_scene_test.gd"

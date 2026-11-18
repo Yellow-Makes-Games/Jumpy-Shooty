@@ -303,13 +303,6 @@ func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Arr
 			play_at("heavy_hit", points[i], "body", lerpf(-4.0, 0.0, power), 0.05)
 
 
-## A ground slam landed (see GroundSlam): a boom from where it struck, bigger the harder it was.
-func _on_ground_slammed(_attacker: int, _weapon_id: String, at: Vector3, power: float, _points: PackedVector3Array) -> void:
-	var boom := play_at("ground_slam", at + Vector3(0, 0.3, 0), "body", lerpf(-5.0, 2.0, power), 0.05)
-	if boom:
-		boom.pitch_scale *= lerpf(1.1, 0.9, power)
-
-
 ## Someone crashed into a wall hard enough to hurt.
 func _on_slammed(id: int, where: Vector3, speed: float) -> void:
 	var loud := clampf((speed - Match.SLAM_SPEED) / 12.0, 0.0, 1.0)

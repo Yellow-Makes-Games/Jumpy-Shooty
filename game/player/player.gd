@@ -71,9 +71,6 @@ var _swing_side := 0              # which tap this wind-up or swing is: 0 from t
 var _seen_side := 1               # the side of the last swing shown
 var _since_swing := 9.0           # seconds since the last swing shown was let go
 var _shown_power := 0.0           # how wound up the last swing shown was (its hit effects go by it)
-var _slam_cool := 0.0             # local: seconds until you can ground slam again (see GroundSlam)
-var _slamming := false            # local: in a ground slam, on the way down
-var _slam_power := 0.0            # local: how wound up that slam is, 0..1
 var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
@@ -148,7 +145,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	var gun := Net.player_weapon(id) if not racing else "none"
 	if DevArgs.sync_log:   # which gun each copy shows each player holding
 		print("GUN %s %d %d %s" % ["SELF" if local else "SEEN", Net.my_id(), id, gun])
-	robot = RobotModel.new().setup(Characters.body(character), Net.player_color(id), false, gun)
+	robot = RobotModel.new().build(character, Net.player_color(id), false, gun)
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 	sounds = PlayerSounds.new(self, local and not bot, gun)
@@ -285,8 +282,6 @@ func _process(delta: float) -> void:
 			_punch_roll = lerpf(_punch_roll, 0.0, 1.0 - exp(-delta * 12.0))
 			# A melee wind-up tips the view the way the body coils; the blow tips it back through level.
 			var coil := animator.melee_turn() if weapon and weapon.data.is_melee() and alive else 0.0
-			if coil != 0.0 or _coil_roll != 0.0:   # (spinning in mid-air, the view rocks a little with each turn)
-				coil += animator.melee_swing().air() * 0.5 * sin(animator.melee_swing().spin())
 			_coil_roll = lerpf(_coil_roll, coil * COIL_ROLL, 1.0 - exp(-delta * 16.0))
 			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
 				motor.eye_height, _roll + _punch_roll + _coil_roll)
@@ -705,8 +700,6 @@ func _watch_swings(delta: float) -> void:
 		animator.wind(held, _swing_side)
 		if view:
 			view.wind(held, _swing_side)
-		if _trail:
-			_trail.power = held   # (a mid-air wind-up already leaves a trail)
 	if _seen_swings < 0:
 		_seen_swings = count   # just appeared: no swing to replay
 		return
@@ -1256,7 +1249,7 @@ func change_weapon(gun: String) -> void:
 	var was_visible := visual.visible
 	visual.remove_child(robot)
 	robot.queue_free()
-	robot = RobotModel.new().setup(Characters.body(character), color, false, gun)
+	robot = RobotModel.new().build(character, color, false, gun)
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 	sounds = PlayerSounds.new(self, is_local and not is_bot, gun)

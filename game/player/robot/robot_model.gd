@@ -12,6 +12,8 @@ const VIEW_HIDDEN := ["head", "upper_arm_l", "forearm_l", "hand_l", "grapple", "
 
 static var _view_meshes := {}     # body mesh -> the mesh without VIEW_HIDDEN
 static var _gun_meshes := {}      # [model file, gun] -> [the mesh with only that gun, which surface of the full mesh each surface was]
+static var _custom_meshes := {}   # custom character's parts + gun -> its mesh (see _custom_mesh)
+static var _source_meshes := {}   # model file -> its full mesh
 
 ## The gun this robot holds (an id from WeaponData). Every model file holds every
 ## gun; their surfaces' materials are named "<gun>.<kind>", and the others are left out.
@@ -33,9 +35,25 @@ static func trim_color(player_color: Color) -> Color:
 	return Color.from_hsv(player_color.h, minf(player_color.s * 1.35, 1.0), player_color.v)
 
 
+## Any character (a robot's id, or a custom one's; see Characters): its model,
+## put together from its parts if it is a custom character. arms: the first-person
+## arms model instead of the full body.
+func build(character: String, player_color: Color, viewmodel: bool = false, gun: String = "pistol", arms: bool = false) -> RobotModel:
+	var custom: CustomCharacter = CustomCharacter.parse(character) if Characters.is_custom(character) else null
+	var path := Characters.arms(character) if arms else Characters.body(character)
+	return _setup(path, player_color, viewmodel, gun, custom if not arms else null,
+		CustomCharacter.paint_color(custom.paint) if custom else Color(0, 0, 0, 0))
+
+
 ## viewmodel: draw with the first-person shader (own field of view, never clips into walls).
 ## gun: which gun it holds (an id from WeaponData).
 func setup(path: String, player_color: Color, viewmodel: bool = false, gun: String = "pistol") -> RobotModel:
+	return _setup(path, player_color, viewmodel, gun)
+
+
+## custom: a custom character to put together (its torso is `path`); paint: the
+## colour of its shell ("armor"), or alpha 0 to leave it as built.
+func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, custom: CustomCharacter = null, paint: Color = Color(0, 0, 0, 0)) -> RobotModel:
 	rig = RobotRig.open(path)
 	var node := rig.scene.instantiate()
 	add_child(node)
@@ -48,7 +66,11 @@ func setup(path: String, player_color: Color, viewmodel: bool = false, gun: Stri
 			mesh = c
 	weapon = gun if gun == "none" else WeaponData.valid(gun)   # "none": empty hands (races)
 	# A melee weapon is not in the model file: empty hands, then the blade in the fist.
-	mesh.mesh = _with_gun(path, mesh.mesh, "none" if WeaponData.melee(weapon) else weapon)
+	var shown_gun := "none" if WeaponData.melee(weapon) else weapon
+	if custom:
+		mesh.mesh = _custom_mesh(custom, mesh.skin, shown_gun)
+	else:
+		mesh.mesh = _with_gun(path, mesh.mesh, shown_gun)
 	var trim := trim_color(player_color)
 	if WeaponData.melee(weapon):
 		melee = MeleeModel.attach(self, weapon, trim, viewmodel)
@@ -58,6 +80,9 @@ func setup(path: String, player_color: Color, viewmodel: bool = false, gun: Stri
 		var base: StandardMaterial3D = mesh.mesh.surface_get_material(i)
 		var kind := material_kind(base.resource_name)
 		var color := trim if kind == "accent" else base.albedo_color
+		var painted := kind == "armor" and paint.a > 0.0
+		if painted:
+			color = paint
 		if viewmodel:
 			var sm := ShaderMaterial.new()
 			sm.shader = load(VIEW_SHADER)
@@ -68,7 +93,7 @@ func setup(path: String, player_color: Color, viewmodel: bool = false, gun: Stri
 				sm.set_shader_parameter("emission", trim * VISOR_ENERGY)
 				_glow_materials.append([sm, true])
 			mesh.set_surface_override_material(i, sm)
-		elif kind == "accent" or kind == "visor":
+		elif kind == "accent" or kind == "visor" or painted:
 			var m: StandardMaterial3D = base.duplicate()
 			if kind == "visor":
 				m.emission_enabled = true
@@ -82,6 +107,142 @@ func setup(path: String, player_color: Color, viewmodel: bool = false, gun: Stri
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mesh.extra_cull_margin = 10.0   # the shader moves it on screen; never cull it
 	return self
+
+
+## A custom character's mesh: each body region's triangles from the robot it comes
+## from (see CustomCharacter.region_of), then its accessories (see Accessories),
+## fitted to that head and chest. Every robot shares one skeleton and one list of
+## skin binds, so the parts go onto the torso robot's skeleton as they are.
+static func _custom_mesh(c: CustomCharacter, skin: Skin, gun: String) -> Mesh:
+	var picked := []
+	for slot in CustomCharacter.SLOTS:
+		picked.append(c.accessories[slot])
+	var key := "%s|%s|%s|%s|%s" % [c.legs, c.torso, c.head, ",".join(picked), gun]
+	if _custom_meshes.has(key):
+		return _custom_meshes[key]
+	var region := {}   # skin bind -> "head", "legs" or "torso"
+	var bind_of := {}  # bone name -> skin bind
+	for b in skin.get_bind_count():
+		var bone_name := String(skin.get_bind_name(b))
+		region[b] = CustomCharacter.region_of(bone_name)
+		bind_of[bone_name] = b
+	var out := ArrayMesh.new()
+	var head_shell := AABB()
+	var visor := AABB()
+	var chest := AABB()
+	var collar := 0.0
+	var seen := {"shell": false, "visor": false, "chest": false}
+	for part in ["legs", "torso", "head"]:
+		var path := Characters.DIR + c.part(part) + ".glb"
+		var source := _with_gun(path, _source_mesh(path), gun)
+		for s in source.get_surface_count():
+			var arrays := source.surface_get_arrays(s)
+			var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+			var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var per := bones.size() / verts.size()
+			var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array(range(verts.size()))
+			var mat := source.surface_get_material(s)
+			var kind := material_kind(mat.resource_name) if mat else ""
+			var kept := PackedInt32Array()
+			for t in range(0, index.size(), 3):
+				var v := index[t]
+				var best := 0
+				for k in per:
+					if weights[v * per + k] > weights[v * per + best]:
+						best = k
+				var bind := bones[v * per + best]
+				if region.get(bind, "torso") != part:
+					continue
+				kept.append_array([index[t], index[t + 1], index[t + 2]])
+				# Measure the head and chest, for fitting the accessories.
+				var bone_name := String(skin.get_bind_name(bind))
+				for corner in 3:
+					var p := verts[index[t + corner]]
+					if bone_name == "head" and p.y > 1.48 and kind in ["armor", "steel", "cloth", "mail", "visor"]:
+						head_shell = head_shell.expand(p) if seen.shell else AABB(p, Vector3.ZERO)
+						seen.shell = true
+					if bone_name == "head" and kind == "visor":
+						visor = visor.expand(p) if seen.visor else AABB(p, Vector3.ZERO)
+						seen.visor = true
+					if bone_name == "chest" and kind != "visor":
+						chest = chest.expand(p) if seen.chest else AABB(p, Vector3.ZERO)
+						seen.chest = true
+			if kept.is_empty():
+				continue
+			arrays[Mesh.ARRAY_INDEX] = kept
+			var flags := Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if per == 8 else 0
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
+			out.surface_set_material(out.get_surface_count() - 1, mat)
+	if not seen.shell:
+		head_shell = AABB(Vector3(-0.12, 1.5, -0.14), Vector3(0.24, 0.3, 0.27))
+	if not seen.chest:
+		chest = AABB(Vector3(-0.2, 1.18, -0.14), Vector3(0.4, 0.32, 0.28))
+	# How far forward the chest is just below the neck: the second measurement
+	# needs the chest's height first.
+	collar = chest.position.z
+	var collar_set := false
+	var torso_path := Characters.DIR + c.torso + ".glb"
+	var torso_src := _source_mesh(torso_path)
+	for s in torso_src.get_surface_count():
+		var mat := torso_src.surface_get_material(s)
+		if mat and "." in mat.resource_name:
+			continue
+		var arrays := torso_src.surface_get_arrays(s)
+		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var per := bones.size() / verts.size()
+		for i in verts.size():
+			if bones[i * per] == bind_of.get("chest", -1) and verts[i].y > chest.end.y - 0.07:
+				collar = verts[i].z if not collar_set else minf(collar, verts[i].z)
+				collar_set = true
+	var fit := Accessories.fit(head_shell, visor, chest, collar)
+	for piece in Accessories.build(c.accessories, fit):
+		var pts: PackedVector3Array = piece.points
+		if pts.is_empty():
+			continue
+		var normals := PackedVector3Array()
+		normals.resize(pts.size())
+		var bones := PackedInt32Array()
+		bones.resize(pts.size() * 4)
+		var weights := PackedFloat32Array()
+		weights.resize(pts.size() * 4)
+		var bind: int = bind_of.get(piece.bone, 0)
+		for t in range(0, pts.size(), 3):
+			# Godot's front faces wind clockwise: the triangles come out counter-clockwise.
+			var a := pts[t]
+			pts[t] = pts[t + 2]
+			pts[t + 2] = a
+			var n := (pts[t + 2] - pts[t]).cross(pts[t + 1] - pts[t]).normalized()
+			for k in 3:
+				normals[t + k] = n
+		for i in pts.size():
+			bones[i * 4] = bind
+			weights[i * 4] = 1.0
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = pts
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		arrays[Mesh.ARRAY_BONES] = bones
+		arrays[Mesh.ARRAY_WEIGHTS] = weights
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(out.get_surface_count() - 1, Accessories.material(piece.material))
+	if _custom_meshes.size() > 64:
+		_custom_meshes.clear()
+	_custom_meshes[key] = out
+	return out
+
+
+## A model file's full mesh (every gun), loaded once.
+static func _source_mesh(path: String) -> Mesh:
+	if not _source_meshes.has(path):
+		var node := RobotRig.open(path).scene.instantiate()
+		var skeleton: Skeleton3D = node.find_child("Skeleton3D", true, false)
+		for c in skeleton.get_children():
+			if c is MeshInstance3D:
+				_source_meshes[path] = c.mesh
+		node.free()
+	return _source_meshes[path]
 
 
 ## "rifle.accent" -> "accent"; "armor" -> "armor".

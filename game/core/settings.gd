@@ -53,6 +53,9 @@ var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
 var mobility: String = Mobility.default_id()       # the tool on the mobility button: grapple, portal gun or blink (see Mobility)
+## Characters made in the Character Creator, as ids (see CustomCharacter), newest last.
+var custom_characters: Array = []
+const MAX_CUSTOM := 12
 var last_address: String = ""   # the lobby code (or address) you last joined (filled in on the Join box next time)
 
 
@@ -83,6 +86,12 @@ func load_settings() -> void:
 	frame_rate = int(cfg.get_value("graphics", "frame_rate", frame_rate))
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
+	custom_characters.clear()
+	var saved = cfg.get_value("creator", "characters", [])
+	if saved is Array:
+		for id in saved:
+			if Characters.is_custom(str(id)) and custom_characters.size() < MAX_CUSTOM:
+				custom_characters.append(Characters.valid(str(id)))
 	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
 	mobility = Mobility.valid(str(cfg.get_value("profile", "mobility", mobility)))
 	last_address = str(cfg.get_value("network", "last_address", last_address))
@@ -107,11 +116,41 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "frame_rate", frame_rate)
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
+	cfg.set_value("creator", "characters", custom_characters)
 	cfg.set_value("profile", "weapon", weapon)
 	cfg.set_value("profile", "mobility", mobility)
 	cfg.set_value("network", "last_address", last_address)
 	_save_bindings(cfg)
 	cfg.save(SAVE_PATH)
+
+
+## Keep a custom character (replacing one with the same name). Returns its id.
+func save_custom(c: CustomCharacter) -> String:
+	var id := c.to_id()
+	var at := custom_index(c.name)
+	if at >= 0:
+		custom_characters[at] = id
+	else:
+		if custom_characters.size() >= MAX_CUSTOM:
+			custom_characters.pop_front()
+		custom_characters.append(id)
+	save_settings()
+	return id
+
+
+## Where the saved custom character with this name is, or -1.
+func custom_index(char_name: String) -> int:
+	for i in custom_characters.size():
+		if CustomCharacter.parse(custom_characters[i]).name == CustomCharacter.clean_name(char_name):
+			return i
+	return -1
+
+
+func delete_custom(id: String) -> void:
+	custom_characters.erase(Characters.valid(id))
+	if character == Characters.valid(id):
+		character = Characters.default_id()
+	save_settings()
 
 
 func apply() -> void:

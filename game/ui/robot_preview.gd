@@ -8,6 +8,7 @@ var character := ""
 var color := Color.WHITE
 var weapon := "pistol"   ## the gun in its hands
 var turn := true   ## sway left and right; false keeps it facing you
+var facing := 0.0  ## a single robot's extra turn (radians): PI shows its back
 
 var _stage: Node3D
 var _camera: Camera3D
@@ -15,6 +16,7 @@ var _robots: Array = []   # {robot: RobotModel, pose: RobotPose, phase: float}
 var _time := 0.0
 var _base_fov := 28.0
 var _lineup := false
+var _spin := 0.0   # turning toward `facing`
 
 
 func _init(preview_size: Vector2 = Vector2(150, 190), zoom: float = 1.0) -> void:
@@ -55,7 +57,7 @@ func _init(preview_size: Vector2 = Vector2(150, 190), zoom: float = 1.0) -> void
 
 func show_robot(id: String, player_color: Color, gun: String = "") -> void:
 	id = Characters.valid(id)
-	gun = weapon if gun == "" else WeaponData.valid(gun)
+	gun = weapon if gun == "" else (gun if gun == "none" else WeaponData.valid(gun))   # "none": empty hands
 	if id == character and player_color == color and gun == weapon and not _robots.is_empty() and not _lineup:
 		return
 	character = id
@@ -85,7 +87,7 @@ func show_lineup(ids: Array, colors: Array, spacing: float = 1.15) -> void:
 
 
 func _add(id: String, player_color: Color, at: Vector3, phase: float, gun: String = "pistol") -> void:
-	var robot := RobotModel.new().setup(Characters.body(id), player_color, false, gun)
+	var robot := RobotModel.new().build(id, player_color, false, gun)
 	robot.position = at
 	_stage.add_child(robot)
 	var pose := robot.rig.new_pose()
@@ -127,7 +129,8 @@ func _process(delta: float) -> void:
 			robot.rotation.y = PI + 0.15 - clampf(robot.position.x * 0.4, -0.5, 0.5)
 	if not _lineup:
 		var sway := sin(_time * 0.6) * deg_to_rad(24.0) if turn else 0.0
-		_stage.rotation.y = deg_to_rad(200.0) + sway   # 180 = facing you
+		_spin = lerp_angle(_spin, facing, minf(delta * 8.0, 1.0))
+		_stage.rotation.y = deg_to_rad(200.0) + sway + _spin   # 180 = facing you
 
 
 func _exit_tree() -> void:

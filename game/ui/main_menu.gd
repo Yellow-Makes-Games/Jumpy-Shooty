@@ -34,6 +34,7 @@ func _ready() -> void:
 		"practice": _show_practice()
 		"multiplayer": _show_multiplayer()
 		"settings": _show_settings()
+		"creator": _show_creator()
 		_: _show_main()
 
 
@@ -91,7 +92,8 @@ func _show_main() -> void:
 	_front.visible = true
 	_frame.visible = false
 	_frame.clear()
-	_robot.show_lineup(Characters.ids(), Net.PLAYER_COLORS)   # every robot, newest on the left
+	# Every robot, newest on the left, then your three newest custom characters.
+	_robot.show_lineup(Characters.ids() + Settings.custom_characters.slice(-3), Net.PLAYER_COLORS)
 	var left: VBoxContainer = _front.get_node("Column")
 	UiKit.clear(left)
 	var kicker := Label.new()
@@ -113,6 +115,7 @@ func _show_main() -> void:
 	UiKit.spacer(left, 14)
 	UiKit.primary_button(left, "Play", _show_play).grab_focus()
 	_front_button(left, "Multiplayer", _show_multiplayer)
+	_front_button(left, "Character Creator", _show_creator)
 	_front_button(left, "Settings", _show_settings)
 	_front_button(left, "Exit", Game.quit_game)
 
@@ -469,6 +472,27 @@ func _show_multiplayer() -> void:
 	UiKit.button(join, "Join lobby", _on_join)
 	_status = UiKit.label(col, "", true, 16)
 	_frame.back_button("Back", _show_main)
+
+
+# ---------------------------------------------------------------------------
+# Character Creator
+
+func _show_creator() -> void:
+	_page(1280, "Character Creator", "Mix any robot's head, torso and legs, then dress it up")
+	var start := Game.local_character()
+	if not Characters.is_custom(start) and not Settings.custom_characters.is_empty():
+		start = Settings.custom_characters[-1]
+	var creator := CharacterCreator.new(start)
+	_frame.body.add_child(creator)
+	_frame.back_button("Back", _show_main)
+	var del := _frame.back_button("Delete", creator.delete_saved)
+	del.custom_minimum_size.x = 140
+	var keep := _frame.back_button("Save", func(): creator.save())
+	keep.custom_minimum_size.x = 160
+	_frame.main_button("Save and play as this", func():
+		Settings.character = creator.save()
+		Settings.save_settings()
+		_show_main()).grab_focus()
 
 
 func _show_settings() -> void:
