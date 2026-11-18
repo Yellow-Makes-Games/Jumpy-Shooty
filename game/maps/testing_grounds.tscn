@@ -29,6 +29,7 @@ glow_enabled = true
 script = ExtResource("1_ov1cm")
 palette = ExtResource("2_i5v0i")
 grid_texture = true
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="." unique_id=1655908847]
 environment = SubResource("Environment_jnsip")

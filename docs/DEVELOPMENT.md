@@ -374,24 +374,23 @@ makes ordinary MapBlocks and is one step of undo.
 
 - **The grid.** `Grid 0.5 m` in the strip is what the tools snap to: 0.1, 0.25, 0.5, 1,
   2 or 4 m. `[` makes it finer, `]` coarser.
+- **Draw** and **Clip** are tools you turn on: press the button (or its key) again, or
+  Esc, and you are back to the editor's own select, move, rotate and scale.
 - **Draw** (`B`). In the 3D view: press on a block's face, or the ground, and drag out
   the new block's footprint; let go, move the mouse to pull it out of the face, and
   click to set it. In a top, front or side view (the View menu's 2 or 4 viewports give
   you all of them at once): drag a rectangle, and the block is as deep as the selection,
   or the last block you drew. Esc or a right click gives up. The block gets the kind
   chosen in the Map dock and goes beside whatever was selected.
-- **Move** (`M`). Drag a block, or the selection, over the ground (in a top, front or
-  side view: across the view). Hold Shift to move it straight up and down. It snaps
-  against, or flush with, the faces of blocks beside it that lie square to it, and
-  otherwise to the grid; the outline turns green when a face has caught. The editor's
-  own move arrows still work, without snapping: **Map > Snap to Neighbours** (Alt+N)
-  closes a gap of up to one grid square afterwards.
+- **Moving** is the editor's own move tool. After a move, **Map > Snap to Neighbours**
+  (Alt+N) nudges the selection, by up to one grid square, so its faces meet those of the
+  blocks beside it that lie square to it.
 - **Clip** (`K`). Point at a selected block: a yellow line shows the cut, on the grid.
   Click to cut it in two. `X` turns the cut the other way across the face. Every
   selected block the cut passes through is cut. Boxes cut any way, cylinders and tubes
   only across their height.
-- **Solid**, **Drawn**, **Breakable** buttons (Alt+S, Alt+D, Alt+B): flip those settings
-  on every selected block, in groups too.
+- **Solid**, **Drawn**, **Breakable** buttons (Alt+S, Alt+D, Alt+B): turn those settings
+  on or off on every selected block, in groups too.
 - **Map > Hollow** (Alt+H): a selected box becomes a room, a group of six walls of the
   thickness you type that fills the same outside. You can leave the top or the floor off.
 - **Map > Mirror**: across x or z, about the middle of the map or of the selection, as
@@ -399,14 +398,18 @@ makes ordinary MapBlocks and is one step of undo.
   other way.
 - **Map > Array**: copies in a line (how many, how far apart) or round a circle (4 round
   the middle of the map gives a square map its other three sides).
-- **Map > Add Stairs / Ramp / Row / Ring**, then click where it goes (Esc to stop). These
-  are **pieces**: a node with a few numbers in the inspector (a stair's Rise, Run, Width
-  and Step Height) that makes its blocks again whenever you change one. Players do not
-  step up kerbs, so stairs are drawn-only steps under an invisible ramp unless you
-  untick Smooth, and stairs and ramps warn you past 46 degrees (too steep to walk). A Row
-  or a Ring repeats its first child, a block or a whole group: edit that one and the
-  copies follow. Do not edit the blocks a piece made, they are replaced; press **Bake**
-  in its inspector to turn it into a plain group first.
+- **Map > Add Stairs or Ramp / Row / Ring**, then click where it goes (Esc to stop).
+  These are **pieces**: a node with a few numbers in the inspector that makes its blocks
+  again whenever you change one. Stairs and ramps are one piece: its **Style** is Steps
+  or Ramp, and it has Rise, Run and Width, which you can also set by dragging its three
+  handles in the 3D view (at the top, at the far end of the foot, at the side), as you
+  would a block's. Players do not step up kerbs, so steps are drawn only, under an
+  invisible ramp, unless you untick Smooth; past 46 degrees (too steep to walk) the piece
+  warns you. A Row or a Ring repeats its first child, a block or a whole group: edit that
+  one and the copies follow. A Row has a handle at its last copy for how far apart they
+  are; a Ring is as wide as its first child is far from its middle. Do not edit the
+  blocks a piece made, they are replaced; press **Bake** in its inspector to turn it into
+  a plain group first.
 - **Map > Show Invisible Blocks / Show Solid Blocks Only**: what the editor shows. The
   second hides everything you cannot bump into, to check a map's real shape.
 - **The Map dock, Kinds**: the palette as swatches, with how many blocks use each.
@@ -442,22 +445,30 @@ kind that glows or is see-through takes no pattern. The MapRoot's inspector also
 **Bounds** (leave it and you are out; drawn as a red rectangle), **Kill Height** and the
 **Swing Point** the test player hooks.
 
-**Breakable walls and floors.** A palette's **Breakable** list names the kinds that can
-be broken and how much damage a piece of each takes (a pistol shot is 25; below 50 a
-whole pane shatters at once, for glass). Blocks break only in arena matches, never races.
-Each block's **Breaking** section decides for that block:
+**Breakable walls and floors.** A block breaks only if you tick **Breakable** in its
+**Breaking** section; it is off on a new block. Blocks break only in arena matches,
+never races. Ticking it shows two more settings:
 
-- **Breakable**: *Default* follows the palette, *Yes* breaks even if the kind is not in
-  the list, *No* never breaks (a landing or a floor a route needs). Maps saved with the
-  old **Unbreakable** tick load as *No*.
-- **Break Settings** (a `BlockBreakable` resource; empty = the palette's numbers, per
-  cell). **Block Health**: the damage it takes (0 = the kind's toughness, or 100 if the
-  palette has none). **Break Mode**: *Per Cell* cuts a thin wall or floor (at most 0.6 m
-  thick, at least 7 m² of face, box-shaped) into about 2 m pieces that each have that
-  health; thicker blocks set to Yes warn in the editor and stay whole. *Whole Block* gives
-  the block (any size or shape: a crate, a pillar) one pool of health and breaks it all
-  at once; what rests on it stays where it is. Save the resource as a `.tres` to share
-  it between blocks. New break settings belong in `game/arena/block_breakable.gd`.
+- **Break Settings**: a dropdown of ready-made choices. *Per Cell* cuts a thin wall or
+  floor (at most 0.6 m thick, at least 7 m² of face, box-shaped) into about 2 m pieces
+  that break one at a time; a thicker block set this way warns in the editor and stays
+  whole. *Whole Block* gives the block (any size or shape: a crate, a pillar) one pool of
+  health and breaks it all at once; what rests on it stays where it is. Each comes plain
+  (as tough as its kind: see below), *Fragile* (25: one pistol shot) or *Tough* (300).
+  The list is `PRESETS` in `game/arena/block_breakable.gd`; add a line there to offer
+  another.
+- **Break Health**: the damage this one block takes, in place of what Break Settings
+  says. 0 leaves it to Break Settings.
+
+A palette's **Breakable** list says how tough each kind is: the damage a piece of it
+takes when its block's settings do not say (a pistol shot is 25; below 50 a whole pane
+shatters at once, for glass; a kind left out takes 100). It no longer decides what
+breaks. Maps saved when Breakable was *Default / Yes / No* still load: Yes as ticked, No
+and Default as not. Default used to mean "if the palette lists its kind", so an old map
+needs `godot --headless --path . --script tools/arena/migrate_breakable.gd -- res://game/maps/my_map.tscn`
+run on it once, which ticks every block that used to break; the maps here have had it.
+The Python map builders in `tools/arena/` still write the old form, so run it on a map
+after building it with one.
 
 Per cell, pieces near a spawn, and pieces that something else rests on, hangs from or
 passes through, never break; thin drawn-only blocks lying flat on a breakable one (a
@@ -507,7 +518,7 @@ The scripts behind this:
 | `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
-| `game/arena/map_piece.gd`, `map_stairs.gd`, `map_ramp.gd`, `map_row.gd`, `map_ring.gd` | The pieces: nodes that make their blocks from a few numbers (editor only; in the game they are plain groups) |
+| `game/arena/map_piece.gd`, `map_stairs.gd` (stairs and ramps), `map_row.gd`, `map_ring.gd` | The pieces: nodes that make their blocks from a few numbers (editor only; in the game they are plain groups) |
 | `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline, and the map tools. `plugin.gd` wires it up; `map_ops.gd` (geometry), `tool_*.gd` (what the mouse does) and `map_commands.gd` (Hollow, Mirror...) have no editor in them, so the test can run them; `map_toolbar.gd`, `map_dock.gd` and `map_dialogs.gd` are what you see |
 
 To render pictures of a map without opening the game:

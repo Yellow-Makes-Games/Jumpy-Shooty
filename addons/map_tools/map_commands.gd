@@ -7,7 +7,7 @@ extends RefCounted
 const MapOps := preload("res://addons/map_tools/map_ops.gd")
 const MapEdit := preload("res://addons/map_tools/map_edit.gd")
 
-const PIECES := ["Stairs", "Ramp", "Row", "Ring"]
+const PIECES := ["Stairs", "Row", "Ring"]
 
 
 ## Each selected box becomes a room of walls `thickness` thick.
@@ -84,7 +84,7 @@ static func array_ring(ctx: RefCounted, total: int, pivot: Vector3) -> RefCounte
 	return edit
 
 
-## Turns Solid or Drawn on or off for every selected block: off if they are all on,
+## Turns Solid, Drawn or Breakable on or off for every selected block: off if they are all on,
 ## else on.
 static func toggle(ctx: RefCounted, property: String) -> RefCounted:
 	var edit := MapEdit.new()
@@ -98,20 +98,6 @@ static func toggle(ctx: RefCounted, property: String) -> RefCounted:
 			edit.sets.append([b, property, not all_on, all_on])
 			edit.do_calls.append([b, "refresh_preview"])
 			edit.undo_calls.append([b, "refresh_preview"])
-	return edit
-
-
-## Steps Breakable (Default, Yes, No) on every selected block, from the first one's.
-static func cycle_breakable(ctx: RefCounted) -> RefCounted:
-	var edit := MapEdit.new()
-	edit.name = "Change map block Breakable"
-	var blocks: Array[MapBlock] = ctx.selected_blocks()
-	if blocks.is_empty():
-		return edit
-	var next: int = (blocks[0].breakable + 1) % 3
-	for b in blocks:
-		if b.breakable != next:
-			edit.sets.append([b, "breakable", next, b.breakable])
 	return edit
 
 
@@ -153,16 +139,13 @@ static func snap_to_neighbours(ctx: RefCounted) -> RefCounted:
 	return edit
 
 
-## A new piece of the given sort ("Stairs", "Ramp", "Row", "Ring") with its blocks
+## A new piece of the given sort ("Stairs": stairs or a ramp; "Row"; "Ring") with its blocks
 ## made, not yet in the scene.
 static func new_piece(sort: String, kind: String) -> MapPiece:
 	var piece: MapPiece
 	match sort:
 		"Stairs":
 			piece = MapStairs.new()
-			piece.kind = kind
-		"Ramp":
-			piece = MapRamp.new()
 			piece.kind = kind
 		"Row":
 			piece = MapRow.new()

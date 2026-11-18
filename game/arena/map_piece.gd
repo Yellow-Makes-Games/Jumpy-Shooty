@@ -1,8 +1,9 @@
 @tool
 class_name MapPiece
 extends Node3D
-## A piece of a map worked out from a few numbers: stairs, a ramp, a row or a ring of
-## blocks (MapStairs, MapRamp, MapRow, MapRing). Change a number in the inspector and
+## A piece of a map worked out from a few numbers: stairs or a ramp, a row or a ring of
+## blocks (MapStairs, MapRow, MapRing). Change a number in the inspector, or drag one
+## of its handles in the 3D view (addons/map_tools/piece_gizmo.gd), and
 ## its blocks are made again.
 ##
 ## The blocks it makes are ordinary MapBlock nodes saved in the scene, so in the game
@@ -62,6 +63,8 @@ func rebuild() -> void:
 		if keeper:
 			adopt(n, keeper)
 	_made()
+	if Engine.is_editor_hint():
+		update_gizmos()   # its handles sit where its numbers put them
 
 
 ## The nodes this piece is made of, not yet in the scene. Each kind of piece says.

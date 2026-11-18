@@ -126,7 +126,10 @@ class Map:
         if not drawn:
             props.append(("drawn", "false"))
         if unbreakable:
-            props.append(("breakable", "2"))   # MapBlock.Breakable.NO
+            # The old form (2 = No; nothing = by the palette). MapBlock still reads it, but
+            # Breakable is now a plain on/off: after building a map, run
+            # tools/arena/migrate_breakable.gd on it to tick the blocks that should break.
+            props.append(("breakable", "2"))
         if tint:
             props.append(("tint", color(tint)))
         if sides:

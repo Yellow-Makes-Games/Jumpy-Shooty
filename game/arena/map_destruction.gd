@@ -2,9 +2,9 @@ class_name MapDestruction
 extends Node3D
 ## Walls and floors you can shoot or smash through (arena maps only, never races).
 ##
-## Which pieces break: solid, drawn blocks whose Breakable is Yes, or Default with
-## their kind in the palette's `breakable` list (never No). Health is the block's
-## Break Settings health, else the kind's toughness. Two ways to break:
+## Which pieces break: solid, drawn blocks whose Breakable is ticked. Health is the
+## block's own Break Health, else its Break Settings' health, else its kind's toughness
+## in the palette's `breakable` list. Two ways to break:
 ##  - Per cell (the usual): only a thin wall or floor (a box, one side at most
 ##    MAX_THICKNESS, the face at least MIN_AREA square metres). Each such "panel" is
 ##    cut into cells of about CELL metres (glass and other weak kinds break as one
@@ -120,7 +120,7 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 func _can_break(piece: Dictionary, table: Dictionary) -> bool:
 	if not piece.solid or piece.get("hidden", false):
 		return false
-	if not piece.get("breakable", table.has(piece.kind)):
+	if not piece.get("breakable", false):
 		return false
 	if piece.get("break_mode", "cell") == "whole":
 		return true

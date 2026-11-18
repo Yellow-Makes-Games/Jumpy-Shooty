@@ -48,6 +48,7 @@ bounds = Rect2(-100, -100, 200, 200)
 swing_point = Vector3(0, 24, 0)
 winding_floors = true
 bots_grapple = true
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_1")
@@ -4384,7 +4385,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight1"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 0.0615, 3.6)
@@ -4575,7 +4575,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight1"]
 transform = Transform3D(0, -0.4871, 0.8734, 0, 0.8734, 0.4871, -1, 0, 0, 0.1948, 1.3007, 2.52)
@@ -4599,7 +4598,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 2.9615, 2.4)
@@ -4790,7 +4788,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight2"]
 transform = Transform3D(-1, 0, 0, 0, 0.8734, 0.4871, 0, 0.4871, -0.8734, 2.52, 4.2007, -0.1948)
@@ -4814,7 +4811,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight3"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.4, 5.8615, -3.6)
@@ -5005,7 +5001,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight3"]
 transform = Transform3D(0, 0.4871, -0.8734, 0, 0.8734, 0.4871, 1, 0, 0, -0.1948, 7.1007, -2.52)
@@ -5029,7 +5024,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight4"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6, 8.7615, -2.4)
@@ -5220,7 +5214,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight4"]
 transform = Transform3D(1, 0, 0, 0, 0.8734, 0.4871, 0, -0.4871, 0.8734, -2.52, 10.0007, 0.1948)
@@ -5244,7 +5237,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight5"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 11.6615, 3.6)
@@ -5435,7 +5427,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight5"]
 transform = Transform3D(0, -0.4871, 0.8734, 0, 0.8734, 0.4871, -1, 0, 0, 0.1948, 12.9007, 2.52)
@@ -5459,7 +5450,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight6"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 14.5615, 2.4)
@@ -5650,7 +5640,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight6"]
 transform = Transform3D(-1, 0, 0, 0, 0.8734, 0.4871, 0, 0.4871, -0.8734, 2.52, 15.8007, -0.1948)
@@ -5674,7 +5663,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight7"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.4, 17.4615, -3.6)
@@ -5865,7 +5853,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight7"]
 transform = Transform3D(0, 0.4871, -0.8734, 0, 0.8734, 0.4871, 1, 0, 0, -0.1948, 18.7007, -2.52)
@@ -5889,7 +5876,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight8"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6, 20.3615, -2.4)
@@ -6080,7 +6066,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight8"]
 transform = Transform3D(1, 0, 0, 0, 0.8734, 0.4871, 0, -0.4871, 0.8734, -2.52, 21.6007, 0.1948)
@@ -6104,7 +6089,6 @@ script = ExtResource("2_block")
 size = Vector3(2, 0.3, 5.954)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Quad/ClockTower/Stair/Flight9"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.4, 23.2615, 3.6)
@@ -6295,7 +6279,6 @@ shape = 4
 size = Vector3(2, 2.95, 5.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Quad/ClockTower/Stair/Flight9"]
 transform = Transform3D(0, -0.4871, 0.8734, 0, 0.8734, 0.4871, -1, 0, 0, 0.1948, 24.5007, 2.52)
@@ -9622,7 +9605,6 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 11.3018)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Observatory/Building/Shell/StairUp"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.9135, 0.0865, 12.3)
@@ -9995,7 +9977,6 @@ shape = 4
 size = Vector3(2.2, 5.8, 9.7)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Observatory/Building/Shell/StairUp"]
 transform = Transform3D(0, 0.5132, -0.8583, 0, 0.8583, 0.5132, 1, 0, 0, -3.9553, 2.7567, 11.12)
@@ -10363,7 +10344,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 7.9, 12.4)
 script = ExtResource("2_block")
 size = Vector3(2.0873, 2.2, 0.12)
 kind = "glass_sky"
-breakable = 2
 
 [node name="DrumLintel" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 9.5, 12.4)
@@ -10415,7 +10395,6 @@ transform = Transform3D(0.309, 0, 0.9511, 0, 1, 0, -0.9511, 0, 0.309, 11.0868, 7
 script = ExtResource("2_block")
 size = Vector3(2.0873, 2.2, 0.12)
 kind = "glass_sky"
-breakable = 2
 
 [node name="DrumLintel2" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(0.309, 0, 0.9511, 0, 1, 0, -0.9511, 0, 0.309, 11.0868, 9.5, 7.9777)
@@ -10480,7 +10459,6 @@ transform = Transform3D(-0.809, 0, 0.5878, 0, 1, 0, -0.5878, 0, -0.809, 8.7618, 
 script = ExtResource("2_block")
 size = Vector3(2.0873, 2.2, 0.12)
 kind = "glass_sky"
-breakable = 2
 
 [node name="DrumLintel3" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-0.809, 0, 0.5878, 0, 1, 0, -0.5878, 0, -0.809, 8.7618, 9.5, 0.8223)
@@ -10545,7 +10523,6 @@ transform = Transform3D(-0.809, 0, -0.5878, 0, 1, 0, 0.5878, 0, -0.809, 1.2382, 
 script = ExtResource("2_block")
 size = Vector3(2.0873, 2.2, 0.12)
 kind = "glass_sky"
-breakable = 2
 
 [node name="DrumLintel4" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-0.809, 0, -0.5878, 0, 1, 0, 0.5878, 0, -0.809, 1.2382, 9.5, 0.8223)
@@ -10610,7 +10587,6 @@ transform = Transform3D(0.309, 0, -0.9511, 0, 1, 0, 0.9511, 0, 0.309, -1.0868, 7
 script = ExtResource("2_block")
 size = Vector3(2.0873, 2.2, 0.12)
 kind = "glass_sky"
-breakable = 2
 
 [node name="DrumLintel6" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(0.309, 0, -0.9511, 0, 1, 0, 0.9511, 0, 0.309, -1.0868, 9.5, 7.9777)
@@ -14831,7 +14807,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 8.2, -1.4)
 script = ExtResource("2_block")
 size = Vector3(11.2, 3.6, 0.1)
 kind = "glass_window"
-breakable = 2
 
 [node name="Mullion" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.36, 8.2, -1.4)
@@ -15087,43 +15062,48 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.6, 3.4)
 script = ExtResource("2_block")
 size = Vector3(27.6, 1.2, 0.1)
 kind = "glass_window"
-breakable = 2
 
 [node name="LabGlass" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 1.77, 3.4)
 script = ExtResource("2_block")
 size = Vector3(3, 3.54, 0.1)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass2" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.25, 1.77, 3.4)
 script = ExtResource("2_block")
 size = Vector3(3.1, 3.54, 0.1)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass3" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.95, 1.77, 3.4)
 script = ExtResource("2_block")
 size = Vector3(3.1, 3.54, 0.1)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass4" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.95, 1.77, 3.4)
 script = ExtResource("2_block")
 size = Vector3(3.1, 3.54, 0.1)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass5" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.25, 1.77, 3.4)
 script = ExtResource("2_block")
 size = Vector3(3.1, 3.54, 0.1)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass6" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 1.77, 3.4)
 script = ExtResource("2_block")
 size = Vector3(3, 3.54, 0.1)
 kind = "glass_lab"
+breakable = true
 
 [node name="DividerPost" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 1.8, 5.8)
@@ -15148,19 +15128,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 4.6, 5.85)
 script = ExtResource("2_block")
 size = Vector3(0.1, 1.2, 4.7)
 kind = "glass_window"
-breakable = 2
 
 [node name="LabGlass7" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 1.77, 4.6)
 script = ExtResource("2_block")
 size = Vector3(0.1, 3.54, 2.16)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass8" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 1.77, 6.95)
 script = ExtResource("2_block")
 size = Vector3(0.1, 3.54, 2.06)
 kind = "glass_lab"
+breakable = true
 
 [node name="DividerWall" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 2.6, 10.8)
@@ -15191,19 +15172,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 4.6, 5.85)
 script = ExtResource("2_block")
 size = Vector3(0.1, 1.2, 4.7)
 kind = "glass_window"
-breakable = 2
 
 [node name="LabGlass9" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 1.77, 4.6)
 script = ExtResource("2_block")
 size = Vector3(0.1, 3.54, 2.16)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass10" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 1.77, 6.95)
 script = ExtResource("2_block")
 size = Vector3(0.1, 3.54, 2.06)
 kind = "glass_lab"
+breakable = true
 
 [node name="DividerWall2" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 2.6, 10.8)
@@ -15418,7 +15400,6 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 10.7187)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Labs/Building/UpperLab/StairUp"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.416, 0.085, -0.1)
@@ -15777,7 +15758,6 @@ shape = 4
 size = Vector3(2.2, 5.5, 9.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Labs/Building/UpperLab/StairUp"]
 transform = Transform3D(0, -0.5131, 0.8583, 0, 0.8583, 0.5131, -1, 0, 0, -5.7948, 2.6067, 1.08)
@@ -15900,12 +15880,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 7.15, 5.45)
 script = ExtResource("2_block")
 size = Vector3(0.1, 3.3, 2.86)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass2" type="Node3D" parent="Labs/Building/UpperLab"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 7.15, 8.55)
 script = ExtResource("2_block")
 size = Vector3(0.1, 3.3, 2.86)
 kind = "glass_lab"
+breakable = true
 
 [node name="ScreenPost4" type="Node3D" parent="Labs/Building/UpperLab"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 7.3, 3.9)
@@ -15930,12 +15912,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 7.15, 5.45)
 script = ExtResource("2_block")
 size = Vector3(0.1, 3.3, 2.86)
 kind = "glass_lab"
+breakable = true
 
 [node name="LabGlass4" type="Node3D" parent="Labs/Building/UpperLab"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 7.15, 8.55)
 script = ExtResource("2_block")
 size = Vector3(0.1, 3.3, 2.86)
 kind = "glass_lab"
+breakable = true
 
 [node name="CounterBody" type="Node3D" parent="Labs/Building/UpperLab"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 6.025, 12.75)
@@ -23258,7 +23242,6 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 13.7481)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="LectureHall/Building/Hall/AisleNorth"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.748, 0.085, -0.1)
@@ -23617,7 +23600,6 @@ shape = 4
 size = Vector3(2.2, 5.5, 12.6)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="LectureHall/Building/Hall/AisleNorth"]
 transform = Transform3D(0, 0.4001, -0.9165, 0, 0.9165, 0.4001, 1, 0, 0, -1.46, 2.5834, 1.08)
@@ -23635,7 +23617,6 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 13.7481)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="LectureHall/Building/Hall/AisleSouth"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.748, 0.085, 12.3)
@@ -23994,7 +23975,6 @@ shape = 4
 size = Vector3(2.2, 5.5, 12.6)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="LectureHall/Building/Hall/AisleSouth"]
 transform = Transform3D(0, 0.4001, -0.9165, 0, 0.9165, 0.4001, 1, 0, 0, -1.46, 2.5834, 11.12)
@@ -24062,7 +24042,6 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 6.414)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="LectureHall/Building/ProjectionBooth/BoothStair"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.6, 5.585, 1.3833)
@@ -24281,7 +24260,6 @@ shape = 4
 size = Vector3(2.2, 3.3, 5.5)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="LectureHall/Building/ProjectionBooth/BoothStair"]
 transform = Transform3D(1, 0, 0, 0, 0.8575, 0.5145, 0, -0.5145, 0.8575, -11.42, 7.007, 4.1558)
@@ -28317,7 +28295,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 2.6, 13.6)
 script = ExtResource("2_block")
 size = Vector3(7, 3.6, 0.12)
 kind = "glass_window"
-breakable = 2
 
 [node name="Mullion" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 2.6, 13.6)
@@ -28331,7 +28308,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 13.6)
 script = ExtResource("2_block")
 size = Vector3(7, 3.6, 0.12)
 kind = "glass_window"
-breakable = 2
 
 [node name="Mullion2" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 13.6)
@@ -28345,7 +28321,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 2.6, 13.6)
 script = ExtResource("2_block")
 size = Vector3(7, 3.6, 0.12)
 kind = "glass_window"
-breakable = 2
 
 [node name="Mullion3" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 2.6, 13.6)
@@ -29068,7 +29043,6 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 10.7187)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Cafeteria/Building/Balcony/StairUp"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.216, 0.085, -0.1)
@@ -29427,7 +29401,6 @@ shape = 4
 size = Vector3(2.2, 5.5, 9.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Cafeteria/Building/Balcony/StairUp"]
 transform = Transform3D(0, 0.5131, -0.8583, 0, 0.8583, 0.5131, 1, 0, 0, 5.5948, 2.6067, 1.08)
@@ -35953,7 +35926,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.175, 5)
 script = ExtResource("2_block")
 size = Vector3(10, 0.15, 6)
 kind = "glass_sky"
-breakable = 2
 
 [node name="SkylightBar" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, 18.29, 5)
@@ -36501,7 +36473,6 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 10.7187)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Library/Building/Mezzanines/StairUp"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.816, 0.085, 12.3)
@@ -36860,7 +36831,6 @@ shape = 4
 size = Vector3(2.2, 5.5, 9.2)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Side" type="Node3D" parent="Library/Building/Mezzanines/StairUp"]
 transform = Transform3D(0, 0.5131, -0.8583, 0, 0.8583, 0.5131, 1, 0, 0, 3.1948, 2.6067, 11.12)
@@ -37037,7 +37007,6 @@ script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 10.7187)
 kind = "stair"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Library/Building/Mezzanines/StairUp2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.816, 5.485, -0.1)

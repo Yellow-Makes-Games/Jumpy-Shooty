@@ -1,6 +1,6 @@
 extends SceneTree
 ## The map tools (addons/map_tools/map_ops.gd) and the parametric pieces (MapStairs,
-## MapRamp, MapRow, MapRing), without the editor:
+## MapRow, MapRing), without the editor:
 ##  - the grid steps and snaps;
 ##  - Hollow keeps a box's outside and makes six walls that do not overlap;
 ##  - Clip's two halves add up to the block, and only shapes that can be cut are;
@@ -10,7 +10,7 @@ extends SceneTree
 ##  - each piece makes the blocks its numbers say, and makes them again when they change;
 ##  - a prefab saved and placed is plain blocks with no tie to its file, and builds;
 ##  - the tools, driven by made-up mouse events through a camera: Draw (on the ground,
-##    on a block, in a top view), Clip, Move (snapping to a wall) and Place;
+##    on a block, in a top view), Clip and Place; the handles on stairs and rows;
 ##  - the commands: Hollow, Mirror, Array, the toggles, Paint, Snap, Bake.
 ## Run: godot --headless --path . --script tests/map_tools_test.gd
 
@@ -20,7 +20,7 @@ const MapView := preload("res://addons/map_tools/map_view.gd")
 const MapCommands := preload("res://addons/map_tools/map_commands.gd")
 const ToolDraw := preload("res://addons/map_tools/tool_draw.gd")
 const ToolClip := preload("res://addons/map_tools/tool_clip.gd")
-const ToolMove := preload("res://addons/map_tools/tool_move.gd")
+const PieceGizmo := preload("res://addons/map_tools/piece_gizmo.gd")
 const ToolPlace := preload("res://addons/map_tools/tool_place.gd")
 
 var failures := 0
@@ -250,7 +250,9 @@ func _check_pieces() -> void:
 	stairs.rebuild()
 	_expect(stairs.generated().size() == 6, "taller steps: fewer of them, the old ones gone")
 
-	var ramp := MapRamp.new()
+	var ramp := MapStairs.new()
+	ramp.style = MapStairs.Style.RAMP
+	ramp.filled = false
 	ramp.rise = 3.0
 	ramp.run = 4.0
 	ramp.thickness = 0.2
@@ -264,6 +266,27 @@ func _check_pieces() -> void:
 	ramp.filled = true
 	ramp.rebuild()
 	_expect((ramp.generated()[0] as MapBlock).shape == MapBlock.Shape.WEDGE, "filled: one wedge")
+	ramp.style = MapStairs.Style.STEPS
+	ramp.rebuild()
+	_expect(ramp.generated().size() == ramp.steps() + 1, "switched to Steps, the same piece is stairs")
+	var shown := {}
+	for p in ramp.get_property_list():
+		shown[p.name] = p.usage & PROPERTY_USAGE_EDITOR
+	ramp.style = MapStairs.Style.RAMP
+	ramp.rebuild()
+	var as_ramp := {}
+	for p in ramp.get_property_list():
+		as_ramp[p.name] = p.usage & PROPERTY_USAGE_EDITOR
+	_expect(shown.step_height and shown.smooth and not shown.thickness and not as_ramp.step_height and not as_ramp.smooth,
+		"the inspector shows the steps' settings only for Steps")
+
+	# The handles: Rise at the top, Run at the far end, Width at the side.
+	var handles := PieceGizmo.handles_of(ramp)
+	_expect(handles.size() == 3 and (handles[0][1] as Vector3).is_equal_approx(Vector3(0, 3, -4)) and (handles[1][1] as Vector3).is_equal_approx(Vector3(0, 0, -4))
+		and (handles[2][1] as Vector3).is_equal_approx(Vector3(ramp.width * 0.5, 0, 0)), "stairs and ramps have Rise, Run and Width handles where those end")
+	_expect(is_equal_approx(PieceGizmo.value_for(ramp, handles[0], 4.2, 0.5), 4.0) and is_equal_approx(PieceGizmo.value_for(ramp, handles[2], 1.6, 0.5), 3.0),
+		"a handle slid 4.2 m up gives a 4 m rise on a 0.5 m grid; the side handle 1.6 m out, a 3 m width")
+	_expect(is_equal_approx(PieceGizmo.value_for(ramp, handles[1], -2.0, 0.5), 0.5), "a handle never goes below one grid square")
 
 	var row := MapRow.new()
 	row.count = 5
@@ -275,6 +298,10 @@ func _check_pieces() -> void:
 	post.size = Vector3(0.4, 2, 0.4)
 	row.refresh_if_changed()
 	_expect((row.generated()[0] as MapBlock).size.is_equal_approx(Vector3(0.4, 2, 0.4)), "the copies follow a change to the first")
+	var row_handles := PieceGizmo.handles_of(row)
+	_expect(row_handles.size() == 1 and (row_handles[0][1] as Vector3).is_equal_approx(Vector3(6, 1, 0)), "a row has one handle, at its last copy")
+	var spaced: Vector3 = PieceGizmo.value_for(row, row_handles[0], 8.1, 0.5)
+	_expect(spaced.is_equal_approx(Vector3(2, 0, 0)), "slid to 8.1 m along, the 5 are 2 m apart")
 
 	var ring := MapRing.new()
 	ring.count = 4
@@ -457,29 +484,6 @@ func _check_tools() -> void:
 	_expect(not clip.input(view, _press(view, Vector3(4.1, 3, 3.8), true)), "with nothing selected a click is left to the editor")
 	first.free()
 
-	# Move: a crate dragged toward a wall that is off the grid stops against its face.
-	var crate := _block(map, Vector3(10, 0.5, 10), Vector3(1, 1, 1), "crate")
-	var wall := _block(map, Vector3(13.13, 1.5, 10), Vector3(1, 3, 8))      # its near face is at x = 12.63
-	ctx.touch()
-	var move := ToolMove.new()
-	move.ctx = ctx
-	_expect(move.input(view, _press(view, Vector3(10, 1, 10), true)) and _picked == [crate], "Move: a press on a block picks it up and selects it")
-	move.input(view, _motion(view, Vector3(12.05, 1, 10)))
-	_expect(is_equal_approx(crate.position.x, 12.13) and is_equal_approx(crate.position.z, 10.0), "dragged near a wall it snaps against the wall's face (x = %.2f)" % crate.position.x)
-	move.input(view, _motion(view, Vector3(11.2, 1, 11.3)))
-	_expect(crate.position.is_equal_approx(Vector3(11, 0.5, 11.5)), "away from the wall it snaps to the grid (%s)" % crate.position)
-	move.input(view, _motion(view, Vector3(10, 2.6, 10), true))
-	_expect(is_equal_approx(crate.position.y, 2.0) and is_equal_approx(crate.position.x, 10.0), "with Shift it only goes up and down (%s)" % crate.position)
-	move.input(view, _motion(view, Vector3(12.05, 1, 10)))
-	move.input(view, _press(view, Vector3(12.05, 1, 10), false))
-	_expect(not move.busy() and is_equal_approx(crate.position.x, 12.13), "letting go leaves it there")
-	move.input(view, _press(view, Vector3(12.13, 1, 10), true))
-	move.input(view, _motion(view, Vector3(8, 1, 6)))
-	move.input(view, _press(view, Vector3(8, 1, 6), true, MOUSE_BUTTON_RIGHT))
-	_expect(is_equal_approx(crate.position.x, 12.13) and not move.busy(), "a right click puts it back")
-	_expect(not move.input(view, _press(view, Vector3(-9, 0, 9), true)), "a press on empty ground is left to the editor (box select)")
-	wall.free()
-
 	# Place: stairs on the ground.
 	var place := ToolPlace.new()
 	place.ctx = ctx
@@ -535,8 +539,8 @@ func _check_commands() -> void:
 	pipe.solid = true
 	ctx.commit.call(MapCommands.toggle(ctx, "solid"))
 	_expect(pipe.solid and MapOps.blocks_in(room).all(func(b: MapBlock) -> bool: return b.solid), "some on, some off: all go on")
-	ctx.commit.call(MapCommands.cycle_breakable(ctx))
-	_expect(pipe.breakable == MapBlock.Breakable.YES, "Breakable steps from Default to Yes")
+	ctx.commit.call(MapCommands.toggle(ctx, "breakable"))
+	_expect(pipe.breakable == true and MapOps.blocks_in(room).all(func(b: MapBlock) -> bool: return b.breakable == true), "Breakable: all off, so all go on")
 	ctx.commit.call(MapCommands.paint(ctx, "glass"))
 	_expect(pipe.kind == "glass" and MapOps.blocks_in(room).all(func(b: MapBlock) -> bool: return b.kind == "glass"), "Paint gives every selected block the kind")
 	_expect(MapCommands.paint(ctx, "glass").is_empty(), "painting them the kind they are changes nothing")

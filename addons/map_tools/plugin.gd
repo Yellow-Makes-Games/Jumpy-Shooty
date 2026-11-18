@@ -3,8 +3,9 @@ extends EditorPlugin
 ## The map tools: everything the editor adds for building maps out of MapBlocks.
 ##
 ##  - Gizmos: click a block to select it, drag a face handle to resize it (it snaps to
-##    the grid and to neighbours' faces), the map's bounds (block_gizmo.gd, map_gizmo.gd).
-##  - A strip in the 3D toolbar, shown while a map is open (map_toolbar.gd): the Move,
+##    the grid and to neighbours' faces), the map's bounds, and handles on stairs, ramps
+##    and rows (block_gizmo.gd, map_gizmo.gd, piece_gizmo.gd).
+##  - A strip in the 3D toolbar, shown while a map is open (map_toolbar.gd): the
 ##    Draw and Clip tools, the grid size, quick toggles and the Map menu (Hollow,
 ##    Mirror, Array, Snap to Neighbours, the pieces, prefabs, view switches).
 ##  - The Map dock (map_dock.gd): the palette's kinds and the prefabs.
@@ -25,20 +26,20 @@ const MapDialogs := preload("res://addons/map_tools/map_dialogs.gd")
 const MapDock := preload("res://addons/map_tools/map_dock.gd")
 const PieceInspector := preload("res://addons/map_tools/piece_inspector.gd")
 
-## The tools. The first four have a button in the strip, in this order.
-enum Tool { SELECT, MOVE, DRAW, CLIP, PLACE }
+## The tools. Draw and Clip have a button in the strip; SELECT is none of them: the
+## editor.s own select, move, rotate and scale.
+enum Tool { SELECT, DRAW, CLIP, PLACE }
 
 ## Editor shortcuts (Editor Settings > Shortcuts > Map Tools): [name, title, key, with Alt].
 const SHORTCUTS := [
 	["grid_down", "Finer Grid", KEY_BRACKETLEFT, false],
 	["grid_up", "Coarser Grid", KEY_BRACKETRIGHT, false],
-	["tool_move", "Move Tool", KEY_M, false],
 	["tool_draw", "Draw Tool", KEY_B, false],
 	["tool_clip", "Clip Tool", KEY_K, false],
 	["clip_turn", "Clip: Next Cut Direction", KEY_X, false],
 	["solid", "Toggle Solid", KEY_S, true],
 	["drawn", "Toggle Drawn", KEY_D, true],
-	["breakable", "Step Breakable", KEY_B, true],
+	["breakable", "Toggle Breakable", KEY_B, true],
 	["hollow", "Hollow", KEY_H, true],
 	["snap", "Snap to Neighbours", KEY_N, true],
 ]
@@ -48,6 +49,7 @@ var tool := Tool.SELECT
 
 var _blocks: EditorNode3DGizmoPlugin
 var _maps: EditorNode3DGizmoPlugin
+var _pieces: EditorNode3DGizmoPlugin
 var _tools := {}           # Tool -> the tool's object (none for SELECT)
 var _held := {}            # mouse button -> a tool used its press
 var _toolbar: HBoxContainer
@@ -62,7 +64,7 @@ func _enter_tree() -> void:
 	ctx.commit = apply_edit
 	ctx.select = _select
 	ctx.grid = EditorInterface.get_editor_settings().get_project_metadata("map_tools", "grid", 0.5)
-	for t: Array in [[Tool.MOVE, "tool_move.gd"], [Tool.DRAW, "tool_draw.gd"], [Tool.CLIP, "tool_clip.gd"], [Tool.PLACE, "tool_place.gd"]]:
+	for t: Array in [[Tool.DRAW, "tool_draw.gd"], [Tool.CLIP, "tool_clip.gd"], [Tool.PLACE, "tool_place.gd"]]:
 		var made: RefCounted = load("res://addons/map_tools/" + t[1]).new()
 		made.ctx = ctx
 		_tools[t[0]] = made
@@ -73,10 +75,13 @@ func _enter_tree() -> void:
 	_maps = preload("res://addons/map_tools/map_gizmo.gd").new()
 	add_node_3d_gizmo_plugin(_blocks)
 	add_node_3d_gizmo_plugin(_maps)
+	_pieces = preload("res://addons/map_tools/piece_gizmo.gd").new()
+	_pieces.ctx = ctx
+	add_node_3d_gizmo_plugin(_pieces)
 
 	_register_shortcuts()
 	_toolbar = MapToolbar.new()
-	_toolbar.tool_chosen.connect(set_tool)
+	_toolbar.tool_chosen.connect(func(t: int) -> void: set_tool(Tool.SELECT if tool == t else t))
 	_toolbar.grid_stepped.connect(step_grid)
 	_toolbar.command.connect(run)
 	_toolbar.show_keys(_shortcut_keys())
@@ -113,6 +118,7 @@ func _exit_tree() -> void:
 	EditorInterface.get_resource_filesystem().filesystem_changed.disconnect(_dock.refresh_prefabs)
 	remove_node_3d_gizmo_plugin(_blocks)
 	remove_node_3d_gizmo_plugin(_maps)
+	remove_node_3d_gizmo_plugin(_pieces)
 	remove_inspector_plugin(_inspector)
 	remove_control_from_container(CONTAINER_SPATIAL_EDITOR_MENU, _toolbar)
 	_toolbar.queue_free()
@@ -277,7 +283,6 @@ func _key(key: InputEventKey) -> bool:
 		match s[0]:
 			"grid_down": step_grid(-1)
 			"grid_up": step_grid(1)
-			"tool_move": set_tool(Tool.SELECT if tool == Tool.MOVE else Tool.MOVE)
 			"tool_draw": set_tool(Tool.SELECT if tool == Tool.DRAW else Tool.DRAW)
 			"tool_clip": set_tool(Tool.SELECT if tool == Tool.CLIP else Tool.CLIP)
 			"clip_turn":
@@ -335,10 +340,8 @@ func run(what: String) -> void:
 		set_tool(Tool.PLACE)
 		return
 	match what:
-		"solid", "drawn":
+		"solid", "drawn", "breakable":
 			apply_edit(MapCommands.toggle(ctx, what))
-		"breakable":
-			apply_edit(MapCommands.cycle_breakable(ctx))
 		"snap":
 			apply_edit(MapCommands.snap_to_neighbours(ctx))
 		"hollow":

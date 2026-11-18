@@ -33,6 +33,7 @@ face_shade = Vector3(0.93, 0.84, 0.66)
 kill_height = -8.0
 bounds = Rect2(-50, -50, 100, 100)
 swing_point = Vector3(0, 14.3, 0)
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_1")
@@ -777,7 +778,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 0.3, 20.1246)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, -23.7)
@@ -834,7 +834,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 0.5, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side5" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 0.625, -22.5)
@@ -863,7 +862,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 0.8, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side7" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 0.775, -21.9)
@@ -892,7 +890,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 1.1, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side9" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 0.925, -21.3)
@@ -921,7 +918,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 1.4, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side11" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.075, -20.7)
@@ -950,7 +946,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 1.7, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side13" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.225, -20.1)
@@ -979,7 +974,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 2, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side15" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.375, -19.5)
@@ -1008,7 +1002,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 2.3, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side17" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.525, -18.9)
@@ -1037,7 +1030,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 2.6, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side19" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.675, -18.3)
@@ -1066,7 +1058,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 2.9, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side21" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.825, -17.7)
@@ -1095,7 +1086,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 3.2, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side23" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.975, -17.1)
@@ -1124,7 +1114,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 3.5, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side25" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.125, -16.5)
@@ -1153,7 +1142,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 3.8, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side27" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.275, -15.9)
@@ -1182,7 +1170,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 4.1, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side29" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.425, -15.3)
@@ -1211,7 +1198,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 4.4, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side31" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.575, -14.7)
@@ -1240,7 +1226,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 4.7, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side33" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.725, -14.1)
@@ -1269,7 +1254,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 5, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side35" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.875, -13.5)
@@ -1298,7 +1282,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 5.3, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side37" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.025, -12.9)
@@ -1327,7 +1310,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 5.6, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side39" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.175, -12.3)
@@ -1356,7 +1338,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 5.9, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side41" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.325, -11.7)
@@ -1385,7 +1366,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 6.2, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side43" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.475, -11.1)
@@ -1414,7 +1394,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 6.5, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side45" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.625, -10.5)
@@ -1443,7 +1422,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 6.8, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side47" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.775, -9.9)
@@ -1472,7 +1450,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 7.1, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side49" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.925, -9.3)
@@ -1501,7 +1478,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 7.4, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side51" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.075, -8.7)
@@ -1530,7 +1506,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 7.7, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side53" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.225, -8.1)
@@ -1559,7 +1534,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 8, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side55" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.375, -7.5)
@@ -1588,7 +1562,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 8.3, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side57" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.525, -6.9)
@@ -1617,7 +1590,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 8.6, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side59" type="Node3D" parent="Pyramid/GrandStairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.675, -6.3)
@@ -1692,7 +1664,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 0.3, 20.1246)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 23.7)
@@ -1749,7 +1720,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 0.5, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side5" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 0.625, 22.5)
@@ -1778,7 +1748,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 0.8, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side7" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 0.775, 21.9)
@@ -1807,7 +1776,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 1.1, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side9" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 0.925, 21.3)
@@ -1836,7 +1804,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 1.4, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side11" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.075, 20.7)
@@ -1865,7 +1832,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 1.7, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side13" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.225, 20.1)
@@ -1894,7 +1860,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 2, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side15" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.375, 19.5)
@@ -1923,7 +1888,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 2.3, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side17" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.525, 18.9)
@@ -1952,7 +1916,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 2.6, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side19" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.675, 18.3)
@@ -1981,7 +1944,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 2.9, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side21" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.825, 17.7)
@@ -2010,7 +1972,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 3.2, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side23" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 1.975, 17.1)
@@ -2039,7 +2000,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 3.5, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side25" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.125, 16.5)
@@ -2068,7 +2028,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 3.8, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side27" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.275, 15.9)
@@ -2097,7 +2056,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 4.1, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side29" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.425, 15.3)
@@ -2126,7 +2084,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 4.4, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side31" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.575, 14.7)
@@ -2155,7 +2112,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 4.7, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side33" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.725, 14.1)
@@ -2184,7 +2140,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 5, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side35" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 2.875, 13.5)
@@ -2213,7 +2168,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 5.3, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side37" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.025, 12.9)
@@ -2242,7 +2196,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 5.6, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side39" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.175, 12.3)
@@ -2271,7 +2224,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 5.9, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side41" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.325, 11.7)
@@ -2300,7 +2252,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 6.2, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side43" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.475, 11.1)
@@ -2329,7 +2280,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 6.5, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side45" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.625, 10.5)
@@ -2358,7 +2308,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 6.8, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side47" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.775, 9.9)
@@ -2387,7 +2336,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 7.1, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side49" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 3.925, 9.3)
@@ -2416,7 +2364,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 7.4, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side51" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.075, 8.7)
@@ -2445,7 +2392,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 7.7, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side53" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.225, 8.1)
@@ -2474,7 +2420,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 8, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side55" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.375, 7.5)
@@ -2503,7 +2448,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 8.3, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side57" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.525, 6.9)
@@ -2532,7 +2476,6 @@ script = ExtResource("2_block")
 size = Vector3(5, 8.6, 0.6)
 kind = "temple_light"
 drawn = false
-breakable = 2
 
 [node name="Side59" type="Node3D" parent="Pyramid/GrandStairs2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.65, 4.675, 6.3)
@@ -2913,12 +2856,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.5, 4.15, -34)
 script = ExtResource("2_block")
 size = Vector3(11, 0.3, 16)
 kind = "plank"
+breakable = true
 
 [node name="UpperEast" type="Node3D" parent="Palace"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.5, 4.15, -35.3)
 script = ExtResource("2_block")
 size = Vector3(9, 0.3, 13.4)
 kind = "plank"
+breakable = true
 
 [node name="Beam" type="Node3D" parent="Palace"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26.55, 3.8, -28.8)
@@ -2953,7 +2898,6 @@ script = ExtResource("2_block")
 size = Vector3(1.8, 0.3, 9.0824)
 kind = "stone_dark"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Palace/Stairs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.2222, 0.1194, -27.6)
@@ -3344,6 +3288,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 2, -37.5)
 script = ExtResource("2_block")
 size = Vector3(0.25, 4, 9)
 kind = "wood_wall"
+breakable = true
 
 [node name="PartitionLintel" type="Node3D" parent="Palace"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 3.3, -32.2)
@@ -3356,12 +3301,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 2, -28.7)
 script = ExtResource("2_block")
 size = Vector3(0.25, 4, 5.4)
 kind = "wood_wall"
+breakable = true
 
 [node name="Partition3" type="Node3D" parent="Palace"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -39.75, 6.15, -34)
 script = ExtResource("2_block")
 size = Vector3(4.5, 3.7, 0.25)
 kind = "wood_wall"
+breakable = true
 
 [node name="PartitionLintel2" type="Node3D" parent="Palace"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.7, 7.4, -34)
@@ -3374,6 +3321,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.45, 6.15, -34)
 script = ExtResource("2_block")
 size = Vector3(4.9, 3.7, 0.25)
 kind = "wood_wall"
+breakable = true
 
 [node name="Roof" type="Node3D" parent="Palace"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.5, 8.3, -34)
@@ -4297,6 +4245,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34, 5.85, 27)
 script = ExtResource("2_block")
 size = Vector3(7, 0.3, 7)
 kind = "plank"
+breakable = true
 
 [node name="Strut" type="Node3D" parent="Treehouses/Platforms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 2.85, 23.8)
@@ -4327,6 +4276,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34, 5.85, 40)
 script = ExtResource("2_block")
 size = Vector3(7, 0.3, 7)
 kind = "plank"
+breakable = true
 
 [node name="Strut5" type="Node3D" parent="Treehouses/Platforms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 2.85, 36.8)
@@ -4357,6 +4307,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -22, 5.85, 38)
 script = ExtResource("2_block")
 size = Vector3(7, 0.3, 7)
 kind = "plank"
+breakable = true
 
 [node name="Strut9" type="Node3D" parent="Treehouses/Platforms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.2, 2.85, 34.8)
@@ -4498,12 +4449,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -34, 5.85, 33.5)
 script = ExtResource("2_block")
 size = Vector3(2.4, 0.2, 6)
 kind = "plank"
+breakable = true
 
 [node name="BridgeBC" type="Node3D" parent="Treehouses/Bridges"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -28, 5.85, 39)
 script = ExtResource("2_block")
 size = Vector3(5, 0.2, 2.4)
 kind = "plank"
+breakable = true
 
 [node name="Rope" type="Node3D" parent="Treehouses/Bridges"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.25, 6.65, 33.5)
@@ -4538,7 +4491,6 @@ transform = Transform3D(1, 0, 0, 0, 0.8455, 0.534, 0, -0.534, 0.8455, -34, 2.873
 script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 11.2361)
 kind = "plank"
-breakable = 2
 
 [node name="RampPost" type="Node3D" parent="Treehouses"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35.05, 2.5, 21.15)
@@ -4557,7 +4509,6 @@ transform = Transform3D(1, 0, 0, 0, 0.8682, 0.4961, 0, -0.4961, 0.8682, -22, 2.8
 script = ExtResource("2_block")
 size = Vector3(2.2, 0.3, 12.0934)
 kind = "plank"
-breakable = 2
 
 [node name="StoreHut" type="Node3D" parent="Treehouses"]
 metadata/_edit_group_ = true
@@ -4567,6 +4518,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.9, 1.6, 28)
 script = ExtResource("2_block")
 size = Vector3(2.2, 3.2, 0.25)
 kind = "wood_wall"
+breakable = true
 
 [node name="WallSill" type="Node3D" parent="Treehouses/StoreHut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43, 0.6, 28)
@@ -4585,6 +4537,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.1, 1.6, 28)
 script = ExtResource("2_block")
 size = Vector3(2.2, 3.2, 0.25)
 kind = "wood_wall"
+breakable = true
 
 [node name="Wall3" type="Node3D" parent="Treehouses/StoreHut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -45.25, 1.6, 33)
@@ -4609,12 +4562,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.5, 1.6, 33)
 script = ExtResource("2_block")
 size = Vector3(3, 3.2, 0.25)
 kind = "wood_wall"
+breakable = true
 
 [node name="Wall5" type="Node3D" parent="Treehouses/StoreHut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -46, 1.6, 30.5)
 script = ExtResource("2_block")
 size = Vector3(0.25, 3.2, 5)
 kind = "wood_wall"
+breakable = true
 
 [node name="Wall6" type="Node3D" parent="Treehouses/StoreHut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 1.6, 28.9)
@@ -4639,6 +4594,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43, 3.35, 30.5)
 script = ExtResource("2_block")
 size = Vector3(7.2, 0.3, 6.2)
 kind = "thatch"
+breakable = true
 
 [node name="Pots" type="Node3D" parent="Treehouses/StoreHut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.9, 0.45, 32.1)
@@ -4814,6 +4770,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.1, 1.6, 29)
 script = ExtResource("2_block")
 size = Vector3(2.2, 3.2, 0.25)
 kind = "wood_wall"
+breakable = true
 
 [node name="WallLintel" type="Node3D" parent="Courtyard/Hut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39, 2.8, 29)
@@ -4826,12 +4783,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.9, 1.6, 29)
 script = ExtResource("2_block")
 size = Vector3(2.2, 3.2, 0.25)
 kind = "wood_wall"
+breakable = true
 
 [node name="Wall3" type="Node3D" parent="Courtyard/Hut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.8, 1.6, 34.5)
 script = ExtResource("2_block")
 size = Vector3(3.6, 3.2, 0.25)
 kind = "wood_wall"
+breakable = true
 
 [node name="WallSill" type="Node3D" parent="Courtyard/Hut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40.3, 0.6, 34.5)
@@ -4868,18 +4827,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 1.6, 33.3)
 script = ExtResource("2_block")
 size = Vector3(0.25, 3.2, 2.4)
 kind = "wood_wall"
+breakable = true
 
 [node name="Wall7" type="Node3D" parent="Courtyard/Hut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42, 1.6, 31.75)
 script = ExtResource("2_block")
 size = Vector3(0.25, 3.2, 5.5)
 kind = "wood_wall"
+breakable = true
 
 [node name="Roof" type="Node3D" parent="Courtyard/Hut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39, 3.35, 31.75)
 script = ExtResource("2_block")
 size = Vector3(7.2, 0.3, 6.7)
 kind = "thatch"
+breakable = true
 
 [node name="Table" type="Node3D" parent="Courtyard/Hut"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 0.4, 31.8)
@@ -5071,19 +5033,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 4.35, 0)
 script = ExtResource("2_block")
 size = Vector3(6.4, 0.3, 6.4)
 kind = "plank"
+breakable = true
 
 [node name="DeckHigh" type="Node3D" parent="Grounds/Scaffold"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 8.85, 0)
 script = ExtResource("2_block")
 size = Vector3(6.4, 0.3, 6.4)
 kind = "plank"
+breakable = true
 
 [node name="Ramp" type="Node3D" parent="Grounds/Scaffold"]
 transform = Transform3D(0, 0.5812, -0.8137, 0, 0.8137, 0.5812, 1, 0, 0, -28.7372, 2.1279, -2)
 script = ExtResource("2_block")
 size = Vector3(2, 0.3, 7.7421)
 kind = "plank"
-breakable = 2
 
 [node name="Rail" type="Node3D" parent="Grounds/Scaffold"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 9.5, 3.1)

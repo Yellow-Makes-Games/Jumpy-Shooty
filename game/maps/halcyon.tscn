@@ -36,6 +36,7 @@ face_shade = Vector3(0.92, 0.83, 0.64)
 kill_height = -16.0
 bounds = Rect2(-70, -70, 140, 140)
 swing_point = Vector3(0, 14.6, 0)
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_1")
@@ -70,252 +71,216 @@ transform = Transform3D(0.9962, 0, 0.0872, 0, 1, 0, -0.0872, 0, 0.9962, 0.7016, 
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass2" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.9659, 0, 0.2588, 0, 1, 0, -0.2588, 0, 0.9659, 2.0835, -0.16, 7.7757)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass3" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.9063, 0, 0.4226, 0, 1, 0, -0.4226, 0, 0.9063, 3.4021, -0.16, 7.2958)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass4" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.8192, 0, 0.5736, 0, 1, 0, -0.5736, 0, 0.8192, 4.6173, -0.16, 6.5942)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass5" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, 5.6922, -0.16, 5.6922)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass6" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.5736, 0, 0.8192, 0, 1, 0, -0.8192, 0, 0.5736, 6.5942, -0.16, 4.6173)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass7" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.4226, 0, 0.9063, 0, 1, 0, -0.9063, 0, 0.4226, 7.2958, -0.16, 3.4021)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass8" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, 0.2588, 7.7757, -0.16, 2.0835)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass9" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.0872, 0, 0.9962, 0, 1, 0, -0.9962, 0, 0.0872, 8.0194, -0.16, 0.7016)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass10" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.0872, 0, 0.9962, 0, 1, 0, -0.9962, 0, -0.0872, 8.0194, -0.16, -0.7016)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass11" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, -0.2588, 7.7757, -0.16, -2.0835)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass12" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.4226, 0, 0.9063, 0, 1, 0, -0.9063, 0, -0.4226, 7.2958, -0.16, -3.4021)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass13" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.5736, 0, 0.8192, 0, 1, 0, -0.8192, 0, -0.5736, 6.5942, -0.16, -4.6173)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass14" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, -0.7071, 5.6922, -0.16, -5.6922)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass15" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.8192, 0, 0.5736, 0, 1, 0, -0.5736, 0, -0.8192, 4.6173, -0.16, -6.5942)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass16" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.9063, 0, 0.4226, 0, 1, 0, -0.4226, 0, -0.9063, 3.4021, -0.16, -7.2958)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass17" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.9659, 0, 0.2588, 0, 1, 0, -0.2588, 0, -0.9659, 2.0835, -0.16, -7.7757)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass18" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.9962, 0, 0.0872, 0, 1, 0, -0.0872, 0, -0.9962, 0.7016, -0.16, -8.0194)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass19" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.9962, 0, -0.0872, 0, 1, 0, 0.0872, 0, -0.9962, -0.7016, -0.16, -8.0194)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass20" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.9659, 0, -0.2588, 0, 1, 0, 0.2588, 0, -0.9659, -2.0835, -0.16, -7.7757)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass21" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.9063, 0, -0.4226, 0, 1, 0, 0.4226, 0, -0.9063, -3.4021, -0.16, -7.2958)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass22" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.8192, 0, -0.5736, 0, 1, 0, 0.5736, 0, -0.8192, -4.6173, -0.16, -6.5942)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass23" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, -0.7071, -5.6922, -0.16, -5.6922)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass24" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.5736, 0, -0.8192, 0, 1, 0, 0.8192, 0, -0.5736, -6.5942, -0.16, -4.6173)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass25" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.4226, 0, -0.9063, 0, 1, 0, 0.9063, 0, -0.4226, -7.2958, -0.16, -3.4021)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass26" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, -0.2588, -7.7757, -0.16, -2.0835)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass27" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(-0.0872, 0, -0.9962, 0, 1, 0, 0.9962, 0, -0.0872, -8.0194, -0.16, -0.7016)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass28" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.0872, 0, -0.9962, 0, 1, 0, 0.9962, 0, 0.0872, -8.0194, -0.16, 0.7016)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass29" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, 0.2588, -7.7757, -0.16, 2.0835)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass30" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.4226, 0, -0.9063, 0, 1, 0, 0.9063, 0, 0.4226, -7.2958, -0.16, 3.4021)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass31" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.5736, 0, -0.8192, 0, 1, 0, 0.8192, 0, 0.5736, -6.5942, -0.16, 4.6173)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass32" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.7071, 0, -0.7071, 0, 1, 0, 0.7071, 0, 0.7071, -5.6922, -0.16, 5.6922)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass33" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.8192, 0, -0.5736, 0, 1, 0, 0.5736, 0, 0.8192, -4.6173, -0.16, 6.5942)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass34" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.9063, 0, -0.4226, 0, 1, 0, 0.4226, 0, 0.9063, -3.4021, -0.16, 7.2958)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass35" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.9659, 0, -0.2588, 0, 1, 0, 0.2588, 0, 0.9659, -2.0835, -0.16, 7.7757)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="FloorGlass36" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.9962, 0, -0.0872, 0, 1, 0, 0.0872, 0, 0.9962, -0.7016, -0.16, 8.0194)
 script = ExtResource("2_block")
 size = Vector3(1.8223, 0.3, 4.5)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Deck" type="Node3D" parent="ControlRoom/Floor"]
 transform = Transform3D(0.9962, 0, 0.0872, 0, 1, 0, -0.0872, 0, 0.9962, 1.242, -0.25, 14.1958)
@@ -962,126 +927,108 @@ transform = Transform3D(0.9848, 0.1422, 0.0997, 0, 0.5741, -0.8188, -0.1736, 0.8
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane2" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.866, 0.4094, 0.287, 0, 0.5741, -0.8188, -0.5, 0.7091, 0.4972, 6.9693, 7.7731, 12.0712)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane3" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.6428, 0.6272, 0.4398, 0, 0.5741, -0.8188, -0.766, 0.5263, 0.369, 10.6776, 7.7731, 8.9596)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane4" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.342, 0.7694, 0.5395, 0, 0.5741, -0.8188, -0.9397, 0.28, 0.1964, 13.098, 7.7731, 4.7673)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane5" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0, 0.8188, 0.5741, 0, 0.5741, -0.8188, -1, 0, 0, 13.9386, 7.7731, 0)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane6" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.342, 0.7694, 0.5395, 0, 0.5741, -0.8188, -0.9397, -0.28, -0.1964, 13.098, 7.7731, -4.7673)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane7" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.6428, 0.6272, 0.4398, 0, 0.5741, -0.8188, -0.766, -0.5263, -0.369, 10.6776, 7.7731, -8.9596)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane8" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.866, 0.4094, 0.287, 0, 0.5741, -0.8188, -0.5, -0.7091, -0.4972, 6.9693, 7.7731, -12.0712)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane9" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.9848, 0.1422, 0.0997, 0, 0.5741, -0.8188, -0.1736, -0.8063, -0.5654, 2.4204, 7.7731, -13.7269)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane10" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.9848, -0.1422, -0.0997, 0, 0.5741, -0.8188, 0.1736, -0.8063, -0.5654, -2.4204, 7.7731, -13.7269)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane11" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.866, -0.4094, -0.287, 0, 0.5741, -0.8188, 0.5, -0.7091, -0.4972, -6.9693, 7.7731, -12.0712)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane12" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.6428, -0.6272, -0.4398, 0, 0.5741, -0.8188, 0.766, -0.5263, -0.369, -10.6776, 7.7731, -8.9596)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane13" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.342, -0.7694, -0.5395, 0, 0.5741, -0.8188, 0.9397, -0.28, -0.1964, -13.098, 7.7731, -4.7673)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane14" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0, -0.8188, -0.5741, 0, 0.5741, -0.8188, 1, 0, 0, -13.9386, 7.7731, 0)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane15" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.342, -0.7694, -0.5395, 0, 0.5741, -0.8188, 0.9397, 0.28, 0.1964, -13.098, 7.7731, 4.7673)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane16" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.6428, -0.6272, -0.4398, 0, 0.5741, -0.8188, 0.766, 0.5263, 0.369, -10.6776, 7.7731, 8.9596)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane17" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.866, -0.4094, -0.287, 0, 0.5741, -0.8188, 0.5, 0.7091, 0.4972, -6.9693, 7.7731, 12.0712)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane18" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.9848, -0.1422, -0.0997, 0, 0.5741, -0.8188, 0.1736, 0.8063, 0.5654, -2.4204, 7.7731, 13.7269)
 script = ExtResource("2_block")
 size = Vector3(5.4365, 0.3, 4.2786)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Rib" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 0)
@@ -1098,126 +1045,108 @@ transform = Transform3D(0.9848, 0.1139, 0.1311, 0, 0.7547, -0.6561, -0.1736, 0.6
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane20" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.866, 0.328, 0.3774, 0, 0.7547, -0.6561, -0.5, 0.5682, 0.6536, 5.5838, 10.8468, 9.6714)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane21" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.6428, 0.5026, 0.5781, 0, 0.7547, -0.6561, -0.766, 0.4217, 0.4851, 8.5548, 10.8468, 7.1784)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane22" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.342, 0.6165, 0.7092, 0, 0.7547, -0.6561, -0.9397, 0.2244, 0.2581, 10.4941, 10.8468, 3.8195)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane23" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0, 0.6561, 0.7547, 0, 0.7547, -0.6561, -1, 0, 0, 11.1675, 10.8468, 0)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane24" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.342, 0.6165, 0.7092, 0, 0.7547, -0.6561, -0.9397, -0.2244, -0.2581, 10.4941, 10.8468, -3.8195)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane25" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.6428, 0.5026, 0.5781, 0, 0.7547, -0.6561, -0.766, -0.4217, -0.4851, 8.5548, 10.8468, -7.1784)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane26" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.866, 0.328, 0.3774, 0, 0.7547, -0.6561, -0.5, -0.5682, -0.6536, 5.5838, 10.8468, -9.6714)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane27" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.9848, 0.1139, 0.1311, 0, 0.7547, -0.6561, -0.1736, -0.6461, -0.7432, 1.9392, 10.8468, -10.9979)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane28" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.9848, -0.1139, -0.1311, 0, 0.7547, -0.6561, 0.1736, -0.6461, -0.7432, -1.9392, 10.8468, -10.9979)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane29" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.866, -0.328, -0.3774, 0, 0.7547, -0.6561, 0.5, -0.5682, -0.6536, -5.5838, 10.8468, -9.6714)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane30" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.6428, -0.5026, -0.5781, 0, 0.7547, -0.6561, 0.766, -0.4217, -0.4851, -8.5548, 10.8468, -7.1784)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane31" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.342, -0.6165, -0.7092, 0, 0.7547, -0.6561, 0.9397, -0.2244, -0.2581, -10.4941, 10.8468, -3.8195)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane32" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0, -0.6561, -0.7547, 0, 0.7547, -0.6561, 1, 0, 0, -11.1675, 10.8468, 0)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane33" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.342, -0.6165, -0.7092, 0, 0.7547, -0.6561, 0.9397, 0.2244, 0.2581, -10.4941, 10.8468, 3.8195)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane34" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.6428, -0.5026, -0.5781, 0, 0.7547, -0.6561, 0.766, 0.4217, 0.4851, -8.5548, 10.8468, 7.1784)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane35" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.866, -0.328, -0.3774, 0, 0.7547, -0.6561, 0.5, 0.5682, 0.6536, -5.5838, 10.8468, 9.6714)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane36" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.9848, -0.1139, -0.1311, 0, 0.7547, -0.6561, 0.1736, 0.6461, 0.7432, -1.9392, 10.8468, 10.9979)
 script = ExtResource("2_block")
 size = Vector3(4.5946, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Rib2" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.3752, 0)
@@ -1234,84 +1163,72 @@ transform = Transform3D(0.9659, 0.1175, 0.2306, 0, 0.891, -0.454, -0.2588, 0.438
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane38" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.7071, 0.321, 0.63, 0, 0.891, -0.454, -0.7071, 0.321, 0.63, 5.4645, 13.1669, 5.4645)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane39" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.2588, 0.4385, 0.8606, 0, 0.891, -0.454, -0.9659, 0.1175, 0.2306, 7.4646, 13.1669, 2.0001)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane40" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.2588, 0.4385, 0.8606, 0, 0.891, -0.454, -0.9659, -0.1175, -0.2306, 7.4646, 13.1669, -2.0001)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane41" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.7071, 0.321, 0.63, 0, 0.891, -0.454, -0.7071, -0.321, -0.63, 5.4645, 13.1669, -5.4645)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane42" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.9659, 0.1175, 0.2306, 0, 0.891, -0.454, -0.2588, -0.4385, -0.8606, 2.0001, 13.1669, -7.4646)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane43" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.9659, -0.1175, -0.2306, 0, 0.891, -0.454, 0.2588, -0.4385, -0.8606, -2.0001, 13.1669, -7.4646)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane44" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.7071, -0.321, -0.63, 0, 0.891, -0.454, 0.7071, -0.321, -0.63, -5.4645, 13.1669, -5.4645)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane45" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.2588, -0.4385, -0.8606, 0, 0.891, -0.454, 0.9659, -0.1175, -0.2306, -7.4646, 13.1669, -2.0001)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane46" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.2588, -0.4385, -0.8606, 0, 0.891, -0.454, 0.9659, 0.1175, 0.2306, -7.4646, 13.1669, 2.0001)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane47" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.7071, -0.321, -0.63, 0, 0.891, -0.454, 0.7071, 0.321, 0.63, -5.4645, 13.1669, 5.4645)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane48" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.9659, -0.1175, -0.2306, 0, 0.891, -0.454, 0.2588, 0.4385, 0.8606, -2.0001, 13.1669, 7.4646)
 script = ExtResource("2_block")
 size = Vector3(5.2394, 0.3, 4.3001)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Rib3" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.0936, 0)
@@ -1328,84 +1245,72 @@ transform = Transform3D(0.9659, 0.0626, 0.2511, 0, 0.9703, -0.2419, -0.2588, 0.2
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane50" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.7071, 0.1711, 0.6861, 0, 0.9703, -0.2419, -0.7071, 0.1711, 0.6861, 2.9177, 14.5494, 2.9177)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane51" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.2588, 0.2337, 0.9372, 0, 0.9703, -0.2419, -0.9659, 0.0626, 0.2511, 3.9856, 14.5494, 1.0679)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane52" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.2588, 0.2337, 0.9372, 0, 0.9703, -0.2419, -0.9659, -0.0626, -0.2511, 3.9856, 14.5494, -1.0679)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane53" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.7071, 0.1711, 0.6861, 0, 0.9703, -0.2419, -0.7071, -0.1711, -0.6861, 2.9177, 14.5494, -2.9177)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane54" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.9659, 0.0626, 0.2511, 0, 0.9703, -0.2419, -0.2588, -0.2337, -0.9372, 1.0679, 14.5494, -3.9856)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane55" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.9659, -0.0626, -0.2511, 0, 0.9703, -0.2419, 0.2588, -0.2337, -0.9372, -1.0679, 14.5494, -3.9856)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane56" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.7071, -0.1711, -0.6861, 0, 0.9703, -0.2419, 0.7071, -0.1711, -0.6861, -2.9177, 14.5494, -2.9177)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane57" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(-0.2588, -0.2337, -0.9372, 0, 0.9703, -0.2419, 0.9659, -0.0626, -0.2511, -3.9856, 14.5494, -1.0679)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane58" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.2588, -0.2337, -0.9372, 0, 0.9703, -0.2419, 0.9659, 0.0626, 0.2511, -3.9856, 14.5494, 1.0679)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane59" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.7071, -0.1711, -0.6861, 0, 0.9703, -0.2419, 0.7071, 0.1711, 0.6861, -2.9177, 14.5494, 2.9177)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Pane60" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(0.9659, -0.0626, -0.2511, 0, 0.9703, -0.2419, 0.2588, 0.2337, 0.9372, -1.0679, 14.5494, 3.9856)
 script = ExtResource("2_block")
 size = Vector3(3.2434, 0.3, 3.7053)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Rib4" type="Node3D" parent="ControlRoom/Dome"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.9748, 0)
@@ -1423,7 +1328,6 @@ script = ExtResource("2_block")
 shape = 1
 size = Vector3(5.5319, 0.3, 5.5319)
 kind = "glass_hull"
-breakable = 2
 sides = 12
 
 [node name="Rib5" type="Node3D" parent="ControlRoom/Dome"]
@@ -6046,7 +5950,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, -66.5)
 script = ExtResource("2_block")
 size = Vector3(48, 22, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Mullion" type="Node3D" parent="Hangar/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 12, -66.075)
@@ -6673,6 +6576,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.25, -39)
 script = ExtResource("2_block")
 size = Vector3(16, 2.5, 0.2)
 kind = "glass_pane"
+breakable = true
 
 [node name="BoothRoof" type="Node3D" parent="Hangar/Booth"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10, -35.75)
@@ -7784,14 +7688,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 3.75, 66.5)
 script = ExtResource("2_block")
 size = Vector3(8, 3.5, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window2" type="Node3D" parent="Engineering/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 3.75, 66.5)
 script = ExtResource("2_block")
 size = Vector3(8, 3.5, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Strip" type="Node3D" parent="Engineering/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.325, -2.45, 32.025)
@@ -9898,14 +9800,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, 11.25, -10)
 script = ExtResource("2_block")
 size = Vector3(0.4, 3.5, 8)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window2" type="Node3D" parent="CargoBay/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, 11.25, 10)
 script = ExtResource("2_block")
 size = Vector3(0.4, 3.5, 8)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Strip" type="Node3D" parent="CargoBay/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -44.175, -2.45, -23.975)
@@ -11535,14 +11435,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.5, 3, -19)
 script = ExtResource("2_block")
 size = Vector3(0.4, 3, 6)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window2" type="Node3D" parent="Hydroponics/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.5, 3, 19)
 script = ExtResource("2_block")
 size = Vector3(0.4, 3, 6)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Strip" type="Node3D" parent="Hydroponics/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44.175, -2.45, -23.975)
@@ -12749,18 +12647,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.55, 1.8, -15.6)
 script = ExtResource("2_block")
 size = Vector3(2.9, 3.6, 0.2)
 kind = "glass_pane"
+breakable = true
 
 [node name="Pane2" type="Node3D" parent="Hydroponics/GrowRooms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.1, -3.25, -8)
 script = ExtResource("2_block")
 size = Vector3(0.2, 5.5, 8)
 kind = "glass_pane"
+breakable = true
 
 [node name="Pane3" type="Node3D" parent="Hydroponics/GrowRooms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.7, 1.8, -11)
 script = ExtResource("2_block")
 size = Vector3(3, 3.6, 0.2)
 kind = "glass_pane"
+breakable = true
 
 [node name="Tank" type="Node3D" parent="Hydroponics/GrowRooms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60, -4.4, -10)
@@ -12780,18 +12681,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.55, 1.8, 15.6)
 script = ExtResource("2_block")
 size = Vector3(2.9, 3.6, 0.2)
 kind = "glass_pane"
+breakable = true
 
 [node name="Pane5" type="Node3D" parent="Hydroponics/GrowRooms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.1, -3.25, 8)
 script = ExtResource("2_block")
 size = Vector3(0.2, 5.5, 8)
 kind = "glass_pane"
+breakable = true
 
 [node name="Pane6" type="Node3D" parent="Hydroponics/GrowRooms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.7, 1.8, 11)
 script = ExtResource("2_block")
 size = Vector3(3, 3.6, 0.2)
 kind = "glass_pane"
+breakable = true
 
 [node name="Tank2" type="Node3D" parent="Hydroponics/GrowRooms"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60, -4.4, 10)
@@ -13172,28 +13076,24 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43, 2.8, -66.5)
 script = ExtResource("2_block")
 size = Vector3(18, 2.8, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window2" type="Node3D" parent="OuterRing/RingNE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, 2.8, -66.5)
 script = ExtResource("2_block")
 size = Vector3(10, 2.8, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window3" type="Node3D" parent="OuterRing/RingNE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.5, 2.8, -61)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.8, 6)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window4" type="Node3D" parent="OuterRing/RingNE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.5, 2.8, -41)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.8, 24)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Mullion" type="Node3D" parent="OuterRing/RingNE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 2.8, -66.125)
@@ -14444,28 +14344,24 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43, 2.8, -66.5)
 script = ExtResource("2_block")
 size = Vector3(18, 2.8, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window2" type="Node3D" parent="OuterRing/RingNW"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59, 2.8, -66.5)
 script = ExtResource("2_block")
 size = Vector3(10, 2.8, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window3" type="Node3D" parent="OuterRing/RingNW"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, 2.8, -61)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.8, 6)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window4" type="Node3D" parent="OuterRing/RingNW"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, 2.8, -41)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.8, 24)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Mullion" type="Node3D" parent="OuterRing/RingNW"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 2.8, -66.125)
@@ -15709,28 +15605,24 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43, 2.8, 66.5)
 script = ExtResource("2_block")
 size = Vector3(18, 2.8, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window2" type="Node3D" parent="OuterRing/RingSE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, 2.8, 66.5)
 script = ExtResource("2_block")
 size = Vector3(10, 2.8, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window3" type="Node3D" parent="OuterRing/RingSE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.5, 2.8, 61)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.8, 6)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window4" type="Node3D" parent="OuterRing/RingSE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 66.5, 2.8, 41)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.8, 24)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Mullion" type="Node3D" parent="OuterRing/RingSE"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 40, 2.8, 66.125)
@@ -17033,28 +16925,24 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, 2.6, 37)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.4, 14)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window2" type="Node3D" parent="Cryo/Corridor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -66.5, 2.6, 53)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.4, 10)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window3" type="Node3D" parent="Cryo/Corridor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51, 2.6, 66.5)
 script = ExtResource("2_block")
 size = Vector3(14, 2.4, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Window4" type="Node3D" parent="Cryo/Corridor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 2.6, 66.5)
 script = ExtResource("2_block")
 size = Vector3(10, 2.4, 0.4)
 kind = "glass_hull"
-breakable = 2
 
 [node name="Wall" type="Node3D" parent="Cryo/Corridor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.6, 2.5, 30.5)
@@ -17215,24 +17103,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.6, 2.11, 44)
 script = ExtResource("2_block")
 size = Vector3(0.2, 2.42, 6)
 kind = "glass_pane"
+breakable = true
 
 [node name="Pane2" type="Node3D" parent="Cryo/Corridor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -59.6, 2.11, 56.25)
 script = ExtResource("2_block")
 size = Vector3(0.2, 2.42, 4.5)
 kind = "glass_pane"
+breakable = true
 
 [node name="Pane3" type="Node3D" parent="Cryo/Corridor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -54.75, 2.11, 59.6)
 script = ExtResource("2_block")
 size = Vector3(5.5, 2.42, 0.2)
 kind = "glass_pane"
+breakable = true
 
 [node name="Pane4" type="Node3D" parent="Cryo/Corridor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.5, 2.11, 59.6)
 script = ExtResource("2_block")
 size = Vector3(4, 2.42, 0.2)
 kind = "glass_pane"
+breakable = true
 
 [node name="Strip" type="Node3D" parent="Cryo/Corridor"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -65.99, 1, 45.5)
@@ -18064,6 +17956,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.6, 2.01, 55)
 script = ExtResource("2_block")
 size = Vector3(0.2, 2.22, 4)
 kind = "glass_pane"
+breakable = true
 
 [node name="Pod" type="Node3D" parent="Cryo/PodBay"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -58.7, 1.25, 40.6)

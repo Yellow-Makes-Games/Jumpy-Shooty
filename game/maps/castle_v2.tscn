@@ -40,6 +40,7 @@ face_shade = Vector3(0.92, 0.86, 0.72)
 kill_height = -5.0
 bounds = Rect2(-400, -400, 800, 800)
 swing_point = Vector3(0, 13.6, -4)
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="." unique_id=1375284863]
 environment = SubResource("Environment_mtv7q")

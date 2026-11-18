@@ -34,6 +34,7 @@ face_shade = Vector3(0.93, 0.84, 0.66)
 kill_height = -6.0
 bounds = Rect2(-23, -19, 46, 42)
 swing_point = Vector3(0, 7.4, 0)
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_1")
@@ -151,24 +152,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.5, 2.4, 14.4)
 script = ExtResource("2_block")
 size = Vector3(5, 3.2, 0.12)
 kind = "glass"
+breakable = true
 
 [node name="Window2" type="Node3D" parent="Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5, 2.4, 14.4)
 script = ExtResource("2_block")
 size = Vector3(5, 3.2, 0.12)
 kind = "glass"
+breakable = true
 
 [node name="Window3" type="Node3D" parent="Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 2.4, 14.4)
 script = ExtResource("2_block")
 size = Vector3(5, 3.2, 0.12)
 kind = "glass"
+breakable = true
 
 [node name="Window4" type="Node3D" parent="Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 2.4, 14.4)
 script = ExtResource("2_block")
 size = Vector3(5, 3.2, 0.12)
 kind = "glass"
+breakable = true
 
 [node name="Doors" type="Node3D" parent="Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 14.4)
@@ -335,12 +340,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.35, -11.5)
 script = ExtResource("2_block")
 size = Vector3(36, 0.3, 5)
 kind = "mezz_floor"
+breakable = true
 
 [node name="FloorWest" type="Node3D" parent="Mezzanine"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.5, 4.35, 2.5)
 script = ExtResource("2_block")
 size = Vector3(5, 0.3, 23)
 kind = "mezz_floor"
+breakable = true
 
 [node name="EdgeBeam" type="Node3D" parent="Mezzanine"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 4, -9.2)
@@ -413,6 +420,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 5.05, -9.06)
 script = ExtResource("2_block")
 size = Vector3(25, 1.1, 0.12)
 kind = "glass_rail"
+breakable = true
 
 [node name="Railing2" type="Node3D" parent="Mezzanine"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.2, 5.05, -9.06)
@@ -425,6 +433,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.94, 5.05, -0.5)
 script = ExtResource("2_block")
 size = Vector3(0.12, 1.1, 17)
 kind = "glass_rail"
+breakable = true
 
 [node name="Railing4" type="Node3D" parent="Mezzanine"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.94, 5.05, 12.2)
@@ -455,7 +464,6 @@ script = ExtResource("2_block")
 size = Vector3(2.4, 0.3, 9.1788)
 kind = "steel"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Mezzanine/StairsEast"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.2, 0.125, -1.2222)
@@ -844,7 +852,6 @@ script = ExtResource("2_block")
 size = Vector3(2.4, 0.3, 9.1788)
 kind = "steel"
 drawn = false
-breakable = 2
 
 [node name="Step" type="Node3D" parent="Mezzanine/StairsWest"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2222, 0.125, 9.2)
@@ -1571,6 +1578,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.1, 5.8, 5.075)
 script = ExtResource("2_block")
 size = Vector3(3, 2.6, 0.15)
 kind = "partition"
+breakable = true
 
 [node name="VRMat" type="Node3D" parent="Mezzanine"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.1, 4.51, 6.5)
@@ -4864,6 +4872,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.2, 1.9, -9.6)
 script = ExtResource("2_block")
 size = Vector3(3.6, 3.8, 0.25)
 kind = "partition"
+breakable = true
 
 [node name="LoungeWallLintel" type="Node3D" parent="Games/ClawMachines"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.8, 3.2, -9.6)
@@ -4882,6 +4891,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.4, 1.9, -11.8)
 script = ExtResource("2_block")
 size = Vector3(0.25, 3.8, 4.4)
 kind = "partition"
+breakable = true
 
 [node name="Vending" type="Node3D" parent="Games/ClawMachines"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 1.1, -13.45)
@@ -4947,18 +4957,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.7, 1.9, -9.6)
 script = ExtResource("2_block")
 size = Vector3(5.8, 3.8, 0.25)
 kind = "partition"
+breakable = true
 
 [node name="Side" type="Node3D" parent="PartyRoom"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 1.9, -11.8)
 script = ExtResource("2_block")
 size = Vector3(0.25, 3.8, 4.4)
 kind = "partition"
+breakable = true
 
 [node name="Side2" type="Node3D" parent="PartyRoom"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.6, 1.9, -11.8)
 script = ExtResource("2_block")
 size = Vector3(0.25, 3.8, 4.4)
 kind = "partition"
+breakable = true
 
 [node name="Table" type="Node3D" parent="PartyRoom"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.7, 0.4, -11.9)
@@ -5154,30 +5167,35 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.35, -10.4)
 script = ExtResource("2_block")
 size = Vector3(37.6, 0.5, 8.8)
 kind = "roof"
+breakable = true
 
 [node name="Roof2" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.35, 0)
 script = ExtResource("2_block")
 size = Vector3(37.6, 0.5, 6)
 kind = "roof"
+breakable = true
 
 [node name="Roof3" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.35, 10.4)
 script = ExtResource("2_block")
 size = Vector3(37.6, 0.5, 8.8)
 kind = "roof"
+breakable = true
 
 [node name="Roof4" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.4, 9.35, -4.5)
 script = ExtResource("2_block")
 size = Vector3(10.8, 0.5, 3)
 kind = "roof"
+breakable = true
 
 [node name="Roof5" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 9.35, -4.5)
 script = ExtResource("2_block")
 size = Vector3(10.8, 0.5, 3)
 kind = "roof"
+breakable = true
 
 [node name="Curb" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, -6)
@@ -5196,12 +5214,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.4, 9.35, 4.5)
 script = ExtResource("2_block")
 size = Vector3(10.8, 0.5, 3)
 kind = "roof"
+breakable = true
 
 [node name="Roof7" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 9.35, 4.5)
 script = ExtResource("2_block")
 size = Vector3(10.8, 0.5, 3)
 kind = "roof"
+breakable = true
 
 [node name="Curb3" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, 3)

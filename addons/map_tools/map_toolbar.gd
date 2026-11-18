@@ -5,7 +5,8 @@ extends HBoxContainer
 
 const MapCommands := preload("res://addons/map_tools/map_commands.gd")
 
-## A tool button was pressed (the plugin's Tool numbers).
+## A tool button was pressed: 1 = Draw, 2 = Clip (the plugin.s Tool numbers). Pressing
+## the one that is on turns it off, back to the editor.s own select and move.
 signal tool_chosen(tool: int)
 ## A grid button was pressed: 1 = bigger, -1 = smaller.
 signal grid_stepped(dir: int)
@@ -13,8 +14,6 @@ signal grid_stepped(dir: int)
 signal command(what: String)
 
 const TOOLS := [
-	["Select", "The editor's own select, move, rotate and scale."],
-	["Move", "Drag blocks over the ground (in a top, front or side view: across the view). They snap to the faces of blocks beside them, else to the grid. Shift: straight up and down."],
 	["Draw", "Drag out a new block. In the 3D view: drag its footprint on a face or the ground, let go, pull it out and click. In a top, front or side view: drag a rectangle."],
 	["Clip", "Cut the selected blocks in two where you click."],
 ]
@@ -24,8 +23,7 @@ const MENU := [
 	["Array...", "array"],
 	["Snap to Neighbours", "snap"],
 	[],
-	["Add Stairs", "piece:Stairs"],
-	["Add Ramp", "piece:Ramp"],
+	["Add Stairs or Ramp", "piece:Stairs"],
 	["Add Row", "piece:Row"],
 	["Add Ring", "piece:Ring"],
 	[],
@@ -42,16 +40,16 @@ var _menu: PopupMenu
 
 func _init() -> void:
 	add_child(VSeparator.new())
-	var group := ButtonGroup.new()
+
 	for i in TOOLS.size():
 		var b := Button.new()
 		b.text = TOOLS[i][0]
 		b.tooltip_text = TOOLS[i][1]
 		b.toggle_mode = true
-		b.button_group = group
+
 		b.flat = true
 		b.focus_mode = Control.FOCUS_NONE
-		b.pressed.connect(func() -> void: tool_chosen.emit(i))
+		b.pressed.connect(func() -> void: tool_chosen.emit(i + 1))
 		add_child(b)
 		_tool_buttons.append(b)
 	add_child(VSeparator.new())
@@ -64,7 +62,7 @@ func _init() -> void:
 	add_child(VSeparator.new())
 	_add_button("Solid", "Selected blocks: turn Solid on or off (off = drawn only).", func() -> void: command.emit("solid"))
 	_add_button("Drawn", "Selected blocks: turn Drawn on or off (off = an invisible wall).", func() -> void: command.emit("drawn"))
-	_add_button("Breakable", "Selected blocks: step Breakable through Default, Yes, No.", func() -> void: command.emit("breakable"))
+	_add_button("Breakable", "Selected blocks: turn Breakable on or off.", func() -> void: command.emit("breakable"))
 	var menu_button := MenuButton.new()
 	menu_button.text = "Map"
 	menu_button.flat = true
@@ -92,11 +90,11 @@ func _add_button(text: String, tip: String, pressed: Callable) -> Button:
 	return b
 
 
-## Shows which tool is on and the grid size. A tool the strip has no button for
+## Shows which tool is on (0 = none) and the grid size. A tool the strip has no button for
 ## (placing a prefab) leaves none pressed.
 func show_state(tool: int, grid: float) -> void:
 	for i in _tool_buttons.size():
-		_tool_buttons[i].set_pressed_no_signal(i == tool)
+		_tool_buttons[i].set_pressed_no_signal(i + 1 == tool)
 	_grid_label.text = "Grid %s m" % String.num(grid, 2)
 
 
