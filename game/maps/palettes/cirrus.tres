@@ -10,12 +10,12 @@ colors = Dictionary[String, Color]({
 "accent_purple": Color(0.5, 0.36, 0.78, 1),
 "accent_red": Color(0.74, 0.2, 0.2, 1),
 "accent_teal": Color(0.14, 0.66, 0.68, 1),
-"awning": Color(0.9, 0.86, 0.76, 1),
+"awning": Color(0.95, 0.92, 0.84, 1),
 "banner_blue": Color(0.2, 0.34, 0.7, 1),
 "banner_gold": Color(0.92, 0.72, 0.2, 1),
 "banner_red": Color(0.72, 0.18, 0.2, 1),
 "bark": Color(0.4, 0.29, 0.2, 1),
-"bell": Color(0.9, 0.68, 0.24, 1),
+"bell": Color(0.86, 0.64, 0.24, 1),
 "books_blue": Color(0.2, 0.32, 0.56, 1),
 "books_gold": Color(0.78, 0.62, 0.3, 1),
 "books_green": Color(0.24, 0.44, 0.3, 1),
@@ -24,7 +24,9 @@ colors = Dictionary[String, Color]({
 "bridge_deck": Color(0.5, 0.48, 0.47, 1),
 "clock_face": Color(0.96, 0.93, 0.84, 1),
 "clock_hand": Color(0.16, 0.15, 0.17, 1),
+"column": Color(0.95, 0.91, 0.82, 1),
 "counter": Color(0.78, 0.76, 0.72, 1),
+"dome_copper": Color(0.4, 0.66, 0.6, 1),
 "engine": Color(0.3, 0.9, 1, 1),
 "engine_ring": Color(0.6, 0.42, 0.24, 1),
 "equipment": Color(0.55, 0.58, 0.62, 1),
@@ -55,7 +57,8 @@ colors = Dictionary[String, Color]({
 "shelf": Color(0.42, 0.29, 0.2, 1),
 "soil": Color(0.34, 0.25, 0.18, 1),
 "span_light": Color(1, 0.7, 0.2, 1),
-"stair": Color(0.7, 0.64, 0.55, 1),
+"stair": Color(0.66, 0.6, 0.52, 1),
+"stair_tread": Color(0.8, 0.75, 0.66, 1),
 "statue": Color(0.36, 0.52, 0.46, 1),
 "stone": Color(0.9, 0.84, 0.72, 1),
 "stone_dark": Color(0.62, 0.55, 0.46, 1),
@@ -66,7 +69,6 @@ colors = Dictionary[String, Color]({
 "window_lit": Color(1, 0.8, 0.45, 1)
 })
 glow = Dictionary[String, float]({
-"bell": 0.6,
 "clock_face": 0.5,
 "engine": 2.2,
 "lamp": 0.35,
@@ -84,17 +86,18 @@ surface = Dictionary[String, String]({
 "leaves": "clumps",
 "leaves_gold": "clumps",
 "path": "slabs",
-"paving": "pavers",
+"paving": "slabs",
 "rock": "strata",
 "rock_dark": "strata",
 "roof_slate": "shingles",
 "roof_terracotta": "shingles",
 "soil": "dirt",
-"stair": "treads",
 "stone": "blocks",
-"stone_dark": "blocks_small",
+"stone_dark": "blocks",
 "stone_warm": "blocks"
 })
+surface_scale = 2
+surface_strength = 0.45
 roughness = 0.88
 breakable = Dictionary[String, float]({
 "glass_lab": 25.0
@@ -104,6 +107,7 @@ material = Dictionary[String, String]({
 "bell": "metal",
 "brass": "metal",
 "bridge_deck": "metal",
+"dome_copper": "metal",
 "equipment": "metal",
 "equipment_dark": "metal",
 "floor_wood": "wood",

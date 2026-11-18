@@ -2,20 +2,21 @@ extends SceneTree
 ## Cirrus checks (game/maps/cirrus.tscn), and the systems it brought: MapIsland,
 ## MapSpan and LayoutEvent.
 ##  - listed for free-for-all (which Gun Game is played on) and Deathmatch; about
-##    80 x 80 m of floor; the kill height is below everything;
+##    110 x 110 m of floor; the kill height is below everything; no writing anywhere;
 ##  - 16 or more spawn points, all on building islands (none on the quad or the
-##    tower), each clear and on a floor in BOTH layouts; about 16 weapon pickups of
+##    tower), each clear and on a floor in BOTH layouts; about 20 weapon pickups of
 ##    10 or more kinds, each with room to stand in both layouts, none on a walkway
 ##    that draws in, the three heavy ones high up;
-##  - the bell: a MapTerminal at the top of the tower that takes one press within
-##    2 m. In range it rings; out of range it does not; it cannot be rung during the
-##    move or the 60 s after; each ring flips Hub and Ring; the layout stays with no
-##    more rings; a new match starts in Hub;
+##  - the clock: nothing to press. A turn is 60 s in a layout (a tick or a tock each
+##    second), the bell, 5 s of warning in which nothing moves and the walkways about
+##    to go flash, then a 4 s move that starts slowly and ends fast. It goes on turn
+##    after turn, Hub and Ring by turns; a new match starts in Hub; someone who
+##    joins part-way is put where everyone else is; the clock's hands count it down;
 ##  - moving islands: someone standing on an island (anywhere on it, and at every
 ##    spawn point) is carried through the move and ends where they stood on it;
 ##    someone on a skyway falls; nobody ends up inside a wall or a floor; pickups
 ##    stay over their spots;
-##  - routes. Hub: every building, floor by floor, and the bell can be walked to
+##  - routes. Hub: every building, floor by floor, and the belfry can be walked to
 ##    from the quad, and neighbouring islands are too far apart to jump but the
 ##    rocket boots cross. Ring: every island can be walked to from every other over
 ##    the bridges, the quad cannot, the grapple gets you up to it, and the rocket
@@ -27,31 +28,32 @@ extends SceneTree
 
 const ID := "cirrus"
 const ISLANDS := ["Observatory", "Labs", "LectureHall", "Cafeteria", "Library"]
-const QUAD_RADIUS := 11.0
+const QUAD_RADIUS := 14.3
+const ISLAND_AT := 38.5     ## how far an island's own origin is from the middle (Hub)
+const SHOULDER := Vector3(16.63, 0, -2.0)   ## an island's front corner, where a bridge leaves (its +x one)
 const DROP := 15.0          ## how far the islands sink in the Ring layout
-const BELL := Vector3(0, 24, 0)
+const BELFRY := Vector3(0, 26.1, 0)
 
 ## Places a bot must be able to walk to in each building, in the island's own frame
 ## (-z toward the quad, y = 0 its deck).
 const ROOMS := {
-	"Observatory": {"hall": Vector3(4, 0, 3), "terrace": Vector3(-6.0, 4.3, 0.6), "inside the dome": Vector3(-0.4, 4.3, 3.6)},
-	"Labs": {"corridor": Vector3(4, 0, 0.2), "lab 1": Vector3(-7.0, 0, 5.6), "lab 2": Vector3(0, 0, 4), "lab 3": Vector3(7, 0, 5.5),
-		"upper floor": Vector3(8.2, 4, 5.9), "balcony": Vector3(2.1, 4, -2.5)},
-	"LectureHall": {"stage": Vector3(7.6, 0.6, 5.0), "concourse": Vector3(-5.8, 4, 2.6), "projection booth": Vector3(-8.5, 6.6, 6.9),
-		"west balcony": Vector3(-10.5, 4, 6.5)},
-	"Cafeteria": {"hall": Vector3(5.8, 0, 7.0), "west balcony": Vector3(-8.2, 4, 3.5), "back balcony": Vector3(8, 4, 6.6)},
-	"Library": {"stacks": Vector3(-7.9, 0, 6.6), "reading room": Vector3(-0.9, 0, 4.4), "4 m mezzanine": Vector3(-7, 4, 2),
-		"8 m mezzanine": Vector3(7, 8, 5)},
+	"Observatory": {"hall": Vector3(9, 0, 2), "terrace": Vector3(-9.0, 5.8, 2.0), "inside the dome": Vector3(1.5, 5.8, 6.0)},
+	"Labs": {"corridor": Vector3(4, 0, 1.5), "lab 1": Vector3(-9.0, 0, 9.6), "lab 2": Vector3(0, 0, 8), "lab 3": Vector3(9, 0, 9),
+		"upper floor": Vector3(11, 5.5, 9), "balcony": Vector3(3.6, 5.5, -2.8)},
+	"LectureHall": {"stage": Vector3(11.6, 0.6, 8.6), "concourse": Vector3(-10.8, 5.5, 3.4), "projection booth": Vector3(-12.2, 8.8, 11.6),
+		"west balcony": Vector3(-15.5, 5.5, 8.4)},
+	"Cafeteria": {"hall": Vector3(9, 0, 11.6), "west balcony": Vector3(-12, 5.5, 6), "back balcony": Vector3(11, 5.5, 11.5)},
+	"Library": {"stacks": Vector3(-12.4, 0, 10.6), "reading room": Vector3(-0.6, 0, 7.5), "5.5 m mezzanine": Vector3(-10, 5.5, 3),
+		"11 m mezzanine": Vector3(10, 11, 6)},
 }
 ## Where riders stand on each island for the move (island frame): the plaza, the
-## forecourt, a back corner, the side walkway, and against the building's front wall.
-const RIDERS := {"plaza": Vector3(0, 0, -5), "forecourt": Vector3(0, 0, -11), "back corner": Vector3(10.9, 0, 7.6),
-	"side walkway": Vector3(-10.75, 0, 4), "by the front wall": Vector3(5.5, 0, -2.3)}
+## deck's tip, a back corner, the side walkway, and against the building's front wall.
+const RIDERS := {"plaza": Vector3(0, 0, -7), "tip": Vector3(0, 0, -14.5), "back corner": Vector3(15.4, 0, 12.5),
+	"side walkway": Vector3(-15.4, 0, 6), "by the front wall": Vector3(6, 0, -2.6)}
 
 var failures := 0
 var map: MapRoot
 var event: LayoutEvent
-var bell: MapTerminal
 var space: PhysicsDirectSpaceState3D
 var dt := 1.0 / 120.0
 var _bodies: Array = []   # {body, motor, input, ...}: test players stepped by _tick()
@@ -74,9 +76,6 @@ func _run() -> void:
 	map.build(false)
 	print("    built in %d ms" % (Time.get_ticks_msec() - started))
 	event = map.get_node_or_null("Layout") as LayoutEvent
-	for node in map.find_children("*", "", true, false):
-		if node is MapTerminal:
-			bell = node
 	for i in 4:
 		await physics_frame
 	space = root.get_world_3d().direct_space_state
@@ -86,7 +85,7 @@ func _run() -> void:
 	_pickups("Hub")
 	_hazard("Hub")
 	_glass()
-	await _bell_rules()
+	await _clock_rules()
 	await _hub_routes()
 	await _hub_gaps()
 	await _the_move()
@@ -106,7 +105,10 @@ func _run() -> void:
 
 func _rules() -> void:
 	print("  size and rules")
-	_expect(event != null and bell != null, "has a layout event and a bell to ring")
+	_expect(event != null, "has a layout event")
+	var all := map.find_children("*", "", true, false)
+	_expect(all.filter(func(n): return n is MapTerminal).is_empty(), "nothing to press: no terminal, the clock changes the layout")
+	_expect(all.filter(func(n): return n is Label3D).is_empty(), "no writing anywhere on the map")
 	var islands := map.movers.filter(func(m): return m.node is MapIsland)
 	_expect(islands.size() == 5 and islands.all(func(m): return m.body != null), "five building islands, each a moving body")
 	var far := 0.0
@@ -115,14 +117,15 @@ func _rules() -> void:
 		for corner in 8:
 			var p: Vector3 = (m.base as Transform3D) * box.get_endpoint(corner)
 			far = maxf(far, Vector2(p.x, p.z).length())
-	_expect(far * 2.0 >= 74.0 and far * 2.0 <= 90.0, "about 80 x 80 m of floor (%.0f m across)" % (far * 2.0))
+	_expect(far * 2.0 >= 100.0 and far * 2.0 <= 125.0, "about 110 x 110 m of floor (%.0f m across)" % (far * 2.0))
 	_expect(map.bounds.has_area() and map.bounds.size.x > far * 2.0 + 10.0, "the bounds leave room for the sky round it (%.0f m)" % map.bounds.size.x)
 	var low := INF
 	for m in islands:
 		low = minf(low, ((m.base as Transform3D) * (m.bounds as AABB)).position.y - DROP)
 	_expect(map.kill_height < low - 6.0, "the kill height (%.0f m) is below everything, also in the Ring layout (lowest rock %.0f m)" % [map.kill_height, low])
 	_expect(event.layouts.size() == 2 and event.layouts[0] == "Hub" and event.layouts[1] == "Ring", "two layouts: Hub and Ring")
-	_expect(is_equal_approx(event.move_time, 4.0) and is_equal_approx(event.cooldown, 60.0), "the move takes 4 s, and the bell rests 60 s after")
+	_expect(is_equal_approx(event.hold_time, 60.0) and is_equal_approx(event.windup_time, 5.0) and is_equal_approx(event.move_time, 4.0),
+		"a layout lasts 60 s, the warning 5 s, the move 4 s")
 	_expect(event.state == 0 and is_zero_approx(event.blend), "it starts in Hub")
 	var spans := map.spans.map(func(s): return s.node as MapSpan)
 	var skyways := spans.filter(func(s): return s.out_in == 0)
@@ -130,6 +133,12 @@ func _rules() -> void:
 	_expect(skyways.size() == 5 and bridges.size() == 10, "five skyways (out in Hub) and ten bridge halves (out in Ring)")
 	_expect(skyways.all(func(s): return _all_solid(s, true)) and bridges.all(func(s): return _all_solid(s, false)),
 		"in Hub the skyways are out and solid, the bridges drawn in")
+	# The shapes that are not boxes: the spire, the dome, the slopes, the arches.
+	var shapes := {}
+	for piece in map.collect_pieces():
+		shapes[piece.shape] = shapes.get(piece.shape, 0) + 1
+	_expect(shapes.get("cone", 0) > 0 and shapes.get("dome", 0) > 0 and shapes.get("wedge", 0) > 0 and shapes.get("arch", 0) > 0 and shapes.get("bevel", 0) > 0,
+		"built with slopes, cones, domes, arches and bevelled boxes, not only boxes (%s)" % [shapes])
 
 
 func _all_solid(span: MapSpan, want: bool) -> bool:
@@ -196,7 +205,7 @@ func _pickups(layout: String) -> void:
 		if w[1] in ["rocket_launcher", "railgun", "anti_materiel"]:
 			var deck := 0.0 if map.mover_under(pos) < 0 or layout == "Hub" else -DROP
 			high[w[1]] = pos.y - deck
-	_expect(map.weapon_spawns.size() >= 14 and map.weapon_spawns.size() <= 18, "%d pickups (about 16)" % map.weapon_spawns.size())
+	_expect(map.weapon_spawns.size() >= 18 and map.weapon_spawns.size() <= 23, "%d pickups (about 20)" % map.weapon_spawns.size())
 	_expect(kinds.size() >= 10 and kinds.keys().all(func(k): return WeaponData.has(k)), "%d different weapons, all real" % kinds.size())
 	_expect(bad.is_empty(), "every pickup is over a floor with room to stand %s" % [bad])
 	_expect(on_span.is_empty(), "none is on a skyway or a bridge (they draw in) %s" % [on_span])
@@ -213,15 +222,15 @@ func _hazard(layout: String) -> void:
 	var deck := 0.0 if layout == "Hub" else -DROP
 	for i in 5:
 		var between := deg_to_rad(180.0 + i * 72.0 + 36.0 + swing)   # half way between two islands
-		for r in [24.0, 30.0, 36.0, 44.0]:
+		for r in [26.0, 30.0, 36.0, 44.0, 56.0]:
 			var from := Vector3(sin(between) * r, deck + 1.0, cos(between) * r)
-			if layout == "Ring" and r < 34.0:
-				continue   # (the bridge is there, and the stepping stone above the forecourt)
+			if layout == "Ring" and r > 31.0 and r < 40.0:
+				continue   # (the bridge is there)
 			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, Vector3(from.x, map.kill_height, from.z)))
 			if not hit.is_empty():
 				landed.append(from.snapped(Vector3(0.1, 0.1, 0.1)))
 		var out := deg_to_rad(180.0 + i * 72.0 + swing)   # beyond an island's back edge
-		var behind := Vector3(sin(out) * 44.0, deck + 1.0, cos(out) * 44.0)
+		var behind := Vector3(sin(out) * 60.0, deck + 1.0, cos(out) * 60.0)
 		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(behind, Vector3(behind.x, map.kill_height, behind.z))).is_empty():
 			landed.append(behind.snapped(Vector3(0.1, 0.1, 0.1)))
 	_expect(landed.is_empty(), "nothing to land on between the islands or behind them, down to the kill height %s" % [landed])
@@ -289,86 +298,88 @@ func _glass_after_move() -> void:
 
 
 # ---------------------------------------------------------------------------
-# The bell
+# The clock
 
-func _bell_rules() -> void:
-	print("  the bell")
-	_expect(bell.global_position.distance_to(BELL) < 0.5, "it hangs at the top of the clock tower (%s)" % bell.global_position.snapped(Vector3(0.1, 0.1, 0.1)))
-	_expect(is_zero_approx(bell.channel_time) and is_equal_approx(bell.range, 2.0), "one press, within 2 m")
-	_expect(bell.get_node_or_null(bell.event) == event, "it sets off the layout event")
-	_expect(not event.ready_kinds.is_empty() and event.ready_kinds[0] == "bell" and map.palette.glow.get("bell", 0.0) > 0.0,
-		"the bell itself glows to show it is ready (no HUD)")
+func _clock_rules() -> void:
+	print("  the clock")
+	var cues := {}
+	var order := []
+	event.cue.connect(func(what: String):
+		cues[what] = cues.get(what, 0) + 1
+		if what not in ["tick", "tock"]:
+			order.append(what))
+	var all := map.find_children("*", "", true, false)
+	var hands := all.filter(func(n): return n is MapSpinner and (n as MapSpinner).driven == MapSpinner.Driven.COUNTDOWN)
+	var bells := all.filter(func(n): return n is MapSpinner and (n as MapSpinner).driven == MapSpinner.Driven.SWING)
+	_expect(hands.size() == 4 and bells.size() == 1, "a countdown hand on each of the tower's four clock faces, and one bell that swings")
+	_expect((bells[0] as Node3D).global_position.y > BELFRY.y + 3.0, "the bell hangs in the belfry, over head height")
+	var skyways := map.spans.map(func(s): return s.node as MapSpan).filter(func(s): return s.out_in == 0)
+	var bridges := map.spans.map(func(s): return s.node as MapSpan).filter(func(s): return s.out_in == 1)
 	# Stepped by hand, so the checks do not depend on how fast the test runs.
 	event.set_physics_process(false)
-	bell.set_physics_process(false)
-	var near := BELL + Vector3(1.3, 0, 0.6)
-	var far := BELL + Vector3(3.2, 0, 0)
-	_expect(bell.reaches(near) and not bell.reaches(far), "beside the bell is in range, 3.2 m away is not")
-	var where := {1: far}
-	bell.host_set_holding(1, true)
-	_bell_step(0.5, where)
-	_expect(not event.running and event.state == 0, "a press from out of range does nothing")
-	bell.host_set_holding(1, false)
-	where = {1: near}
-	bell.host_set_holding(1, true)
-	_bell_step(dt, where)
-	_expect(event.running and event.state == 1 and event.layout_name() == "Ring", "a press in range rings it at once: the map starts for Ring")
-	_expect(bell.phase == MapTerminal.Phase.BUSY and not bell.ready_to_use(), "and the bell is locked")
-	bell.host_set_holding(1, false)
-	_bell_step(2.0, where)
-	_expect(event.moving() and event.blend > 0.3 and event.blend < 0.7, "two seconds in, the islands are half way (%.2f)" % event.blend)
-	_expect(map.shifting, "the map says its parts are on the move")
-	bell.host_set_holding(1, true)
-	_bell_step(0.2, where)
-	bell.host_set_holding(1, false)
-	_expect(event.state == 1 and event.elapsed > 2.0, "it cannot be rung during the move")
-	_bell_step(2.2, where)
-	_expect(not event.moving() and is_equal_approx(event.blend, 1.0) and not map.shifting, "after 4 s it has arrived: Ring")
-	bell.host_set_holding(1, true)
-	_bell_step(0.2, where)
-	bell.host_set_holding(1, false)
-	_bell_step(30.0, where)
-	_expect(event.state == 1 and event.running, "nor in the cooldown")
-	_bell_step(30.2, where)
-	_expect(not event.running and bell.ready_to_use(), "64 s after the ring it is ready again")
-	_bell_step(120.0, where)
-	_expect(event.state == 1 and is_equal_approx(event.blend, 1.0), "left alone, the map stays in Ring: no timer brings it back")
-	bell.host_set_holding(1, true)
-	_bell_step(dt, where)
-	bell.host_set_holding(1, false)
-	_expect(event.running and event.state == 0 and event.layout_name() == "Hub", "the next ring heads back to Hub")
-	_bell_step(4.2, where)
-	_expect(is_zero_approx(event.blend) and event.state == 0, "and gets there")
+	_expect(not event.running and event.state == 0, "with no match on, the clock stands still")
+	event.host_start()
+	_expect(event.running and event.state == 0 and not event.moving() and not event.warning(), "a match starts it: Hub, and counting")
+	_expect(is_equal_approx(event.time_to_bell(), 60.0), "60 s to the bell")
+	_clock_step(15.2)
+	event._process(0.016)
+	_expect(hands.all(func(h): return is_equal_approx((h as MapSpinner).angle, -TAU * 0.25)), "15 s in, the clocks' hands are a quarter of the way round (clockwise)")
+	_clock_step(44.6)
+	_expect(is_zero_approx(event.blend) and not map.warning and not map.shifting and cues.get("toll", 0) == 0,
+		"for 60 s nothing happens: 59.8 s in it is still Hub, no bell yet")
+	_expect(cues.get("tick", 0) == 30 and cues.get("tock", 0) == 29, "a tick or a tock every second, by turns (%d and %d)" % [cues.get("tick", 0), cues.get("tock", 0)])
+	_clock_step(0.4)
+	_expect(cues.get("toll", 0) == 1 and event.warning() and map.warning and not map.shifting, "at 60 s the bell goes and the warning begins")
+	event._process(0.016)
+	_expect(hands.all(func(h): return is_zero_approx((h as MapSpinner).angle)), "with the hands at twelve")
+	_clock_step(0.3)
+	event._process(0.3)
+	_expect(absf((bells[0] as MapSpinner).angle) > 0.05, "and the bell swinging")
+	_clock_step(2.0)
+	var early := event.windup
+	_expect(is_zero_approx(event.blend) and skyways.all(func(s): return _all_solid(s, true)), "through the warning nothing moves: the skyways are still there to get off")
+	_expect(skyways.all(func(s): return s.racing) and bridges.all(func(s): return not s.racing), "the walkways that are about to go (the skyways) flash, the others do not")
+	_clock_step(2.4)
+	_expect(event.warning() and event.windup > early and cues.get("move", 0) == 0, "4.9 s after the bell it is still building (%.2f)" % event.windup)
+	_clock_step(0.2)
+	_expect(event.moving() and map.shifting and not map.warning and cues.get("move", 0) == 1, "5 s after the bell the islands go")
+	_clock_step(1.9)
+	var half := event.blend
+	_clock_step(1.2)
+	var late := event.blend
+	_expect(half > 0.05 and half < 0.35 and late > 0.6, "slowly at first, then fast: %.2f of the way at half time, %.2f at four fifths" % [half, late])
+	_expect(skyways.all(func(s): return _all_solid(s, false)), "the skyways have gone by then")
+	_clock_step(1.0)
+	_expect(event.running and event.state == 1 and is_equal_approx(event.blend, 1.0) and not event.moving() and not map.shifting,
+		"4 s after they went they have arrived: Ring, and the next turn has begun")
+	_expect(order == ["toll", "move", "lock"], "the bell, the move, the clunk, in that order %s" % [order])
+	_expect(bridges.all(func(s): return _all_solid(s, true)), "the bridges are out")
+	_clock_step(event.length())
+	_expect(event.state == 0 and is_zero_approx(event.blend) and cues.get("toll", 0) == 2, "left alone, a turn later it is back in Hub: it goes on by itself")
+	_clock_step(event.length())
+	_expect(event.state == 1, "(and Ring again)")
 	# A new match always starts in Hub, whatever the last one left.
-	event.elapsed = event.length() + 1.0
-	_bell_step(dt, where)
-	event.host_start(0)
-	_bell_step(5.0, where)
-	_expect(event.state == 1, "(rung again: Ring)")
 	event._on_match_started()
-	_expect(event.state == 0 and not event.running and is_zero_approx(event.blend), "a new match starts in Hub")
-	bell.host_step(dt, func(_id: int) -> Variant: return null)
-	_expect(bell.ready_to_use(), "with the bell ready")
-	# What someone who joins is told puts their copy in the same layout.
+	_expect(event.state == 0 and not event.running and is_zero_approx(event.blend), "a new match starts in Hub, the clock at nought")
+	# What someone who joins is told puts their copy where everyone else's is.
 	event.take_state(1)
-	event.apply_state(false, 0.0)
-	_expect(is_equal_approx(event.blend, 1.0), "a copy told 'Ring, not moving' (someone joining late) is in Ring at once")
+	event.apply_state(true, 10.0)
+	_expect(is_equal_approx(event.blend, 1.0) and not event.moving(), "a copy told 'Ring, 10 s in' (someone joining late) is in Ring at once")
+	event.take_state(1)
+	event.apply_state(true, event.hold_time + event.windup_time + 3.0)
+	_expect(event.moving() and event.blend > 0.0 and event.blend < 1.0, "and one told 'Ring, 3 s into the move' is part-way back to Hub")
 	event.take_state(0)
-	event.apply_state(true, 1.0)
-	_expect(event.moving() and event.blend > 0.5 and event.blend < 1.0, "and one told 'on the way to Hub, 1 s in' is part-way there")
-	event.take_state(0)
 	event.apply_state(false, 0.0)
-	_expect(is_zero_approx(event.blend), "(back in Hub for the rest of the checks)")
+	_expect(is_zero_approx(event.blend) and not event.running, "(back in Hub, stopped, for the rest of the checks)")
 	for i in 6:
 		await physics_frame
 
 
-func _bell_step(seconds: float, where: Dictionary) -> void:
+func _clock_step(seconds: float) -> void:
 	var left := seconds
 	while left > 0.0001:
 		var step := minf(dt * 2.0, left)
 		left -= step
-		bell.host_step(step, func(id: int) -> Variant: return where.get(id))
 		event._physics_process(step)
 
 
@@ -494,19 +505,19 @@ func _hub_routes() -> void:
 	var goals := _rooms()
 	for i in map.spawns.size():
 		goals["spawn %d" % (i + 1)] = map.spawns[i][0]
-	goals["the bell"] = BELL + Vector3(1.3, 0, -1.0)
+	goals["the belfry"] = BELFRY + Vector3(1.3, 0, -1.0)
 	goals["the tower's ground floor"] = Vector3(0, 0, -2.0)
 	for goal_name in goals:
 		if not _walks(quad, goals[goal_name]):
 			missed.append("%s (%.1f m short)" % [goal_name, maxf(_short(quad, goals[goal_name]), _short(goals[goal_name], quad))])
-	_expect(missed.is_empty(), "from the quad a bot can walk to the bell, every spawn point and every floor of every building (%d places) %s" % [goals.size(), missed])
+	_expect(missed.is_empty(), "from the quad a bot can walk up to the belfry, to every spawn point and every floor of every building (%d places) %s" % [goals.size(), missed])
 	var exits := []
 	for island_name in ISLANDS:
 		var body := _body_of(_island(island_name))
 		# Two ways out of each building: its front door, and a side or back way.
 		var inside: Vector3 = body.transform * ((ROOMS[island_name] as Dictionary).values()[0] as Vector3)
-		var front: Vector3 = body.transform * Vector3(0, 0, -5.0)
-		var side: Vector3 = body.transform * Vector3(10.75, 0, 4.0)
+		var front: Vector3 = body.transform * Vector3(0, 0, -7.0)
+		var side: Vector3 = body.transform * Vector3(15.4, 0, 6.0)
 		if not (_walks(inside, front) and _walks(inside, side)):
 			exits.append(island_name)
 	_expect(exits.is_empty(), "every building can be left by the front and by the side %s" % [exits])
@@ -522,8 +533,8 @@ func _hub_gaps() -> void:
 		var to_body := _body_of(_island("Observatory"))
 		# From the Library's bridge pad (its west one faces the Observatory) straight at the
 		# Observatory's, already at a sprint.
-		var start: Vector3 = from_body.transform * Vector3(-12.0 + 0.809 * 1.6, 0.1, -2.0 + 0.588 * 1.6)
-		var aim: Vector3 = to_body.transform * Vector3(12.0 - 0.809 * 1.2, 0, -2.0 + 0.588 * 1.2)
+		var start: Vector3 = from_body.transform * Vector3(-SHOULDER.x + 0.809 * 1.6, 0.1, SHOULDER.z + 0.588 * 1.6)
+		var aim: Vector3 = to_body.transform * Vector3(SHOULDER.x - 0.809 * 1.2, 0, SHOULDER.z + 0.588 * 1.2)
 		var p := _player(start)
 		p["technique"] = technique
 		p["aim"] = aim
@@ -622,24 +633,26 @@ func _the_move() -> void:
 		p["name"] = "spawn %d" % (i + 1)
 		riders.append(p)
 	# One player walking the Observatory's skyway, and one standing on the quad.
-	var walker := _player(Vector3(0, 0.1, -15.0))
-	var on_quad := _player(Vector3(6.0, 0.05, 6.0))
+	var walker := _player(Vector3(0, 0.1, -18.0))
+	var on_quad := _player(Vector3(8.0, 0.05, 8.0))
 	await _wait(0.6)
 	for p in riders:
 		p["local"] = ((p.island as AnimatableBody3D).transform.affine_inverse() * (p.body as CharacterBody3D).global_position)
 	var settled := riders.all(func(p): return (p.body as CharacterBody3D).is_on_floor())
-	_expect(settled and walker.body.is_on_floor(), "before the bell: %d riders stand on their islands, one on a skyway" % riders.size())
+	_expect(settled and walker.body.is_on_floor(), "before the move: %d riders stand on their islands, one on a skyway" % riders.size())
 	var pickup_before := {}
 	for i in map.weapon_spawns.size():
 		var on := map.mover_under(map.weapon_spawns[i][0])
 		if on >= 0:
 			pickup_before[i] = (map.movers[on].body as AnimatableBody3D).transform.affine_inverse() * (map.weapon_spawns[i][0] as Vector3)
-	event.host_start(0)
-	_expect(event.running and event.state == 1, "the bell rings")
+	# (the clock is put to just before the end of the warning: the 65 s before are the clock checks')
+	event.host_start()
+	event.elapsed = event.hold_time + event.windup_time - 0.05
+	_expect(event.running and event.state == 0 and event.warning(), "the bell has gone: the move is about to start")
 	var worst := 0.0
 	var worst_who := ""
 	var airborne := 0
-	var steps := int(ceil((event.move_time + 0.5) / dt))
+	var steps := int(ceil((event.move_time + 0.6) / dt))
 	var mid_checked := false
 	for i in steps:
 		await physics_frame
@@ -651,16 +664,16 @@ func _the_move() -> void:
 				worst_who = p.name
 			if not (p.body as CharacterBody3D).is_on_floor():
 				airborne += 1
-		if not mid_checked and event.elapsed >= 2.0:
+		if not mid_checked and event.progress >= 0.5:
 			mid_checked = true
-			_expect(event.blend > 0.3 and event.blend < 0.7 and map.shifting, "half way through, the islands are half way (%.2f) and the map says it is moving" % event.blend)
-	_expect(not event.moving() and is_equal_approx(event.blend, 1.0), "4 s later the islands have arrived")
+			_expect(event.blend > 0.05 and event.blend < 0.5 and map.shifting, "half way through its time the islands are on their way (%.2f) and the map says it is moving" % event.blend)
+	_expect(not event.moving() and event.state == 1 and is_equal_approx(event.blend, 1.0), "4 s later the islands have arrived: Ring")
 	_expect(worst < 0.35, "every rider was carried all the way: never more than %.2f m from where they stood on their island (%s)" % [worst, worst_who])
 	_expect(airborne == 0, "and never left its floor")
 	var stuck := riders.filter(func(p): return _inside_something(p.body)).map(func(p): return p.name)
 	_expect(stuck.is_empty(), "nobody ended up inside a wall or a floor %s" % [stuck])
 	var obs := _body_of(_island("Observatory")).transform.origin
-	_expect(absf(obs.y + DROP) < 0.05 and absf(Vector2(obs.x, obs.z).length() - 27.0) < 0.1,
+	_expect(absf(obs.y + DROP) < 0.05 and absf(Vector2(obs.x, obs.z).length() - (ISLAND_AT - 5.0)) < 0.1,
 		"the islands swung round, pulled in 5 m and sank 15 m (the Observatory's is at %s)" % obs.snapped(Vector3(0.1, 0.1, 0.1)))
 	_expect(walker.body.global_position.y < -20.0, "the player on the skyway fell when it drew in (now at %.0f m)" % walker.body.global_position.y)
 	_expect(on_quad.body.is_on_floor() and absf(on_quad.body.global_position.y) < 0.2, "the player on the quad stayed put: the quad does not move")
@@ -682,9 +695,7 @@ func _the_move() -> void:
 func _back_again() -> void:
 	print("  the move back to Hub")
 	_clear_players()
-	event.elapsed = event.length() - 0.05   # (skip the cooldown)
-	await _wait(0.2)
-	_expect(not event.running, "the bell is ready again")
+	_expect(event.running and event.state == 1, "the clock is running on, in Ring")
 	var riders := []
 	for island_name in ISLANDS:
 		var body := _body_of(_island(island_name))
@@ -695,24 +706,24 @@ func _back_again() -> void:
 			riders.append(p)
 	# One player on a bridge: it draws in under them.
 	var lib := _body_of(_island("Library"))
-	var on_bridge := _player(lib.transform * Vector3(12.0 + 0.809 * 3.0, 0.1, -2.0 - 0.588 * 3.0))
+	var on_bridge := _player(lib.transform * Vector3(SHOULDER.x + 0.809 * 3.0, 0.1, SHOULDER.z - 0.588 * 3.0))
 	await _wait(0.6)
 	for p in riders:
 		p["local"] = ((p.island as AnimatableBody3D).transform.affine_inverse() * (p.body as CharacterBody3D).global_position)
 	_expect(on_bridge.body.is_on_floor() and absf(on_bridge.body.global_position.y + DROP) < 0.3, "a player stands on a bridge")
-	event.host_start(0)
+	event.elapsed = event.hold_time + event.windup_time - 0.05   # (to the end of the next warning)
 	var worst := 0.0
-	for i in int(ceil((event.move_time + 0.5) / dt)):
+	for i in int(ceil((event.move_time + 0.6) / dt)):
 		await physics_frame
 		for p in riders:
 			var want: Vector3 = (p.island as AnimatableBody3D).transform * (p.local as Vector3)
 			worst = maxf(worst, want.distance_to((p.body as CharacterBody3D).global_position))
-	_expect(event.state == 0 and is_zero_approx(event.blend), "rung again: back in Hub")
+	_expect(event.state == 0 and is_zero_approx(event.blend), "a turn later: back in Hub")
 	_expect(worst < 0.35, "the riders were carried back up (never more than %.2f m off)" % worst)
 	_expect(riders.all(func(p): return not _inside_something(p.body)), "and nobody is inside anything")
 	_expect(on_bridge.body.global_position.y < -20.0, "the player on the bridge fell when it drew in")
 	var obs := _body_of(_island("Observatory")).transform.origin
-	_expect(obs.distance_to(Vector3(0, 0, -32)) < 0.05, "the islands are exactly where they started")
+	_expect(obs.distance_to(Vector3(0, 0, -ISLAND_AT)) < 0.05, "the islands are exactly where they started")
 	_clear_players()
 
 
@@ -724,7 +735,7 @@ func _ring_routes() -> void:
 	await _bake()
 	var decks := {}
 	for island_name in ISLANDS:
-		decks[island_name] = _body_of(_island(island_name)).transform * Vector3(0, 0, -5.0)
+		decks[island_name] = _body_of(_island(island_name)).transform * Vector3(0, 0, -7.0)
 	var missed := []
 	for a in ISLANDS:
 		for b in ISLANDS:
@@ -744,7 +755,7 @@ func _ring_routes() -> void:
 	var quad := Vector3(0, 0, -7.0)
 	var reaches := ISLANDS.filter(func(n): return _short(decks[n], quad) < 3.0 or _short(quad, decks[n]) < 3.0)
 	_expect(reaches.is_empty(), "the quad cannot be walked to from any island %s" % [reaches])
-	_expect(_walks(quad, BELL + Vector3(1.3, 0, -1.0)), "(the bell can still be walked to from the quad)")
+	_expect(_walks(quad, BELFRY + Vector3(1.3, 0, -1.0)), "(the belfry can still be walked to from the quad)")
 	# The bots' crossings: up by grapple, down by a run off the rim, for every island.
 	var up := {}
 	var down := {}
@@ -787,10 +798,10 @@ func _ring_quad() -> void:
 	var lib := _body_of(_island("Library"))
 	# [where, running up to the edge (else a jump on the spot)]
 	var takeoffs := {
-		"a run off the forecourt's tip": [lib.transform * Vector3(0, 0.1, -10.5), true],
-		"the forecourt's tip": [lib.transform * Vector3(0, 0.1, -12.4), false],
-		"the plaza's corner": [lib.transform * Vector3(6.6, 0.1, -7.1), false],
-		"the middle of a bridge": [lib.transform * Vector3(12.0 + 0.809 * 4.0, 0.1, -2.0 - 0.588 * 4.0), false],
+		"a run off the deck's tip": [lib.transform * Vector3(0, 0.1, -13.2), true],
+		"the deck's tip": [lib.transform * Vector3(0, 0.1, -15.7), false],
+		"the tip's corner": [lib.transform * Vector3(5.6, 0.1, -15.6), false],
+		"the middle of a bridge": [lib.transform * Vector3(SHOULDER.x + 0.809 * 4.0, 0.1, SHOULDER.z - 0.588 * 4.0), false],
 	}
 	var boosters := []
 	for spot in takeoffs:
