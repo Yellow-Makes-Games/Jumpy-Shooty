@@ -46,6 +46,8 @@ extends Node
 ## --quit-after=SECONDS Quit automatically after this many seconds.
 ## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
 ##                      P percent of movement packets lost (incoming, this copy only).
+## --delay-respawn=MS  Client: apply another player's respawn MS milliseconds late, as if the message
+##                      were held up on the way, so their first snapshot from the new life arrives first (tests).
 ## --scripted-fire     With --scripted-input: aim at the nearest opponent and shoot.
 ## --map-event=SEC     Start the map's events (Halcyon's low gravity) SEC seconds after start, as if a terminal
 ##                      had fired them (host, practice and bot matches; tests and screenshots).
@@ -139,6 +141,7 @@ var window_rect := Rect2i()
 var net_sim_latency := 0.0
 var net_sim_jitter := 0.0
 var net_sim_loss := 0.0
+var delay_respawn := 0.0     # --delay-respawn: milliseconds
 var screenshots: Array = []  # [seconds, path]
 var presses: Array = []      # [seconds, action]
 var holds: Array = []        # [start seconds, action, end seconds, is down]
@@ -272,6 +275,7 @@ func _ready() -> void:
 				net_sim_latency = float(q[0]) if q.size() > 0 else 0.0
 				net_sim_jitter = float(q[1]) if q.size() > 1 else 0.0
 				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
+			"--delay-respawn": delay_respawn = maxf(float(value), 0.0)
 			"--press":
 				drives_keys = true
 				presses.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])

@@ -13,7 +13,7 @@ extends Node
 signal state_changed               ## scores, health or timer changed
 signal player_hit(shooter: int, target: int, damage: float, headshot: bool)
 signal player_died(victim: int, killer: int)
-signal player_respawned(id: int, spawn_index: int)
+signal player_respawned(id: int, spawn_index: int)   ## spawn_index: a new number for every respawn (it numbers the life: see Player._life)
 ## A target dummy was hit (it also sends player_hit, with the dummy's id as the target).
 signal dummy_hit(shooter: int, dummy: int, damage: float, headshot: bool, killed: bool)
 signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array)  ## one end per pellet
@@ -96,6 +96,7 @@ var death_cause: Dictionary = {}
 ## Empty for a death with nothing to tell (and for one sent by an older host).
 var death_fx: Dictionary = {}
 var _respawn_counter := 0
+var _late_respawns: Dictionary = {}   # --delay-respawn: id -> spawn index of a respawn not applied yet
 ## Every kill this match (by another player), in order, as scored by the host:
 ## {seq, killer, victim, score, tags, streak, distance, weapon}. The same on every copy.
 var kill_log: Array = []
@@ -1451,6 +1452,8 @@ func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool, w
 
 @rpc("authority", "call_local", "reliable")
 func _died(victim: int, killer: int, new_scores: Dictionary, cause: String, scored: Array = [], fx: Dictionary = {}) -> void:
+	if _late_respawns.has(victim):
+		_respawn_late(victim, _late_respawns[victim])   # --delay-respawn: messages from the host still arrive in order
 	health[victim] = 0.0
 	damage_boost.erase(victim)   # power-ups end with you
 	death_cause[victim] = cause
@@ -1531,6 +1534,25 @@ func _host_ask_respawn(id: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _respawned(id: int, spawn_index: int) -> void:
+	if DevArgs.delay_respawn > 0.0 and not Net.is_host() and id != Net.my_id():
+		# --delay-respawn (tests): as if this message were held up on the way, so the
+		# player's first snapshot from their new life gets here before it does.
+		_late_respawns[id] = spawn_index
+		get_tree().create_timer(DevArgs.delay_respawn / 1000.0).timeout.connect(_respawn_late.bind(id, spawn_index))
+		return
+	_apply_respawn(id, spawn_index)
+
+
+## --delay-respawn: the held-up respawn arrives (or sooner, if a death for them comes first).
+func _respawn_late(id: int, spawn_index: int) -> void:
+	if _late_respawns.get(id, -1) != spawn_index:
+		return   # already applied
+	_late_respawns.erase(id)
+	if running and Net.players.has(id):
+		_apply_respawn(id, spawn_index)
+
+
+func _apply_respawn(id: int, spawn_index: int) -> void:
 	if DevArgs.sync_log:
 		print("RESPAWNED %d" % id)
 	health[id] = MAX_HEALTH

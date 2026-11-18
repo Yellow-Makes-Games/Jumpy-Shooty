@@ -48,6 +48,7 @@ CHECKS=(
   "host_controls|--script tests/host_controls_test.gd"
   "spectator|--script tests/spectator_test.gd"
   "team_modes|--script tests/team_modes_test.gd"
+  "respawn_visible|--script tests/respawn_visible_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon cirrus testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
@@ -83,6 +84,8 @@ echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword 
 MAP=construction_site tests/run_bot_test.sh
 echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by the host"
 tests/run_slam_test.sh
+echo "== Respawn visibility: players dying and coming back online, a client's respawn news held up behind their snapshots; nobody stays invisible"
+tests/run_respawn_visible_test.sh
 echo "== Halcyon online and with bots: a client fires the terminal, a late joiner is told, bots use it and cope"
 tests/run_gravity_test.sh
 echo "== Race mode: bots finish a race, fail conditions, results"
