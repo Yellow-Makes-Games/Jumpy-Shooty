@@ -4,9 +4,9 @@ extends SceneTree
 ## Run: godot --headless --path . --fixed-fps 60 --script tests/movement_b_test.gd
 ##
 ## Checks: Classic's running speed and jump height; pressing against your motion in the
-## air brakes it far harder than Classic; legs tucked in the air with
-## no key; no flips or glides; Space in mid-air fires the rocket boots, and with the
-## jetpack a tap boosts while a hold asks for the jetpack; Ctrl forward dives onto your
+## air brakes it far harder than Classic; legs tucked in the air with no key; no
+## glides; Space in mid-air flips once per jump and E fires the boots; with the jetpack,
+## holding Space asks for it; sideways speed capped at 20 m/s; Ctrl forward dives onto your
 ## belly and crawls, Ctrl back slides on your back and ends in a crouch, Ctrl standing
 ## still crouches; pushing into a wall in mid-air sits on it for 2.5 s, then slides
 ## down, and a jump kicks off it. Classic still flips.
@@ -79,7 +79,7 @@ func _run() -> void:
 	await _steps(b_body, b, 60)
 	_check(not b.crouched and b.state == S.GROUND, "standing again after landing")
 
-	# --- Space in mid-air: rocket boots, not a flip. Shift: no glide.
+	# --- Space in mid-air: a flip (once per jump), not the boots. Shift: no glide.
 	await _settle(b_body, b, Vector3(0, 0, 0))
 	_press_jump()
 	await _steps(b_body, b, 18)
@@ -88,33 +88,44 @@ func _run() -> void:
 	input.glide_pressed = true
 	_press_jump()
 	await _steps(b_body, b, 1)
-	_check(b.boosts == boosts + 1 and b.state != S.FLIP, "Space in mid-air fires the rocket boots, no flip")
+	_check(b.state == S.FLIP and b.boosts == boosts, "Space in mid-air flips, no rocket boots")
+	await _steps(b_body, b, 4)
+	_press_jump()
+	await _steps(b_body, b, 1)
+	_check(b.flip_readiness() == 0.0 and b.boosts == boosts, "...once per jump")
 	await _steps(b_body, b, 20)
 	_check(b.state != S.GLIDE, "Shift in mid-air does not glide")
 	input.glide = false
+	input.boost_pressed = true
+	await _steps(b_body, b, 1)
+	_check(b.boosts == boosts + 1, "E fires the rocket boots")
 
-	# --- With the jetpack: a tap boosts, a hold asks for the jetpack.
+	# --- With the jetpack: a Space tap flips, holding Space flies the jetpack.
 	b.has_jetpack = true
 	await _settle(b_body, b, Vector3(0, 0, 0))
 	_press_jump()
 	await _steps(b_body, b, 16)
 	input.jump_held = false
 	await _steps(b_body, b, 2)
-	boosts = b.boosts
 	_press_jump()
 	await _steps(b_body, b, 4)
+	var flipped := b.state == S.FLIP
 	input.jump_held = false
 	await _steps(b_body, b, 1)
-	_check(b.boosts == boosts + 1 and not b.space_jet, "with the jetpack, a Space tap fires the boots")
-	b.clear_cooldowns()
+	_check(flipped and not b.space_jet, "with the jetpack, a Space tap flips")
 	_press_jump()
 	var jet := false
 	for i in 24:
 		await _steps(b_body, b, 1)
 		jet = jet or b.space_jet
-	_check(jet and b.boosts == boosts + 1, "...and holding Space flies the jetpack instead")
+	_check(jet, "...and holding Space flies the jetpack")
 	input.jump_held = false
 	b.has_jetpack = false
+
+	# --- Sideways speed is capped at 20 m/s (Classic has no cap).
+	var b_fast := await _after_fling(b_body, b)
+	var c_fast := await _after_fling(c_body, c)
+	_check(b_fast <= 20.01 and c_fast > 25.0, "flung at 30 m/s: Variant B goes 20 m/s at most (%.1f; Classic %.1f)" % [b_fast, c_fast])
 
 	# --- Ctrl forward: dive, belly slide, crawl.
 	await _settle(b_body, b, Vector3(0, 0, 0))
@@ -226,6 +237,17 @@ func _run_speed(body: CharacterBody3D, m: MovementController) -> float:
 	await _steps(body, m, 180)
 	input.move = Vector2.ZERO
 	return m.horizontal_speed(body)
+
+
+## Flung sideways at 30 m/s high in the air: the sideways speed a moment later.
+func _after_fling(body: CharacterBody3D, m: MovementController) -> float:
+	await _settle(body, m, Vector3(body.global_position.x, 0, 0))
+	body.global_position.y = 40.0
+	body.velocity = Vector3(30, 0, 0)
+	await _steps(body, m, 2)
+	var fast := m.horizontal_speed(body)
+	await _settle(body, m, Vector3(body.global_position.x - 1.0, 0, 0))
+	return fast
 
 
 ## Moving 15 m/s sideways high in the air, pressing the other way for 0.3 s: the
