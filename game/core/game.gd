@@ -28,6 +28,9 @@ var last_map := {"ffa": Maps.default_id("ffa"), "dm": Maps.default_id("dm"), "ra
 ## The maps a random map may pick from in Vs Bots and Practice (as stored; see
 ## LobbySettings.pool_for). The menus' map drop-downs offer "Random map" (Maps.RANDOM).
 var last_map_pool: Array = []
+## The movement variant last picked (MovementTuning.VARIANTS) on the Practice or Vs Bots
+## page or in a lobby you hosted; the next match you set up starts with it.
+var last_movement := MovementTuning.DEFAULT_VARIANT
 
 
 func _ready() -> void:
@@ -103,6 +106,11 @@ func local_weapon() -> String:
 	return DevArgs.weapon if DevArgs.weapon != "" else Settings.weapon
 
 
+## The movement variant the next match you set up uses: --movement, else the last picked.
+func movement_choice() -> String:
+	return DevArgs.movement if DevArgs.movement != "" else MovementTuning.valid_variant(last_movement)
+
+
 func goto_main_menu(notice: String = "") -> void:
 	if notice != "":
 		pending_notice = notice
@@ -127,6 +135,7 @@ func start_practice(map: String = "", game: String = "") -> void:
 	Net.match_settings = with_map(Net.match_settings, _map_choice(last_practice_map), DevArgs.game if DevArgs.game != "" else last_practice_game)
 	Net.match_settings["weapons"] = DevArgs.allowed_weapons.duplicate()   # practice: every weapon (unless a test says)
 	Net.match_settings["mobility"] = DevArgs.allowed_mobility.duplicate()   # ...and every mobility tool
+	Net.match_settings["movement"] = movement_choice()
 	Net.host_start_match()
 
 
@@ -193,7 +202,7 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	Net.match_settings = with_map({"mode": rules, "kills": kills_to_win, "minutes": 8, "race_minutes": 10,
 		"weapons": last_bot.weapons, "mobility": last_bot.mobility,
-		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes},
+		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes, "movement": movement_choice()},
 		_map_choice(last_bot.map), DevArgs.game if DevArgs.game != "" else last_bot.game)
 	for i in bots:
 		Net.add_bot(difficulty, DevArgs.bot_weapon, DevArgs.bot_mobility)
@@ -223,6 +232,10 @@ func host_online() -> Error:
 	mode = Mode.ONLINE
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
 	var err := Net.host_direct(local_name(), local_character(), port, local_weapon(), local_mobility())
+	if err == OK and LobbySettings.movement() != movement_choice():
+		var with_movement := Net.match_settings.duplicate()
+		with_movement["movement"] = movement_choice()
+		Net.set_match_settings(with_movement)
 	if err == OK and (DevArgs.map != "" or DevArgs.race):
 		Net.set_match_settings(with_map(Net.match_settings, _map_choice(""), DevArgs.game if DevArgs.game != "" else ("race" if DevArgs.race else "")))
 	elif err == OK and DevArgs.game != "":

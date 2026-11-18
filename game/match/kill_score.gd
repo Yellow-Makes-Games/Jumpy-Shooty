@@ -89,7 +89,7 @@ const T_FLICK := 16384
 const TRICKS := [T_MID_AIR, T_AIR_SHOT, T_FLICK, T_LONG]
 
 const S := MovementController.State
-const AIRBORNE := [S.AIR, S.GRAPPLE, S.WALL_RUN, S.FLIP, S.DIVE, S.GLIDE]
+const AIRBORNE := [S.AIR, S.GRAPPLE, S.WALL_RUN, S.FLIP, S.DIVE, S.GLIDE, S.WALL_SIT]
 
 
 ## facts: {distance: metres, headshot, killer_state, victim_state (MovementController.State),

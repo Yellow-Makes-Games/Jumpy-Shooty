@@ -14,6 +14,7 @@ const REFILL_AIR := 0.12    ## fuel per second while not flying, in the air
 const REFILL_GROUND := 0.5  ## ...and on the ground
 const RESTART := 0.25       ## after running dry, it needs this much fuel to light again
 
+var steer_scale := 1.0     ## STEER_SPEED times this (MovementTuning.jetpack_steer_scale: Variant B is slower)
 var fuel := 1.0
 var on := false             ## flying this frame
 var _dry := false
@@ -44,6 +45,7 @@ func step(vel: Vector3, held: bool, grounded: bool, wish: Vector3, delta: float)
 		vel.y = minf(vel.y + THRUST * delta, maxf(RISE_SPEED, vel.y))
 	if wish != Vector3.ZERO:
 		var along := Vector3(vel.x, 0.0, vel.z).dot(wish)
-		if along < STEER_SPEED:
-			vel += wish * minf(STEER * delta, STEER_SPEED - along)
+		var top := STEER_SPEED * steer_scale
+		if along < top:
+			vel += wish * minf(STEER * delta, top - along)
 	return vel

@@ -156,7 +156,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		Sound.play("equip_" + gun)   # bringing your gun up as the match starts
 
 	if is_bot:
-		motor = MovementController.new()
+		motor = MovementController.new(MovementTuning.for_variant(LobbySettings.movement()))   # (the host's pick: everyone moves the same way)
 		weapon = _make_weapon(Net.player_weapon(id))
 		_apply_move_bonus()
 		if racing:
@@ -164,7 +164,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		else:
 			brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
 	elif is_local:
-		motor = MovementController.new()
+		motor = MovementController.new(MovementTuning.for_variant(LobbySettings.movement()))   # (the host's pick: everyone moves the same way)
 		weapon = _make_weapon(Net.player_weapon(id))
 		_apply_move_bonus()
 		if racing and DevArgs.autopilot:
@@ -236,12 +236,15 @@ func _physics_process(delta: float) -> void:
 			var boosts := motor.boosts
 			if jetpack:
 				var jet_was_on := jetpack.on
+				jetpack.steer_scale = motor.tuning.jetpack_steer_scale
+				var jet_held := mobility_held or motor.space_jet   # (Variant B: Space held in the air flies it too)
 				# (a ground slam is committed: the jetpack does not fire on the way down)
-				velocity = jetpack.step(velocity, mobility_held and not racing and motor.state != MovementController.State.SLAM, is_on_floor(), motor._wish_dir(input), delta)
+				velocity = jetpack.step(velocity, jet_held and not racing and motor.state != MovementController.State.SLAM, is_on_floor(), motor._wish_dir(input), delta)
 				if jetpack.on and is_on_floor():
 					motor.warped = true   # lift off: no floor snap or ground friction this step
 				if jetpack.on and not jet_was_on and DevArgs.sync_log:
 					print("JETPACK %d" % peer_id)
+			motor.has_jetpack = jetpack != null
 			motor.hang = _charge >= 0.0 and not (jetpack and jetpack.on)   # winding a melee swing up slows a fall (the jetpack takes over from it)
 			motor.step(self, input, delta)
 			if not racing and is_on_floor():
@@ -1454,7 +1457,7 @@ func _update_pose(h: float) -> void:
 ## The small animation facts that travel in snapshots (see RobotAnimInput.make_flags).
 func _my_anim_flags() -> int:
 	var right := Vector3.RIGHT.rotated(Vector3.UP, input.yaw)
-	var wall := motor.wall_normal if motor.state == MovementController.State.WALL_RUN else motor.kick_wall
+	var wall := motor.wall_normal if motor.state in [MovementController.State.WALL_RUN, MovementController.State.WALL_SIT] else motor.kick_wall
 	var flip := RobotAnimInput.FLIP_BACK
 	var f := motor.flip_dir
 	if absf(f.x) > absf(f.y):

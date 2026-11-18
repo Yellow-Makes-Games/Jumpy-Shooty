@@ -588,7 +588,7 @@ func _pick(inp: RobotAnimInput) -> String:
 		S.SLIDE: return "slide"
 		S.AIR: return "tuck" if inp.crouched else "air"
 		S.GRAPPLE: return "grapple"
-		S.WALL_RUN: return "wall_r" if inp.wall_right() else "wall_l"
+		S.WALL_RUN, S.WALL_SIT: return "wall_r" if inp.wall_right() else "wall_l"   # (a wall sit leans on the wall-run pose for now)
 		S.MANTLE: return "vault" if inp.vaulting() else "climb"
 		S.DIVE: return "dive"
 		S.ROLL: return "roll"
