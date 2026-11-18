@@ -145,6 +145,9 @@ Networked and bot runs (real time):
   screen plays the best kills and saves the best as a video; online, a host and a client on a laggy network each
   watch their killcams, score every kill the same, show each killer their kill's points
   (adding up to its score), pick the same best three and have a clip of each;
+- Golden Gun (`tests/run_golden_gun_test.sh`): Vs Bots and online, one player holds the
+  Golden Gun at a time, whoever kills the holder takes it, every kill with it gives its
+  round back, and host and client see the same hand-overs and results;
 - Killcam mode (`tests/run_killcam_mode_test.sh`): Vs Bots and online, everyone has the
   sniper rifle (even a client who picked another gun), each player's points are their
   kills' killcam scores plus the #1 killcam bonus, the match ends at the kill that
@@ -267,6 +270,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--speed=X` | Game speed, e.g. `0.25` for quarter speed (to film a move in slow motion) |
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
+| `--rules=golden` | Host or `--bot`: a Golden Gun match (first to `--kill-target`) |
 | `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (a lobby setting, so clients play to it too; default 5,000) |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
 | `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`...) |

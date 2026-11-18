@@ -433,7 +433,7 @@ func _show_bot() -> void:
 	var show_mode := func(g: String):
 		var race := g == "race"
 		var teams: bool = g in Teams.MODES
-		kills_box.visible = g == "ffa" or g == "dm"
+		kills_box.visible = g == "ffa" or g == "dm" or g == "golden"
 		killcam_row.visible = g == "killcam"
 		# Team modes take up to 7 bots (4v4): you are Red, the bots alternate Blue, Red...
 		var most := Game.max_bots(g)

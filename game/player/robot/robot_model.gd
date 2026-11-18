@@ -5,6 +5,7 @@ extends Node3D
 
 const VIEW_SHADER := "res://game/player/robot/viewmodel.gdshader"
 const VISOR_ENERGY := 1.6
+const GOLD := Color(1.0, 0.76, 0.22)   ## the Golden Gun
 ## Left out of the body you see in first person: the camera sits inside the head,
 ## and the arms and gun are drawn by ViewModel.
 const VIEW_HIDDEN := ["head", "upper_arm_l", "forearm_l", "hand_l", "grapple", "upper_arm_r",
@@ -70,7 +71,8 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 			mesh = c
 	weapon = gun if gun == "none" else WeaponData.valid(gun)   # "none": empty hands (races)
 	# A melee weapon is not in the model file: empty hands, then the blade in the fist.
-	var shown_gun := "none" if WeaponData.melee(weapon) else weapon
+	var shown_gun := "none" if WeaponData.melee(weapon) else WeaponData.look_of(weapon)   # (the Golden Gun: the revolver)
+	var golden := weapon != "none" and WeaponData.by_id(weapon).golden
 	if custom:
 		mesh.mesh = _custom_mesh(custom, mesh.skin, shown_gun)
 	else:
@@ -87,17 +89,20 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 		var painted := kind == "armor" and paint.a > 0.0
 		if painted:
 			color = paint
+		var gilded := golden and base.resource_name.begins_with(shown_gun + ".")   # the gun's own surfaces
+		if gilded:
+			color = GOLD if kind != "accent" else GOLD.darkened(0.25)
 		if viewmodel:
 			var sm := ShaderMaterial.new()
 			sm.shader = load(VIEW_SHADER)
 			sm.set_shader_parameter("albedo", color)
-			sm.set_shader_parameter("roughness", base.roughness)
-			sm.set_shader_parameter("metallic", base.metallic)
+			sm.set_shader_parameter("roughness", 0.25 if gilded else base.roughness)
+			sm.set_shader_parameter("metallic", 0.9 if gilded else base.metallic)
 			if kind == "visor":
 				sm.set_shader_parameter("emission", trim * VISOR_ENERGY)
 				_glow_materials.append([sm, true])
 			mesh.set_surface_override_material(i, sm)
-		elif kind == "accent" or kind == "visor" or painted:
+		elif kind == "accent" or kind == "visor" or painted or gilded:
 			var m: StandardMaterial3D = base.duplicate()
 			if kind == "visor":
 				m.emission_enabled = true
@@ -106,6 +111,9 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 				_glow_materials.append([m, false])
 			else:
 				m.albedo_color = color
+				if gilded:
+					m.metallic = 0.9
+					m.roughness = 0.25
 			mesh.set_surface_override_material(i, m)
 	if viewmodel:
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

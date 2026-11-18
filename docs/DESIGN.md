@@ -9,6 +9,16 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 - One player hosts; no dedicated servers. If the host leaves, the match ends (no host migration yet).
 - Hits: the host decides, with rewind to what the shooter saw.
 
+## Golden Gun (2026-11-17)
+
+- Asked for: one player has a golden gun with one in the chamber that kills whoever it
+  hits; kill the holder to take it; everyone else has some other gun.
+- My calls: a random player starts with it; a kill with it loads the next round at once,
+  a miss means a 3 s reload; the others use the weapon they picked (as the host allows);
+  first to the host's kill target wins; with nobody to credit (a fall, a crash) or when
+  the holder leaves, it goes to a random other player. It is the revolver in gold (its
+  model, animations and sounds), not a new model.
+
 ## Killcams (2026-11-17)
 
 - Killcam mode (asked for, 2026-11-17): snipers only; every kill scores its killcam

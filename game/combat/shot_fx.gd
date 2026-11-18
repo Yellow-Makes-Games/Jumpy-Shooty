@@ -8,6 +8,7 @@ class_name ShotFx
 static func spawn(parent: Node, muzzle: Vector3, ends: PackedVector3Array, hits: Array, weapon: String = "pistol") -> void:
 	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
 		return
+	weapon = WeaponData.look_of(weapon)
 	var flash: float = {"shotgun": 0.2, "rifle": 0.11, "sniper": 0.22, "break_action": 0.24, "revolver": 0.16,
 		"lever_action": 0.16, "bolt_action": 0.2, "railgun": 0.26, "lmg": 0.13, "smg": 0.09, "machine_pistol": 0.08, "akimbo": 0.1,
 		"derringer": 0.14, "auto_shotgun": 0.18, "slug_shotgun": 0.2, "air_cannon": 0.05, "minigun": 0.12, "battle_rifle": 0.14,

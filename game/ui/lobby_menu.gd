@@ -347,7 +347,7 @@ func _build_rules() -> void:
 		var s := Net.match_settings.duplicate()
 		if Net.game_kind() == "race":
 			s.race_minutes = int(v)
-		elif s.mode == "kills":
+		elif s.mode != "time":   # ("kills", or a mode played to a kill target: Golden Gun)
 			s.kills = int(v)
 		else:
 			s.minutes = int(v)
@@ -429,6 +429,7 @@ func _refresh_rules() -> void:
 	var killcam := KillcamMode.active()
 	var team_mode := Teams.mode()   # "snd", "ctf" or ""
 	var own_rules := gun_game or killcam or team_mode != ""   # a mode with rules of its own: no kills/time choice
+	var golden := GoldenGun.active()   # (first to a kill target the host sets, never a time limit)
 	var kills_mode: bool = s.mode != "time"
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
 	if race:
@@ -441,16 +442,18 @@ func _refresh_rules() -> void:
 		if Net.is_host():   # (the host's boxes below show the points and minutes)
 			_rules_label.text = "Snipers only. Every kill scores its killcam points. The match's #1 killcam earns +%s at the end." \
 				% KillcamMode.format(KillcamMode.BEST_BONUS)
+	if golden:
+		_rules_label.text = "One player has the Golden Gun: one round, and whoever it hits dies. Kill them to take it. Everyone else has their own weapon. First to %d kills." % s.kills
 	if team_mode == "snd":
 		_rules_label.text = "Two teams, Red and Blue, no respawns in a round. The attackers carry a bomb: hold %s on site A or B to plant it. Defenders: hold %s on it to defuse. Blow a site, defuse, or knock the other team out to win the round. Sides swap after %d rounds; first to %d rounds wins." \
 			% [Settings.action_text("interact"), Settings.action_text("interact"), Teams.HALF, Teams.ROUNDS_TO_WIN]
 	elif team_mode == "ctf":
 		_rules_label.text = "Two teams, Red and Blue. Walk over the other team's flag to take it and bring it to your own flag (it must be home) to score. Walk over your own dropped flag to send it home. First to %d captures, or the most after %d minutes." \
 			% [Teams.CAPTURES_TO_WIN, int(Teams.CTF_TIME / 60.0)]
-	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else (Teams.MODE_NAMES[team_mode] if team_mode != "" else Maps.GAME_NAMES.get(Net.game_kind(), "")))
+	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else ("Golden Gun" if golden else (Teams.MODE_NAMES[team_mode] if team_mode != "" else Maps.GAME_NAMES.get(Net.game_kind(), ""))))
 	_game_label.visible = not Net.is_host()
 	_game_row.visible = Net.is_host()
-	_mode_pick.visible = not race
+	_mode_pick.visible = not race and not golden
 	var only := LobbySettings.only_weapon()
 	if _weapon:
 		# No guns in a race; Gun Game hands them out; Killcam is snipers only; a Deathmatch
@@ -469,7 +472,7 @@ func _refresh_rules() -> void:
 		_allowed.visible = LobbySettings.weapons_apply()   # a shoot-out: everyone picks their own weapon
 		_allowed.set_editable(Net.is_host())
 		_allowed.preferred = Net.player_loadout_weapon(Net.my_id())
-	_rules_label.visible = not Net.is_host() or own_rules
+	_rules_label.visible = not Net.is_host() or own_rules or golden
 	_host_rules.visible = Net.is_host() and not own_rules
 	_killcam_rules.visible = Net.is_host() and killcam
 	_map_label.text = Maps.label(Net.map_id())

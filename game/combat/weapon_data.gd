@@ -48,9 +48,12 @@ const GUNS := ["pistol", "revolver", "machine_pistol", "akimbo", "derringer", "f
 const BATCH_3 := ["derringer", "flare_gun", "plasma_pistol", "auto_shotgun", "slug_shotgun", "air_cannon",
 	"minigun", "battle_rifle", "laser_rifle", "nail_gun", "crossbow", "anti_materiel", "harpoon_gun",
 	"mortar", "plasma_cannon", "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]
+## Weapons nobody picks: a mode hands them out (the Golden Gun, see GoldenGun). Real
+## weapons all the same (has(), by_id()), but never in IDS, so no picker shows them.
+const HIDDEN := ["golden_gun"]
 ## Guns held like the pistol (in both hands round the grip, no stock): they use the
 ## pistol's poses, with their own reload and firing clips.
-const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_gun", "plasma_pistol"]
+const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_gun", "plasma_pistol", "golden_gun"]
 
 @export var id := "pistol"
 @export var display_name := "Pistol"
@@ -99,6 +102,10 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_g
 @export var pull := false
 ## The colour of the tracer (alpha 0: the usual warm yellow).
 @export var tracer_color := Color(0, 0, 0, 0)
+## Looks, sounds and moves like this weapon (its model, clips and sounds): "" for its own.
+@export var looks_like := ""
+## Drawn in gold (the Golden Gun).
+@export var golden := false
 @export_group("Projectile")
 ## Kind.PROJECTILE: a rocket or grenade that flies (the host follows it) and blows up
 ## where it lands: full `damage` within `splash_inner` metres, falling to nothing at
@@ -321,6 +328,29 @@ static func revolver() -> WeaponData:
 	w.kick = 2.2
 	w.knockback = 4.0
 	w.knockback_up = 0.5
+	return w
+
+
+## The Golden Gun (see GoldenGun): the revolver, in gold, with one round that kills
+## whoever it hits. A kill loads the next round at once (GoldenGun); a miss means a
+## slow reload.
+static func golden_gun() -> WeaponData:
+	var w := revolver()
+	w.id = "golden_gun"
+	w.display_name = "Golden Gun"
+	w.short_name = "Golden Gun"
+	w.blurb = "One round. Whoever it hits dies. A kill loads the next one; a miss, a slow reload."
+	w.looks_like = "revolver"
+	w.golden = true
+	w.damage = 1000.0
+	w.magazine = 1
+	w.reload_time = 3.0
+	w.fire_interval = 0.5
+	w.falloff_start = 1000.0
+	w.falloff_end = 1000.0
+	w.falloff_min = 1.0
+	w.headshot_multiplier = 1.0
+	w.tracer_color = Color(1.0, 0.8, 0.25)
 	return w
 
 
@@ -723,6 +753,7 @@ static func _make(weapon_id: String) -> WeaponData:
 		"hammer": return hammer()
 		"dagger": return dagger()
 		"revolver": return revolver()
+		"golden_gun": return golden_gun()
 		"machine_pistol": return machine_pistol()
 		"akimbo": return akimbo()
 		"break_action": return break_action()
@@ -775,7 +806,15 @@ static func default_id() -> String:
 
 
 static func has(weapon_id: String) -> bool:
-	return weapon_id in IDS
+	return weapon_id in IDS or weapon_id in HIDDEN
+
+
+## The weapon whose model, animations and sounds `weapon_id` uses (see `looks_like`).
+static func look_of(weapon_id: String) -> String:
+	if not has(weapon_id):
+		return weapon_id   # ("none", empty hands)
+	var l := by_id(weapon_id).looks_like
+	return l if l != "" else weapon_id
 
 
 ## `weapon_id` if it is a real weapon, otherwise the default one.

@@ -31,15 +31,15 @@ static func weapon_at(level: int) -> String:
 
 # ---------------------------------------------------------------------------
 # The menus' mode switch: Shoot-out, Gun Game, Killcam, Search and Destroy, Capture the
-# Flag, Deathmatch or Race. Gun Game, Killcam and the two team modes are played on the
+# Flag, Deathmatch or Race (and Golden Gun, see GoldenGun). Gun Game, Killcam, Golden Gun and the two team modes are played on the
 # arenas ("ffa" maps) with their own rules (match_settings.mode = "gungame", "killcam",
 # "snd" or "ctf", see KillcamMode and Teams); Deathmatch is a game of its own ("dm", on
 # the arenas with weapon pickups).
 
-const MODES := ["ffa", "gungame", "killcam", "snd", "ctf", "dm", "race"]
-const MODE_LABELS := ["Shoot-out", "Gun Game", "Killcam", "Search & Destroy", "Capture the Flag", "Deathmatch", "Race"]
+const MODES := ["ffa", "gungame", "killcam", "golden", "snd", "ctf", "dm", "race"]
+const MODE_LABELS := ["Shoot-out", "Gun Game", "Killcam", "Golden Gun", "Search & Destroy", "Capture the Flag", "Deathmatch", "Race"]
 ## The arena modes with rules of their own (match_settings.mode).
-const RULES := ["gungame", "killcam", "snd", "ctf"]
+const RULES := ["gungame", "killcam", "golden", "snd", "ctf"]
 
 
 ## Which of MODES these match settings are.

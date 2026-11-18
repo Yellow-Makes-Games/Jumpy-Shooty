@@ -89,6 +89,8 @@ echo "== Killcam: Vs Bots (watch, skip), online host and laggy client agree on t
 tests/run_killcam_test.sh
 echo "== Killcam mode: snipers only, points from killcam scores, the #1 killcam bonus, online agreement"
 tests/run_killcam_mode_test.sh
+echo "== Golden Gun: one holder at a time, the killer takes it, a kill reloads it, online agreement"
+tests/run_golden_gun_test.sh
 echo "== Lobby settings: the host allows only some weapons and mobility tools; an early and a late joiner, the death-screen pick, Vs Bots with one gun; scoreboard points and pings"
 tests/run_lobby_settings_test.sh
 echo "== Lobby: size 3 (a fourth player is refused), ready up, the host kicks the one not ready, then starts"
