@@ -165,8 +165,9 @@ static func pistol(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) ->
 
 ## A headshot (kill feed, death screen): a robot's head, visor slit across it, with a
 ## hit bursting on its left side (the gun's side in the feed) and a crack running in
-## from it. `at` is the top left; it is headshot_width() across and 16 tall at size 1.
-## Returns its width.
+## from it. Both places draw it white, like the feed's weapon icons; its dark edge
+## keeps it readable on light backgrounds. `at` is the top left; it is
+## headshot_width() across and 16 tall at size 1. Returns its width.
 static func headshot_icon(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
 	var edge := Color(0, 0, 0, 0.6 * color.a)
 	var cut := Color(0, 0, 0, 0.8 * color.a)   # holes in the head: the visor and the crack

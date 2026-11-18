@@ -873,7 +873,7 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 		else:
 			parts = [[victim, Net.player_color(e.victim)]]
 			if e.head:
-				parts.append(["@head", HudStyle.YELLOW])   # the headshot icon, between the gun and the victim
+				parts.append(["@head", Color.WHITE])   # the headshot icon, between the gun and the victim
 			if e.get("wall", false):   # (an entry from before the wall icon has none)
 				parts.append(["@wall", Color.WHITE])
 			parts.append(["@gun", Color.WHITE])
@@ -901,7 +901,7 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 			if part[0] == "@gun":
 				HudStyle.kill_icon(ci, e.gun, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
 			elif part[0] == "@head":   # (16 tall: centred on the line)
-				HudStyle.headshot_icon(ci, Vector2(x - widths[i], y - 8.0), Color(HudStyle.YELLOW, alpha))
+				HudStyle.headshot_icon(ci, Vector2(x - widths[i], y - 8.0), Color(1, 1, 1, 0.9 * alpha))
 			elif part[0] == "@wall":
 				HudStyle.wall_impact(ci, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
 			else:
@@ -986,7 +986,7 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 			var col: Color = HudStyle.YELLOW if chip == "HEADSHOT" else Color(1, 1, 1, 0.85)
 			HudStyle.plate(ci, Rect2(cx, y + 112, cw, 24), 6.0, Color(1, 1, 1, 0.09))
 			if icon > 0.0:
-				HudStyle.headshot_icon(ci, Vector2(cx + 9, y + 124 - 8.0 * 0.8), col, 0.8)
+				HudStyle.headshot_icon(ci, Vector2(cx + 9, y + 124 - 8.0 * 0.8), Color(1, 1, 1, 0.9), 0.8)   # white, like the feed's
 			HudStyle.text(ci, Vector2(cx + 9 + icon, y + 124), chip, 12, col)
 			cx += cw + 6.0
 	else:
