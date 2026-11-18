@@ -7,6 +7,75 @@ extends Resource
 const EYE_HEIGHT := 1.6  ## eyes above the feet, standing
 const BODY_RADIUS := 0.4
 
+## Movement variants, for A/B testing how movement feels. The host picks one in the
+## lobby (LobbySettings.movement) and every player in the match runs it; Practice and
+## Vs Bots pick it on their pages. "classic" is the numbers below as they are; "b" is
+## classic with the changes in _apply_b.
+## To change a mechanic for Variant B, give it a switch here (an @export bool that is
+## false for classic), have MovementController check the switch, and turn it on in
+## _apply_b. Prefer a switch per mechanic over checking `variant` in the controller.
+const VARIANTS := ["classic", "b"]
+const DEFAULT_VARIANT := "classic"
+
+var variant := DEFAULT_VARIANT   ## which variant built these numbers (see for_variant)
+
+
+## `id` if it is a known variant, otherwise classic.
+static func valid_variant(id) -> String:
+	return str(id) if str(id) in VARIANTS else DEFAULT_VARIANT
+
+
+## The variant's name for menus and the HUD.
+static func variant_name(id) -> String:
+	return "Variant B" if valid_variant(id) == "b" else "Classic"
+
+
+## Fresh tuning for a variant. Each player gets their own copy: Player changes some
+## speeds in place for its weapon's speed bonus, so a shared one would leak between players.
+static func for_variant(id) -> MovementTuning:
+	var t := MovementTuning.new()
+	t.variant = valid_variant(id)
+	if t.variant == "b":
+		t._apply_b()
+	return t
+
+
+## Variant B: its numbers and mechanic switches, set over the classic ones.
+##  - no flips and no glides;
+##  - Space: a jump on the ground; in mid-air, rocket boots (a tap, with the jetpack);
+##    held in the air, it flies the jetpack if you have it (E and right mouse still work);
+##  - legs tucked whenever you are in the air, so edges clear without a key;
+##  - Ctrl (or Q) does crouch, slide and dive: forward dives (then a belly slide, then a
+##    crawl while held), back slides on your back (then a crouch while held), otherwise
+##    a crouch;
+##  - stick to a wall you push into in mid-air for a second, then slide slowly down it;
+##  - every horizontal speed about 15% slower (jump height and gravity unchanged, so
+##    every map jump and vault still works). See B_SLOWER.
+func _apply_b() -> void:
+	flips_on = false
+	glides_on = false
+	space_boost = true
+	always_tuck = true
+	ctrl_moves = true
+	wall_sit_time = 1.0
+	for prop in B_SLOWER:
+		set(prop, get(prop) * B_SPEED)
+	jetpack_steer_scale = B_SPEED
+
+
+## Variant B's speed: horizontal movement this much of classic.
+const B_SPEED := 0.85
+## The horizontal speeds (and the slow-downs of slides, so they run 15% shorter too)
+## that Variant B scales by B_SPEED. Upward speeds, gravity and accelerations (which
+## are rates, scaled already by the top speed) are left alone.
+const B_SLOWER := ["run_speed", "sprint_speed", "air_speed", "crouch_speed", "stop_speed",
+	"grapple_pull_speed", "grapple_yank", "tether_pull_speed", "tug_speed",
+	"boost_speed",
+	"slide_start_speed", "slide_end_speed", "slide_boost", "slide_boost_max_speed", "slide_decel",
+	"wall_run_min_speed", "wall_run_speed", "wall_jump_push", "wall_jump_forward", "wall_jump_forward_max",
+	"ledge_exit_speed",
+	"dive_boost", "dive_max_speed", "belly_boost", "belly_decel", "belly_crawl_speed"]
+
 @export_group("Ground")
 @export var run_speed := 8.0          ## top speed you accelerate to while running
 @export var sprint_speed := 11.5      ## top speed while holding sprint
@@ -136,3 +205,15 @@ const BODY_RADIUS := 0.4
 @export var flip_burst := 4.5             ## press jump in mid-air: this much speed toward your WASD direction
 @export var flip_up := 4.5                ## and at least this much upward speed
 @export var flip_time := 0.45             ## how long the flip lasts (for the animation)
+
+## Mechanic switches. Classic has every one as below; Variant B changes them (see _apply_b).
+@export_group("Mechanic switches")
+@export var flips_on := true              ## Space again in mid-air flips (when space_boost is off)
+@export var glides_on := true             ## Shift held in mid-air glides
+@export var space_boost := false          ## Space in mid-air fires the rocket boots; with the jetpack, a tap does, and a hold flies it
+@export var space_hold_time := 0.2        ## with the jetpack: Space held this long in the air flies it (a shorter tap boosts)
+@export var always_tuck := false          ## legs tucked whenever you have been in the air a moment, no key needed
+@export var ctrl_moves := false           ## Ctrl or Q: forward dives, back slides on your back, otherwise crouches (no crouch-slide)
+@export var wall_sit_time := 0.0          ## push into a wall in mid-air: stick to it this long (0 = never)...
+@export var wall_sit_slide_speed := 2.0   ## ...then slide down it this fast while you keep pushing
+@export var jetpack_steer_scale := 1.0    ## the jetpack's sideways speed, times this

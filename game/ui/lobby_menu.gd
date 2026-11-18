@@ -35,6 +35,7 @@ var _killcam_points: SpinBox
 var _killcam_minutes: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
+var _movement: CheckButton   # every game: the movement variant everyone plays with (A/B testing)
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
 var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
@@ -669,6 +670,19 @@ func _build_rules() -> void:
 # Lobby settings (see LobbySettings): the host picks; everyone else sees them. New
 # settings get their control here.
 func _build_lobby_settings() -> void:
+	# The movement variant (see MovementTuning.VARIANTS): on is Variant B for everyone.
+	_movement = CheckButton.new()
+	_movement.text = "Movement: Variant B (A/B test)"
+	_movement.tooltip_text = "Off: classic movement. On: everyone in the match moves with Variant B."
+	_movement.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(_movement)
+	_movement.toggled.connect(func(on: bool):
+		if _updating:
+			return
+		var ms := Net.match_settings.duplicate()
+		ms["movement"] = "b" if on else "classic"
+		Game.last_movement = ms.movement   # (the next lobby or offline match starts with it too)
+		Net.set_match_settings(ms))
 	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
 	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
 	var mobility_window := _floating()   # (its chips move to the window before the page has them)
@@ -784,6 +798,9 @@ func _refresh_rules() -> void:
 	_powerups.set_pressed_no_signal(Net.powerups_on())
 	if _allowed:
 		_allowed.set_value(s.get("weapons", []))
+	if _movement:
+		_movement.disabled = not Net.is_host()   # everyone else just sees the host's choice
+		_movement.set_pressed_no_signal(LobbySettings.movement() == "b")
 	if _allowed_mobility:
 		_allowed_mobility.visible = LobbySettings.mobility_apply()   # a race always has the grapple
 		_rules_head.visible = _allowed_mobility.visible   # a race has no loadout rules

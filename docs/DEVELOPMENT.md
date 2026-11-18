@@ -63,6 +63,12 @@ they play out as fast as the machine allows instead of in real time. Their logs 
 Quick checks:
 
 - movement (`tests/movement_test.gd`): speeds, stopping, jump height, momentum in the air;
+- movement variants (`tests/movement_variant_test.gd`): the A/B movement switch (see
+  `MovementTuning.VARIANTS`): classic is unchanged, every player gets their own copy, and
+  Practice and Vs Bots start you and every bot on the variant picked;
+- Variant B movement (`tests/movement_b_test.gd`): 15% slower running with the same jump,
+  legs tucked in the air, Space for boots and the jetpack, Ctrl dives, back-slides and
+  crouches, the wall sit, and classic still flipping;
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
