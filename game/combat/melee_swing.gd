@@ -58,7 +58,9 @@ enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT, HANDS }
 ## "wind" (how much of that a full wind-up covers, the blow bringing the rest: SPIN_WIND unless
 ## given), "dive" (instead of turning: the body tips about the axis, back by dive.x radians as
 ## it winds up and over by dive.y into the blow, as in a dive, and comes level again after;
-## other players see it, your own view stays level) and "after" (turns the body carries on round after the blow lands, the
+## other players see it, your own view stays level), "legs" (the legs' own part in it: two
+## sets of [right thigh, right knee, left thigh, left knee] in radians, wound up and as the blow
+## lands; a thigh is + lifted in front and - trailing behind, a knee + bent) and "after" (turns the body carries on round after the blow lands, the
 ## same way, or to the left if it did not spin before). A key named "fp_" and one of those
 ## ("fp_ready", "fp_wound", "fp_hit"...) is used instead in first person, where the weapon
 ## has to stay in view and clear of the middle of it, and a thrust has to go where you look.
@@ -322,13 +324,18 @@ const MOVES := {
 			"end": [Vector3(0.02, 0.2, -0.28), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.95, 0.3), 0.7, -0.22, 0.0],
 			"way": Vector2(0.0, 1.0),
 		},
-		# In mid-air: curled up, the right fist drawn right back past the ribs, into a superman punch thrown
-		# straight out ahead.
+		# In mid-air: a superman punch. The right knee comes up as if to kick and the right fist is cocked by
+		# the jaw; then the leg snaps straight back and the fist goes straight out, the body flung flat behind it.
 		"air": {
-			"wound": [Vector3(0.26, -0.12, 0.14), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), -0.85, -0.3, 0.0],
+			"wound": [Vector3(0.24, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), -0.7, -0.15, 0.0],
 			"fp_wound": [Vector3(0.26, -0.24, -0.16), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), -0.6, -0.1, 0.0],
-			"hit": [Vector3(0.04, -0.02, -0.5), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.45, 0.35, 0.0],
-			"end": [Vector3(0.03, -0.03, -0.52), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.5, 0.4, 0.0],
+			"hit": [Vector3(0.04, 0.2, -0.49), Vector3(0.0, 0.85, 0.53), Vector3(0.0, 0.53, -0.85), 0.6, 0.25, 0.0],
+			"fp_hit": [Vector3(0.06, -0.04, -0.5), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.45, 0.2, 0.0],
+			"end": [Vector3(0.03, 0.2, -0.51), Vector3(0.0, 0.85, 0.53), Vector3(0.0, 0.53, -0.85), 0.65, 0.28, 0.0],
+			"fp_end": [Vector3(0.05, -0.05, -0.52), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.5, 0.22, 0.0],
+			"axis": Vector3(-1.0, 0.0, 0.0),
+			"dive": Vector2(0.1, 0.4),
+			"legs": [[1.6, 1.9, 0.05, 0.25], [-1.0, 0.1, 0.6, 1.3]],
 		},
 	},
 }
@@ -393,6 +400,8 @@ var _in_air := false       # the wind-up (or the blow) is a mid-air one
 var _air := 0.0            # how far the pose has gone over to its mid-air form, 0..1
 var _spin := 0.0           # radians the body has spun round in a mid-air wind-up
 var _diving := false       # a mid-air blow is tipping the body over in a dive
+var _leg := [0.0, 0.0, 0.0, 0.0]   # a mid-air move's own legs: right thigh, right knee, left thigh, left knee (radians)
+var _leg_w := 0.0          # ...and how much they take over, 0..1
 var _spin_base := -1.0     # how wound up the swing was when it left the ground (the spin starts from there); -1: not spinning
 var _spinning := false     # a blow is bringing the spin round
 var _spin_from := 0.0      # ...from here...
@@ -423,6 +432,7 @@ func set_weapon(weapon_id: String) -> void:
 		_air_move["turns"] = m.air.get("turns", 0.0)
 		_air_move["wind"] = m.air.get("wind", SPIN_WIND)
 		_air_move["dive"] = m.air.get("dive", Vector2.ZERO)
+		_air_move["legs"] = m.air.get("legs", [])
 		_air_move["after"] = m.air.get("after", 0.0)
 	_pace = PACE.get(weapon_id, 1.0)
 	two_handed = WeaponData.by_id(weapon_id).two_handed
@@ -521,6 +531,7 @@ func stop() -> void:
 	_spin = 0.0
 	_spinning = false
 	_diving = false
+	_leg_w = 0.0
 	_landed = 0.0
 	_in_air = false
 	_wound = false
@@ -605,6 +616,12 @@ func _slam_key(hit: bool) -> Array:
 ## How far the wind-up or blow has gone over to its mid-air form, 0..1.
 func air() -> float:
 	return _air
+
+
+## The legs of a mid-air move that poses them: [right thigh, right knee, left thigh, left
+## knee, how much they take over 0..1], or [] when it leaves them alone.
+func legs() -> Array:
+	return [] if _leg_w <= 0.0 else [_leg[0], _leg[1], _leg[2], _leg[3], _leg_w]
 
 
 ## The spin of a mid-air wind-up: which way up the body turns about, and how far round it
@@ -734,6 +751,24 @@ func sample(delta: float) -> Array:
 				_landed = 0.0
 		SLAM:
 			_cur = _mix(_cur, _slam_key(false), 1.0 - exp(-delta * DRAW_TAP))
+	# The legs of a mid-air move that has its own: where they wind up to, snapped to
+	# where the blow puts them and held through it, then let go.
+	var pair: Array = _air_move.get("legs", [])
+	var legs_in := 0.0
+	if not pair.is_empty():
+		var goal: Array = []
+		var quick := 10.0
+		if _phase == WIND and _in_air:
+			goal = pair[0]
+			legs_in = smoothstep(0.0, 1.0, _air) * smoothstep(0.0, 0.3, _charge)
+		elif _phase == SWING and _in_air and _landed == 0.0:
+			goal = pair[1]
+			quick = 45.0
+			legs_in = 1.0 if _t < _times[_times.size() - 2] else 0.0
+		if not goal.is_empty():
+			for i in 4:
+				_leg[i] = lerpf(_leg[i], goal[i], 1.0 - exp(-delta * quick))
+	_leg_w = move_toward(_leg_w, legs_in, delta * (12.0 if legs_in > _leg_w else 5.0))
 	if _phase != WIND:
 		_air = move_toward(_air, 0.0, delta * AIR_BLEND)
 	if _phase != WIND and _phase != SWING and _spin != 0.0:   # a spin left over (landed, let go): back to the front the short way

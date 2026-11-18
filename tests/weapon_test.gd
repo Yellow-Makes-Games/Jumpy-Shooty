@@ -243,6 +243,9 @@ func _melee_in_the_air() -> void:
 				if turns != 0.0:
 					_check(turned > TAU * absf(turns) * 0.6 and turned < TAU * absf(turns) * 0.97,
 						"%s: and it turns most of the way round as it winds up (%.2f turns)" % [what, turned / TAU])
+				var has_legs: bool = not (moves.air.get("legs", []) as Array).is_empty()
+				var knee_up: bool = has_legs and not anim.legs().is_empty() and float(anim.legs()[0]) > 0.8 and float(anim.legs()[4]) > 0.9
+				var kicked_back := false
 				anim.swing(1.0, 0, true)
 				var cut := false
 				var t := 0.0
@@ -250,6 +253,7 @@ func _melee_in_the_air() -> void:
 				while t < anim.length() + 0.8:
 					t += dt
 					cut = cut or anim.cutting()
+					kicked_back = kicked_back or (not anim.legs().is_empty() and float(anim.legs()[0]) < -0.5 and float(anim.legs()[4]) > 0.9)
 					var was := anim.spin()
 					last = anim.sample(dt)
 					turned += absf(angle_difference(was, anim.spin()))
@@ -260,6 +264,8 @@ func _melee_in_the_air() -> void:
 					and (last[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.02,
 					"%s: the mid-air blow cuts, and ends back at ready with the spin played out" % what)
 				_check(worst < 0.05, "%s: both hands stay on it in mid-air (%.3f m)" % [what, worst])
+				if has_legs:
+					_check(knee_up and kicked_back and anim.legs().is_empty(), "%s: the knee comes up with the wind-up, the leg kicks back with the blow, then the legs are let go" % what)
 			# The ground slam: weapon overhead on the way down, driven into the floor, then back to ready.
 			var slam := MeleeSwing.new(id, first_person)
 			var gap := 0.0

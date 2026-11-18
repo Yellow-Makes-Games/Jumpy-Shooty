@@ -444,6 +444,15 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		if maxf(_sink, _tuck) > 0.0:
 			rig.sample(_tmp, "crouch_idle", 0.0)
 			_pose.blend_bones(_tmp, maxf(_sink, _tuck), _legs_core)
+		# A mid-air move with legs of its own (the superman punch: knee up, then kicked back).
+		var legs := _swing.legs()
+		if not legs.is_empty() and not first_person and inp.alive:
+			var w: float = legs[4]
+			for leg in [["thigh_r", "shin_r", 0], ["thigh_l", "shin_l", 2]]:
+				var thigh: int = _b[leg[0]]
+				var shin: int = _b[leg[1]]
+				_pose.rot[thigh] = _pose.rot[thigh].slerp(Quaternion(Vector3.RIGHT, legs[leg[2]]), w)
+				_pose.rot[shin] = _pose.rot[shin].slerp(Quaternion(Vector3.RIGHT, -legs[leg[2] + 1]), w)
 		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
 		# A mid-air wind-up spins the whole body about its middle (not the body you see from
 		# inside it: your own view stays level, and the arms go round it instead).
