@@ -1,0 +1,59 @@
+name: Version tag
+
+# Tags every push to main with the next vMAJOR.MINOR.PATCH and publishes a
+# GitHub Release for it. Bumps patch by default; a "minor" or "major" label on
+# the merged PR bumps that part instead. The first tag is v0.1.0.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: version-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          refs=$(gh api --paginate "repos/$REPO/git/matching-refs/tags/v" \
+            --jq '.[] | "\(.object.sha) \(.ref | sub("^refs/tags/"; ""))"')
+
+          # A re-run must not tag the same commit twice.
+          existing=$(awk -v sha="$SHA" '$1 == sha && $2 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $2 }' <<<"$refs" | head -n1)
+          if [ -n "$existing" ]; then
+            echo "$SHA is already tagged $existing"
+            exit 0
+          fi
+
+          latest=$(awk '$2 ~ /^v[0-9]+\.[0-9]+\.[0-9]+$/ { print $2 }' <<<"$refs" | sort -V | tail -n1)
+
+          if [ -z "$latest" ]; then
+            next=v0.1.0
+          else
+            labels=$(gh api "repos/$REPO/commits/$SHA/pulls" --jq '.[].labels[].name')
+            IFS=. read -r major minor patch <<<"${latest#v}"
+            if grep -qix major <<<"$labels"; then
+              next="v$((major + 1)).0.0"
+            elif grep -qix minor <<<"$labels"; then
+              next="v$major.$((minor + 1)).0"
+            else
+              next="v$major.$minor.$((patch + 1))"
+            fi
+          fi
+
+          echo "Latest: ${latest:-none}  Next: $next"
+          gh release create "$next" --repo "$REPO" --target "$SHA" --title "$next" --generate-notes
+          echo "Tagged $SHA as $next" >>"$GITHUB_STEP_SUMMARY"
