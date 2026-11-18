@@ -125,10 +125,11 @@ func _divider(row: Node) -> void:
 	row.add_child(line)
 
 
-## The player list grows with the players, up to about four rows, then scrolls.
+## The player list grows with the players, up to three rows, then scrolls (so the lobby
+## fits the screen whoever is in it).
 func _fit_list() -> void:
 	if is_instance_valid(_list_scroll):
-		_list_scroll.custom_minimum_size.y = minf(_list.get_combined_minimum_size().y, 186.0)
+		_list_scroll.custom_minimum_size.y = minf(_list.get_combined_minimum_size().y, 124.0)
 
 
 func _refresh() -> void:
@@ -274,7 +275,9 @@ func _build_map() -> void:
 			return
 		var m: String = GunGame.MODES[i]
 		var g := GunGame.game_of_mode(m)
-		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 2)
+		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 3)   # 3 across: two rows for the five modes
+	for b in _game_row.get_children():
+		(b as Button).add_theme_font_size_override("font_size", 16)   # "Deathmatch" in a third of the column
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()

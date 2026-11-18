@@ -78,6 +78,10 @@ func _add_button(id: String) -> void:
 	b.set_meta("sfx", "select")
 	_grid.add_child(b)
 	_buttons[id] = b
+	# Characters from the Character Creator come after the 8 robots: each extra row of
+	# buttons takes its height off the stage, so the pages it sits on stay the same height.
+	var rows := ceili(_buttons.size() / float(COLUMNS))
+	_stage.custom_minimum_size.y = STAGE.y - maxi(rows - 2, 0) * 42.0
 	_ids.append(id)
 
 
