@@ -96,6 +96,12 @@ def check_match(name, log, host_log=None):
 bot = check_match("Vs Bots", read("bot"))
 host = check_match("Online host", read("host"))
 client = check_match("Online client", read("client"))
+# The host's points to win (a lobby setting, --points) reach the client too.
+for name in ["bot", "host", "client"]:
+    rules = re.findall(r"^KILLCAM_RULES \d+ (\d+) (\d+)", read(name), re.M)
+    print(f"{name}: plays to {rules[:1]}")
+    if not rules or int(rules[0][0]) != target:
+        bad(f"{name}: the match should play to the host's {target} points ({rules[:1]})")
 if host is not None and client is not None and host != client:
     bad(f"the host and the client disagree on the results:\n    host   {host}\n    client {client}")
 

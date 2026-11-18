@@ -24,6 +24,9 @@ var _rules_label: Label
 var _host_rules: HBoxContainer
 var _mode_pick: OptionButton
 var _amount: SpinBox
+var _killcam_rules: HBoxContainer   # Killcam mode: first to [points] or [minutes] (host only)
+var _killcam_points: SpinBox
+var _killcam_minutes: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
@@ -346,6 +349,40 @@ func _build_rules() -> void:
 			s.minutes = int(v)
 		if s != Net.match_settings:
 			Net.set_match_settings(s))
+	# Killcam mode: the points to win and the time limit (see KillcamMode).
+	_killcam_rules = HBoxContainer.new()
+	_killcam_rules.add_theme_constant_override("separation", 10)
+	_col.add_child(_killcam_rules)
+	var first := UiKit.label(_killcam_rules, "First to")
+	first.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	first.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_killcam_points = SpinBox.new()
+	_killcam_points.min_value = KillcamMode.POINTS_MIN
+	_killcam_points.max_value = KillcamMode.POINTS_MAX
+	_killcam_points.step = KillcamMode.POINTS_STEP
+	_killcam_points.custom_minimum_size = Vector2(130, 44)
+	_killcam_rules.add_child(_killcam_points)
+	var or_label := UiKit.label(_killcam_rules, "points, or")
+	or_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	or_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_killcam_minutes = SpinBox.new()
+	_killcam_minutes.min_value = KillcamMode.MINUTES_MIN
+	_killcam_minutes.max_value = KillcamMode.MINUTES_MAX
+	_killcam_minutes.custom_minimum_size = Vector2(90, 44)
+	_killcam_rules.add_child(_killcam_minutes)
+	var mins := UiKit.label(_killcam_rules, "minutes")
+	mins.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	mins.autowrap_mode = TextServer.AUTOWRAP_OFF
+	var set_killcam := func(key: String, v: float):
+		if _updating:
+			return
+		var ks := Net.match_settings.duplicate()
+		ks[key] = int(v)
+		ks = LobbySettings.clean(ks)
+		if ks != Net.match_settings:
+			Net.set_match_settings(ks)
+	_killcam_points.value_changed.connect(func(v: float): set_killcam.call("killcam_points", v))
+	_killcam_minutes.value_changed.connect(func(v: float): set_killcam.call("killcam_minutes", v))
 	# Deathmatch only: power-ups (health, uber health, double damage) on the map or not.
 	_powerups = CheckButton.new()
 	_powerups.text = "Power-ups (health, uber, double damage)"
@@ -395,7 +432,10 @@ func _refresh_rules() -> void:
 		_rules_label.text = "Every kill moves you to the next of %d weapons. First to get a kill with the last one (brass knuckles) wins. Kicked to death: back one weapon." % GunGame.steps()
 	if killcam:
 		_rules_label.text = "Snipers only. Every kill scores its killcam points: range, headshots, momentum (both of you moving), flicks, trickshots. First to %s points, or the most after %d minutes. The match's #1 killcam earns +%s at the end." \
-			% [KillcamMode.format(KillcamMode.target()), int(KillcamMode.TIME_LIMIT / 60.0), KillcamMode.format(KillcamMode.BEST_BONUS)]
+			% [KillcamMode.format(KillcamMode.target()), KillcamMode.minutes(), KillcamMode.format(KillcamMode.BEST_BONUS)]
+		if Net.is_host():   # (the host's boxes below show the points and minutes)
+			_rules_label.text = "Snipers only. Every kill scores its killcam points. The match's #1 killcam earns +%s at the end." \
+				% KillcamMode.format(KillcamMode.BEST_BONUS)
 	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else Maps.GAME_NAMES.get(Net.game_kind(), ""))
 	_game_label.visible = not Net.is_host()
 	_game_row.visible = Net.is_host()
@@ -420,6 +460,7 @@ func _refresh_rules() -> void:
 		_allowed.preferred = Net.player_loadout_weapon(Net.my_id())
 	_rules_label.visible = not Net.is_host() or own_rules
 	_host_rules.visible = Net.is_host() and not own_rules
+	_killcam_rules.visible = Net.is_host() and killcam
 	_map_label.text = Maps.label(Net.map_id())
 	_map_label.visible = not Net.is_host()
 	_map_pick.visible = Net.is_host()
@@ -428,6 +469,8 @@ func _refresh_rules() -> void:
 		(_game_row.get_child(i) as Button).set_pressed_no_signal(GunGame.MODES[i] == GunGame.mode_of(s))
 	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
 	_mode_pick.select(0 if kills_mode else 1)
+	_killcam_points.set_value_no_signal(KillcamMode.clean_points(s.get("killcam_points")))
+	_killcam_minutes.set_value_no_signal(KillcamMode.clean_minutes(s.get("killcam_minutes")))
 	_powerups.visible = Net.is_deathmatch()
 	_powerups.disabled = not Net.is_host()   # everyone else just sees the host's choice
 	_powerups.set_pressed_no_signal(Net.powerups_on())

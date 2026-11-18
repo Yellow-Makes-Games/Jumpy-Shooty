@@ -46,7 +46,7 @@ extends Node
 ##                      normally they only try now and then).
 ## --rules=kills:N | time:MINUTES | gungame | killcam  Set the win condition (Gun Game and Killcam also work with --bot).
 ## --kill-target=N      Host only: override the kill target for this match.
-## --points=N           Host only, Killcam mode: override the points to win (tests).
+## --points=N           Host or --bot, Killcam mode: set the points to win (a lobby setting, so clients see it too).
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
 ## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, creator.

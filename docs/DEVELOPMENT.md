@@ -264,7 +264,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--speed=X` | Game speed, e.g. `0.25` for quarter speed (to film a move in slow motion) |
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
-| `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (default 10,000) |
+| `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (a lobby setting, so clients play to it too; default 5,000) |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
 | `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`...) |
 | `--map-event=SEC` | Start the map's events (Halcyon's low gravity) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
