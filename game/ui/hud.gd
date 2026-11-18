@@ -309,6 +309,12 @@ func _draw_spectating(ci: CanvasItem, size: Vector2) -> void:
 	var cx := size.x * 0.5
 	var y := 38.0
 	var top := "SPECTATING"
+	if follow_name != "":   # locked onto a player
+		if Teams.active():
+			_teams.draw_bar(ci, size, self)
+			_teams.draw_banner(ci, size)
+		_draw_following(ci, size, "%s FLY FREE" % Settings.action_text("interact"))
+		return
 	if Teams.active():   # the teams' score and what is going on, then the fly keys
 		_teams.draw_bar(ci, size, self)
 		_teams.draw_banner(ci, size)
@@ -330,21 +336,22 @@ func _draw_spectating(ci: CanvasItem, size: Vector2) -> void:
 
 
 ## Out for the round, watching someone (see FollowCamera).
-func _draw_following(ci: CanvasItem, size: Vector2) -> void:
+func _draw_following(ci: CanvasItem, size: Vector2, last: String = "BACK WHEN THE NEXT ROUND STARTS") -> void:
 	var cx := size.x * 0.5
-	var col := Teams.team_color(Teams.team_of(Net.arena.follow_cam.target)) if Net.arena and Net.arena.follow_cam else HudStyle.ORANGE
+	var target: int = Net.arena.follow_cam.target if Net.arena and Net.arena.follow_cam else 0
+	var col := Teams.team_color(Teams.team_of(target)) if Teams.team_of(target) >= 0 else HudStyle.ORANGE
 	_pill(ci, Vector2(cx, size.y - 92.0), "SPECTATING  %s" % follow_name.to_upper(), 18, col)
-	var keys := "%s NEXT PLAYER   ·   %s PREVIOUS   ·   HOLD %s SCOREBOARD   ·   BACK WHEN THE NEXT ROUND STARTS" % [
-		Settings.action_text("fire"), Settings.action_text("grapple"), Settings.action_text("scoreboard")]
+	var keys := "%s NEXT PLAYER   ·   %s PREVIOUS   ·   HOLD %s SCOREBOARD   ·   %s" % [
+		Settings.action_text("fire"), Settings.action_text("grapple"), Settings.action_text("scoreboard"), last.to_upper()]
 	HudStyle.label(ci, Vector2(cx, size.y - 56.0), keys.to_upper(), 11, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _draw_fly_keys(ci: CanvasItem, size: Vector2) -> void:
 	var cx := size.x * 0.5
-	var keys := "%s %s %s %s FLY   ·   %s UP   ·   %s DOWN   ·   HOLD %s FAST   ·   HOLD %s SCOREBOARD   ·   ESC MENU: JOIN IN" % [
+	var keys := "%s %s %s %s FLY   ·   %s UP   ·   %s DOWN   ·   HOLD %s FAST   ·   %s WATCH A PLAYER   ·   HOLD %s SCOREBOARD   ·   ESC MENU: JOIN IN" % [
 		Settings.action_text("move_forward"), Settings.action_text("move_left"), Settings.action_text("move_back"),
 		Settings.action_text("move_right"), Settings.action_text("jump"), Settings.action_text("crouch"),
-		Settings.action_text("sprint"), Settings.action_text("scoreboard")]
+		Settings.action_text("sprint"), Settings.action_text("fire"), Settings.action_text("scoreboard")]
 	HudStyle.label(ci, Vector2(cx, size.y - 34.0), keys.to_upper(), 11, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_CENTER)
 
 
