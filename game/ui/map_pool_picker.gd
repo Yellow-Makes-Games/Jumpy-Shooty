@@ -18,6 +18,7 @@ var _summary: Label
 var _edit: Button
 var _grid: GridContainer
 var _chips := {}              # map id -> Button
+var _window: FloatingPanel    # the chips' floating window (see use_window), or null: they open under the line
 
 
 func _init(ids: Array = [], game: String = "ffa", editable: bool = true) -> void:
@@ -28,7 +29,7 @@ func _init(ids: Array = [], game: String = "ffa", editable: bool = true) -> void
 	_summary = UiKit.label(head, "", true, 15)
 	_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_summary.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_edit = UiKit.button(head, "Change", func(): _open(not _grid.visible))
+	_edit = UiKit.button(head, "Change", func(): _open(not (_window.is_open() if _window else _grid.visible)))
 	_edit.theme_type_variation = "Chip"
 	_edit.custom_minimum_size = Vector2(110, 38)
 	_grid = GridContainer.new()
@@ -67,8 +68,31 @@ func game() -> String:
 
 
 func _open(on: bool) -> void:
+	if _window:
+		if on:
+			_window.open(_edit)
+		else:
+			_window.close()
+		return
 	_grid.visible = on
 	_edit.text = "Done" if on else "Change"
+
+## Show the chips in a floating window (opened by Change) instead of under the line
+## (the lobby; see FloatingPanel). `title` heads the window. Call it before the
+## picker is in the tree, so its chips enter the tree only once (in the window).
+func use_window(window: FloatingPanel, title: String) -> void:
+	_window = window
+	_grid.get_parent().remove_child(_grid)
+	UiKit.section(window.content, title)
+	window.content.add_child(_grid)
+	_grid.visible = true
+	_edit.text = "Change"
+
+
+## The floating window, if the chips are in one (see use_window).
+func window() -> FloatingPanel:
+	return _window
+
 
 
 func _build_chips() -> void:

@@ -39,10 +39,12 @@ var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (s
 var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
 var _map_label: Label
-var _map_pick: OptionButton
+var _map_button: Button   # the host: the map picked (or Random); opens the map window
+var _map_window: FloatingPanel
 var _map_pool: MapPoolPicker   # a random map: the maps it may pick from (the host ticks them)
 var _song_box: HBoxContainer   # the lobby song: the host's pick, or what it is for everyone else
-var _song_pick: OptionButton
+var _song_button: Button   # the host: the song playing; opens the song window
+var _song_window: FloatingPanel
 var _song_label: Label
 var _character: CharacterPicker
 var _weapon: WeaponPicker
@@ -54,6 +56,7 @@ var _mode_button: Button   # the mode picked; the host presses it for the mode w
 var _mode_blurb: Label     # in the mode window: about the mode under the mouse
 var _mode_panel: FloatingPanel
 var _robot_panel: FloatingPanel
+var _creator_panel: FloatingPanel   # the Character Creator, while it is open (made each time)
 var _mobility_button: Button   # your mobility tool; opens the mobility window
 var _mobility_box: VBoxContainer
 var _mobility_panel: FloatingPanel
@@ -280,6 +283,7 @@ func _build_character(columns: Node) -> void:
 	loadout.add_child(_character)
 	_robot_panel = _floating(_character.list)
 	_character.list_requested.connect(func(): _robot_panel.open(_character._name_button))
+	_character.create_requested.connect(_open_creator)
 	# Your mobility tool: a button with it on, which opens the mobility window.
 	_mobility_box = VBoxContainer.new()
 	_mobility_box.add_theme_constant_override("separation", 8)
@@ -346,12 +350,94 @@ func _build_character(columns: Node) -> void:
 
 ## A floating window over the page with `what` in it (see FloatingPanel). Beside its
 ## button, it starts level with the top of the columns.
-func _floating(what: Control, side: String = "left") -> FloatingPanel:
+func _floating(what: Control = null, side: String = "left") -> FloatingPanel:
 	var p := FloatingPanel.new(side)
 	p.top_of = _col
-	p.content.add_child(what)
+	if what:
+		p.content.add_child(what)
 	_frame.add_child(p)   # last: drawn over the page, in the menu's theme
 	return p
+
+
+## Fill `window` with a heading and a button for each choice ([id, text] pairs), the
+## `current` one lit, then open it beside `anchor`. Pressing one closes the window and
+## calls on_pick with its id.
+func _open_choices(window: FloatingPanel, anchor: Control, title: String, choices: Array, current: String,
+		columns: int, on_pick: Callable) -> void:
+	UiKit.clear(window.content)
+	UiKit.section(window.content, title)
+	var grid := GridContainer.new()
+	grid.columns = columns
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	window.content.add_child(grid)
+	for c in choices:
+		var b := Button.new()
+		b.theme_type_variation = "Chip"
+		b.toggle_mode = true
+		b.text = str(c[1])
+		b.custom_minimum_size = Vector2(200, 40)
+		b.add_theme_font_size_override("font_size", 15)
+		b.set_pressed_no_signal(str(c[0]) == current)
+		b.pressed.connect(func():
+			window.close()
+			on_pick.call(str(c[0])))
+		grid.add_child(b)
+	window.open(anchor)
+
+
+## A button that shows a pick in the lobby (lit, like a picked chip).
+func _pick_button(parent: Node, height: float = 44.0) -> Button:
+	var b := Button.new()
+	b.theme_type_variation = "Chip"
+	b.toggle_mode = true
+	b.button_pressed = true
+	b.custom_minimum_size = Vector2(0, height)
+	b.add_theme_font_size_override("font_size", 17)
+	parent.add_child(b)
+	b.pressed.connect(func(): b.set_pressed_no_signal(true))
+	return b
+
+
+## The Character Creator in a window of its own, from the robot window's "Make new
+## character": a new character starts from the body of the robot you have (a blank
+## name), and "Save and play as this" saves it and makes it yours; Save keeps it for
+## later (it joins the robot list either way). Cancel, a click outside or Esc closes
+## it without saving.
+func _open_creator() -> void:
+	_robot_panel.close()
+	if _creator_panel:
+		_creator_panel.queue_free()
+	var mine := Net.player_character(Net.my_id())
+	var creator := CharacterCreator.new("" if Characters.is_custom(mine) else mine)
+	var window := VBoxContainer.new()
+	window.add_theme_constant_override("separation", 12)
+	UiKit.label(window, "CHARACTER CREATOR", false, 24).add_theme_font_override("font", HudStyle.font(true))
+	window.add_child(creator)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	window.add_child(buttons)
+	_creator_panel = _floating(window)
+	var panel := _creator_panel
+	panel.closed.connect(func():
+		panel.queue_free()
+		if _creator_panel == panel:
+			_creator_panel = null)
+	UiKit.button(buttons, "Cancel", panel.close).custom_minimum_size = Vector2(160, 50)
+	var keep := UiKit.button(buttons, "Save", func():
+		creator.save()
+		_character.refresh_custom())
+	keep.custom_minimum_size = Vector2(160, 50)
+	var play := UiKit.primary_button(buttons, "Save and play as this", func():
+		var id := creator.save()
+		_character.refresh_custom()
+		Settings.character = id
+		Settings.save_settings()
+		_character.select(id)
+		Net.set_my_character(id)
+		panel.close())
+	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.open(_character._name_button)
 
 
 ## The weapon card shows this weapon.
@@ -420,22 +506,27 @@ func _show_mode_blurb() -> void:
 func _build_map() -> void:
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
-	_map_pick = OptionButton.new()
-	_map_pick.custom_minimum_size = Vector2(0, 44)
-	Maps.fill(_map_pick, _map_choice(), Net.game_kind(), true)
-	_col.add_child(_map_pick)
-	_map_pick.item_selected.connect(func(_i: int):
-		if _updating:
-			return
-		var s := Net.match_settings.duplicate()
-		var picked := Maps.picked(_map_pick)
-		s["random_map"] = picked == Maps.RANDOM   # the map is picked from the pool as the match starts
-		if picked != Maps.RANDOM:
-			s["map"] = picked
-			Game.last_map[Net.game_kind()] = picked
-		Net.set_match_settings(s))
-	# Random map: the maps it may pick from (only this game's; one always stays ticked).
+	# The host: a button with the map (or Random map); it opens a window with every map
+	# of the game set up, and Random.
+	_map_button = _pick_button(_col)
+	_map_button.tooltip_text = "Change the map"
+	_map_window = _floating()
+	_map_button.pressed.connect(func():
+		var choices := Maps.ids_for(Net.game_kind()).map(func(id): return [id, Maps.label(id)])
+		choices.append([Maps.RANDOM, "Random map"])
+		_open_choices(_map_window, _map_button, "Map", choices, _map_choice(), 2, func(picked: String):
+			var s := Net.match_settings.duplicate()
+			s["random_map"] = picked == Maps.RANDOM   # the map is picked from the pool as the match starts
+			if picked != Maps.RANDOM:
+				s["map"] = picked
+				Game.last_map[Net.game_kind()] = picked
+			Net.set_match_settings(s)))
+	# Random map: the maps it may pick from (only this game's; one always stays ticked),
+	# in a window of their own.
 	_map_pool = MapPoolPicker.new(Net.match_settings.get("map_pool", []), Net.game_kind(), Net.is_host())
+	var pool_window := _floating()
+	pool_window.panel.custom_minimum_size.x = 480
+	_map_pool.use_window(pool_window, "Random map pool")
 	_col.add_child(_map_pool)
 	_map_pool.changed.connect(func(ids: Array):
 		if _updating:
@@ -459,21 +550,21 @@ func _build_song() -> void:
 	var head := UiKit.label(_song_box, "Lobby song", true, 15)
 	head.autowrap_mode = TextServer.AUTOWRAP_OFF
 	head.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_song_pick = OptionButton.new()
-	_song_pick.custom_minimum_size = Vector2(230, 0)
-	_song_pick.add_item(Music.title_of(""))
-	_song_pick.set_item_metadata(0, "")
-	for song in Music.song_names():
-		_song_pick.add_item(Music.title_of(song))
-		_song_pick.set_item_metadata(_song_pick.item_count - 1, song)
-	_song_box.add_child(_song_pick)
-	_song_pick.item_selected.connect(func(i: int):
-		if _updating:
-			return
-		var s := Net.match_settings.duplicate()
-		s["song"] = str(_song_pick.get_item_metadata(i))
-		if s != Net.match_settings:
-			Net.set_match_settings(s))
+	# The host: a button with the song; it opens a window with every song (and Shuffle).
+	_song_button = _pick_button(_song_box, 0.0)
+	_song_button.custom_minimum_size.x = 230
+	_song_button.add_theme_font_size_override("font_size", 16)
+	_song_button.tooltip_text = "Change the lobby song"
+	_song_window = _floating(null, "above")
+	_song_button.pressed.connect(func():
+		var choices := [["", Music.title_of("")]]
+		for song in Music.song_names():
+			choices.append([song, Music.title_of(song)])
+		_open_choices(_song_window, _song_button, "Lobby song", choices, str(Net.match_settings.get("song", "")), 2, func(song: String):
+			var s := Net.match_settings.duplicate()
+			s["song"] = song
+			if s != Net.match_settings:
+				Net.set_match_settings(s)))
 	_song_label = UiKit.label(_song_box, "", false, 15)
 	_song_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	_song_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -567,6 +658,9 @@ func _build_rules() -> void:
 func _build_lobby_settings() -> void:
 	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
 	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
+	var mobility_window := _floating()   # (its chips move to the window before the page has them)
+	mobility_window.panel.custom_minimum_size.x = 460
+	_allowed_mobility.use_window(mobility_window, "Mobility allowed")
 	_col.add_child(_allowed_mobility)
 	_allowed_mobility.changed.connect(func(ids: Array):
 		if _updating:
@@ -575,6 +669,9 @@ func _build_lobby_settings() -> void:
 		s["mobility"] = ids
 		Net.set_match_settings(s))
 	_allowed = AllowedWeaponsPicker.new(Net.match_settings.get("weapons", []), Net.is_host(), false)
+	var weapons_window := _floating()
+	weapons_window.panel.custom_minimum_size.x = 620
+	_allowed.use_window(weapons_window, "Weapons allowed")
 	_col.add_child(_allowed)
 	_allowed.changed.connect(func(ids: Array):
 		if _updating:
@@ -650,21 +747,22 @@ func _refresh_rules() -> void:
 	if random:   # everyone else sees the pool below; after a match, what it picked last
 		_map_label.text = "Random map" + ("  ·  last: %s" % Maps.name_of(Net.map_id()) if not Match.last_results.is_empty() else "")
 	_map_label.visible = not Net.is_host()
-	_map_pick.visible = Net.is_host()
+	_map_button.visible = Net.is_host()
+	_map_button.text = "Random map" if random else Maps.label(Net.map_id())
+	if not Net.is_host():
+		_map_window.close()
+		_song_window.close()
 	_map_pool.visible = random
 	_map_pool.set_editable(Net.is_host())
 	_map_pool.set_value(s.get("map_pool", []), Net.game_kind())
 	var song := str(s.get("song", ""))
-	_song_pick.visible = Net.is_host()
+	_song_button.visible = Net.is_host()
+	_song_button.text = Music.title_of(song)
 	_song_label.visible = not Net.is_host()
 	_song_label.text = Music.title_of(song)
 	_updating = true
 	for i in _game_row.get_child_count():
 		(_game_row.get_child(i) as Button).set_pressed_no_signal(GunGame.MODES[i] == GunGame.mode_of(s))
-	Maps.fill(_map_pick, _map_choice(), Net.game_kind(), true)
-	for i in _song_pick.item_count:
-		if str(_song_pick.get_item_metadata(i)) == song:
-			_song_pick.select(i)
 	_mode_pick.select(0 if kills_mode else 1)
 	_killcam_points.set_value_no_signal(KillcamMode.clean_points(s.get("killcam_points")))
 	_killcam_minutes.set_value_no_signal(KillcamMode.clean_minutes(s.get("killcam_minutes")))
