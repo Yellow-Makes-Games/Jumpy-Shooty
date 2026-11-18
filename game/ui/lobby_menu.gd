@@ -56,6 +56,7 @@ var _mode_button: Button   # the mode picked; the host presses it for the mode w
 var _mode_blurb: Label     # in the mode window: about the mode under the mouse
 var _mode_panel: FloatingPanel
 var _robot_panel: FloatingPanel
+var _creator_panel: FloatingPanel   # the Character Creator, while it is open (made each time)
 var _mobility_button: Button   # your mobility tool; opens the mobility window
 var _mobility_box: VBoxContainer
 var _mobility_panel: FloatingPanel
@@ -282,6 +283,7 @@ func _build_character(columns: Node) -> void:
 	loadout.add_child(_character)
 	_robot_panel = _floating(_character.list)
 	_character.list_requested.connect(func(): _robot_panel.open(_character._name_button))
+	_character.create_requested.connect(_open_creator)
 	# Your mobility tool: a button with it on, which opens the mobility window.
 	_mobility_box = VBoxContainer.new()
 	_mobility_box.add_theme_constant_override("separation", 8)
@@ -395,6 +397,47 @@ func _pick_button(parent: Node, height: float = 44.0) -> Button:
 	parent.add_child(b)
 	b.pressed.connect(func(): b.set_pressed_no_signal(true))
 	return b
+
+
+## The Character Creator in a window of its own, from the robot window's "Make new
+## character": a new character starts from the body of the robot you have (a blank
+## name), and "Save and play as this" saves it and makes it yours; Save keeps it for
+## later (it joins the robot list either way). Cancel, a click outside or Esc closes
+## it without saving.
+func _open_creator() -> void:
+	_robot_panel.close()
+	if _creator_panel:
+		_creator_panel.queue_free()
+	var mine := Net.player_character(Net.my_id())
+	var creator := CharacterCreator.new("" if Characters.is_custom(mine) else mine)
+	var window := VBoxContainer.new()
+	window.add_theme_constant_override("separation", 12)
+	UiKit.label(window, "CHARACTER CREATOR", false, 24).add_theme_font_override("font", HudStyle.font(true))
+	window.add_child(creator)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	window.add_child(buttons)
+	_creator_panel = _floating(window)
+	var panel := _creator_panel
+	panel.closed.connect(func():
+		panel.queue_free()
+		if _creator_panel == panel:
+			_creator_panel = null)
+	UiKit.button(buttons, "Cancel", panel.close).custom_minimum_size = Vector2(160, 50)
+	var keep := UiKit.button(buttons, "Save", func():
+		creator.save()
+		_character.refresh_custom())
+	keep.custom_minimum_size = Vector2(160, 50)
+	var play := UiKit.primary_button(buttons, "Save and play as this", func():
+		var id := creator.save()
+		_character.refresh_custom()
+		Settings.character = id
+		Settings.save_settings()
+		_character.select(id)
+		Net.set_my_character(id)
+		panel.close())
+	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.open(_character._name_button)
 
 
 ## The weapon card shows this weapon.
