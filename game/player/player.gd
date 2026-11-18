@@ -1515,6 +1515,8 @@ func _show_warp(from: Vector3, to: Vector3) -> void:
 		var fx_parent: Node = Net.arena if Net.arena else get_parent()
 		Portal.flash(fx_parent, from + mid, col)
 		Portal.flash(fx_parent, to + mid, col)
+	if mobility == Mobility.BLINK:
+		Portal.trail(Net.arena if Net.arena else get_parent(), from + mid, to + mid, col)
 	var sound := "blink" if mobility == Mobility.BLINK else "portal_through"
 	if is_local and not is_bot:
 		Sound.play(sound, 0.0, 0.05)
