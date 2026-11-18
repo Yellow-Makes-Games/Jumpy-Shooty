@@ -40,7 +40,10 @@ const CRACK_SHADE := [1.0, 0.8, 0.62]
 const MAX_DEBRIS := 140
 
 ## Every panel: {xf, size, kind, tint, n: Vector3i, cell: Vector3, first: int (first
-## cell index), body: StaticBody3D, meshes: Node3D, skins: [{kind, tint, box: AABB}], thin: int}
+## cell index), body: StaticBody3D, meshes: Node3D, skins: [{kind, tint, box: AABB}], thin: int,
+## frame: Node3D or null}. A panel that rides a mover (an island's glass walls) has that
+## mover's body as its frame: its xf is in that frame, and its body and meshes are the
+## frame's children, so they go where it goes.
 var panels: Array = []
 ## Every cell: {panel, ijk: Vector3i, hp, max_hp, stage, protected}
 var cells: Array = []
@@ -55,6 +58,19 @@ var _debris := 0
 func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
 	root = map
 	name = "Breakables"
+	return _take(pieces, spawn_points, null)
+
+
+## The same for the blocks of a mover (MapRoot calls it for each): `pieces` and
+## `spawn_points` are in the mover's own frame, and `frame` is its moving body.
+func add_riding(frame: Node3D, pieces: Array, spawn_points: Array) -> Array:
+	return _take(pieces, spawn_points, frame)
+
+
+func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
+	var map := root
+	var first_panel := panels.size()
+	var first_cell := cells.size()
 	var table: Dictionary = map.palette.breakable if map.palette else {}
 	var keep := []
 	var panel_pieces := []
@@ -75,14 +91,14 @@ func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
 	var skin_of := {}   # index in keep -> panel index
 	for piece in panel_pieces:
 		var whole: bool = piece.get("break_mode", "cell") == "whole"
-		_add_panel(piece, health_of(piece, table), whole)
+		_add_panel(piece, health_of(piece, table), whole, frame)
 		if whole:
 			whole_pieces.append(piece)
 	for k in keep.size():
 		var p: Dictionary = keep[k]
 		if p.solid or p.get("hidden", false) or p.shape != "box":
 			continue
-		for i in panels.size():
+		for i in range(first_panel, panels.size()):
 			if panels[i].whole:
 				continue
 			var box := _skin_box(panels[i], p)
@@ -95,8 +111,8 @@ func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
 		if not skin_of.has(k):
 			rest.append(keep[k])
 	# Whole blocks count as things resting on a floor: a floor under a crate holds.
-	_protect(rest + whole_pieces, spawn_points)
-	for i in panels.size():
+	_protect(rest + whole_pieces, spawn_points, first_cell)
+	for i in range(first_panel, panels.size()):
 		_rebuild_panel(i)
 	return rest
 
@@ -136,7 +152,7 @@ static func health_of(piece: Dictionary, table: Dictionary) -> float:
 	return kind_health if kind_health > 0.0 else BlockBreakable.DEFAULT_HEALTH
 
 
-func _add_panel(piece: Dictionary, toughness: float, whole: bool = false) -> void:
+func _add_panel(piece: Dictionary, toughness: float, whole: bool = false, frame: Node3D = null) -> void:
 	var s: Vector3 = piece.size
 	var thin := 0
 	for a in 3:
@@ -152,7 +168,7 @@ func _add_panel(piece: Dictionary, toughness: float, whole: bool = false) -> voi
 		mat = BlockMaterials.for_kind(piece.kind, root.palette)
 	var panel := {"xf": piece.xf, "size": s, "kind": piece.kind, "tint": piece.get("tint", Color.WHITE),
 		"n": n, "cell": Vector3(s.x / n.x, s.y / n.y, s.z / n.z), "first": cells.size(), "thin": thin,
-		"skins": [], "body": null, "meshes": null, "whole": whole, "piece": piece, "material": mat}
+		"skins": [], "body": null, "meshes": null, "whole": whole, "piece": piece, "material": mat, "frame": frame}
 	var index := panels.size()
 	panels.append(panel)
 	for k in n.z:
@@ -160,17 +176,23 @@ func _add_panel(piece: Dictionary, toughness: float, whole: bool = false) -> voi
 			for i in n.x:
 				cells.append({"panel": index, "ijk": Vector3i(i, j, k), "hp": toughness, "max_hp": toughness,
 					"stage": 0, "protected": false})
-	var body := StaticBody3D.new()
+	var body: StaticBody3D
+	if frame:
+		var moving := AnimatableBody3D.new()   # it moves with its frame, a step at a time like it
+		moving.sync_to_physics = false
+		body = moving
+	else:
+		body = StaticBody3D.new()
 	body.name = "Panel_%d" % index
 	body.collision_layer = 1
 	body.collision_mask = 0
 	body.transform = piece.xf
 	body.set_meta("panel", index)
-	add_child(body)
+	(frame if frame else self).add_child(body)
 	panel.body = body
 	var meshes := Node3D.new()
 	meshes.name = "Mesh_%d" % index
-	add_child(meshes)
+	(frame if frame else self).add_child(meshes)
 	panel.meshes = meshes
 
 
@@ -198,7 +220,7 @@ func _skin_box(panel: Dictionary, piece: Dictionary) -> AABB:
 
 
 ## Marks the cells that must not break: near spawns, and under or round other things.
-func _protect(others: Array, spawn_points: Array) -> void:
+func _protect(others: Array, spawn_points: Array, first_cell: int = 0) -> void:
 	# A coarse grid of the other pieces' boxes, so each cell only checks its neighbours.
 	var bucket := 4.0
 	var grid := {}
@@ -219,8 +241,8 @@ func _protect(others: Array, spawn_points: Array) -> void:
 					if not grid.has(key):
 						grid[key] = []
 					grid[key].append(box)
-	for c in cells.size():
-		var box := cell_box(c)
+	for c in range(first_cell, cells.size()):
+		var box := _frame_box(c)
 		var cell: Dictionary = cells[c]
 		for s in spawn_points:
 			var at: Vector3 = s[0]
@@ -264,11 +286,27 @@ static func _holds(cell: AABB, other: AABB, floor_panel: bool) -> bool:
 	return inside.size.x > eps and inside.size.y > eps and inside.size.z > eps
 
 
-## A cell's box in the map's frame (around its panel's box: rough for a turned panel).
+## A cell's box in the map's frame (around its panel's box: rough for a turned panel),
+## where it is right now if it rides a mover.
 func cell_box(c: int) -> AABB:
 	var cell: Dictionary = cells[c]
 	var panel: Dictionary = panels[cell.panel]
+	return _panel_xf(panel) * _local_box(panel, cell.ijk)
+
+
+## The same in its panel's frame: the map's, or its mover's.
+func _frame_box(c: int) -> AABB:
+	var cell: Dictionary = cells[c]
+	var panel: Dictionary = panels[cell.panel]
 	return (panel.xf as Transform3D) * _local_box(panel, cell.ijk)
+
+
+## Where a panel is in the map right now.
+func _panel_xf(panel: Dictionary) -> Transform3D:
+	var frame := panel.get("frame") as Node3D
+	if frame and is_instance_valid(frame):
+		return frame.transform * (panel.xf as Transform3D)
+	return panel.xf
 
 
 func cell_center(c: int) -> Vector3:
@@ -286,7 +324,7 @@ func cell_at(body: Object, point: Vector3, normal: Vector3) -> int:
 	if body == null or not body.has_meta("panel"):
 		return -1
 	var panel: Dictionary = panels[int(body.get_meta("panel"))]
-	var local: Vector3 = (panel.xf as Transform3D).affine_inverse() * (point - normal * 0.03)
+	var local: Vector3 = _panel_xf(panel).affine_inverse() * (point - normal * 0.03)
 	var ijk: Vector3 = ((local + panel.size * 0.5) / panel.cell).floor()
 	var n: Vector3i = panel.n
 	var i := Vector3i(clampi(int(ijk.x), 0, n.x - 1), clampi(int(ijk.y), 0, n.y - 1), clampi(int(ijk.z), 0, n.z - 1))

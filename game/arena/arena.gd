@@ -24,6 +24,10 @@ var portals: Portals
 var _nav_rebake := 0.0
 var _nav_baking := false
 const NAV_REBAKE_DELAY := 0.6
+## A map with two layouts (see LayoutEvent): the navigation mesh baked for each, so
+## going back to one already seen takes no baking. Emptied when something breaks.
+var _nav_by_layout := {}
+var _nav_serial := 0   # goes up every time the map's parts start moving: a bake begun before is out of date
 
 
 func _ready() -> void:
@@ -35,6 +39,8 @@ func _ready() -> void:
 	layout.build()
 	if layout.destruction:
 		layout.destruction.cells_changed.connect(_on_cells_changed)
+	layout.parts_moving.connect(_on_parts_moving)
+	layout.parts_settled.connect(_on_parts_settled)
 	if Race.active:
 		layout.clock_source = func(): return Race.time + Race.COUNTDOWN   # moving parts in step on every copy
 		_build_gates()
@@ -103,6 +109,12 @@ func _physics_process(_delta: float) -> void:
 		var pos: Vector3 = p.global_position
 		if pos.y < floor_y or (area.has_area() and not area.has_point(Vector2(pos.x, pos.z))):
 			(p as Player).report_fell_once()
+	if layout.has_riders():
+		# Pickups on an island (see MapIsland) stay over their spots as it moves.
+		for i in pickups.size():
+			(pickups[i] as WeaponPickup).move_to(layout.weapon_spawns[i][0])
+		for i in items.size():
+			(items[i] as ItemPickup).move_to(layout.item_spawns[i][0])
 
 
 func _process(delta: float) -> void:
@@ -308,7 +320,35 @@ func menu_open() -> bool:
 ## when the debug menu adds the first one.
 func ensure_navigation() -> void:
 	if not has_node("Navigation"):
-		add_child(MapScenery.bake_navigation(layout))
+		var region := MapScenery.bake_navigation(layout)
+		add_child(region)
+		if not layout.shifting:
+			_nav_by_layout[layout.layout_state] = region.navigation_mesh
+
+
+## The map's parts have started moving (a LayoutEvent): the navigation mesh is no
+## good until they stop, and bots stand still meanwhile (see BotBrain).
+func _on_parts_moving() -> void:
+	_nav_serial += 1
+	if has_node("Navigation"):
+		layout.nav_pending = true
+
+
+## ...and have stopped: use the mesh baked for this layout before, or bake one now.
+func _on_parts_settled() -> void:
+	var region := get_node_or_null("Navigation") as NavigationRegion3D
+	if region == null:
+		layout.nav_pending = false
+		return
+	var ready: NavigationMesh = _nav_by_layout.get(layout.layout_state)
+	if ready == null:
+		_nav_rebake = 0.1   # (a moment, so every part is in its last place when it is read)
+		return
+	region.navigation_mesh = ready
+	var serial := _nav_serial
+	get_tree().create_timer(0.15).timeout.connect(func():
+		if serial == _nav_serial and not layout.shifting:
+			layout.nav_pending = false)   # (the navigation server has taken it in by now)
 
 
 ## Walls or floors cracked or broke: let go of ropes hooked onto the broken bits, and
@@ -330,6 +370,7 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 				player.motor.grapple.release()
 				break
 	if Net.is_host() and has_node("Navigation"):
+		_nav_by_layout.clear()   # what was baked for either layout no longer fits
 		_nav_rebake = NAV_REBAKE_DELAY   # a burst of breaks is redone once
 
 
@@ -340,9 +381,19 @@ func _rebake_navigation() -> void:
 	var region := get_node_or_null("Navigation") as NavigationRegion3D
 	if region == null:
 		return
+	if layout.shifting:
+		return   # the parts are moving: it is redone when they stop
 	_nav_baking = true
+	var serial := _nav_serial
+	var state := layout.layout_state
 	MapScenery.rebake_navigation(region, layout, func(info: String):
 		_nav_baking = false
+		if serial != _nav_serial or layout.shifting:
+			if not layout.shifting:
+				_nav_rebake = 0.1   # the parts moved while it baked: again, for where they are now
+		elif is_instance_valid(region):
+			_nav_by_layout[state] = region.navigation_mesh
+			layout.nav_pending = false
 		if DevArgs.sync_log:
 			print("NAV_REBAKE " + info))
 

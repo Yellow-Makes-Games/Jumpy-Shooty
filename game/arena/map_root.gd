@@ -16,7 +16,12 @@ extends Node3D
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
 ##    steps bots follow round the course.
 ##  - MapSpinner groups: scenery that turns (drawn, never solid); MapTerminal consoles
-##    players press interact at, and the MapEvent (GravityEvent) each one sets off.
+##    players press interact at, and the MapEvent (GravityEvent, LayoutEvent) each one
+##    sets off.
+##  - Maps with two layouts (Cirrus): MapIsland groups (a MapMover a LayoutEvent moves
+##    between two places, carrying whoever stands on it; spawn points, pickups, signs
+##    and grapple points inside one ride along), MapSpan walkways that extend and
+##    retract, and MapJumpLink markers telling bots where to grapple or leap across.
 ##  - Label3D nodes: signs and painted numbers.
 ##  - A WorldEnvironment (sky, ambient light, fog) and a DirectionalLight3D (the sun).
 ##
@@ -61,6 +66,10 @@ extends Node3D
 	set(v):
 		bounds = v
 		update_gizmos()
+## Tick this if a walkable floor winds up over itself, like a spiral stair in a tower
+## (Cirrus's clock tower): the bots' navigation mesh is then cut up a way that keeps
+## such a stair. Leave it off otherwise: the usual way makes tidier paths in the open.
+@export var winding_floors := false
 ## A high point near the middle that scripted test players swing from.
 @export var swing_point := Vector3(0, 5.5, 0):
 	set(v):
@@ -87,6 +96,28 @@ var movers: Array = []
 var route: Array = []
 ## The map's MapSpinner nodes (scenery that turns), filled in by build().
 var spinners: Array = []
+## The map's MapSpan walkways (they extend and retract), filled in by build():
+## {node: MapSpan, base: Transform3D (in its mover's frame, or the map's), mover: int}.
+var spans: Array = []
+## The map's parts are on the move between two layouts (a LayoutEvent says so):
+## bots stand still until they have settled.
+var shifting := false:
+	set(v):
+		if v == shifting:
+			return
+		shifting = v
+		if v:
+			parts_moving.emit()
+		else:
+			parts_settled.emit()
+## The bots' navigation mesh is being redone for where the parts now are (the arena
+## says so): bots keep standing still.
+var nav_pending := false
+## Which layout the map is in (a LayoutEvent's state: 0 until one says otherwise).
+var layout_state := 0
+
+signal parts_moving
+signal parts_settled
 ## Seconds the map's moving parts have been running (the same on every copy of the
 ## game: the arena starts it when the match starts).
 var clock := 0.0
@@ -100,6 +131,15 @@ var destruction: MapDestruction
 var has_meshes := true
 
 var _materials := {}
+# Spawn points and pickup spots inside a mover: {list: 0 spawns / 1 weapons / 2 items,
+# index, mover, xf (in the mover's frame)}. update_movers() keeps them where the mover is.
+var _riders: Array = []
+# Where the movers were over the last half second, newest last: [time, [Transform3D]].
+# Only kept while something moves (see carried()).
+var _trail: Array = []
+var _trail_time := 0.0
+var _trail_still := 0.0
+const TRAIL_SECONDS := 0.6
 static var _fallback := {}
 static var _ghost: StandardMaterial3D
 
@@ -131,15 +171,17 @@ func build(with_meshes: bool = true) -> void:
 	movers = []
 	route = []
 	weapon_spawns = []
+	item_spawns = []
 	spinners = []
+	spans = []
+	_riders = []
+	_trail = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
 	for s in spinners:
 		(s as MapSpinner).build(self, with_meshes)
 	checkpoints.sort_custom(func(a, b): return a.number < b.number)
 	dummies = []
 	_collect_dummies(self, Transform3D.IDENTITY)
-	for i in movers.size():
-		_build_mover(i, with_meshes)
 	has_meshes = with_meshes
 	_index_surfaces(pieces)
 	current = self
@@ -147,6 +189,11 @@ func build(with_meshes: bool = true) -> void:
 		destruction = MapDestruction.new()
 		add_child(destruction)
 		pieces = destruction.setup(self, pieces, spawns)
+	for i in movers.size():
+		_build_mover(i, with_meshes)   # (after the breakables: a mover's own ride on it)
+	for s in spans:
+		var on: Node3D = movers[s.mover].body if s.mover >= 0 else self
+		(s.node as MapSpan).build(self, on, s.base, with_meshes)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
 	add_child(body)
@@ -232,15 +279,74 @@ func material_at(point: Vector3, below: float = 0.25) -> String:
 		if e.top > best_top:
 			best_top = e.top
 			best = e.material
+	if best == "" and not movers.is_empty():
+		best = _mover_material_at(point, below)
 	if best == "":
 		best = _ground_material if _ground_material != "" else BlockMaterials.DEFAULT
 	return best
 
 
-## Every visible block as a piece (see MapBlock.to_piece), in the map's frame.
+## The same, for a block of a mover (an island's lawn, a deck) wherever it is now.
+func _mover_material_at(point: Vector3, below: float) -> String:
+	var index := mover_under(point)
+	if index < 0:
+		return ""
+	var m: Dictionary = movers[index]
+	var local: Vector3 = (m.body as AnimatableBody3D).transform.affine_inverse() * point
+	var best := ""
+	var best_top := -INF
+	for p in m.pieces:
+		if not p.solid:
+			continue
+		var at: Vector3 = (p.xf as Transform3D).affine_inverse() * local
+		var half: Vector3 = (p.size as Vector3) * 0.5
+		if at.y < -half.y or at.y > half.y + below:
+			continue
+		if p.shape != "box":
+			if Vector2(at.x, at.z).length() > half.x:
+				continue
+		elif absf(at.x) > half.x or absf(at.z) > half.z:
+			continue
+		var top: float = ((p.xf as Transform3D) * Vector3(0, half.y, 0)).y
+		if top > best_top:
+			best_top = top
+			var mat: String = p.get("material", "")
+			best = mat if BlockMaterials.TABLE.has(mat) else BlockMaterials.for_kind(p.kind, palette)
+	return best
+
+
+## Every visible block as a piece (see MapBlock.to_piece), in the map's frame. Blocks
+## inside a mover or a span are given where they sit in the scene.
 func collect_pieces() -> Array:
 	var pieces := []
+	var keep := [movers, spans, _riders, weapon_spawns, item_spawns, checkpoints, hazards, route]
+	movers = []
+	spans = []
+	_riders = []
+	weapon_spawns = []
+	item_spawns = []
+	checkpoints = []
+	hazards = []
+	route = []
 	_collect(self, Transform3D.IDENTITY, pieces, [])
+	for m in movers:
+		for piece in m.pieces:
+			var placed: Dictionary = (piece as Dictionary).duplicate()
+			placed.xf = (m.base as Transform3D) * (piece.xf as Transform3D)
+			pieces.append(placed)
+	for s in spans:
+		var base: Transform3D = s.base if s.mover < 0 else (movers[s.mover].base as Transform3D) * (s.base as Transform3D)
+		for piece in (s.node as MapSpan).collect_pieces():
+			piece.xf = base * (piece.xf as Transform3D)
+			pieces.append(piece)
+	movers = keep[0]
+	spans = keep[1]
+	_riders = keep[2]
+	weapon_spawns = keep[3]
+	item_spawns = keep[4]
+	checkpoints = keep[5]
+	hazards = keep[6]
+	route = keep[7]
 	return pieces
 
 
@@ -255,10 +361,14 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			if not spinners.has(child):
 				spinners.append(child)   # scenery that turns: it draws its own blocks, none of them solid
 			continue
+		if child is MapSpan:
+			spans.append({"node": child, "base": at, "mover": mover})   # it builds its own pieces, a body for each
+			continue
 		if child is MapMover and mover == -1:
 			# Its blocks are built into a moving body of their own (see _build_mover),
 			# in the mover's own frame.
-			var m := {"node": child, "base": at, "pieces": [], "body": null}
+			var m := {"node": child, "base": at, "pieces": [], "body": null, "bounds": AABB(),
+				"parent": xf.affine_inverse(), "moves_node": child.get("carries_nodes") == true}
 			movers.append(m)
 			_collect(child, Transform3D.IDENTITY, m.pieces, spawn_list, movers.size() - 1)
 			continue
@@ -269,11 +379,20 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 				hazards.append({"xf": Transform3D(at.basis.orthonormalized(), at.origin), "size": b.size * at.basis.get_scale().abs(),
 					"shape": MapBlock.SHAPE_NAMES[b.shape], "mover": mover})
 		elif child is MapSpawn:
-			spawn_list.append([at.origin + Vector3(0, 0.2, 0), atan2(at.basis.z.x, at.basis.z.z)])
+			# (Inside a mover `at` is in the mover's frame: it is put in the map's here,
+			# and kept there as the mover moves.)
+			var placed: Transform3D = at if mover < 0 else (movers[mover].base as Transform3D) * at
+			spawn_list.append([placed.origin + Vector3(0, 0.2, 0), atan2(placed.basis.z.x, placed.basis.z.z)])
+			if mover >= 0:
+				_riders.append({"list": 0, "index": spawn_list.size() - 1, "mover": mover, "xf": at})
 		elif child is MapWeaponSpawn:
-			weapon_spawns.append([at.origin, (child as MapWeaponSpawn).weapon])
+			weapon_spawns.append([at.origin if mover < 0 else (movers[mover].base as Transform3D) * at.origin, (child as MapWeaponSpawn).weapon])
+			if mover >= 0:
+				_riders.append({"list": 1, "index": weapon_spawns.size() - 1, "mover": mover, "xf": at})
 		elif child is MapItemSpawn:
-			item_spawns.append([at.origin, (child as MapItemSpawn).item])
+			item_spawns.append([at.origin if mover < 0 else (movers[mover].base as Transform3D) * at.origin, (child as MapItemSpawn).item])
+			if mover >= 0:
+				_riders.append({"list": 2, "index": item_spawns.size() - 1, "mover": mover, "xf": at})
 		elif child is MapCheckpoint:
 			var c := child as MapCheckpoint
 			checkpoints.append({"number": c.number, "finish": c.finish, "opening": c.opening,
@@ -291,9 +410,27 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 	body.name = "Mover_%d" % index
 	body.sync_to_physics = false   # moved in _physics_process; it still carries whoever stands on it
 	body.transform = m.base
+	body.set_meta("mover", index)
 	add_child(body)
 	m.body = body
+	var built: Array = m.pieces
+	if destruction:
+		# Its breakable walls ride with it: their spawn guard is worked out in its frame.
+		var near := []
+		for r in _riders:
+			if r.list == 0 and r.mover == index:
+				near.append([(r.xf as Transform3D).origin, 0.0])
+		built = destruction.add_riding(body, built, near)
+	var bounds := AABB()
+	var any := false
 	for piece in m.pieces:
+		if not piece.solid:
+			continue
+		var box: AABB = (piece.xf as Transform3D) * AABB(-(piece.size as Vector3) * 0.5, piece.size)
+		bounds = bounds.merge(box) if any else box
+		any = true
+	m.bounds = bounds
+	for piece in built:
 		if piece.solid:
 			var shape := CollisionShape3D.new()
 			shape.shape = _collision_shape(piece)
@@ -301,7 +438,7 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 			body.add_child(shape)
 	if not with_meshes:
 		return
-	var meshes := MapMesher.build(m.pieces, face_shade)
+	var meshes := MapMesher.build(built, face_shade)
 	for kind in meshes:
 		var mesh := MeshInstance3D.new()
 		mesh.mesh = meshes[kind]
@@ -312,9 +449,98 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 ## Moves the moving parts to where they are at `clock` seconds.
 func update_movers(delta: float) -> void:
 	clock = clock_source.call() if clock_source.is_valid() else clock + delta
+	var moved := false
 	for m in movers:
 		if m.body:
-			(m.body as AnimatableBody3D).transform = m.base * (m.node as MapMover).offset_at(clock)
+			var to: Transform3D = m.base * (m.node as MapMover).offset_at(clock)
+			var body := m.body as AnimatableBody3D
+			if not moved and not body.transform.is_equal_approx(to):
+				moved = true
+			body.transform = to
+			if m.moves_node:
+				# The scene's own node goes along, so signs, grapple points and markers
+				# inside it ride too.
+				(m.node as Node3D).transform = (m.parent as Transform3D) * to
+	if _riders.is_empty() and _trail.is_empty() and not moved:
+		return
+	if moved or not _trail.is_empty():
+		_follow_riders()
+		_remember(delta, moved)
+
+
+## Spawn points and pickup spots inside a mover go where it has gone.
+func _follow_riders() -> void:
+	for r in _riders:
+		var body: AnimatableBody3D = movers[r.mover].body
+		if body == null:
+			continue
+		var at: Transform3D = body.transform * (r.xf as Transform3D)
+		match int(r.list):
+			0:
+				spawns[r.index][0] = at.origin + Vector3(0, 0.2, 0)
+				spawns[r.index][1] = atan2(at.basis.z.x, at.basis.z.z)
+			1:
+				weapon_spawns[r.index][0] = at.origin
+			2:
+				item_spawns[r.index][0] = at.origin
+
+
+## Have the spawn points or pickup spots moved since the match began? (The arena asks,
+## to keep its floating weapons over their spots.)
+func has_riders() -> bool:
+	return not _riders.is_empty()
+
+
+func _remember(delta: float, moved: bool) -> void:
+	_trail_time += delta
+	_trail_still = 0.0 if moved else _trail_still + delta
+	if _trail_still > TRAIL_SECONDS:
+		_trail = []   # everything has stood still long enough: nothing to make up for
+		return
+	var now := []
+	for m in movers:
+		now.append((m.body as AnimatableBody3D).transform if m.body else m.base)
+	_trail.append([_trail_time, now])
+	while _trail.size() > 2 and _trail[0][0] < _trail_time - TRAIL_SECONDS:
+		_trail.pop_front()
+
+
+## Where something that was at `point` `ago` seconds back is now, if it was riding a
+## mover then: the point, carried along by how far that mover has gone since. Players
+## you see over the network are drawn a moment late, which on an island under way
+## would leave them trailing behind it; this puts them back on it. Anything not on a
+## mover (and everything, while nothing moves) comes back unchanged.
+func carried(point: Vector3, ago: float) -> Vector3:
+	if _trail.is_empty() or ago <= 0.0:
+		return point
+	var then: Array = _trail[0]
+	var want := _trail_time - ago
+	for i in range(_trail.size() - 1, -1, -1):
+		if _trail[i][0] <= want:
+			then = _trail[i]
+			break
+	var index := mover_under(point, then[1])
+	if index < 0:
+		return point
+	var was: Transform3D = then[1][index]
+	var body: AnimatableBody3D = movers[index].body
+	return body.transform * (was.affine_inverse() * point)
+
+
+## Which mover is `point` on or in (its number in `movers`), or -1? `poses`: where the
+## movers are taken to be (default: where they are now).
+func mover_under(point: Vector3, poses: Array = []) -> int:
+	for i in movers.size():
+		var m: Dictionary = movers[i]
+		if m.body == null or not (m.bounds as AABB).has_volume():
+			continue
+		var at: Transform3D = poses[i] if i < poses.size() else (m.body as AnimatableBody3D).transform
+		var local := at.affine_inverse() * point
+		var box: AABB = m.bounds
+		if local.x >= box.position.x - 0.6 and local.x <= box.end.x + 0.6 and local.z >= box.position.z - 0.6 and local.z <= box.end.z + 0.6 \
+				and local.y >= box.position.y - 0.5 and local.y <= box.end.y + 2.5:
+			return i
+	return -1
 
 
 func _physics_process(delta: float) -> void:
