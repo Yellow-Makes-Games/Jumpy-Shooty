@@ -34,9 +34,10 @@ extends RefCounted
 ##             pushing. Let go to drop off; jump to kick off it (a wall jump).
 ##
 ## MovementTuning's mechanic switches change some of this (Variant B, for A/B testing):
-## no flips or glides; Space in mid-air fires the rocket boots, and held flies the
-## jetpack (see space_jet); legs tucked in the air without a key; Ctrl (or Q) dives
-## forward, slides on your back going backward, and crouches otherwise.
+## no glides; Space held in the air flies the jetpack (see space_jet); legs tucked in
+## the air without a key; Ctrl (or Q) dives forward, slides on your back going
+## backward, and crouches otherwise; a stronger brake in the air; a sideways speed
+## limit. (space_boost, mid-air Space firing the rocket boots, is there but off.)
 ## Winding a melee swing up in a plain fall hangs you in the air for a moment (see
 ## _hang): hang_time seconds per time in the air, refilled like the glide.
 ##
@@ -163,7 +164,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	else:
 		_jump_buffer = max(_jump_buffer - delta, 0.0)
 		_jump_held_for = _jump_held_for + delta if input.jump_held else 0.0
-	space_jet = t.space_boost and has_jetpack and input.jump_held and not grounded and _jump_held_for >= t.space_hold_time
+	space_jet = t.space_jetpack and has_jetpack and input.jump_held and not grounded and _jump_held_for >= t.space_hold_time
 	_since_slide_boost += delta
 	_since_wall += delta
 	_since_dive += delta
@@ -372,6 +373,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# your speed (bunny-hopping). Air steering can add speed when you strafe
 		# and turn together (air-strafing), but never takes speed away.
 		state = State.FLIP if _flip_left > 0.0 else State.AIR
+		if not grounded:
+			vel = _air_brake(vel, wish, delta)
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.air_accel, delta)
 		if not grounded:
 			if hang and state == State.AIR and _hang_left > 0.0 and since_boost > 0.3 and not jumping:
@@ -423,6 +426,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			state = State.AIR   # knocked off your feet
 			_since_ground = t.coyote_time + 1.0
 		_knock = Vector3.ZERO
+	vel = _cap_speed(vel)
 	body.velocity = vel
 	body.move_and_slide()
 	_measure_impact(body, vel)
@@ -811,9 +815,9 @@ func _wall_sit(vel: Vector3, delta: float) -> Vector3:
 	return -wall_normal * t.wall_stick + Vector3(0.0, y, 0.0)
 
 
-## tuning.space_boost (Variant B): does Space fire the rocket boots this step? A
-## mid-air press does at once; with the jetpack, only a tap does (let go within
-## space_hold_time, still in the air), since holding it flies the jetpack (space_jet).
+## tuning.space_boost: does Space fire the rocket boots this step? A mid-air press
+## does at once; with tuning.space_jetpack and the jetpack, only a tap does (let go
+## within space_hold_time, still in the air), since holding it flies the jetpack (space_jet).
 func _space_boost(mid_air_jump: bool, input: PlayerInput, grounded: bool, delta: float) -> bool:
 	var t := tuning
 	if not t.space_boost:
@@ -828,7 +832,7 @@ func _space_boost(mid_air_jump: bool, input: PlayerInput, grounded: bool, delta:
 			_space_tap = -1.0   # a hold: the jetpack's
 	if mid_air_jump:
 		_jump_buffer = 0.0
-		if has_jetpack:
+		if has_jetpack and t.space_jetpack:
 			_space_tap = 0.0
 		else:
 			fire = true
@@ -1132,6 +1136,39 @@ func _wish_dir(input: PlayerInput) -> Vector3:
 	var m := input.move.limit_length(1.0)
 	var local := Vector3(m.x, 0.0, -m.y)
 	return local.rotated(Vector3.UP, input.yaw).normalized() if local.length_squared() > 0.0001 else Vector3.ZERO
+
+
+## tuning.max_speed (Variant B): sideways speed never goes past it, whatever got you
+## there (boosts, swings, knockback, portals, the jetpack). Falling is not limited here.
+func _cap_speed(vel: Vector3) -> Vector3:
+	var top := tuning.max_speed
+	if top <= 0.0:
+		return vel
+	var h := Vector2(vel.x, vel.z)
+	if h.length() <= top:
+		return vel
+	h = h.normalized() * top
+	return Vector3(h.x, vel.y, h.y)
+
+
+## True while the legs are tucked by tuning.always_tuck rather than by the crouch key
+## (your own first-person body does not show that tuck).
+func auto_tucked() -> bool:
+	return _auto_tuck and crouched and not prone
+
+
+## tuning.air_brake (Variant B): pressing against the way you are moving in a jump or
+## fall brakes that motion this much harder, down to a stop and never past it (from
+## there, air steering takes you the other way as usual).
+func _air_brake(vel: Vector3, wish: Vector3, delta: float) -> Vector3:
+	if tuning.air_brake <= 0.0 or wish == Vector3.ZERO:
+		return vel
+	var h := Vector3(vel.x, 0.0, vel.z)
+	var speed := h.length()
+	if speed < 0.01 or h.dot(wish) > -0.5 * speed:
+		return vel   # not pressing against it (within 60 degrees of straight back)
+	var against := -h.dot(wish)   # the speed you are pushing back on
+	return vel + wish * minf(tuning.air_brake * delta, against)
 
 
 ## Speed up toward wish_speed along wish, never cutting speed you already have.
