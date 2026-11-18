@@ -144,6 +144,9 @@ func has_sound(sound: String) -> bool:
 
 
 func stream(sound: String) -> AudioStream:
+	for hidden in WeaponData.HIDDEN:   # the Golden Gun sounds like the revolver it looks like
+		if hidden in sound:
+			sound = sound.replace(hidden, WeaponData.look_of(hidden))
 	if _variants.has(sound):
 		var list: Array = _variants[sound]
 		return _streams[list[randi() % list.size()]]

@@ -542,6 +542,8 @@ func _apply_weapon(id: int, weapon: String) -> void:
 	weapon = LobbySettings.fit_weapon(WeaponData.valid(weapon))   # only what the lobby allows
 	if not players.has(id) or players[id].get("weapon", "") == weapon:
 		return
+	if str(players[id].get("weapon", "")) in WeaponData.HIDDEN:
+		return   # the Golden Gun's holder keeps it until the host passes it on (see GoldenGun)
 	if in_match and (GunGame.active() or KillcamMode.active()):
 		return   # Gun Game hands out the weapons; Killcam is snipers only
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
@@ -632,6 +634,8 @@ func host_fit_loadouts() -> void:
 	var changed := false
 	for id in players:
 		# Your own pick is known here, so you get it back once it is allowed again.
+		if str(players[id].get("weapon", "")) in WeaponData.HIDDEN:
+			continue   # the Golden Gun's holder keeps it (see GoldenGun)
 		var wanted := _local_weapon if id == my_id() else str(players[id].get("weapon", ""))
 		var w := LobbySettings.fit_weapon(WeaponData.valid(wanted))
 		if players[id].get("weapon", "") != w:

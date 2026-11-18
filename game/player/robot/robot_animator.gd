@@ -155,8 +155,8 @@ func _init(robot: RobotModel) -> void:
 
 ## Hold this gun: its stance, reload and fire animations.
 func set_weapon(id: String) -> void:
-	weapon = WeaponData.valid(id)
-	var data := WeaponData.by_id(weapon)
+	var data := WeaponData.by_id(WeaponData.valid(id))
+	weapon = WeaponData.look_of(data.id)   # (clips go by the weapon it looks like: the Golden Gun is the revolver)
 	_kick = data.kick
 	_loop_reload = data.reload_per_round
 	_melee = data.is_melee()
