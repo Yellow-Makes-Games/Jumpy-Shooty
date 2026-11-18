@@ -415,24 +415,27 @@ func blurb() -> String:
 
 
 ## A random character (the creator's Randomize button). Accessories: each slot
-## filled a little under half the time.
-static func random(rng: RandomNumberGenerator = null) -> CustomCharacter:
+## filled a little under half the time. allowed(key): whether an item may be used
+## (see Achievements for the keys); without it, anything goes.
+static func random(rng: RandomNumberGenerator = null, allowed: Callable = Callable()) -> CustomCharacter:
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
+	var ok := func(key: String) -> bool: return not allowed.is_valid() or allowed.call(key)
 	var c := CustomCharacter.new()
-	var ids := Characters.part_ids()
+	var ids := Characters.part_ids().filter(func(id): return ok.call("part:" + id))
+	var paints := PAINTS.filter(func(p): return p.id != "" and ok.call("paint:" + p.id))
 	c.legs = ids[rng.randi() % ids.size()]
 	c.torso = ids[rng.randi() % ids.size()]
 	c.head = ids[rng.randi() % ids.size()]
 	# Paint and skin: as built about half the time, so a frog is often green.
-	c.paint = PAINTS[rng.randi() % PAINTS.size()].id if rng.randf() < 0.5 else ""
-	c.paint2 = PAINTS[rng.randi() % PAINTS.size()].id if rng.randf() < 0.3 else ""
-	c.paint3 = PAINTS[rng.randi() % PAINTS.size()].id if rng.randf() < 0.3 else ""
+	c.paint = paints[rng.randi() % paints.size()].id if rng.randf() < 0.5 else ""
+	c.paint2 = paints[rng.randi() % paints.size()].id if rng.randf() < 0.3 else ""
+	c.paint3 = paints[rng.randi() % paints.size()].id if rng.randf() < 0.3 else ""
 	c.skin = SKINS[rng.randi() % SKINS.size()].id if rng.randf() < 0.5 else ""
 	for slot in SLOTS:
-		var list: Array = ACCESSORIES[slot]
-		c.accessories[slot] = list[rng.randi_range(1, list.size() - 1)].id if rng.randf() < 0.45 else ""
+		var list: Array = ACCESSORIES[slot].filter(func(a): return a.id != "" and ok.call("%s:%s" % [slot, a.id]))
+		c.accessories[slot] = list[rng.randi() % list.size()].id if rng.randf() < 0.45 and not list.is_empty() else ""
 		if c.accessories[slot] != "" and rng.randf() < 0.3:
-			c.colors[slot] = PAINTS[rng.randi_range(1, PAINTS.size() - 1)].id
+			c.colors[slot] = paints[rng.randi() % paints.size()].id
 	return c

@@ -35,6 +35,7 @@ func _ready() -> void:
 		"multiplayer": _show_multiplayer()
 		"settings": _show_settings()
 		"creator": _show_creator()
+		"achievements": _show_achievements()
 		_: _show_main()
 
 
@@ -116,6 +117,7 @@ func _show_main() -> void:
 	UiKit.primary_button(left, "Play", _show_play).grab_focus()
 	_front_button(left, "Multiplayer", _show_multiplayer)
 	_front_button(left, "Character Creator", _show_creator)
+	_front_button(left, "Achievements", _show_achievements)
 	_front_button(left, "Settings", _show_settings)
 	_front_button(left, "Exit", Game.quit_game)
 
@@ -551,10 +553,29 @@ func _show_creator() -> void:
 	del.custom_minimum_size.x = 140
 	var keep := _frame.back_button("Save", func(): creator.save())
 	keep.custom_minimum_size.x = 160
-	_frame.main_button("Save and play as this", func():
-		Settings.character = creator.save()
+	var play := _frame.main_button("Save and play as this", func():
+		var id := creator.save()
+		if id == "":
+			return   # it wears something still locked (the creator says what)
+		Settings.character = id
 		Settings.save_settings()
-		_show_main()).grab_focus()
+		_show_main())
+	play.grab_focus()
+	# Something locked on it: it can be looked at, not saved.
+	var lock := func():
+		keep.disabled = not creator.can_save()
+		play.disabled = keep.disabled
+		play.text = "SAVE AND PLAY AS THIS" if creator.can_save() else "LOCKED: SEE ACHIEVEMENTS"
+	creator.changed.connect(lock)
+	lock.call()
+
+
+# Achievements: what you have done, how far along the rest are, and what each unlocks.
+func _show_achievements() -> void:
+	var counts := Achievements.item_counts()
+	_page(1280, "Achievements", "%d of %d done  /  %d of %d creator items unlocked" % [Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1]])
+	_frame.body.add_child(AchievementsPanel.new())
+	_frame.back_button("Back", _show_main).grab_focus()
 
 
 func _show_settings() -> void:

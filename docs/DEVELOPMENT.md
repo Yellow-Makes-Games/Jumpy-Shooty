@@ -196,6 +196,12 @@ The sync, match and bot tests take a map and a player count, for example
   kept down does not fire it again; and for a terminal set to need a hold: a 2 s hold
   fires it, letting go, leaving the range and dying cancel and taking damage does not,
   one player at a time;
+- achievements (`tests/achievements_test.gd`): every reward is a real item given once;
+  your kills, deaths, wins and race finishes are counted and a bot's are not; an
+  achievement completes once at its goal and unlocks its items; the creator shows a
+  locked item but won't save it, and Randomize keeps to what you have; what a saved
+  character wears stays yours; the counts come back from the file, and two copies of
+  the game add to it;
 - your colour (`tests/player_color_test.gd`): the colour you picked is yours when you
   host, a joiner gets theirs unless another player has it, a bot hands its colour over,
   nobody changes mid-match, and the swatch on the robot stage offers the free ones;
@@ -274,7 +280,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
-| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
+| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `creator`, `achievements` |
 | `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
@@ -283,6 +289,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar`, or as a Character Creator id (`'--character=custom:n=Greg|l=frog|t=human|h=goblin|hat=crown'`), without changing your saved choice |
+| `--unlock-all` | Nothing in the Character Creator is locked behind an achievement |
 | `--color=N` | Your colour in a free-for-all: a number in `Net.PLAYER_COLORS` (0 red, 1 blue, 2 green... 15 brown) |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
@@ -1102,6 +1109,14 @@ helpers there (`_ball`, `_tube`, `_cone`, `_plate`...), placed with the measurem
 `f` (the head, chest and waist of the body it is on). The creator, the id check and the
 test pick it up from the table. Its colour button repaints the material that
 covers most of it; if that is the wrong one, name the right one in `Accessories.MAIN`.
+
+**Adding an achievement:** add a line to `LIST` in `game/core/achievements.gd`: an id, a
+name, the count it watches (`stat`), the `goal`, the line under its name (`what`) and
+the items it unlocks (`rewards`: `"part:ninja"`, `"paint:gold"`, or `"<slot>:<accessory>"`
+such as `"hat:crown"`). An item named by no achievement is free. The counts are bumped in
+`_on_kill` (from a kill's tags, see `KillScore`), `_on_died`, `_on_match_over` and
+`_on_gate`; for a new kind of count, call `Achievements.add("name")` where it happens.
+The page, the creator's locks, the toast and the test read the list.
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted

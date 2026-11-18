@@ -436,6 +436,8 @@ func _open_creator() -> void:
 	keep.custom_minimum_size = Vector2(160, 50)
 	var play := UiKit.primary_button(buttons, "Save and play as this", func():
 		var id := creator.save()
+		if id == "":
+			return   # it wears something still locked (the creator says what)
 		_character.refresh_custom()
 		Settings.character = id
 		Settings.save_settings()
@@ -443,6 +445,11 @@ func _open_creator() -> void:
 		Net.set_my_character(id)
 		panel.close())
 	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var lock := func():   # something locked on it: it can be looked at, not saved
+		keep.disabled = not creator.can_save()
+		play.disabled = keep.disabled
+	creator.changed.connect(lock)
+	lock.call()
 	panel.open(_character._name_button)
 
 
