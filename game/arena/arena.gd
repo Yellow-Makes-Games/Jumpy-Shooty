@@ -194,12 +194,15 @@ func _on_player_died(victim: int, _killer: int) -> void:
 	portals.clear(victim)   # your portals go when you die
 	var p := get_player(victim)
 	if p:
+		var shown := p.visual.visible
 		p.set_dead()
+		if shown and Remains.spawn(p, Match.death_fx.get(victim, {})):
+			p.visual.visible = false   # a ragdoll or giblets in its place (back when they respawn)
 		if DevArgs.swap_on_death and p == local_player and not p.racing:
 			p.dev_swap_after_death()
 
 
-func _on_player_respawned(id: int, _spawn_index: int) -> void:
+func _on_player_respawned(id: int, spawn_index: int) -> void:
 	var p := get_player(id)
 	if p == null:
 		return
@@ -207,9 +210,9 @@ func _on_player_respawned(id: int, _spawn_index: int) -> void:
 		var s: Array = _team_spawn(p)
 		if s.is_empty():
 			s = _safest_spawn(p)
-		p.respawn_at(s[0], s[1])
+		p.respawn_at(s[0], s[1], spawn_index)
 	else:
-		p.expect_respawn()
+		p.expect_respawn(spawn_index)
 
 
 ## A rocket or grenade is on its way: draw it (and, for someone else's, their gun firing).
@@ -507,6 +510,7 @@ func rebuild_player(id: int) -> void:
 	if p == null:
 		return
 	p.set_respawn_count(respawns)   # so the next respawn still reads as one everywhere
+	p.carry_life_from(old)   # (still waiting to see them back, too)
 	if p.is_local:
 		p.teleport(pos, yaw)
 		p.input.pitch = pitch

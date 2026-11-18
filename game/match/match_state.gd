@@ -13,7 +13,7 @@ extends Node
 signal state_changed               ## scores, health or timer changed
 signal player_hit(shooter: int, target: int, damage: float, headshot: bool)
 signal player_died(victim: int, killer: int)
-signal player_respawned(id: int, spawn_index: int)
+signal player_respawned(id: int, spawn_index: int)   ## spawn_index: a new number for every respawn (it numbers the life: see Player._life)
 ## A target dummy was hit (it also sends player_hit, with the dummy's id as the target).
 signal dummy_hit(shooter: int, dummy: int, damage: float, headshot: bool, killed: bool)
 signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array)  ## one end per pellet
@@ -55,6 +55,12 @@ const SLAM_DAMAGE := 4.0
 const SLAM_MAX := 80.0
 ## A crash within this many seconds of being shoved counts as the shover's hit (and kill).
 const SHOVE_CREDIT := 3.0
+## A killing blow that does this much more damage than the health left blows the body
+## apart (giblets, see death_fx), and so does a blast at GIB_BLAST of its full strength or more.
+## 75, not 50: a sniper headshot on a full-health player is 150 damage, 50 over, and should
+## not blow them apart every time; one on a hurt player, or an anti-materiel headshot, does.
+const GIB_OVERKILL := 75.0
+const GIB_BLAST := 0.5
 ## kill_target 0 means "no kill target" (time-limit matches).
 var kill_target := 15
 var time_left := 480.0
@@ -72,7 +78,7 @@ var last_results: Array = []
 
 var _last_shot_time: Dictionary = {}   # host: id -> Net.now() of last accepted shot
 var _last_slam_time: Dictionary = {}   # host: id -> Net.now() of last crash that hurt
-var _last_shove: Dictionary = {}       # host: id -> [who shoved them, Net.now()]
+var _last_shove: Dictionary = {}       # host: id -> [who shoved them, Net.now(), with what (see death_fx "with")]
 var _last_kick_time: Dictionary = {}   # host: id -> Net.now() of last accepted kick
 var _last_ground_slam: Dictionary = {}   # host: id -> Net.now() of last accepted ground slam
 var _tethers: Dictionary = {}          # host: id -> [the player their hook is on, Net.now()]
@@ -80,7 +86,19 @@ var _projectiles: Dictionary = {}      # host: id -> {pos, vel, shooter, weapon,
 var _next_projectile := 1
 ## How each player last died: "" (shot or cut down), "fell", or "slam" (hit a wall too hard).
 var death_cause: Dictionary = {}
+## How each player last died, as the host saw the killing blow (the same on every copy):
+##   with: what did it: a WeaponData id, "kick", "flying_kick", "rope" (reeled in),
+##         "none" (empty hands), or "" (nobody: a fall, a crash on your own, the bomb).
+##         With cause "slam" it is what threw them into the wall.
+##   head: the killing blow was a headshot.
+##   gib:  the body is blown apart (a blast, the bomb, or GIB_OVERKILL), not a ragdoll.
+##   push: the knockback the blow gave (world space; zero for most bullets).
+##   dir:  the way the blow travelled (world space, length 1; zero if not known).
+##   at:   (blasts only) where it went off.
+## Empty for a death with nothing to tell (and for one sent by an older host).
+var death_fx: Dictionary = {}
 var _respawn_counter := 0
+var _late_respawns: Dictionary = {}   # --delay-respawn: id -> spawn index of a respawn not applied yet
 ## Every kill this match (by another player), in order, as scored by the host:
 ## {seq, killer, victim, score, tags, streak, distance, weapon}. The same on every copy.
 var kill_log: Array = []
@@ -187,6 +205,7 @@ func _on_match_started() -> void:
 		_tethers.clear()
 		_projectiles.clear()
 		death_cause.clear()
+		death_fx.clear()
 		_kill_seq = 0
 		_recent_kills.clear()
 		for id in Net.players:
@@ -443,6 +462,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var damage := {}   # target id -> total damage of this shot
 	var heads := {}    # target id -> a pellet hit the head
 	var shove := {}    # target id -> knockback of this shot (each pellet pushes along its path)
+	var dirs := {}     # target id -> the way a pellet that hit them was going
 	var ends := PackedVector3Array()
 	var hit_mask := 0
 	var log := []
@@ -473,6 +493,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 				shove[b[0]] = shove.get(b[0], Vector3.ZERO) \
 					+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
 				heads[b[0]] = heads.get(b[0], false) or hit.head
+				dirs[b[0]] = direction
 				if DevArgs.sync_log:
 					log.append("hit %d at %.2f m%s" % [b[0], hit.height, " head" if hit.head else ""])
 			if wall_cell >= 0:
@@ -502,6 +523,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 			shove[best_target] = shove.get(best_target, Vector3.ZERO) \
 				+ Vector3(direction.x, 0.0, direction.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
 			heads[best_target] = heads.get(best_target, false) or best_head
+			dirs[best_target] = direction
 		elif wall_cell >= 0:
 			breaks.damage(wall_cell, weapon.damage_at(origin.distance_to(end)) * weapon.structure_damage)
 		ends.append(end)
@@ -513,8 +535,8 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		if is_dummy(id):
 			_host_dummy_damage(shooter, id, damage[id], heads[id])
 		else:
-			_host_damage(shooter, id, damage[id], heads[id])
-			_host_shove(shooter, id, shove[id])
+			_host_damage(shooter, id, damage[id], heads[id], "", {"with": weapon.id, "push": shove[id], "dir": dirs[id]})
+			_host_shove(shooter, id, shove[id], weapon.id)
 	if DevArgs.sync_log:
 		# One line per shot (the first pellet that hit, if any), then the gun and its pellets.
 		var first := "miss"
@@ -676,7 +698,7 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 			dmg *= w.headshot_multiplier
 		var away := feet + Vector3(0, b[2] * 0.5, 0) - at
 		away = away.normalized() if away.length_squared() > 0.0001 else Vector3.UP
-		hits.append([b[0], dmg, away * w.knockback * f + Vector3.UP * w.knockback_up * f])
+		hits.append([b[0], dmg, away * w.knockback * f + Vector3.UP * w.knockback_up * f, away, f if w.explosive else 0.0])
 	if DevArgs.sync_log:
 		print("BOOM %d %s %d hit %d" % [shooter, w.id, direct, hits.size()])
 	var breaks := _breakables()
@@ -688,8 +710,11 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 			_host_dummy_damage(shooter, h[0], h[1], false)
 		else:
 			if h[1] >= 1.0:
-				_host_damage(shooter, h[0], h[1], false)
-			_host_shove(shooter, h[0], h[2])
+				var blow := {"with": w.id, "push": h[2], "dir": h[3], "blast": h[4]}
+				if w.explosive:
+					blow["at"] = at
+				_host_damage(shooter, h[0], h[1], false, "", blow)
+			_host_shove(shooter, h[0], h[2], w.id)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -780,7 +805,7 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 		var facing := Vector3.FORWARD.rotated(Vector3.UP, b[3])
 		if weapon.backstab_multiplier > 1.0 and facing.dot(flat) > 0.5:
 			dmg *= weapon.backstab_multiplier
-		hits.append([b[0], dmg, flat * push[0] + Vector3.UP * push[1]])
+		hits.append([b[0], dmg, flat * push[0] + Vector3.UP * push[1], flat])
 		points.append(near.lerp(origin, Player.CAPSULE_RADIUS / maxf(to.length(), 0.01)))
 	if DevArgs.sync_log:
 		print("MELEE %d %s %d charge %.2f" % [attacker, weapon.id, hits.size(), charge])
@@ -798,8 +823,8 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 		if is_dummy(h[0]):
 			_host_dummy_damage(attacker, h[0], h[1], false)
 		else:
-			_host_damage(attacker, h[0], h[1], false)
-			_host_shove(attacker, h[0], h[2])
+			_host_damage(attacker, h[0], h[1], false, "", {"with": weapon.id, "push": h[2], "dir": h[3]})
+			_host_shove(attacker, h[0], h[2], weapon.id)
 
 
 # ---------------------------------------------------------------------------
@@ -861,7 +886,7 @@ func _host_ground_slam(attacker: int, at: Vector3, view_times: Dictionary, charg
 		var away := Vector3(feet.x - at.x, 0.0, feet.z - at.z)
 		away = away.normalized() if away.length_squared() > 0.04 else facing   # right under you: the way you face
 		var push := GroundSlam.shove(weapon, charge, fell, part)
-		hits.append([b[0], blow * part, away * push[0] + Vector3.UP * push[1]])
+		hits.append([b[0], blow * part, away * push[0] + Vector3.UP * push[1], away])
 		points.append(near)
 	if DevArgs.sync_log:
 		print("GROUND_SLAM %d %s %d charge %.2f fell %.1f" % [attacker, weapon.id, hits.size(), charge, fell])
@@ -877,8 +902,8 @@ func _host_ground_slam(attacker: int, at: Vector3, view_times: Dictionary, charg
 		if is_dummy(h[0]):
 			_host_dummy_damage(attacker, h[0], h[1], false)
 		else:
-			_host_damage(attacker, h[0], h[1], false)
-			_host_shove(attacker, h[0], h[2])
+			_host_damage(attacker, h[0], h[1], false, "", {"with": weapon.id, "push": h[2], "dir": h[3]})
+			_host_shove(attacker, h[0], h[2], weapon.id)
 
 
 @rpc("authority", "call_local", "unreliable")
@@ -948,7 +973,7 @@ func _host_kick(attacker: int, origin: Vector3, direction: Vector3, view_times: 
 		var boost := minf(1.0 + closing * Kick.SPEED_KNOCKBACK, Kick.SPEED_MAX)
 		var shove := flat * (Kick.FLYING_KNOCKBACK if flying else Kick.KNOCKBACK) * boost \
 			+ Vector3.UP * (Kick.FLYING_KNOCKBACK_UP if flying else Kick.KNOCKBACK_UP)
-		hits.append([b[0], Kick.FLYING_DAMAGE if flying else Kick.DAMAGE, shove])
+		hits.append([b[0], Kick.FLYING_DAMAGE if flying else Kick.DAMAGE, shove, flat])
 		points.append(near.lerp(origin, Player.CAPSULE_RADIUS / maxf(to.length(), 0.01)))
 	if DevArgs.sync_log:
 		print("KICK %d %s %d" % [attacker, "flying" if flying else "front", hits.size()])
@@ -966,8 +991,8 @@ func _host_kick(attacker: int, origin: Vector3, direction: Vector3, view_times: 
 		if is_dummy(h[0]):
 			_host_dummy_damage(attacker, h[0], h[1], false)
 		else:
-			_host_damage(attacker, h[0], h[1], false, "kick")
-			_host_shove(attacker, h[0], h[2])
+			_host_damage(attacker, h[0], h[1], false, "kick", {"with": kind, "push": h[2], "dir": h[3]})
+			_host_shove(attacker, h[0], h[2], kind)
 	_blow_flying = false
 
 
@@ -1000,7 +1025,7 @@ func _host_tether(by: int, target: int, on: bool) -> void:
 		if a == null or b == null or a.latest_position().distance_to(b.latest_position()) > 60.0:
 			return
 		_tethers[by] = [target, Net.now()]
-		_last_shove[target] = [by, Net.now()]   # reeled into a wall: that's their doing
+		_last_shove[target] = [by, Net.now(), "rope"]   # reeled into a wall: that's their doing
 	if DevArgs.sync_log:
 		print("TUG %d %d %s" % [by, target, "on" if on else "off"])
 	if target == Net.my_id() or Net.is_bot(target):
@@ -1082,12 +1107,13 @@ func _breaks_request() -> void:
 
 ## Push `target` (a player, not a dummy). Movement is run by whoever plays that
 ## player, so the push goes to them: you, a friend, or one of the host's bots.
-func _host_shove(attacker: int, target: int, push: Vector3) -> void:
+## `with`: what did the shove (see death_fx), so a crash it causes is credited to it.
+func _host_shove(attacker: int, target: int, push: Vector3, with: String = "") -> void:
 	if push.length_squared() < 0.01 or not is_alive(target) or not Net.players.has(target) or Teams.same_team(attacker, target):
 		return
 	if target == Net.my_id() and Cheats.god_mode():
 		return
-	_last_shove[target] = [attacker, Net.now()]
+	_last_shove[target] = [attacker, Net.now(), with]
 	if target == Net.my_id() or Net.is_bot(target):
 		_apply_shove(target, push)
 	else:
@@ -1129,14 +1155,16 @@ func _host_slam(id: int, speed: float, where: Vector3) -> void:
 	var amount := minf((minf(speed, 90.0) - SLAM_SPEED) * SLAM_DAMAGE, SLAM_MAX)
 	# Shoved into it? Then whoever shoved you gets the hit (and the kill).
 	var by := id
+	var with := ""   # what threw them into it (see death_fx)
 	var shove: Array = _last_shove.get(id, [])
 	if not shove.is_empty() and now - float(shove[1]) <= SHOVE_CREDIT and Net.players.has(shove[0]):
 		by = shove[0]
+		with = str(shove[2]) if shove.size() > 2 else ""
 	_slam_effect.rpc(id, where, speed)
 	if DevArgs.sync_log:
 		print("SLAM %d %.1f m/s %.0f damage by %d" % [id, speed, amount, by])
 	if amount >= 1.0:
-		_host_damage(by, id, amount, false, "slam")
+		_host_damage(by, id, amount, false, "slam", {"with": with})
 
 
 @rpc("authority", "call_local", "unreliable")
@@ -1163,17 +1191,35 @@ func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_m
 # ---------------------------------------------------------------------------
 # Damage, death, respawn (host decides, everyone is told)
 
-func _host_damage(shooter: int, target: int, amount: float, headshot: bool = false, cause: String = "") -> void:
+## `blow`: what the hit was, for death_fx if it kills: {with, push, dir, blast 0..1, at}
+## (all optional; see _death_fx).
+func _host_damage(shooter: int, target: int, amount: float, headshot: bool = false, cause: String = "", blow: Dictionary = {}) -> void:
 	if not is_alive(target) or Teams.same_team(shooter, target):
 		return   # (no friendly fire)
 	if target == Net.my_id() and Cheats.god_mode():
 		return
 	if shooter != 0 and shooter != target and cause != "fell":
 		amount *= damage_multiplier(shooter)
+	var left: float = health[target]
 	health[target] = max(health[target] - amount, 0.0)
 	_hit.rpc(shooter, target, amount, health[target], headshot)
 	if health[target] <= 0.0:
-		_host_kill(target, shooter, cause, headshot)
+		_host_kill(target, shooter, cause, headshot, _death_fx(shooter, target, cause, headshot, amount - left, blow))
+
+
+## Host: death_fx for a killing blow that did `overkill` more damage than was left.
+func _death_fx(killer: int, victim: int, cause: String, headshot: bool, overkill: float, blow: Dictionary) -> Dictionary:
+	var with := str(blow.get("with", ""))
+	if killer == 0 or killer == victim:
+		with = ""   # a crash on your own
+	elif with == "" and cause != "slam":
+		with = Net.player_weapon(killer)
+	var fx := {"with": with, "head": headshot,
+		"gib": float(blow.get("blast", 0.0)) >= GIB_BLAST or overkill >= GIB_OVERKILL,
+		"push": blow.get("push", Vector3.ZERO), "dir": blow.get("dir", Vector3.ZERO)}
+	if blow.has("at"):
+		fx["at"] = blow.at
+	return fx
 
 
 @rpc("authority", "call_local", "reliable")
@@ -1247,8 +1293,11 @@ func _host_fell(id: int) -> void:
 		_host_kill(id, 0, "fell")
 
 
-func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = false) -> void:
-	var scored := _host_score_kill(victim, killer, cause, headshot)
+## `fx`: see death_fx (from _death_fx; a death without one tells nothing more).
+func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = false, fx: Dictionary = {}) -> void:
+	if cause == "bomb":
+		fx = {"with": "", "head": false, "gib": true, "push": Vector3.ZERO, "dir": Vector3.ZERO}
+	var scored := _host_score_kill(victim, killer, cause, headshot, str(fx.get("with", "")))
 	if scores.has(victim):
 		scores[victim].deaths += 1
 	if killer != 0 and killer != victim and scores.has(killer):
@@ -1277,7 +1326,7 @@ func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = f
 			finished = points(killer) >= KillcamMode.target()
 	if GoldenGun.active():
 		_host_golden_on_death(victim, killer)   # (before the death goes out: dying sends your own pick)
-	_died.rpc(victim, killer, scores, cause, scored)
+	_died.rpc(victim, killer, scores, cause, scored, fx)
 	for m in moves:
 		Net.host_set_weapon(m[0], GunGame.weapon_at(m[1]))
 		_gun_game_level.rpc(m[0], m[1])
@@ -1363,7 +1412,7 @@ func level(id: int) -> int:
 ## that travel with the death: [seq, score, tag bits, streak, distance in decimetres,
 ## weapon, killer's and victim's speed in decimetres a second, the flick in degrees].
 ## Empty when nobody else got the kill (a fall, a crash on your own).
-func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool) -> Array:
+func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool, with: String = "") -> Array:
 	if killer == 0 or killer == victim or not Net.players.has(killer) or Net.arena == null or Race.active:
 		return []
 	var a: Player = Net.arena.get_player(killer)
@@ -1398,15 +1447,19 @@ func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool) -
 	facts.victim_speed = float(target_dm) / 10.0
 	facts.flick = float(flick)
 	var result := KillScore.score(facts)
+	var kicked := cause == "kick" or (cause == "slam" and with in ["kick", "flying_kick"])   # (kicked into a wall too)
 	return [_kill_seq, result[0], result[1], recent.size() - 1, dm,
-		"kick" if cause == "kick" else weapon, speed_dm, target_dm, flick]
+		"kick" if kicked else weapon, speed_dm, target_dm, flick]
 
 
 @rpc("authority", "call_local", "reliable")
-func _died(victim: int, killer: int, new_scores: Dictionary, cause: String, scored: Array = []) -> void:
+func _died(victim: int, killer: int, new_scores: Dictionary, cause: String, scored: Array = [], fx: Dictionary = {}) -> void:
+	if _late_respawns.has(victim):
+		_respawn_late(victim, _late_respawns[victim])   # --delay-respawn: messages from the host still arrive in order
 	health[victim] = 0.0
 	damage_boost.erase(victim)   # power-ups end with you
 	death_cause[victim] = cause
+	death_fx[victim] = fx
 	scores = new_scores
 	if scored.size() >= 9:
 		var info := kill_info(scored, killer, victim)
@@ -1483,6 +1536,25 @@ func _host_ask_respawn(id: int) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _respawned(id: int, spawn_index: int) -> void:
+	if DevArgs.delay_respawn > 0.0 and not Net.is_host() and id != Net.my_id():
+		# --delay-respawn (tests): as if this message were held up on the way, so the
+		# player's first snapshot from their new life gets here before it does.
+		_late_respawns[id] = spawn_index
+		get_tree().create_timer(DevArgs.delay_respawn / 1000.0).timeout.connect(_respawn_late.bind(id, spawn_index))
+		return
+	_apply_respawn(id, spawn_index)
+
+
+## --delay-respawn: the held-up respawn arrives (or sooner, if a death for them comes first).
+func _respawn_late(id: int, spawn_index: int) -> void:
+	if _late_respawns.get(id, -1) != spawn_index:
+		return   # already applied
+	_late_respawns.erase(id)
+	if running and Net.players.has(id):
+		_apply_respawn(id, spawn_index)
+
+
+func _apply_respawn(id: int, spawn_index: int) -> void:
 	if DevArgs.sync_log:
 		print("RESPAWNED %d" % id)
 	health[id] = MAX_HEALTH

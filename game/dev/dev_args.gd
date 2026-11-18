@@ -46,6 +46,8 @@ extends Node
 ## --quit-after=SECONDS Quit automatically after this many seconds.
 ## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
 ##                      P percent of movement packets lost (incoming, this copy only).
+## --delay-respawn=MS  Client: apply another player's respawn MS milliseconds late, as if the message
+##                      were held up on the way, so their first snapshot from the new life arrives first (tests).
 ## --scripted-fire     With --scripted-input: aim at the nearest opponent and shoot.
 ## --map-event=SEC     Start the map's events (Halcyon's low gravity) SEC seconds after start, as if a terminal
 ##                      had fired them (host, practice and bot matches; tests and screenshots).
@@ -57,7 +59,7 @@ extends Node
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
 ## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, creator.
-## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics).
+## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
 ## --manual-respawn     Wait for a Jump or Fire press to respawn, as in a real game, even in a
 ##                      headless or scripted run (those otherwise ask as soon as the wait is over).
@@ -65,6 +67,7 @@ extends Node
 ## --save-killcam=N     On the results screen, save best kill #N as a video straight away, into the game's
 ##                      own data folder (user://killcams) rather than Videos (tests).
 ## --hud=STYLE          Use this HUD layout in both views: arcs or clean (screenshots).
+## --hud-scale=X        HUD scale, 0.75 to 1.25 (screenshots).
 ## --third-person      Start in third-person view (not saved to settings).
 ## --speed=X            Game speed (0.25: quarter speed, for filming a move in slow motion; Practice and Vs Bots).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
@@ -139,6 +142,7 @@ var window_rect := Rect2i()
 var net_sim_latency := 0.0
 var net_sim_jitter := 0.0
 var net_sim_loss := 0.0
+var delay_respawn := 0.0     # --delay-respawn: milliseconds
 var screenshots: Array = []  # [seconds, path]
 var presses: Array = []      # [seconds, action]
 var holds: Array = []        # [start seconds, action, end seconds, is down]
@@ -260,6 +264,7 @@ func _ready() -> void:
 				if Settings.HUD_STYLES.has(value):
 					Settings.hud_first_person = value
 					Settings.hud_third_person = value
+			"--hud-scale": Settings.hud.scale = HudConfig.valid("scale", float(value))
 			"--kill-target": kill_target = int(value)
 			"--points": points_target = int(value)
 			"--rules": rules = value
@@ -272,6 +277,7 @@ func _ready() -> void:
 				net_sim_latency = float(q[0]) if q.size() > 0 else 0.0
 				net_sim_jitter = float(q[1]) if q.size() > 1 else 0.0
 				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
+			"--delay-respawn": delay_respawn = maxf(float(value), 0.0)
 			"--press":
 				drives_keys = true
 				presses.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])

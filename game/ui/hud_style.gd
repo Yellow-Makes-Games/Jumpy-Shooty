@@ -163,6 +163,59 @@ static func pistol(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) ->
 	ci.draw_colored_polygon(pts, color)
 
 
+## A headshot (kill feed, death screen): a robot's head, visor slit across it, with a
+## hit bursting on its left side (the gun's side in the feed) and a crack running in
+## from it. `at` is the top left; it is headshot_width() across and 16 tall at size 1.
+## Returns its width.
+static func headshot_icon(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
+	var edge := Color(0, 0, 0, 0.6 * color.a)
+	var cut := Color(0, 0, 0, 0.8 * color.a)   # holes in the head: the visor and the crack
+	var head := [Vector2(9, 3), Vector2(19, 3), Vector2(21, 5), Vector2(21, 14), Vector2(19, 16),
+		Vector2(9, 16), Vector2(7, 14), Vector2(7, 5)]
+	var antenna := [Vector2(13.3, 0.5), Vector2(14.7, 0.5), Vector2(14.7, 3.5), Vector2(13.3, 3.5)]
+	var visor := [Vector2(11, 7), Vector2(19.5, 7), Vector2(19.5, 9.5), Vector2(11, 9.5)]
+	var crack := [Vector2(9.5, 10), Vector2(12.5, 11.5), Vector2(12, 12.5), Vector2(14.5, 14.8), Vector2(11.2, 12.8),
+		Vector2(11.6, 11.9), Vector2(9.2, 10.8)]
+	var burst := []   # a fat star: thin sparks blur into a smudge at 14 px, a solid star still reads
+	for i in 14:
+		var r: float = (5.4 if i % 4 == 0 else 4.4) if i % 2 == 0 else 2.5
+		burst.append(Vector2(5.2, 9.5) + Vector2.from_angle(TAU * i / 14.0 + PI) * r)
+	# Edges under fills, so no edge covers the head's own fill.
+	for shape in [head, antenna]:
+		_edged_shape(ci, at, shape, s, color, edge, true)
+	for shape in [head, antenna]:
+		_edged_shape(ci, at, shape, s, color, edge, false)
+	for shape in [visor, crack]:
+		ci.draw_colored_polygon(_placed(at, shape, s), cut)
+	# The burst's own edge cuts it out of the head behind it.
+	_edged_shape(ci, at, burst, s, color, edge, true)
+	_edged_shape(ci, at, burst, s, color, edge, false)
+	return headshot_width() * s
+
+
+## How wide the headshot icon is at size 1 (it is 16 tall).
+static func headshot_width() -> float:
+	return 21.0
+
+
+## An icon's shape (points at size 1) scaled by `s` and moved to `at`.
+static func _placed(at: Vector2, shape: Array, s: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for p in shape:
+		pts.append(at + p * s)
+	return pts
+
+
+## One shape of an icon: its dark edge (grown 1.5 px all round) or its fill.
+static func _edged_shape(ci: CanvasItem, at: Vector2, shape: Array, s: float, color: Color, edge: Color, under: bool) -> void:
+	var pts := _placed(at, shape, s)
+	if not under:
+		ci.draw_colored_polygon(pts, color)
+		return
+	for grown in Geometry2D.offset_polygon(pts, 1.5, Geometry2D.JOIN_MITER):
+		ci.draw_colored_polygon(grown, edge)
+
+
 ## A small silhouette of a gun, barrel to the right (kill feed, death screen). Returns its width.
 static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s: float = 1.0) -> float:
 	id = WeaponData.look_of(id)   # (the Golden Gun: the revolver)
@@ -376,5 +429,181 @@ static func weapon_width(id: String) -> float:
 		"mace": 32.0, "machete": 30.0, "wrench": 31.0, "energy_sword": 42.0, "claws": 28.0}.get(id, 22.0)
 
 
+## Widths at size 1 of the icons below.
+const FLYING_KICK_W := 35.0
+const HOOK_W := 33.0
+const WALL_W := 22.0
+
+
+## What made a kill (Match.death_fx "with": a WeaponData id, "kick", "flying_kick",
+## "rope" or "none"), as a kill feed icon. Returns its width.
+static func kill_icon(ci: CanvasItem, with: String, at: Vector2, color: Color, s: float = 1.0) -> float:
+	match with:
+		"kick":
+			return weapon_icon(ci, "none", at, color, s)   # the boot
+		"flying_kick":
+			return flying_kick(ci, at, color, s)
+		"rope":
+			return grapple_hook(ci, at, color, s)
+	return weapon_icon(ci, with, at, color, s)
+
+
+## How wide kill_icon is at size 1.
+static func kill_icon_width(with: String) -> float:
+	match with:
+		"kick":
+			return weapon_width("none")
+		"flying_kick":
+			return FLYING_KICK_W
+		"rope":
+			return HOOK_W
+	return weapon_width(with)
+
+
+## The kick's boot tipped up into a flying kick, speed lines trailing behind it.
+static func flying_kick(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
+	var boot := []
+	for p in [Vector2(2, -2), Vector2(9, -2), Vector2(9, 5), Vector2(19, 6), Vector2(21, 10), Vector2(2, 10)]:   # (weapon_icon's "none")
+		boot.append((p - Vector2(11.5, 4)).rotated(deg_to_rad(-15.0)) + Vector2(24, 3.5))
+	return _polygons(ci, [boot,
+		[Vector2(0, 0.5), Vector2(8, 0.5), Vector2(9, 2), Vector2(1, 2)],
+		[Vector2(2, 4.2), Vector2(11, 4.2), Vector2(12, 5.7), Vector2(3, 5.7)],
+		[Vector2(1, 7.9), Vector2(9, 7.9), Vector2(10, 9.4), Vector2(2, 9.4)]], at, color, s)
+
+
+## A grappling hook on the end of its rope, points to the right (reeled in by a grapple).
+static func grapple_hook(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
+	var rope := []
+	for i in 7:   # a slack, wavy rope
+		rope.append(Vector2(i * 2.0, 4.0 + (1.2 if i % 2 == 1 else -0.2)))
+	for i in range(6, -1, -1):
+		rope.append(Vector2(i * 2.0, 5.4 + (1.2 if i % 2 == 1 else -0.2)))
+	return _polygons(ci, [rope,
+		[Vector2(12, 2), Vector2(16, 2), Vector2(16, 7), Vector2(12, 7)],   # the eye
+		[Vector2(16, 3.2), Vector2(28, 3.2), Vector2(28, 5.8), Vector2(16, 5.8)],   # the shank
+		[Vector2(26, 3.4), Vector2(29, 1.5), Vector2(29.5, -2), Vector2(27.5, -4.5), Vector2(24, -5), Vector2(26.5, -2.5),
+			Vector2(26.5, 0.5), Vector2(24.5, 3.4)],   # the prongs, bent back
+		[Vector2(26, 5.6), Vector2(29, 7.5), Vector2(29.5, 11), Vector2(27.5, 13.5), Vector2(24, 14), Vector2(26.5, 11.5),
+			Vector2(26.5, 8.5), Vector2(24.5, 5.6)],
+		[Vector2(28, 3), Vector2(33, 4.5), Vector2(28, 6)]], at, color, s)
+
+
+## A slab of wall split by cracks, a burst where something hit it from the left
+## (killed by a crash into a wall).
+static func wall_impact(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
+	# The slab, cut along cracks that run out from where the blow landed, each
+	# piece pulled in a little so the cracks show as gaps.
+	var hit := Vector2(9, 4)
+	var pieces := [
+		[Vector2(9, -4), Vector2(15, -4), hit],
+		[Vector2(15, -4), Vector2(22, -4), Vector2(22, 1.5), hit],
+		[hit, Vector2(22, 1.5), Vector2(22, 7.5)],
+		[hit, Vector2(22, 7.5), Vector2(22, 12), Vector2(16, 12)],
+		[hit, Vector2(16, 12), Vector2(9, 12)]]
+	var shapes := []
+	for piece in pieces:
+		var mid := Vector2.ZERO
+		for p in piece:
+			mid += p
+		mid /= piece.size()
+		var shrunk := []
+		for p in piece:
+			shrunk.append(p + (mid - p).normalized() * 0.9)
+		shapes.append(shrunk)
+	# The burst: an eight-pointed star against the wall's face.
+	var star := []
+	for i in 16:
+		var a := TAU * i / 16.0
+		star.append(Vector2(4.5, 4) + Vector2(cos(a), sin(a)) * (4.5 if i % 2 == 0 else 1.7))
+	shapes.append(star)
+	return _polygons(ci, shapes, at, color, s)
+
+
+## Fill each shape (a list of points, at size 1) at `at`, scaled by `s`. Returns
+## how far right they reach.
+static func _polygons(ci: CanvasItem, shapes: Array, at: Vector2, color: Color, s: float) -> float:
+	var width := 0.0
+	for shape in shapes:
+		var pts := PackedVector2Array()
+		for p in shape:
+			pts.append(at + p * s)
+			width = maxf(width, p.x * s)
+		ci.draw_colored_polygon(pts, color)
+	return width
+
+
 static func health_color(hp: float) -> Color:
 	return RED if hp <= LOW_HEALTH else WHITE
+
+
+## The crosshair at `c`, as the player set it (see HudConfig). `kind` is the weapon's
+## own (WeaponData.crosshair: "spread" brackets on the shotgun's cone, a launcher's
+## "ring", the sniper's "dot" with ticks round it, otherwise a cross), used unless the
+## options pick one shape for every weapon. `spread_px`: how far the gun's spread
+## reaches on screen. At the defaults each weapon's crosshair is drawn as it always was.
+static func crosshair(ci: CanvasItem, c: Vector2, kind: String, spread_px: float, cfg: HudConfig) -> void:
+	var style := cfg.crosshair if cfg.crosshair != "weapon" else kind
+	var col := cfg.color()
+	var k := cfg.crosshair_size
+	var t := cfg.crosshair_thickness
+	var shift := cfg.crosshair_gap - 5.0   # further out (or in) than the weapon's own shape
+	var dark := cfg.crosshair_outline
+	match style:
+		"spread":   # four brackets on the edge of the cone
+			var r := maxf(spread_px, 12.0) + shift
+			for i in 4:
+				var a := 45.0 + i * 90.0
+				if dark:
+					arc(ci, c, r, a - 15.0 * k - 1.0, a + 15.0 * k + 1.0, Color(0, 0, 0, 0.5), t + 2.0)
+				arc(ci, c, r, a - 15.0 * k, a + 15.0 * k, col, t)
+		"ring":     # a circle where it will land, with a gap at the bottom
+			var r := maxf(11.0 * k + shift, 3.0)
+			if dark:
+				arc(ci, c, r, 110.0, 430.0, Color(0, 0, 0, 0.5), t + 2.0)
+			arc(ci, c, r, 110.0, 430.0, col, t)
+			ci.draw_line(c + Vector2(0, r + 3.0 * k), c + Vector2(0, r + 11.0 * k), col, t)
+		"dot":      # the sniper: short ticks well clear of a precise dot
+			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+				if dark:
+					ci.draw_line(c + d * (9.0 + shift), c + d * (9.0 + shift + 6.0 * k), Color(0, 0, 0, 0.55), t + 2.0)
+				ci.draw_line(c + d * (9.0 + shift), c + d * (9.0 + shift + 6.0 * k), col, t)
+		"point":    # a dot and nothing else (drawn below)
+			pass
+		"circle":
+			var r := maxf(cfg.crosshair_gap + 5.0 * k + spread_px * 0.6, 3.0)
+			if dark:
+				arc(ci, c, r, 0.0, 360.0, Color(0, 0, 0, 0.5), t + 2.0)
+			arc(ci, c, r, 0.0, 360.0, col, t)
+		_:          # a cross that opens up with the spread ("t": no top arm)
+			var gap := cfg.crosshair_gap + spread_px * 0.6
+			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+				if style == "t" and d == Vector2.UP:
+					continue
+				if dark:
+					ci.draw_line(c + d * gap, c + d * (gap + 8.0 * k), Color(0, 0, 0, 0.55), t + 2.0)
+				ci.draw_line(c + d * gap, c + d * (gap + 8.0 * k), col, t)
+	if style == "point":
+		var r := 1.25 * t * k
+		if dark:
+			ci.draw_circle(c, r + 1.0, Color(0, 0, 0, 0.5))
+		ci.draw_circle(c, r, col)
+	elif cfg.crosshair_dot:
+		if style == "dot":   # the sniper's dot sits on a dark disc
+			if dark:
+				ci.draw_circle(c, t, Color(0, 0, 0, 0.5))
+			ci.draw_circle(c, 0.7 * t, col)
+		else:
+			ci.draw_circle(c, 0.75 * t, col)
+
+
+## Lines out from the crosshair when your shot lands: white for a hit, yellow for a
+## headshot, red and longer for a kill ("hit", "head", "kill").
+static func hit_marker(ci: CanvasItem, c: Vector2, kind: String) -> void:
+	var kill := kind == "kill"
+	var col := RED if kill else (YELLOW if kind == "head" else Color.WHITE)
+	var reach := 24.0 if kill else (20.0 if kind == "head" else 17.0)
+	var w := 4.0 if kill else 3.0
+	for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		var n: Vector2 = d.normalized()
+		ci.draw_line(c + n * 9.0, c + n * reach, Color(0, 0, 0, 0.5), w + 2.0)
+		ci.draw_line(c + n * 9.0, c + n * reach, col, w)

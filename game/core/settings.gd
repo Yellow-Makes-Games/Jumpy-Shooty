@@ -18,6 +18,8 @@ var third_person: bool = false
 const HUD_STYLES := {"arcs": "Twin arcs (around the crosshair)", "clean": "Clean (corners)"}
 var hud_first_person: String = "arcs"
 var hud_third_person: String = "clean"
+## Scale, opacity, crosshair and which parts of the HUD show (see HudConfig).
+var hud := HudConfig.new()
 ## When you are knocked out, watch the kill again from the eyes of whoever got you.
 var killcam: bool = true
 
@@ -34,6 +36,9 @@ var vsync: bool = true
 var resolution: Vector2i = Vector2i.ZERO
 ## Frame rate cap. 0 = no cap, -1 = match the monitor's refresh rate.
 var frame_rate: int = 0
+## What is left of a robot that is knocked out (see Remains).
+const GORE := {"full": "Ragdolls and giblets", "ragdolls": "Ragdolls only", "off": "Off"}
+var gore: String = "full"
 
 ## Resolutions offered in the menu (only those that fit the screen are shown).
 const RESOLUTIONS: Array[Vector2i] = [
@@ -76,6 +81,7 @@ func load_settings() -> void:
 	hud_first_person = _hud_style(cfg.get_value("hud", "first_person", hud_first_person))
 	hud_third_person = _hud_style(cfg.get_value("hud", "third_person", hud_third_person))
 	killcam = bool(cfg.get_value("hud", "killcam", killcam))
+	hud.load_from(cfg)
 	master_volume = cfg.get_value("audio", "master_volume", master_volume)
 	music_volume = cfg.get_value("audio", "music_volume", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx_volume", sfx_volume)
@@ -84,6 +90,8 @@ func load_settings() -> void:
 	var res = cfg.get_value("graphics", "resolution", resolution)
 	resolution = res if res is Vector2i else Vector2i.ZERO
 	frame_rate = int(cfg.get_value("graphics", "frame_rate", frame_rate))
+	var g := str(cfg.get_value("graphics", "gore", gore))
+	gore = g if GORE.has(g) else "full"
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 	custom_characters.clear()
@@ -107,6 +115,7 @@ func save_settings() -> void:
 	cfg.set_value("hud", "first_person", hud_first_person)
 	cfg.set_value("hud", "third_person", hud_third_person)
 	cfg.set_value("hud", "killcam", killcam)
+	hud.save_to(cfg)
 	cfg.set_value("audio", "master_volume", master_volume)
 	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("audio", "sfx_volume", sfx_volume)
@@ -114,6 +123,7 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "vsync", vsync)
 	cfg.set_value("graphics", "resolution", resolution)
 	cfg.set_value("graphics", "frame_rate", frame_rate)
+	cfg.set_value("graphics", "gore", gore)
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
 	cfg.set_value("creator", "characters", custom_characters)
@@ -241,6 +251,15 @@ func hud_style() -> String:
 
 static func _hud_style(value) -> String:
 	return str(value) if HUD_STYLES.has(str(value)) else "arcs"
+
+
+## Settings → HUD → Reset HUD: both layouts and every HUD option back to the defaults
+## (the killcam switch, on the Camera tab, stays as it is).
+func reset_hud() -> void:
+	hud_first_person = "arcs"
+	hud_third_person = "clean"
+	hud.reset()
+	changed.emit()
 
 
 func set_third_person(value: bool) -> void:

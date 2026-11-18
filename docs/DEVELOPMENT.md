@@ -66,6 +66,10 @@ Quick checks:
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- ragdolls (`tests/ragdoll_test.gd`, with `--fixed-fps 60`), for every robot and two
+  custom characters: thrown over a floor they settle above it, at rest, with elbows and
+  knees bent the right way; each lasts 10 s and dissolves, a respawn or the player
+  leaving changes nothing, at most 8 at once, none with the setting off;
 - weapons (`tests/weapon_test.gd`): damage and falloff, magazine and shell-by-shell
   reloads, melee wind-ups and shoves;
 - sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
@@ -118,6 +122,11 @@ Quick checks:
 - spectating (`tests/spectator_test.gd`): in a Vs Bots match you switch to spectating and
   back; a spectator has no robot, score or scoreboard row, the bots play on, and the free
   camera flies through the floor, faster with Sprint, the way it looks;
+- respawn visibility (`tests/respawn_visible_test.gd`): another player who dies and comes
+  back is shown again (drawn and solid) whether their first snapshot from the new life
+  or the news of the respawn gets here first, when killed again before any snapshot
+  from the new life, after a new robot or gun while waiting to see them back, and
+  through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the game boots into practice mode on every map without script errors.
 
 Networked and bot runs (real time):
@@ -141,6 +150,9 @@ Networked and bot runs (real time):
 - ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
   the target dummy, and online a client's slam is ruled on by the host, hits the host's
   player and is heard by both;
+- respawn visibility online (`tests/run_respawn_visible_test.sh`): a host and two clients
+  shoot it out; one client gets every respawn 300 ms late (`--delay-respawn`), behind the
+  player's first snapshot from the new life, and both must show every respawned player;
 - Halcyon online and with bots (`tests/run_gravity_test.sh`): a client fires the
   terminal on the host, a client across the room cannot, a late joiner is told how far
   along the event is, and bots use the terminal and keep moving in low gravity;
@@ -254,14 +266,16 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
 | `--net-sim=L,J,P` | Pretend the connection is bad: L ms latency, J ms jitter, P% loss |
+| `--delay-respawn=MS` | Client: apply other players' respawns MS ms late, as if the message were held up on the way, so their first snapshot from the new life arrives first (`tests/run_respawn_visible_test.sh`) |
 | `--third-person` | Start in third person |
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
-| `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics (with `--menu=settings`, or in the pause menu) |
+| `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
+| `--hud-scale=X` | HUD scale for this run, 0.75 to 1.25 (as Settings → HUD → HUD scale) |
 | `--manual-respawn` | Respawn only on a Jump or Fire press, as in a real game, even headless or with `--scripted-input` (which otherwise ask to respawn as soon as the wait is over) |
 | `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
