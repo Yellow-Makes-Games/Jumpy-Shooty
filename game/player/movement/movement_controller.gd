@@ -72,6 +72,18 @@ var impact_point := Vector3.ZERO
 var boosts := 0
 var since_boost := 99.0
 
+## This body's gravity right now, as a share of normal: the map-wide WorldGravity.scale
+## (a map event) times the gravity of the zone it is in (see MapGravityZone), which
+## eases from one zone's to the next over WorldGravity.BLEND_TIME. Worked out at the
+## start of every step; everything here that uses gravity multiplies by it.
+var gravity_scale := 1.0
+## The zone's share on its own (1.0 on a map with no zones), eased.
+var zone_scale := 1.0
+
+var _zone_from := 1.0
+var _zone_to := -1.0         # the zone it is easing to (below 0: not known yet, take the first one as it is)
+var _zone_t := 1.0
+
 var _knock := Vector3.ZERO   # knockback waiting to be added on the next step
 ## Set when the body was just moved somewhere new (blink, a portal): the next step
 ## does not count the floor it was standing on before.
@@ -112,6 +124,7 @@ func _init(t: MovementTuning = null) -> void:
 func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var t := tuning
 	_bind_shape(body)
+	_update_gravity(body, delta)
 	var vel := body.velocity
 	var grounded := body.is_on_floor() and not warped
 	warped = false
@@ -266,7 +279,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var hspeed := Vector2(vel.x, vel.z).length()
 	if wall_jump:
 		state = State.AIR
-		vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+		vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 	elif state == State.WALL_RUN:
 		vel = _wall_run(vel, delta)
 	elif state == State.GLIDE:
@@ -274,7 +287,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	elif state == State.DIVE:
 		if not diving_now:
 			vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.dive_air_accel, delta)
-			vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+			vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 	elif state == State.ROLL:
 		vel = _roll(vel, wish, delta)
 	elif state == State.BELLY_SLIDE:
@@ -284,7 +297,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# the rope removes any motion that would stretch it.
 		state = State.GRAPPLE
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.grapple_air_accel, delta)
-		vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+		vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 	elif grounded and not jumping:
 		var just_landed := state not in [State.GROUND, State.CROUCH, State.SLIDE]
 		if state == State.SLIDE and (not crouched or hspeed < t.slide_end_speed):
@@ -310,7 +323,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			if hang and state == State.AIR and _hang_left > 0.0 and since_boost > 0.3 and not jumping:
 				vel = _hang(vel, delta)
 			else:
-				vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+				vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 
 	if jumping:
 		vel.y = t.jump_velocity
@@ -428,8 +441,29 @@ func is_low() -> bool:
 
 
 ## Forget everything in progress (respawn, teleport).
+## The body's gravity for this step: the zone it stands in, eased over a second
+## when that changes (walking out through a doorway), times the map event's.
+## After reset() (a respawn, a teleport) the zone it finds itself in counts at once.
+func _update_gravity(body: Node3D, delta: float) -> void:
+	var here := WorldGravity.zone_at(body.global_position + Vector3(0, tuning.stand_height * 0.5, 0))
+	if _zone_to < 0.0:
+		_zone_from = here
+		_zone_to = here
+		_zone_t = 1.0
+	elif not is_equal_approx(here, _zone_to):
+		_zone_from = zone_scale
+		_zone_to = here
+		_zone_t = 0.0
+	if _zone_t < 1.0:
+		_zone_t = minf(_zone_t + delta / WorldGravity.BLEND_TIME, 1.0)
+	zone_scale = lerpf(_zone_from, _zone_to, smoothstep(0.0, 1.0, _zone_t))
+	gravity_scale = WorldGravity.scale * zone_scale
+	grapple.gravity_scale = gravity_scale
+
+
 func reset() -> void:
 	grapple.reset()
+	_zone_to = -1.0
 	_knock = Vector3.ZERO
 	impact_speed = 0.0
 	state = State.AIR
@@ -551,7 +585,7 @@ func _slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, delta: float) ->
 	var t := tuning
 	var n := body.get_floor_normal()
 	# Gravity along the floor: zero on flat ground, speeds you up downhill.
-	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
+	var downhill := Vector3(0, -t.gravity * gravity_scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
 	var h := Vector3(vel.x, 0, vel.z)
@@ -631,7 +665,7 @@ func _wall_run(vel: Vector3, delta: float) -> Vector3:
 	if speed < t.wall_run_speed:
 		speed = min(speed + t.wall_run_accel * delta, t.wall_run_speed)
 	h = dir * speed - n * t.wall_stick
-	var y: float = max(vel.y - t.wall_run_gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+	var y: float = max(vel.y - t.wall_run_gravity * gravity_scale * delta, -t.max_fall_speed)
 	return Vector3(h.x, y, h.z)
 
 
@@ -691,7 +725,7 @@ func _hang(vel: Vector3, delta: float) -> Vector3:
 	_hang_left = maxf(_hang_left - delta, 0.0)
 	hanging = true
 	if vel.y > -t.hang_fall_speed:
-		vel.y = maxf(vel.y - t.gravity * t.hang_gravity * WorldGravity.scale * delta, -t.hang_fall_speed)
+		vel.y = maxf(vel.y - t.gravity * t.hang_gravity * gravity_scale * delta, -t.hang_fall_speed)
 	else:
 		vel.y = minf(vel.y + t.hang_brake * delta, -t.hang_fall_speed)
 	return vel
@@ -826,7 +860,7 @@ func _belly_slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, input: Pla
 		vel = _apply_friction(vel, top, delta)
 		vel = _accelerate(vel, wish, top, t.ground_accel, delta)
 		return Vector3(vel.x, min(vel.y, 0.0), vel.z)
-	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
+	var downhill := Vector3(0, -t.gravity * gravity_scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
 	h = Vector3(vel.x, 0, vel.z)
@@ -881,7 +915,7 @@ func _glide(vel: Vector3, delta: float) -> Vector3:
 	var speed := h.length()
 	if speed > t.glide_drift_speed:
 		h *= (t.glide_drift_speed + (speed - t.glide_drift_speed) * exp(-t.glide_drag * delta)) / speed
-	return Vector3(h.x, -t.glide_fall_speed * used * WorldGravity.scale, h.y)
+	return Vector3(h.x, -t.glide_fall_speed * used * gravity_scale, h.y)
 
 
 ## Rocket boots while gliding: the burst turns the whole glide the way you press

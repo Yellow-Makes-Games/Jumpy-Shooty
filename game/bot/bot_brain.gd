@@ -653,13 +653,19 @@ func _chase_tricks(delta: float, dir: Vector3, grounded: bool, speed: float) -> 
 
 ## Low gravity (a map event): everything that leaves the floor carries further.
 func _light() -> bool:
-	return WorldGravity.scale < 0.9
+	return _gravity() < 0.9
 
 
 ## How much further ahead to look for floor before leaving it: 1 normally, up to
 ## 2.5 times as far in low gravity.
 func _air() -> float:
-	return clampf(1.0 / maxf(WorldGravity.scale, 0.01), 1.0, 3.4)
+	return clampf(1.0 / maxf(_gravity(), 0.01), 1.0, 3.4)
+
+
+## Its own body's gravity, as a share of normal: the map event's times the zone it
+## stands in (low outside Empyrean Tower's walls).
+func _gravity() -> float:
+	return me.motor.gravity_scale if me != null and me.motor != null else WorldGravity.scale
 
 
 ## Where to walk to use a map terminal, or INF when it is not going for one. It

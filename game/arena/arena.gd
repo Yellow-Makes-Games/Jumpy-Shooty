@@ -38,6 +38,7 @@ var _nav_serial := 0   # goes up every time the map's parts start moving: a bake
 
 func _ready() -> void:
 	WorldGravity.reset()   # whatever the last match's map event left behind
+	WorldGravity.clear_zones()   # ...and the last map's gravity zones (this map's build() sets its own)
 	layout = Maps.make(Net.map_id())
 	layout.name = "Level"
 	add_child(layout)

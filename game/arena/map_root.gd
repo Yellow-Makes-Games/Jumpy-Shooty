@@ -15,6 +15,7 @@ extends Node3D
 ##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
 ##    steps bots follow round the course.
+##  - MapGravityZone volumes: places with their own gravity (see WorldGravity).
 ##  - MapSpinner groups: scenery that turns (drawn, never solid); MapTerminal consoles
 ##    players press interact at, and the MapEvent (GravityEvent, LayoutEvent) each one
 ##    sets off.
@@ -74,6 +75,9 @@ extends Node3D
 ## open sky between them, crossed at MapJumpLinks): every bot then carries the grapple
 ## here, whatever tool it was dealt.
 @export var bots_grapple := false
+## Gravity wherever no MapGravityZone covers, as a share of normal (see WorldGravity).
+## 1 = normal. Empyrean Tower: 0.4, with a zone of 1.0 filling the tower.
+@export_range(0.05, 2.0) var gravity_outside := 1.0
 ## A high point near the middle that scripted test players swing from.
 @export var swing_point := Vector3(0, 5.5, 0):
 	set(v):
@@ -100,6 +104,8 @@ var movers: Array = []
 var route: Array = []
 ## The map's MapSpinner nodes (scenery that turns), filled in by build().
 var spinners: Array = []
+## The map's MapGravityZone volumes, as WorldGravity takes them; filled in by build().
+var gravity_zones: Array = []
 ## The map's MapSpan walkways (they extend and retract), filled in by build():
 ## {node: MapSpan, base: Transform3D (in its mover's frame, or the map's), mover: int}.
 var spans: Array = []
@@ -182,9 +188,13 @@ func build(with_meshes: bool = true) -> void:
 	item_spawns = []
 	spinners = []
 	spans = []
+	gravity_zones = []
 	_riders = []
 	_trail = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
+	# Gravity by place (none on most maps: then it is 1.0 everywhere, whatever the
+	# last map said).
+	WorldGravity.set_zones(gravity_zones, gravity_outside)
 	for s in spinners:
 		(s as MapSpinner).build(self, with_meshes)
 	checkpoints.sort_custom(func(a, b): return a.number < b.number)
@@ -366,6 +376,12 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			if not (child as Node3D).visible:
 				continue   # hidden in the editor: left out of the game
 			at = xf * (child as Node3D).transform
+		if child is MapGravityZone:
+			if mover < 0 and not gravity_zones.any(func(z): return z.node == child):
+				var zone := (child as MapGravityZone).to_zone(at)
+				zone["node"] = child
+				gravity_zones.append(zone)
+			continue
 		if child is MapSpinner:
 			if not spinners.has(child):
 				spinners.append(child)   # scenery that turns: it draws its own blocks, none of them solid
@@ -598,6 +614,12 @@ func open_spawns() -> Array:
 func _physics_process(delta: float) -> void:
 	if not Engine.is_editor_hint() and not movers.is_empty():
 		update_movers(delta)
+
+
+func _exit_tree() -> void:
+	# The map's gravity zones go with it (the next map sets its own in build()).
+	if not Engine.is_editor_hint() and current == self:
+		WorldGravity.clear_zones()
 
 
 ## Where a hazard is right now (it may be riding a mover).
