@@ -30,14 +30,11 @@ const MELEE_VIEW_YAW := -0.2   ## and turned a little to the right: the weapon r
 ## more of the view than a plain one would. Only at rest: wound up and swinging it is
 ## where every weapon is.
 const MELEE_REST_VIEW := {
-	"sword": Vector3(0.14, -0.04, 0.02),
-	"hammer": Vector3(0.14, -0.04, 0.02),
-	"axe": Vector3(0.14, -0.04, 0.02),
-	"bat": Vector3(0.14, -0.04, 0.02),
-	"spear": Vector3(0.04, -0.03, 0.0),
-	"dagger": Vector3(0.085, -0.14, -0.09),
+	"spear": Vector3(0.0, -0.02, 0.0),
+	"dagger": Vector3(0.02, -0.06, -0.04),
 	"brass_knuckles": Vector3(0.0, -0.04, 0.0),
 }
+const MELEE_FREE_ARM := 0.75   ## radians the left arm drops when it is not on the weapon
 ## A blow is tipped up this much (radians), so it sweeps across the crosshair and not under it.
 const MELEE_CUT_TILT := 0.22
 ## In these the hands are busy (climbing, tucked): the weapon is not held up.
@@ -261,6 +258,11 @@ func update(delta: float) -> void:
 		_cut = move_toward(_cut, 1.0 if _swing.active() and not _swing.winding() else 0.0, delta * 14.0)
 		MeleeSwing.hold(_pose, rig, k, _swing.two_handed, MELEE_CUT_TILT * _cut, _hold, _hold * (1.0 - _grapple_w), shift,
 			_swing.other_fist(), _swing.left_fist())
+		# A weapon carried in the right hand alone: the free left arm hangs down out of the view.
+		var free := (1.0 - float(k[MeleeSwing.HANDS])) * _hold * (1.0 - _grapple_w) if _swing.two_handed and k.size() > MeleeSwing.HANDS else 0.0
+		if free > 0.0:
+			var up_l: int = rig.bones["upper_arm_l"]
+			_pose.rot[up_l] = Quaternion(Vector3.RIGHT, -MELEE_FREE_ARM * free) * _pose.rot[up_l]
 		_swing_view = Vector2(k[MeleeSwing.TURN] * 0.4, k[MeleeSwing.LEAN]) * _hold
 		if model.melee:
 			MeleeModel.set_glow(model.melee, _swing.glow())

@@ -60,7 +60,7 @@ const MOVES := {
 		# lifted into view, the blade lying across below the crosshair). Flat cuts from each side; the heavy blow
 		# is a diagonal cut from high by the right shoulder down to the left hip, the whole body behind it.
 		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.13],
-		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.13],
+		"fp_ready": [Vector3(0.24, -0.32, -0.3), Vector3(0.3, 0.55, -0.78), Vector3(-0.25, -0.75, -0.6), -0.25, 0.04, -0.13, 0.0],
 		"taps": [
 			{
 				"wound": [Vector3(0.12, -0.08, -0.24), Vector3(0.75, 0.4, 0.55), Vector3(0.35, 0.0, -0.94), -0.8, -0.08, -0.15],
@@ -88,7 +88,7 @@ const MOVES := {
 		# The hands apart on the haft, the head carried low. Flat swings from each side; the heavy blow is one
 		# huge swing round from far behind the right shoulder, the body turning hard through it.
 		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.2],
-		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.2],
+		"fp_ready": [Vector3(0.24, -0.32, -0.3), Vector3(0.3, 0.55, -0.78), Vector3(-0.25, -0.75, -0.6), -0.25, 0.04, -0.2, 0.0],
 		"taps": [
 			{
 				"wound": [Vector3(0.12, -0.08, -0.24), Vector3(0.75, 0.4, 0.55), Vector3(0.35, 0.0, -0.94), -0.864, -0.08, -0.2],
@@ -117,7 +117,7 @@ const MOVES := {
 		# Diagonal chops, down from the right shoulder and then down from the left; the heavy blow comes from
 		# high behind the head and is driven down past the hip.
 		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.17],
-		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.17],
+		"fp_ready": [Vector3(0.24, -0.32, -0.3), Vector3(0.3, 0.55, -0.78), Vector3(-0.25, -0.75, -0.6), -0.25, 0.04, -0.17, 0.0],
 		"taps": [
 			{
 				"wound": [Vector3(0.13, 0.04, -0.18), Vector3(0.55, 0.55, 0.63), Vector3(-0.3, -0.5, -0.8), -0.8, -0.1, -0.17],
@@ -143,7 +143,7 @@ const MOVES := {
 		# Hands together at the knob. A flat swing and a backhand; the heavy blow is a home run, cocked high
 		# behind the right shoulder and finished all the way round over the left.
 		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.11],
-		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.11],
+		"fp_ready": [Vector3(0.24, -0.32, -0.3), Vector3(0.3, 0.55, -0.78), Vector3(-0.25, -0.75, -0.6), -0.25, 0.04, -0.11, 0.0],
 		"taps": [
 			{
 				"wound": [Vector3(0.12, -0.08, -0.24), Vector3(0.75, 0.4, 0.55), Vector3(0.35, 0.0, -0.94), -0.8, -0.08, -0.11],
@@ -172,7 +172,7 @@ const MOVES := {
 		# Carried level at the hip, the left hand forward on the shaft. Every blow is a thrust: quick jabs, high
 		# then low; the heavy blow is drawn far back and driven right out, the shaft turning as it goes.
 		"ready": [Vector3(0.14, -0.3, -0.02), Vector3(-0.3, -0.12, -0.95), Vector3(0.0, -1.0, 0.0), -0.3, 0.0, 0.27],
-		"fp_ready": [Vector3(0.12, -0.2, -0.1), Vector3(-0.34, 0.06, -0.94), Vector3(0.0, -1.0, 0.0), -0.24, 0.0, 0.27],
+		"fp_ready": [Vector3(0.26, -0.3, -0.04), Vector3(0.12, 0.2, -0.97), Vector3(0.0, -1.0, 0.0), -0.24, 0.0, 0.27, 0.0],
 		"taps": [
 			{
 				"wound": [Vector3(0.22, -0.16, 0.06), Vector3(-0.6, 0.12, -0.79), Vector3(0.0, -1.0, 0.0), -0.55, -0.08, 0.27],
@@ -201,7 +201,7 @@ const MOVES := {
 		# One hand, the other fist up in a guard. A forehand slash and a backhand; the heavy blow is a stab,
 		# drawn back to the ribs and lunged straight out.
 		"ready": [Vector3(0.2, -0.3, -0.2), Vector3(-0.2, 0.45, -0.87), Vector3(-0.5, -0.5, -0.7), -0.2, 0.0, 0.0],
-		"fp_ready": [Vector3(0.2, -0.2, -0.3), Vector3(-0.1, 0.62, -0.78), Vector3(-0.6, -0.2, -0.6), -0.08, 0.0, 0.0],
+		"fp_ready": [Vector3(0.26, -0.24, -0.3), Vector3(0.2, 0.6, -0.78), Vector3(-0.6, -0.2, -0.6), -0.08, 0.0, 0.0],
 		"taps": [
 			{
 				"wound": [Vector3(0.34, -0.08, -0.1), Vector3(0.62, 0.3, -0.72), Vector3(0.75, 0.0, 0.66), -0.75, -0.05, 0.0],
