@@ -19,8 +19,13 @@ const KILL_HIT_TIME := 0.4
 const NUMBER_TIME := 0.8
 const ARROW_TIME := 1.6
 const CONFIRM_TIME := 1.8
-const POINTS_TIME := 3.2        ## your kill's killcam points stay up this long
-const POINTS_STEP := 0.07       ## ...counting in one line after another
+## Your kill's killcam points: by the crosshair one line at a time, the total for
+## POINTS_TOTAL seconds, then each part ("+60  HEADSHOT") for POINTS_STEP; and the
+## whole list, bottom left, for POINTS_TIME, to read at leisure.
+const POINTS_TOTAL := 0.5
+const POINTS_STEP := 0.225
+const POINTS_TIME := 6.0
+const POINTS_LIST_BOTTOM := 168.0   ## the list's last line, up from the bottom: above the Clean layout's moves
 const DEATH_W := 600.0          ## the death screen's left column
 const BOARD_W := 680.0          ## the scoreboard
 const DEATH_GAP := 36.0
@@ -442,39 +447,50 @@ func _draw_overlay() -> void:
 		_draw_points(ci, c)
 
 
-## Your kill's killcam score, right of the crosshair: the total, then each part of it
-## ("+60  HEADSHOT"), counting in one after another and fading out together.
+## Your kill's killcam score: one line at a time under the kill confirmation (the
+## total, then each part), and the whole list in the bottom left. No backgrounds.
 func _draw_points(ci: CanvasItem, c: Vector2) -> void:
 	var age: float = _points.age
-	var fade := clampf((POINTS_TIME - age) / 0.5, 0.0, 1.0)
 	var parts: Array = _points.parts
-	var x := c.x + 240.0   # clear of the ammo count beside the crosshair
-	var y := c.y - 80.0
-	var col := 0.0         # the words line up after the widest "+100"
-	var words_w := 0.0
+	# By the crosshair: the total, then each part in turn.
+	var y := c.y - (100.0 if style == "arcs" else 64.0)
+	if age < POINTS_TOTAL:
+		var a := clampf(age / 0.08, 0.0, 1.0)
+		var pop := 1.0 + 0.3 * clampf(1.0 - age / 0.12, 0.0, 1.0)
+		HudStyle.text(ci, Vector2(c.x, y), "+%d" % int(_points.total), int(24 * pop), Color(HudStyle.ORANGE, a), HORIZONTAL_ALIGNMENT_CENTER)
+	else:
+		var i := int((age - POINTS_TOTAL) / POINTS_STEP)
+		if i < parts.size():
+			var into := age - POINTS_TOTAL - i * POINTS_STEP
+			var a := clampf(into / 0.05, 0.0, 1.0) * clampf((POINTS_STEP - into) / 0.05, 0.0, 1.0)
+			var p: Array = parts[i]
+			var num := "+%d" % p[1]
+			var gap := 10.0
+			var w := HudStyle.text_width(num, 20) + gap + HudStyle.text_width(p[0], 15, false)
+			var x := c.x - w * 0.5
+			var nw := HudStyle.text(ci, Vector2(x, y), num, 20, Color(_points_color(p, i), a))
+			HudStyle.text(ci, Vector2(x + nw + gap, y), p[0], 15, Color(1, 1, 1, 0.9 * a), HORIZONTAL_ALIGNMENT_LEFT, false)
+	# Bottom left: all of it, to look over.
+	var fade := clampf((POINTS_TIME - age) / 0.5, 0.0, 1.0) * clampf(age / 0.2, 0.0, 1.0)
+	var lx := HudClean.MARGIN
+	var col := 0.0   # the words line up after the widest "+100"
 	for p in parts:
 		col = maxf(col, HudStyle.text_width("+%d" % p[1], 14) + 10.0)
-		words_w = maxf(words_w, HudStyle.text_width(p[0], 12, false))
-	var w := maxf(col + words_w, 150.0)
-	var h := 66.0 + parts.size() * 19.0
-	HudStyle.plate(ci, Rect2(x - 10.0, y - 20.0, w + 20.0, h), 6.0, Color(0.02, 0.03, 0.05, 0.45 * fade))
-	ci.draw_rect(Rect2(x - 10.0, y - 20.0, 3.0, h), Color(HudStyle.ORANGE, fade))
-	HudStyle.label(ci, Vector2(x, y - 6.0), "KILLCAM SCORE", 10, Color(1, 1, 1, 0.65 * fade))
-	var shown := mini(parts.size(), int(age / POINTS_STEP) + 1)
-	var running := 0
-	for i in shown:
-		running += int(parts[i][1])
-	var pop := 1.0 + 0.25 * clampf(1.0 - (age - (parts.size() - 1) * POINTS_STEP) / 0.15, 0.0, 1.0) if shown == parts.size() else 1.0
-	HudStyle.text(ci, Vector2(x, y + 16.0), "%d" % (running if shown < parts.size() else int(_points.total)), int(26 * pop), Color(HudStyle.ORANGE, fade))
-	var ly := y + 46.0
-	for i in shown:
+	var ly: float = _overlay.size.y - POINTS_LIST_BOTTOM - (parts.size() - 1) * 19.0
+	var hw := HudStyle.label(ci, Vector2(lx, ly - 28.0), "KILLCAM SCORE", 10, Color(1, 1, 1, 0.7 * fade))
+	HudStyle.text(ci, Vector2(lx + hw + 10.0, ly - 29.0), str(int(_points.total)), 20, Color(HudStyle.ORANGE, fade))
+	for i in parts.size():
 		var p: Array = parts[i]
-		var a := clampf((age - i * POINTS_STEP) / 0.12, 0.0, 1.0) * fade
-		var words := str(p[0])
-		var gold: bool = words == "HEADSHOT" or words.begins_with("FLICK") or (words.ends_with(" KILL") and i > 0)
-		HudStyle.text(ci, Vector2(x, ly), "+%d" % p[1], 14, Color(HudStyle.YELLOW if gold else HudStyle.WHITE, a))
-		HudStyle.text(ci, Vector2(x + col, ly), words, 12, Color(1, 1, 1, 0.75 * a), HORIZONTAL_ALIGNMENT_LEFT, false)
+		HudStyle.text(ci, Vector2(lx, ly), "+%d" % p[1], 14, Color(_points_color(p, i), fade))
+		HudStyle.text(ci, Vector2(lx + col, ly), p[0], 12, Color(1, 1, 1, 0.8 * fade), HORIZONTAL_ALIGNMENT_LEFT, false)
 		ly += 19.0
+
+
+## Gold for the parts that make a highlight (a headshot, a flick, a multikill).
+func _points_color(part: Array, i: int) -> Color:
+	var words := str(part[0])
+	var gold := words == "HEADSHOT" or words.begins_with("FLICK") or (words.ends_with(" KILL") and i > 0)
+	return HudStyle.YELLOW if gold else HudStyle.WHITE
 
 
 func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
