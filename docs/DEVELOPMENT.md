@@ -681,6 +681,13 @@ one-line description. The menus, the lobby, the network and the tests pick it up
 that list. If its forearms are bulky, give it an entry in `FP_SLIM` so the
 first-person arms do not fill the view.
 
+**Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
+from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted
+blades), in weapon space with the grip at the origin and the blade up +Y. To look at one
+on its own: `tools/combat/melee_preview.sh hammer OUT_DIR` (side, three-quarter and face
+on, then close up). How far each rests lower in first person is `MELEE_REST_VIEW` in
+`view_model.gd`.
+
 ## Sound effects
 
 Every sound is made by code, like the robots: `tools/audio/make_sfx.py` (python3 with

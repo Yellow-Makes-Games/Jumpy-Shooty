@@ -26,6 +26,17 @@ const MELEE_TURN := 0.3
 ## not right under your nose.
 const MELEE_VIEW := Vector3(0.03, -0.03, -0.14)
 const MELEE_VIEW_YAW := -0.2   ## and turned a little to the right: the weapon rests right of centre
+## A big weapon rests this much lower and further out again, so that at rest it hides no
+## more of the view than a plain one would. Only at rest: wound up and swinging it is
+## where every weapon is.
+const MELEE_REST_VIEW := {
+	"sword": Vector3(0.17, -0.27, -0.17),
+	"axe": Vector3(0.13, -0.15, -0.14),
+	"bat": Vector3(0.09, -0.11, -0.09),
+	"spear": Vector3(0.04, -0.03, 0.0),
+	"dagger": Vector3(0.085, -0.14, -0.09),
+	"brass_knuckles": Vector3(0.0, -0.04, 0.0),
+}
 ## The weapons swung flat from the side: at rest the blade leans in across the view
 ## (clear of the crosshair), and wound up it is raised by the right shoulder, where
 ## you can still see it. Directions in the hold frame (see MeleeSwing).
@@ -248,10 +259,10 @@ func update(delta: float) -> void:
 		# view, and the blow sweeps it across.
 		var k := _swing.sample(delta)
 		var shift := MELEE_SHIFT
+		_rest = move_toward(_rest, 0.0 if _swing.active() else 1.0, delta * (12.0 if _swing.active() else 5.0))
 		if _weapon in MELEE_SWUNG:
 			if _swing.winding():
 				shift += MELEE_WOUND_SHIFT * clampf(-_swing.coil(), 0.0, 1.0)
-			_rest = move_toward(_rest, 0.0 if _swing.active() else 1.0, delta * (12.0 if _swing.active() else 5.0))
 			var blade: Vector3 = k[MeleeSwing.BLADE]
 			blade = blade.slerp(MELEE_REST_BLADE.normalized(), smoothstep(0.0, 1.0, _rest))
 			if _swing.winding():
@@ -313,7 +324,7 @@ func update(delta: float) -> void:
 		kick *= 0.5   # the arms take most of it (above); the view only nudges, toward the gun that fired
 	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, kick * 0.035)
 	if _data.is_melee():
-		position += MELEE_VIEW
+		position += MELEE_VIEW + (MELEE_REST_VIEW.get(_weapon, Vector3.ZERO) as Vector3) * smoothstep(0.0, 1.0, _rest)
 	position += LOOK_DOWN_SHIFT * smoothstep(deg_to_rad(LOOK_DOWN_FROM), deg_to_rad(LOOK_DOWN_FULL), -pitch)
 	rotation = Vector3(-_sway.y * 0.5 + kick * 0.07 + _dip * 0.8 - _swing_view.y * 0.25,
 		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3, _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2)
