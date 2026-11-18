@@ -16,6 +16,8 @@ echo "== Importing project"
 # Each quick check: "name|args". Logs go to tests/out/check_<name>.log.
 CHECKS=(
   "movement|--fixed-fps 60 --script tests/movement_test.gd"
+  "movement_variant|--script tests/movement_variant_test.gd"
+  "movement_b|--fixed-fps 60 --script tests/movement_b_test.gd"
   "grapple_points|--script tests/grapple_point_test.gd"
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
   "ragdoll|--fixed-fps 60 --script tests/ragdoll_test.gd"
@@ -58,6 +60,7 @@ CHECKS=(
   "team_modes|--script tests/team_modes_test.gd"
   "player_color|--script tests/player_color_test.gd"
   "achievements|--script tests/achievements_test.gd"
+  "calling_card|--script tests/calling_card_test.gd"
   "respawn_visible|--script tests/respawn_visible_test.gd"
 )
 # Practice mode boots without errors on every map.

@@ -36,6 +36,7 @@ func _ready() -> void:
 		"settings": _show_settings()
 		"creator": _show_creator()
 		"achievements": _show_achievements()
+		"card": _show_calling_card()
 		_: _show_main()
 
 
@@ -117,6 +118,7 @@ func _show_main() -> void:
 	UiKit.primary_button(left, "Play", _show_play).grab_focus()
 	_front_button(left, "Multiplayer", _show_multiplayer)
 	_front_button(left, "Character Creator", _show_creator)
+	_front_button(left, "Calling Card", _show_calling_card)
 	_front_button(left, "Achievements", _show_achievements)
 	_front_button(left, "Settings", _show_settings)
 	_front_button(left, "Exit", Game.quit_game)
@@ -374,7 +376,24 @@ func _show_practice() -> void:
 	var map := _map_picker(left, Game.last_practice_map, mode[0])
 	map_ref[0] = map
 	_frame.back_button("Back", _show_play)
+	_movement_toggle()
 	_start_button(func(): Game.start_practice(Maps.picked(map), mode[0]))
+
+
+## The movement variant switch in the Practice and Vs Bots pages' footer (see
+## MovementTuning.VARIANTS): lit is Variant B. It is remembered for the next match.
+func _movement_toggle() -> Button:
+	var b := _frame.back_button("", func(): pass)
+	b.toggle_mode = true
+	b.custom_minimum_size.x = 260
+	b.tooltip_text = "A/B test: classic movement, or Variant B for you and the bots."
+	b.button_pressed = Game.movement_choice() == "b"
+	b.disabled = DevArgs.movement != ""   # --movement decides
+	b.text = "Movement: " + MovementTuning.variant_name(Game.movement_choice())
+	b.toggled.connect(func(on: bool):
+		Game.last_movement = "b" if on else "classic"
+		b.text = "Movement: " + MovementTuning.variant_name(Game.last_movement))
+	return b
 
 
 const RACE_BLURBS := [
@@ -510,6 +529,7 @@ func _show_bot() -> void:
 	allowed_moves.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
 	show_mode.call(mode[0])
 	_frame.back_button("Back", _show_play)
+	_movement_toggle()
 	_start_button(func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
 			count.get_selected_id(), mode[0] if mode[0] in GunGame.RULES else "kills", GunGame.game_of_mode(mode[0]), rules.value(),
 			allowed_moves.value(), {"killcam_points": int(killcam_points.value), "killcam_minutes": int(killcam_minutes.value)}))
@@ -570,12 +590,26 @@ func _show_creator() -> void:
 	lock.call()
 
 
+# Calling Card: the banner and the badge other players see with your name.
+func _show_calling_card() -> void:
+	_page(1280, "Calling Card", "Your banner and icon  /  play to unlock more")
+	_frame.body.add_child(CallingCardPicker.new())
+	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Achievements", _show_achievements).custom_minimum_size.x = 220
+
+
 # Achievements: what you have done, how far along the rest are, and what each unlocks.
 func _show_achievements() -> void:
 	var counts := Achievements.item_counts()
-	_page(1280, "Achievements", "%d of %d done  /  %d of %d creator items unlocked" % [Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1]])
-	_frame.body.add_child(AchievementsPanel.new())
+	_page(1280, "Achievements", "%d of %d done  /  %d of %d items unlocked" % [Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1]])
+	UiKit.section(_frame.body, "Race medals")
+	_frame.body.add_child(AchievementsPanel.medals())
+	UiKit.section(_frame.body, "Achievements")
+	var panel := AchievementsPanel.new()
+	_frame.body.add_child(AchievementsPanel.tabs(panel))
+	_frame.body.add_child(panel)
 	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Calling Card", _show_calling_card).custom_minimum_size.x = 220
 
 
 func _show_settings() -> void:

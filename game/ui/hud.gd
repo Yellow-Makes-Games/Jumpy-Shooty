@@ -104,6 +104,7 @@ var _killer_dist := -1.0
 var _killed_by_head := false
 var _killed_how := ""            # how they got you, for the death screen (see death_how)
 var _killer_view: RobotPreview   # the robot that got you, on the death screen
+var _movement_tag: Label   # "Movement: Variant B" in a corner while the A/B variant is on
 var _respawn_left := 0.0
 var _screen_age := 0.0          # how long the death screen has been up (not the killcam)
 var _asked := false             # asked to respawn (Match.request_respawn)
@@ -145,6 +146,14 @@ func _ready() -> void:
 	_killer_view.turn = false
 	_killer_view.visible = false
 	_root.add_child(_killer_view)
+	_movement_tag = Label.new()
+	_movement_tag.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_movement_tag.position = Vector2(12, 8)
+	_movement_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_movement_tag.add_theme_font_size_override("font_size", 14)
+	_movement_tag.add_theme_color_override("font_color", UiKit.TEXT_DIM)
+	_movement_tag.visible = false
+	_root.add_child(_movement_tag)
 	_build_scoreboard()
 	_race = HudRace.new()
 	_teams = HudTeams.new()
@@ -200,6 +209,9 @@ func set_players(_players: Dictionary) -> void:
 
 func update_local(p: Player) -> void:
 	var delta := get_process_delta_time()
+	var variant := p.motor.tuning.variant if p.motor else MovementTuning.DEFAULT_VARIANT
+	_movement_tag.visible = variant != MovementTuning.DEFAULT_VARIANT   # testers always know which one they are on
+	_movement_tag.text = "Movement: " + MovementTuning.variant_name(variant)
 	var me := p.peer_id
 	style = Settings.hud_style()
 	_pulse += delta
@@ -257,14 +269,18 @@ func update_local(p: Player) -> void:
 		grapple = GRAPPLE_IN_RANGE
 	else:
 		grapple = GRAPPLE_NO_TARGET
-	v.moves = [
-		[mobility.to_upper(), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON],
-		["DIVE", "Q", p.motor.dive_readiness(), false],
-		["FLIP", "SPACE", p.motor.flip_readiness(), false],
-		["GLIDE", "SHIFT", p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE],
-		["SLIDE", "C", p.motor.slide_boost_readiness(), false],
-		["BOOST", "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3],
-	]
+	var mt := p.motor.tuning
+	v.moves = [[mobility.to_upper(), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON]]
+	if mt.ctrl_moves:   # Variant B: Ctrl dives forward and slides backward
+		v.moves.append(["DIVE", "CTRL", p.motor.dive_readiness(), false])
+	else:
+		v.moves.append(["DIVE", "Q", p.motor.dive_readiness(), false])
+	if mt.flips_on and not mt.space_boost:
+		v.moves.append(["FLIP", "SPACE", p.motor.flip_readiness(), false])
+	if mt.glides_on:
+		v.moves.append(["GLIDE", "SHIFT", p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE])
+	v.moves.append(["SLIDE", "CTRL" if mt.ctrl_moves else "C", p.motor.slide_boost_readiness(), false])
+	v.moves.append(["BOOST", "SPACE" if mt.space_boost else "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3])
 	if not Race.active:
 		v.moves.append(["KICK", "F", p.kick_readiness(), p.flying_kick()])
 		if p.weapon and p.weapon.data.is_melee():
@@ -971,9 +987,11 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	if _killer != 0:
 		_killer_view.position = card.position + Vector2(18, -26)
 		HudStyle.label(ci, Vector2(x, y + 30), "ELIMINATED BY", 12, HudStyle.RED)
-		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
+		# Their calling card, with their name on it.
+		CallingCard.draw(ci, Rect2(x - 10, y + 39, card.end.x - x - 6, 44), Net.player_card(_killer), Net.player_icon(_killer), 0.7)
+		HudStyle.text(ci, Vector2(x + 40, y + 61), Net.player_name(_killer), 30, stripe.lightened(0.45))
 		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), _killed_how]
-		HudStyle.text(ci, Vector2(x, y + 92), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+		HudStyle.text(ci, Vector2(x, y + 97), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
 		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
 		if _killed_by_head:
 			chips.append("HEADSHOT")
