@@ -6,7 +6,7 @@ extends SceneTree
 ## Checks: Classic's running speed and jump height; pressing against your motion in the
 ## air brakes it far harder than Classic; legs tucked in the air with no key; no
 ## glides; Space in mid-air flips once per jump and E fires the boots; with the jetpack,
-## holding Space asks for it; sideways speed capped at 20 m/s; Ctrl forward dives onto your
+## holding Space asks for it; sideways speed capped at 27 m/s; Ctrl forward dives onto your
 ## belly and crawls, Ctrl back slides on your back and ends in a crouch, Ctrl standing
 ## still crouches; pushing into a wall in mid-air sits on it for 2.5 s, then slides
 ## down, and a jump kicks off it. Classic still flips.
@@ -122,10 +122,10 @@ func _run() -> void:
 	input.jump_held = false
 	b.has_jetpack = false
 
-	# --- Sideways speed is capped at 20 m/s (Classic has no cap).
+	# --- Sideways speed is capped at 27 m/s (Classic has no cap).
 	var b_fast := await _after_fling(b_body, b)
 	var c_fast := await _after_fling(c_body, c)
-	_check(b_fast <= 20.01 and c_fast > 25.0, "flung at 30 m/s: Variant B goes 20 m/s at most (%.1f; Classic %.1f)" % [b_fast, c_fast])
+	_check(b_fast <= 27.01 and b_fast > 26.5 and c_fast > 28.0, "flung at 30 m/s: Variant B goes 27 m/s at most (%.1f; Classic %.1f)" % [b_fast, c_fast])
 
 	# --- Ctrl forward: dive, belly slide, crawl.
 	await _settle(b_body, b, Vector3(0, 0, 0))

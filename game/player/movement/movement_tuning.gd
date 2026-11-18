@@ -51,7 +51,7 @@ static func for_variant(id) -> MovementTuning:
 ##  - stick to a wall you push into in mid-air for 2.5 seconds, then slide slowly down it;
 ##  - in a jump or fall, pressing WASD against the way you are moving brakes you much
 ##    harder (air_brake), so momentum is easy to stop;
-##  - sideways speed never goes past 20 m/s, whatever got you there (max_speed).
+##  - sideways speed never goes past 27 m/s, whatever got you there (max_speed).
 ## Run and sprint speeds are classic's.
 func _apply_b() -> void:
 	glides_on = false
@@ -60,7 +60,7 @@ func _apply_b() -> void:
 	ctrl_moves = true
 	wall_sit_time = 2.5
 	air_brake = 30.0
-	max_speed = 20.0
+	max_speed = 27.0
 
 @export_group("Ground")
 @export var run_speed := 8.0          ## top speed you accelerate to while running
