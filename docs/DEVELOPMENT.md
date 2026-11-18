@@ -221,7 +221,15 @@ The sync, match and bot tests take a map and a player count, for example
   achievement completes once at its goal and unlocks its items; the creator shows a
   locked item but won't save it, and Randomize keeps to what you have; what a saved
   character wears stays yours; the counts come back from the file, and two copies of
-  the game add to it;
+  the game add to it; a kill counts for its weapon's group and each weapon once, kills
+  without dying, revenge, the first kill, big, far and fast kills; wins count for their
+  mode, by one kill, with no deaths, against an Expert bot, online and hosted; plants,
+  defuses and captures; race medals and best times; every achievement has a kind,
+  and the page's tabs show each kind's own;
+- calling cards (`tests/calling_card_test.gd`): every card and icon has its own id and
+  draws, with a glyph or pattern the drawing code knows; the plain ones are free and the rest locked; the picker takes a free one and
+  refuses a locked one, saying what it needs; your card goes into the lobby with you,
+  a pick there shows at once, a made-up id becomes the plain card, and bots have one;
 - your colour (`tests/player_color_test.gd`): the colour you picked is yours when you
   host, a joiner gets theirs unless another player has it, a bot hands its colour over,
   nobody changes mid-match, and the swatch on the robot stage offers the free ones;
@@ -331,7 +339,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
-| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `creator`, `achievements` |
+| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `creator`, `card`, `achievements` |
 | `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
@@ -340,7 +348,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar`, or as a Character Creator id (`'--character=custom:n=Greg|l=frog|t=human|h=goblin|hat=crown'`), without changing your saved choice |
-| `--unlock-all` | Nothing in the Character Creator is locked behind an achievement |
+| `--unlock-all` | Nothing is locked behind an achievement (Character Creator items, calling cards, icons) |
 | `--color=N` | Your colour in a free-for-all: a number in `Net.PLAYER_COLORS` (0 red, 1 blue, 2 green... 15 brown) |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
@@ -1361,12 +1369,28 @@ test pick it up from the table. Its colour button repaints the material that
 covers most of it; if that is the wrong one, name the right one in `Accessories.MAIN`.
 
 **Adding an achievement:** add a line to `LIST` in `game/core/achievements.gd`: an id, a
-name, the count it watches (`stat`), the `goal`, the line under its name (`what`) and
-the items it unlocks (`rewards`: `"part:ninja"`, `"paint:gold"`, or `"<slot>:<accessory>"`
-such as `"hat:crown"`). An item named by no achievement is free. The counts are bumped in
-`_on_kill` (from a kill's tags, see `KillScore`), `_on_died`, `_on_match_over` and
-`_on_gate`; for a new kind of count, call `Achievements.add("name")` where it happens.
-The page, the creator's locks, the toast and the test read the list.
+name, its kind (`group`: the tab it is under, an id from `GROUPS`), the count it watches (`stat`), the `goal`, the line under its name (`what`) and
+the items it unlocks (`rewards`: `"part:ninja"`, `"paint:gold"`, `"<slot>:<accessory>"`
+such as `"hat:crown"`, or `"card:sunset"` and `"icon:skull"`). An item named by no
+achievement is free. The counts are bumped in `_on_kill` (from a kill's tags, see
+`KillScore`, and its weapon, score, distance and speed), `_on_died`, `_on_match_over`,
+`_on_team_event` and `_on_gate`; for a new kind of count, call `Achievements.add("name")`
+where it happens. Something that should count once each (a weapon, a course, a medal)
+goes in a set: add it to `SET_STATS` and call `_collect("set", "thing")`. The page, the
+creator's locks, the toast and the test read the list. A new race course needs its
+bronze, silver and gold times in `MEDALS` (run it with `--bot=3 --bots=3 --autopilot
+--sync-log --map=ID` and read the `RACE_GATE ... FINISH` lines: gold is about the
+Expert bots' time).
+
+**Adding a calling card or an icon:** add a line to `CARDS` or `ICONS` in
+`game/ui/calling_card.gd`: an id, a name, and for a card a `pattern` (one of the ones
+`_draw_pattern` knows, or a new branch there) and its three colours `a`, `b`, `c`; for
+an icon a `glyph` (a branch of `_draw_glyph`, drawn with the `Pen` there: shapes in a
+-1 to 1 square, which the pen also draws once in a dark colour as the glyph's shadow),
+its `color` and `accent`, the plate's colour (`back`) and `shape`, and if it should
+stand out the rim's metal (`rim`: `BRONZE` or `GOLD`) and `rays`.
+It is free unless an achievement's `rewards` name it (`"card:<id>"`, `"icon:<id>"`).
+The picker, the lobby and the test read the tables.
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted

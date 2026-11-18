@@ -1,14 +1,16 @@
 extends Node
 ## Achievements: things you do in matches (kills, headshots, wins, races finished...)
-## counted across every game you play, each unlocking something for the Character
-## Creator (a hat, a pair of wings, a whole body, a paint).
+## counted across every game you play, each unlocking something: for the Character
+## Creator (a hat, a pair of wings, a whole body, a paint), or a calling card or an
+## icon (the banner and badge by your name: see CallingCard).
 ##
 ## Only your own player counts, in any match with someone to play against: online,
 ## or against bots. The counts are kept in a file of their own (user://achievements.cfg),
 ## apart from the settings.
 ##
 ## An item is a key: "part:ninja" (a body for the head, torso or legs), "paint:gold",
-## or "<slot>:<accessory>" ("hat:crown"). Anything no achievement names is free from
+## "<slot>:<accessory>" ("hat:crown"), or a calling card or icon ("card:sunset",
+## "icon:skull": see CallingCard). Anything no achievement names is free from
 ## the start. Locks are about what you can make and save in the creator: a character
 ## someone else plays, or one you saved before a lock existed, is always drawn in full
 ## (whatever your saved characters wear is yours to keep).
@@ -25,49 +27,114 @@ const FILE := "user://achievements.cfg"
 const SAVE_EVERY := 8.0       ## seconds: counts are written at most this often mid-match
 const TOAST_TIME := 5.0
 
-## Every achievement, in the order the page shows them. stat: what it counts (see
-## _on_kill and the other hooks); goal: how many; what: the line under its name;
-## rewards: the items it unlocks.
+## The kinds of achievement, as the page's tabs show them: id and name.
+const GROUPS := [["combat", "Combat"], ["movement", "Movement"], ["matches", "Matches"], ["races", "Races"], ["misc", "Misc"]]
+
+## Every achievement, in the order the page shows them (within its kind). group: its
+## kind (an id from GROUPS); stat: what it counts (see _on_kill and the other hooks);
+## goal: how many; what: the line under its name; rewards: the items it unlocks.
 const LIST := [
-	{"id": "first_blood", "name": "First Blood", "stat": "kills", "goal": 1, "what": "Get a kill", "rewards": ["hat:party"]},
-	{"id": "kills_25", "name": "Warming Up", "stat": "kills", "goal": 25, "what": "Get 25 kills", "rewards": ["hat:bandana", "neck:dog_tags"]},
-	{"id": "kills_100", "name": "Centurion", "stat": "kills", "goal": 100, "what": "Get 100 kills", "rewards": ["hat:viking", "shoulder:pauldrons"]},
-	{"id": "kills_250", "name": "Veteran", "stat": "kills", "goal": 250, "what": "Get 250 kills", "rewards": ["shoulder:bandolier", "back:banner"]},
-	{"id": "kills_500", "name": "Warlord", "stat": "kills", "goal": 500, "what": "Get 500 kills", "rewards": ["hat:crown", "paint:silver"]},
-	{"id": "kills_1000", "name": "Legend", "stat": "kills", "goal": 1000, "what": "Get 1000 kills", "rewards": ["hat:halo", "back:wings", "paint:gold"]},
-	{"id": "headshots_10", "name": "Sharp Eye", "stat": "headshots", "goal": 10, "what": "Get 10 headshot kills", "rewards": ["face:monocle"]},
-	{"id": "headshots_50", "name": "Marksman", "stat": "headshots", "goal": 50, "what": "Get 50 headshot kills", "rewards": ["face:eye_patch", "face:aviators"]},
-	{"id": "headshots_200", "name": "Deadeye", "stat": "headshots", "goal": 200, "what": "Get 200 headshot kills", "rewards": ["face:laser_visor", "hat:cowboy"]},
-	{"id": "long_10", "name": "Long Arm", "stat": "long_shots", "goal": 10, "what": "Get 10 kills from 30 m or more", "rewards": ["back:quiver"]},
-	{"id": "long_50", "name": "Eagle Eye", "stat": "long_shots", "goal": 50, "what": "Get 50 kills from 30 m or more", "rewards": ["shoulder:drone"]},
-	{"id": "air_25", "name": "Airborne", "stat": "air_kills", "goal": 25, "what": "Get 25 kills while in the air", "rewards": ["hat:propeller"]},
-	{"id": "rope_25", "name": "Swinger", "stat": "rope_kills", "goal": 25, "what": "Get 25 kills while on the grapple", "rewards": ["tail:monkey_tail"]},
-	{"id": "wall_10", "name": "Wall Crawler", "stat": "wall_kills", "goal": 10, "what": "Get 10 kills while wall-running", "rewards": ["part:ninja"]},
-	{"id": "glide_10", "name": "Night Glider", "stat": "glide_kills", "goal": 10, "what": "Get 10 kills while gliding", "rewards": ["back:bat_wings"]},
-	{"id": "air_shot_25", "name": "Clay Pigeon", "stat": "air_shots", "goal": 25, "what": "Kill 25 players who are in the air", "rewards": ["part:duck"]},
-	{"id": "fast_25", "name": "Speed Demon", "stat": "fast_kills", "goal": 25, "what": "Get 25 kills while moving at 18 m/s or faster", "rewards": ["back:rocket_pack"]},
-	{"id": "flick_15", "name": "Flick of the Wrist", "stat": "flicks", "goal": 15, "what": "Get 15 flick kills", "rewards": ["face:three_d"]},
-	{"id": "kick_10", "name": "Boot Camp", "stat": "kicks", "goal": 10, "what": "Get 10 kills with a kick", "rewards": ["hat:hard_hat"]},
-	{"id": "flying_kick_10", "name": "Flying Lesson", "stat": "flying_kicks", "goal": 10, "what": "Get 10 kills with a flying kick", "rewards": ["part:astronaut"]},
-	{"id": "smash_10", "name": "Crash Test", "stat": "smashes", "goal": 10, "what": "Smash 10 players into a wall", "rewards": ["hat:traffic_cone"]},
-	{"id": "melee_25", "name": "Blade Dancer", "stat": "melee_kills", "goal": 25, "what": "Get 25 kills with a melee weapon", "rewards": ["back:sword", "back:shield"]},
-	{"id": "double_10", "name": "Double Trouble", "stat": "doubles", "goal": 10, "what": "Get 10 double kills (two within 4 seconds)", "rewards": ["hat:jester"]},
-	{"id": "triple_3", "name": "Hat Trick", "stat": "triples", "goal": 3, "what": "Get 3 triple kills", "rewards": ["part:imp", "hat:devil_horns", "tail:devil_tail"]},
-	{"id": "trick_10", "name": "Show-off", "stat": "trickshots", "goal": 10, "what": "Get 10 trickshots (two tricks or more in one kill)", "rewards": ["face:heart_shades"]},
-	{"id": "trick_50", "name": "Trickshot Artist", "stat": "trickshots", "goal": 50, "what": "Get 50 trickshots", "rewards": ["hat:unicorn", "back:butterfly_wings"]},
-	{"id": "clutch_10", "name": "By a Thread", "stat": "clutches", "goal": 10, "what": "Get 10 kills with 25 health or less", "rewards": ["neck:medal"]},
-	{"id": "win_1", "name": "Winner", "stat": "wins", "goal": 1, "what": "Win a match", "rewards": ["neck:gold_chain"]},
-	{"id": "win_10", "name": "Champion", "stat": "wins", "goal": 10, "what": "Win 10 matches", "rewards": ["waist:champion_belt"]},
-	{"id": "win_50", "name": "Dynasty", "stat": "wins", "goal": 50, "what": "Win 50 matches", "rewards": ["neck:ruff", "shoulder:epaulettes"]},
-	{"id": "matches_10", "name": "Regular", "stat": "matches", "goal": 10, "what": "Play 10 matches to the end", "rewards": ["hat:headphones", "shoulder:boombox"]},
-	{"id": "deaths_50", "name": "Bag of Bones", "stat": "deaths", "goal": 50, "what": "Die 50 times", "rewards": ["part:skeleton"]},
-	{"id": "deaths_200", "name": "Back for More", "stat": "deaths", "goal": 200, "what": "Die 200 times", "rewards": ["part:zombie"]},
-	{"id": "race_1", "name": "Finisher", "stat": "races", "goal": 1, "what": "Finish a race", "rewards": ["face:goggles"]},
-	{"id": "race_10", "name": "Speedrunner", "stat": "races", "goal": 10, "what": "Finish 10 races", "rewards": ["back:surfboard"]},
-	{"id": "race_win_3", "name": "First Past the Post", "stat": "race_wins", "goal": 3, "what": "Win 3 races against other racers", "rewards": ["tail:power_cord"]},
-	{"id": "race_clean_3", "name": "Clean Run", "stat": "clean_races", "goal": 3, "what": "Finish 3 races without going back to a checkpoint", "rewards": ["hat:mohawk"]},
-	{"id": "race_tour", "name": "Grand Tour", "stat": "courses", "goal": 4, "what": "Finish 4 different race courses", "rewards": ["part:yeti"]},
+	{"id": "first_blood", "name": "First Blood", "group": "combat", "stat": "kills", "goal": 1, "what": "Get a kill", "rewards": ["hat:party"]},
+	{"id": "kills_25", "name": "Warming Up", "group": "combat", "stat": "kills", "goal": 25, "what": "Get 25 kills", "rewards": ["hat:bandana"]},
+	{"id": "kills_100", "name": "Centurion", "group": "combat", "stat": "kills", "goal": 100, "what": "Get 100 kills", "rewards": ["hat:viking", "shoulder:pauldrons"]},
+	{"id": "kills_250", "name": "Veteran", "group": "combat", "stat": "kills", "goal": 250, "what": "Get 250 kills", "rewards": ["shoulder:bandolier", "back:banner", "icon:skull"]},
+	{"id": "kills_500", "name": "Warlord", "group": "combat", "stat": "kills", "goal": 500, "what": "Get 500 kills", "rewards": ["hat:crown", "paint:silver"]},
+	{"id": "kills_1000", "name": "Legend", "group": "combat", "stat": "kills", "goal": 1000, "what": "Get 1000 kills", "rewards": ["hat:halo", "back:wings", "paint:gold", "card:royal", "icon:skull_king"]},
+	{"id": "headshots_10", "name": "Sharp Eye", "group": "combat", "stat": "headshots", "goal": 10, "what": "Get 10 headshot kills", "rewards": ["face:monocle"]},
+	{"id": "headshots_50", "name": "Marksman", "group": "combat", "stat": "headshots", "goal": 50, "what": "Get 50 headshot kills", "rewards": ["face:eye_patch", "face:aviators"]},
+	{"id": "headshots_200", "name": "Deadeye", "group": "combat", "stat": "headshots", "goal": 200, "what": "Get 200 headshot kills", "rewards": ["face:laser_visor", "hat:cowboy", "card:bullseye", "icon:headhunter"]},
+	{"id": "long_10", "name": "Long Arm", "group": "combat", "stat": "long_shots", "goal": 10, "what": "Get 10 kills from 30 m or more", "rewards": ["back:quiver"]},
+	{"id": "long_50", "name": "Eagle Eye", "group": "combat", "stat": "long_shots", "goal": 50, "what": "Get 50 kills from 30 m or more", "rewards": ["shoulder:drone"]},
+	{"id": "air_25", "name": "Airborne", "group": "movement", "stat": "air_kills", "goal": 25, "what": "Get 25 kills while in the air", "rewards": ["hat:propeller"]},
+	{"id": "rope_25", "name": "Swinger", "group": "movement", "stat": "rope_kills", "goal": 25, "what": "Get 25 kills while on the grapple", "rewards": ["tail:monkey_tail"]},
+	{"id": "wall_10", "name": "Wall Crawler", "group": "movement", "stat": "wall_kills", "goal": 10, "what": "Get 10 kills while wall-running", "rewards": ["part:ninja"]},
+	{"id": "glide_10", "name": "Night Glider", "group": "movement", "stat": "glide_kills", "goal": 10, "what": "Get 10 kills while gliding", "rewards": ["back:bat_wings"]},
+	{"id": "air_shot_25", "name": "Clay Pigeon", "group": "combat", "stat": "air_shots", "goal": 25, "what": "Kill 25 players who are in the air", "rewards": ["part:duck"]},
+	{"id": "fast_25", "name": "Speed Demon", "group": "movement", "stat": "fast_kills", "goal": 25, "what": "Get 25 kills while moving at 18 m/s or faster", "rewards": ["back:rocket_pack"]},
+	{"id": "flick_15", "name": "Flick of the Wrist", "group": "combat", "stat": "flicks", "goal": 15, "what": "Get 15 flick kills", "rewards": ["hat:wizard"]},
+	{"id": "kick_10", "name": "Boot Camp", "group": "movement", "stat": "kicks", "goal": 10, "what": "Get 10 kills with a kick", "rewards": ["neck:dog_tags"]},
+	{"id": "flying_kick_10", "name": "Flying Lesson", "group": "movement", "stat": "flying_kicks", "goal": 10, "what": "Get 10 kills with a flying kick", "rewards": ["part:astronaut"]},
+	{"id": "smash_10", "name": "Crash Test", "group": "movement", "stat": "smashes", "goal": 10, "what": "Smash 10 players into a wall", "rewards": ["hat:traffic_cone"]},
+	{"id": "melee_25", "name": "Blade Dancer", "group": "combat", "stat": "melee_kills", "goal": 25, "what": "Get 25 kills with a melee weapon", "rewards": ["back:sword", "back:shield", "icon:swords"]},
+	{"id": "double_10", "name": "Double Trouble", "group": "combat", "stat": "doubles", "goal": 10, "what": "Get 10 double kills (two within 4 seconds)", "rewards": ["hat:jester"]},
+	{"id": "triple_3", "name": "Hat Trick", "group": "combat", "stat": "triples", "goal": 3, "what": "Get 3 triple kills", "rewards": ["part:imp", "hat:devil_horns", "tail:devil_tail"]},
+	{"id": "trick_10", "name": "Show-off", "group": "combat", "stat": "trickshots", "goal": 10, "what": "Get 10 trickshots (two tricks or more in one kill)", "rewards": ["face:heart_shades"]},
+	{"id": "trick_50", "name": "Trickshot Artist", "group": "combat", "stat": "trickshots", "goal": 50, "what": "Get 50 trickshots", "rewards": ["hat:unicorn", "back:butterfly_wings"]},
+	{"id": "clutch_10", "name": "By a Thread", "group": "combat", "stat": "clutches", "goal": 10, "what": "Get 10 kills with 25 health or less", "rewards": ["neck:medal"]},
+	{"id": "win_1", "name": "Winner", "group": "matches", "stat": "wins", "goal": 1, "what": "Win a match", "rewards": ["neck:gold_chain"]},
+	{"id": "win_10", "name": "Champion", "group": "matches", "stat": "wins", "goal": 10, "what": "Win 10 matches", "rewards": ["waist:champion_belt", "icon:laurels"]},
+	{"id": "win_50", "name": "Dynasty", "group": "matches", "stat": "wins", "goal": 50, "what": "Win 50 matches", "rewards": ["neck:ruff", "shoulder:epaulettes", "icon:crown"]},
+	{"id": "matches_10", "name": "Regular", "group": "misc", "stat": "matches", "goal": 10, "what": "Play 10 matches to the end", "rewards": ["hat:headphones", "shoulder:boombox"]},
+	{"id": "deaths_50", "name": "Bag of Bones", "group": "misc", "stat": "deaths", "goal": 50, "what": "Die 50 times", "rewards": ["part:skeleton"]},
+	{"id": "deaths_200", "name": "Back for More", "group": "misc", "stat": "deaths", "goal": 200, "what": "Die 200 times", "rewards": ["part:zombie"]},
+	{"id": "race_1", "name": "Finisher", "group": "races", "stat": "races", "goal": 1, "what": "Finish a race", "rewards": ["face:goggles"]},
+	{"id": "race_10", "name": "Speedrunner", "group": "races", "stat": "races", "goal": 10, "what": "Finish 10 races", "rewards": ["back:surfboard"]},
+	{"id": "race_win_3", "name": "First Past the Post", "group": "races", "stat": "race_wins", "goal": 3, "what": "Win 3 races against other racers", "rewards": ["card:racing"]},
+	{"id": "race_clean_3", "name": "Clean Run", "group": "races", "stat": "clean_races", "goal": 3, "what": "Finish 3 races without going back to a checkpoint", "rewards": ["icon:diamond"]},
+	{"id": "race_tour", "name": "Grand Tour", "group": "races", "stat": "courses", "goal": 4, "what": "Finish 4 different race courses", "rewards": ["part:yeti"]},
+	# Calling cards and icons (see CallingCard) from here on.
+	{"id": "sidearm_50", "name": "Quick Draw", "group": "combat", "stat": "sidearm_kills", "goal": 50, "what": "Get 50 kills with sidearms", "rewards": ["icon:six_shooter"]},
+	{"id": "shotgun_50", "name": "Close Quarters", "group": "combat", "stat": "shotgun_kills", "goal": 50, "what": "Get 50 kills with shotguns", "rewards": ["card:hazard"]},
+	{"id": "rifle_100", "name": "Rifleman", "group": "combat", "stat": "rifle_kills", "goal": 100, "what": "Get 100 kills with rifles", "rewards": ["card:woodland"]},
+	{"id": "marksman_50", "name": "Sharpshooter", "group": "combat", "stat": "marksman_kills", "goal": 50, "what": "Get 50 kills with marksman weapons", "rewards": ["card:arctic", "icon:reticle"]},
+	{"id": "explosive_50", "name": "Demolition", "group": "combat", "stat": "explosive_kills", "goal": 50, "what": "Get 50 kills with explosives", "rewards": ["hat:hard_hat", "card:magma", "icon:grenade"]},
+	{"id": "weapons_15", "name": "Gunsmith", "group": "combat", "stat": "weapons_used", "goal": 15, "what": "Get a kill with 15 different weapons", "rewards": ["card:blueprint"]},
+	{"id": "weapons_30", "name": "Arsenal", "group": "combat", "stat": "weapons_used", "goal": 30, "what": "Get a kill with 30 different weapons", "rewards": ["card:chrome"]},
+	{"id": "streak_5", "name": "On a Roll", "group": "combat", "stat": "streaks_5", "goal": 1, "what": "Get 5 kills without dying", "rewards": ["icon:flame"]},
+	{"id": "streak_10", "name": "Unstoppable", "group": "combat", "stat": "streaks_10", "goal": 1, "what": "Get 10 kills without dying", "rewards": ["card:inferno"]},
+	{"id": "quad_1", "name": "Four of a Kind", "group": "combat", "stat": "quads", "goal": 1, "what": "Get a quad kill (four in a row, each within 4 seconds)", "rewards": ["icon:ace"]},
+	{"id": "flawless_1", "name": "Untouchable", "group": "matches", "stat": "flawless_wins", "goal": 1, "what": "Win a match with 5 kills or more and no deaths", "rewards": ["card:abyss", "icon:phantom"]},
+	{"id": "revenge_25", "name": "Payback", "group": "combat", "stat": "revenges", "goal": 25, "what": "Kill the player who last killed you, 25 times", "rewards": ["card:blood_moon"]},
+	{"id": "opener_10", "name": "Fast Start", "group": "combat", "stat": "first_kills", "goal": 10, "what": "Get the first kill of the match 10 times", "rewards": ["icon:blitz"]},
+	{"id": "close_win_3", "name": "Photo Finish", "group": "matches", "stat": "close_wins", "goal": 3, "what": "Win 3 free-for-all matches by a single kill", "rewards": ["card:sunburst"]},
+	{"id": "big_kill_10", "name": "Highlight Reel", "group": "combat", "stat": "big_kills", "goal": 10, "what": "Score 400 or more with one kill, 10 times", "rewards": ["card:starfield", "icon:comet"]},
+	{"id": "far_10", "name": "Out of Town", "group": "combat", "stat": "far_kills", "goal": 10, "what": "Get 10 kills from 60 m or more", "rewards": ["icon:overwatch"]},
+	{"id": "far_100m", "name": "Another Postcode", "group": "combat", "stat": "very_far_kills", "goal": 1, "what": "Get a kill from 100 m or more", "rewards": ["card:skyline"]},
+	{"id": "sonic_10", "name": "Sonic Boom", "group": "movement", "stat": "sonic_kills", "goal": 10, "what": "Get 10 kills while moving at 25 m/s or faster", "rewards": ["hat:mohawk", "card:storm"]},
+	{"id": "air_100", "name": "Frequent Flyer", "group": "movement", "stat": "air_kills", "goal": 100, "what": "Get 100 kills while in the air", "rewards": ["icon:wings"]},
+	{"id": "rope_100", "name": "Hooked", "group": "movement", "stat": "rope_kills", "goal": 100, "what": "Get 100 kills while on the grapple", "rewards": ["icon:hook"]},
+	{"id": "kick_50", "name": "Black Belt", "group": "movement", "stat": "kicks", "goal": 50, "what": "Get 50 kills with a kick", "rewards": ["icon:boot"]},
+	{"id": "gun_game_3", "name": "Up the Ladder", "group": "matches", "stat": "gun_game_wins", "goal": 3, "what": "Win 3 Gun Game matches", "rewards": ["icon:sergeant"]},
+	{"id": "killcam_3", "name": "Director's Cut", "group": "matches", "stat": "killcam_wins", "goal": 3, "what": "Win 3 Killcam matches", "rewards": ["face:three_d", "card:vaporwave", "icon:rec"]},
+	{"id": "golden_3", "name": "Midas Touch", "group": "matches", "stat": "golden_gun_wins", "goal": 3, "what": "Win 3 Golden Gun matches", "rewards": ["card:gold_bar"]},
+	{"id": "team_win_10", "name": "Team Player", "group": "matches", "stat": "team_wins", "goal": 10, "what": "Win 10 team matches", "rewards": ["card:honeycomb"]},
+	{"id": "plant_10", "name": "Sapper", "group": "matches", "stat": "plants", "goal": 10, "what": "Plant the bomb 10 times in Search and Destroy", "rewards": ["icon:c4"]},
+	{"id": "defuse_5", "name": "Bomb Squad", "group": "matches", "stat": "defuses", "goal": 5, "what": "Defuse the bomb 5 times in Search and Destroy", "rewards": ["icon:defuser"]},
+	{"id": "capture_10", "name": "Flag Runner", "group": "matches", "stat": "captures", "goal": 10, "what": "Capture the flag 10 times", "rewards": ["icon:flag"]},
+	{"id": "medal_bronze", "name": "On the Clock", "group": "races", "stat": "bronze_medals", "goal": 1, "what": "Beat the bronze time on a race course", "rewards": ["icon:stopwatch"]},
+	{"id": "medal_silver", "name": "Silver Lining", "group": "races", "stat": "silver_medals", "goal": 2, "what": "Beat the silver time on 2 race courses", "rewards": ["card:chequered"]},
+	{"id": "medal_gold", "name": "Gold Standard", "group": "races", "stat": "gold_medals", "goal": 1, "what": "Beat the gold time on a race course", "rewards": ["icon:medal"]},
+	{"id": "medal_gold_4", "name": "Gold Rush", "group": "races", "stat": "gold_medals", "goal": 4, "what": "Beat the gold time on 4 race courses", "rewards": ["card:aurora", "icon:mach"]},
+	{"id": "expert_1", "name": "Giant Slayer", "group": "matches", "stat": "expert_wins", "goal": 1, "what": "Win a match against an Expert bot", "rewards": ["tail:power_cord", "card:circuit", "icon:scrapper"]},
+	{"id": "online_10", "name": "Good Company", "group": "misc", "stat": "online_matches", "goal": 10, "what": "Play 10 online matches with other people to the end", "rewards": ["card:sunset"]},
+	{"id": "host_1", "name": "Party Host", "group": "misc", "stat": "hosted", "goal": 1, "what": "Host a match with 4 or more people in it", "rewards": ["icon:signal"]},
+	{"id": "matches_50", "name": "Old Hand", "group": "misc", "stat": "matches", "goal": 50, "what": "Play 50 matches to the end", "rewards": ["icon:service"]},
+	{"id": "falls_10", "name": "Mind the Gap", "group": "misc", "stat": "falls", "goal": 10, "what": "Fall out of the arena 10 times", "rewards": ["card:frostbite"]},
+	{"id": "self_5", "name": "Own Goal", "group": "misc", "stat": "self_kills", "goal": 5, "what": "Take yourself out 5 times", "rewards": ["card:toxic", "icon:boomerang"]},
 ]
+
+## Race medals: the times to beat on each course (seconds: bronze, silver, gold).
+## Gold is about what an Expert bot runs (70.0, 73.3, 68.0 and 57.3 s when these were
+## set); silver is a little quicker than a Normal bot; bronze is a steady run.
+const MEDALS := {
+	"rooftop_run": [100.0, 82.0, 71.0],
+	"foundry": [105.0, 85.0, 74.0],
+	"sky_ruins": [100.0, 80.0, 69.0],
+	"summit_plunge": [85.0, 66.0, 58.0],
+}
+const MEDAL_NAMES := ["bronze", "silver", "gold"]
+## A kill's weapon group (WeaponData.GROUPS) -> the count it adds to.
+const GROUP_STATS := {"Sidearms": "sidearm_kills", "Shotguns": "shotgun_kills", "Rifles": "rifle_kills",
+	"Marksman": "marksman_kills", "Explosives": "explosive_kills"}
+## Counts that are the size of a set kept in the file (each thing counts once).
+const SET_STATS := {"courses": "courses", "weapons": "weapons_used", "bronze": "bronze_medals",
+	"silver": "silver_medals", "gold": "gold_medals"}
+const BIG_KILL := 400         ## a kill's score from this up is a "big" one
+const FAR := 60.0             ## metres
+const VERY_FAR := 100.0
+const SONIC := 25.0           ## m/s
+const FLAWLESS_KILLS := 5     ## a win with no deaths counts from this many kills
+const HOSTED_PEOPLE := 4
 
 ## --unlock-all: nothing is locked (testing, or just dressing up).
 var unlock_all := false
@@ -75,7 +142,10 @@ var unlock_all := false
 var _stats := {}        # stat -> int
 var _done := {}         # achievement id -> true: the ones already announced
 var _owned := {}        # item key -> true: yours whatever the counts say (worn by a character you saved)
-var _courses := {}      # race course id -> true: the ones you have finished
+var _sets := {}         # set name (see SET_STATS) -> {thing: true}: courses finished, weapons with a kill, medals
+var _times := {}        # race course id -> your best time (seconds)
+var _life_kills := 0    # kills since you last died
+var _nemesis := 0       # who last killed you (this match)
 var _base := {}         # stat -> its count when the file was last read or written (see save)
 var _by_reward := {}    # item key -> its achievement
 var _file := FILE       # "" keeps nothing (tests)
@@ -98,6 +168,7 @@ func _ready() -> void:
 	Match.player_died.connect(_on_died)
 	Match.match_over.connect(_on_match_over)
 	Race.gate_passed.connect(_on_gate)
+	Teams.event.connect(_on_team_event)
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +263,8 @@ static func item_name(key: String) -> String:
 	match kind:
 		"part": return Characters.part_name(id)
 		"paint": return "%s paint" % CustomCharacter.paint_name(id)
+		"card": return "%s calling card" % CallingCard.card_name(id)
+		"icon": return "%s icon" % CallingCard.icon_name(id)
 	return CustomCharacter.accessory_name(kind, id)
 
 
@@ -211,11 +284,49 @@ func _mine(id: int) -> bool:
 	return id != 0 and id == Net.my_id() and Net.players.has(id) and not Net.is_bot(id)
 
 
+## Count a thing once: the first time it joins its set (see SET_STATS).
+func _collect(set_name: String, thing: String) -> void:
+	var have: Dictionary = _sets.get_or_add(set_name, {})
+	if thing != "" and not have.has(thing):
+		have[thing] = true
+		add(SET_STATS[set_name])
+
+
 func _on_kill(info: Dictionary) -> void:
+	var first := Match.kill_log.size() == 1   # (the log starts empty each match, and this kill is in it)
+	if first:
+		_life_kills = 0
+		_nemesis = 0
 	if not _mine(int(info.killer)) or int(info.victim) == int(info.killer):
 		return
 	var tags := int(info.tags)
 	add("kills")
+	if first:
+		add("first_kills")
+	_life_kills += 1
+	if _life_kills == 5:
+		add("streaks_5")
+	if _life_kills == 10:
+		add("streaks_10")
+	if int(info.victim) == _nemesis:
+		_nemesis = 0
+		add("revenges")
+	var weapon := str(info.get("weapon", ""))
+	if weapon in WeaponData.IDS:   # (not a kick)
+		_collect("weapons", weapon)
+		var group: String = WeaponData.GROUPS[WeaponData.group_of(weapon)][0]
+		if GROUP_STATS.has(group):
+			add(GROUP_STATS[group])
+	if int(info.get("score", 0)) >= BIG_KILL:
+		add("big_kills")
+	if float(info.get("distance", 0.0)) >= FAR:
+		add("far_kills")
+	if float(info.get("distance", 0.0)) >= VERY_FAR:
+		add("very_far_kills")
+	if float(info.get("speed", 0.0)) >= SONIC:
+		add("sonic_kills")
+	if int(info.streak) == 3:
+		add("quads")
 	for pair in [[KillScore.T_HEADSHOT, "headshots"], [KillScore.T_LONG, "long_shots"], [KillScore.T_MID_AIR, "air_kills"],
 			[KillScore.T_ROPE, "rope_kills"], [KillScore.T_WALL, "wall_kills"], [KillScore.T_GLIDE, "glide_kills"],
 			[KillScore.T_AIR_SHOT, "air_shots"], [KillScore.T_KICK | KillScore.T_FLYING_KICK, "kicks"],
@@ -231,9 +342,24 @@ func _on_kill(info: Dictionary) -> void:
 		add("trickshots")
 
 
-func _on_died(victim: int, _killer: int) -> void:
-	if _mine(victim) and not Race.active:
-		add("deaths")
+func _on_died(victim: int, killer: int) -> void:
+	if not _mine(victim) or Race.active:
+		return
+	add("deaths")
+	_life_kills = 0
+	if killer == victim:
+		add("self_kills")
+	elif killer != 0:
+		_nemesis = killer
+	if str(Match.death_cause.get(victim, "")) == "fell":
+		add("falls")
+
+
+## Team modes: the bomb you planted or defused, the flag you brought home.
+func _on_team_event(kind: String, _team: int, who: int) -> void:
+	var counts := {"bomb_planted": "plants", "bomb_defused": "defuses", "flag_captured": "captures"}
+	if counts.has(kind) and _mine(who):
+		add(counts[kind])
 
 
 ## A match that ran to its end, with someone to play against. A win: top of the
@@ -245,16 +371,39 @@ func _on_match_over(results: Array) -> void:
 		if int(row.get("id", 0)) != me or not _mine(me) or results.size() < 2:
 			continue
 		add("matches")
-		if not row.get("race", false):   # (a race's win is counted as you cross the line)
-			if row.has("team_won"):
-				if row.team_won:
-					add("wins")
-			elif i == 0:
-				add("wins")
+		var people := Net.players.keys().filter(func(id): return not Net.is_bot(id)).size()
+		if Net.is_online and people >= 2:
+			add("online_matches")
+			if Net.is_host() and people >= HOSTED_PEOPLE:
+				add("hosted")
+		if row.get("race", false):   # (a race's win is counted as you cross the line)
+			continue
+		var team := row.has("team_won")
+		if not (row.team_won if team else i == 0):
+			continue
+		add("wins")
+		if team:
+			add("team_wins")
+		elif GunGame.active():
+			add("gun_game_wins")
+		elif KillcamMode.active():
+			add("killcam_wins")
+		else:
+			if GoldenGun.active():
+				add("golden_gun_wins")
+			if int(row.get("kills", 0)) - int(results[1].get("kills", 0)) == 1:
+				add("close_wins")
+		if int(row.get("deaths", 1)) == 0 and int(row.get("kills", 0)) >= FLAWLESS_KILLS:
+			add("flawless_wins")
+		for id in Net.players:   # an Expert bot you were up against
+			if Net.is_bot(id) and int(Net.players[id].get("difficulty", 0)) >= 3 \
+					and not (team and Teams.team_of(id) == Teams.team_of(me)):
+				add("expert_wins")
+				break
 	save()
 
 
-func _on_gate(id: int, _number: int, _time: float, finished: bool) -> void:
+func _on_gate(id: int, _number: int, time: float, finished: bool) -> void:
 	if not finished or not _mine(id):
 		return
 	add("races")
@@ -263,10 +412,35 @@ func _on_gate(id: int, _number: int, _time: float, finished: bool) -> void:
 	if Race.progress.size() >= 2 and Race.place(id) == 1:
 		add("race_wins")
 	var course := str(Net.match_settings.get("map", ""))
-	if course != "" and not _courses.has(course):
-		_courses[course] = true
-		add("courses")
+	_collect("courses", course)
+	_finished_in(course, time)
 	save()
+
+
+## A race finished in `time` seconds: your best on the course, and its medals.
+func _finished_in(course: String, time: float) -> void:
+	if course == "" or time <= 0.0:
+		return
+	if not _times.has(course) or time < float(_times[course]):
+		_times[course] = time
+		_dirty = true
+	for tier in medal(course, time) + 1:
+		_collect(MEDAL_NAMES[tier], course)
+
+
+## The medal a time earns on a course: 0 bronze, 1 silver, 2 gold, -1 none.
+static func medal(course: String, time: float) -> int:
+	var out := -1
+	if MEDALS.has(course) and time > 0.0:
+		for tier in 3:
+			if time <= float(MEDALS[course][tier]):
+				out = tier
+	return out
+
+
+## Your best time on a course (0 if you have not finished it).
+func best_time(course: String) -> float:
+	return float(_times.get(course, 0.0))
 
 
 # ---------------------------------------------------------------------------
@@ -276,7 +450,8 @@ func _load() -> void:
 	_stats.clear()
 	_done.clear()
 	_owned.clear()
-	_courses.clear()
+	_sets.clear()
+	_times.clear()
 	_read()
 	_base = _stats.duplicate()
 	for a in LIST:   # nothing already earned is announced again
@@ -294,8 +469,17 @@ func _read() -> void:
 		_stats[name] = stat(name) + maxi(int(cfg.get_value("stats", name, 0)), 0)
 	for key in cfg.get_value("items", "owned", []):
 		_owned[str(key)] = true
-	for course in cfg.get_value("races", "courses", []):
-		_courses[str(course)] = true
+	for course in cfg.get_value("races", "courses", []):   # (where the courses were kept at first)
+		_sets.get_or_add("courses", {})[str(course)] = true
+	for set_name in SET_STATS:
+		for thing in cfg.get_value("sets", set_name, []):
+			_sets.get_or_add(set_name, {})[str(thing)] = true
+	for course in cfg.get_section_keys("times") if cfg.has_section("times") else PackedStringArray():
+		var time := float(cfg.get_value("times", course, 0.0))
+		if time > 0.0 and (not _times.has(course) or time < float(_times[course])):
+			_times[course] = time
+	for set_name in SET_STATS:   # a set's count is its size, whatever the file says
+		_stats[SET_STATS[set_name]] = (_sets.get(set_name, {}) as Dictionary).size()
 
 
 ## Whatever your saved characters (and the one you play as) wear is yours to keep:
@@ -324,13 +508,15 @@ func save() -> void:
 		counted[name] = stat(name) - int(_base.get(name, 0))
 	_stats = counted
 	_read()
-	_stats["courses"] = _courses.size()
 	_base = _stats.duplicate()
 	var cfg := ConfigFile.new()
 	for name in _stats:
 		cfg.set_value("stats", name, _stats[name])
 	cfg.set_value("items", "owned", _owned.keys())
-	cfg.set_value("races", "courses", _courses.keys())
+	for set_name in _sets:
+		cfg.set_value("sets", set_name, _sets[set_name].keys())
+	for course in _times:
+		cfg.set_value("times", course, _times[course])
 	cfg.save(_file)
 
 
@@ -341,7 +527,10 @@ func reset_for_test() -> void:
 	_stats.clear()
 	_done.clear()
 	_owned.clear()
-	_courses.clear()
+	_sets.clear()
+	_times.clear()
+	_life_kills = 0
+	_nemesis = 0
 	_base.clear()
 	_toasts.clear()
 	_dirty = false

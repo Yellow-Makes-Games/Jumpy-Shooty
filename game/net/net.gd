@@ -37,7 +37,8 @@ const PLAYER_COLOR_NAMES := ["Red", "Blue", "Green", "Yellow", "Purple", "Cyan",
 	"White", "Maroon", "Sage", "Lemon", "Grey", "Brown"]
 
 ## peer id -> { "name": String, "color": int, "character": String (see Characters),
-##   "weapon": String (see WeaponData), "mobility": String (see Mobility) },
+##   "weapon": String (see WeaponData), "mobility": String (see Mobility),
+##   "card" and "icon": String (see CallingCard) },
 ## plus "bot": true and "difficulty" for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
 ## Spectators: connected peers who watch with a free-flying camera instead of playing.
@@ -119,6 +120,7 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
 	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	_wear(1, Settings.calling_card, Settings.icon)
 	is_online = false
 	players_changed.emit()
 
@@ -135,6 +137,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
 	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	_wear(1, Settings.calling_card, Settings.icon)
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -281,6 +284,7 @@ static func _is_private(ip: String) -> bool:
 func _on_connected_to_server() -> void:
 	_tune_link(1)
 	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility, _join_spectating, Settings.player_color)
+	_choose_card.rpc_id(1, Settings.calling_card, Settings.icon)   # (after _register: they arrive in order)
 
 
 func _on_connection_failed() -> void:
@@ -556,6 +560,8 @@ func confirm_my_character() -> void:
 		set_my_weapon(_local_weapon)   # the host gives you an allowed one if this one is not
 	if players.has(my_id()) and player_loadout_mobility(my_id()) != LobbySettings.fit_mobility(_local_mobility):
 		set_my_mobility(_local_mobility)
+	if players.has(my_id()) and (player_card(my_id()) != Settings.calling_card or player_icon(my_id()) != Settings.icon):
+		set_my_card(Settings.calling_card, Settings.icon)
 	if players.has(my_id()) and Settings.player_color >= 0 and color_index(my_id()) != Settings.player_color and not color_taken(Settings.player_color):
 		set_my_color(Settings.player_color)   # the colour you like is free again
 
@@ -608,6 +614,51 @@ func _apply_character(id: int, character: String) -> void:
 		_sync_players.rpc(players)
 	else:
 		players_changed.emit()
+
+
+## Show this calling card and icon with your name (ids from CallingCard). Any time.
+func set_my_card(card: String, icon: String) -> void:
+	if is_host():
+		_apply_card(my_id(), card, icon)
+	else:
+		_choose_card.rpc_id(1, card, icon)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_card(card: String, icon: String) -> void:
+	if is_host():
+		_apply_card(multiplayer.get_remote_sender_id(), card, icon)
+
+
+func _apply_card(id: int, card: String, icon: String) -> void:
+	if not _wear(id, card, icon):
+		return
+	print("[net] %d wears %s / %s" % [id, players[id].card, players[id].icon])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Put a card and an icon on a player: real ones only (anything made up becomes the
+## default). Returns whether anything changed.
+func _wear(id: int, card: String, icon: String) -> bool:
+	card = CallingCard.valid_card(card)
+	icon = CallingCard.valid_icon(icon)
+	if not players.has(id) or (players[id].get("card", "") == card and players[id].get("icon", "") == icon):
+		return false
+	players[id]["card"] = card
+	players[id]["icon"] = icon
+	return true
+
+
+## A player's calling card and icon (the defaults for anyone who has not said).
+func player_card(id: int) -> String:
+	return CallingCard.valid_card(str(players[id].get("card", ""))) if players.has(id) else CallingCard.DEFAULT_CARD
+
+
+func player_icon(id: int) -> String:
+	return CallingCard.valid_icon(str(players[id].get("icon", ""))) if players.has(id) else CallingCard.DEFAULT_ICON
 
 
 ## Pick your colour (a number in PLAYER_COLORS): your robot's trim and visor, your
@@ -965,6 +1016,7 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 	players[id] = {
 		"name": "%s (%s)" % [BOT_NAMES[index % BOT_NAMES.size()], BotDifficulty.NAMES[difficulty]],
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
+		"card": CallingCard.CARDS[randi() % CallingCard.CARDS.size()].id, "icon": CallingCard.ICONS[randi() % CallingCard.ICONS.size()].id,
 		"character": character,
 		"weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)) if weapon != "" else guns[randi() % guns.size()],
 		"mobility": LobbySettings.fit_mobility(Mobility.valid(mobility)) if mobility != "" else tools[randi() % tools.size()],
