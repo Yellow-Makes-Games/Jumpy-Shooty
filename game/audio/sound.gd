@@ -71,6 +71,7 @@ func _ready() -> void:
 	Match.player_died.connect(_on_player_died)
 	Match.player_respawned.connect(_on_player_respawned)
 	Match.melee_landed.connect(_on_melee_landed)
+	Match.ground_slammed.connect(_on_ground_slammed)
 	Match.slammed.connect(_on_slammed)
 
 
@@ -300,6 +301,13 @@ func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Arr
 			clang.pitch_scale *= lerpf(1.04, 0.88, power)
 		if power >= MeleeSwing.HEAVY_AT and i == 0:
 			play_at("heavy_hit", points[i], "body", lerpf(-4.0, 0.0, power), 0.05)
+
+
+## A ground slam landed (see GroundSlam): a boom from where it struck, bigger the harder it was.
+func _on_ground_slammed(_attacker: int, _weapon_id: String, at: Vector3, power: float, _points: PackedVector3Array) -> void:
+	var boom := play_at("ground_slam", at + Vector3(0, 0.3, 0), "body", lerpf(-5.0, 2.0, power), 0.05)
+	if boom:
+		boom.pitch_scale *= lerpf(1.1, 0.9, power)
 
 
 ## Someone crashed into a wall hard enough to hurt.

@@ -722,6 +722,47 @@ func _initialize() -> void:
 				_expect_true("landed", body.is_on_floor())
 				input.glide = false
 				_data.erase("states")],
+		# Melee in the air: winding a swing up hangs you there for a moment, and a ground slam.
+		["winding a swing up in mid-air slows the fall", 0.5,
+			func():
+				motor.reset()
+				_clear_input()
+				_teleport(Vector3(30, 20, 100))
+				motor.hang = true,
+			func():
+				_expect_near("fall speed while hanging", -body.velocity.y, t.hang_fall_speed, 0.1)
+				_expect_true("hanging", motor.hanging and body.global_position.y > 18.5)],
+		["but only for a moment each time in the air", 0.6,
+			func(): pass,
+			func():
+				_expect_true("falling again (%.1f m/s)" % -body.velocity.y, -body.velocity.y > 5.0)
+				_expect_near("hang left", motor.hang_readiness(), 0.0, 0.01)
+				motor.hang = false],
+		["a ground slam drives straight down", 0.8,
+			func():
+				_teleport(Vector3(30, 20, 100))
+				body.velocity = Vector3(6, 0, 0)
+				_expect_true("can slam from up here", motor.can_slam(body))
+				motor.start_slam(body)
+				_data["slam_fell"] = -1.0,
+			func():
+				_expect_true("landed", body.is_on_floor() and motor.state == MovementController.State.GROUND)
+				_expect_near("it reports how far it fell", _data["slam_fell"], 20.0, 0.5)
+				_expect_below("drift sideways on the way down", absf(body.global_position.x - 30.0), 1.0)
+				_expect_true("no slam from the floor", not motor.can_slam(body))
+				_data.erase("slam_fell")],
+		["one slam per time in the air, and none close to the floor", 0.05,
+			func():
+				_teleport(Vector3(30, 1.0, 100)),
+			func():
+				_expect_true("too low to slam", not motor.can_slam(body))
+				_teleport(Vector3(30, 20, 100))
+				_expect_true("can slam again after landing", motor.can_slam(body))
+				motor.start_slam(body)
+				motor.step(body, input, 1.0 / 60.0)
+				_teleport(Vector3(30, 20, 100))
+				_expect_true("in a slam: no second one", not motor.can_slam(body))
+				motor.reset()],
 	]
 	print("Movement checks")
 
@@ -810,6 +851,8 @@ func _tick() -> void:
 	input.clear_edges()
 	if _data.has("states"):
 		_data["states"][motor.state] = true
+	if _data.has("slam_fell"):
+		_data["slam_fell"] = maxf(_data["slam_fell"], motor.take_slam_landing())
 	if _data.has("climb") and motor.state == MovementController.State.MANTLE:
 		input.move = Vector2.ZERO  # stop once up, so we stay on top
 	if _data.has("swing"):

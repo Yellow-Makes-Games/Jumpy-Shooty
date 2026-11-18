@@ -208,6 +208,8 @@ func update_local(p: Player) -> void:
 	]
 	if not Race.active:
 		v.moves.append(["KICK", "F", p.kick_readiness(), p.flying_kick()])
+		if p.weapon and p.weapon.data.is_melee():
+			v.moves.append(["SLAM", "C", p.ground_slam_readiness(), p.ground_slamming()])
 
 	_age(delta)
 	if _respawn_left > 0.0:

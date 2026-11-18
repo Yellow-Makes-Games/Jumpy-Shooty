@@ -71,6 +71,9 @@ var _swing_side := 0              # which tap this wind-up or swing is: 0 from t
 var _seen_side := 1               # the side of the last swing shown
 var _since_swing := 9.0           # seconds since the last swing shown was let go
 var _shown_power := 0.0           # how wound up the last swing shown was (its hit effects go by it)
+var _slam_cool := 0.0             # local: seconds until you can ground slam again (see GroundSlam)
+var _slamming := false            # local: in a ground slam, on the way down
+var _slam_power := 0.0            # local: how wound up that slam is, 0..1
 var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
@@ -174,6 +177,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
 		add_child(_trail)
 	Match.melee_landed.connect(_on_melee_landed)
+	Match.ground_slammed.connect(_on_ground_slammed)
 
 
 # ---------------------------------------------------------------------------
@@ -214,7 +218,9 @@ func _physics_process(delta: float) -> void:
 				input.glide = false   # mid flying kick: you are already going somewhere
 				input.glide_pressed = false
 			var boosts := motor.boosts
+			motor.hang = _charge >= 0.0   # winding a melee swing up slows a fall
 			motor.step(self, input, delta)
+			_watch_ground_slam()
 			if hooking and not motor.grapple.attached:
 				sounds.grapple_missed()   # nothing in range to hook
 			if motor.boosts != boosts and DevArgs.sync_log:
@@ -254,6 +260,8 @@ func _process(delta: float) -> void:
 			_punch_roll = lerpf(_punch_roll, 0.0, 1.0 - exp(-delta * 12.0))
 			# A melee wind-up tips the view the way the body coils; the blow tips it back through level.
 			var coil := animator.melee_turn() if weapon and weapon.data.is_melee() and alive else 0.0
+			if coil != 0.0 or _coil_roll != 0.0:   # (spinning in mid-air, the view rocks a little with each turn)
+				coil += animator.melee_swing().air() * 0.5 * sin(animator.melee_swing().spin())
 			_coil_roll = lerpf(_coil_roll, coil * COIL_ROLL, 1.0 - exp(-delta * 16.0))
 			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
 				motor.eye_height, _roll + _punch_roll + _coil_roll)
@@ -501,6 +509,7 @@ func _fire_round() -> void:
 ## back for the weapon's `windup` first. The host decides what it hit.
 func _update_melee(delta: float) -> void:
 	var data := weapon.data
+	_slam_cool = maxf(_slam_cool - delta, 0.0)
 	if _strike_left >= 0.0:
 		_strike_left -= delta
 		if _strike_left < 0.0:
@@ -513,7 +522,10 @@ func _update_melee(delta: float) -> void:
 		if not Match.running:
 			_charge = -1.0
 		elif not input.fire and _charge >= data.windup:
-			_swing()
+			if input.crouch and can_ground_slam():
+				_ground_slam()   # let go in mid-air with crouch held
+			else:
+				_swing()
 		return
 	var wants := input.fire or _fire_buffer > 0.0
 	if not wants or not Match.running or _strike_left >= 0.0 or not weapon.can_fire():
@@ -548,6 +560,69 @@ func _swing() -> void:
 		motor.knock(ahead * minf(lunge, 14.0 - along))
 	if DevArgs.sync_log:
 		print("ANIM SWING %d %.2f" % [peer_id, _swing_power])
+
+
+# Ground slam (see GroundSlam): let go of a swing wound up in mid-air with crouch held.
+
+## A ground slam could start right now: a melee weapon, in the air with room to fall,
+## not done already this time in the air, and off its cooldown.
+func can_ground_slam() -> bool:
+	return alive and not racing and weapon != null and weapon.data.is_melee() and _slam_cool <= 0.0 \
+		and _fly_kick <= 0.0 and not motor.grapple.hooked_player() and motor.can_slam(self)
+
+
+func _ground_slam() -> void:
+	weapon.fire()
+	_slam_power = weapon.data.charge_of(_charge)
+	_charge = -1.0
+	_slam_cool = GroundSlam.COOLDOWN
+	_slamming = true
+	motor.start_slam(self)
+	if DevArgs.sync_log:
+		print("ANIM GROUND_SLAM %d %.2f" % [peer_id, _slam_power])
+
+
+## Your slam, each step: once it touches down the host is told (it decides who it hit).
+func _watch_ground_slam() -> void:
+	if not _slamming:
+		return
+	var fell := motor.take_slam_landing()
+	if fell >= 0.0:
+		_slamming = false
+		var view_times := {}
+		for p in get_parent().get_children():
+			if p != self and p is Player and p.last_render_time >= 0.0:
+				view_times[p.peer_id] = p.last_render_time
+		Match.request_ground_slam(global_position, view_times, _slam_power, fell, peer_id)
+	elif motor.state != MovementController.State.SLAM:
+		_slamming = false   # it found no floor in time
+
+
+## 0..1: the ground slam's cooldown (1 = ready). The HUD shows it with the moves.
+func ground_slam_readiness() -> float:
+	return 1.0 - _slam_cool / GroundSlam.COOLDOWN
+
+
+func ground_slamming() -> bool:
+	return _slamming
+
+
+## A ground slam landed somewhere. Its own player's copy draws it (once); yours shakes
+## if it was near, and dips hard if it was yours.
+func _on_ground_slammed(attacker: int, _weapon_id: String, at: Vector3, power: float, points: PackedVector3Array) -> void:
+	if attacker == peer_id:
+		_shown_power = maxf(power, MeleeSwing.HEAVY_AT)
+		var color := RobotModel.trim_color(Net.player_color(peer_id))
+		MeleeFx.slam(get_parent().get_parent(), at, color, power)
+		for i in mini(points.size(), 4):
+			MeleeFx.hit(get_parent().get_parent(), points[i], at + Vector3(0, 0.4, 0), color, power)
+	if rig:
+		if attacker == peer_id:
+			_punch += Vector2(randf_range(-0.01, 0.01), -lerpf(0.09, 0.2, power))
+			_punch_roll += randf_range(-0.03, 0.03)
+			rig.kick(lerpf(0.5, 1.0, power))
+		else:
+			shake(clampf(1.0 - global_position.distance_to(at) / 14.0, 0.0, 1.0) * lerpf(0.6, 1.6, power))
 
 
 ## How wound up your swing is right now, 0..1 (0 when not winding up).
@@ -593,6 +668,8 @@ func _watch_swings(delta: float) -> void:
 		animator.wind(held, _swing_side)
 		if view:
 			view.wind(held, _swing_side)
+		if _trail:
+			_trail.power = held   # (a mid-air wind-up already leaves a trail)
 	if _seen_swings < 0:
 		_seen_swings = count   # just appeared: no swing to replay
 		return
@@ -1095,6 +1172,8 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	_seen_wind = -1.0
 	_kick_strike = -1.0
 	_kick_cool = 0.0
+	_slamming = false
+	_slam_cool = 0.0
 	_fly_kick = 0.0
 	_tug_by = 0
 	_send_timer = 0.0  # tell everyone at once

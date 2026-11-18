@@ -20,6 +20,8 @@ signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits:
 signal match_over(results: Array)
 ## A melee swing landed: who swung, with what, and where each blow struck (for sounds and sparks).
 signal melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array)
+## A ground slam landed at `at` (see GroundSlam): `power` 0..1 is how big, `points` where it struck people.
+signal ground_slammed(attacker: int, weapon_id: String, at: Vector3, power: float, points: PackedVector3Array)
 ## Someone hit a wall hard enough to hurt (for the crash sound everyone hears).
 signal slammed(id: int, where: Vector3, speed: float)
 ## A rocket or grenade left `shooter`'s gun (everyone draws it: see Projectile).
@@ -58,6 +60,7 @@ var _last_shot_time: Dictionary = {}   # host: id -> Net.now() of last accepted 
 var _last_slam_time: Dictionary = {}   # host: id -> Net.now() of last crash that hurt
 var _last_shove: Dictionary = {}       # host: id -> [who shoved them, Net.now()]
 var _last_kick_time: Dictionary = {}   # host: id -> Net.now() of last accepted kick
+var _last_ground_slam: Dictionary = {}   # host: id -> Net.now() of last accepted ground slam
 var _tethers: Dictionary = {}          # host: id -> [the player their hook is on, Net.now()]
 var _projectiles: Dictionary = {}      # host: id -> {pos, vel, shooter, weapon, t}
 var _next_projectile := 1
@@ -134,6 +137,7 @@ func _on_match_started() -> void:
 		_last_slam_time.clear()
 		_last_shove.clear()
 		_last_kick_time.clear()
+		_last_ground_slam.clear()
 		_tethers.clear()
 		_projectiles.clear()
 		death_cause.clear()
@@ -645,6 +649,90 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 		else:
 			_host_damage(attacker, h[0], h[1], false)
 			_host_shove(attacker, h[0], h[2])
+
+
+# ---------------------------------------------------------------------------
+# Ground slams (see GroundSlam)
+
+## Called by the local player (or a bot) when its ground slam lands at `at` (its feet),
+## wound up `charge` 0..1 and having fallen `fell` metres.
+func request_ground_slam(at: Vector3, view_times: Dictionary, charge: float, fell: float, attacker: int = 0) -> void:
+	if Net.is_host():
+		_host_ground_slam(attacker if attacker != 0 else Net.my_id(), at, view_times, charge, fell)
+	else:
+		_ground_slam_request.rpc_id(1, at, view_times, charge, fell)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _ground_slam_request(at: Vector3, view_times: Dictionary, charge: float, fell: float) -> void:
+	if Net.is_host():
+		_host_ground_slam(multiplayer.get_remote_sender_id(), at, view_times, charge, fell)
+
+
+func _host_ground_slam(attacker: int, at: Vector3, view_times: Dictionary, charge: float, fell: float) -> void:
+	if not running or not is_alive(attacker) or not Net.arena or Race.active:
+		return
+	if Net.player_weapon(attacker) == "none":
+		return
+	var weapon := WeaponData.by_id(Net.player_weapon(attacker))
+	if not weapon.is_melee() or not at.is_finite():
+		return
+	var now := Net.now()
+	if (now - _last_ground_slam.get(attacker, -10.0)) * Engine.time_scale < GroundSlam.COOLDOWN * 0.7:
+		return
+	var who: Player = Net.arena.get_player(attacker)
+	if who == null or at.distance_to(who.latest_position()) > 4.0:
+		return
+	# Nobody can have wound up for longer than it has been since their last swing.
+	var since: float = (now - _last_shot_time.get(attacker, -10.0)) * Engine.time_scale
+	charge = clampf(charge, 0.0, weapon.charge_of(since)) if is_finite(charge) else 0.0
+	fell = clampf(fell, 0.0, 60.0) if is_finite(fell) else 0.0
+	_last_ground_slam[attacker] = now
+	_last_shot_time[attacker] = now
+	var blow := GroundSlam.damage(weapon, charge, fell)
+	var centre := at + Vector3(0, 0.6, 0)
+	var facing := Vector3.FORWARD.rotated(Vector3.UP, who.yaw_at(now))
+	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
+	var points := PackedVector3Array()
+	var hits := []   # [id, damage, shove]
+	for b in _rewound_bodies(attacker, view_times):
+		var feet: Vector3 = b[1]
+		var height: float = b[2]
+		if feet.y - at.y > GroundSlam.ABOVE:
+			continue
+		var low := feet + Vector3(0, Player.CAPSULE_RADIUS, 0)
+		var near := Geometry3D.get_closest_point_to_segment(centre, low, feet + Vector3(0, height - Player.CAPSULE_RADIUS, 0))
+		var part := GroundSlam.share(maxf(centre.distance_to(near) - Player.CAPSULE_RADIUS, 0.0))
+		if part <= 0.0:
+			continue
+		if not space.intersect_ray(PhysicsRayQueryParameters3D.create(centre, near, 1)).is_empty():
+			continue   # a wall in the way
+		var away := Vector3(feet.x - at.x, 0.0, feet.z - at.z)
+		away = away.normalized() if away.length_squared() > 0.04 else facing   # right under you: the way you face
+		var push := GroundSlam.shove(weapon, charge, fell, part)
+		hits.append([b[0], blow * part, away * push[0] + Vector3.UP * push[1]])
+		points.append(near)
+	if DevArgs.sync_log:
+		print("GROUND_SLAM %d %s %d charge %.2f fell %.1f" % [attacker, weapon.id, hits.size(), charge, fell])
+	_ground_slam_effect.rpc(attacker, weapon.id, at, GroundSlam.power(weapon, charge, fell), points)
+	# Wound up enough, it goes through a floor that can break.
+	var breaks := _breakables()
+	if breaks and GroundSlam.breaks_floor(weapon, charge):
+		var floor_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3(0, 0.5, 0), at - Vector3(0, 0.6, 0), 1))
+		if floor_hit:
+			breaks.damage(breaks.cell_at(floor_hit.collider, floor_hit.position, floor_hit.normal), 100000.0)
+			_flush_breaks()
+	for h in hits:
+		if is_dummy(h[0]):
+			_host_dummy_damage(attacker, h[0], h[1], false)
+		else:
+			_host_damage(attacker, h[0], h[1], false)
+			_host_shove(attacker, h[0], h[2])
+
+
+@rpc("authority", "call_local", "unreliable")
+func _ground_slam_effect(attacker: int, weapon_id: String, at: Vector3, power: float, points: PackedVector3Array) -> void:
+	ground_slammed.emit(attacker, weapon_id, at, power, points)
 
 
 # ---------------------------------------------------------------------------

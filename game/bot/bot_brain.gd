@@ -917,7 +917,14 @@ func _fire(delta: float, perceived: Array) -> void:
 		# wound up as far as it meant to: not setting input.fire is letting go.
 		var facing := off < deg_to_rad(w.data.arc_degrees * 0.7)
 		if me.winding_up():
-			if dist <= _reach and facing and me.melee_charge() >= _wind_goal:
+			# Hard and Expert bots, above you with a swing wound up: they drive it into the
+			# floor beside you instead (a ground slam: crouch held as the swing is let go).
+			if d.level >= 2 and me.can_ground_slam() and eye.y - (perceived[1] as Vector3).y > 1.5 \
+					and Vector2(want.x, want.z).length() < GroundSlam.RADIUS * 0.7 and me.melee_charge() >= minf(_wind_goal, 0.4):
+				input.crouch = true
+				input.fire = false
+				_fire_wait = d.fire_gap * _rng.randf_range(0.3, 0.7)
+			elif dist <= _reach and facing and me.melee_charge() >= _wind_goal:
 				input.fire = false
 				_fire_wait = d.fire_gap * _rng.randf_range(0.3, 0.7)
 		elif w.can_fire() and _fire_wait <= 0.0:
