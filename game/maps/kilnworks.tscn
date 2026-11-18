@@ -36,6 +36,7 @@ face_shade = Vector3(0.92, 0.84, 0.68)
 kill_height = -20.0
 bounds = Rect2(-30, -30, 60, 60)
 swing_point = Vector3(0, 13.5, 0)
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="." unique_id=47805606]
 environment = SubResource("Environment_hsi0g")
@@ -55,14 +56,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 script = ExtResource("3_onmqy")
 size = Vector3(60, 1, 60)
 kind = "tile_floor"
-breakable = 2
 
 [node name="KilnPlinth" type="Node3D" parent="Ground" unique_id=1463539810]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 script = ExtResource("3_onmqy")
 size = Vector3(20, 1.6, 20)
 kind = "flags"
-breakable = 2
 
 [node name="PlinthEdgeNorth" type="Node3D" parent="Ground" unique_id=556617938]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.62, -9.9)
@@ -1021,26 +1020,26 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, 1.3, -18)
 script = ExtResource("3_onmqy")
 size = Vector3(0.3, 2.6, 8)
 kind = "plaster"
+breakable = true
 
 [node name="PartitionEast" type="Node3D" parent="Cover" unique_id=236449074]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 1.3, 12)
 script = ExtResource("3_onmqy")
 size = Vector3(0.3, 2.6, 8)
 kind = "plaster"
+breakable = true
 
 [node name="PartitionWestBase" type="Node3D" parent="Cover" unique_id=569096244]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.5, 0.1, -18)
 script = ExtResource("3_onmqy")
 size = Vector3(0.7, 0.2, 8.2)
 kind = "soot"
-breakable = 2
 
 [node name="PartitionEastBase" type="Node3D" parent="Cover" unique_id=1664356009]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 0.1, 12)
 script = ExtResource("3_onmqy")
 size = Vector3(0.7, 0.2, 8.2)
 kind = "soot"
-breakable = 2
 
 [node name="Stack-60_-260" type="Node3D" parent="Cover" unique_id=2090257114]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 6.6, -26)

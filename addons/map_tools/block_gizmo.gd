@@ -4,9 +4,20 @@ extends EditorNode3DGizmoPlugin
 ## handle on a face to move that face (the opposite face stays put). A cylinder
 ## has a handle for its diameter and one at each end.
 ##
-## Sizes snap to 0.1 m; hold Ctrl to snap to whole metres.
+## Sizes snap to the map tools' grid ([ and ] change it); hold Ctrl to snap to whole
+## metres. A dragged face also snaps flush to a nearby face of another block that
+## lies square to this one (not while Ctrl is held).
+
+const MapOps := preload("res://addons/map_tools/map_ops.gd")
 
 const NAMES := ["Right (+x)", "Left (-x)", "Top (+y)", "Bottom (-y)", "Back (+z)", "Front (-z)"]
+
+## The map tools' shared state (plugin.gd sets it): the grid, the blocks to snap to.
+var ctx: RefCounted
+
+var _frame := Transform3D.IDENTITY   # the dragged block's own axes, at the map's origin
+var _others: Array[AABB] = []        # the other blocks' boxes in that frame
+var _snapping := false
 
 
 func _init() -> void:
@@ -51,6 +62,21 @@ func _get_handle_value(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool) -> 
 	return [block.size, block.position]
 
 
+## A drag starts: note what the dragged face could snap to.
+func _begin_handle_action(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool) -> void:
+	_snapping = false
+	var block := gizmo.get_node_3d() as MapBlock
+	if ctx == null or ctx.map == null or not ctx.map.is_ancestor_of(block):
+		return
+	_frame = Transform3D((MapOps.box_of(block)[0] as Transform3D).basis, Vector3.ZERO)
+	var rest := []
+	for e in ctx.blocks():
+		if e.block != block:
+			rest.append(e.block)
+	_others = MapOps.boxes_in_frame(_frame, rest)
+	_snapping = true
+
+
 func _set_handle(gizmo: EditorNode3DGizmo, id: int, _secondary: bool, camera: Camera3D, screen_pos: Vector2) -> void:
 	var block := gizmo.get_node_3d() as MapBlock
 	var to_local := block.global_transform.affine_inverse()
@@ -64,10 +90,30 @@ func _set_handle(gizmo: EditorNode3DGizmo, id: int, _secondary: bool, camera: Ca
 	line[axis] = 4096.0
 	var closest := Geometry3D.get_closest_points_between_segments(-line, line, a, b)
 	var reach: float = closest[0][axis] * dir   # how far out the dragged face is, from the centre
-	block.move_face(id, reach, 1.0 if Input.is_key_pressed(KEY_CTRL) else 0.1)
+	var whole := Input.is_key_pressed(KEY_CTRL)
+	var step: float = 1.0 if whole else (ctx.grid if ctx else 0.1)
+	if _snapping and not whole and not (block.is_round() and axis != 1):
+		# Where the face would be, in metres, among the other blocks.
+		var boxes := MapOps.boxes_in_frame(_frame, [block])
+		if boxes.size() == 1:
+			var box := boxes[0]
+			var per_unit: float = box.size[axis] / block.size[axis]   # the block's scale along this axis
+			var face := box.get_center()[axis] + reach * per_unit * dir
+			if dir > 0.0:
+				box.size[axis] = maxf(face - box.position[axis], 0.01)
+			else:
+				var far := box.end[axis]
+				box.position[axis] = minf(face, far - 0.01)
+				box.size[axis] = far - box.position[axis]
+			var nudge := MapOps.snap_face(box, axis, dir, _others, step * 0.5)
+			if nudge != INF:
+				block.move_face(id, reach + nudge * dir / per_unit, 0.001)
+				return
+	block.move_face(id, reach, step)
 
 
 func _commit_handle(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool, restore: Variant, cancel: bool) -> void:
+	_snapping = false
 	var block := gizmo.get_node_3d() as MapBlock
 	if cancel:
 		block.size = restore[0]

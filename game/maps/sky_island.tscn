@@ -31,6 +31,7 @@ grid_texture = true
 kill_height = -36.0
 bounds = Rect2(-150, -150, 300, 300)
 swing_point = Vector3(11, 7.5, -8)
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="." unique_id=743159929]
 environment = SubResource("Environment_ick3f")

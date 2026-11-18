@@ -34,6 +34,7 @@ face_shade = Vector3(0.93, 0.84, 0.66)
 kill_height = -6.0
 bounds = Rect2(-25, -19, 50, 38)
 swing_point = Vector3(0, 14.8, -4.5)
+metadata/breakable_migrated = true
 
 [node name="Environment" type="WorldEnvironment" parent="." unique_id=745915257]
 environment = SubResource("Environment_cqkfr")
@@ -3562,90 +3563,105 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, -18.25)
 script = ExtResource("3_hbpam")
 size = Vector3(49, 0.4, 0.5)
 kind = "carpet"
+breakable = true
 
 [node name="Slab6" type="Node3D" parent="Floors/Floor5" unique_id=1604091406]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 4.8, -16)
 script = ExtResource("3_hbpam")
 size = Vector3(23, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab7" type="Node3D" parent="Floors/Floor5" unique_id=1012751321]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 4.8, -16)
 script = ExtResource("3_hbpam")
 size = Vector3(23, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab8" type="Node3D" parent="Floors/Floor5" unique_id=1936469770]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, -10)
 script = ExtResource("3_hbpam")
 size = Vector3(49, 0.4, 8)
 kind = "carpet"
+breakable = true
 
 [node name="Slab9" type="Node3D" parent="Floors/Floor5" unique_id=701979238]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.75, 4.8, -4)
 script = ExtResource("3_hbpam")
 size = Vector3(15.5, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab10" type="Node3D" parent="Floors/Floor5" unique_id=207036961]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 4.8, -4)
 script = ExtResource("3_hbpam")
 size = Vector3(3, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab11" type="Node3D" parent="Floors/Floor5" unique_id=290074012]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.75, 4.8, -4)
 script = ExtResource("3_hbpam")
 size = Vector3(9.5, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab12" type="Node3D" parent="Floors/Floor5" unique_id=2017612379]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.75, 4.8, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(9.5, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab13" type="Node3D" parent="Floors/Floor5" unique_id=1562119884]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5, 4.8, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(3, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab14" type="Node3D" parent="Floors/Floor5" unique_id=234050300]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 4.8, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(3, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab15" type="Node3D" parent="Floors/Floor5" unique_id=434804638]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.75, 4.8, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(9.5, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab16" type="Node3D" parent="Floors/Floor5" unique_id=303301774]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19.75, 4.8, 4)
 script = ExtResource("3_hbpam")
 size = Vector3(9.5, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab17" type="Node3D" parent="Floors/Floor5" unique_id=1805877316]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.5, 4.8, 4)
 script = ExtResource("3_hbpam")
 size = Vector3(3, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab18" type="Node3D" parent="Floors/Floor5" unique_id=1587504092]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.75, 4.8, 4)
 script = ExtResource("3_hbpam")
 size = Vector3(15.5, 0.4, 4)
 kind = "carpet"
+breakable = true
 
 [node name="Slab19" type="Node3D" parent="Floors/Floor5" unique_id=1237305505]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.8, 12.25)
 script = ExtResource("3_hbpam")
 size = Vector3(49, 0.4, 12.5)
 kind = "carpet"
+breakable = true
 
 [node name="Ceiling" type="Node3D" parent="Floors/Floor5" unique_id=45509508]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.75, 4.59, -16)
@@ -3753,102 +3769,119 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, -18.25)
 script = ExtResource("3_hbpam")
 size = Vector3(49, 0.4, 0.5)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab21" type="Node3D" parent="Floors/Floor10" unique_id=1523111503]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13, 9.8, -16)
 script = ExtResource("3_hbpam")
 size = Vector3(23, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab22" type="Node3D" parent="Floors/Floor10" unique_id=762272877]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13, 9.8, -16)
 script = ExtResource("3_hbpam")
 size = Vector3(23, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab23" type="Node3D" parent="Floors/Floor10" unique_id=1190594949]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, -11)
 script = ExtResource("3_hbpam")
 size = Vector3(49, 0.4, 6)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab24" type="Node3D" parent="Floors/Floor10" unique_id=923322250]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.75, 9.8, -7)
 script = ExtResource("3_hbpam")
 size = Vector3(15.5, 0.4, 2)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab25" type="Node3D" parent="Floors/Floor10" unique_id=1997008605]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.75, 9.8, -7)
 script = ExtResource("3_hbpam")
 size = Vector3(15.5, 0.4, 2)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab26" type="Node3D" parent="Floors/Floor10" unique_id=1729060512]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.75, 9.8, -4)
 script = ExtResource("3_hbpam")
 size = Vector3(5.5, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab27" type="Node3D" parent="Floors/Floor10" unique_id=1946733812]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.5, 9.8, -4)
 script = ExtResource("3_hbpam")
 size = Vector3(7, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab28" type="Node3D" parent="Floors/Floor10" unique_id=1170300604]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16.75, 9.8, -4)
 script = ExtResource("3_hbpam")
 size = Vector3(15.5, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab29" type="Node3D" parent="Floors/Floor10" unique_id=1993370946]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.75, 9.8, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(5.5, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab30" type="Node3D" parent="Floors/Floor10" unique_id=896113621]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.5, 9.8, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(7, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab31" type="Node3D" parent="Floors/Floor10" unique_id=58789300]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.5, 9.8, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(7, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab32" type="Node3D" parent="Floors/Floor10" unique_id=1713869513]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.75, 9.8, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(5.5, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab33" type="Node3D" parent="Floors/Floor10" unique_id=1890260342]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.75, 9.8, 4)
 script = ExtResource("3_hbpam")
 size = Vector3(15.5, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab34" type="Node3D" parent="Floors/Floor10" unique_id=1257610308]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.5, 9.8, 4)
 script = ExtResource("3_hbpam")
 size = Vector3(7, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab35" type="Node3D" parent="Floors/Floor10" unique_id=1486945107]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.75, 9.8, 4)
 script = ExtResource("3_hbpam")
 size = Vector3(5.5, 0.4, 4)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Slab36" type="Node3D" parent="Floors/Floor10" unique_id=413407324]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.8, 12.25)
 script = ExtResource("3_hbpam")
 size = Vector3(49, 0.4, 12.5)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Ceiling15" type="Node3D" parent="Floors/Floor10" unique_id=129199908]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.75, 9.59, -16)
@@ -4064,6 +4097,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(13, 0.95, 0.08)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail2" type="Node3D" parent="Atrium/Railing5North" unique_id=1678105661]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 1, 0)
@@ -4095,6 +4129,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(13, 0.95, 0.08)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail3" type="Node3D" parent="Atrium/Railing5South" unique_id=1707153837]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 1, 0)
@@ -4153,6 +4188,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -2)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail5" type="Node3D" parent="Atrium/Railing5West" unique_id=1197850256]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, -2)
@@ -4238,6 +4274,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 2)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail8" type="Node3D" parent="Atrium/Railing5East" unique_id=2025235137]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 2)
@@ -4269,6 +4306,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.25, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(11.5, 0.95, 0.08)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail9" type="Node3D" parent="Atrium/Railing10North" unique_id=2105953020]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.25, 1, 0)
@@ -4354,6 +4392,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(12, 0.95, 0.08)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail12" type="Node3D" parent="Atrium/Railing10South" unique_id=1735600894]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 1, 0)
@@ -4555,6 +4594,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.19999981, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(18, 0.4, 2.5)
 kind = "carpet_warm"
+breakable = true
 
 [node name="Underside" type="Node3D" parent="Atrium/Bridge" unique_id=582227557]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5749998, 0)
@@ -4572,6 +4612,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(18, 0.95, 0.08)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail19" type="Node3D" parent="Atrium/Bridge/RailNorth" unique_id=1042859551]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -4603,6 +4644,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(18, 0.95, 0.08)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail20" type="Node3D" parent="Atrium/Bridge/RailSouth" unique_id=716214481]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -5028,6 +5070,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail21" type="Node3D" parent="Stairs/StairWestLower/RailWest" unique_id=187533856]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -5059,6 +5102,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail22" type="Node3D" parent="Stairs/StairWestLower/RailEast" unique_id=49711310]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -5434,6 +5478,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail24" type="Node3D" parent="Stairs/StairEastLower/RailWest" unique_id=2122199898]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -5465,6 +5510,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail25" type="Node3D" parent="Stairs/StairEastLower/RailEast" unique_id=1261944825]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -5840,6 +5886,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail27" type="Node3D" parent="Stairs/StairWestUpper/RailWest" unique_id=271286752]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -5871,6 +5918,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail28" type="Node3D" parent="Stairs/StairWestUpper/RailEast" unique_id=1553869713]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -6246,6 +6294,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail30" type="Node3D" parent="Stairs/StairEastUpper/RailWest" unique_id=898357262]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -6277,6 +6326,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.08, 0.95, 8)
 kind = "glass_rail"
+breakable = true
 
 [node name="Rail31" type="Node3D" parent="Stairs/StairEastUpper/RailEast" unique_id=187811803]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -10581,6 +10631,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.75, 2.3000002, -3.5)
 script = ExtResource("3_hbpam")
 size = Vector3(8.5, 4.6, 0.1)
 kind = "glass"
+breakable = true
 
 [node name="Kick" type="Node3D" parent="Floor5Rooms/MeetingWest" unique_id=572028500]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.75, 0.07499981, -3.5)
@@ -10635,6 +10686,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.1, 4.6, 7)
 kind = "glass"
+breakable = true
 
 [node name="Kick3" type="Node3D" parent="Floor5Rooms/MeetingWest" unique_id=1361991351]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.07499981, 0)
@@ -10856,6 +10908,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 2.3000002, -3.5)
 script = ExtResource("3_hbpam")
 size = Vector3(8.5, 4.6, 0.1)
 kind = "glass"
+breakable = true
 
 [node name="Kick5" type="Node3D" parent="Floor5Rooms/MeetingEast" unique_id=1048720001]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.75, 0.07499981, -3.5)
@@ -10883,6 +10936,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.1, 4.6, 7)
 kind = "glass"
+breakable = true
 
 [node name="Kick6" type="Node3D" parent="Floor5Rooms/MeetingEast" unique_id=614358505]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0.07499981, 0)
@@ -11296,6 +11350,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2249999, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(2.55, 4.6, 0.2)
 kind = "wall"
+breakable = true
 
 [node name="Over" type="Node3D" parent="Floor10Rooms/Offices/CorridorWallWest/Panel" unique_id=887952637]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8000002, 3.6000004, 0)
@@ -11325,6 +11380,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2250004, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(2.55, 4.6, 0.2)
 kind = "wall"
+breakable = true
 
 [node name="Over" type="Node3D" parent="Floor10Rooms/Offices/CorridorWallWest/Panel2" unique_id=884686756]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.8000002, 3.6000004, 0)
@@ -11354,6 +11410,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2250004, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(2.55, 4.6, 0.2)
 kind = "wall"
+breakable = true
 
 [node name="Over" type="Node3D" parent="Floor10Rooms/Offices/CorridorWallWest/Panel3" unique_id=783940150]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.79999924, 3.6000004, 0)
@@ -11383,6 +11440,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2250004, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(2.55, 4.6, 0.2)
 kind = "wall"
+breakable = true
 
 [node name="Over" type="Node3D" parent="Floor10Rooms/Offices/CorridorWallWest/Panel4" unique_id=93354857]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.79999924, 3.6000004, 0)
@@ -11402,24 +11460,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 2.3000002, -0.10000038)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 5.8)
 kind = "wall"
+breakable = true
 
 [node name="PartitionWest2" type="Node3D" parent="Floor10Rooms/Offices" unique_id=1541380482]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 2.3000002, -0.10000038)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 5.8)
 kind = "wall"
+breakable = true
 
 [node name="PartitionWest3" type="Node3D" parent="Floor10Rooms/Offices" unique_id=1896825448]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.3000002, -0.10000038)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 5.8)
 kind = "wall"
+breakable = true
 
 [node name="PartitionWest4" type="Node3D" parent="Floor10Rooms/Offices" unique_id=117227019]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -19, 2.3000002, -0.10000038)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 5.8)
 kind = "wall"
+breakable = true
 
 [node name="OfficeWest" type="Node3D" parent="Floor10Rooms/Offices" unique_id=574427346]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5, 0, -0.5)
@@ -11778,6 +11840,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2249999, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(2.55, 4.6, 0.2)
 kind = "wall"
+breakable = true
 
 [node name="Right" type="Node3D" parent="Floor10Rooms/Offices/CorridorWallEast/Panel5" unique_id=2091356234]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0249996, 2.3000002, 0)
@@ -11807,6 +11870,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2250004, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(2.55, 4.6, 0.2)
 kind = "wall"
+breakable = true
 
 [node name="Right" type="Node3D" parent="Floor10Rooms/Offices/CorridorWallEast/Panel6" unique_id=1902556614]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0249996, 2.3000002, 0)
@@ -11836,6 +11900,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2250004, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(2.55, 4.6, 0.2)
 kind = "wall"
+breakable = true
 
 [node name="Right" type="Node3D" parent="Floor10Rooms/Offices/CorridorWallEast/Panel7" unique_id=898721876]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0249996, 2.3000002, 0)
@@ -11865,6 +11930,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2250004, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(2.55, 4.6, 0.2)
 kind = "wall"
+breakable = true
 
 [node name="Right" type="Node3D" parent="Floor10Rooms/Offices/CorridorWallEast/Panel8" unique_id=2027028491]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.0249996, 2.3000002, 0)
@@ -11890,24 +11956,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 2.3000002, -0.10000038)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 5.8)
 kind = "wall"
+breakable = true
 
 [node name="PartitionEast2" type="Node3D" parent="Floor10Rooms/Offices" unique_id=673206939]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 2.3000002, -0.10000038)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 5.8)
 kind = "wall"
+breakable = true
 
 [node name="PartitionEast3" type="Node3D" parent="Floor10Rooms/Offices" unique_id=2090623579]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 2.3000002, -0.10000038)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 5.8)
 kind = "wall"
+breakable = true
 
 [node name="PartitionEast4" type="Node3D" parent="Floor10Rooms/Offices" unique_id=173069925]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19, 2.3000002, -0.10000038)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 5.8)
 kind = "wall"
+breakable = true
 
 [node name="OfficeEast" type="Node3D" parent="Floor10Rooms/Offices" unique_id=1320570631]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 0, -0.5)
@@ -12273,12 +12343,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(10, 4.6, 0.2)
 kind = "wall_dark"
+breakable = true
 
 [node name="Right" type="Node3D" parent="Floor10Rooms/ServerRoom/NorthWall" unique_id=730731156]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(7, 4.6, 0.2)
 kind = "wall_dark"
+breakable = true
 
 [node name="Over" type="Node3D" parent="Floor10Rooms/ServerRoom/NorthWall" unique_id=1011045814]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 3.6000004, 0)
@@ -12343,12 +12415,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3000002, -2.3000002)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 3.3)
 kind = "wall_dark"
+breakable = true
 
 [node name="Right" type="Node3D" parent="Floor10Rooms/ServerRoom/EastWall" unique_id=108586903]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3000002, 2.6500006)
 script = ExtResource("3_hbpam")
 size = Vector3(0.2, 4.6, 2.6)
 kind = "wall_dark"
+breakable = true
 
 [node name="Over" type="Node3D" parent="Floor10Rooms/ServerRoom/EastWall" unique_id=649904376]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.6000004, 0.34999943)
@@ -13147,6 +13221,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.25, 2.3000002, -4)
 script = ExtResource("3_hbpam")
 size = Vector3(5.5, 4.6, 0.1)
 kind = "glass"
+breakable = true
 
 [node name="Kick7" type="Node3D" parent="Floor10Rooms/Boardroom" unique_id=1119380754]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.25, 0.07499981, -4)
@@ -13174,6 +13249,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.75, 2.3000002, -4)
 script = ExtResource("3_hbpam")
 size = Vector3(10.5, 4.6, 0.1)
 kind = "glass"
+breakable = true
 
 [node name="Kick8" type="Node3D" parent="Floor10Rooms/Boardroom" unique_id=448763174]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.75, 0.07499981, -4)
@@ -13201,6 +13277,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 2.3000002, 0)
 script = ExtResource("3_hbpam")
 size = Vector3(0.1, 4.6, 8)
 kind = "glass"
+breakable = true
 
 [node name="Kick9" type="Node3D" parent="Floor10Rooms/Boardroom" unique_id=464190015]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.07499981, 0)
