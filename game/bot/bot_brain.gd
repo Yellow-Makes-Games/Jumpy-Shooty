@@ -31,6 +31,12 @@ extends RefCounted
 ##  - Uses a map's terminal now and then (Halcyon's low gravity): only when one is
 ##    ready and close, and it has nobody in sight. It walks up, presses interact, and
 ##    drops the idea the moment it sees someone. Harder bots try a little more often.
+##  - Team modes (see Teams): never goes after its own team, and plays the objective
+##    (Teams.bot_goal): carries the bomb to a site and plants it, picks up a dropped
+##    bomb, defuses, guards the sites; takes the other team's flag and runs it home,
+##    sends its own dropped flag home, covers a teammate's carry, and one bot in three
+##    stays back on defence. With nobody in sight it heads for the objective; some
+##    jobs (planting, defusing, a flag run home) it does even under fire.
 ##  - Copes with low gravity (WorldGravity): jumps carry further, so it looks further
 ##    ahead for floor before it jumps, hops, dives, flips or boosts.
 ## How good it is at each of these comes from BotDifficulty.
@@ -133,6 +139,9 @@ var _blink_side := 0.0           # it was just hit: blink this way (-1 left, 1 r
 var _jet_time := 0.0             # seconds left of a jetpack burst it is holding
 var _portal_plan := 0.0          # seconds left of a portal trip in progress (0: none)
 var _portal_step := 0            # 0: shoot the far portal, 1: the near one, 2: walk into it
+var _guarding := false           # team modes: inside the radius of the spot it is guarding
+var _wander := Vector3.INF       # ...and the spot near it it is strolling to
+var _wander_time := 0.0
 
 
 func _init(player: Player, level: int) -> void:
@@ -324,8 +333,8 @@ func _others() -> Array[Player]:
 	var list: Array[Player] = []
 	for p in me.get_parent().get_children():
 		var other := p as Player
-		if other != null and other != me:
-			list.append(other)
+		if other != null and other != me and not Teams.same_team(me.peer_id, other.peer_id):
+			list.append(other)   # (teammates are not targets)
 	return list
 
 
@@ -411,6 +420,33 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		return _escape_dir
 	var dist := pos.distance_to(_target.global_position) if visible else INF
 	var dir := Vector3.ZERO
+	var goal := Teams.bot_goal(me.peer_id, pos) if Teams.active() else {}
+	var room := float(goal.get("radius", 0.0))
+	# Inside the spot's radius it stays until well outside it (so it does not dither on the edge).
+	var off: bool = not goal.is_empty() and (goal.hold or _flat(pos, goal.spot) > (room * 1.6 if _guarding else room) + 0.5 \
+			or absf(pos.y - goal.spot.y) > LEVEL_GAP)
+	_guarding = not goal.is_empty() and not off and room > 0.0
+	if _guarding and not visible and (_target == null or not _known.has(_target.peer_id)):
+		# Guarding a spot (a site, the bomb, a flag, a teammate) with nobody about: wander round it.
+		var spot := _guard_point(goal.spot, room, delta)
+		dir = _follow_path(spot, delta)
+		if dir == Vector3.ZERO:
+			dir = Vector3(spot.x - pos.x, 0.0, spot.z - pos.z).limit_length(1.0)
+		_unstick(delta, dir)
+		return dir
+	if off and (goal.urgent or not visible):
+		# The objective (team modes): plant, defuse, take or return a flag, or get to its spot.
+		if goal.hold:
+			input.interact = true
+			return Vector3.ZERO
+		var spot: Vector3 = goal.spot
+		dir = _follow_path(spot, delta)
+		if dir == Vector3.ZERO or _flat(pos, spot) < 2.5:
+			dir = Vector3(spot.x - pos.x, 0.0, spot.z - pos.z).normalized()   # the last step, straight onto it
+		input.sprint = d.sprint and not _corner_ahead
+		_chase_tricks(delta, dir, grounded, speed)
+		_unstick(delta, dir)
+		return dir
 	var pickup := _nearest_pickup() if me.weapon == null else Vector3.INF
 	var console := _terminal_spot(delta, visible) if pickup == Vector3.INF else Vector3.INF
 	if console != Vector3.INF:
@@ -486,6 +522,18 @@ func _choose_direction(delta: float, visible: bool) -> Vector3:
 		input.crouch = true
 	_unstick(delta, dir)
 	return dir
+
+
+## Guarding: a spot to walk to near `spot`, a new one every few seconds or once there.
+func _guard_point(spot: Vector3, room: float, delta: float) -> Vector3:
+	_wander_time -= delta
+	var pos := me.global_position
+	if _wander == Vector3.INF or _wander_time <= 0.0 or _flat(pos, _wander) < 1.2 or _flat(_wander, spot) > room * 1.3:
+		_wander_time = _rng.randf_range(2.5, 5.0)
+		var offset := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)).limit_length(1.0) * room * 0.8
+		var nav := me.get_world_3d().navigation_map
+		_wander = NavigationServer3D.map_get_closest_point(nav, spot + offset) if NavigationServer3D.map_get_iteration_id(nav) > 0 else spot
+	return _wander
 
 
 ## Where to walk when it cannot see its target: the spot it last saw or heard it,

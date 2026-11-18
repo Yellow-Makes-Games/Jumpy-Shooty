@@ -28,7 +28,7 @@ extends Node
 ## --autopilot          Your own racer runs the course like a bot would (race tests and screenshots).
 ## --bot-level=LEVEL    With --autopilot: run the course at this bot difficulty (default 3, Expert).
 ## --bot=LEVEL          Skip the menus and start a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert).
-## --bots=N             With --bot: play against N bots (1 to 4) in a free-for-all instead of one.
+## --bots=N             With --bot: play against N bots (1 to 4; up to 7 in the team modes) in a free-for-all (or team match) instead of one.
 ## --scripted-input     The local player moves on its own (for sync tests).
 ## --sync-log           Print position samples used by tests/check_sync.py.
 ## --sound-log          Print every sound effect as it plays ("SFX name", "SFX3D name"): tests/audio_test.sh.
@@ -40,7 +40,7 @@ extends Node
 ##                      had fired them (host, practice and bot matches; tests and screenshots).
 ## --eager-terminal    Bots go for a map terminal whenever one is ready and they have nobody to fight (tests;
 ##                      normally they only try now and then).
-## --rules=kills:N | time:MINUTES | gungame | killcam  Set the win condition (Gun Game and Killcam also work with --bot).
+## --rules=kills:N | time:MINUTES | gungame | killcam | snd | ctf  Set the win condition or mode (Gun Game, Killcam and the team modes, Search and Destroy and Capture the Flag, also work with --bot).
 ## --kill-target=N      Host only: override the kill target for this match.
 ## --points=N           Host only, Killcam mode: override the points to win (tests).
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
@@ -195,7 +195,7 @@ func _ready() -> void:
 			"--autopilot": autopilot = true
 			"--bot-level": bot_level = clampi(int(value), 0, 3)
 			"--bot": bot = clampi(int(value), 0, 3)
-			"--bots": bots = clampi(int(value), 1, 4)
+			"--bots": bots = clampi(int(value), 1, 7)   # (more than 4 only in the team modes: see Game.max_bots)
 			"--scripted-input": scripted_input = true
 			"--manual-respawn": manual_respawn = true
 			"--sync-log": sync_log = true

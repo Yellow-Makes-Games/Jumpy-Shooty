@@ -334,7 +334,8 @@ func _refresh_rules() -> void:
 	var race := Net.game_kind() == "race"
 	var gun_game := GunGame.active()
 	var killcam := KillcamMode.active()
-	var own_rules := gun_game or killcam   # a mode with rules of its own: no kills/time choice
+	var team_mode := Teams.mode()   # "snd", "ctf" or ""
+	var own_rules := gun_game or killcam or team_mode != ""   # a mode with rules of its own: no kills/time choice
 	var kills_mode: bool = s.mode != "time"
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
 	if race:
@@ -344,7 +345,13 @@ func _refresh_rules() -> void:
 	if killcam:
 		_rules_label.text = "Snipers only. Every kill scores its killcam points: range, headshots, momentum (both of you moving), flicks, trickshots. First to %s points, or the most after %d minutes. The match's #1 killcam earns +%s at the end." \
 			% [KillcamMode.format(KillcamMode.target()), int(KillcamMode.TIME_LIMIT / 60.0), KillcamMode.format(KillcamMode.BEST_BONUS)]
-	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else Maps.GAME_NAMES.get(Net.game_kind(), ""))
+	if team_mode == "snd":
+		_rules_label.text = "Two teams, Red and Blue, no respawns in a round. The attackers carry a bomb: hold %s on site A or B to plant it. Defenders: hold %s on it to defuse. Blow a site, defuse, or knock the other team out to win the round. Sides swap after %d rounds; first to %d rounds wins." \
+			% [Settings.action_text("interact"), Settings.action_text("interact"), Teams.HALF, Teams.ROUNDS_TO_WIN]
+	elif team_mode == "ctf":
+		_rules_label.text = "Two teams, Red and Blue. Walk over the other team's flag to take it and bring it to your own flag (it must be home) to score. Walk over your own dropped flag to send it home. First to %d captures, or the most after %d minutes." \
+			% [Teams.CAPTURES_TO_WIN, int(Teams.CTF_TIME / 60.0)]
+	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else (Teams.MODE_NAMES[team_mode] if team_mode != "" else Maps.GAME_NAMES.get(Net.game_kind(), "")))
 	_game_label.visible = not Net.is_host()
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
