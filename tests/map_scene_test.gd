@@ -40,6 +40,12 @@ func _check_map(id: String) -> void:
 	map.build()
 	var shapes := map.get_node("Collision").get_child_count()
 	var meshes := map.find_children("Mesh_*", "MeshInstance3D", false, false).size()
+	# A map can be all moving parts (Sky Island: every island and pad is a MapMover),
+	# so what its movers built counts too.
+	for m in map.movers:
+		if m.body:
+			shapes += (m.body as Node).find_children("*", "CollisionShape3D", true, false).size()
+			meshes += (m.body as Node).find_children("*", "MeshInstance3D", true, false).size()
 	_expect(shapes > 0 and meshes > 0, "builds %d collision shapes and %d merged meshes from %d blocks" % [shapes, meshes, pieces.size()])
 	var race := Maps.game_of(id) == "race"
 	if race:

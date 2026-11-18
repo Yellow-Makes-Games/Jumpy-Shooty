@@ -54,6 +54,21 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 	return result
 
 
+## The same mesh, marked as part of something that moves (a MapMover's body): its
+## second UV says "measure my pattern from my own frame, not the map's", which the
+## surface shader reads (map_surface.gdshader). A pattern measured from the map stays
+## where it is while the block moves through it, and that shimmers.
+static func riding(mesh: ArrayMesh) -> ArrayMesh:
+	var arrays := mesh.surface_get_arrays(0)
+	var mark := PackedVector2Array()
+	mark.resize((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())
+	mark.fill(Vector2(1, 0))
+	arrays[Mesh.ARRAY_TEX_UV2] = mark
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return out
+
+
 static func _quad(buf: Array, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, color: Color) -> void:
 	# a, b, c, d go counter-clockwise seen from the front (the side `n` points to).
 	var verts: PackedVector3Array = buf[0]

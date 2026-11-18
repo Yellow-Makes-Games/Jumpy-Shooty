@@ -292,13 +292,21 @@ stone ramps laid along the wall walks, a gatehouse with a gate tunnel, and a
 central keep whose upper floor (6 m) is reached from a terrace ramp and from the
 west wall walk over a timber bridge, and whose roof deck (12 m) the keep stair
 climbs to. Its palette (`palettes/castle.tres`) shows a breakable kind (the wooden
-hoardings in the bailey). Its small dressing (a coping on every merlon, pilasters and
-torches along the walls, door and window surrounds, the great hall's fittings, market
-goods, ivy, weeds, and the lake and mountains outside) is the scene's `Dressing` branch,
-about 2,000 drawn-only blocks written by `python3 tools/arena/castle_dressing.py`. The
-script reads where the merlons, barrels, crates, carts and hoardings are, so run it
-again after moving them; it replaces only the `Dressing` branch and leaves the rest of
-the scene as it is.
+hoardings in the bailey). The scene is grouped by object, and each object holds its
+own dressing: a merlon's coping is in its `Merlon` group, a torch's arm, cup and flame
+are one `Torch` group, a tower's windows and flag are in the tower, and the lake,
+causeway, boats, shores and mountains are under `Outside`. Small things you would move
+as one (a torch, a shield, a barrel and its hoops, a pine, a mountain) are selection
+groups: a click in the viewport picks the whole thing. To work on one piece, pick it in
+the Scene dock. The dressing was first written by `tools/arena/castle_dressing.py`,
+but the scene is now edited by hand and that script must not be run on it again.
+You die only by falling into the lake (Kill Height -5, just under the water; the
+Bounds are a far safety net). Outside the walls a 60 degree rock slope (`Outside/Shore`)
+runs into the water: too steep to stand on, not steep enough to wall-run, so anyone who
+drops off a wall slides in. Invisible blockers close the two footholds the walls leave:
+the gate mouth in front of the portcullis, and the wall tops in front of each tower.
+Nothing solid may stick out past the walls' outer faces (x and z of plus or minus 30).
+The causeway starts 40 m out from the gate.
 
 `game/maps/castle_v2.tscn` (test map `castle_v2`, "Castle 2") is a refreshed Castle:
 72 m across instead of 60, a wall walk that runs all
@@ -326,6 +334,39 @@ block-out script starts over from the old Castle. The scene is edited by hand no
 (blocks were moved in the editor), so both scripts refuse to run unless
 `CASTLE_V2_REBUILD=1` is set: a run would throw the hand edits away. Try the map with
 `--map=castle_v2 --practice`.
+
+`game/maps/sky_island.tscn` (test map `sky_island`, "Sky Island (whitebox)") is a grey
+block-out of seven floating islands. The Hearth, in the middle, is the lowest (-3 m,
+the ruined Keep: broken walls, a corner of its upper floor, two corner drums); the six
+stand round it about a sixth of a turn apart, at mixed heights: the Shelf (3 m, open), the Bluff
+(8 m, open), the Spire (4 m, open), the Citadel (7 m, the Gate
+and its curtain wall with a wall walk, a gate arch and a drum), the Garden (2 m,
+standing stones) and the Terrace (6 m, the Broken Tower: an eight-sided shell with half
+a floor inside). No island is round: each is a handful of overlapping many-sided slabs
+of different sizes (36 to 56 m across in all), with a cone of rock hung under each.
+There is no path you can walk from one island to another. Stepping pads join the six
+outer islands into a ring, each to the next (three or four big pads a gap, 4.5 to 9 m across, scattered:
+each row swings side to side and every pad is thrown off it, with its own size and
+shape, and about one in four has a smaller pad beside it; no pad stands in an island (one that would is slid along its row until it is 0.8 m clear); the longest hop in a row is
+under 5 m). Nothing joins the Hearth to the outer islands and there are no grapple
+points: about 24 m of open sky each, the Hearth 4 to 11 m below on average (the climb to each swings with the bob, and every one comes within 7 m at some moment), crossed with rocket
+boots or a long jump down. Everything floats up and down: each island is a `MapMover`
+with its own rise (4 to 8 m) and its own moment in a 14 second cycle, and carries its
+ruins, cover and spawn points; each pad is a `MapMover` too, timed to the two islands
+it lies between, so the rows flex with them (one shared period is what lets a pad
+follow two islands exactly: see `pad_bob()` in the script). The heights above are the
+middle of each bob; in the editor a mover sits at the bottom of its bob, so the scene
+looks a little uneven until the game runs it. A mover carries its patterns with it: the
+distance grid and the palette's Surface patterns are measured from the moving body, not
+from the map (`MapMesher.riding()`, `MapRoot.riding_material_for()`), because a pattern
+measured from the map stands still while the block slides through it, and shimmers.
+This holds for every `MapMover` in every map. Bots only walk, so
+each stays on the island it spawns on. Falling is
+death (Kill Height -36). It has 30 spawn
+points and no weapon pickups yet, so it is listed for free-for-all only. It is written
+from scratch by `godot --headless --path . --script tools/arena/sky_island_blockout.gd`
+(the islands and their sizes are at the top); run that again after changing them, until
+the scene is edited by hand. Try it with `--map=sky_island --practice`.
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
