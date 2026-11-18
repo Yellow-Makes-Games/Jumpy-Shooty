@@ -1,4 +1,4 @@
-"""Cirrus: a university campus on floating islands (about 110 x 110 m, up to 16 players).
+"""Cirrus: a university campus on floating islands (about 135 x 135 m, up to 16 players).
 
     python3 tools/arena/build_arena_maps.py cirrus
 
@@ -9,25 +9,26 @@ this again OVERWRITES ANY HAND EDITS: only do it to rebuild the whole map on pur
 Layout: the Quad, a round lawn in the middle with the clock tower on it, and five
 building islands round it, each a MapIsland: Observatory (north), Labs (north-east),
 Lecture Hall (south-east), Cafeteria (south-west) and Library (north-west). All five
-are one island shape (a fan: narrow toward the quad, a wide deck behind with the
+are one island shape (a short fan toward the quad, a wide deck behind with the
 building on it) with a different building. There is no writing anywhere: each building
 is told by its colour and its shape (a dome, glass and roof stacks, a shell roof, a
 striped awning, a columned front).
 
-Two layouts, changed by the clock (the LayoutEvent "Layout": every 60 s the bell goes,
-five seconds later the islands move):
-  Hub   every island level with the quad, 16 m of open sky between neighbours, and a
-        skyway (a MapSpan fixed to the quad) from the quad to each island.
-  Ring  every island swung 36 degrees round the quad, pulled 5 m in and sunk 15 m: the
-        gaps between neighbours close to 10 m and a bridge (two MapSpans, one from
-        each island) joins them into a loop. The skyways are drawn in, and the quad
-        stands 15 m above the ring: only the grapple gets you up there.
+Open sky between everything: an island's tip is 24.4 m (80 ft) from the quad's rim and
+neighbours are 24.4 m apart, with no walkways at all. Five stepping stones stand just
+off the quad's rim, and five banner masts on the rim and one on each island's tip are
+grapple points.
+
+The scene has all five islands at their homes. In a match only two are up at a time
+(the LayoutEvent "Layout"): every 60 s the bell goes, eight seconds later the other
+three fall away below the map (taking whoever is still on them) and a new pair comes
+up, arranged one of five ways picked at random. See game/arena/layout_event.gd.
 
 The numbers behind the gaps (measured with the real movement code): a sprinting jump
-clears 7.5 m, with a dive 12.5 m, with a flip 14 m; the rocket boots carry a jump 32 m on
-the level and at most 10.5 m up (12.8 m with a ledge grab). So 16 m between neighbours is
-beyond a jump and easy for the boots or the grapple, and 15 m is higher than the boots
-reach from the ring's decks and bridges.
+clears 7.5 m, with a dive 12.5 m, with a flip 14 m, with a flip and a dive 20.5 m, with
+a glide as well 26 m; the rocket boots carry a jump 32 m on the level and at most
+10.5 m up (12.8 m with a ledge grab). So 24.4 m is beyond any plain jump, within reach
+of the whole chain of moves, and easy for the grapple or the boots.
 
 The look: nothing stepped or stacked. Roofs are slopes, cones and domes (MapBlock's
 wedge, cone and dome shapes), furniture and trims are bevelled, stairs are closed in
@@ -43,7 +44,7 @@ from arena_builder import Map, yaw_cols, xform, fmt, vec, color, norm, cross, ID
 PAL = "res://game/maps/palettes/cirrus.tres"
 SKY = "res://game/maps/sky/cirrus_sky.gdshader"
 
-# The islands: (name, angle in the Hub layout, accent kind, roof kind)
+# The islands: (name, home angle, accent kind, roof kind)
 ISLANDS = [
     ("Observatory", 180.0, "accent_purple", "roof_slate"),
     ("Labs", 108.0, "accent_teal", "roof_slate"),
@@ -51,22 +52,22 @@ ISLANDS = [
     ("Cafeteria", 324.0, "accent_orange", "roof_terracotta"),
     ("Library", 252.0, "accent_blue", "roof_terracotta"),
 ]
-R0 = 38.5          # an island's own origin is this far from the middle (Hub)
-SWING = 36.0       # Ring: degrees round the quad...
-PULL = 5.0         # ...metres in...
-DROP = 15.0        # ...and metres down
 QUAD_R = 14.3
-TIP = 22.3         # the tip of an island's deck, metres from the middle (Hub)
-STONE_R = 19.0     # the stepping stones' middles
+GAP = 24.4         # open sky between the quad's rim and an island's tip, and between neighbours (80 ft)
+TIP = QUAD_R + GAP # the tip of an island's deck, metres from the middle
+FAN = 9.0          # the fan's length, tip to shoulders
+R0 = TIP + FAN + 2.0   # an island's own origin is this far from the middle
+STONE_R = 19.5     # the stepping stones' middles
 MAST_R = 12.8
+DOWN = 120.0       # how far below its home an island is parked when it is down
 SIN36, COS36 = math.sin(math.radians(36.0)), math.cos(math.radians(36.0))
 
 
 def edge_x(z):
     """How far out an island's deck may reach at its own z: its side edges are the lines
-    8 m from the half-way lines to its neighbours, so the gap between two islands is 16 m
-    all the way along."""
-    return ((z + R0) * SIN36 - 8.0) / COS36
+    half a GAP from the half-way lines to its neighbours, so the gap between two islands
+    is GAP all the way along."""
+    return ((z + R0) * SIN36 - GAP / 2) / COS36
 
 
 # An island's deck: a fan from its tip (ZT, half as wide as WT) to its shoulders (ZS,
@@ -77,10 +78,6 @@ WT = edge_x(ZT)
 WS = edge_x(ZS)
 MAIN_Z1 = 14.2
 EDGE_LEN = (ZS - ZT) / COS36     # along a side edge of the fan, tip to shoulder
-BRIDGE_DIR = (COS36, -SIN36)     # (x, z), for the +x side: square to the half-way line
-BRIDGE_LEN = 4.99                # to the line half way to the neighbour, in the Ring layout
-BRIDGE_W = 3.8
-SKYWAY_W = 4.6
 F2 = 5.5           # first upper floor
 F3 = 11.0
 RUN = 9.2          # metres a stair takes to climb one floor (31 degrees)
@@ -155,7 +152,6 @@ class CirrusMap(Map):
 
     EXTRA = {
         "island": "res://game/arena/map_island.gd",
-        "span": "res://game/arena/map_span.gd",
         "layout": "res://game/arena/layout_event.gd",
         "spinner": "res://game/arena/map_spinner.gd",
         "hook": "res://game/arena/map_grapple_point.gd",
@@ -287,14 +283,15 @@ class CirrusMap(Map):
                 "light_color = %s" % color(col), "light_energy = %s" % fmt(energy), "shadow_enabled = true",
                 "directional_shadow_max_distance = 190.0", ""]
         for n in self.nodes:
-            out.append('[node name="%s" type="%s" parent="%s"]' % (n.name, n.type, n.parent))
+            groups = [v for k, v in n.props if k == "groups"]
+            out.append('[node name="%s" type="%s" parent="%s"%s]' % (n.name, n.type, n.parent, " groups=%s" % groups[0] if groups else ""))
             for k, v in n.props:
                 if k == "transform":
                     out.append("%s = %s" % (k, v))
             if n.script:
                 out.append('script = ExtResource("%s")' % ids[n.script])
             for k, v in n.props:
-                if k != "transform":
+                if k != "transform" and k != "groups":
                     out.append("%s = %s" % (k, v))
             if n.group:
                 out.append("metadata/_edit_group_ = true")
@@ -587,32 +584,38 @@ def quad(m):
     m.cone(isl, "Rock", "rock_dark", (0, -8.0, 0), 13.0, 5.0, top=5.0, sides=10, flip=True)
     engines(m, isl, [(0, 0)], -13.0, 4.2)
     engines(m, isl, [polar(9.4, a)[::2] for a in (60, 180, 300)], -5.0, 1.8)
-    # Paths from the tower out to each skyway, and a round apron under the tower.
+    # Paths from the tower out toward each island, and a round apron under the tower.
     p = m.group("Paths", g)
     for _name, deg, _a, _r in ISLANDS:
         m.block(p, "Path", "path", polar(10.9, deg, 0.011), (3.2, 0.022, 7.0), cols=rot(deg), solid=False)
     m.cyl(p, "TowerApron", "path", (0, 0, 0), 17.0, 0.03, sides=28, solid=False)
+    m.node("Centre", g, None, [("transform", xform(IDENTITY, (0, 0, 0)))], type_="Marker3D")
     # Five planters round the rim, each with a banner mast: the mast's top is a grapple
-    # point, the way up to the quad in the Ring layout. They stand 18 degrees to one side
-    # of where each island is then; the other side is left open (the way back down).
+    # point, the way over from an island. They stand 18 degrees to one side of each
+    # island's line (the stepping stones are 18 degrees to the other side), so the line
+    # itself is clear to set off along. "Land" is where a bot that hooks the mast comes down.
     rim = m.group("Rim", g, grouped=False)
     banners = ["banner_gold", "banner_red", "banner_blue"]
     for i, (_n, isl_deg, _a, _r) in enumerate(ISLANDS):
-        deg = isl_deg + SWING + 18.0
+        deg = isl_deg - 18.0
         pl = m.group("Planter", rim, at=polar(MAST_R, deg), yaw=math.radians(deg))
         m.bev(pl, "Planter", "planter", (-1.8, 0, -0.7), (1.8, 0.6, 0.7), 0.1)
         m.bev(pl, "Hedge", "hedge", (-1.65, 0.6, -0.55), (1.65, 1.15, 0.55), 0.22)
         m.cyl(pl, "Mast", "mast", (0, 1.15, 0), 0.26, 7.8, sides=8)
         m.strip(pl, "Banner", banners[i % 3], (0.15, 5.9, -0.04), (1.3, 8.7, 0.04))
         m.dome(pl, "Finial", "brass", (0, 8.95, 0), (0.5, 0.3, 0.5), sides=8, solid=False)
-        m.node("Hook%d" % (i + 1), pl, "hook", [("transform", xform(IDENTITY, (0, 9.2, 0))), ("reach", "45.0")], type_="Marker3D")
+        hook = m.node("Hook%d" % (i + 1), pl, "hook", [("transform", xform(IDENTITY, (0, 9.2, 0))), ("reach", "60.0"),
+                                                       ("groups", '["quad_masts"]')], type_="Marker3D")
+        m.node("Land", hook, None, [("transform", xform(IDENTITY, (0, -9.2, -4.4)))], type_="Marker3D")
     # Trees and benches: cover on the lawn, and something to break up the long views.
     for i, (_n, deg, _a, _r) in enumerate(ISLANDS):
         x, _y, z = polar(9.6, deg + 36.0)
         tree(m, g, x, z, kind="leaves_gold" if i % 2 else "leaves", size=1.15)
-        bx, _y, bz = polar(8.8, deg + 16.0)
-        b = m.group("Bench", g, at=(bx, 0, bz), yaw=math.radians(deg + 16.0))
+        bx, _y, bz = polar(8.8, deg + 8.0)
+        b = m.group("Bench", g, at=(bx, 0, bz), yaw=math.radians(deg + 8.0))
         bench(m, b, 0, 0)
+        # A spawn point for when no island has room (they are all on the move): facing out.
+        m.spawn(polar(10.5, deg + 18.0), polar(30.0, deg + 18.0)[::2])
     tower(m, g)
     return g
 
@@ -741,7 +744,7 @@ def tower(m, quad_group):
 
 def island(m, name, deg, accent, roof_kind, building):
     at = polar(R0, deg)
-    g = m.node(name, ".", "island", [("transform", xform(rot(deg), at)), ("swing", fmt(SWING)), ("pull", fmt(PULL)), ("drop", fmt(DROP))])
+    g = m.node(name, ".", "island", [("transform", xform(rot(deg), at))])
     d = m.group("Deck", g)
     # The deck: a fan (a strip down the middle and a triangle either side, so its side
     # edges are straight lines) and the main deck behind it.
@@ -754,93 +757,45 @@ def island(m, name, deg, accent, roof_kind, building):
         m.strip(d, "Kerb", "stone_warm", lo, hi)
     # The rock under it: three round bellies, the lowest the darkest, and the engines.
     m.dome(d, "Rock", "rock", (0, -0.8, (ZS + MAIN_Z1) / 2), (2 * WS - 1.0, 8.0, MAIN_Z1 - ZS - 0.6), sides=12, flip=True)
-    m.dome(d, "Rock", "rock", (0, -0.8, -8.0), (15.0, 5.5, 15.5), sides=10, flip=True)
+    m.dome(d, "Rock", "rock", (0, -0.8, -6.3), (2 * WT - 3.0, 5.5, 9.0), sides=10, flip=True)
     m.dome(d, "Rock", "rock_dark", (0, -4.0, 5.0), (17.0, 9.5, 10.5), sides=10, flip=True)
     engines(m, d, [(0, 5.0)], -13.3, 3.4)
-    engines(m, d, [(-10.5, 6.0), (10.5, 6.0), (0, -8.0)], -5.9, 1.9)
-    # Rails along the edges, open at the skyway, at the bridges and here and there.
+    engines(m, d, [(-12.0, 6.0), (12.0, 6.0), (0, -6.3)], -5.9, 1.9)
+    # Rails along the edges, open at the tip (where people land) and here and there.
     r = m.group("Rails", g)
     for sx in (-1, 1):
         yaw = math.atan2(sx * SIN36, COS36)
         edge = m.group("EdgeRail", r, at=(sx * WT, 0, ZT), yaw=yaw)
         m.strip(edge, "Kerb", "stone_warm", (0.0 if sx > 0 else -0.15, -1.0, 0.0), (0.15 if sx > 0 else 0.0, -0.3, EDGE_LEN))
-        for t0, t1 in ((0.8, 7.2), (9.6, EDGE_LEN - 1.4)):
+        for t0, t1 in ((0.8, 4.4), (6.4, EDGE_LEN - 0.6)):
             m.rail_box(edge, (-sx * 0.2 - 0.06, 0, t0), (-sx * 0.2 + 0.06, 1.0, t1))
-        m.rail(r, "Rail", "rail", (sx * (WS - 0.1), 2.0), (sx * (WS - 0.1), MAIN_Z1), 0, 1.0, holes=[(4.0, 6.4)])
+        m.rail(r, "Rail", "rail", (sx * (WS - 0.1), ZS + 0.4), (sx * (WS - 0.1), MAIN_Z1), 0, 1.0, holes=[(5.0, 8.0)])
     m.rail(r, "Rail", "rail", (-WS, MAIN_Z1 - 0.1), (WS, MAIN_Z1 - 0.1), 0, 1.0, holes=[(6.5, 9.5), (2 * WS - 9.5, 2 * WS - 6.5)])
     # Lamps down both edges, and the building's colour laid into the paving where the
-    # skyway lands and flying on a banner either side of it.
+    # tip is and flying on a banner either side of it.
     for z in (ZT + 0.6, (ZT + ZS) / 2, ZS - 0.4):
         for sx in (-1, 1):
             lamp_post(m, d, sx * (edge_x(z) - 0.7), z)
     m.strip(d, "Inlay", accent, (-2.0, 0, ZT + 0.6), (2.0, 0.022, ZT + 6.0))
-    for sx in (-1, 1):
-        m.cyl(d, "BannerMast", "mast", (sx * 3.4, 0, ZT + 3.0), 0.2, 6.0, sides=8)
-        m.strip(d, "Banner", accent, (sx * 3.4 + 0.12, 3.2, ZT + 2.96), (sx * 3.4 + 1.3, 5.8, ZT + 3.04))
-        m.dome(d, "Finial", "brass", (sx * 3.4, 6.0, ZT + 3.0), (0.4, 0.24, 0.4), sides=8, solid=False)
-    bridges(m, g)
+    # A banner mast either side of the landing. The tall one's top is a grapple point:
+    # the way over from the quad.
+    for sx, height in ((-1, 6.0), (1, 9.0)):
+        m.cyl(d, "BannerMast", "mast", (sx * 5.0, 0, ZT + 3.2), 0.24, height, sides=8)
+        m.strip(d, "Banner", accent, (sx * 5.0 + 0.14, height - 3.0, ZT + 3.16), (sx * 5.0 + 1.4, height - 0.2, ZT + 3.24))
+        m.dome(d, "Finial", "brass", (sx * 5.0, height, ZT + 3.2), (0.44, 0.26, 0.44), sides=8, solid=False)
+    m.node("ArrivalHook", g, "hook", [("transform", xform(IDENTITY, (5.0, 9.3, ZT + 3.2))), ("reach", "60.0")], type_="Marker3D")
     building(m, g, accent, roof_kind)
     return g
 
 
-def bridges(m, g):
-    """A bridge half from each front corner of the main deck: four segments that come out
-    in the Ring layout and meet the neighbour's half way across. The pad they leave from
-    is part of the island."""
-    for side, sx in (("East", 1), ("West", -1)):
-        dx, dz = sx * BRIDGE_DIR[0], BRIDGE_DIR[1]
-        yaw = math.atan2(dx, dz)
-        cx, cz = sx * WS, ZS
-        pad = m.group("BridgePad" + side, g, at=(cx, 0, cz), yaw=yaw)
-        m.box(pad, "Pad", "bridge_deck", (-BRIDGE_W / 2, -0.3, -2.7), (BRIDGE_W / 2, 0.04, 0))
-        for ex in (-1, 1):
-            m.bev(pad, "GatePost", "stone_warm", (ex * (BRIDGE_W / 2 + 0.05) - 0.24, 0, -0.54), (ex * (BRIDGE_W / 2 + 0.05) + 0.24, 2.4, -0.06), 0.06)
-            m.dome(pad, "GateLamp", "lamp", (ex * (BRIDGE_W / 2 + 0.05), 2.4, -0.3), (0.42, 0.3, 0.42), sides=8, solid=False)
-        span = m.node("Bridge" + side, g, "span", [("transform", xform(yaw_cols(yaw), (cx, 0, cz))), ("out_in", "1"),
-                                                   ("light_kinds", 'PackedStringArray("span_light")')])
-        n = 4
-        L = BRIDGE_LEN / n
-        for i in range(n):
-            s = m.group("Segment%d" % (i + 1), span)
-            z0, z1 = i * L, (i + 1) * L
-            m.box(s, "Deck", "bridge_deck", (-BRIDGE_W / 2, -0.3, z0), (BRIDGE_W / 2, 0.04, z1))
-            for ex in (-1, 1):
-                m.rail_box(s, (ex * (BRIDGE_W / 2 - 0.06) - 0.06, 0.04, z0), (ex * (BRIDGE_W / 2 - 0.06) + 0.06, 1.04, z1))
-                m.strip(s, "Light", "span_light", (ex * (BRIDGE_W / 2 - 0.42) - 0.07, 0.04, z0 + 0.08), (ex * (BRIDGE_W / 2 - 0.42) + 0.07, 0.075, z1 - 0.08))
-            m.strip(s, "Beam", "metal", (-0.5, -0.62, z0), (0.5, -0.3, z1))
-            if i == n - 1:
-                m.strip(s, "Coupler", "brass", (-BRIDGE_W / 2 - 0.08, -0.36, z1 - 0.3), (BRIDGE_W / 2 + 0.08, -0.3, z1 - 0.02))
-
-
-def skyways(m):
-    """A skyway from the quad to each island's tip (Hub layout): four segments fixed to
-    the quad, drawn in from the island's end when the layout changes."""
-    f = m.group("Skyways", grouped=False)
-    start = QUAD_R - 0.6
-    n = 4
-    L = (TIP - start) / n
-    for name, deg, accent, _r in ISLANDS:
-        span = m.node("Skyway" + name, f, "span", [("transform", xform(rot(deg), polar(start, deg))), ("out_in", "0"),
-                                                   ("light_kinds", 'PackedStringArray("span_light")')])
-        for i in range(n):
-            s = m.group("Segment%d" % (i + 1), span)
-            z0, z1 = i * L, (i + 1) * L
-            m.box(s, "Deck", "bridge_deck", (-SKYWAY_W / 2, -0.3, z0), (SKYWAY_W / 2, 0.04, z1))
-            m.strip(s, "Runner", accent, (-0.9, 0.04, z0), (0.9, 0.062, z1))
-            for ex in (-1, 1):
-                m.rail_box(s, (ex * (SKYWAY_W / 2 - 0.06) - 0.06, 0.04, z0 + (0.7 if i == 0 else 0)), (ex * (SKYWAY_W / 2 - 0.06) + 0.06, 1.04, z1))
-                m.strip(s, "Light", "span_light", (ex * (SKYWAY_W / 2 - 0.45) - 0.07, 0.04, z0 + 0.08), (ex * (SKYWAY_W / 2 - 0.45) + 0.07, 0.075, z1 - 0.08))
-            m.strip(s, "Beam", "metal", (-0.6, -0.7, z0), (0.6, -0.3, z1))
-
-
 def stones(m):
-    """Five stepping stones just off the quad's rim, between the skyways: a hop from the
-    quad, a long jump from an island's tip, and in the Ring layout a place to hook on
-    the way up. A statue, two kiosks and two planters."""
+    """Five stepping stones just off the quad's rim, 18 degrees round from each island's
+    line: a hop from the quad, somewhere to break a long crossing, and a pickup on three
+    of them. A statue, two kiosks and two planters."""
     f = m.group("SteppingStones", grouped=False)
     kinds = ["statue", "kiosk", "planter", "kiosk", "planter"]
     for i, (name, deg, _a, _r) in enumerate(ISLANDS):
-        g = m.group("Stone" + name, f, at=polar(STONE_R, deg + 36.0), yaw=math.radians(deg + 36.0))
+        g = m.group("Stone" + name, f, at=polar(STONE_R, deg + 18.0), yaw=math.radians(deg + 18.0))
         m.cyl(g, "Top", "paving", (0, 0.1, 0), 4.6, 0.5, sides=14)
         m.cone(g, "Rock", "rock", (0, 0.1, 0), 4.2, 2.6, top=1.6, sides=10, flip=True)
         engines(m, g, [(0, 0)], -2.5, 1.3)
@@ -984,10 +939,10 @@ def library(m, g, accent, roof_kind):
     m.spawn_in(sp, (-12.4, 0, 10.6), (-12.4, 0.0))           # behind the west stacks, looking down the wall lane
     m.spawn_in(sp, (-10.0, F2, 3.0), (0.0, 5.0))             # west mezzanine, looking over the hall
     m.spawn_in(sp, (10.0, F3, 6.0), (0.0, 5.0))              # top mezzanine
-    m.spawn_in(sp, (5.0, 0, -8.0), (0.0, -16.0))             # the plaza, looking at the quad
+    m.spawn_in(sp, (8.0, 0, -6.5), (0.0, -16.0))             # the plaza, looking at the quad
     w = m.group("WeaponSpawns", g, grouped=False)
     m.weapon_in(w, (6.4, 0, 5.0), "katana")                  # a lane between the east stacks
-    m.weapon_in(w, (0, 0, ZT + 2.6), "smg")                  # where the skyway lands
+    m.weapon_in(w, (0, 0, ZT + 2.6), "smg")                  # the tip, where people land
     m.weapon_in(w, (-8.0, F3, 11.4), "bolt_action")          # the top floor's back strip
 
 
@@ -1332,45 +1287,46 @@ BUILDINGS = {"Observatory": observatory, "Labs": labs, "LectureHall": lecture_ha
 def event(m):
     lit = 'PackedStringArray("window_lit", "lamp")'
     m.node("Layout", ".", "layout", [
-        ("layouts", 'PackedStringArray("Hub", "Ring")'), ("hold_time", "60.0"), ("windup_time", "5.0"), ("move_time", "4.0"),
+        ("up_count", "2"), ("hold_time", "60.0"), ("windup_time", "8.0"), ("move_time", "4.0"), ("down", fmt(DOWN)),
         ("tick_from", "Vector3(0, %s, 0)" % fmt(CLOCK_Y)),
+        ("drift_turns", "PackedFloat32Array(-36, 36)"), ("close_in", "12.2"), ("far_out", "9.1"),
+        ("far_heights", "PackedFloat32Array(7, -9)"), ("split_height", "8.0"),
         ("sun_direction", "Vector3(-0.93, 0.19, 0.31)"), ("sun_color", "Color(1, 0.5, 0.26, 1)"), ("sun_energy", "1.05"),
-        ("ambient_color", "Color(0.66, 0.5, 0.62, 1)"), ("ambient_energy", "0.8"),
+        ("ambient_color", "Color(0.66, 0.5, 0.62, 1)"), ("ambient_energy", "0.8"), ("fog_color", "Color(0.71, 0.49, 0.48, 1)"),
         ("lit_kinds", lit), ("lit_glow", "2.6"),
-        ("flare_kinds", 'PackedStringArray("engine")'), ("flare_gain", "3.5"),
-        ("scraps", "320"), ("scrap_volume", "AABB(-58, -22, -58, 116, 52, 116)"),
+        ("flare_kinds", 'PackedStringArray("engine")'), ("flare_gain", "3.5"), ("doom_kinds", 'PackedStringArray("lamp")'),
+        ("scraps", "360"), ("scrap_volume", "AABB(-70, -22, -70, 140, 56, 140)"),
     ], type_="Node")
 
 
 def crossings(m, islands):
-    """Ring layout: how bots get up to the quad (the grapple, off the banner mast that
-    stands 18 degrees round from their island) and back down (a run off the rim on the
-    island's other side, clear of its stepping stone, to the deck below). People need no
+    """How bots cross the open sky (they all carry the grapple here: MapRoot.bots_grapple).
+    From an island: stand at its tip, hook the nearest mast on the quad's rim, come down
+    on the lawn beside it. To an island: stand on the quad's rim facing it (wherever it
+    is just now), hook the tall mast on its tip, come down on its deck. People need no
     telling."""
-    marks = m.group("BotLandings", "Quad", grouped=False)
-    for i, (name, deg, _a, _r) in enumerate(ISLANDS):
-        ring = deg + SWING                      # where this island is in the Ring layout
+    for name, _deg, _a, _r in ISLANDS:
         g = islands[name]
-        land_up = m.node("Up" + name, marks, None, [("transform", xform(IDENTITY, polar(8.4, ring + 18.0)))], type_="Marker3D")
-        m.node("ToQuad", g, "link", [("transform", xform(IDENTITY, (4.2, 0, -9.5))), ("how", "0"), ("layout", "1"),
-                                     ("hook", 'NodePath("../../Quad/Rim/Planter%s/Hook%d")' % ("" if i == 0 else str(i + 1), i + 1)),
-                                     ("landing", 'NodePath("../../%s")' % land_up)], type_="Marker3D")
-        down = m.node("Down" + name, g, None, [("transform", xform(IDENTITY, (-3.6, 0, -10.5)))], type_="Marker3D")
-        off = polar(QUAD_R - 1.4, ring - 16.0)
-        m.node("From" + name, "Quad", "link", [("transform", xform(IDENTITY, off)), ("how", "1"), ("layout", "1"),
-                                               ("landing", 'NodePath("../../%s")' % down)], type_="Marker3D")
+        m.node("ToQuad", g, "link", [("transform", xform(IDENTITY, (0, 0, ZT + 1.6))), ("how", "0"),
+                                     ("hook_group", '&"quad_masts"'), ("leaves", "true")], type_="Marker3D")
+        m.node("FromQuad", g, "link", [("transform", xform(IDENTITY, (0.6, 0, ZT + 5.0))), ("how", "0"),
+                                       ("hook", 'NodePath("../ArrivalHook")'),
+                                       ("round_from", 'NodePath("../../Quad/Centre")'), ("round_radius", fmt(QUAD_R - 1.7))], type_="Marker3D")
 
 
 def build(path):
     m = CirrusMap("Cirrus", PAL,
                   {"lines": ["ambient_light_source = 2", "ambient_light_color = Color(1, 0.9, 0.74, 1)",
                              "ambient_light_energy = 0.82", "reflected_light_source = 1", "tonemap_mode = 2",
-                             "tonemap_white = 3.2", "glow_enabled = true", "glow_intensity = 0.7", "glow_bloom = 0.06"]},
+                             "tonemap_white = 3.2", "glow_enabled = true", "glow_intensity = 0.7", "glow_bloom = 0.06",
+                             # (fog only below the map: what a falling island, or a falling player, vanishes into)
+                             "fog_enabled = true", "fog_light_color = Color(0.9, 0.81, 0.73, 1)", "fog_sun_scatter = 0.0",
+                             "fog_density = 0.0", "fog_sky_affect = 0.0", "fog_height = -34.0", "fog_height_density = 0.12"]},
                   (36.0, 236.0, (1.0, 0.88, 0.66), 1.3),
-                  {"face_shade": "Vector3(0.9, 0.8, 0.66)", "kill_height": "-42.0",
-                   "bounds": "Rect2(-72, -72, 144, 144)", "swing_point": "Vector3(0, 24, 0)", "winding_floors": "true"})
+                  {"face_shade": "Vector3(0.9, 0.8, 0.66)", "kill_height": "-45.0",
+                   "bounds": "Rect2(-100, -100, 200, 200)", "swing_point": "Vector3(0, 24, 0)", "winding_floors": "true",
+                   "bots_grapple": "true"})
     quad(m)
-    skyways(m)
     stones(m)
     islands = {}
     for name, deg, accent, roof_kind in ISLANDS:
@@ -1378,7 +1334,7 @@ def build(path):
     # Stepping-stone pickups (the stones never move).
     for (name, deg, _a, _r), weapon in zip(ISLANDS, ("crossbow", None, "grenade_launcher", None, "lever_action")):
         if weapon:
-            m.weapon(polar(STONE_R - 0.9, deg + 36.0, 0.6), weapon)
+            m.weapon(polar(STONE_R - 0.9, deg + 18.0, 0.6), weapon)
     event(m)
     crossings(m, islands)
     m.write(path)
