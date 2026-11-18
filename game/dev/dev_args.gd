@@ -8,7 +8,8 @@ extends Node
 ## --port=PORT         Host only: port to listen on (default 24680).
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.
-## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit, templar) without changing the saved choice.
+## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit, templar, or a
+##                      Character Creator id "custom:n=Name|l=kestrel|t=templar|h=rivet|hat=top_hat") without changing the saved choice.
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
@@ -42,7 +43,7 @@ extends Node
 ## --points=N           Host only, Killcam mode: override the points to win (tests).
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
-## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings.
+## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, creator.
 ## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
 ## --manual-respawn     Wait for a Jump or Fire press to respawn, as in a real game, even in a

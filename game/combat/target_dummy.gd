@@ -57,7 +57,7 @@ func setup(i: int, pos: Vector3, facing: float, character: String, gun: String, 
 	_visual.name = "Visual"
 	_visual.basis = Basis(Vector3.UP, yaw)
 	add_child(_visual)
-	robot = RobotModel.new().setup(Characters.body(character), COLOR, false, gun)
+	robot = RobotModel.new().build(character, COLOR, false, gun)
 	_visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
 	_anim.state = MovementController.State.GROUND
