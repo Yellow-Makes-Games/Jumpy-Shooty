@@ -24,6 +24,7 @@ var _body: VBoxContainer
 var _kind: Container          # Any mix / One gun
 var _all: Button
 var _chips := {}              # weapon id -> Button
+var _window: FloatingPanel    # the chips' floating window (see use_window), or null: they open under the line
 var _prefix := ""             # "Weapons: " under a shared heading (see LobbySettings.section)
 
 
@@ -40,7 +41,7 @@ func _init(ids: Array = [], editable: bool = true, heading: bool = true) -> void
 	_summary = UiKit.label(head, "", true, 16)
 	_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_summary.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_edit = UiKit.button(head, "Change", func(): _open(not _body.visible))
+	_edit = UiKit.button(head, "Change", func(): _open(not (_window.is_open() if _window else _body.visible)))
 	_edit.theme_type_variation = "Chip"
 	_edit.custom_minimum_size = Vector2(110, 38)
 	_body = VBoxContainer.new()
@@ -97,7 +98,7 @@ func set_value(ids: Array) -> void:
 func set_editable(on: bool) -> void:
 	_edit.visible = on
 	if not on:
-		_body.visible = false
+		_open(false)
 
 
 func value() -> Array:
@@ -105,8 +106,31 @@ func value() -> Array:
 
 
 func _open(on: bool) -> void:
+	if _window:
+		if on:
+			_window.open(_edit)
+		else:
+			_window.close()
+		return
 	_body.visible = on
 	_edit.text = "Done" if on else "Change"
+
+## Show the chips in a floating window (opened by Change) instead of under the line
+## (the lobby; see FloatingPanel). `title` heads the window. Call it before the
+## picker is in the tree, so its chips enter the tree only once (in the window).
+func use_window(window: FloatingPanel, title: String) -> void:
+	_window = window
+	_body.get_parent().remove_child(_body)
+	UiKit.section(window.content, title)
+	window.content.add_child(_body)
+	_body.visible = true
+	_edit.text = "Change"
+
+
+## The floating window, if the chips are in one (see use_window).
+func window() -> FloatingPanel:
+	return _window
+
 
 
 func _set_single(on: bool) -> void:

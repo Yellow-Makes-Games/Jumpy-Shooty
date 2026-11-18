@@ -16,6 +16,7 @@ var _summary: Label
 var _edit: Button
 var _row: HBoxContainer
 var _chips := {}              # mobility id -> Button
+var _window: FloatingPanel    # the chips' floating window (see use_window), or null: they open under the line
 var _prefix := ""             # "Mobility: " under a shared heading
 
 
@@ -32,7 +33,7 @@ func _init(ids: Array = [], editable: bool = true, heading: bool = true) -> void
 	_summary = UiKit.label(head, "", true, 16)
 	_summary.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_summary.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_edit = UiKit.button(head, "Change", func(): _open(not _row.visible))
+	_edit = UiKit.button(head, "Change", func(): _open(not (_window.is_open() if _window else _row.visible)))
 	_edit.theme_type_variation = "Chip"
 	_edit.custom_minimum_size = Vector2(110, 38)
 	_row = HBoxContainer.new()
@@ -70,8 +71,31 @@ func set_editable(on: bool) -> void:
 
 
 func _open(on: bool) -> void:
+	if _window:
+		if on:
+			_window.open(_edit)
+		else:
+			_window.close()
+		return
 	_row.visible = on
 	_edit.text = "Done" if on else "Change"
+
+## Show the chips in a floating window (opened by Change) instead of under the line
+## (the lobby; see FloatingPanel). `title` heads the window. Call it before the
+## picker is in the tree, so its chips enter the tree only once (in the window).
+func use_window(window: FloatingPanel, title: String) -> void:
+	_window = window
+	_row.get_parent().remove_child(_row)
+	UiKit.section(window.content, title)
+	window.content.add_child(_row)
+	_row.visible = true
+	_edit.text = "Change"
+
+
+## The floating window, if the chips are in one (see use_window).
+func window() -> FloatingPanel:
+	return _window
+
 
 
 func value() -> Array:

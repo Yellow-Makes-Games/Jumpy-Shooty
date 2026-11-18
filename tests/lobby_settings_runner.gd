@@ -419,5 +419,11 @@ func _floating_windows() -> void:
 	_expect(lobby._robot_panel.is_open() and lobby._character.list.is_visible_in_tree(), "the robot's name opens the robot window")
 	lobby._robot_panel.close()
 	_expect(not lobby._robot_panel.is_open(), "a window closes without a pick (click outside or Esc)")
+	for rule in [lobby._allowed, lobby._allowed_mobility]:
+		rule._edit.pressed.emit()
+		await get_tree().process_frame
+		_expect(rule.window() != null and rule.window().is_open(), "a loadout rule's Change opens its chips in a window")
+		rule._edit.pressed.emit()
+		_expect(not rule.window().is_open(), "...and Change again closes it")
 	lobby.queue_free()
 	await get_tree().process_frame
