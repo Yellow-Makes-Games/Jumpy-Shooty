@@ -7,6 +7,10 @@ var players_root: Node3D
 var local_player: Player
 ## While you spectate (Net.spectating): the free-flying camera you watch through.
 var spectator_cam: SpectatorCamera
+## Search and Destroy, out for the round: the camera watching a player still in it.
+var follow_cam: FollowCamera
+var _out_for := 0.0   # how long you have been dead in a round you cannot come back to
+const FOLLOW_AFTER := 3.0   ## seconds of the death screen before you watch someone
 var hud: Hud
 var pause_menu: PauseMenu
 var debug_menu: DebugMenu
@@ -120,11 +124,33 @@ func _process(delta: float) -> void:
 	if spectator_cam:
 		hud.update_spectator()
 	elif local_player:
+		_update_round_spectate(delta)
 		hud.update_local(local_player)
 		if Race.active:
 			var passed := Race.gates_passed(local_player.peer_id)
 			for i in gates.size():
 				RaceGate.set_state(gates[i], i == passed, i < passed)
+
+
+## Search and Destroy: out for the round (once the killcam and a few seconds of the
+## death screen are over), watch a player still in it from behind; back to your own
+## view when the next round brings you back.
+func _update_round_spectate(delta: float) -> void:
+	var out := Teams.no_respawn() and not local_player.alive and not Match.is_alive(local_player.peer_id) \
+		and not Killcam.watching()
+	_out_for = _out_for + delta if out else 0.0
+	if out and follow_cam == null and _out_for >= FOLLOW_AFTER and not FollowCamera.candidates().is_empty():
+		follow_cam = FollowCamera.new()
+		add_child(follow_cam)
+		follow_cam.cycle(1)
+		if DevArgs.sync_log:
+			print("FOLLOW %s" % follow_cam.target_name())
+	elif follow_cam and (not out or (follow_cam.target == 0 and FollowCamera.candidates().is_empty())):
+		follow_cam.queue_free()
+		follow_cam = null
+		if local_player.rig and local_player.rig.camera:
+			local_player.rig.camera.make_current()
+	hud.follow_name = follow_cam.target_name() if follow_cam else ""
 
 
 func _build_gates() -> void:

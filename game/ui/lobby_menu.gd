@@ -456,7 +456,7 @@ func _refresh_rules() -> void:
 		# No guns in a race; Gun Game hands them out; Killcam is snipers only; a Deathmatch
 		# finds them on the map; the host may have set one gun for everyone.
 		_weapon.set_allowed(LobbySettings.allowed_weapons())
-		_weapon.visible = not race and not own_rules and not Net.is_deathmatch() and only == ""
+		_weapon.visible = not race and not gun_game and not killcam and not Net.is_deathmatch() and only == ""
 		_no_weapon.visible = not _weapon.visible
 		_mobility.visible = not race   # a race always has the grapple
 		_mobility.set_allowed(LobbySettings.allowed_mobility())

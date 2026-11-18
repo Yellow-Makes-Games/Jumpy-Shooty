@@ -67,6 +67,8 @@ enum Flag { HOME, CARRIED, DROPPED }
 ## bomb sites (A, B). Worked out from the map by every copy (plan_map).
 var bases: Array = [Vector3.ZERO, Vector3.ZERO]
 var side_spawns: Array = [[], []]
+var base_spawns: Array = [[], []]   # per side: the spawn entry at its end of the map (the team gathers around it)
+var _formation: Array = [null, null]   # per side, once worked out: the spots around it (see _formation_for)
 var sites: Array = []
 var map_ready := false
 
@@ -154,6 +156,12 @@ func members(team: int) -> Array:
 
 func team_name(team: int) -> String:
 	return NAMES[team] if team >= 0 and team < 2 else "Nobody"
+
+
+## The colour a player's robot armour is painted in a team mode (alpha 0: not a team mode).
+func paint_for(id: int) -> Color:
+	var t := team_of(id)
+	return team_color(t).darkened(0.12) if t >= 0 else Color(0, 0, 0, 0)
 
 
 func team_color(team: int) -> Color:
@@ -315,7 +323,7 @@ static func plan_map(spawns: Array) -> Dictionary:
 	else:
 		var side := axis.cross(Vector3.UP) * 6.0
 		sites = [b + side, b - side]
-	return {"bases": [a, b], "sides": sides, "sites": sites}
+	return {"bases": [a, b], "sides": sides, "sites": sites, "base_spawns": [spawns[best[0]], spawns[best[1]]]}
 
 
 static func _flat_dist(p: Vector3, q: Vector3) -> float:
@@ -327,6 +335,8 @@ func setup_map(layout: MapRoot) -> void:
 	var plan := plan_map(layout.spawns)
 	bases = plan.bases
 	side_spawns = plan.sides
+	base_spawns = plan.get("base_spawns", [[], []])
+	_formation = [null, null]
 	sites = plan.sites
 	map_ready = true
 	_flags_home()
@@ -348,12 +358,30 @@ func spawn_for(p: Node3D, peer_id: int, others: Array) -> Array:
 	var list: Array = side_spawns[side_of(team)] if team >= 0 else []
 	if list.is_empty():
 		return []
+	var spots := _formation_for(side_of(team), p)
 	if mode() == "snd":
 		var k: int = max(members(team).find(peer_id), 0)
+		if k < spots.size():
+			return spots[k]   # the whole team together, each in their own spot
 		var spot: Array = list[k % list.size()].duplicate()
 		if k >= list.size():   # more players than spawn points: beside the one they share
 			spot[0] = spot[0] + Vector3(1.3, 0, 0).rotated(Vector3.UP, float(k / list.size()) * 2.1)
 		return spot
+	if spots.size() >= 4:   # CTF: back at your base with your team, on a spot nobody is standing on
+		var free := []
+		for s in spots:
+			var taken := false
+			for o in others:
+				var other := o as Player
+				if other and other != p and other.alive and (s[0] as Vector3).distance_to(other.global_position) < 1.3:
+					taken = true
+					break
+			if not taken:
+				free.append(s)
+			if free.size() >= 3:
+				break
+		if not free.is_empty():
+			return free[randi() % free.size()]
 	var best: Array = list[randi() % list.size()]
 	var best_score := -INF
 	for s in list:
@@ -372,6 +400,57 @@ func spawn_for(p: Node3D, peer_id: int, others: Array) -> Array:
 			best_score = sc
 			best = s
 	return best
+
+
+const FORMATION_RINGS := [[1.7, 6], [3.3, 10], [4.9, 14]]   # [radius, spots]
+
+
+## The spots a side's team gathers on: its base spawn, then rings around it, each one
+## checked against the map (a floor under it near the same height, no wall between it
+## and the base). Worked out once per map, when the first player spawns.
+func _formation_for(side: int, p: Node3D) -> Array:
+	if _formation[side] != null:
+		return _formation[side]
+	var base: Array = base_spawns[side] if side < base_spawns.size() else []
+	if base.is_empty() or p == null or not p.is_inside_tree():
+		return []
+	var space := p.get_world_3d().direct_space_state
+	var origin: Vector3 = base[0]
+	var yaw: float = base[1] if base.size() > 1 else 0.0
+	var out := [base]
+	var found_floor := false
+	for ring in FORMATION_RINGS:
+		var n: int = ring[1]
+		for i in n:
+			# Alternate either side of straight behind the base, so the first spots are nearest the back.
+			var step := (i + 1) / 2 * (1 if i % 2 == 1 else -1)
+			var ang := yaw + PI + float(step) * TAU / float(n)
+			var at := origin + Vector3(sin(ang), 0.0, cos(ang)) * float(ring[0])
+			var spot := _spot_ok(space, origin, at)
+			if spot != Vector3.INF:
+				found_floor = true
+				var s: Array = base.duplicate()
+				s[0] = spot
+				out.append(s)
+	if found_floor:   # (no floor anywhere: the map's collision is not up yet, so try again next time)
+		_formation[side] = out
+	return out if found_floor else []
+
+
+static func _spot_ok(space: PhysicsDirectSpaceState3D, origin: Vector3, at: Vector3) -> Vector3:
+	var up := Vector3(0, 1.0, 0)
+	var wall := PhysicsRayQueryParameters3D.create(origin + up, at + up, 1)
+	if not space.intersect_ray(wall).is_empty():
+		return Vector3.INF
+	var down := PhysicsRayQueryParameters3D.create(at + Vector3(0, 1.6, 0), at - Vector3(0, 2.0, 0), 1)
+	var hit := space.intersect_ray(down)
+	if hit.is_empty() or absf(hit.position.y - origin.y) > 0.9 or (hit.normal as Vector3).y < 0.7:
+		return Vector3.INF
+	# Room to stand: nothing over the spot up to head height.
+	var head := PhysicsRayQueryParameters3D.create(hit.position + Vector3(0, 0.1, 0), hit.position + Vector3(0, 2.0, 0), 1)
+	if not space.intersect_ray(head).is_empty():
+		return Vector3.INF
+	return Vector3(at.x, maxf(hit.position.y, origin.y), at.z)
 
 
 # ---------------------------------------------------------------------------

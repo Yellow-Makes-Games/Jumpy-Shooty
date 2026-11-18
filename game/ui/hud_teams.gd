@@ -158,9 +158,11 @@ func draw_play(ci: CanvasItem, size: Vector2) -> void:
 			var bomb := Teams.bomb_position()
 			if bomb != Vector3.INF and Teams.bomb_carrier != me and Teams.phase != Teams.Phase.OVER:
 				if Teams.phase == Teams.Phase.PLANTED or mine == Teams.attackers():
-					var label := "BOMB" if Teams.bomb_carrier == 0 else ""
-					if label != "":
-						_marker(ci, cam, size, bomb + Vector3(0, 0.8, 0), label, HudStyle.RED, Teams.phase == Teams.Phase.PLANTED)
+					# Attackers always see it: on the floor, planted, or over the teammate carrying it.
+					var at := bomb + Vector3(0, 0.8, 0)
+					if Teams.bomb_carrier != 0:
+						at = bomb + Vector3(0, 2.5, 0)
+					_marker(ci, cam, size, at, "BOMB", HudStyle.RED, Teams.phase == Teams.Phase.PLANTED)
 		else:
 			for t in 2:
 				if Teams.flag_carried_by(me) == t:
