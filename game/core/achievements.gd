@@ -25,7 +25,9 @@ signal progressed             ## a count changed
 
 const FILE := "user://achievements.cfg"
 const SAVE_EVERY := 8.0       ## seconds: counts are written at most this often mid-match
-const TOAST_TIME := 5.0
+const TOAST_TIME := 4.0
+const TOAST_SIZE := Vector2(340, 54)      ## the toast is never bigger than this
+const TOAST_MARGIN := Vector2(16, 36)     ## from the corner: under the top edge's small print, over the death screen
 
 ## The kinds of achievement, as the page's tabs show them: id and name.
 const GROUPS := [["combat", "Combat"], ["movement", "Movement"], ["matches", "Matches"], ["races", "Races"], ["misc", "Misc"]]
@@ -549,7 +551,7 @@ func _process(delta: float) -> void:
 	if _toast_left > 0.0:
 		_toast_left -= delta
 		if _toast and is_instance_valid(_toast):
-			_toast.modulate.a = clampf(minf(_toast_left, TOAST_TIME - _toast_left) * 4.0, 0.0, 1.0)
+			_toast.modulate.a = clampf(minf(_toast_left, TOAST_TIME - _toast_left) * 4.0, 0.0, 1.0) * 0.92
 		if _toast_left <= 0.0 and _toast and is_instance_valid(_toast):
 			_toast.queue_free()
 			_toast = null
@@ -558,7 +560,65 @@ func _process(delta: float) -> void:
 
 
 # ---------------------------------------------------------------------------
-# The toast: a card at the top of the screen when an achievement completes
+# The toast: a small see-through plate in a top corner when an achievement completes
+
+## Which top corner the toast takes: the one the HUD leaves free. In a match that is
+## the corner across from the kill feed (which is on the right while you are dead,
+## wherever Settings puts it); in a race the right (the standings are down the left).
+static func toast_on_left() -> bool:
+	if Race.active:
+		return false
+	return Settings.hud.feed_corner != "left" or not Match.is_alive(Net.my_id())
+
+
+## The toast for an achievement: two short lines (and the icon it unlocks, if it
+## unlocks one), no bigger than TOAST_SIZE.
+static func make_toast(a: Dictionary) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.theme = UiKit.make_theme()
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box := UiKit.cut_box(Color(0.04, 0.06, 0.09, 0.62), 8, 10, 6)
+	box.border_width_left = 3
+	box.border_color = Color(UiKit.ACCENT, 0.9)
+	box.shadow_size = 0
+	card.add_theme_stylebox_override("panel", box)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(row)
+	for key in a.rewards:   # the icon (or else the card) it unlocks, drawn
+		if str(key).begins_with("icon:") or (str(key).begins_with("card:") and not a.rewards.any(func(k): return str(k).begins_with("icon:"))):
+			var thumb := AchievementsPanel.Thumb.new(key, true)
+			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(thumb)
+			break
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(col)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(top)
+	var kicker := UiKit.label(top, "ACHIEVEMENT", false, 10)
+	kicker.add_theme_font_override("font", HudStyle.font_spaced(2))
+	kicker.add_theme_color_override("font_color", UiKit.CYAN)
+	var name_label := UiKit.label(top, str(a.name).to_upper(), false, 14)
+	name_label.add_theme_font_override("font", HudStyle.font(true))
+	var reward := UiKit.label(col, "Unlocked: %s" % ", ".join(a.rewards.map(item_name)), true, 12)
+	reward.name = "reward"
+	for l: Label in [kicker, name_label, reward]:
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF   # (a wrapping label asks for a tall box)
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# A long list of rewards is cut short, so the toast stays small.
+	var font := reward.get_theme_font("font")
+	var wide := font.get_string_size(reward.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12).x + 2.0
+	reward.clip_text = true
+	reward.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	reward.custom_minimum_size.x = minf(wide, TOAST_SIZE.x - 70.0)
+	return card
+
 
 func _show_toast(a: Dictionary) -> void:
 	if DisplayServer.get_name() == "headless":
@@ -567,30 +627,11 @@ func _show_toast(a: Dictionary) -> void:
 		_layer = CanvasLayer.new()
 		_layer.layer = 90
 		add_child(_layer)
-	var card := PanelContainer.new()
-	card.theme = UiKit.make_theme()
-	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var box := UiKit.cut_box(Color(0.05, 0.07, 0.10, 0.94), 10, 22, 12)
-	box.border_width_left = 4
-	box.border_color = UiKit.ACCENT
-	card.add_theme_stylebox_override("panel", box)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 2)
-	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	card.add_child(col)
-	var kicker := UiKit.label(col, "ACHIEVEMENT", false, 12)
-	kicker.add_theme_font_override("font", HudStyle.font_spaced(3))
-	kicker.add_theme_color_override("font_color", UiKit.CYAN)
-	var name_label := UiKit.label(col, str(a.name).to_upper(), false, 24)
-	name_label.add_theme_font_override("font", HudStyle.font(true))
-	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	var reward := UiKit.label(col, "Unlocked: %s" % ", ".join(a.rewards.map(item_name)), true, 15)
-	reward.autowrap_mode = TextServer.AUTOWRAP_OFF
-	for l in [kicker, name_label, reward]:
-		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var card := make_toast(a)
 	_layer.add_child(card)
-	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP, Control.PRESET_MODE_MINSIZE)
-	card.position.y = 96
+	var left := toast_on_left()
+	card.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT if left else Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, int(TOAST_MARGIN.x))
+	card.position.y = TOAST_MARGIN.y
 	card.modulate.a = 0.0
 	_toast = card
 	_toast_left = TOAST_TIME

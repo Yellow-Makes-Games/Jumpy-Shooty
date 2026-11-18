@@ -289,6 +289,25 @@ func run() -> void:
 	_expect(Achievements.stat("kills") == kills + 7, "and saving twice counts nothing twice")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_FILE))
 
+	print("  The toast is small and takes the corner the HUD leaves free")
+	var biggest := Vector2.ZERO
+	for a in Achievements.LIST:
+		var toast := Achievements.make_toast(a)
+		add_child(toast)
+		biggest = biggest.max(toast.get_combined_minimum_size())
+		toast.free()
+	_expect(biggest.x <= Achievements.TOAST_SIZE.x and biggest.y <= Achievements.TOAST_SIZE.y,
+		"no achievement's toast is bigger than %s (the biggest is %s)" % [Achievements.TOAST_SIZE, biggest])
+	var saved_corner: String = Settings.hud.feed_corner
+	Settings.hud.feed_corner = "right"
+	_expect(Achievements.toast_on_left(), "it sits top left, across from the kill feed")
+	Settings.hud.feed_corner = "left"
+	_expect(not Achievements.toast_on_left(), "top right when Settings moves the feed to the left")
+	Settings.hud.feed_corner = saved_corner
+	Race.active = true
+	_expect(not Achievements.toast_on_left(), "and top right in a race, where the standings are down the left")
+	Race.active = false
+
 	Achievements.reset_for_test()
 	Settings.custom_characters.assign(saved_characters)
 	Settings.character = saved_pick
