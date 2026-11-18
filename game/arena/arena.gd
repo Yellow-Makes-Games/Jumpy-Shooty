@@ -5,6 +5,8 @@ extends Node3D
 var layout: MapRoot
 var players_root: Node3D
 var local_player: Player
+## While you spectate (Net.spectating): the free-flying camera you watch through.
+var spectator_cam: SpectatorCamera
 var hud: Hud
 var pause_menu: PauseMenu
 var debug_menu: DebugMenu
@@ -108,7 +110,9 @@ func _process(delta: float) -> void:
 		_nav_rebake -= delta
 		if _nav_rebake <= 0.0:
 			_rebake_navigation()
-	if local_player:
+	if spectator_cam:
+		hud.update_spectator()
+	elif local_player:
 		hud.update_local(local_player)
 		if Race.active:
 			var passed := Race.gates_passed(local_player.peer_id)
@@ -229,11 +233,33 @@ func _sync_players() -> void:
 					rebuild_player(id)   # swapped weapons while waiting to respawn: rebuilt holding the new one
 	for p in players_root.get_children():
 		if not Net.players.has((p as Player).peer_id):
+			if p == local_player:
+				local_player = null   # you went to spectate
 			p.queue_free()
 		elif not Match.is_alive((p as Player).peer_id) and (p as Player).alive:
 			(p as Player).set_dead()  # joined while they were dead
 	portals.prune()
+	_sync_spectator()
 	hud.set_players(Net.players)
+
+
+## Spectating: fly a camera with no body (it starts where you were looking from, or high
+## over the first spawn point). Playing again: it goes, and your robot's camera takes over.
+func _sync_spectator() -> void:
+	if Net.spectating() and spectator_cam == null:
+		var from := get_viewport().get_camera_3d()
+		spectator_cam = SpectatorCamera.new()
+		add_child(spectator_cam)
+		if from and from != spectator_cam:
+			spectator_cam.place_like(from)
+		elif not layout.spawns.is_empty():
+			var s: Array = layout.spawns[0]
+			spectator_cam.place(s[0] + Vector3(0, 6.0, 0), s[1], deg_to_rad(-20.0))
+		hud.set_spectating(true)
+	elif not Net.spectating() and spectator_cam != null:
+		spectator_cam.queue_free()
+		spectator_cam = null
+		hud.set_spectating(false)
 
 
 func _spawn(id: int) -> void:
