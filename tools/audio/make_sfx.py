@@ -953,6 +953,24 @@ def heavy_hit(seed):
     return finish(mix(dry, fftconv(lp(dry, 2400), room_ir(rng, 0.7, 2400)) * 0.22))
 
 
+def ground_slam(seed):
+    """A ground slam landing: a boom you feel in your chest, the floor cracking, a ring of
+    struck metal and debris pattering down after it."""
+    rng = np.random.default_rng(9480 + seed)
+    k = rng.uniform(0.95, 1.05)
+    boom = sat(sine_sweep(0.9, 105 * k, 30, 0.05) * env(0.9, 0.2, 0.001) * 2.6, 3.0)
+    crack = bp(noise(rng, 0.14), 1700, 0.7) * env(0.14, 0.02, 0.0002) * 1.5
+    plate = modal(rng, 0.9, [131 * k, 207 * k, 349 * k, 612 * k], [0.34, 0.26, 0.17, 0.1], [0.3, 0.24, 0.15, 0.08], 0.02)
+    rumble = lp(noise(rng, 0.7), 260) * env(0.7, 0.2, 0.001) * 1.4
+    debris = np.zeros(n(1.1))
+    for _ in range(rng.integers(14, 22)):
+        at = n(rng.uniform(0.08, 0.9))
+        d = lp(click(rng, 0.012, 0.0008, 1700), 2800) * rng.uniform(0.08, 0.3)
+        debris[at:at + len(d)] += d[: len(debris) - at]
+    dry = sat(mix(click(rng, 0.014, 0.0006, 2200), boom, crack, plate, rumble, debris), 1.6)
+    return finish(mix(dry, fftconv(lp(dry, 2200), room_ir(rng, 1.0, 2200)) * 0.26))
+
+
 def slam(seed):
     """A robot crashing into a wall: a heavy body thump, buckling metal and debris."""
     rng = np.random.default_rng(9400 + seed)
@@ -1227,6 +1245,8 @@ def recipes():
     r["hammer_hit"] = hammer_hit
     for i in range(2):
         r["heavy_hit_%d" % (i + 1)] = lambda i=i: heavy_hit(i)
+    for i in range(2):
+        r["ground_slam_%d" % (i + 1)] = lambda i=i: ground_slam(i)
     r["kick"] = kick
     r["flying_kick"] = flying_kick
     r["rocket_boost"] = rocket_boost

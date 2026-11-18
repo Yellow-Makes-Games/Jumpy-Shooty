@@ -233,6 +233,7 @@ func _ready() -> void:
 			"--screenshot":
 				screenshots.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])
 			"--game-clock": _fixed_step = true
+			"--from-start": from_start = true
 			"--speed": Cheats.time_scale = clampf(float(value), 0.05, 4.0)
 			"--look":
 				var l := value.get_slice(":", 1).split(",")

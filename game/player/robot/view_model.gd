@@ -132,14 +132,14 @@ func fire(left: bool = false) -> void:
 ## Winding a melee swing up, this frame: `charge` 0..1 is how far.
 func wind(charge: float, side: int = 0) -> void:
 	if _data.is_melee():
-		_swing.wind(charge, side)
+		_swing.wind(charge, side, _airborne)
 		_since_fire = 0.0
 
 
 ## The swing was let go, `power` 0..1 wound up.
 func swing(power: float, side: int = 0) -> void:
 	if _data.is_melee():
-		_swing.swing(power, side)
+		_swing.swing(power, side, _airborne)
 		_since_fire = 0.0
 
 

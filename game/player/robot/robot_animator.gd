@@ -120,6 +120,9 @@ var _swing := MeleeSwing.new()
 var _hold := 1.0          # how much the arms hold the weapon up (0 in a flip, a roll, a climb)
 var _swing_key: Array = []   # the swing's pose this frame
 var _sink := 0.0             # how far the body has sunk into its knees with the swing, 0..1
+var _airborne := false       # off the ground in a plain fall, flip or glide: a melee wind-up takes its mid-air form
+var _was_slam := false       # in a ground slam last frame
+var _tuck := 0.0             # how far the legs are drawn up by a mid-air wind-up or a slam, 0..1
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
@@ -196,13 +199,13 @@ func fire(left: bool = false) -> void:
 ## it), `side` which tap is coming (see MeleeSwing).
 func wind(charge: float, side: int = 0) -> void:
 	if _melee:
-		_swing.wind(charge, side)
+		_swing.wind(charge, side, _airborne)
 
 
 ## The swing was let go, `power` 0..1 wound up.
 func swing(power: float, side: int = 0) -> void:
 	if _melee:
-		_swing.swing(power, side)
+		_swing.swing(power, side, _airborne)
 		_since_fire = 0.0
 
 
@@ -434,11 +437,30 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		_hold = move_toward(_hold, 1.0 if busy or (want[0] > 0.0 and inp.alive and _respawn_t < 0.0) else 0.0, delta * 9.0)
 		# On its feet the body sinks into its knees as it coils (less on the run), then turns.
 		var low := MeleeSwing.sink(_swing_key) * _hold * (1.0 - 0.6 * clampf(speed / 6.0, 0.0, 1.0)) if key == "loco" else 0.0
-		_sink = move_toward(_sink, low, delta * 8.0)
-		if _sink > 0.0:
+		low = maxf(low, _swing.landed())   # a slam lands in a deep crouch
+		_sink = move_toward(_sink, low, delta * (20.0 if _swing.landed() > 0.0 else 8.0))
+		# Off the ground, a wind-up of the weapon's own (and a slam) draws the legs up.
+		_tuck = move_toward(_tuck, (0.75 if slam else 0.6 * _swing.air()) if inp.alive else 0.0, delta * 7.0)
+		if maxf(_sink, _tuck) > 0.0:
 			rig.sample(_tmp, "crouch_idle", 0.0)
-			_pose.blend_bones(_tmp, _sink, _legs_core)
+			_pose.blend_bones(_tmp, maxf(_sink, _tuck), _legs_core)
+		# A mid-air move with legs of its own (the superman punch: knee up, then kicked back).
+		var legs := _swing.legs()
+		if not legs.is_empty() and not first_person and inp.alive:
+			var w: float = legs[4]
+			for leg in [["thigh_r", "shin_r", 0], ["thigh_l", "shin_l", 2]]:
+				var thigh: int = _b[leg[0]]
+				var shin: int = _b[leg[1]]
+				_pose.rot[thigh] = _pose.rot[thigh].slerp(Quaternion(Vector3.RIGHT, legs[leg[2]]), w)
+				_pose.rot[shin] = _pose.rot[shin].slerp(Quaternion(Vector3.RIGHT, -legs[leg[2] + 1]), w)
 		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
+		# A mid-air wind-up spins the whole body about its middle (not the body you see from
+		# inside it: your own view stays level, and the arms go round it instead).
+		if _swing.spin() != 0.0 and not first_person and inp.alive:
+			var round := Quaternion(_swing.spin_axis(), _swing.spin())
+			var root: int = _b["root"]
+			_pose.rot[root] = round * _pose.rot[root]
+			_pose.pos[root] = SPIN_PIVOT + round * (_pose.pos[root] - SPIN_PIVOT)
 		if model.melee:
 			MeleeModel.set_glow(model.melee, _swing.glow() if inp.alive else 0.0)
 		if model.melee_left:
