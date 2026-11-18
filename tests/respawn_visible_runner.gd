@@ -45,7 +45,10 @@ func run() -> void:
 	_expect(p.global_position.distance_to(_base + Vector3(-6, 0, 2)) < 0.5, "...drawn where they are now (%.2f m off)" % p.global_position.distance_to(_base + Vector3(-6, 0, 2)))
 
 	print("  the same with the body left showing at death (no remains)")
+	var gore := Settings.gore
+	Settings.gore = "off"   # (no ragdoll takes the body's place)
 	_die(p)
+	Settings.gore = gore
 	_expect(p.visual.visible, "the body stays where it fell")
 	await _feed(p, 7, Vector3(4, 0, -4), 3, true)
 	_expect(not p.visual.visible, "a snapshot from a new life hides it (not dragged to the new spot)")
