@@ -49,7 +49,7 @@ func setup(body: CollisionObject3D) -> void:
 	camera.far = 800.0
 	add_child(camera)
 	camera.make_current()
-	_blend = 1.0 if Settings.third_person else 0.0
+	_blend = 1.0 if Settings.third_person_view() else 0.0
 	Settings.changed.connect(_on_settings_changed)
 	_on_settings_changed()
 
@@ -62,7 +62,7 @@ func set_view(yaw: float, pitch: float, eye: float = EYE_HEIGHT, roll: float = 0
 
 
 func is_third_person() -> bool:
-	return Settings.third_person
+	return Settings.third_person_view()
 
 
 ## 1 while the first-person body is shown, falling to 0 by the time the full body
@@ -74,7 +74,7 @@ func first_person_amount() -> float:
 func _process(delta: float) -> void:
 	if not camera:
 		return
-	var target: float = 1.0 if Settings.third_person else 0.0
+	var target: float = 1.0 if Settings.third_person_view() else 0.0
 	var before := _blend
 	_blend = move_toward(_blend, target, delta / BLEND_TIME)
 	var s := smoothstep(0.0, 1.0, _blend)

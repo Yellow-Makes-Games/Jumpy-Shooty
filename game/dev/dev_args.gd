@@ -120,6 +120,7 @@ var manual_respawn := false
 var sync_log := false
 var sound_log := false
 var scripted_fire := false
+var third_person := false   ## --third-person (scripted runs are first person otherwise; see Settings.third_person_view)
 var eager_terminal := false
 var map_event_at := -1.0     # --map-event: seconds after start (-1 = never)
 ## With --scripted-input: also hook the nearest opponent now and then and flying-kick
@@ -264,7 +265,9 @@ func _ready() -> void:
 			"--points": points_target = int(value)
 			"--rules": rules = value
 			"--time-limit": time_limit = float(value)
-			"--third-person": Settings.third_person = true
+			"--third-person":
+				Settings.third_person = true
+				third_person = true
 			"--quit-after": quit_after = float(value)
 			"--save-killcam": save_killcam = int(value)
 			"--net-sim":
