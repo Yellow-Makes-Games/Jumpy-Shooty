@@ -148,6 +148,7 @@ var _link_flying := false        # it has taken off
 var _link_time := 0.0
 var _link_hooked := false        # grapple crossing: the hook has caught
 var _link_left := false          # it has left the floor
+var _flee := false               # it stands on an island that is about to go down: off, by the nearest crossing
 var _link_wait := 0.0            # seconds before it thinks of a crossing again (after one failed)
 var _open_map := -1              # 1: a map of islands over a drop (see _open()), 0: not, -1: not looked yet
 var _blink_side := 0.0           # it was just hit: blink this way (-1 left, 1 right, 0 no)
@@ -237,7 +238,21 @@ func update(delta: float) -> void:
 	var world_dir := _choose_direction(delta, visible)
 	_hook_frame = false
 	var map := MapRoot.current
-	if not hold and map != null and is_instance_valid(map) and map.warning:
+	var flee := not hold and map != null and is_instance_valid(map) and map.warning and map.doomed_at(me.global_position)
+	if flee != _flee:
+		_flee = flee
+		_repath = 0.0
+		_link_wait = 0.0
+		if not flee and not _link_flying:
+			_link = null
+	if _flee:
+		# The bell has gone and this island is about to go down: make for the crossing that
+		# leads off it, whatever else is going on.
+		world_dir = _follow_path(Vector3(0.0, me.global_position.y, 0.0), delta)
+		input.sprint = true
+		_hop_time = 0.0
+		_dodge_time = 0.0
+	elif not hold and map != null and is_instance_valid(map) and map.warning:
 		# The bell has gone: off a walkway that is about to be drawn in, and not onto one.
 		var off := _hold_spot()
 		if off != Vector3.ZERO:
@@ -709,7 +724,10 @@ func _follow_path(goal: Vector3, delta: float) -> Vector3:
 			if _path.is_empty() or _path[_path.size() - 1].distance_to(point) > 0.05:
 				_path.append(point)
 		_path_index = 1 if _path.size() > 1 else 0
-		_link = _pick_link(pos, goal) if _stops_short(goal) else null
+		if _flee:
+			_link = _escape_link(pos)
+		else:
+			_link = _pick_link(pos, goal) if _stops_short(goal) else null
 		if _link != null:
 			# Walking does not get there: walk to the crossing instead.
 			found = NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, pos, _link.takeoff(), true)
@@ -951,23 +969,68 @@ func _walkable(a: Vector3, b: Vector3) -> bool:
 func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
 	var best: MapJumpLink = null
 	var best_cost := INF
+	var nav := me.get_world_3d().navigation_map
+	if NavigationServer3D.map_get_iteration_id(nav) == 0:
+		return null   # (the navigation mesh is not there yet: the first moments of a match)
+	var links := _links()
+	for l in links:
+		var link := l as MapJumpLink
+		var cost: float = pos.distance_to(link.takeoff()) + link.landing_point().distance_to(goal)
+		var down := NavigationServer3D.map_get_closest_point(nav, link.landing_point())
+		if not _walkable(pos, link.takeoff()) or _flat(down, goal) > _flat(pos, goal) + 60.0:
+			continue
+		if not _gets_to(down, goal):
+			# Not there yet: is there a second crossing from where this one lands (island
+			# to quad, then quad to the other island)?
+			var onward := INF
+			for l2 in links:
+				var second := l2 as MapJumpLink
+				if second == link or not _walkable(down, second.takeoff()):
+					continue
+				var far_side := NavigationServer3D.map_get_closest_point(nav, second.landing_point())
+				if _gets_to(far_side, goal):
+					onward = minf(onward, down.distance_to(second.takeoff()) + second.landing_point().distance_to(goal))
+			if onward == INF:
+				continue
+			cost = pos.distance_to(link.takeoff()) + 30.0 + onward
+		if cost < best_cost:
+			best = link
+			best_cost = cost
+	return best
+
+
+## The crossings it could take right now.
+func _links() -> Array:
+	var out := []
 	for n in me.get_tree().get_nodes_in_group(MapJumpLink.GROUP):
 		var link := n as MapJumpLink
 		if link == null or not link.usable():
 			continue
 		if link.how == MapJumpLink.How.GRAPPLE and (me.mobility != Mobility.GRAPPLE or link.hook_point() == Vector3.INF):
 			continue
-		var cost := pos.distance_to(link.takeoff()) + link.landing_point().distance_to(goal)
-		if cost >= best_cost:
+		out.append(link)
+	return out
+
+
+## Does walking from `from` end at `goal` (near enough)?
+func _gets_to(from: Vector3, goal: Vector3) -> bool:
+	var end := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, from, goal, true)
+	return not end.is_empty() and _flat(end[end.size() - 1], goal) <= LINK_SHORT and absf(end[end.size() - 1].y - goal.y) <= LINK_SHORT_UP
+
+
+## The nearest crossing that leads off the island it is on (which is about to go down).
+func _escape_link(pos: Vector3) -> MapJumpLink:
+	var map := MapRoot.current
+	var here := map.island_at(pos) if map != null and is_instance_valid(map) else null
+	var best: MapJumpLink = null
+	if NavigationServer3D.map_get_iteration_id(me.get_world_3d().navigation_map) == 0:
+		return null
+	for l in _links():
+		var link := l as MapJumpLink
+		if not link.leaves or link.island() != here or not _walkable(pos, link.takeoff()):
 			continue
-		var down := NavigationServer3D.map_get_closest_point(me.get_world_3d().navigation_map, link.landing_point())
-		if not _walkable(pos, link.takeoff()) or _flat(down, goal) > _flat(pos, goal) + 60.0:
-			continue
-		var end := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, down, goal, true)
-		if end.is_empty() or _flat(end[end.size() - 1], goal) > LINK_SHORT or absf(end[end.size() - 1].y - goal.y) > LINK_SHORT_UP:
-			continue
-		best = link
-		best_cost = cost
+		if best == null or pos.distance_to(link.takeoff()) < pos.distance_to(best.takeoff()):
+			best = link
 	return best
 
 

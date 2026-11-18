@@ -1367,11 +1367,11 @@ def clock_tick(low=False):
 
 
 def layout_rise():
-    """Five seconds between the bell and the move: the islands' engines spooling up. A
+    """Eight seconds between the bell and the move: the islands' engines spooling up. A
     low hum and a rush of air that start almost unheard and climb, slowly at first and
     then fast, in pitch and in loudness, right up to the moment the islands go."""
     rng = np.random.default_rng(7206)
-    seconds = 5.0
+    seconds = 8.0
     t = tt(seconds)
     p = np.clip(t / seconds, 0.0, 1.0)
     grow = p ** 2.6                       # slow, then fast

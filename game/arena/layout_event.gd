@@ -1,55 +1,84 @@
 class_name LayoutEvent
 extends MapEvent
-## A map with two layouts changes from one to the other on a timer (Cirrus: the
-## building islands swing round the quad, between Hub and Ring). Put one in a map
-## scene. It needs no terminal: it runs by itself for as long as a match does.
+## A map of flying islands that rearranges itself on a timer (Cirrus: five building
+## islands round a quad, only two of them up at any time). Put one in a map scene. It
+## needs no terminal: it runs by itself for as long as a match does.
 ##
 ## One turn of its clock:
-##  - `hold_time` seconds in the layout the map is in. A clock ticks once a second,
+##  - `hold_time` seconds in the arrangement the map is in. A clock ticks once a second,
 ##    softly, all over the map and a little louder near `tick_from` (the clock tower).
-##  - A bell tolls, and for `windup_time` seconds the move builds up, slowly and then
-##    fast: a rising tone, a growing rumble, the engines (Flare Kinds) spooling up, and
-##    the walkways that are about to go flashing their lights. Nothing moves yet: this
-##    is the time to get off a walkway.
-##  - The parts move for `move_time` seconds, slowly at first and then fast, and lock
-##    with a clunk.
-## Then the next turn begins, in the other layout. `state` is the layout a turn begins
-## in: 0 = the first (how the scene is laid out), 1 = the second.
+##  - A bell tolls, and for `windup_time` seconds the change builds up, slowly and then
+##    fast: a rising tone, a growing rumble, the engines (Flare Kinds) spooling up. The
+##    islands that are about to go down are `doomed`: their engines and lamps turn
+##    `doom_color` and sputter, and they sag. Nothing else moves yet: this is the time to get off.
+##  - For `move_time` seconds the doomed islands fall away below the map (whoever is
+##    still on one goes down with it, under the map's kill height), the ones that
+##    stay glide to their new places, and the ones coming up rise out of the clouds
+##    into theirs. A clunk when everything has arrived.
+## Then the next turn begins.
 ##
-## What moves: every MapIsland in the map (to its second place and back), every
-## MapSpan (out in one layout, drawn in in the other), and the look of the whole
-## map, which has a second version too: the sky, the sun, the ambient light and the
-## kinds listed in Lit Kinds (windows and lamps that come on). During the wind-up and
-## the move the clouds below swirl and paper and leaves blow about. All of it is in
-## the world, none on the HUD. MapSpinners set to Countdown are the hands of a clock:
-## once round per turn, at twelve when the bell goes. One set to Swing is the bell.
+## An arrangement is which `up_count` islands are up (never the same set twice running)
+## and how they stand, drawn at random from a pool, never the same kind twice running:
+##   Swap    each at its home, where the scene has it.
+##   Drift   each a turn round the middle from its home (`drift_turns`).
+##   Close   each `close_in` metres nearer the middle: a jump apart.
+##   Far     each `far_out` metres further out, and all high or all low (`far_heights`).
+##   Split   one high and one low (`split_height`).
+## The look of the whole map has a second version (the sky, the sun, the ambient light,
+## the fog below, and the kinds in Lit Kinds: windows and lamps that come on) and goes
+## from one to the other with every change. During the warning and the move the clouds
+## below swirl and paper and leaves blow about. All of it is in the world, none on the
+## HUD. MapSpinners set to Countdown are the hands of a clock: once round per turn, at
+## twelve when the bell goes. One set to Swing is the bell.
 ##
-## The host owns it, like every MapEvent: it keeps the clock and says which layout a
-## turn began in, and every copy places everything from those two numbers, so islands
-## and walkways are in the same place for everyone, also for someone who joins
-## part-way. A new match always begins in the first layout. In a team mode (Search and
-## Destroy, Capture the Flag) it does not run at all: their bomb sites and flag stands
-## are fixed spots worked out when the map loads, and would be left in mid-air.
+## The host owns it, like every MapEvent: it keeps the clock, and decides each
+## arrangement a whole turn ahead. `state` holds the present arrangement and the next
+## one as one number, so every copy places everything from the clock and that number
+## alone: the islands are in the same place for everyone, also for someone who joins
+## part-way, and everyone knows which islands are doomed. With the clock stopped (no
+## match, or a team mode) every island is up at its home. In a team mode (Search and
+## Destroy, Capture the Flag) it never runs: their bomb sites and flag stands are
+## fixed spots worked out when the map loads.
 
-## What the two layouts are called (for the log and the tests).
-@export var layouts: PackedStringArray = ["Hub", "Ring"]
-## Seconds the map stays in a layout before the bell goes.
+enum Kind { SWAP, DRIFT, CLOSE, FAR, SPLIT }
+const KIND_NAMES := ["Swap", "Drift", "Close", "Far", "Split"]
+const BITS := 11             ## an arrangement fits in this many bits of `state`
+const MASK := (1 << BITS) - 1
+
+## How many islands are up at a time.
+@export_range(1, 4) var up_count := 2
+## Seconds the map stays as it is before the bell goes.
 @export var hold_time := 60.0
 ## Seconds from the bell to the move: the warning.
-@export var windup_time := 5.0
-## Seconds a move takes, each way.
+@export var windup_time := 8.0
+## Seconds a move takes.
 @export var move_time := 4.0
+## Metres below its home an island is parked when it is down (well under the kill height).
+@export var down := 120.0
 ## Where the clock's tick comes from (in the map's frame): it is a little louder near here.
 @export var tick_from := Vector3(0, 24, 0)
 
-@export_group("Second layout's look")
-## The way to the sun in the second layout (the first is the scene's Sun as it stands).
+@export_group("Arrangements")
+## Drift: the turns to pick from, in degrees round the middle.
+@export var drift_turns: PackedFloat32Array = [-36.0, 36.0]
+## Close: metres nearer the middle.
+@export var close_in := 12.0
+## Far: metres further out, and the heights to pick from (metres above home).
+@export var far_out := 9.0
+@export var far_heights: PackedFloat32Array = [7.0, -9.0]
+## Split: metres one island stands above home, and the other below.
+@export var split_height := 8.0
+
+@export_group("Second look")
+## The way to the sun in the second look (the first is the scene's Sun as it stands).
 @export var sun_direction := Vector3(-0.8, 0.22, 0.55)
 @export var sun_color := Color(1.0, 0.56, 0.32)
 @export var sun_energy := 0.9
 @export var ambient_color := Color(0.62, 0.5, 0.66)
 @export var ambient_energy := 0.75
-## Kinds that light up in the second layout (windows, lamps, light strips), and how bright.
+## The fog below the map (what sinking islands vanish into), in the second look.
+@export var fog_color := Color(0.71, 0.49, 0.48)
+## Kinds that light up in the second look (windows, lamps, light strips), and how bright.
 @export var lit_kinds: PackedStringArray = []
 @export var lit_glow := 2.4
 
@@ -58,6 +87,12 @@ extends MapEvent
 ## many times brighter.
 @export var flare_kinds: PackedStringArray = []
 @export var flare_gain := 3.5
+## The colour a doomed island's engines turn while they sputter, and how far it sags.
+## Doom Kinds turn that colour and flicker too (its lamps: the engines are underneath,
+## where nobody standing on it can see them).
+@export var doom_kinds: PackedStringArray = []
+@export var doom_color := Color(1.0, 0.16, 0.08)
+@export var doom_dip := 0.7
 ## Scraps of paper and leaves blown about during a move: how many (0 = none), and the
 ## box (in the map's frame) they blow through.
 @export var scraps := 260
@@ -73,24 +108,26 @@ const TOLL_SOUND := "bell_toll"
 const RISE_SOUND := "layout_rise"
 const MOVE_SOUND := "island_move"
 const LOCK_SOUND := "bridge_lock"
-const RISE_LENGTH := 5.0      ## seconds the rising tone lasts as recorded
+const RISE_LENGTH := 8.0      ## seconds the rising tone lasts as recorded
 const TICK_QUIET := -7.0      ## dB: the tick heard everywhere, under the one from the tower
 const SWING := 0.5            ## radians the bell swings at first
 const SWING_RATE := 0.55      ## swings per second
 const SWING_FADE := 3.2       ## seconds for the swing to die down to about a third
 
-## 0..1: where the parts are right now (0 = first layout, 1 = second).
+## 0..1: which look the map has right now (0 = the scene's own, 1 = the second).
 var blend := 0.0
 ## 0..1: how far through a move it is (0 when nothing moves).
 var progress := 0.0
 ## 0..1: how far through the warning before a move it is (0 at any other time).
 var windup := 0.0
+## The host's dice (a test may seed it).
+var rng := RandomNumberGenerator.new()
 
 var _map: MapRoot
 var _islands: Array = []
-var _spans: Array = []
 var _hands: Array = []     # MapSpinners that are clock hands
 var _bells: Array = []     # MapSpinners that swing when the bell goes
+var _sets: Array = []      # every set of up_count islands, by their numbers
 var _found := false
 var _looks := false
 var _env: Environment
@@ -105,13 +142,16 @@ var _scrap_mat: ShaderMaterial
 var _shown := -1.0
 var _shown_flare := -1.0
 var _shake_wait := 0.0
+var _time := 0.0
 var _tolled := -1.0       # seconds since the bell last went on this copy (-1 = it has not)
 var _turn_due := false
+var _all_doom_kinds: PackedStringArray = []
 
 
 func _ready() -> void:
 	super()
-	_place.call_deferred()   # spans drawn in, islands home, once the map is built
+	rng.randomize()
+	_place.call_deferred()   # every island home, once the map is built
 
 
 func team_mode() -> bool:
@@ -124,10 +164,111 @@ func length() -> float:
 	return hold_time + windup_time + move_time
 
 
-## The name of the layout this turn began in.
-func layout_name() -> String:
-	return layouts[state] if state >= 0 and state < layouts.size() else str(state)
+# ---------------------------------------------------------------------------
+# Arrangements
 
+## An arrangement as a number: which set of islands is up (1.. in sets(); 0 = all of
+## them, at home), how they stand, a throw of the dice for the details, and the look.
+static func pack(which_set: int, kind: int, variant: int, look: int) -> int:
+	return (which_set & 15) | ((kind & 7) << 4) | ((variant & 7) << 7) | ((look & 1) << 10)
+
+
+## The arrangement the map is in (or was in when the move now under way began).
+func now() -> int:
+	return state & MASK
+
+
+## The arrangement the next move goes to.
+func next() -> int:
+	return (state >> BITS) & MASK
+
+
+static func kind_of(config: int) -> int:
+	return (config >> 4) & 7
+
+
+static func look_of(config: int) -> int:
+	return (config >> 10) & 1
+
+
+## Every set of `up_count` islands (their numbers, in the order the map has them).
+func sets() -> Array:
+	if _sets.is_empty():
+		_combine([], 0)
+	return _sets
+
+
+func _combine(chosen: Array, from: int) -> void:
+	if chosen.size() == up_count:
+		_sets.append(chosen.duplicate())
+		return
+	for i in range(from, island_count()):
+		chosen.append(i)
+		_combine(chosen, i + 1)
+		chosen.pop_back()
+
+
+func island_count() -> int:
+	if not _found:
+		_find_parts()
+	return _islands.size()
+
+
+## The numbers of the islands that are up in an arrangement.
+func up_in(config: int) -> Array:
+	var which := config & 15
+	if which == 0 or which > sets().size():
+		return range(island_count())
+	return sets()[which - 1]
+
+
+## Where island `i` stands in an arrangement it is up in: (degrees round the middle,
+## metres up, metres out) from its home.
+func rest_pose(config: int, i: int) -> Vector3:
+	if (config & 15) == 0:
+		return Vector3.ZERO
+	var variant := (config >> 7) & 7
+	match kind_of(config):
+		Kind.DRIFT:
+			return Vector3(drift_turns[variant % drift_turns.size()] if not drift_turns.is_empty() else 0.0, 0.0, 0.0)
+		Kind.CLOSE:
+			return Vector3(0.0, 0.0, -close_in)
+		Kind.FAR:
+			return Vector3(0.0, far_heights[variant % far_heights.size()] if not far_heights.is_empty() else 0.0, far_out)
+		Kind.SPLIT:
+			var high := (up_in(config).find(i) + variant) % 2 == 0
+			return Vector3(0.0, split_height if high else -split_height, 0.0)
+	return Vector3.ZERO
+
+
+## What an arrangement is called (for the log and the tests): "Drift: Labs, Library".
+func describe(config: int) -> String:
+	if (config & 15) == 0:
+		return "all up"
+	var names := up_in(config).map(func(i): return (_islands[i] as Node).name)
+	return "%s: %s" % [KIND_NAMES[mini(kind_of(config), KIND_NAMES.size() - 1)], ", ".join(names)]
+
+
+## Host: an arrangement to follow `config`: another set of islands, another kind, the
+## other look.
+func pick_after(config: int) -> int:
+	var count := sets().size()
+	var which := rng.randi_range(1, count)
+	while which == (config & 15) and count > 1:
+		which = rng.randi_range(1, count)
+	var kind := rng.randi_range(0, Kind.size() - 1)
+	while kind == kind_of(config):
+		kind = rng.randi_range(0, Kind.size() - 1)
+	return pack(which, kind, rng.randi_range(0, 7), 1 - look_of(config))
+
+
+## Host: the arrangement a match begins in: a set at random, every island at its home.
+func pick_first() -> int:
+	return pack(rng.randi_range(1, sets().size()), Kind.SWAP, 0, 0)
+
+
+# ---------------------------------------------------------------------------
+# The clock
 
 ## Are the islands on the move right now?
 func moving() -> bool:
@@ -144,10 +285,14 @@ func time_to_bell() -> float:
 	return maxf(hold_time - elapsed, 0.0) if running else 0.0
 
 
-## Host: start the clock (a match has begun). Never in a team mode.
+## Host: start the clock (a match has begun), in an arrangement picked at random.
+## Never in a team mode.
 func host_start(by: int = 0) -> void:
-	if team_mode():
+	if running or not is_host() or team_mode():
 		return
+	var first := pick_first()
+	state = first | (pick_after(first) << BITS)
+	print("[map] %s: %s, then %s" % [name, describe(now()), describe(next())])
 	super(by)
 
 
@@ -159,20 +304,23 @@ func _wanted() -> bool:
 
 func take_state(value: int) -> void:
 	# The host says the turn is over before this copy's own clock got there: the clunk is due.
-	if value != state and running and elapsed > length() - 1.0:
+	if (value & MASK) != now() and running and elapsed > length() - 1.0:
 		_turn_due = true
 	super(value)
 
 
 func apply_state(now_running: bool, at: float) -> void:
+	var was := running
 	super(now_running, at)
 	if _turn_due:
 		_turn_due = false
 		_locked()
 	_place()
+	if running and not was:
+		_rescue.call_deferred()
 
 
-## A new match: back to the first layout at once, the clock at nought.
+## A new match: every island home, the clock at nought (the host starts it again).
 func _on_match_started() -> void:
 	state = 0
 	_tolled = -1.0
@@ -198,13 +346,15 @@ func _physics_process(delta: float) -> void:
 	var before := elapsed
 	elapsed += delta
 	if elapsed >= length():
-		# The move is done: the next turn begins, in the other layout.
+		# The move is done: the next turn begins. The host picks what comes after it; any
+		# other copy hears in a moment.
 		elapsed -= length()
-		state = 1 - state
+		var arrived := next()
+		state = arrived | ((pick_after(arrived) if is_host() else arrived) << BITS)
 		before = -1.0
 		_locked()
 		if is_host():
-			print("[map] %s: %s" % [name, layout_name()])
+			print("[map] %s: %s, then %s" % [name, describe(now()), describe(next())])
 			_resync = 0.0   # (everyone is told at once)
 	_cues(before, elapsed)
 	_place()
@@ -216,26 +366,29 @@ func _physics_process(delta: float) -> void:
 			net.send_map_event_state(index(), true, elapsed)
 
 
-## How far the islands have got, `p` of the way (0..1) through a move's time: slowly at
-## first, then fast, and gently to a stop.
-static func ease_in(p: float) -> float:
-	return smoothstep(0.0, 1.0, pow(clampf(p, 0.0, 1.0), 1.6))
+## The clock has just started on this copy: whoever this copy plays (its own player,
+## and on the host the bots) and is standing on an island that is not up is put back
+## at a spawn point. (A match begins with every island there; the clock takes most away.)
+func _rescue() -> void:
+	var net := autoload("Net")
+	var arena: Node = net.arena if net else null
+	if arena == null or not is_instance_valid(arena) or _map == null:
+		return
+	var root: Node = arena.get("players_root")
+	if root == null:
+		return
+	for p in root.get_children():
+		if not p.get("is_local") or not p.get("alive"):
+			continue
+		var island := _map.island_at((p as Node3D).global_position)
+		if island != null and not island.up:
+			arena.call("_respawn", p)
 
 
-## Where the parts are `t` seconds into a turn that began in layout `from`.
-func blend_at(t: float, from: int) -> float:
-	var p := clampf((t - hold_time - windup_time) / maxf(move_time, 0.01), 0.0, 1.0)
-	return lerpf(float(from), float(1 - from), ease_in(p))
+# ---------------------------------------------------------------------------
+# Where everything is
 
-
-## How much of a span is out, `p` of the way (0..1) through a move toward layout `to`.
-static func span_extent(out_in: int, to: int, p: float) -> float:
-	if out_in == to:
-		return smoothstep(0.35, 1.0, p)   # coming out: it arrives as the islands do
-	return 1.0 - smoothstep(0.1, 0.7, p)   # going in: gone before the islands have got far
-
-
-## Puts every part where the state and the clock say.
+## Puts every island where the state and the clock say.
 func _place() -> void:
 	if not is_inside_tree():
 		return
@@ -243,19 +396,52 @@ func _place() -> void:
 		_find_parts()
 	var now_moving := moving()
 	var now_warning := warning()
-	var to := 1 - state
+	var a := now()
+	var b := next()
 	progress = clampf((elapsed - hold_time - windup_time) / maxf(move_time, 0.01), 0.0, 1.0) if now_moving else 0.0
 	windup = clampf((elapsed - hold_time) / maxf(windup_time, 0.01), 0.0, 1.0) if now_warning else 0.0
-	blend = blend_at(elapsed, state) if now_moving else float(state)
-	for island in _islands:
-		(island as MapIsland).blend = blend
-	for s in _spans:
-		var span := s as MapSpan
-		# Flashing: everything while it moves; before that, the ones about to be drawn in.
-		span.racing = now_moving or (now_warning and span.out_in == state)
-		span.extent = span_extent(span.out_in, to, progress) if now_moving else (1.0 if span.out_in == state else 0.0)
+	var up_a := up_in(a)
+	var up_b := up_in(b)
+	for i in _islands.size():
+		var island := _islands[i] as MapIsland
+		var here := up_a.has(i)
+		var there := up_b.has(i)
+		island.doomed = here and not there and (now_warning or now_moving)
+		island.dip = doom_dip * windup * windup if island.doomed and now_warning else (doom_dip if island.doomed else 0.0)
+		island.sputter(maxf(windup, 0.01) if island.doomed else 0.0, _doom_kinds(), doom_color, _time)
+		if not now_moving:
+			# At rest: up at its place, or parked below.
+			var pose := rest_pose(a, i) if here else Vector3(0.0, -down, 0.0)
+			island.pose_a = pose
+			island.pose_b = pose
+			island.blend = 0.0
+			island.up = here
+			island.set_parked(not here)
+		elif here and there:
+			# It stays: it glides to its new place, and is there before the others arrive.
+			island.pose_a = rest_pose(a, i)
+			island.pose_b = rest_pose(b, i)
+			island.blend = smoothstep(0.0, 0.8, progress)
+			island.up = true
+			island.set_parked(false)
+		elif here:
+			# It goes: straight down, faster and faster.
+			island.pose_a = rest_pose(a, i)
+			island.pose_b = Vector3(island.pose_a.x, -down, island.pose_a.z)
+			island.blend = progress * progress
+			island.up = false
+			island.set_parked(false)
+		elif there:
+			# It comes: straight up into its place, a little after the others have gone.
+			island.pose_b = rest_pose(b, i)
+			island.pose_a = Vector3(island.pose_b.x, -down, island.pose_b.z)
+			island.blend = smoothstep(0.3, 1.0, progress)
+			island.up = false
+			island.set_parked(progress < 0.3)
+		else:
+			island.set_parked(true)
 	if _map:
-		_map.layout_state = state
+		_map.layout_state = a
 		_map.warning = now_warning
 		_map.shifting = now_moving
 	var flare := 0.0
@@ -263,7 +449,15 @@ func _place() -> void:
 		flare = 0.6 * windup * windup
 	elif now_moving:
 		flare = lerpf(0.6, 1.0, sin(progress * PI)) if progress < 0.5 else sin(progress * PI)
+	blend = lerpf(float(look_of(a)), float(look_of(b)), smoothstep(0.0, 1.0, progress)) if now_moving else float(look_of(a))
 	_show(flare)
+
+
+func _doom_kinds() -> PackedStringArray:
+	if _all_doom_kinds.is_empty():
+		_all_doom_kinds = flare_kinds.duplicate()
+		_all_doom_kinds.append_array(doom_kinds)
+	return _all_doom_kinds
 
 
 func _find_parts() -> void:
@@ -273,7 +467,6 @@ func _find_parts() -> void:
 	_found = true
 	var all := _map.find_children("*", "", true, false)
 	_islands = all.filter(func(n): return n is MapIsland)
-	_spans = all.filter(func(n): return n is MapSpan)
 	_hands = all.filter(func(n): return n is MapSpinner and (n as MapSpinner).driven == MapSpinner.Driven.COUNTDOWN)
 	_bells = all.filter(func(n): return n is MapSpinner and (n as MapSpinner).driven == MapSpinner.Driven.SWING)
 
@@ -298,9 +491,25 @@ func _cues(before: float, now: float) -> void:
 	if before < hold_time + windup_time and now >= hold_time + windup_time:
 		cue.emit("move")
 		_sound(MOVE_SOUND)
+		_log_aboard()
 
 
-## The move is over: the walkways lock.
+## For the sync log: how many players are still on islands that are now going down.
+func _log_aboard() -> void:
+	var dev := autoload("DevArgs")
+	var net := autoload("Net")
+	if dev == null or not dev.sync_log or net == null or net.arena == null or _map == null:
+		return
+	var aboard := 0
+	var players := 0
+	for p in net.arena.players_root.get_children():
+		if p.get("alive"):
+			players += 1
+			aboard += int(_map.doomed_at((p as Node3D).global_position))
+	print("ISLANDS_GO %d of %d players still aboard a doomed island" % [aboard, players])
+
+
+## The move is over: everything has arrived.
 func _locked() -> void:
 	cue.emit("lock")
 	_sound(LOCK_SOUND)
@@ -327,6 +536,16 @@ func _tick(which: String) -> void:
 		sound.play_at(which, _map.global_transform * tick_from, "body")
 
 
+## Is this copy's own player standing on an island that is about to go down?
+func _on_doomed() -> bool:
+	var net := autoload("Net")
+	var arena: Node = net.arena if net else null
+	if arena == null or not is_instance_valid(arena) or _map == null:
+		return false
+	var player: Node = arena.get("local_player")
+	return player != null and is_instance_valid(player) and player.get("alive") and _map.doomed_at((player as Node3D).global_position)
+
+
 func _shake(amount: float) -> void:
 	var net := autoload("Net")
 	var arena: Node = net.arena if net else null
@@ -338,6 +557,7 @@ func _shake(amount: float) -> void:
 
 
 func _process(delta: float) -> void:
+	_time += delta
 	if _tolled >= 0.0:
 		_tolled += delta
 	# A rumble that grows through the warning, and carries on while the islands go.
@@ -346,6 +566,8 @@ func _process(delta: float) -> void:
 		rumble = 0.04 + 0.26 * windup * windup
 	elif moving():
 		rumble = 0.3 * (1.0 - 0.5 * progress)
+	if rumble > 0.0 and _on_doomed():
+		rumble = 0.35 + 0.45 * windup if warning() else 0.8   # (the ground under you is going: you feel it, indoors too)
 	if rumble > 0.0:
 		_shake_wait -= delta
 		if _shake_wait <= 0.0:
@@ -379,6 +601,7 @@ func _show(flare: float) -> void:
 		_env.ambient_light_color = (_env_base.color as Color).lerp(ambient_color, k)
 		_env.ambient_light_energy = lerpf(_env_base.energy, ambient_energy, k)
 		_env.glow_intensity = lerpf(_env_base.glow, _env_base.glow * 1.3, maxf(k, flare))
+		_env.fog_light_color = (_env_base.fog as Color).lerp(fog_color, k)
 	if _sky:
 		_sky.set_shader_parameter("sunset", k)
 		_sky.set_shader_parameter("swirl", flare)
@@ -421,7 +644,7 @@ func _find_looks() -> void:
 		# Our own copy, so the scene's shared Environment is never left changed.
 		_env = world.environment.duplicate()
 		world.environment = _env
-		_env_base = {"color": _env.ambient_light_color, "energy": _env.ambient_light_energy, "glow": _env.glow_intensity}
+		_env_base = {"color": _env.ambient_light_color, "energy": _env.ambient_light_energy, "glow": _env.glow_intensity, "fog": _env.fog_light_color}
 		if _env.sky and _env.sky.sky_material is ShaderMaterial:
 			_env.sky = _env.sky.duplicate()
 			_sky = _env.sky.sky_material.duplicate()

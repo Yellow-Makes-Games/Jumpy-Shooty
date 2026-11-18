@@ -12,9 +12,8 @@ extends SceneTree
 ## w), "top" (a plan), "cutY" (a plan with everything above height Y sliced off, to
 ## see one floor), or a camera "x,y,z:lx,ly,lz[:fov]" (position : look-at). --span is how
 ## many metres a plan shows from top to bottom (92; a 140 m map needs about 150).
-## --layout is for a map with two layouts (a LayoutEvent: Cirrus): 0 its first, 1 its
-## second, anything between a moment part-way through the move from the first to the
-## second (0.5 = half time). The pictures' names end in _layoutN.
+## --layout is for a map with a LayoutEvent (Cirrus): SET,KIND,VARIANT,LOOK shows that
+## arrangement (see _hold_layout); without it every island is up at its home.
 
 var _map: MapRoot
 var _camera: Camera3D
@@ -24,7 +23,7 @@ var _wait := 0
 var _out := "."
 var _prefix := "map"
 var _span := 92.0
-var _layout := 0.0
+var _layout := ""
 
 const CORNERS := {
 	"sw": Vector3(-74, 70, 84), "se": Vector3(74, 70, 84),
@@ -52,7 +51,7 @@ func _initialize() -> void:
 		elif arg == "--no-signs":
 			show_signs = false
 		elif arg.begins_with("--layout="):
-			_layout = float(arg.substr(9))
+			_layout = arg.substr(9)
 	if map_path.begins_with("res://"):
 		var scene := load(map_path) as PackedScene
 		_map = scene.instantiate() as MapRoot if scene else null
@@ -67,7 +66,7 @@ func _initialize() -> void:
 	DisplayServer.window_set_size(size)
 	root.add_child(_map)
 	_map.build()
-	if _layout > 0.0:
+	if _layout != "":
 		_pose_layout()
 	if not show_signs:
 		for label in _map.find_children("*", "Label3D", true, false):
@@ -83,7 +82,7 @@ func _initialize() -> void:
 func _process(_delta: float) -> bool:
 	if _map == null:
 		return true
-	if _layout > 0.0:
+	if _layout != "":
 		_hold_layout()
 	if _wait > 0:
 		_wait -= 1
@@ -100,23 +99,37 @@ func _process(_delta: float) -> bool:
 	return false
 
 
-## Puts a two-layout map in its second layout, or part-way through the move there.
+## --layout: shows a map with a LayoutEvent in one of its arrangements (see _hold_layout).
 func _pose_layout() -> void:
-	_prefix += "_layout%s" % str(_layout).replace(".", "")
+	_prefix += "_layout%s" % _layout.replace(",", "").replace(".", "").replace(":", "_")
 	_wait = 12   # (a few frames for the parts to get there)
 
 
-## Every frame: holds the layout event at the moment asked for (its own clock would run on).
+## Every frame: holds the layout event at the moment asked for (its own clock would run
+## on). --layout=SET,KIND,VARIANT,LOOK is that arrangement at rest (SET 1.. is which
+## islands are up, KIND 0 Swap, 1 Drift, 2 Close, 3 Far, 4 Split); add :SET,KIND,VARIANT,LOOK:P
+## for a move from it to another, P of the way (0..1) through; add :warn for the end of
+## the warning before that move.
 func _hold_layout() -> void:
 	for node in _map.find_children("*", "", true, false):
 		var event := node as LayoutEvent
 		if event == null:
 			continue
 		event.set_physics_process(false)
-		event.state = 0 if _layout < 1.0 else 1
-		event.running = _layout < 1.0
-		event.elapsed = event.hold_time + event.windup_time + _layout * event.move_time if _layout < 1.0 else 0.0
+		var parts := _layout.split(":")
+		var a := _config(parts[0])
+		var b := _config(parts[1]) if parts.size() > 1 else a
+		event.state = a | (b << LayoutEvent.BITS)
+		event.running = parts.size() > 2
+		event.elapsed = 0.0
+		if parts.size() > 2:
+			event.elapsed = event.hold_time + event.windup_time * 0.98 if parts[2] == "warn" else event.hold_time + event.windup_time + float(parts[2]) * event.move_time
 		event._place()
+
+
+func _config(text: String) -> int:
+	var n := text.split(",")
+	return LayoutEvent.pack(int(n[0]), int(n[1]) if n.size() > 1 else 0, int(n[2]) if n.size() > 2 else 0, int(n[3]) if n.size() > 3 else 0)
 
 
 func _name(i: int) -> String:
