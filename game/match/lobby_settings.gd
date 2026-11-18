@@ -6,8 +6,9 @@ extends RefCounted
 ## who join later too) the same way; the host enforces them.
 ##
 ## Today: which weapons are allowed in a shoot-out ("weapons"), which mobility tools
-## are allowed in any fight ("mobility") and how many players the lobby takes
-## ("max_players").
+## are allowed in any fight ("mobility"), how many players the lobby takes
+## ("max_players"), and the Killcam mode's points to win and time limit
+## ("killcam_points", "killcam_minutes"; see KillcamMode).
 ##
 ## To add a setting: give it a key and a default in DEFAULTS, make clean() keep only
 ## sensible values for it, put its rules here, and add a control for the host in the
@@ -19,7 +20,10 @@ extends RefCounted
 ## mobility: the ids (from Mobility) a player may pick; [] means every tool. One id is
 ##   the same tool for everyone.
 ## max_players: how many players the online lobby takes, MIN_PLAYERS to MAX_PLAYERS.
-const DEFAULTS := {"weapons": [], "mobility": [], "max_players": 16}
+## killcam_points, killcam_minutes: Killcam mode: first to this many points, or the most
+##   after this many minutes.
+const DEFAULTS := {"weapons": [], "mobility": [], "max_players": 16,
+	"killcam_points": KillcamMode.POINTS_TO_WIN, "killcam_minutes": KillcamMode.MINUTES}
 const MIN_PLAYERS := 2
 const MAX_PLAYERS := 16   ## the same as Net.MAX_PLAYERS (Net builds its settings with clean(), before it is there to ask)
 
@@ -34,6 +38,8 @@ static func clean(settings: Dictionary) -> Dictionary:
 	s["weapons"] = normalized_weapons(s.get("weapons", []))
 	s["max_players"] = clampi(int(s.get("max_players", MAX_PLAYERS)), MIN_PLAYERS, MAX_PLAYERS)
 	s["mobility"] = normalized_mobility(s.get("mobility", []))
+	s["killcam_points"] = KillcamMode.clean_points(s.get("killcam_points"))
+	s["killcam_minutes"] = KillcamMode.clean_minutes(s.get("killcam_minutes"))
 	return s
 
 
