@@ -63,6 +63,12 @@ they play out as fast as the machine allows instead of in real time. Their logs 
 Quick checks:
 
 - movement (`tests/movement_test.gd`): speeds, stopping, jump height, momentum in the air;
+- movement variants (`tests/movement_variant_test.gd`): the A/B movement switch (see
+  `MovementTuning.VARIANTS`): classic is unchanged, every player gets their own copy, and
+  Practice and Vs Bots start you and every bot on the variant picked;
+- Variant B movement (`tests/movement_b_test.gd`): 15% slower running with the same jump,
+  legs tucked in the air, Space for boots and the jetpack, Ctrl dives, back-slides and
+  crouches, the wall sit, and classic still flipping;
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
@@ -283,6 +289,36 @@ freezing bots, and an FPS readout. It lives in `game/dev/debug_menu.gd`; the swi
 are in `game/dev/cheats.gd`, whose checks all answer "off" in an online match, so a new
 cheat should go through one of them.
 
+## Measuring performance
+
+Settings → Graphics → **Run benchmark** (or `godot --path . -- --benchmark`, which quits
+when done and prints `BENCHMARK_REPORT <path>`) flies the same path over Cirrus, Castle
+and Halcyon and writes a report and a per-frame CSV to `user://benchmarks`
+(`%APPDATA%\Godot\app_userdata\Jumpy Shooty\benchmarks`). The code is
+`game/core/benchmark.gd`. Keep `Benchmark.MAPS` and the path timings as they are, so
+runs from different days and PCs compare; change them only on purpose and say so in
+the commit.
+
+How to use it to choose what to optimize:
+
+- Run it in a window (not headless), twice. Runs agree within about half a millisecond
+  on the same PC; a single run after a change to shaders or materials may pay for
+  compiling them, even with the warm-up.
+- Read **Limited by** first. **GPU**: make the drawing smaller (fewer draw calls, fewer
+  lights casting shadows, less transparency, lower MSAA; on a map with movers every
+  block kind on every MapMover is its own draw call). **CPU**: look at the CPU split
+  under each map (drawing set-up vs physics), then run the game with the Godot editor's
+  Profiler for scripts.
+- The **Slowest part** line names the view to look at. A spawn stop is spawn point N
+  in the map's list (spread evenly through it); the Overview circles the spawn
+  points' middle. `tools/map_preview.sh` can render the same view to look at.
+- Change one thing, run it again, and compare the two reports. Check a big win in an
+  exported build too: the editor's debug build runs scripts slower.
+
+The benchmark measures drawing only. A match also has players, bots, bullets and the
+network; for that, play Vs Bots with the debug menu's FPS readout (F1) and use the
+editor's Profiler and Visual Profiler (Debugger panel).
+
 ## Developer command-line options
 
 Pass these after `--`, for example `godot --path . -- --practice`. The full list is at the
@@ -291,6 +327,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
+| `--benchmark` | Run the graphics benchmark (see Measuring performance), print where the report went, and quit |
 | `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`, `empyrean`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |

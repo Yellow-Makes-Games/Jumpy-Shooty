@@ -107,6 +107,27 @@ func _show_tab(i: int) -> void:
 			UiKit.section(_page, "Effects")
 			_option("Knocked-out robots", Settings.GORE, Settings.gore, func(v): Settings.gore = v)
 			UiKit.label(_page, "A knocked-out robot falls as a ragdoll, and one that is blown up or hit far harder than it needed bursts into pieces. Either burns away after a few seconds.", true, 15)
+			_build_benchmark()
+
+
+## Graphics tab: the benchmark (see Benchmark). Menus only: it leaves the match screen.
+func _build_benchmark() -> void:
+	UiKit.section(_page, "Benchmark")
+	UiKit.label(_page, "Flies a camera over %s for about %d seconds each and times every frame, at your window size and settings (vsync and the frame-rate cap are off while it runs). It saves a report you can open afterwards. Esc stops it." % [
+		", ".join(Benchmark.MAPS.map(Maps.name_of)), roundi(Benchmark.WARMUP + Benchmark.ORBIT_TIME + Benchmark.STOPS * Benchmark.STOP_TIME)], true, 15)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	_page.add_child(row)
+	var run := UiKit.button(row, "Run benchmark", func():
+		_on_back()
+		Game.start_benchmark())
+	run.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiKit.button(row, "Open reports folder", func():
+		DirAccess.make_dir_recursive_absolute(Benchmark.FOLDER)
+		OS.shell_open(Benchmark.folder()))
+	if Net.in_match:
+		run.disabled = true
+		UiKit.label(_page, "Leave the match to run the benchmark.", true, 15)
 
 
 func _on_back() -> void:

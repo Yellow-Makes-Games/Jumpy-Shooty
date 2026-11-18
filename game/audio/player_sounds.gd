@@ -110,7 +110,7 @@ func _reset_movement(a: RobotAnimInput) -> void:
 func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 	var state: int = a.state
 	var grounded_states := [S.GROUND, S.CROUCH, S.SLIDE, S.ROLL, S.BELLY_SLIDE]
-	var was_air: bool = not (_state in grounded_states) and _state != S.MANTLE and _state != S.WALL_RUN
+	var was_air: bool = not (_state in grounded_states) and _state not in [S.MANTLE, S.WALL_RUN, S.WALL_SIT]
 	if state in [S.AIR, S.DIVE, S.FLIP, S.GRAPPLE]:
 		_fall = minf(_fall, a.velocity.y)
 	elif state == S.GLIDE:
@@ -134,7 +134,7 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 		# Landing (a slide, roll or belly slide out of the air brings its own sound).
 		if was_air and state in [S.GROUND, S.CROUCH]:
 			_land()
-		if state in grounded_states or state == S.WALL_RUN:
+		if state in grounded_states or state == S.WALL_RUN or state == S.WALL_SIT:
 			_fall = 0.0
 	if a.wall_jumps() != _wall_jumps:
 		_play("wall_jump")

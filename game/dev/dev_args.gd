@@ -25,11 +25,13 @@ extends Node
 ## --play-at=SEC,SEC    Spectator: press Play at these seconds after the lobby opens (tests).
 ## --mobility=ID        Take this mobility tool (grapple, portal, blink) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
+## --movement=ID        Host / Practice / Vs Bots: the movement variant everyone plays with (classic, b; see MovementTuning.VARIANTS).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
 ## --unlock-all        Nothing in the Character Creator is locked behind an achievement (see Achievements).
 ## --spectate          Watch instead of play: --join joins as a spectator; with --host or --bot, you spectate.
 ## --practice           Skip the menus and drop into the arena alone.
+## --benchmark          Run the graphics benchmark (see Benchmark), print where the report went, and quit.
 ## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
 ##                      --map=random: a random map, picked as the match starts (from --map-pool, if given).
@@ -89,6 +91,7 @@ var player_name := ""
 var port := 0
 var autostart := 0
 var practice := false
+var benchmark := false
 var spectate := false
 var unlock_all := false
 var character := ""
@@ -115,6 +118,7 @@ var map_pool: Array = []   ## --map-pool (see LobbySettings.pool_for)
 var song := ""             ## --song
 var song_at := -1.0        ## --song-at (when)
 var song_later := ""       ## --song-at (which)
+var movement := ""         ## --movement (see MovementTuning.VARIANTS; "" keeps the menu's choice)
 var race := false
 var game := ""   ## --game=dm: a Deathmatch (on an arena map)
 var autopilot := false
@@ -175,6 +179,7 @@ func _ready() -> void:
 			"--port": port = int(value)
 			"--autostart": autostart = int(value)
 			"--practice": practice = true
+			"--benchmark": benchmark = true
 			"--spectate": spectate = true
 			"--unlock-all": unlock_all = true
 			"--character":
@@ -239,6 +244,11 @@ func _ready() -> void:
 					else:
 						push_warning("Unknown map: %s (maps: %s)" % [m, ", ".join(Maps.ids())])
 			"--song": song = value
+			"--movement":
+				if value in MovementTuning.VARIANTS:
+					movement = value
+				else:
+					push_warning("Unknown movement variant: %s (variants: %s)" % [value, ", ".join(MovementTuning.VARIANTS)])
 			"--song-at":
 				song_at = float(value.get_slice(":", 0))
 				song_later = value.substr(value.find(":") + 1)
