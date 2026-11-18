@@ -27,9 +27,11 @@ import animations as A
 from weapons import SUPPORT
 
 LONG = ("shotgun", "rifle", "sniper", "break_action", "smg", "burst_rifle", "lmg", "lever_action",
-        "bolt_action", "railgun", "rocket_launcher", "grenade_launcher")
+        "bolt_action", "railgun", "rocket_launcher", "grenade_launcher",
+        "auto_shotgun", "slug_shotgun", "air_cannon", "minigun", "battle_rifle", "laser_rifle", "nail_gun",
+        "crossbow", "anti_materiel", "harpoon_gun", "mortar", "plasma_cannon")
 # Sidearms held like the pistol: they keep its poses but have their own reloads.
-SIDEARMS = ("revolver", "machine_pistol")
+SIDEARMS = ("revolver", "machine_pistol", "derringer", "flare_gun", "plasma_pistol")
 
 # How each long gun is held, reloaded and worked after a shot.
 #   hold: whose hold it copies; reload: mag (drop the magazine, with "handle": charge or
@@ -51,6 +53,21 @@ SPEC = {
     "railgun": {"hold": "sniper", "reload": "cell", "fire": "vent", "mag_hold": (0.0, -0.005, 0.105)},
     "rocket_launcher": {"hold": "rocket_launcher", "reload": "rocket"},
     "grenade_launcher": {"hold": "shotgun", "reload": "drum"},
+    # The third batch (each copies a hold and a way of reloading from the guns above)
+    "auto_shotgun": {"hold": "shotgun", "reload": "mag", "handle": "charge", "handle_at": (-0.032, 0.07, -0.10),
+                     "mag_hold": (0.0, -0.07, -0.12)},
+    "slug_shotgun": {"hold": "shotgun", "reload": "shell", "fire": "pump"},
+    "air_cannon": {"hold": "shotgun", "reload": "cell", "mag_hold": (0.0, 0.0, -0.16)},
+    "minigun": {"hold": "rifle", "reload": "cover", "mag_hold": (0.0, -0.05, -0.12)},
+    "battle_rifle": {"hold": "rifle", "reload": "mag", "handle": "charge", "handle_at": (-0.035, 0.07, -0.12)},
+    "laser_rifle": {"hold": "rifle", "reload": "cell", "mag_hold": (0.0, -0.005, 0.105)},
+    "nail_gun": {"hold": "rifle", "reload": "mag", "mag_hold": (0.0, -0.035, -0.17)},
+    "crossbow": {"hold": "rifle", "reload": "top"},
+    "anti_materiel": {"hold": "sniper", "reload": "mag", "handle": "bolt", "fire": "bolt", "bolt": (-0.092, 0.065, -0.02),
+                      "mag_hold": (0.0, -0.03, -0.12)},
+    "harpoon_gun": {"hold": "rifle", "reload": "rocket", "grab": (0.0, 0.065, -0.45)},
+    "mortar": {"hold": "rocket_launcher", "reload": "rocket", "grab": (0.0, 0.115, -0.45)},
+    "plasma_cannon": {"hold": "shotgun", "reload": "cell", "mag_hold": (0.0, -0.005, 0.11)},
 }
 
 # Third person, model space (the robot stands at the origin, facing -Z): where the
@@ -79,9 +96,13 @@ EYE_Y = A.EYE[1]
 # Reload lengths match WeaponData (the shotgun's is one shell; it loops).
 RELOAD = {"shotgun": 0.5, "rifle": 1.9, "sniper": 2.4, "break_action": 1.7, "smg": 1.6, "burst_rifle": 2.0,
           "lmg": 3.6, "lever_action": 0.45, "bolt_action": 0.5, "railgun": 2.6, "rocket_launcher": 1.5,
-          "grenade_launcher": 0.55, "revolver": 2.0, "machine_pistol": 1.4}
-FIRE = {"shotgun": 0.6, "sniper": 1.1, "lever_action": 0.66, "bolt_action": 0.95, "railgun": 0.5}
-LOOPED = ("shotgun", "lever_action", "bolt_action", "grenade_launcher")   # a round at a time
+          "grenade_launcher": 0.55, "revolver": 2.0, "machine_pistol": 1.4,
+          "derringer": 1.4, "flare_gun": 1.1, "plasma_pistol": 2.0, "auto_shotgun": 2.6, "slug_shotgun": 0.55,
+          "air_cannon": 1.8, "minigun": 4.5, "battle_rifle": 2.1, "laser_rifle": 2.5, "nail_gun": 2.0, "crossbow": 1.3,
+          "anti_materiel": 3.2, "harpoon_gun": 1.2, "mortar": 1.8, "plasma_cannon": 2.4}
+FIRE = {"shotgun": 0.6, "sniper": 1.1, "lever_action": 0.66, "bolt_action": 0.95, "railgun": 0.5,
+        "slug_shotgun": 0.7, "anti_materiel": 1.8}
+LOOPED = ("shotgun", "lever_action", "bolt_action", "grenade_launcher", "slug_shotgun")   # a round at a time
 POLE_R = (0.7, -1.0, 0.1)
 POLE_L = (-0.6, -1.0, 0.2)
 
@@ -273,7 +294,7 @@ def _cover_reload(gun, fp, rest, tilt, away):
         k(3.35, rest, support(gun)),
         k(3.60, rest, support(gun)),
     ]
-    return lambda t: keyed(t, keys)
+    return _scaled(keys, RELOAD[gun])
 
 
 def _gate_reload(gun, fp, rest, tilt, away):
@@ -323,12 +344,12 @@ def _cell_reload(gun, fp, rest, tilt, away):
         k(2.30, rest, support(gun)),
         k(2.60, rest, support(gun)),
     ]
-    return lambda t: keyed(t, keys)
+    return _scaled(keys, RELOAD[gun])
 
 
 def _rocket_reload(gun, fp, rest, tilt, away):
     """Rocket launcher: a new rocket from the hip, up behind the shoulder and slid into the back of the tube."""
-    grab = (0.0, 0.115, -0.36)        # a point on the rocket's body
+    grab = SPEC[gun].get("grab", (0.0, 0.115, -0.36))   # a point on the rocket's body
     low = (-0.04, -0.36, 0.10)
     behind = (0.0, -0.02, 0.22)
     lift = held(gun, fp, offset=(0.0, 0.02, 0.0), hand=(96.0, 6.0, 0.0), cant=12.0)
@@ -343,7 +364,7 @@ def _rocket_reload(gun, fp, rest, tilt, away):
         k(1.25, rest, support(gun), "smooth"),
         k(1.50, rest, support(gun)),
     ]
-    return lambda t: keyed(t, keys)
+    return _scaled(keys, RELOAD[gun])
 
 
 def _drum_reload(gun, fp, rest, tilt, away):

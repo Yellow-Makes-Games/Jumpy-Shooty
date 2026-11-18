@@ -88,7 +88,13 @@ MUZZLES = {"shotgun": (0.0, 0.070, -0.60), "rifle": (0.0, 0.052, -0.565), "snipe
            "break_action": (0.0, 0.066, -0.66), "smg": (0.0, 0.052, -0.47), "burst_rifle": (0.0, 0.056, -0.62),
            "lmg": (0.0, 0.060, -0.80), "lever_action": (0.0, 0.066, -0.78), "bolt_action": (0.0, 0.060, -0.80),
            "railgun": (0.0, 0.062, -0.80), "rocket_launcher": (0.0, 0.115, -0.70),
-           "grenade_launcher": (0.0, 0.070, -0.52), "akimbo": (0.0, 0.064, -0.20)}
+           "grenade_launcher": (0.0, 0.070, -0.52), "akimbo": (0.0, 0.064, -0.20),
+           # The third batch
+           "derringer": (0.0, 0.076, -0.135), "flare_gun": (0.0, 0.062, -0.237), "plasma_pistol": (0.0, 0.062, -0.222),
+           "auto_shotgun": (0.0, 0.066, -0.64), "slug_shotgun": (0.0, 0.072, -0.66), "air_cannon": (0.0, 0.075, -0.62),
+           "minigun": (0.0, 0.050, -0.86), "battle_rifle": (0.0, 0.056, -0.72), "laser_rifle": (0.0, 0.060, -0.665),
+           "nail_gun": (0.0, 0.050, -0.50), "crossbow": (0.0, 0.076, -0.56), "anti_materiel": (0.0, 0.060, -1.12),
+           "harpoon_gun": (0.0, 0.065, -0.86), "mortar": (0.0, 0.115, -0.62), "plasma_cannon": (0.0, 0.070, -0.62)}
 
 
 def _with_muzzles(skel_spec):

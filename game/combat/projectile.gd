@@ -1,6 +1,6 @@
 class_name Projectile
 extends Node3D
-## A rocket or grenade in flight, as everyone sees it. The host follows its own copy
+## A rocket, grenade, flare, mortar shell, ball of plasma, nail or crossbow bolt in flight, as everyone sees it. The host follows its own copy
 ## of the same flight in Match and decides where it blows up; this one is the look:
 ## a body with a glowing tail and a trail of smoke, flying the same path (the same
 ## start, speed and drop), drawn out of the muzzle and onto the real path in a moment.
@@ -29,56 +29,127 @@ static func make(projectile_id: int, data: WeaponData, origin: Vector3, directio
 
 
 func _build(color: Color) -> void:
-	var rocket := weapon.projectile_gravity <= 0.0
-	var body := MeshInstance3D.new()
-	if rocket:
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.012
-		cyl.bottom_radius = 0.045
-		cyl.height = 0.42
-		cyl.radial_segments = 8
-		body.mesh = cyl
-		body.rotation = Vector3(-PI / 2.0, 0.0, 0.0)   # the nose along -Z
-	else:
-		var ball := SphereMesh.new()
-		ball.radius = 0.07
-		ball.height = 0.14
-		ball.radial_segments = 10
-		ball.rings = 5
-		body.mesh = ball
+	match weapon.look():
+		"rocket":
+			_rocket(color)
+		"flare":
+			_glowing(0.06, Color(1.0, 0.35, 0.2), 6.0, Color(1.0, 0.4, 0.25), 3.0, 9.0)
+		"orb":
+			_glowing(0.16, Color(0.45, 0.7, 1.0), 4.0, Color(0.5, 0.75, 1.0), 2.0, 5.0)
+		"nail":
+			_dart(0.006, 0.16, color, 0.0)
+		"bolt":
+			_dart(0.012, 0.55, color, 0.07)
+		"shell":
+			_shell(color, 0.11)
+		_:
+			_shell(color, 0.07)
+
+
+func _metal(color: Color, glow: float = 0.6) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.albedo_color = Color(0.3, 0.32, 0.35)
 	m.metallic = 0.6
 	m.roughness = 0.4
-	m.emission_enabled = true
+	m.emission_enabled = glow > 0.0
 	m.emission = color
-	m.emission_energy_multiplier = 0.6
-	body.material_override = m
-	add_child(body)
+	m.emission_energy_multiplier = glow
+	return m
+
+
+func _light_ball(radius: float, color: Color, energy: float, at: Vector3 = Vector3.ZERO) -> void:
 	var glow := MeshInstance3D.new()
 	var s := SphereMesh.new()
-	s.radius = 0.09 if rocket else 0.05
-	s.height = s.radius * 2.0
+	s.radius = radius
+	s.height = radius * 2.0
 	s.radial_segments = 8
 	s.rings = 4
 	glow.mesh = s
 	var g := StandardMaterial3D.new()
 	g.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	g.albedo_color = Color(1.0, 0.6, 0.2) if rocket else color
+	g.albedo_color = color
 	g.emission_enabled = true
-	g.emission = g.albedo_color
-	g.emission_energy_multiplier = 4.0
+	g.emission = color
+	g.emission_energy_multiplier = energy
 	glow.material_override = g
-	glow.position = Vector3(0, 0, 0.24 if rocket else 0.0)
+	glow.position = at
 	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(glow)
-	if rocket:
-		var light := OmniLight3D.new()
-		light.light_color = Color(1.0, 0.6, 0.25)
-		light.light_energy = 1.6
-		light.omni_range = 4.0
-		light.position = glow.position
-		add_child(light)
+
+
+func _lamp(color: Color, energy: float, reach: float, at: Vector3 = Vector3.ZERO) -> void:
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = energy
+	light.omni_range = reach
+	light.position = at
+	add_child(light)
+
+
+## A rocket: a tapered body with a glowing tail.
+func _rocket(color: Color) -> void:
+	var body := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.012
+	cyl.bottom_radius = 0.045
+	cyl.height = 0.42
+	cyl.radial_segments = 8
+	body.mesh = cyl
+	body.rotation = Vector3(-PI / 2.0, 0.0, 0.0)   # the nose along -Z
+	body.material_override = _metal(color)
+	add_child(body)
+	_light_ball(0.09, Color(1.0, 0.6, 0.2), 4.0, Vector3(0, 0, 0.24))
+	_lamp(Color(1.0, 0.6, 0.25), 1.6, 4.0, Vector3(0, 0, 0.24))
+
+
+## A grenade (or a mortar shell): a ball in the player's colour.
+func _shell(color: Color, radius: float) -> void:
+	var body := MeshInstance3D.new()
+	var ball := SphereMesh.new()
+	ball.radius = radius
+	ball.height = radius * 2.0
+	ball.radial_segments = 10
+	ball.rings = 5
+	body.mesh = ball
+	body.material_override = _metal(color)
+	add_child(body)
+	_light_ball(radius * 0.7, color, 4.0)
+
+
+## A flare or a ball of plasma: all light, and it lights up what it passes.
+func _glowing(radius: float, color: Color, energy: float, light: Color, light_energy: float, reach: float) -> void:
+	_light_ball(radius, color, energy)
+	_light_ball(radius * 1.8, Color(color, 0.35), energy * 0.5)
+	_lamp(light, light_energy, reach)
+
+
+## A nail or a crossbow bolt: a thin shaft along -Z, fletched (a bolt) in the player's colour.
+func _dart(radius: float, length: float, color: Color, fletch: float) -> void:
+	var body := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = radius * 0.3
+	cyl.bottom_radius = radius
+	cyl.height = length
+	cyl.radial_segments = 6
+	body.mesh = cyl
+	body.rotation = Vector3(-PI / 2.0, 0.0, 0.0)
+	body.material_override = _metal(color, 0.2)
+	add_child(body)
+	if fletch > 0.0:
+		for i in 3:
+			var fin := MeshInstance3D.new()
+			var b := BoxMesh.new()
+			b.size = Vector3(0.002, fletch * 0.6, fletch)
+			fin.mesh = b
+			var m := StandardMaterial3D.new()
+			m.albedo_color = color
+			m.emission_enabled = true
+			m.emission = color
+			m.emission_energy_multiplier = 0.8
+			fin.material_override = m
+			fin.rotation = Vector3(0, 0, TAU * i / 3.0)
+			fin.position = Vector3(0, 0, length * 0.5 - fletch * 0.5)
+			add_child(fin)
 
 
 ## Where the host's copy would be after `t` seconds (the same sum, step by step).
@@ -91,7 +162,7 @@ func _physics_process(delta: float) -> void:
 	if _vel.length_squared() > 0.01:
 		look_at(global_position + _vel, Vector3.UP if absf(_vel.normalized().y) < 0.99 else Vector3.RIGHT)
 	_smoke_t -= delta
-	if _smoke_t <= 0.0 and DisplayServer.get_name() != "headless":
+	if _smoke_t <= 0.0 and DisplayServer.get_name() != "headless" and weapon.explosive and weapon.look() != "orb":
 		_smoke_t = 0.025 if weapon.projectile_gravity <= 0.0 else 0.05
 		_puff()
 	if _t > weapon.fuse + 1.0:

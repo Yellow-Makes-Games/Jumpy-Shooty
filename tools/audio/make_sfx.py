@@ -272,7 +272,32 @@ GUNS = {
     "akimbo": dict(crack=(1850, 0.75, 0.01), blast=(2600, 0.019, 0.95), boom=(0.06, 0.55),
                    thump=(140, 54, 0.045, 0.65), mech=([1040, 1720, 2600], 0.009), slide_at=0.026,
                    tail=(0.7, 0.42, 2250), drive=2.7),
+    # The third batch
+    "derringer": dict(crack=(1600, 0.65, 0.014), blast=(2200, 0.03, 1.15), boom=(0.1, 0.65),
+                      thump=(125, 46, 0.06, 0.7), mech=([900, 1500, 2300], 0.01), slide_at=None,
+                      tail=(0.9, 0.5, 2100), drive=3.1),
+    "auto_shotgun": dict(crack=(1300, 0.6, 0.018), blast=(1800, 0.04, 1.25), boom=(0.13, 0.55),
+                         thump=(105, 44, 0.07, 0.6), mech=([760, 1260, 1980], 0.012), slide_at=0.03,
+                         tail=(1.0, 0.55, 1850), drive=3.1),
+    "slug_shotgun": dict(crack=(1400, 0.6, 0.02), blast=(1700, 0.05, 1.35), boom=(0.17, 0.65),
+                         thump=(95, 40, 0.09, 0.75), mech=([680, 1150, 1830], 0.014), slide_at=None,
+                         tail=(1.3, 0.62, 1800), drive=3.3),
+    "minigun": dict(crack=(2200, 0.8, 0.007), blast=(2900, 0.014, 0.85), boom=(0.04, 0.5),
+                    thump=(150, 62, 0.03, 0.5), mech=([1200, 1900, 2900], 0.006), slide_at=None,
+                    tail=(0.5, 0.32, 2300), drive=2.6),
+    "battle_rifle": dict(crack=(1800, 0.65, 0.013), blast=(2300, 0.03, 1.15), boom=(0.1, 0.75),
+                         thump=(110, 42, 0.06, 0.8), mech=([820, 1360, 2120], 0.011), slide_at=0.024,
+                         tail=(1.0, 0.5, 2000), drive=3.2),
+    "anti_materiel": dict(crack=(1700, 0.55, 0.022), blast=(1600, 0.06, 1.5), boom=(0.28, 0.75),
+                          thump=(80, 30, 0.14, 0.9), mech=([560, 960, 1540], 0.02), slide_at=None,
+                          tail=(2.4, 0.8, 1700), drive=3.6),
 }
+# The order the equip sounds were made in (each gun's seed is its place in it): new guns go on the end.
+EQUIP_ORDER = ["pistol", "rifle", "shotgun", "sniper", "revolver", "machine_pistol", "break_action", "smg",
+               "burst_rifle", "lmg", "lever_action", "bolt_action", "railgun", "rocket_launcher", "grenade_launcher",
+               "akimbo", "derringer", "auto_shotgun", "slug_shotgun", "minigun", "battle_rifle", "anti_materiel",
+               "flare_gun", "plasma_pistol", "air_cannon", "laser_rifle", "nail_gun", "crossbow", "harpoon_gun",
+               "mortar", "plasma_cannon"]
 
 
 def gun_dry(rng, g):
@@ -368,7 +393,119 @@ def grenade_fire(stereo=False, seed=0):
     return finish(np.stack([fit(dry, m) + fit(tail, m), fit(dry, m) + fit(tail2, m)], axis=1))
 
 
-SPECIAL_FIRE = {"railgun": railgun_fire, "rocket_launcher": rocket_fire, "grenade_launcher": grenade_fire}
+def _stereo(dry, tail_of, seed):
+    """A dry shot with its room tail, in mono or (first person) with two different tails."""
+    def make(stereo):
+        tail = tail_of(np.random.default_rng(seed))
+        if not stereo:
+            return finish(mix(dry, tail))
+        tail2 = tail_of(np.random.default_rng(seed + 50))
+        m = max(len(dry), len(tail), len(tail2))
+        return finish(np.stack([fit(dry, m) + fit(tail, m), fit(dry, m) + fit(tail2, m)], axis=1))
+    return make
+
+
+def _room(dry, rt, bright, gain):
+    return lambda rng: fftconv(lp(dry, bright), room_ir(rng, rt, bright)) * gain
+
+
+def flare_fire(stereo=False, seed=0):
+    """The flare gun: a hollow pop and the flare fizzing away."""
+    rng = np.random.default_rng(5100 + seed)
+    pop = sat(sine_sweep(0.3, 240, 70, 0.025) * env(0.3, 0.05, 0.001) * 1.4, 1.8)
+    fizz = hp(noise(rng, 0.9), 2500) * bell_env(0.9, 0.08, 1.2) * 0.35
+    crackle = bp(noise(rng, 0.9), 3200, 1.5) * (rng.uniform(0, 1, n(0.9)) > 0.92) * bell_env(0.9, 0.1, 1.0) * 0.6
+    dry = mix(click(rng, 0.008, 0.0005, 2500) * 0.5, pop, fizz, crackle, (metal_clack(rng, 1.1, 0.6, 0.4) * 0.3, 0.0))
+    return _stereo(dry, _room(dry, 0.9, 2400, 0.35), 5150 + seed)(stereo)
+
+
+def plasma_pistol_fire(stereo=False, seed=0):
+    """The plasma pistol: a bright, falling "pew" with a crackle of static."""
+    rng = np.random.default_rng(5200 + seed)
+    pew = sat(sine_sweep(0.25, 2400, 300, 0.035) * env(0.25, 0.06, 0.0008) * 0.9, 1.6)
+    body = glide(0.18, 900, 220, "saw") * env(0.18, 0.05) * 0.25
+    zap = bp(noise(rng, 0.2), 4200, 1.2) * env(0.2, 0.015, 0.0002) * 0.5
+    dry = lp(mix(pew, body, zap, sine_sweep(0.2, 160, 60, 0.02) * env(0.2, 0.04) * 0.5), 11000)
+    return _stereo(dry, _room(dry, 0.7, 3000, 0.3), 5250 + seed)(stereo)
+
+
+def laser_fire(stereo=False, seed=0):
+    """The laser rifle: a short, buzzing burst of the beam (it fires 20 a second)."""
+    rng = np.random.default_rng(5300 + seed)
+    buzz = sat(glide(0.09, 1400, 1150, "saw") * bell_env(0.09, 0.15, 1.0) * 0.5, 2.2)
+    tone = glide(0.09, 3200, 2900) * bell_env(0.09, 0.2, 1.2) * 0.25
+    hiss = hp(noise(rng, 0.09), 5000) * bell_env(0.09, 0.2, 1.4) * 0.15
+    dry = lp(mix(buzz, tone, hiss), 10000)
+    return _stereo(dry, _room(dry, 0.4, 3500, 0.2), 5350 + seed)(stereo)
+
+
+def air_fire(stereo=False, seed=0):
+    """The air cannon: a deep, chesty whoomph of air and a valve's hiss."""
+    rng = np.random.default_rng(5400 + seed)
+    whoomph = lp(noise(rng, 0.6), 500) * env(0.6, 0.09, 0.004) * 1.6
+    thump = sat(sine_sweep(0.5, 110, 38, 0.05) * env(0.5, 0.12, 0.003) * 1.6, 1.6)
+    rush = sweep_bp(noise(rng, 0.6), 600, 2200, 0.9) * bell_env(0.6, 0.1, 1.4) * 0.6
+    hiss = hp(noise(rng, 0.5), 3500) * bell_env(0.5, 0.5, 1.5) * 0.25
+    dry = mix(whoomph, thump, rush, (hiss, 0.12), (metal_clack(rng, 0.7, 1.0, 0.8) * 0.4, 0.0))
+    return _stereo(dry, _room(dry, 1.0, 1800, 0.35), 5450 + seed)(stereo)
+
+
+def nail_fire(stereo=False, seed=0):
+    """The nail gun: a sharp pneumatic chunk and a puff of air."""
+    rng = np.random.default_rng(5500 + seed)
+    chunk = mix(metal_clack(rng, 1.3, 0.5, 0.5), (metal_clack(rng, 0.9, 0.6, 0.6) * 0.6, 0.012))
+    puff = hp(noise(rng, 0.12), 1800) * env(0.12, 0.02, 0.0004) * 0.7
+    thump = sine_sweep(0.15, 220, 90, 0.01) * env(0.15, 0.025) * 0.7
+    dry = mix(click(rng, 0.006, 0.0004, 3000) * 0.6, chunk, puff, thump)
+    return _stereo(dry, _room(dry, 0.5, 2600, 0.25), 5550 + seed)(stereo)
+
+
+def crossbow_fire(stereo=False, seed=0):
+    """The crossbow: the latch, the string's deep twang and the limbs' thrum."""
+    rng = np.random.default_rng(5600 + seed)
+    twang = modal(rng, 0.6, [140, 285, 430, 590], [0.12, 0.08, 0.05, 0.03], [0.6, 0.35, 0.2, 0.1], 0.02)
+    snap = bp(noise(rng, 0.1), 1800, 1.0) * env(0.1, 0.008, 0.0002) * 0.9
+    whoosh_ = sweep_bp(noise(rng, 0.25), 3000, 900, 1.4) * bell_env(0.25, 0.2, 1.4) * 0.3
+    dry = mix(metal_clack(rng, 1.0, 0.7, 0.5) * 0.6, (snap, 0.005), (sat(twang, 1.5), 0.005), (whoosh_, 0.01))
+    return _stereo(dry, _room(dry, 0.8, 2200, 0.3), 5650 + seed)(stereo)
+
+
+def harpoon_fire(stereo=False, seed=0):
+    """The harpoon gun: a gas thunk and the line whirring out after the harpoon."""
+    rng = np.random.default_rng(5700 + seed)
+    thunk = sat(sine_sweep(0.3, 200, 60, 0.02) * env(0.3, 0.06, 0.001) * 1.4, 1.8)
+    gas = hp(noise(rng, 0.4), 1500) * env(0.4, 0.06, 0.001) * 0.7
+    whir = bp(noise(rng, 0.7), 2400, 3.0) * (0.5 + 0.5 * np.sin(np.arange(n(0.7)) / SR * 2 * np.pi * 60)) * bell_env(0.7, 0.2, 1.2) * 0.4
+    dry = mix(metal_clack(rng, 0.8, 1.0, 0.8) * 0.5, thunk, gas, (whir, 0.04))
+    return _stereo(dry, _room(dry, 0.9, 2000, 0.3), 5750 + seed)(stereo)
+
+
+def mortar_fire(stereo=False, seed=0):
+    """The mortar: a huge, hollow "thoonk" from the tube."""
+    rng = np.random.default_rng(5800 + seed)
+    thoonk = sat(sine_sweep(0.6, 120, 40, 0.05) * env(0.6, 0.14, 0.002) * 2.0, 1.8)
+    puff = lp(noise(rng, 0.5), 700) * env(0.5, 0.08, 0.003) * 1.0
+    tube = modal(rng, 0.6, [210, 390, 640], [0.09, 0.06, 0.04], [0.35, 0.2, 0.1])
+    dry = mix(click(rng, 0.008, 0.0006, 1500) * 0.4, thoonk, puff, tube)
+    return _stereo(dry, _room(dry, 1.4, 1500, 0.4), 5850 + seed)(stereo)
+
+
+def plasma_cannon_fire(stereo=False, seed=0):
+    """The plasma cannon: a deep, wobbling "wub" and a rising crackle."""
+    rng = np.random.default_rng(5900 + seed)
+    t = np.arange(n(0.5)) / SR
+    wub = sat(np.sin(2 * np.pi * (90 * t + 40 * np.sin(2 * np.pi * 14 * t) / (2 * np.pi * 14))) * env(0.5, 0.12, 0.003) * 1.3, 2.0)
+    zap = sine_sweep(0.5, 600, 1800, 0.08) * bell_env(0.5, 0.1, 1.5) * 0.3
+    sparks = bp(noise(rng, 0.5), 3800, 1.2) * (rng.uniform(0, 1, n(0.5)) > 0.85) * bell_env(0.5, 0.15, 1.2) * 0.5
+    dry = lp(mix(wub, zap, sparks), 9000)
+    return _stereo(dry, _room(dry, 1.0, 2500, 0.35), 5950 + seed)(stereo)
+
+
+SPECIAL_FIRE = {"railgun": railgun_fire, "rocket_launcher": rocket_fire, "grenade_launcher": grenade_fire,
+                # The third batch
+                "flare_gun": flare_fire, "plasma_pistol": plasma_pistol_fire, "air_cannon": air_fire,
+                "laser_rifle": laser_fire, "nail_gun": nail_fire, "crossbow": crossbow_fire,
+                "harpoon_gun": harpoon_fire, "mortar": mortar_fire, "plasma_cannon": plasma_cannon_fire}
 
 
 def special_far(name):
@@ -481,9 +618,8 @@ def handling(name, rng):
 
 def equip(name):
     """Bringing the gun up (on spawn, or picking it in a menu): a whoosh and a latch."""
-    # (Akimbo was added later: it goes last, so the others keep their seeds and sounds.)
-    order = [g for g in GUNS if g != "akimbo"] + list(SPECIAL_FIRE) + ["akimbo"]
-    rng = np.random.default_rng(4000 + order.index(name))
+    # (Each gun keeps its seed: see EQUIP_ORDER.)
+    rng = np.random.default_rng(4000 + EQUIP_ORDER.index(name))
     whoosh = sweep_bp(noise(rng, 0.22), 500, 2200, 1.5) * bell_env(0.22, 0.55, 1.5) * 0.6
     parts = [whoosh, (metal_clack(rng, 1.0, 0.8, 0.6) * 0.8, 0.17)]
     if name == "pistol":
@@ -498,16 +634,23 @@ def equip(name):
                   (metal_slide(rng, 0.05, 2500, 1.5) * 0.7, 0.36), (metal_clack(rng, 0.95, 1.1, 1.0), 0.41)]
     elif name in ("revolver",):
         parts += [(metal_clack(rng, 1.4, 0.5, 0.2) * 0.8, 0.24), (metal_clack(rng, 1.1, 0.8, 0.5), 0.3)]
-    elif name in ("machine_pistol", "smg", "burst_rifle", "lmg"):
+    elif name in ("machine_pistol", "smg", "burst_rifle", "lmg", "battle_rifle", "nail_gun", "auto_shotgun"):
         parts += [(metal_slide(rng, 0.07, 2000, 1.6) * 0.7, 0.25), (metal_clack(rng, 0.8, 1.3, 1.3), 0.33)]
     elif name == "break_action":
         parts += [(metal_clack(rng, 0.65, 1.8, 1.8), 0.28)]
     elif name == "lever_action":
         parts += [(metal_slide(rng, 0.07, 1500, 1.5), 0.24), (metal_slide(rng, 0.06, 1900, 0.8) * 0.8, 0.36),
                   (metal_clack(rng, 0.8, 1.3, 1.2), 0.41)]
+    elif name in ("plasma_pistol", "laser_rifle", "plasma_cannon"):
+        parts += [(glide(0.4, 400, 2200) * bell_env(0.4, 0.85) * 0.25, 0.18), (metal_clack(rng, 1.1, 0.7, 0.5), 0.22)]
+    elif name == "minigun":
+        parts += [(glide(0.5, 120, 520, "saw") * bell_env(0.5, 0.5) * 0.2, 0.18), (metal_clack(rng, 0.6, 1.6, 1.6), 0.24)]
+    elif name == "slug_shotgun":
+        parts += [(metal_slide(rng, 0.08, 900, 2.2), 0.24), (metal_clack(rng, 0.7, 1.3, 1.2), 0.32),
+                  (metal_slide(rng, 0.06, 1500, 0.6) * 0.8, 0.40), (metal_clack(rng, 0.62, 1.6, 1.5), 0.46)]
     elif name == "railgun":
         parts += [(glide(0.5, 300, 2600) * bell_env(0.5, 0.85) * 0.3, 0.2), (metal_clack(rng, 0.9, 1.1, 1.0), 0.22)]
-    elif name in ("rocket_launcher", "grenade_launcher"):
+    elif name in ("rocket_launcher", "grenade_launcher", "mortar", "harpoon_gun", "air_cannon", "crossbow", "flare_gun"):
         parts += [(metal_clack(rng, 0.6, 1.6, 1.6), 0.22), (metal_clack(rng, 1.0, 0.8, 0.5) * 0.5, 0.3)]
     else:
         parts += [(metal_clack(rng, 1.2, 0.6, 0.3) * 0.7, 0.25), (metal_slide(rng, 0.1, 2300, 0.7), 0.3),
@@ -892,14 +1035,27 @@ def match_end():
 # ---------------------------------------------------------------------------
 # Melee: swings, blows, crashing into walls
 
-MELEE = ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat"]
+MELEE = ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
+         "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]
 
 
 def swing(name):
     """A blade or hammer cutting the air: a fast whoosh (deeper and longer for the hammer) and a servo."""
     rng = np.random.default_rng(9100 + MELEE.index(name))
-    if name == "brass_knuckles":
+    if name in ("brass_knuckles", "claws"):
+        if name == "claws":
+            return finish(mix(whoosh(rng, 0.15, 900, 4600, 2.0, 0.42), servo(rng, 0.09, 600, 1100, 0.16)))
         return finish(mix(whoosh(rng, 0.13, 600, 2800, 1.6, 0.4), servo(rng, 0.09, 600, 1100, 0.18)))
+    if name == "energy_sword":
+        hum = sat(glide(0.3, 110, 160, "saw") * bell_env(0.3, 0.5, 1.2) * 0.35, 2.0)
+        return finish(mix(whoosh(rng, 0.3, 700, 3200, 1.6, 0.5) * 0.8, hum, glide(0.3, 900, 1400) * bell_env(0.3, 0.5, 1.5) * 0.12))
+    if name == "scythe":
+        return finish(mix(whoosh(rng, 0.42, 400, 3000, 1.4, 0.6) * 1.1, servo(rng, 0.22, 300, 700, 0.16)))
+    if name in ("katana", "machete"):
+        return finish(mix(whoosh(rng, 0.2 if name == "katana" else 0.18, 800, 4000, 1.9, 0.48), servo(rng, 0.12, 450, 900, 0.13)))
+    if name in ("mace", "wrench"):
+        w = whoosh(rng, 0.32, 240, 1800, 1.1, 0.6) * 1.1
+        return finish(mix(servo(rng, 0.2, 260, 640, 0.2), w, lp(noise(rng, 0.32), 500) * bell_env(0.32, 0.6, 1.4) * 0.45))
     if name == "spear":
         return finish(mix(whoosh(rng, 0.22, 700, 3800, 2.2, 0.55) * 1.1, servo(rng, 0.14, 420, 900, 0.15)))
     if name == "axe":
@@ -1041,13 +1197,19 @@ def punch_hit(seed):
 def equip_melee(name):
     """Drawing a blade or hefting the hammer: a whoosh and a ring of steel (a clunk for the hammer)."""
     rng = np.random.default_rng(9500 + MELEE.index(name))
-    if name == "brass_knuckles":
+    if name == "energy_sword":   # the blade lighting up
+        return finish(mix(metal_clack(rng, 1.1, 0.6, 0.4) * 0.6, (glide(0.5, 200, 1100) * bell_env(0.5, 0.3) * 0.3, 0.03),
+                          (sat(glide(0.5, 90, 140, "saw") * bell_env(0.5, 0.6) * 0.25, 2.0), 0.05)))
+    if name in ("mace", "wrench"):
+        w = sweep_bp(noise(rng, 0.22), 400, 1800, 1.5) * bell_env(0.22, 0.55, 1.5) * 0.5
+        return finish(mix(w, (metal_clack(rng, 0.5 if name == "mace" else 0.8, 1.5, 1.4) * 0.9, 0.18)))
+    if name in ("brass_knuckles", "claws"):
         return finish(mix(metal_clack(rng, 1.2, 0.6, 0.3), (metal_clack(rng, 1.25, 0.6, 0.3) * 0.8, 0.07),
                           (servo(rng, 0.15, 500, 900, 0.15), 0.0)))
     if name in ("axe", "bat"):
         w = sweep_bp(noise(rng, 0.22), 400, 1800, 1.5) * bell_env(0.22, 0.55, 1.5) * 0.5
         return finish(mix(w, (metal_clack(rng, 0.55 if name == "axe" else 0.45, 1.5, 1.4) * 0.9, 0.18)))
-    draw = metal_slide(rng, 0.28 if name == "sword" else 0.16, 3200, 1.6) * 0.8
+    draw = metal_slide(rng, 0.28 if name in ("sword", "katana", "scythe") else 0.16, 3200, 1.6) * 0.8
     w = sweep_bp(noise(rng, 0.22), 500, 2200, 1.5) * bell_env(0.22, 0.55, 1.5) * 0.5
     if name == "hammer":
         return finish(mix(w, (metal_clack(rng, 0.5, 1.8, 1.6), 0.18), (metal_clack(rng, 0.7, 1.2, 0.8) * 0.5, 0.24)))
@@ -1260,9 +1422,18 @@ def recipes():
 
 
 def main():
-    only = sys.argv[1] if len(sys.argv) > 1 else ""
+    # python3 make_sfx.py [prefix] [--new]: every sound (whose name starts with the
+    # prefix), or with --new only the third batch of weapons' sounds.
+    args = [a for a in sys.argv[1:] if a != "--new"]
+    only = args[0] if args else ""
+    new = "--new" in sys.argv
+    batch = ("derringer", "flare_gun", "plasma_pistol", "auto_shotgun", "slug_shotgun", "air_cannon", "minigun",
+             "battle_rifle", "laser_rifle", "nail_gun", "crossbow", "anti_materiel", "harpoon_gun", "mortar",
+             "plasma_cannon", "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws")
     for name, make in recipes().items():
         if not name.startswith(only):
+            continue
+        if new and not any(name.endswith("_" + b) or name.endswith("_%s_fp" % b) for b in batch):
             continue
         x = make()
         if not np.all(np.isfinite(x)):
