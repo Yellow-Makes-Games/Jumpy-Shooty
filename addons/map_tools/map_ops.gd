@@ -104,7 +104,8 @@ static func top_level(nodes: Array) -> Array[Node3D]:
 		var inside := false
 		var p: Node = (n as Node).get_parent()
 		while p and not inside:
-			inside = p in nodes
+			for other in nodes:   # (not "p in nodes": a typed list refuses to be asked about a node of another type)
+				inside = inside or other == p
 			p = p.get_parent()
 		if not inside:
 			out.append(n)
@@ -412,3 +413,42 @@ static func missing_kinds(node: Node, palette: MapPalette) -> PackedStringArray:
 		if (palette == null or not palette.colors.has(b.kind)) and b.kind not in missing:
 			missing.append(b.kind)
 	return missing
+
+
+# ---------------------------------------------------------------------------
+# Picking
+
+## Where a ray first meets a box (`xf` unscaled, `half` its half size): [how far
+## along the ray, which of the box's own axes the face hit looks along (0 to 2), which
+## way (1 or -1)]. Empty if it misses, or starts inside the box.
+static func ray_box(origin: Vector3, dir: Vector3, xf: Transform3D, half: Vector3) -> Array:
+	var inv := xf.affine_inverse()
+	var o := inv * origin
+	var d := inv.basis * dir
+	var near := -INF
+	var far := INF
+	var axis := -1
+	var side := 1.0
+	for a in 3:
+		if absf(d[a]) < 1e-9:
+			if absf(o[a]) > half[a]:
+				return []
+			continue
+		var t1 := (-half[a] - o[a]) / d[a]
+		var t2 := (half[a] - o[a]) / d[a]
+		var s := -1.0
+		if t1 > t2:
+			var swap := t1
+			t1 = t2
+			t2 = swap
+			s = 1.0
+		if t1 > near:
+			near = t1
+			axis = a
+			side = s
+		far = minf(far, t2)
+		if near > far:
+			return []
+	if axis < 0 or near < 0.0:
+		return []
+	return [near, axis, side]

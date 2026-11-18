@@ -126,7 +126,7 @@ func _forward_3d_gui_input(camera: Camera3D, event: InputEvent) -> int:
 
 ## After the built-in box select: deselect what it added that can't be seen.
 func _drop_hidden(camera: Camera3D, rect: Rect2, additive: bool, before: Array[Node]) -> void:
-	if not is_instance_valid(camera):
+	if not is_instance_valid(camera) or _claimed():
 		return
 	var selection := EditorInterface.get_selection()
 	var now := selection.get_selected_nodes()
@@ -386,6 +386,8 @@ func _screen_point_in(camera: Camera3D, p: Vector3, rect: Rect2) -> bool:
 ## bounding boxes the ray went through, i.e. what the built-in pick may have
 ## chosen by mistake.
 func _settle(target: Node, candidates: Dictionary, additive: bool, before: Array[Node]) -> void:
+	if _claimed():
+		return
 	var selection := EditorInterface.get_selection()
 	var now := selection.get_selected_nodes()
 	# What the built-in pick chose: the node it selected, or for shift-click,
@@ -519,6 +521,12 @@ func _hit_distance(mi: MeshInstance3D, origin: Vector3, dir: Vector3) -> float:
 
 
 # --- Shared helpers ------------------------------------------------------------
+
+## The map tools plugin (addons/map_tools) used this click for one of its own tools
+## (drawing a block, cutting one, dragging one): leave the selection as it left it.
+## It notes the frame it used a click in; both plugins are handed every click.
+func _claimed() -> bool:
+	return absi(Engine.get_process_frames() - int(Engine.get_meta(&"map_tools_claimed", -10))) <= 1
 
 ## The editor viewport's 3D image is shrunk when Half Resolution is on; mouse
 ## positions are not.

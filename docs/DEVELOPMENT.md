@@ -363,9 +363,64 @@ block-out script starts over from the old Castle. The scene is edited by hand no
 
 **Editing.** Move, turn and duplicate (Ctrl+D) blocks like any node. To resize a block,
 drag one of the red handles on its faces: that face moves and the opposite one stays
-put. Sizes snap to 0.1 m, or whole metres while you hold Ctrl. You can also type the
+put. Sizes snap to the grid (see below), or whole metres while you hold Ctrl, and the
+face you drag also snaps flush to a nearby face of another block. You can also type the
 Size in the inspector, or use the scale tool (scale is folded into the size in the
 game). A block or group you hide with the eye icon is left out of the game.
+
+**The map tools.** While a map is open, the 3D editor's toolbar has a strip of tools
+for building with blocks, and there is a **Map** dock (bottom left). Every one of them
+makes ordinary MapBlocks and is one step of undo.
+
+- **The grid.** `Grid 0.5 m` in the strip is what the tools snap to: 0.1, 0.25, 0.5, 1,
+  2 or 4 m. `[` makes it finer, `]` coarser.
+- **Draw** (`B`). In the 3D view: press on a block's face, or the ground, and drag out
+  the new block's footprint; let go, move the mouse to pull it out of the face, and
+  click to set it. In a top, front or side view (the View menu's 2 or 4 viewports give
+  you all of them at once): drag a rectangle, and the block is as deep as the selection,
+  or the last block you drew. Esc or a right click gives up. The block gets the kind
+  chosen in the Map dock and goes beside whatever was selected.
+- **Move** (`M`). Drag a block, or the selection, over the ground (in a top, front or
+  side view: across the view). Hold Shift to move it straight up and down. It snaps
+  against, or flush with, the faces of blocks beside it that lie square to it, and
+  otherwise to the grid; the outline turns green when a face has caught. The editor's
+  own move arrows still work, without snapping: **Map > Snap to Neighbours** (Alt+N)
+  closes a gap of up to one grid square afterwards.
+- **Clip** (`K`). Point at a selected block: a yellow line shows the cut, on the grid.
+  Click to cut it in two. `X` turns the cut the other way across the face. Every
+  selected block the cut passes through is cut. Boxes cut any way, cylinders and tubes
+  only across their height.
+- **Solid**, **Drawn**, **Breakable** buttons (Alt+S, Alt+D, Alt+B): flip those settings
+  on every selected block, in groups too.
+- **Map > Hollow** (Alt+H): a selected box becomes a room, a group of six walls of the
+  thickness you type that fills the same outside. You can leave the top or the floor off.
+- **Map > Mirror**: across x or z, about the middle of the map or of the selection, as
+  a copy or in place. Nothing is scaled by -1: a mirrored wedge is a wedge facing the
+  other way.
+- **Map > Array**: copies in a line (how many, how far apart) or round a circle (4 round
+  the middle of the map gives a square map its other three sides).
+- **Map > Add Stairs / Ramp / Row / Ring**, then click where it goes (Esc to stop). These
+  are **pieces**: a node with a few numbers in the inspector (a stair's Rise, Run, Width
+  and Step Height) that makes its blocks again whenever you change one. Players do not
+  step up kerbs, so stairs are drawn-only steps under an invisible ramp unless you
+  untick Smooth, and stairs and ramps warn you past 46 degrees (too steep to walk). A Row
+  or a Ring repeats its first child, a block or a whole group: edit that one and the
+  copies follow. Do not edit the blocks a piece made, they are replaced; press **Bake**
+  in its inspector to turn it into a plain group first.
+- **Map > Show Invisible Blocks / Show Solid Blocks Only**: what the editor shows. The
+  second hides everything you cannot bump into, to check a map's real shape.
+- **The Map dock, Kinds**: the palette as swatches, with how many blocks use each.
+  Click one: new blocks get that kind, and the selected blocks are painted with it.
+  Right-click one to select every block of that kind. **Add Kind** adds a colour to the
+  palette.
+- **The Map dock, Prefabs**: **Save Selection** saves the selected blocks and groups as
+  a scene under `game/maps/prefabs/`. Pick one and press **Place**, then click in the
+  map: each click puts down a copy as plain blocks in one group. A copy has no tie to
+  the prefab's file, so changing the prefab later does not change maps that used it.
+  Kinds go by name; the dock tells you if this map's palette lacks one.
+
+The keys are editor shortcuts (Editor Settings > Shortcuts, under `map_tools`), and work
+while the mouse is over the 3D view.
 
 Colours live in the palette (`game/maps/palettes/*.tres`): change one there and every
 block of that kind changes. To add a kind, add an entry to the palette's Colors, then
@@ -429,7 +484,9 @@ you move the lift shaft or a climbing crate on purpose, change its numbers there
 The same goes for the Office and `tests/office_test.gd`, and the Testing Grounds courses
 and `tests/course_test.gd`.
 `tests/map_scene_test.gd` checks that every map loads, has a colour for every block and
-has enough spawn points.
+has enough spawn points. `tests/map_tools_test.gd` checks the map tools without the
+editor: the geometry, the pieces, and the tools themselves, driven by made-up mouse
+events.
 
 **A new map.** Make a scene with a MapRoot root (or duplicate an existing map and strip
 it down), give it a palette, add blocks, spawns, a WorldEnvironment and a sun. F6 plays
@@ -450,7 +507,8 @@ The scripts behind this:
 | `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
-| `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline |
+| `game/arena/map_piece.gd`, `map_stairs.gd`, `map_ramp.gd`, `map_row.gd`, `map_ring.gd` | The pieces: nodes that make their blocks from a few numbers (editor only; in the game they are plain groups) |
+| `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline, and the map tools. `plugin.gd` wires it up; `map_ops.gd` (geometry), `tool_*.gd` (what the mouse does) and `map_commands.gd` (Hollow, Mirror...) have no editor in them, so the test can run them; `map_toolbar.gd`, `map_dock.gd` and `map_dialogs.gd` are what you see |
 
 To render pictures of a map without opening the game:
 

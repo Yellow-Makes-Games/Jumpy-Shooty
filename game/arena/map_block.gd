@@ -217,6 +217,8 @@ func refresh_preview() -> void:
 	var meshes := MapMesher.build([piece], shade, _shaded_for)
 	_preview.mesh = meshes.get(kind)
 	var shown := drawn or root == null or root.show_invisible_blocks
+	if not solid and Engine.get_meta(&"map_tools_solid_only", false):
+		shown = false   # the map tools' "Show Solid Blocks Only" (addons/map_tools)
 	_preview.visible = shown
 	_preview.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if drawn else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if drawn:

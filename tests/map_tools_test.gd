@@ -8,15 +8,30 @@ extends SceneTree
 ##  - arrays in a line and round a circle;
 ##  - face snapping picks the nearest face of a neighbour square to the block;
 ##  - each piece makes the blocks its numbers say, and makes them again when they change;
-##  - a prefab saved and placed is plain blocks with no tie to its file, and builds.
+##  - a prefab saved and placed is plain blocks with no tie to its file, and builds;
+##  - the tools, driven by made-up mouse events through a camera: Draw (on the ground,
+##    on a block, in a top view), Clip, Move (snapping to a wall) and Place;
+##  - the commands: Hollow, Mirror, Array, the toggles, Paint, Snap, Bake.
 ## Run: godot --headless --path . --script tests/map_tools_test.gd
 
 const MapOps := preload("res://addons/map_tools/map_ops.gd")
+const MapContext := preload("res://addons/map_tools/map_context.gd")
+const MapView := preload("res://addons/map_tools/map_view.gd")
+const MapCommands := preload("res://addons/map_tools/map_commands.gd")
+const ToolDraw := preload("res://addons/map_tools/tool_draw.gd")
+const ToolClip := preload("res://addons/map_tools/tool_clip.gd")
+const ToolMove := preload("res://addons/map_tools/tool_move.gd")
+const ToolPlace := preload("res://addons/map_tools/tool_place.gd")
 
 var failures := 0
 
 
-func _initialize() -> void:
+func _init() -> void:
+	_run.call_deferred()
+
+
+func _run() -> void:
+	await process_frame   # the cameras the tool checks use must be in the running scene
 	print("Map tools checks")
 	_check_grid()
 	_check_hollow()
@@ -26,6 +41,8 @@ func _initialize() -> void:
 	_check_snapping()
 	_check_pieces()
 	_check_prefab()
+	_check_tools()
+	_check_commands()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
 
@@ -313,4 +330,238 @@ func _check_prefab() -> void:
 	_expect(MapOps.blocks_in(placed).any(func(b: MapBlock) -> bool: return b.kind == "rust"), "changing the original does not change the copy")
 	map.build(false)
 	_expect(map.get_node("Collision").get_child_count() == 4, "the map builds collision for the original and the copy")
+	map.free()
+
+
+# ---------------------------------------------------------------------------
+# The tools and commands, with a stand-in for the editor
+
+var _picked := []   # what is "selected"
+
+
+func _context(map: MapRoot) -> RefCounted:
+	var ctx := MapContext.new()
+	_picked = []
+	ctx.selection = func() -> Array: return _picked
+	ctx.select = func(nodes: Array) -> void: _picked = nodes.duplicate()
+	ctx.commit = func(edit: RefCounted) -> void:
+		edit.apply(map)
+		if edit.reselect:
+			_picked = edit.select.duplicate()
+		ctx.touch()
+	ctx.map = map
+	ctx.grid = 0.5
+	return ctx
+
+
+## The stand-in's functions hold the context and it holds them: let go, or it leaks.
+func _release(ctx: RefCounted) -> void:
+	ctx.selection = Callable()
+	ctx.select = Callable()
+	ctx.commit = Callable()
+	_picked = []
+
+
+func _press(view: RefCounted, at: Vector3, down: bool, button := MOUSE_BUTTON_LEFT) -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = button
+	e.pressed = down
+	e.position = view.screen(at)
+	return e
+
+
+func _motion(view: RefCounted, at: Vector3, shift := false) -> InputEventMouseMotion:
+	var e := InputEventMouseMotion.new()
+	e.position = view.screen(at)
+	e.shift_pressed = shift
+	return e
+
+
+func _check_tools() -> void:
+	print("  tools")
+	var map := MapRoot.new()
+	root.add_child(map)
+	var ctx := _context(map)
+	var cam := Camera3D.new()
+	root.add_child(cam)
+	cam.look_at_from_position(Vector3(4, 14, 16), Vector3(3, 0, 3))
+	var view := MapView.new(cam)
+	_expect(view.ortho_axis() == -1, "a perspective view is not a top, front or side view")
+
+	# Draw on the ground: a 3 m by 2 m footprint, pulled up 3 m.
+	var draw := ToolDraw.new()
+	draw.ctx = ctx
+	_expect(draw.input(view, _press(view, Vector3(2.1, 0, 1.9), true)) and draw.busy(), "Draw: a press on the ground starts a block")
+	draw.input(view, _motion(view, Vector3(5.1, 0, 4.1)))
+	draw.input(view, _press(view, Vector3(5.1, 0, 4.1), false))
+	_expect(draw.phase == ToolDraw.Phase.HEIGHT and map.get_child_count() == 0, "letting go leaves it waiting for a height")
+	draw.input(view, _motion(view, Vector3(3.5, 3.1, 3)))
+	draw.input(view, _press(view, Vector3(3.5, 3.1, 3), true))
+	var first := map.get_child(0) as MapBlock if map.get_child_count() == 1 else null
+	_expect(first != null and first.size.is_equal_approx(Vector3(3, 3, 2)) and first.position.is_equal_approx(Vector3(3.5, 1.5, 3)),
+		"a click sets it: 3 x 3 x 2 m, snapped to the grid, standing on the ground%s" % ("" if first == null else " (%s at %s)" % [first.size, first.position]))
+	_expect(first != null and _picked == [first] and first.owner == map and first.kind == ctx.kind, "the new block is selected, saved with the map, of the chosen kind")
+
+	# Draw on top of that block.
+	draw.input(view, _press(view, Vector3(3.1, 3, 2.6), true))
+	draw.input(view, _motion(view, Vector3(3.9, 3, 3.4)))
+	draw.input(view, _press(view, Vector3(3.9, 3, 3.4), false))
+	draw.input(view, _motion(view, Vector3(3.5, 4.1, 3)))
+	draw.input(view, _press(view, Vector3(3.5, 4.1, 3), true))
+	var second := map.get_child(1) as MapBlock if map.get_child_count() == 2 else null
+	_expect(second != null and second.size.is_equal_approx(Vector3(1, 1, 1)) and second.position.is_equal_approx(Vector3(3.5, 3.5, 3)),
+		"drawn on a block's top, the next one stands on it%s" % ("" if second == null else " (%s at %s)" % [second.size, second.position]))
+
+	# A press and release in one place draws nothing; Esc gives up.
+	draw.input(view, _press(view, Vector3(-3, 0, 0), true))
+	draw.input(view, _press(view, Vector3(-3, 0, 0), false))
+	draw.input(view, _press(view, Vector3(-3, 0, 0), true))
+	draw.input(view, _motion(view, Vector3(-1, 0, 2)))
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.pressed = true
+	_expect(draw.input(view, esc) and not draw.busy() and map.get_child_count() == 2, "a plain click draws nothing, and Esc gives up a drag")
+
+	# A top view: a rectangle, as deep as the selection (the block just drawn: y 3 to 4).
+	var top_cam := Camera3D.new()
+	root.add_child(top_cam)
+	top_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	top_cam.size = 40.0
+	top_cam.position = Vector3(0, 50, 0)
+	top_cam.rotation_degrees = Vector3(-90, 0, 0)
+	var top := MapView.new(top_cam)
+	_expect(top.ortho_axis() == 1, "a view straight down is a top view")
+	draw.input(top, _press(top, Vector3(-4, 0, -4), true))
+	draw.input(top, _motion(top, Vector3(-2, 0, -1)))
+	draw.input(top, _press(top, Vector3(-2, 0, -1), false))
+	var third := map.get_child(2) as MapBlock if map.get_child_count() == 3 else null
+	_expect(third != null and third.size.is_equal_approx(Vector3(2, 1, 3)) and third.position.is_equal_approx(Vector3(-3, 3.5, -2.5)),
+		"in a top view a dragged rectangle is a block at the selection's height%s" % ("" if third == null else " (%s at %s)" % [third.size, third.position]))
+
+	# Clip the first block across its length, 0.5 m past its middle.
+	var clip := ToolClip.new()
+	clip.ctx = ctx
+	_picked = [first]
+	clip.input(view, _motion(view, Vector3(4.1, 3, 3.8)))
+	_expect(clip._cuts.size() == 1, "Clip: pointing at a selected block shows a cut")
+	_expect(clip.input(view, _press(view, Vector3(4.1, 3, 3.8), true)), "a click cuts it")
+	var halves := _picked.filter(func(n: Node) -> bool: return n is MapBlock)
+	_expect(halves.size() == 2 and not first.is_inside_tree(), "the block is replaced by two, both selected")
+	if halves.size() == 2:
+		var a := halves[0] as MapBlock
+		var b := halves[1] as MapBlock
+		_expect(is_equal_approx(a.size.x, 2.0) and is_equal_approx(b.size.x, 1.0) and is_equal_approx(a.position.x + 1.0, 4.0),
+			"cut on the grid at x = 4: 2 m and 1 m (%s, %s)" % [a.size.x, b.size.x])
+		_expect(a.get_index() == 0 and b.get_index() == 1, "the halves take the block's place in the scene")
+	_picked = []
+	_expect(not clip.input(view, _press(view, Vector3(4.1, 3, 3.8), true)), "with nothing selected a click is left to the editor")
+	first.free()
+
+	# Move: a crate dragged toward a wall that is off the grid stops against its face.
+	var crate := _block(map, Vector3(10, 0.5, 10), Vector3(1, 1, 1), "crate")
+	var wall := _block(map, Vector3(13.13, 1.5, 10), Vector3(1, 3, 8))      # its near face is at x = 12.63
+	ctx.touch()
+	var move := ToolMove.new()
+	move.ctx = ctx
+	_expect(move.input(view, _press(view, Vector3(10, 1, 10), true)) and _picked == [crate], "Move: a press on a block picks it up and selects it")
+	move.input(view, _motion(view, Vector3(12.05, 1, 10)))
+	_expect(is_equal_approx(crate.position.x, 12.13) and is_equal_approx(crate.position.z, 10.0), "dragged near a wall it snaps against the wall's face (x = %.2f)" % crate.position.x)
+	move.input(view, _motion(view, Vector3(11.2, 1, 11.3)))
+	_expect(crate.position.is_equal_approx(Vector3(11, 0.5, 11.5)), "away from the wall it snaps to the grid (%s)" % crate.position)
+	move.input(view, _motion(view, Vector3(10, 2.6, 10), true))
+	_expect(is_equal_approx(crate.position.y, 2.0) and is_equal_approx(crate.position.x, 10.0), "with Shift it only goes up and down (%s)" % crate.position)
+	move.input(view, _motion(view, Vector3(12.05, 1, 10)))
+	move.input(view, _press(view, Vector3(12.05, 1, 10), false))
+	_expect(not move.busy() and is_equal_approx(crate.position.x, 12.13), "letting go leaves it there")
+	move.input(view, _press(view, Vector3(12.13, 1, 10), true))
+	move.input(view, _motion(view, Vector3(8, 1, 6)))
+	move.input(view, _press(view, Vector3(8, 1, 6), true, MOUSE_BUTTON_RIGHT))
+	_expect(is_equal_approx(crate.position.x, 12.13) and not move.busy(), "a right click puts it back")
+	_expect(not move.input(view, _press(view, Vector3(-9, 0, 9), true)), "a press on empty ground is left to the editor (box select)")
+	wall.free()
+
+	# Place: stairs on the ground.
+	var place := ToolPlace.new()
+	place.ctx = ctx
+	_picked = []
+	place.start(func() -> Node3D: return MapCommands.new_piece("Stairs", "concrete"), "stairs")
+	place.input(view, _motion(view, Vector3(-6.2, 0, 5.9)))
+	place.input(view, _press(view, Vector3(-6.2, 0, 5.9), true))
+	var stairs := _picked[0] as MapStairs if _picked.size() == 1 else null
+	_expect(stairs != null and stairs.position.is_equal_approx(Vector3(-6, 0, 6)) and stairs.generated().size() == 13,
+		"Place: a click puts stairs down on the grid with their steps made")
+	_expect(stairs != null and stairs.generated().all(func(n: Node) -> bool: return n.owner == map), "and their blocks are saved with the map")
+	cam.free()
+	top_cam.free()
+	_release(ctx)
+	map.free()
+
+
+func _check_commands() -> void:
+	print("  commands")
+	var map := MapRoot.new()
+	root.add_child(map)
+	var ctx := _context(map)
+	var box := _block(map, Vector3(0, 2, 0), Vector3(6, 4, 6), "drywall")
+	var pipe := _block(map, Vector3(9, 2, 0), Vector3(2, 4, 2), "steel")
+	pipe.shape = MapBlock.Shape.CYLINDER
+	_picked = [box, pipe]
+	_expect(MapCommands.hollowable(ctx, 0.25) == 1, "Hollow: of a box and a cylinder, one can be hollowed")
+	ctx.commit.call(MapCommands.hollow(ctx, 0.25, false, false))
+	var room := _picked[0] as Node3D if _picked.size() == 1 else null
+	_expect(room != null and not (room is MapBlock) and room.get_child_count() == 6 and pipe.is_inside_tree() and not box.is_inside_tree(),
+		"the box is replaced by a room, the cylinder left alone")
+	box.free()
+
+	_picked = [pipe]
+	ctx.commit.call(MapCommands.mirror(ctx, 0, Vector3.ZERO, true))
+	_expect(_picked.size() == 1 and (_picked[0] as Node3D).position.is_equal_approx(Vector3(-9, 2, 0)) and pipe.position.x == 9.0, "Mirror with Copy: a copy across the map, the original left")
+	_picked = [pipe]
+	ctx.commit.call(MapCommands.mirror(ctx, 0, Vector3.ZERO, false))
+	_expect(pipe.position.is_equal_approx(Vector3(-9, 2, 0)), "Mirror without: the original moves")
+	ctx.commit.call(MapCommands.mirror(ctx, 0, Vector3.ZERO, false))
+
+	_picked = [pipe]
+	var before := map.get_child_count()
+	ctx.commit.call(MapCommands.array_line(ctx, 2, Vector3(0, 0, 3)))
+	_expect(map.get_child_count() == before + 2 and _picked.size() == 3, "Array: two copies in a line, all three selected")
+	_picked = [pipe]
+	ctx.commit.call(MapCommands.array_ring(ctx, 4, Vector3.ZERO))
+	_expect(map.get_child_count() == before + 5, "Array round a circle of 4: three more")
+
+	_picked = [room, pipe]
+	ctx.commit.call(MapCommands.toggle(ctx, "solid"))
+	_expect(not pipe.solid and MapOps.blocks_in(room).all(func(b: MapBlock) -> bool: return not b.solid), "Solid: all on, so all go off (blocks inside a group too)")
+	pipe.solid = true
+	ctx.commit.call(MapCommands.toggle(ctx, "solid"))
+	_expect(pipe.solid and MapOps.blocks_in(room).all(func(b: MapBlock) -> bool: return b.solid), "some on, some off: all go on")
+	ctx.commit.call(MapCommands.cycle_breakable(ctx))
+	_expect(pipe.breakable == MapBlock.Breakable.YES, "Breakable steps from Default to Yes")
+	ctx.commit.call(MapCommands.paint(ctx, "glass"))
+	_expect(pipe.kind == "glass" and MapOps.blocks_in(room).all(func(b: MapBlock) -> bool: return b.kind == "glass"), "Paint gives every selected block the kind")
+	_expect(MapCommands.paint(ctx, "glass").is_empty(), "painting them the kind they are changes nothing")
+
+	var loose := _block(map, Vector3(3.4, 0.5, 20), Vector3(1, 1, 1))
+	var post := _block(map, Vector3(4.63, 1, 20), Vector3(1, 2, 1))      # its near face is at x = 4.13
+	ctx.touch()
+	_picked = [loose]
+	ctx.commit.call(MapCommands.snap_to_neighbours(ctx))
+	_expect(is_equal_approx(loose.position.x, 3.63), "Snap to neighbours closes a 0.23 m gap (x = %.2f)" % loose.position.x)
+	post.free()
+
+	var stairs := MapCommands.new_piece("Stairs", "concrete") as MapStairs
+	map.add_child(stairs)
+	MapPiece.adopt(stairs, map)
+	var bake := MapCommands.bake(stairs)
+	bake.apply(map)
+	_expect(stairs.get_script() == null and stairs.get_child_count() == 13 and not stairs.get_child(0).has_meta(MapPiece.GENERATED),
+		"Bake: the stairs are a plain group of 13 blocks")
+	for c in bake.undo_calls:
+		(c[0] as Object).callv(c[1], c.slice(2))
+	_expect(stairs is MapStairs and is_equal_approx(stairs.rise, 3.0) and stairs.generated().size() == 13, "undone, they are stairs again with their numbers")
+	for sort in MapCommands.PIECES:
+		var piece := MapCommands.new_piece(sort, "concrete")
+		_expect(piece != null and piece.generated().size() > 0, "a new %s comes with its blocks" % sort)
+		piece.free()
+	_release(ctx)
 	map.free()
