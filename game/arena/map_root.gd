@@ -215,7 +215,6 @@ func build(with_meshes: bool = true) -> void:
 		(s.node as MapSpan).build(self, on, s.base, with_meshes)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
-	add_child(body)
 	for piece in pieces:
 		if piece.solid:
 			for lump in collision_shapes(piece):
@@ -223,6 +222,10 @@ func build(with_meshes: bool = true) -> void:
 				shape.shape = lump
 				shape.transform = piece.xf
 				body.add_child(shape)
+	# (Into the world only once it has all its shapes: added one at a time to a body that
+	# is already there, each makes the physics engine put the whole body together again,
+	# which on a map of thousands of solid blocks took ten seconds.)
+	add_child(body)
 	if not with_meshes:
 		return
 	var meshes := MapMesher.build(pieces, face_shade)
