@@ -471,7 +471,9 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		_pose.pos[_b["pistol_l_slide"]] += Vector3(0.0, 0.035 * _recoil_l, 0.0)
 	if _melee and _hold > 0.0:
 		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
-		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed, clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8, _hold, _hold,
+		# (The swing's own lean is taken out in full, so a thrust stays level as the body leans into it.)
+		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed,
+			clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8 + float(_swing_key[MeleeSwing.LEAN]) * _hold * 0.2, _hold, _hold,
 			Vector3.ZERO, _swing.other_fist(), _swing.left_fist())
 
 	# --- 6 (before the waist turn, which must not move the chest). Grapple arm

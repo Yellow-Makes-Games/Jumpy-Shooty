@@ -175,19 +175,19 @@ const MOVES := {
 		"taps": [
 			{
 				"wound": [Vector3(0.22, -0.16, 0.06), Vector3(-0.6, 0.12, -0.79), Vector3(0.0, -1.0, 0.0), -0.55, -0.08, 0.27],
-				"hit": [Vector3(0.02, -0.08, -0.38), Vector3(0.5, 0.4, -0.86), Vector3(0.0, -1.0, 0.0), 0.3, 0.3, 0.05],
-				"end": [Vector3(0.0, -0.09, -0.42), Vector3(0.55, 0.44, -0.83), Vector3(0.0, -1.0, 0.0), 0.36, 0.36, 0.05],
+				"hit": [Vector3(0.02, -0.08, -0.38), Vector3(0.5, 0.1, -0.86), Vector3(0.0, -1.0, 0.0), 0.3, 0.3, 0.05],
+				"end": [Vector3(0.0, -0.09, -0.42), Vector3(0.55, 0.08, -0.83), Vector3(0.0, -1.0, 0.0), 0.36, 0.36, 0.05],
 			},
 			{
 				"wound": [Vector3(0.22, -0.28, 0.06), Vector3(-0.6, -0.1, -0.79), Vector3(0.0, -1.0, 0.0), -0.55, -0.08, 0.27],
-				"hit": [Vector3(0.02, -0.2, -0.33), Vector3(0.5, 0.08, -0.86), Vector3(0.0, -1.0, 0.0), 0.3, 0.3, 0.05],
-				"end": [Vector3(0.0, -0.21, -0.37), Vector3(0.55, 0.1, -0.83), Vector3(0.0, -1.0, 0.0), 0.36, 0.36, 0.05],
+				"hit": [Vector3(0.02, -0.2, -0.33), Vector3(0.5, -0.22, -0.86), Vector3(0.0, -1.0, 0.0), 0.3, 0.3, 0.05],
+				"end": [Vector3(0.0, -0.21, -0.37), Vector3(0.55, -0.26, -0.83), Vector3(0.0, -1.0, 0.0), 0.36, 0.36, 0.05],
 			},
 		],
 		"heavy": {
 			"wound": [Vector3(0.28, -0.16, 0.14), Vector3(-0.82, 0.04, -0.57), Vector3(0.0, -1.0, 0.0), -0.95, -0.18, 0.3],
-			"hit": [Vector3(0.0, -0.12, -0.44), Vector3(0.64, 0.4, -0.77), Vector3(0.77, 0.0, 0.64), 0.42, 0.4, 0.04],
-			"end": [Vector3(0.0, -0.13, -0.45), Vector3(0.66, 0.42, -0.75), Vector3(0.75, 0.0, 0.66), 0.46, 0.44, 0.04],
+			"hit": [Vector3(0.0, -0.12, -0.44), Vector3(0.64, 0.0, -0.77), Vector3(0.77, 0.0, 0.64), 0.42, 0.4, 0.04],
+			"end": [Vector3(0.0, -0.13, -0.45), Vector3(0.66, 0.0, -0.75), Vector3(0.75, 0.0, 0.66), 0.46, 0.44, 0.04],
 		},
 	},
 	"dagger": {
@@ -209,8 +209,8 @@ const MOVES := {
 		],
 		"heavy": {
 			"wound": [Vector3(0.3, -0.16, 0.04), Vector3(-0.25, 0.05, -0.97), Vector3(0.0, -1.0, 0.0), -0.9, -0.1, 0.0],
-			"hit": [Vector3(0.02, -0.12, -0.5), Vector3(0.6, 0.4, -0.8), Vector3(0.0, -1.0, 0.0), 0.4, 0.4, 0.0],
-			"end": [Vector3(0.0, -0.12, -0.52), Vector3(0.64, 0.42, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
+			"hit": [Vector3(0.02, -0.12, -0.5), Vector3(0.6, 0.0, -0.8), Vector3(0.0, -1.0, 0.0), 0.4, 0.4, 0.0],
+			"end": [Vector3(0.0, -0.12, -0.52), Vector3(0.64, 0.0, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
 		},
 	},
 	"brass_knuckles": {
@@ -593,8 +593,21 @@ static func _slope(path: Array, times: PackedFloat32Array, i: int, part: int) ->
 		a = (a as Vector3).normalized()
 		b = (b as Vector3).normalized()
 		here = (here as Vector3).normalized()
-	# The shorter side counts for more: the blow's speed carries through its landing.
-	return ((here - a) / before * after + (b - here) / after * before) / (before + after)
+	# The shorter side counts for more: the blow's speed carries through its landing...
+	var into: Variant = (here - a) / before
+	var out_of: Variant = (b - here) / after
+	var slope: Variant = (into * after + out_of * before) / (before + after)
+	# ...but never so fast that it would shoot past the next key and come back (a thrust
+	# stops where it lands; a part that turns round at this key is still as it does).
+	if slope is Vector3:
+		return Vector3(_held(slope.x, into.x, out_of.x), _held(slope.y, into.y, out_of.y), _held(slope.z, into.z, out_of.z))
+	return _held(slope, into, out_of)
+
+
+static func _held(slope: float, into: float, out_of: float) -> float:
+	if into * out_of <= 0.0:
+		return 0.0
+	return signf(slope) * minf(absf(slope), 3.0 * minf(absf(into), absf(out_of)))
 
 
 static func _curve(a: Variant, b: Variant, slope_a: Variant, slope_b: Variant, u: float, span: float) -> Variant:
