@@ -22,6 +22,13 @@ extends Node
 ## came), and
 ## the replay shows each player as late as the killer would have seen them, so the
 ## killer's aim lines up with their target the way it did on their screen.
+##
+## A death's remains (a ragdoll or giblets, see Remains) are recorded as they fall
+## (KillClip.Wreck), for WRECK_FOR seconds, so a replay shows the body fall the way it
+## did here. Physics runs on the game's own clock, which a replay in slow motion or a
+## video saved frame by frame does not keep to, so replays play the recording back
+## rather than simulate the fall again. After the match ends the fall of the last kill
+## is still recorded while the arena is there (it is often one of the best kills).
 
 signal started   ## the death killcam began
 signal ended     ## ...and finished, was skipped, or you respawned
@@ -38,6 +45,7 @@ const KEEP := 3                 ## clips kept for the results screen
 const MIN_LEAD := 1.0           ## the death killcam needs this much of the killer before the kill
 const SKIP_AFTER := 0.75        ## the death killcam can be skipped once it has played this long
                                 ## (so a jump or shot already on its way as you die does not skip it)
+const WRECK_FOR := 5.0           ## seconds of each body's fall recorded (then it holds still)
 
 ## The best kills' clips, by kill number (see Match.kill_log).
 var clips: Dictionary = {}
@@ -54,6 +62,9 @@ var _clock := 0.0
 var _pending: Array = []        # kills waiting for their follow-through to be recorded
 var _kill_times: Dictionary = {}   # seq -> when it happened (for multikills)
 var _rocket_owner: Dictionary = {} # projectile id -> who fired it
+var _wrecks: Array = []         # KillClip.Wreck, oldest first
+var _wreck_of: Dictionary = {}  # remains (instance id) -> [its Wreck, how late its player is drawn]
+var _over := false               # the match has ended (see _settling)
 
 
 func _ready() -> void:
@@ -81,6 +92,9 @@ func _on_match_started() -> void:
 	_kill_times.clear()
 	_rocket_owner.clear()
 	clips.clear()
+	_wrecks.clear()
+	_wreck_of.clear()
+	_over = false
 	_timer = 0.0
 
 
@@ -92,13 +106,19 @@ func _recording() -> bool:
 func _process(delta: float) -> void:
 	if watching():
 		watched += delta
-	if not _recording():
+	var recording := _recording()
+	if not recording and not _settling():
 		return
 	_clock += delta
 	_timer -= delta
 	if _timer <= 0.0:
 		_timer = maxf(_timer + 1.0 / RATE, 0.0)
-		_record()
+		if recording:
+			_record()
+		else:
+			_record_wrecks(_clock)
+	if not recording:
+		return
 	var now := _clock
 	while not _pending.is_empty() and float(_pending[0].at) <= now:
 		_capture(_pending.pop_front())
@@ -119,11 +139,55 @@ func _record() -> void:
 			_tracks[p.peer_id] = track
 		track.character = p.character
 		track.color = Net.player_color(p.peer_id)
+		track.paint = Teams.paint_for(p.peer_id)   # (kept with the clip: the results screen comes after the teams are gone)
 		track.name = Net.player_name(p.peer_id)
 		track.push(now - _lag(p), p.shown_state())
 		track.trim(now - HISTORY)
 	while not _events.is_empty() and float(_events[0].t) < now - HISTORY:
 		_events.pop_front()   # (in place: a death killcam playing holds this same array)
+	_record_wrecks(now)
+
+
+## The remains in the arena: a new recording for each new one, and where every one
+## still falling has got to.
+func _record_wrecks(now: float) -> void:
+	for node in Remains.bodies():
+		var key := (node as Object).get_instance_id()
+		if _wreck_of.has(key) or not node.is_inside_tree():
+			continue
+		var lag := _lag_of(int(node.get("who")))
+		var w := KillClip.Wreck.of(node, now - lag - float(node.call("age")))   # (made since the last frame)
+		_wreck_of[key] = [w, lag]
+		_wrecks.append(w)
+	for key in _wreck_of.keys():
+		var node := instance_from_id(key) as Node3D
+		var entry: Array = _wreck_of[key]
+		var w: KillClip.Wreck = entry[0]
+		if node == null or not is_instance_valid(node) or node.is_queued_for_deletion():
+			_wreck_of.erase(key)   # gone (dissolved, or the oldest of too many): it holds its last frame
+		elif w.last_time() - w.first_time() < WRECK_FOR:
+			w.push(now - float(entry[1]), node.call("capture"))
+	while not _wrecks.is_empty() and (_wrecks[0] as KillClip.Wreck).first_time() < now - HISTORY - Remains.LIFETIME:
+		_wrecks.pop_front()   # (in place, like _events)
+
+
+## The match is over but a body is still falling (the last kill's, most likely): keep
+## recording it while the arena is there.
+func _settling() -> bool:
+	if not _over or Net.arena == null or not is_instance_valid(Net.arena):
+		return false
+	for node in Remains.bodies():
+		var entry: Array = _wreck_of.get((node as Object).get_instance_id(), [])
+		if entry.is_empty() or (entry[0] as KillClip.Wreck).last_time() - (entry[0] as KillClip.Wreck).first_time() < WRECK_FOR:
+			return true
+	return false
+
+
+## How late this copy draws player `id` (0 if they are not in the arena).
+func _lag_of(id: int) -> float:
+	var players: Node = Net.arena.get("players_root") if Net.arena else null
+	var p: Player = players.get_node_or_null("Player_%d" % id) as Player if players else null
+	return _lag(p) if p else 0.0
 
 
 func _event(e: Dictionary) -> void:
@@ -201,6 +265,7 @@ func _live_clip(info: Dictionary, kill_time: float, start: float, end: float) ->
 	clip.map = Net.map_id()
 	clip.tracks = _tracks.duplicate()   # the same Track objects, still being added to
 	clip.events = _events
+	clip.wrecks = _wrecks
 	for id in Net.players:
 		clip.offsets[id] = -_seen_late(clip.killer, id)
 		clip.event_offsets[id] = _seen_late(clip.killer, id)
@@ -226,6 +291,9 @@ func _capture(entry: Dictionary) -> void:
 
 func _on_match_over(_results: Array) -> void:
 	stop()
+	_over = true
+	if Net.arena != null and is_instance_valid(Net.arena):
+		_record_wrecks(_clock)   # the last kill's remains, if they came this frame (its clip is cut now)
 	for entry in _pending:   # the winning kill ends the match: keep what there is of it
 		_capture(entry)
 	_pending.clear()
@@ -266,6 +334,7 @@ func _start_death_cam(clip: KillClip) -> void:
 	view.setup(clip, false)
 	arena.add_child(view)
 	arena.players_root.visible = false   # the replay's bodies stand in for the live ones
+	Remains.set_hidden(true)              # ...and its remains for the ones lying there now
 	if DevArgs.sync_log:
 		var kt: KillClip.Track = clip.tracks[clip.killer]
 		print("KILLCAM PLAY %d %d %d %d %.2f %.2f" % [Net.my_id(), clip.killer, int(clip.info.seq), kt.frames.size(), kt.first_time() - clip.kill_time, kt.last_time() - clip.kill_time])
@@ -293,6 +362,7 @@ func stop() -> void:
 		view.queue_free()
 	view = null
 	var arena := Net.arena
+	Remains.set_hidden(false)
 	if arena and is_instance_valid(arena) and arena.players_root:
 		arena.players_root.visible = true
 		var me: Player = arena.local_player

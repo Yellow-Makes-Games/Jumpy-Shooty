@@ -61,6 +61,7 @@ var _anim := RobotAnimInput.new()
 var _corpse_drop := 0.0           # a body shot in mid-air falls to the ground (visual only)
 var _corpse_fall := 0.0
 var _corpse_room := 0.0
+var _in_remains := false          # the body is hidden because remains took its place (see hide_for_remains)
 var _logged_anim := ""            # --sync-log: the last animation we printed
 var _fell_reported := false
 var _fire_buffer := 0.0           # a click slightly too early still fires when the gun is ready
@@ -1199,6 +1200,7 @@ func dev_swap_after_death() -> void:
 
 func set_dead() -> void:
 	alive = false
+	_in_remains = false
 	portal_skip = null
 	_charge = -1.0
 	_fly_kick = 0.0
@@ -1222,6 +1224,13 @@ func set_dead() -> void:
 		if DevArgs.sync_log:
 			print("RESPAWN_CANCEL %d %d" % [Net.my_id(), peer_id])
 	_dead_life = maxi(_seen_life, _awaited_life)
+
+
+## Dead: a ragdoll or giblets took the body's place (see Remains), so it is hidden
+## until the respawn. The killcam still counts it as drawn (see shown_state).
+func hide_for_remains() -> void:
+	visual.visible = false
+	_in_remains = true
 
 
 ## Local player: come back at a spawn point, in the life the host numbered `life`
@@ -1442,6 +1451,7 @@ func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 			# Back already, and we have not been told yet: the body that fell is not
 			# dragged to where they are now. They show once the respawn gets here.
 			visual.visible = false
+			_in_remains = false
 	_seen_life = life
 	buffer.push(remote_time, Net.now(),
 		Vector3(data[0], data[1], data[2]), Vector3(data[3], data[4], data[5]),
@@ -1600,11 +1610,13 @@ func _target_roll() -> float:
 ## What this copy of the game draws for this player right now, for the killcam's
 ## recording (see Killcam): [feet, velocity, yaw, pitch, pose, animation flags,
 ## rope on, rope anchor, alive, drawn, eye height above the feet, weapon in hand].
+## A body hidden only because remains took its place counts as drawn: the replay has
+## remains of its own to put there (see KillcamView), or shows the body as it was.
 func shown_state() -> Array:
 	var pose := _my_pose() if is_local and motor else _remote_state
 	var eye := motor.eye_height if is_local and motor else eye_for_pose(pose) - tuck_offset(pose)   # (a remote body is drawn lifted by its tuck)
 	return [global_position, velocity, _visual_yaw, _anim.pitch, pose, _anim.flags, _anim.grapple_on and alive,
-		_anim.grapple_anchor, alive, visual.visible and not _awaiting_respawn, eye, robot.weapon if robot else "none"]
+		_anim.grapple_anchor, alive, (visual.visible or (_in_remains and not alive)) and not _awaiting_respawn, eye, robot.weapon if robot else "none"]
 
 
 ## Eye height above the feet for a pose (as sent in snapshots).

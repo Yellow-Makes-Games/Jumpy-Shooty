@@ -9,6 +9,10 @@ extends RefCounted
 ## reached us, so they are (roughly) when things really happened. `offsets` then moves
 ## each player to where the killer saw them: the killer's own screen showed everyone a
 ## little in the past too.
+##
+## A death's remains (a ragdoll or giblets, see Remains) are kept too, as Wrecks: where
+## each of their bodies went as they fell, so a replay can show the same fall at its
+## own speed (slow motion, a video saved frame by frame) without simulating it again.
 
 ## One player's frames, oldest first.
 class Track:
@@ -18,6 +22,7 @@ class Track:
 	var frames: Array = []
 	var character := ""
 	var color := Color.WHITE
+	var paint := Color(0, 0, 0, 0)   ## team modes: the team's paint (Teams.paint_for); clear otherwise
 	var name := ""
 
 	func push(t: float, frame: Array) -> void:
@@ -43,6 +48,7 @@ class Track:
 		var out := Track.new()
 		out.character = character
 		out.color = color
+		out.paint = paint
 		out.name = name
 		var a := maxi(_index(from), 0)
 		var b := mini(_index(to) + 2, times.size())
@@ -97,10 +103,55 @@ class Track:
 		return times[-1] if not times.is_empty() else -INF
 
 
+## What a player left when knocked out, as this copy saw it fall: a Ragdoll's bones or
+## Gibs' bodies, each frame every one's place in the world (see their capture()), from
+## the moment of the death (on the same clock as the player's Track) for the first
+## Killcam.WRECK_FOR seconds. Shared, not copied, by the clips that show it.
+class Wreck extends Track:
+	var who := 0
+	var kind := "ragdoll"     ## or "gibs"
+	var fx: Dictionary = {}   ## how the blow fell (Match.death_fx)
+	var weapon := ""
+	var scrap := 0            ## gibs: how many of the bodies are scrap
+
+	## A new recording of `remains` (a Ragdoll or Gibs), as it was at the death, `at`.
+	static func of(remains: Node3D, at: float) -> Wreck:
+		var w := Wreck.new()
+		w.who = int(remains.get("who"))
+		w.kind = "gibs" if remains is Gibs else "ragdoll"
+		w.fx = remains.get("blow")
+		w.character = str(remains.get("character"))
+		w.color = remains.get("body_color")
+		w.paint = Teams.paint_for(w.who)   # (the team they died on)
+		w.weapon = str(remains.get("weapon"))
+		if remains is Gibs:
+			w.scrap = (remains as Gibs).scrap_count()
+		w.push(at, remains.call("start_pose"))
+		return w
+
+	## Every body's place at time t, blended between the frames either side (the first
+	## and last held outside the recording).
+	func pose_at(t: float) -> Array:
+		var i := _index(t)
+		if i < 0:
+			return frames[0]
+		if i >= times.size() - 1:
+			return frames[-1]
+		var a: Array = frames[i]
+		var b: Array = frames[i + 1]
+		var u := clampf((t - times[i]) / maxf(times[i + 1] - times[i], 0.0001), 0.0, 1.0)
+		var out := []
+		for k in mini(a.size(), b.size()):
+			out.append((a[k] as Transform3D).interpolate_with(b[k], u))
+		return out
+
+
 ## Player id -> Track.
 var tracks: Dictionary = {}
 ## What happened, oldest first: {t, kind ("shot", "projectile", "boom", "melee"), who, ...}.
 var events: Array = []
+## What deaths left (Wreck), oldest first: any still lying about during the clip.
+var wrecks: Array = []
 ## The kill (see Match.kill_info).
 var info: Dictionary = {}
 var killer := 0
@@ -148,6 +199,10 @@ func cut(margin: float = 0.6) -> KillClip:
 		var et := event_time(e)
 		if et >= start - margin and et <= end + margin:
 			out.events.append(e)
+	for w: Wreck in wrecks:   # any lying about during the clip (each holds its last frame once it has settled)
+		var off := float(offsets.get(w.who, 0.0))
+		if w.first_time() <= end + off + margin and w.first_time() + Remains.LIFETIME >= start + off - margin:
+			out.wrecks.append(w)
 	return out
 
 

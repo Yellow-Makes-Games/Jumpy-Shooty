@@ -49,6 +49,7 @@ CHECKS=(
   "office|--fixed-fps 60 --script tests/office_test.gd"
   "debug|--script tests/debug_test.gd"
   "killcam|--script tests/killcam_test.gd"
+  "killcam_remains|--fixed-fps 60 --script tests/killcam_remains_test.gd"
   "mobility|--fixed-fps 60 --script tests/mobility_test.gd"
   "lobby_settings|--script tests/lobby_settings_test.gd"
   "scoreboard|--script tests/scoreboard_test.gd"
