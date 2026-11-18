@@ -293,7 +293,8 @@ func _update_clock(delta: float) -> void:
 		return
 	_ping_wait = 0.25 if _pings_left > 0 else PING_GAP
 	_pings_left = maxi(_pings_left - 1, 0)
-	_ping.rpc_id(1, Net.now())
+	if Net.connected_to_host():   # (not while joining: the version check comes first)
+		_ping.rpc_id(1, Net.now())
 
 
 @rpc("any_peer", "call_remote", "unreliable")

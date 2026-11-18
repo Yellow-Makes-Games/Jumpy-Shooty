@@ -304,13 +304,21 @@ stone ramps laid along the wall walks, a gatehouse with a gate tunnel, and a
 central keep whose upper floor (6 m) is reached from a terrace ramp and from the
 west wall walk over a timber bridge, and whose roof deck (12 m) the keep stair
 climbs to. Its palette (`palettes/castle.tres`) shows a breakable kind (the wooden
-hoardings in the bailey). Its small dressing (a coping on every merlon, pilasters and
-torches along the walls, door and window surrounds, the great hall's fittings, market
-goods, ivy, weeds, and the lake and mountains outside) is the scene's `Dressing` branch,
-about 2,000 drawn-only blocks written by `python3 tools/arena/castle_dressing.py`. The
-script reads where the merlons, barrels, crates, carts and hoardings are, so run it
-again after moving them; it replaces only the `Dressing` branch and leaves the rest of
-the scene as it is.
+hoardings in the bailey). The scene is grouped by object, and each object holds its
+own dressing: a merlon's coping is in its `Merlon` group, a torch's arm, cup and flame
+are one `Torch` group, a tower's windows and flag are in the tower, and the lake,
+causeway, boats, shores and mountains are under `Outside`. Small things you would move
+as one (a torch, a shield, a barrel and its hoops, a pine, a mountain) are selection
+groups: a click in the viewport picks the whole thing. To work on one piece, pick it in
+the Scene dock. The dressing was first written by `tools/arena/castle_dressing.py`,
+but the scene is now edited by hand and that script must not be run on it again.
+You die only by falling into the lake (Kill Height -5, just under the water; the
+Bounds are a far safety net). Outside the walls a 60 degree rock slope (`Outside/Shore`)
+runs into the water: too steep to stand on, not steep enough to wall-run, so anyone who
+drops off a wall slides in. Invisible blockers close the two footholds the walls leave:
+the gate mouth in front of the portcullis, and the wall tops in front of each tower.
+Nothing solid may stick out past the walls' outer faces (x and z of plus or minus 30).
+The causeway starts 40 m out from the gate.
 
 `game/maps/castle_v2.tscn` (test map `castle_v2`, "Castle 2") is a refreshed Castle:
 72 m across instead of 60, a wall walk that runs all
@@ -338,6 +346,39 @@ block-out script starts over from the old Castle. The scene is edited by hand no
 (blocks were moved in the editor), so both scripts refuse to run unless
 `CASTLE_V2_REBUILD=1` is set: a run would throw the hand edits away. Try the map with
 `--map=castle_v2 --practice`.
+
+`game/maps/sky_island.tscn` (test map `sky_island`, "Sky Island (whitebox)") is a grey
+block-out of seven floating islands. The Hearth, in the middle, is the lowest (-3 m,
+the ruined Keep: broken walls, a corner of its upper floor, two corner drums); the six
+stand round it about a sixth of a turn apart, at mixed heights: the Shelf (3 m, open), the Bluff
+(8 m, open), the Spire (4 m, open), the Citadel (7 m, the Gate
+and its curtain wall with a wall walk, a gate arch and a drum), the Garden (2 m,
+standing stones) and the Terrace (6 m, the Broken Tower: an eight-sided shell with half
+a floor inside). No island is round: each is a handful of overlapping many-sided slabs
+of different sizes (36 to 56 m across in all), with a cone of rock hung under each.
+There is no path you can walk from one island to another. Stepping pads join the six
+outer islands into a ring, each to the next (three or four big pads a gap, 4.5 to 9 m across, scattered:
+each row swings side to side and every pad is thrown off it, with its own size and
+shape, and about one in four has a smaller pad beside it; no pad stands in an island (one that would is slid along its row until it is 0.8 m clear); the longest hop in a row is
+under 5 m). Nothing joins the Hearth to the outer islands and there are no grapple
+points: about 24 m of open sky each, the Hearth 4 to 11 m below on average (the climb to each swings with the bob, and every one comes within 7 m at some moment), crossed with rocket
+boots or a long jump down. Everything floats up and down: each island is a `MapMover`
+with its own rise (4 to 8 m) and its own moment in a 14 second cycle, and carries its
+ruins, cover and spawn points; each pad is a `MapMover` too, timed to the two islands
+it lies between, so the rows flex with them (one shared period is what lets a pad
+follow two islands exactly: see `pad_bob()` in the script). The heights above are the
+middle of each bob; in the editor a mover sits at the bottom of its bob, so the scene
+looks a little uneven until the game runs it. A mover carries its patterns with it: the
+distance grid and the palette's Surface patterns are measured from the moving body, not
+from the map (`MapMesher.riding()`, `MapRoot.riding_material_for()`), because a pattern
+measured from the map stands still while the block slides through it, and shimmers.
+This holds for every `MapMover` in every map. Bots only walk, so
+each stays on the island it spawns on. Falling is
+death (Kill Height -36). It has 30 spawn
+points and no weapon pickups yet, so it is listed for free-for-all only. It is written
+from scratch by `godot --headless --path . --script tools/arena/sky_island_blockout.gd`
+(the islands and their sizes are at the top); run that again after changing them, until
+the scene is edited by hand. Try it with `--map=sky_island --practice`.
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
@@ -380,9 +421,67 @@ block-out script starts over from the old Castle. The scene is edited by hand no
 
 **Editing.** Move, turn and duplicate (Ctrl+D) blocks like any node. To resize a block,
 drag one of the red handles on its faces: that face moves and the opposite one stays
-put. Sizes snap to 0.1 m, or whole metres while you hold Ctrl. You can also type the
+put. Sizes snap to the grid (see below), or whole metres while you hold Ctrl, and the
+face you drag also snaps flush to a nearby face of another block. You can also type the
 Size in the inspector, or use the scale tool (scale is folded into the size in the
 game). A block or group you hide with the eye icon is left out of the game.
+
+**The map tools.** While a map is open, the 3D editor's toolbar has a strip of tools
+for building with blocks, and there is a **Map** dock (bottom left). Every one of them
+makes ordinary MapBlocks and is one step of undo.
+
+- **The grid.** `Grid 0.5 m` in the strip is what the tools snap to: 0.1, 0.25, 0.5, 1,
+  2 or 4 m. `[` makes it finer, `]` coarser.
+- **Draw** and **Clip** are tools you turn on: press the button (or its key) again, or
+  Esc, and you are back to the editor's own select, move, rotate and scale.
+- **Draw** (`B`). In the 3D view: press on a block's face, or the ground, and drag out
+  the new block's footprint; let go, move the mouse to pull it out of the face, and
+  click to set it. In a top, front or side view (the View menu's 2 or 4 viewports give
+  you all of them at once): drag a rectangle, and the block is as deep as the selection,
+  or the last block you drew. Esc or a right click gives up. The block gets the kind
+  chosen in the Map dock and goes beside whatever was selected.
+- **Moving** is the editor's own move tool. After a move, **Map > Snap to Neighbours**
+  (Alt+N) nudges the selection, by up to one grid square, so its faces meet those of the
+  blocks beside it that lie square to it.
+- **Clip** (`K`). Point at a selected block: a yellow line shows the cut, on the grid.
+  Click to cut it in two. `X` turns the cut the other way across the face. Every
+  selected block the cut passes through is cut. Boxes cut any way, cylinders and tubes
+  only across their height.
+- **Solid**, **Drawn**, **Breakable** buttons (Alt+S, Alt+D, Alt+B): turn those settings
+  on or off on every selected block, in groups too.
+- **Map > Hollow** (Alt+H): a selected box becomes a room, a group of six walls of the
+  thickness you type that fills the same outside. You can leave the top or the floor off.
+- **Map > Mirror**: across x or z, about the middle of the map or of the selection, as
+  a copy or in place. Nothing is scaled by -1: a mirrored wedge is a wedge facing the
+  other way.
+- **Map > Array**: copies in a line (how many, how far apart) or round a circle (4 round
+  the middle of the map gives a square map its other three sides).
+- **Map > Add Stairs or Ramp / Row / Ring**, then click where it goes (Esc to stop).
+  These are **pieces**: a node with a few numbers in the inspector that makes its blocks
+  again whenever you change one. Stairs and ramps are one piece: its **Style** is Steps
+  or Ramp, and it has Rise, Run and Width, which you can also set by dragging its three
+  handles in the 3D view (at the top, at the far end of the foot, at the side), as you
+  would a block's. Players do not step up kerbs, so steps are drawn only, under an
+  invisible ramp, unless you untick Smooth; past 46 degrees (too steep to walk) the piece
+  warns you. A Row or a Ring repeats its first child, a block or a whole group: edit that
+  one and the copies follow. A Row has a handle at its last copy for how far apart they
+  are; a Ring is as wide as its first child is far from its middle. Do not edit the
+  blocks a piece made, they are replaced; press **Bake** in its inspector to turn it into
+  a plain group first.
+- **Map > Show Invisible Blocks / Show Solid Blocks Only**: what the editor shows. The
+  second hides everything you cannot bump into, to check a map's real shape.
+- **The Map dock, Kinds**: the palette as swatches, with how many blocks use each.
+  Click one: new blocks get that kind, and the selected blocks are painted with it.
+  Right-click one to select every block of that kind. **Add Kind** adds a colour to the
+  palette.
+- **The Map dock, Prefabs**: **Save Selection** saves the selected blocks and groups as
+  a scene under `game/maps/prefabs/`. Pick one and press **Place**, then click in the
+  map: each click puts down a copy as plain blocks in one group. A copy has no tie to
+  the prefab's file, so changing the prefab later does not change maps that used it.
+  Kinds go by name; the dock tells you if this map's palette lacks one.
+
+The keys are editor shortcuts (Editor Settings > Shortcuts, under `map_tools`), and work
+while the mouse is over the 3D view.
 
 Colours live in the palette (`game/maps/palettes/*.tres`): change one there and every
 block of that kind changes. To add a kind, add an entry to the palette's Colors, then
@@ -404,22 +503,30 @@ kind that glows or is see-through takes no pattern. The MapRoot's inspector also
 **Bounds** (leave it and you are out; drawn as a red rectangle), **Kill Height** and the
 **Swing Point** the test player hooks.
 
-**Breakable walls and floors.** A palette's **Breakable** list names the kinds that can
-be broken and how much damage a piece of each takes (a pistol shot is 25; below 50 a
-whole pane shatters at once, for glass). Blocks break only in arena matches, never races.
-Each block's **Breaking** section decides for that block:
+**Breakable walls and floors.** A block breaks only if you tick **Breakable** in its
+**Breaking** section; it is off on a new block. Blocks break only in arena matches,
+never races. Ticking it shows two more settings:
 
-- **Breakable**: *Default* follows the palette, *Yes* breaks even if the kind is not in
-  the list, *No* never breaks (a landing or a floor a route needs). Maps saved with the
-  old **Unbreakable** tick load as *No*.
-- **Break Settings** (a `BlockBreakable` resource; empty = the palette's numbers, per
-  cell). **Block Health**: the damage it takes (0 = the kind's toughness, or 100 if the
-  palette has none). **Break Mode**: *Per Cell* cuts a thin wall or floor (at most 0.6 m
-  thick, at least 7 m² of face, box-shaped) into about 2 m pieces that each have that
-  health; thicker blocks set to Yes warn in the editor and stay whole. *Whole Block* gives
-  the block (any size or shape: a crate, a pillar) one pool of health and breaks it all
-  at once; what rests on it stays where it is. Save the resource as a `.tres` to share
-  it between blocks. New break settings belong in `game/arena/block_breakable.gd`.
+- **Break Settings**: a dropdown of ready-made choices. *Per Cell* cuts a thin wall or
+  floor (at most 0.6 m thick, at least 7 m² of face, box-shaped) into about 2 m pieces
+  that break one at a time; a thicker block set this way warns in the editor and stays
+  whole. *Whole Block* gives the block (any size or shape: a crate, a pillar) one pool of
+  health and breaks it all at once; what rests on it stays where it is. Each comes plain
+  (as tough as its kind: see below), *Fragile* (25: one pistol shot) or *Tough* (300).
+  The list is `PRESETS` in `game/arena/block_breakable.gd`; add a line there to offer
+  another.
+- **Break Health**: the damage this one block takes, in place of what Break Settings
+  says. 0 leaves it to Break Settings.
+
+A palette's **Breakable** list says how tough each kind is: the damage a piece of it
+takes when its block's settings do not say (a pistol shot is 25; below 50 a whole pane
+shatters at once, for glass; a kind left out takes 100). It no longer decides what
+breaks. Maps saved when Breakable was *Default / Yes / No* still load: Yes as ticked, No
+and Default as not. Default used to mean "if the palette lists its kind", so an old map
+needs `godot --headless --path . --script tools/arena/migrate_breakable.gd -- res://game/maps/my_map.tscn`
+run on it once, which ticks every block that used to break; the maps here have had it.
+The Python map builders in `tools/arena/` still write the old form, so run it on a map
+after building it with one.
 
 Per cell, pieces near a spawn, and pieces that something else rests on, hangs from or
 passes through, never break; thin drawn-only blocks lying flat on a breakable one (a
@@ -446,7 +553,9 @@ you move the lift shaft or a climbing crate on purpose, change its numbers there
 The same goes for the Office and `tests/office_test.gd`, and the Testing Grounds courses
 and `tests/course_test.gd`.
 `tests/map_scene_test.gd` checks that every map loads, has a colour for every block and
-has enough spawn points.
+has enough spawn points. `tests/map_tools_test.gd` checks the map tools without the
+editor: the geometry, the pieces, and the tools themselves, driven by made-up mouse
+events.
 
 **A new map.** Make a scene with a MapRoot root (or duplicate an existing map and strip
 it down), give it a palette, add blocks, spawns, a WorldEnvironment and a sun. F6 plays
@@ -468,7 +577,8 @@ The scripts behind this:
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
 | `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `map_ring_gate.gd`, `portal_surge_event.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, ring gates and the Portal Surge, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
-| `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline |
+| `game/arena/map_piece.gd`, `map_stairs.gd` (stairs and ramps), `map_row.gd`, `map_ring.gd` | The pieces: nodes that make their blocks from a few numbers (editor only; in the game they are plain groups) |
+| `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline, and the map tools. `plugin.gd` wires it up; `map_ops.gd` (geometry), `tool_*.gd` (what the mouse does) and `map_commands.gd` (Hollow, Mirror...) have no editor in them, so the test can run them; `map_toolbar.gd`, `map_dock.gd` and `map_dialogs.gd` are what you see |
 
 To render pictures of a map without opening the game:
 

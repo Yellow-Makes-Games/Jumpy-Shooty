@@ -374,6 +374,8 @@ func _ready_and_size() -> void:
 ## choice (mode for the host; robot, mobility and weapon for everyone).
 func _floating_windows() -> void:
 	print("  floating windows")
+	# The lobby saves your picks as your own (Settings): put back what was there after.
+	var kept := [Settings.weapon, Settings.mobility, Settings.character]
 	Net.start_offline("Host", "needle", "rifle", "grapple")
 	var s := Net.match_settings.duplicate()
 	s["game"] = "ffa"
@@ -419,5 +421,42 @@ func _floating_windows() -> void:
 	_expect(lobby._robot_panel.is_open() and lobby._character.list.is_visible_in_tree(), "the robot's name opens the robot window")
 	lobby._robot_panel.close()
 	_expect(not lobby._robot_panel.is_open(), "a window closes without a pick (click outside or Esc)")
+	# The Character Creator, from the robot window ("Make new character").
+	lobby._character._name_button.pressed.emit()
+	await get_tree().process_frame
+	var make: Array = lobby._character.list.find_children("*", "Button", true, false).filter(func(b): return (b as Button).text == "Make new character")
+	_expect(make.size() == 1, "the robot window has a Make new character button")
+	make[0].pressed.emit()
+	await get_tree().process_frame
+	var creator_panel: FloatingPanel = lobby._creator_panel
+	_expect(creator_panel != null and creator_panel.is_open() and not lobby._robot_panel.is_open()
+		and creator_panel.content.find_children("*", "CharacterCreator", true, false).size() == 1,
+		"it opens the Character Creator in a window (the robot window closes)")
+	var cancel: Array = creator_panel.content.find_children("*", "Button", true, false).filter(func(b): return (b as Button).text == "Cancel")
+	cancel[0].pressed.emit()
+	await get_tree().process_frame
+	_expect(lobby._creator_panel == null, "Cancel closes the creator without saving")
+	# A character saved in the creator joins the robot list (kept in memory only here).
+	var saved: Array = Settings.custom_characters.duplicate()
+	var fresh := CustomCharacter.new()
+	fresh.name = "Lobby Test"
+	var fresh_id := fresh.to_id()
+	Settings.custom_characters.append(fresh_id)
+	lobby._character.refresh_custom()
+	_expect(lobby._character._buttons.has(fresh_id), "a newly saved character gets a button in the robot window")
+	Settings.custom_characters.erase(fresh_id)
+	lobby._character.refresh_custom()
+	_expect(not lobby._character._buttons.has(fresh_id), "a deleted one loses its button")
+	Settings.custom_characters = saved
+	Settings.weapon = kept[0]
+	Settings.mobility = kept[1]
+	Settings.character = kept[2]
+	Settings.save_settings()
+	for rule in [lobby._allowed, lobby._allowed_mobility]:
+		rule._edit.pressed.emit()
+		await get_tree().process_frame
+		_expect(rule.window() != null and rule.window().is_open(), "a loadout rule's Change opens its chips in a window")
+		rule._edit.pressed.emit()
+		_expect(not rule.window().is_open(), "...and Change again closes it")
 	lobby.queue_free()
 	await get_tree().process_frame

@@ -45,10 +45,11 @@ extends Resource
 		roughness = v
 		emit_changed()
 
-## kind -> how much damage a piece of it (about 2 m square) takes to break. Only thin
-## walls and floors of these kinds break, and only in arena matches (see
-## MapDestruction). A pistol shot does 25, a rifle round 13; leave a kind out and
-## it never breaks. Below 50 (glass) a whole pane shatters at once.
+## kind -> how tough it is: how much damage a piece of it (about 2 m square) takes to
+## break, for blocks whose Breakable is ticked and whose own settings do not say (see
+## MapBlock's Breaking section and MapDestruction). A pistol shot does 25, a rifle
+## round 13; a kind left out takes 100. Below 50 (glass) a whole pane shatters at once.
+## This list does not decide what breaks: each block's Breakable does.
 @export var breakable: Dictionary[String, float] = {}:
 	set(v):
 		breakable = v

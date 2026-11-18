@@ -62,15 +62,8 @@ jobs:
       - name: Import assets
         run: godot --headless --import --path . || godot --headless --editor --quit --path .
 
-      - name: Export Windows build
-        run: |
-          set -euo pipefail
-          mkdir -p builds/windows
-          godot --headless --path . --export-release "Windows Desktop" builds/windows/JumpyShooty.exe
-          test -s builds/windows/JumpyShooty.exe
-
-      # The Version tag workflow tags this same push a few seconds in, well
-      # before the export above finishes; the wait covers a slow or queued run.
+      # The Version tag workflow tags this same push a few seconds in; the wait
+      # covers a slow or queued run. Found before the export, so the game can show it.
       - name: Find this commit's version tag
         env:
           GH_TOKEN: ${{ github.token }}
@@ -90,6 +83,22 @@ jobs:
           fi
           echo "VERSION=$version" >> "$GITHUB_ENV"
           echo "ZIP_NAME=JumpyShooty-windows-$version.zip" >> "$GITHUB_ENV"
+
+      # The main menu shows the release version (Game.version_label): write it into
+      # the project before exporting.
+      - name: Stamp the version into the game
+        run: |
+          set -euo pipefail
+          sed -i '/^config\/version=/d' project.godot
+          sed -i "/^\[application\]/a config/version=\"$VERSION\"" project.godot
+          grep -n '^config/version=' project.godot
+
+      - name: Export Windows build
+        run: |
+          set -euo pipefail
+          mkdir -p builds/windows
+          godot --headless --path . --export-release "Windows Desktop" builds/windows/JumpyShooty.exe
+          test -s builds/windows/JumpyShooty.exe
 
       - name: Zip
         run: |

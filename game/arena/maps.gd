@@ -27,6 +27,7 @@ const LIST := [
 	{"id": "empyrean", "name": "Empyrean Tower", "scene": "res://game/maps/empyrean.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "testing_grounds", "name": "Testing Grounds", "scene": "res://game/maps/testing_grounds.tscn", "dev": true, "game": "ffa"},
 	{"id": "castle_v2", "name": "Castle 2", "scene": "res://game/maps/castle_v2.tscn", "dev": true, "game": "ffa"},
+	{"id": "sky_island", "name": "Sky Island (whitebox)", "scene": "res://game/maps/sky_island.tscn", "dev": true, "game": "ffa"},
 	{"id": "rooftop_run", "name": "Rooftop Run", "scene": "res://game/maps/rooftop_run.tscn", "dev": false, "game": "race"},
 	{"id": "foundry", "name": "Foundry", "scene": "res://game/maps/foundry.tscn", "dev": false, "game": "race"},
 	{"id": "sky_ruins", "name": "Sky Ruins", "scene": "res://game/maps/sky_ruins.tscn", "dev": false, "game": "race"},

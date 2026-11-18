@@ -146,33 +146,46 @@ func _lobby() -> void:
 	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
 	get_tree().root.add_child(lobby)
 	await get_tree().process_frame
-	var pick: OptionButton = lobby.get("_map_pick")
+	var map_button: Button = lobby.get("_map_button")
+	var map_window: FloatingPanel = lobby.get("_map_window")
 	var pool: MapPoolPicker = lobby.get("_map_pool")
-	var song: OptionButton = lobby.get("_song_pick")
-	var last := pick.item_count - 1
-	_expect(pick.get_item_metadata(last) == Maps.RANDOM and pick.get_item_text(last) == "Random map", "the host's map drop-down ends with Random map")
-	_expect(not pool.is_visible_in_tree(), "no pool while a map is picked")
-	pick.select(last)
-	pick.item_selected.emit(last)
+	var song_button: Button = lobby.get("_song_button")
+	var song_window: FloatingPanel = lobby.get("_song_window")
+	_expect(map_button.is_visible_in_tree() and map_button.text == Maps.label("office"), "the host's map button shows the map (%s)" % map_button.text)
+	map_button.pressed.emit()
 	await get_tree().process_frame
-	_expect(Net.match_settings.random_map == true, "picking Random turns the random map on")
+	var choices := _choice_texts(map_window)
+	_expect(map_window.is_open() and choices.size() == Maps.ids_for("ffa").size() + 1 and choices[-1] == "Random map",
+		"the map window: every map, then Random map (%s)" % [choices])
+	_expect(not pool.is_visible_in_tree(), "no pool while a map is picked")
+	_choice(map_window, "Random map").pressed.emit()
+	await get_tree().process_frame
+	_expect(Net.match_settings.random_map == true and not map_window.is_open(), "picking Random turns the random map on and closes the window")
+	_expect(map_button.text == "Random map", "the map button says Random map")
 	_expect(pool.is_visible_in_tree() and pool._edit.visible, "the host sees the pool and can change it")
-	pool._open(true)
+	pool._edit.pressed.emit()
+	await get_tree().process_frame
+	_expect(pool.window() != null and pool.window().is_open(), "Change opens the pool in a window of its own")
 	(pool._chips["office"] as Button).pressed.emit()
 	await get_tree().process_frame
 	_expect(not "office" in LobbySettings.map_pool(), "the host's chip takes a map out of the pool")
+	_expect(pool.window().is_open(), "the pool window stays open for more ticks")
 	_expect(pool._chips.size() == Maps.random_ids("ffa").size(), "one chip per arena (no test maps)")
-	_expect(pick.get_item_metadata(pick.selected) == Maps.RANDOM, "the drop-down still shows Random")
+	pool.window().close()
 	# The lobby song.
-	_expect(song.is_visible_in_tree() and song.item_count == Music.song_names().size() + 1 and song.get_item_text(0) == "Shuffle",
-		"the host's song drop-down: Shuffle and every song")
-	song.select(2)
-	song.item_selected.emit(2)
+	_expect(song_button.is_visible_in_tree() and song_button.text == "Shuffle", "the host's song button shows the song (Shuffle)")
+	song_button.pressed.emit()
 	await get_tree().process_frame
-	_expect(Net.match_settings.song == Music.song_names()[1], "picking a song sets the lobby song (%s)" % Net.match_settings.song)
+	var songs := _choice_texts(song_window)
+	_expect(song_window.is_open() and songs.size() == Music.song_names().size() + 1 and songs[0] == "Shuffle",
+		"the song window: Shuffle and every song")
+	_choice(song_window, Music.title_of(Music.song_names()[1])).pressed.emit()
+	await get_tree().process_frame
+	_expect(Net.match_settings.song == Music.song_names()[1] and not song_window.is_open(), "picking a song sets the lobby song (%s)" % Net.match_settings.song)
 	# Back to a map.
-	pick.select(1)
-	pick.item_selected.emit(1)
+	map_button.pressed.emit()
+	await get_tree().process_frame
+	_choice(map_window, Maps.label(Maps.ids_for("ffa")[1])).pressed.emit()
 	await get_tree().process_frame
 	_expect(not Net.match_settings.random_map and Net.map_id() == Maps.ids_for("ffa")[1], "picking a map turns Random off")
 	_expect(not pool.is_visible_in_tree(), "...and hides the pool")
@@ -183,7 +196,7 @@ func _lobby() -> void:
 	lobby.call("_refresh")
 	var map_label: Label = lobby.get("_map_label")
 	var song_label: Label = lobby.get("_song_label")
-	_expect(not song_label.visible and song.visible and not map_label.visible, "the host gets the drop-downs, not the lines")
+	_expect(not song_label.visible and song_button.visible and map_button.visible and not map_label.visible, "the host gets the buttons, not the lines")
 	# Everyone else gets the lines, filled the same way (offline this copy is always the host).
 	_expect(map_label.text.begins_with("Random map"), "the map line says Random (%s)" % map_label.text)
 	_expect(song_label.text == Music.title_of(Music.song_names()[1]), "the song line names the host's song (%s)" % song_label.text)
@@ -254,3 +267,15 @@ func _music() -> void:
 	Music._fade_out_all(now + 1.0)
 	_expect(is_equal_approx(float(Music._songs[0].end), now + Music.FADE), "fading out again never makes a song last longer")
 	_expect(Music._lobby_song() == -1, "offline (no lobby): no lobby song, the songs shuffle")
+
+
+## The texts of the choice buttons in a lobby window (see the lobby's _open_choices).
+func _choice_texts(window: FloatingPanel) -> Array:
+	return window.content.find_children("*", "Button", true, false).map(func(b): return (b as Button).text)
+
+
+func _choice(window: FloatingPanel, text: String) -> Button:
+	for b in window.content.find_children("*", "Button", true, false):
+		if (b as Button).text == text:
+			return b
+	return Button.new()

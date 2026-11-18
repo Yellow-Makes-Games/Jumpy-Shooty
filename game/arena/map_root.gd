@@ -146,6 +146,7 @@ var destruction: MapDestruction
 var has_meshes := true
 
 var _materials := {}
+var _riding_materials := {}   # kind -> the grid material laid out from a mover's body (see riding_material_for)
 # Spawn points and pickup spots inside a mover: {list: 0 spawns / 1 weapons / 2 items,
 # index, mover, xf (in the mover's frame)}. update_movers() keeps them where the mover is.
 var _riders: Array = []
@@ -473,8 +474,10 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 	var meshes := MapMesher.build(built, face_shade)
 	for kind in meshes:
 		var mesh := MeshInstance3D.new()
-		mesh.mesh = meshes[kind]
-		mesh.material_override = material_for(kind)
+		# Its patterns ride with it (measured from the body, not the map), or they would
+		# stand still while it moves through them, and shimmer.
+		mesh.mesh = MapMesher.riding(meshes[kind])
+		mesh.material_override = riding_material_for(kind)
 		mesh.set_meta("kind", kind)
 		body.add_child(mesh)
 
@@ -728,6 +731,25 @@ func material_for(kind: String) -> Material:
 	return _materials[kind]
 
 
+## The material for a kind on something that moves (a mover's body). The patterned
+## kinds need nothing different: the surface shader reads the mark MapMesher.riding()
+## puts on the mesh, so they share the one material and anything that changes it (an
+## event dimming or lighting a kind) still reaches them. Only the test maps' distance
+## grid does: a StandardMaterial3D lays it out from the map, so a mover gets a copy that
+## lays it out from the body. (A copy does not follow later changes to the original;
+## no grid map changes its materials.)
+func riding_material_for(kind: String) -> Material:
+	var m := material_for(kind)
+	var standard := m as StandardMaterial3D
+	if standard == null or not (standard.uv1_triplanar and standard.uv1_world_triplanar):
+		return m
+	if not _riding_materials.has(kind):
+		var copy := standard.duplicate() as StandardMaterial3D
+		copy.uv1_world_triplanar = false
+		_riding_materials[kind] = copy
+	return _riding_materials[kind]
+
+
 ## For blocks outside a map (a scene of its own): the Construction Site's colours.
 static func fallback_material(kind: String) -> Material:
 	if _fallback.is_empty():
@@ -748,6 +770,7 @@ static func ghost_material() -> Material:
 
 func _palette_changed() -> void:
 	_materials.clear()
+	_riding_materials.clear()
 	if Engine.is_editor_hint() and is_inside_tree():
 		propagate_call("refresh_preview")
 		update_gizmos()

@@ -4,7 +4,8 @@ shader_type spatial;
 // kind one of these by name (MapPalette.surface; the names are in MapScenery.SURFACES).
 //
 // Everything is worked out from where the surface is in the map, in metres, so the
-// pattern lines up across blocks, and it is the same on every copy of the game. Walls
+// pattern lines up across blocks, and it is the same on every copy of the game. (On a
+// moving part it is worked out from where the surface is in that part: see vertex().) Walls
 // are measured along the wall, whichever way it is turned, so seams always run level
 // and upright. Lines are smoothed and fade out with distance, so nothing shimmers.
 
@@ -35,8 +36,16 @@ varying vec3 map_pos;
 varying vec3 map_normal;
 
 void vertex() {
-	map_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	map_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	if (UV2.x > 0.5) {
+		// Part of something that moves (MapMesher.riding() marked it): the pattern is
+		// measured in its own frame, so it travels with the block instead of standing
+		// still in the map while the block slides through it.
+		map_pos = VERTEX;
+		map_normal = NORMAL;
+	} else {
+		map_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		map_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	}
 }
 
 float hash(vec2 p) {

@@ -1,5 +1,10 @@
 """Dresses the Castle: python3 tools/arena/castle_dressing.py
 
+RETIRED: the Castle has since been regrouped by object (each object holds its own
+dressing) and is edited by hand. There is no `Dressing` branch any more, so this script
+refuses to run on it: it would add a second copy of every piece. It is kept as a record
+of how the dressing was laid out.
+
 The Castle (game/maps/castle.tscn) is built by hand in the editor. This script only
 rebuilds its `Dressing` branch: several hundred drawn-only pieces (never solid, so they
 change neither collision nor the bots' navigation) that would be tedious to place by
@@ -689,6 +694,9 @@ def peak(m, parent, name, rng, x, z, width, height, tiers, kinds):
 def build():
     os.chdir(ROOT)
     text = open(SCENE).read()
+    if not re.search(r'^\[node name="%s" type="Node3D" parent="\."' % D, text, re.M):
+        sys.exit("%s has no %s branch: the Castle is grouped by object and edited by hand now "
+                 "(see the note at the top of this script)" % (SCENE, D))
     for path, rid in re.findall(r'\[ext_resource type="Script" path="([^"]+)" id="([^"]+)"\]', text):
         SCRIPT_OF[rid] = path
     block_id = [k for k, v in SCRIPT_OF.items() if v.endswith("map_block.gd")][0]

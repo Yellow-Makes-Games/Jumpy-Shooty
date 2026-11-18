@@ -17,6 +17,7 @@ extends VBoxContainer
 
 signal picked(id: String)
 signal list_requested   ## compact: the name under the stage was pressed
+signal create_requested ## compact: "Make new character" in the list was pressed
 
 const STAGE := Vector2(360, 292)
 const COLUMNS := 4
@@ -88,6 +89,12 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: 
 		_add_button(id)
 	_blurb = UiKit.label(holder, "", true, 15)
 	_blurb.custom_minimum_size = Vector2(0, 40)
+	if compact:   # the Character Creator, from the list (the page opens it)
+		var make := UiKit.button(list, "Make new character", func(): create_requested.emit())
+		make.theme_type_variation = "Chip"
+		make.custom_minimum_size = Vector2(220, 40)
+		make.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		make.set_meta("sfx", "select")
 	select(Characters.valid(start))
 
 
@@ -207,3 +214,15 @@ func set_weapon(id: String) -> void:
 
 func _show_robot() -> void:
 	_preview.show_robot(current, _color, _weapon)
+
+
+## The characters from the Character Creator changed (one saved, replaced or deleted):
+## a button for each saved one, and none for one that is gone (unless it is picked).
+func refresh_custom() -> void:
+	for id in _buttons.keys():
+		if Characters.is_custom(id) and id != current and not id in Settings.custom_characters:
+			_buttons[id].queue_free()
+			_buttons.erase(id)
+			_ids.erase(id)
+	for id in Settings.custom_characters:
+		_add_button(id)

@@ -32,7 +32,8 @@ var _side := "left"
 var top_of: Control
 
 
-## side: "left" (beside the button, to its left) or "below" (under it).
+## side: "left" (beside the button, to its left), "below" (under it) or "above" (over
+## it: a button in the page's footer).
 func _init(side: String = "left", min_width: float = 0.0) -> void:
 	_side = side
 	visible = false
@@ -81,6 +82,13 @@ func is_open() -> bool:
 	return visible
 
 
+## Wrapping content (rows of chips, wrapped lines) only knows its height once it has
+## been laid out at its width: fit the panel again whenever what it needs changes.
+func _process(_delta: float) -> void:
+	if visible and panel.get_combined_minimum_size() != panel.size:
+		_place()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
 		close()
@@ -100,6 +108,8 @@ func _place() -> void:
 	var at := Vector2(a.position.x - GAP - s.x, top)
 	if _side == "below" or at.x < view.position.x + EDGE:
 		at = Vector2(a.position.x + (a.size.x - s.x) * 0.5, a.end.y + GAP)
+	if _side == "above":
+		at = Vector2(a.position.x, a.position.y - GAP - s.y)
 	at.x = clampf(at.x, view.position.x + EDGE, maxf(view.end.x - s.x - EDGE, view.position.x + EDGE))
 	at.y = clampf(at.y, view.position.y + EDGE, maxf(view.end.y - s.y - EDGE, view.position.y + EDGE))
 	panel.global_position = at
