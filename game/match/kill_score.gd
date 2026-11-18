@@ -12,9 +12,13 @@ extends RefCounted
 ## are the ones that show off the movement (on the rope, off a wall, gliding, in the
 ## air) and the aim (a headshot, a long way off, a target in the air); a multikill is
 ## the classic highlight, and a kick or a crash into a wall is the game's own flourish.
-## Speed counts on both sides: the faster the killer was going, and the faster the
-## target, the better it looks; and so does a flick, the aim swinging a long way in
-## the moment before the kill.
+## Motion drives this game, so momentum counts for a lot, but only when BOTH players
+## are moving: it scores the two speeds together (their geometric mean), so a kill on
+## someone standing still, or from standing still, gets next to none of it. A flick,
+## the aim swinging a long way in the moment before the kill, counts too. And the
+## kills everyone agrees are the coolest are trickshots, several of these at once, so
+## each extra trick in the same kill (in the air, hitting a target in the air, a
+## flick, a long shot) adds a big combo bonus on top.
 ## A plain kill on the ground at close range scores just the base, so it is only
 ## shown when the match had nothing better. Ties go to the earlier kill.
 
@@ -38,13 +42,18 @@ const MELEE := 30
 const CLUTCH := 40           ## the killer had CLUTCH_HP or less left
 const CLUTCH_HP := 25.0
 ## Momentum (m/s, the whole velocity). Sprinting is 11.5; a swing, a dive or a rocket
-## burst takes you past 18, and 25 and up is rare.
-const SPEED_FROM := 12.0     ## every m/s the killer was going past this is worth SPEED_PER...
-const SPEED_PER := 5.0
-const SPEED_MAX := 100       ## ...up to this many (at 32 m/s)
-const TARGET_PER := 4.0      ## the same for the victim's speed...
-const TARGET_MAX := 80       ## ...up to this many
+## burst takes you past 18, and 25 and up is rare. The two players' speeds count
+## together, as sqrt(killer * victim): 0 if either stands still, the speed itself if
+## both go the same speed. Every m/s of that past MOTION_FROM is worth MOTION_PER.
+const MOTION_FROM := 6.0
+const MOTION_PER := 10.0
+const MOTION_MAX := 220      ## (at 28 m/s each)
+const SPEED_CAP := 40.0      ## a speed counts as at most this (a blow can fling a body faster)
 const FAST := 18.0           ## the "24 M/S" tags from this fast
+## A trickshot: TRICK for each trick past the first in the same kill. The tricks:
+## the killer in the air (or on the rope, a wall, gliding), the victim in the air, a
+## flick, a long shot.
+const TRICK := 75
 ## The flick: how far the killer's aim swung (degrees, every turn added up) in the
 ## FLICK_WINDOW seconds before the kill.
 const FLICK_WINDOW := 0.6
@@ -68,6 +77,8 @@ const T_CLUTCH := 2048
 const T_FAST := 4096
 const T_TARGET_FAST := 8192
 const T_FLICK := 16384
+
+const TRICKS := [T_MID_AIR, T_AIR_SHOT, T_FLICK, T_LONG]
 
 const S := MovementController.State
 const AIRBORNE := [S.AIR, S.GRAPPLE, S.WALL_RUN, S.FLIP, S.DIVE, S.GLIDE]
@@ -151,14 +162,31 @@ static func parts(tags: int, streak: int, distance: float, speed: float = 0.0, t
 	if tags & T_HEADSHOT:
 		add.call("HEADSHOT", HEADSHOT)
 	add.call("FLICK %d°" % roundi(flick), mini(int(maxf(flick - FLICK_FROM, 0.0)), FLICK_MAX))
-	add.call("SPEED %d M/S" % roundi(speed), mini(int(maxf(speed - SPEED_FROM, 0.0) * SPEED_PER), SPEED_MAX))
-	add.call("TARGET AT %d M/S" % roundi(target), mini(int(maxf(target - SPEED_FROM, 0.0) * TARGET_PER), TARGET_MAX))
+	add.call("MOMENTUM %d · %d M/S" % [roundi(minf(speed, SPEED_CAP)), roundi(minf(target, SPEED_CAP))], motion_points(speed, target))
+	var tricks := trick_count(tags)
+	if tricks >= 2:
+		add.call("TRICKSHOT ×%d" % tricks, TRICK * (tricks - 1))
 	if tags & T_AIR_SHOT:
 		add.call("AIR SHOT", AIR_SHOT)
 	if tags & T_CLUTCH:
 		add.call("CLUTCH", CLUTCH)
 	add.call("RANGE %d M" % roundi(distance), mini(int(maxf(distance - RANGE_FROM, 0.0) * RANGE_PER), RANGE_MAX))
 	return out
+
+
+## Points for the two players' speeds together (see MOTION_FROM).
+static func motion_points(speed: float, target: float) -> int:
+	var both := sqrt(clampf(speed, 0.0, SPEED_CAP) * clampf(target, 0.0, SPEED_CAP))
+	return mini(int(maxf(both - MOTION_FROM, 0.0) * MOTION_PER), MOTION_MAX)
+
+
+## How many tricks a kill had at once (see TRICK).
+static func trick_count(tags: int) -> int:
+	var n := 0
+	for t in TRICKS:
+		if tags & t:
+			n += 1
+	return n
 
 
 ## parts() for a kill info (see Match.kill_info).
@@ -178,6 +206,8 @@ static func tag_words(tags: int, streak: int, distance: float, speed: float = 0.
 	var out: Array = []
 	if streak >= 1:
 		out.append(["DOUBLE KILL", "TRIPLE KILL", "QUAD KILL"][mini(streak, 3) - 1] if streak <= 3 else "MULTI KILL")
+	if trick_count(tags) >= 2:
+		out.append("TRICKSHOT")
 	if tags & T_FLYING_KICK:
 		out.append("FLYING KICK")
 	elif tags & T_KICK:
@@ -197,9 +227,9 @@ static func tag_words(tags: int, streak: int, distance: float, speed: float = 0.
 	if tags & T_FLICK:
 		out.append("FLICK %d°" % roundi(flick))
 	if tags & T_FAST:
-		out.append("%d M/S" % roundi(speed))
+		out.append("%d M/S" % roundi(minf(speed, SPEED_CAP)))
 	if tags & T_TARGET_FAST:
-		out.append("TARGET AT %d M/S" % roundi(target))
+		out.append("TARGET AT %d M/S" % roundi(minf(target, SPEED_CAP)))
 	if tags & T_AIR_SHOT:
 		out.append("AIR SHOT")
 	if tags & T_MELEE:

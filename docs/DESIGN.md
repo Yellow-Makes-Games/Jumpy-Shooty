@@ -19,6 +19,10 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
   rebuilt from what each copy already receives and draws, not video.
 - The score also rewards momentum, the killer's and the victim's, and how far the
   killer's aim moved just before the kill (asked for, 2026-11-17).
+- Momentum counts only when both players are moving (their speeds combined, so a
+  stationary killer or victim earns next to none), and trickshots, several tricks in
+  one kill, earn a large combo bonus: the best killcam should be the one viewers agree
+  is the coolest, and motion drives the game (asked for, 2026-11-17).
 - Not decided yet: the rest of the scoring rule that picks the top three (range,
   headshot, mid-air / rope / wall run / glide, air shot, kicks, crashes, multikills,
   clutch; ties go to the earlier kill) and all the point values are a first pick,

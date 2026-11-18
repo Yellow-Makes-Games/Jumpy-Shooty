@@ -489,7 +489,7 @@ func _draw_points(ci: CanvasItem, c: Vector2) -> void:
 ## Gold for the parts that make a highlight (a headshot, a flick, a multikill).
 func _points_color(part: Array, i: int) -> Color:
 	var words := str(part[0])
-	var gold := words == "HEADSHOT" or words.begins_with("FLICK") or (words.ends_with(" KILL") and i > 0)
+	var gold := words == "HEADSHOT" or words.begins_with("TRICKSHOT") or words.begins_with("FLICK") or (words.ends_with(" KILL") and i > 0)
 	return HudStyle.YELLOW if gold else HudStyle.WHITE
 
 

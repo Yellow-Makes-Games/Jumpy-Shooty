@@ -79,19 +79,35 @@ func _scores() -> void:
 	var triple := KillScore.score({"streak": 2})
 	_expect(triple[0] == KillScore.BASE + 2 * KillScore.MULTI, "a third kill in a row adds two multikill bonuses")
 	_expect(KillScore.score({"killer_hp": 10.0})[1] & KillScore.T_CLUTCH, "a kill on 10 HP is a clutch")
-	var fast := KillScore.score({"killer_speed": 24.0})
-	_expect(fast[0] == KillScore.BASE + 60 and fast[1] & KillScore.T_FAST, "the killer going 24 m/s adds 5 a m/s past 12, and a speed tag (%d)" % fast[0])
-	_expect(KillScore.score({"killer_speed": 60.0})[0] == KillScore.BASE + KillScore.SPEED_MAX, "speed points stop at %d" % KillScore.SPEED_MAX)
-	_expect(KillScore.score({"killer_speed": 11.5})[0] == KillScore.BASE, "sprinting is no bonus")
-	var target := KillScore.score({"victim_speed": 22.0})
-	_expect(target[0] == KillScore.BASE + 40 and target[1] & KillScore.T_TARGET_FAST, "a victim going 22 m/s adds 4 a m/s past 12, and a tag (%d)" % target[0])
+	print("  momentum: both players' speeds together")
+	var still_victim := KillScore.score({"killer_speed": 30.0, "victim_speed": 0.0})
+	_expect(still_victim[0] == KillScore.BASE and still_victim[1] & KillScore.T_FAST, "flying past a target standing still: no momentum points (%d)" % still_victim[0])
+	_expect(KillScore.score({"killer_speed": 0.0, "victim_speed": 30.0})[0] == KillScore.BASE, "standing still and hitting a fast target: none either")
+	var slow: int = KillScore.score({"killer_speed": 30.0, "victim_speed": 1.5})[0] - KillScore.BASE
+	_expect(slow > 0 and slow <= 30, "one of them barely moving: very little (%d)" % slow)
+	var both := KillScore.score({"killer_speed": 20.0, "victim_speed": 20.0})
+	_expect(both[0] == KillScore.BASE + 140 and both[1] & KillScore.T_FAST and both[1] & KillScore.T_TARGET_FAST,
+		"both going 20 m/s: 10 a m/s past 6, and both speed tags (%d)" % both[0])
+	_expect(KillScore.score({"killer_speed": 24.0, "victim_speed": 24.0})[0] > KillScore.score({"killer_speed": 40.0, "victim_speed": 10.0})[0],
+		"two players both moving fast beats one very fast and one slow")
+	_expect(KillScore.score({"killer_speed": 11.5, "victim_speed": 11.5})[0] == KillScore.BASE + 55, "both sprinting: a little")
+	_expect(KillScore.score({"killer_speed": 60.0, "victim_speed": 60.0})[0] == KillScore.BASE + KillScore.MOTION_MAX, "momentum points stop at %d" % KillScore.MOTION_MAX)
+	_expect(KillScore.motion_points(169.0, 20.0) == KillScore.motion_points(KillScore.SPEED_CAP, 20.0), "a body flung by a blow counts as at most %d m/s" % KillScore.SPEED_CAP)
+	print("  trickshots")
+	var air: int = KillScore.score({"killer_state": S.AIR})[0]
+	var air_flick := KillScore.score({"killer_state": S.AIR, "flick": 95.0})
+	_expect(air_flick[0] == air + 75 + KillScore.TRICK, "in the air with a flick: two tricks, one combo bonus (%d)" % air_flick[0])
+	var four := KillScore.score({"killer_state": S.AIR, "victim_state": S.AIR, "flick": 95.0, "distance": 40.0})
+	_expect(KillScore.trick_count(four[1]) == 4 and "TRICKSHOT" in KillScore.words({"tags": four[1]}), "four tricks at once is a trickshot")
+	_expect(KillScore.parts(four[1], 0, 40.0, 0.0, 0.0, 95.0).has(["TRICKSHOT ×4", 3 * KillScore.TRICK]), "...worth %d on top" % (3 * KillScore.TRICK))
+	_expect(KillScore.trick_count(KillScore.score({"headshot": true, "distance": 6.0})[1]) == 0, "a headshot on the ground close by is no trick")
 	var flick := KillScore.score({"flick": 95.0})
 	_expect(flick[0] == KillScore.BASE + 75 and flick[1] & KillScore.T_FLICK, "a 95° flick adds a point a degree past 20, and a tag (%d)" % flick[0])
 	_expect(KillScore.score({"flick": 15.0}) == [KillScore.BASE, 0], "steady aim is no bonus")
 	_expect(KillScore.score({"flick": 400.0})[0] == KillScore.BASE + KillScore.FLICK_MAX, "flick points stop at %d" % KillScore.FLICK_MAX)
 	var words := KillScore.tag_words(rope[1] | KillScore.T_HEADSHOT | KillScore.T_LONG | KillScore.T_FLICK | KillScore.T_FAST | KillScore.T_TARGET_FAST,
 		2, 42.4, 24.2, 19.6, 95.4)
-	_expect(words == ["TRIPLE KILL", "ON THE ROPE", "HEADSHOT", "FLICK 95°", "24 M/S", "TARGET AT 20 M/S", "42 M"], "the words come most telling first (%s)" % [words])
+	_expect(words == ["TRIPLE KILL", "TRICKSHOT", "ON THE ROPE", "HEADSHOT", "FLICK 95°", "24 M/S", "TARGET AT 20 M/S", "42 M"], "the words come most telling first (%s)" % [words])
 	print("  where a kill's points came from")
 	var facts := {"distance": 42.4, "headshot": true, "killer_state": S.GRAPPLE, "victim_state": S.AIR, "streak": 1,
 		"killer_hp": 20.0, "killer_speed": 24.2, "victim_speed": 19.6, "flick": 95.0}

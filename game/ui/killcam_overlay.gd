@@ -60,7 +60,7 @@ static func draw(ci: CanvasItem, r: Rect2, view: KillcamView, title: String, foo
 		var cw := HudStyle.text_width(chip, size) + 18.0 * k
 		if cx + cw > r.end.x - pad:
 			break
-		var gold: bool = chip == "HEADSHOT" or chip.ends_with("KILL") or chip.begins_with("FLICK")
+		var gold: bool = chip == "HEADSHOT" or chip == "TRICKSHOT" or chip.ends_with("KILL") or chip.begins_with("FLICK")
 		HudStyle.plate(ci, Rect2(cx, y - 12.0 * k, cw, 24.0 * k), 6.0, Color(1, 1, 1, 0.12) if not gold else Color(HudStyle.YELLOW, 0.2))
 		HudStyle.text(ci, Vector2(cx + 9.0 * k, y), chip, size, HudStyle.YELLOW if gold else Color(1, 1, 1, 0.9))
 		cx += cw + 6.0
