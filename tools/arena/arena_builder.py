@@ -114,10 +114,11 @@ class Map:
         return self.group(name, parent, grouped=False)
 
     def block(self, parent, name, kind, center, size, cols=IDENTITY, solid=True, drawn=True,
-              shape="box", tint=None, sides=None, inner=None, top=None, unbreakable=False):
+              shape="box", tint=None, sides=None, inner=None, top=None, unbreakable=False,
+              bevel=None, arc=None):
         props = [("transform", xform(cols, center))]
         if shape != "box":
-            props.append(("shape", {"cyl": "1", "tube": "2", "cone": "3"}[shape]))
+            props.append(("shape", {"cyl": "1", "tube": "2", "cone": "3", "wedge": "4", "bevel": "5", "dome": "6", "arch": "7"}[shape]))
         props.append(("size", vec(size)))
         props.append(("kind", '"%s"' % kind))
         if not solid:
@@ -134,6 +135,10 @@ class Map:
             props.append(("inner", fmt(inner)))
         if top:
             props.append(("top", fmt(top)))
+        if bevel is not None:
+            props.append(("bevel", fmt(bevel)))
+        if arc is not None:
+            props.append(("arc", fmt(arc)))
         return self._add(name, "Node3D", parent, props, "block", False)
 
     def box(self, parent, name, kind, lo, hi, **kw):

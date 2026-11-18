@@ -865,10 +865,13 @@ func player_weapon(id: int) -> String:
 	return WeaponData.valid(str(players[id].get("weapon", "")))
 
 
-## The mobility tool a player has (an id from Mobility). A race always has the grapple.
+## The mobility tool a player has (an id from Mobility). A race always has the grapple,
+## and so does a bot on a map that asks for it (MapRoot.bots_grapple).
 func player_mobility(id: int) -> String:
 	if Race.active or (in_match and game_kind() == "race"):
 		return Mobility.GRAPPLE
+	if is_bot(id) and MapRoot.current != null and is_instance_valid(MapRoot.current) and MapRoot.current.bots_grapple:
+		return Mobility.GRAPPLE   # a map bots only get round with the grapple
 	return player_loadout_mobility(id)
 
 

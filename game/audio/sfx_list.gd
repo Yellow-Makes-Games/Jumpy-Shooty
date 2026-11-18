@@ -77,9 +77,10 @@ const VOLUME := {
 	# Map events (both loop; MapTerminal and GravityEvent play and fade them). The chord
 	# is heard all over the map and is kept well under the fighting.
 	"terminal_hum": -9.0, "gravity_pad": -15.0,
-	# Cirrus's bell and the move it starts (LayoutEvent plays them, everywhere at once).
-	# The bell is the loudest thing on the map on purpose; the rest sit under the fighting.
-	"bell_toll": -3.0, "campus_fanfare": -9.0, "island_move": -13.0, "bridge_lock": -7.0,
+	# Cirrus's clock, its bell and the move that follows (LayoutEvent plays them). The
+	# tick is the quietest thing in the game: there all match, never in the way. The bell
+	# is meant to be heard over a fight; the build-up and the move sit under it.
+	"clock_tick": -27.0, "clock_tock": -27.0, "bell_toll": -4.0, "layout_rise": -11.0, "island_move": -13.0, "bridge_lock": -7.0,
 }
 
 ## Gun handling, in seconds from the start of the clip, matched to the animations

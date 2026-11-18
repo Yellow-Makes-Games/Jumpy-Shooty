@@ -70,6 +70,10 @@ extends Node3D
 ## (Cirrus's clock tower): the bots' navigation mesh is then cut up a way that keeps
 ## such a stair. Leave it off otherwise: the usual way makes tidier paths in the open.
 @export var winding_floors := false
+## Tick this on a map bots can only get round with the grapple (Cirrus: islands with
+## open sky between them, crossed at MapJumpLinks): every bot then carries the grapple
+## here, whatever tool it was dealt.
+@export var bots_grapple := false
 ## A high point near the middle that scripted test players swing from.
 @export var swing_point := Vector3(0, 5.5, 0):
 	set(v):
@@ -113,7 +117,11 @@ var shifting := false:
 ## The bots' navigation mesh is being redone for where the parts now are (the arena
 ## says so): bots keep standing still.
 var nav_pending := false
-## Which layout the map is in (a LayoutEvent's state: 0 until one says otherwise).
+## The parts are about to move (a LayoutEvent's bell has gone): an island that is about
+## to go down (MapIsland.doomed) is no place to be. Bots get off it and keep off.
+var warning := false
+## Which layout the map is in (a LayoutEvent's present arrangement, as a number: 0
+## until one says otherwise). The arena keeps a navigation mesh for each.
 var layout_state := 0
 
 signal parts_moving
@@ -199,10 +207,11 @@ func build(with_meshes: bool = true) -> void:
 	add_child(body)
 	for piece in pieces:
 		if piece.solid:
-			var shape := CollisionShape3D.new()
-			shape.shape = _collision_shape(piece)
-			shape.transform = piece.xf
-			body.add_child(shape)
+			for lump in collision_shapes(piece):
+				var shape := CollisionShape3D.new()
+				shape.shape = lump
+				shape.transform = piece.xf
+				body.add_child(shape)
 	if not with_meshes:
 		return
 	var meshes := MapMesher.build(pieces, face_shade)
@@ -413,6 +422,8 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 	body.set_meta("mover", index)
 	add_child(body)
 	m.body = body
+	if m.node is MapIsland:
+		(m.node as MapIsland).built(body)
 	var built: Array = m.pieces
 	if destruction:
 		# Its breakable walls ride with it: their spawn guard is worked out in its frame.
@@ -432,10 +443,11 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 	m.bounds = bounds
 	for piece in built:
 		if piece.solid:
-			var shape := CollisionShape3D.new()
-			shape.shape = _collision_shape(piece)
-			shape.transform = piece.xf
-			body.add_child(shape)
+			for lump in collision_shapes(piece):
+				var shape := CollisionShape3D.new()
+				shape.shape = lump
+				shape.transform = piece.xf
+				body.add_child(shape)
 	if not with_meshes:
 		return
 	var meshes := MapMesher.build(built, face_shade)
@@ -443,6 +455,7 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 		var mesh := MeshInstance3D.new()
 		mesh.mesh = meshes[kind]
 		mesh.material_override = material_for(kind)
+		mesh.set_meta("kind", kind)
 		body.add_child(mesh)
 
 
@@ -543,6 +556,45 @@ func mover_under(point: Vector3, poses: Array = []) -> int:
 	return -1
 
 
+## The island `point` is on or over, or null.
+func island_at(point: Vector3) -> MapIsland:
+	var on := mover_under(point)
+	return movers[on].node as MapIsland if on >= 0 else null
+
+
+## Is `point` on an island that is about to go down?
+func doomed_at(point: Vector3) -> bool:
+	var island := island_at(point)
+	return island != null and island.doomed
+
+
+## A spawn point at `point`: 1 if it is on an island that is up and staying up, -1 if on
+## one that is down, on its way or about to go, 0 if it is on no island at all.
+func spawn_open(point: Vector3) -> int:
+	var island := island_at(point)
+	if island == null:
+		return 0
+	return 1 if island.up and not island.doomed else -1
+
+
+## The spawn points to use right now: those on islands that are up and staying; if
+## there is none, those on ground that never moves; failing that, all of them.
+func open_spawns() -> Array:
+	if movers.is_empty():
+		return spawns
+	var on_islands := []
+	var fixed := []
+	for s in spawns:
+		var open := spawn_open(s[0])
+		if open > 0:
+			on_islands.append(s)
+		elif open == 0:
+			fixed.append(s)
+	if not on_islands.is_empty():
+		return on_islands
+	return fixed if not fixed.is_empty() else spawns
+
+
 func _physics_process(delta: float) -> void:
 	if not Engine.is_editor_hint() and not movers.is_empty():
 		update_movers(delta)
@@ -603,6 +655,20 @@ func _collect_dummies(node: Node, xf: Transform3D) -> void:
 		if child is MapDummy:
 			dummies.append([at.origin, atan2(at.basis.z.x, at.basis.z.z), child])
 		_collect_dummies(child, at)
+
+
+## What a piece is to bump into: one shape for most, several for a hollow dome or an
+## arch (each in the piece's own frame).
+func collision_shapes(piece: Dictionary) -> Array:
+	var lumps := MapMesher.hull_points(piece)
+	if lumps.is_empty():
+		return [_collision_shape(piece)]
+	var shapes := []
+	for pts in lumps:
+		var hull := ConvexPolygonShape3D.new()
+		hull.points = pts
+		shapes.append(hull)
+	return shapes
 
 
 func _collision_shape(piece: Dictionary) -> Shape3D:

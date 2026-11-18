@@ -114,6 +114,20 @@ const SURFACES := {
 }
 
 
+## A palette's Surface Scale and Surface Strength: bigger cells, fainter seams.
+static func _tune_surface(sm: ShaderMaterial, pattern: Dictionary, scale: float, strength: float) -> void:
+	if is_equal_approx(scale, 1.0) and is_equal_approx(strength, 1.0):
+		return
+	var shader_defaults := {"wall_cell": Vector2(3, 2), "floor_cell": Vector2(2, 2), "seam": 0.02, "seam_shade": 0.6, "vary": 0.04}
+	for key in ["wall_cell", "floor_cell"]:
+		sm.set_shader_parameter(key, (pattern.get(key, shader_defaults[key]) as Vector2) * scale)
+	sm.set_shader_parameter("seam", float(pattern.get("seam", shader_defaults.seam)) * sqrt(scale))
+	sm.set_shader_parameter("seam_shade", lerpf(1.0, float(pattern.get("seam_shade", shader_defaults.seam_shade)), strength))
+	sm.set_shader_parameter("vary", float(pattern.get("vary", shader_defaults.vary)) * strength)
+	if pattern.has("checker"):
+		sm.set_shader_parameter("checker", float(pattern.checker) * strength)
+
+
 ## kind -> material, for every kind in the palette.
 static func materials(palette: MapPalette, grid: bool) -> Dictionary:
 	var result := {}
@@ -130,6 +144,7 @@ static func materials(palette: MapPalette, grid: bool) -> Dictionary:
 			sm.set_shader_parameter("roughness", palette.roughness)
 			for key in SURFACES[pattern]:
 				sm.set_shader_parameter(key, SURFACES[pattern][key])
+			_tune_surface(sm, SURFACES[pattern], palette.surface_scale, palette.surface_strength)
 			result[kind] = sm
 			continue
 		var m := StandardMaterial3D.new()

@@ -31,7 +31,7 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 	var handles := PackedVector3Array()
 	var ids := PackedInt32Array()
 	for id in 6:
-		if block.shape != MapBlock.Shape.BOX and id in [1, 4, 5]:
+		if block.is_round() and id in [1, 4, 5]:
 			continue   # round: one handle for the diameter
 		var axis := id / 2
 		var p := Vector3.ZERO
@@ -43,7 +43,7 @@ func _redraw(gizmo: EditorNode3DGizmo) -> void:
 
 func _get_handle_name(gizmo: EditorNode3DGizmo, id: int, _secondary: bool) -> String:
 	var block := gizmo.get_node_3d() as MapBlock
-	return "Diameter" if block.shape != MapBlock.Shape.BOX and id == 0 else NAMES[id]
+	return "Diameter" if block.is_round() and id == 0 else NAMES[id]
 
 
 func _get_handle_value(gizmo: EditorNode3DGizmo, _id: int, _secondary: bool) -> Variant:

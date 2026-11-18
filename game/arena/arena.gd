@@ -276,9 +276,10 @@ func _on_team_event(kind: String, _team: int, _who: int) -> void:
 
 ## The spawn point furthest from every living opponent of `who`.
 func _safest_spawn(who: Player) -> Array:
-	var best: Array = layout.spawns[0]
+	var open := layout.open_spawns()   # (on a map of islands: only where there is an island to stand on)
+	var best: Array = open[0]
 	var best_score := -1.0
-	for s in layout.spawns:
+	for s in open:
 		var nearest := INF
 		for p in players_root.get_children():
 			if p != who and (p as Player).alive and not Teams.same_team(who.peer_id, (p as Player).peer_id):
@@ -379,7 +380,8 @@ func _respawn(p: Player) -> void:
 	var ids := Net.players.keys()
 	ids.sort()
 	var index: int = max(ids.find(p.peer_id), 0)
-	var s: Array = layout.spawns[(index + randi() % 2 * (layout.spawns.size() / 2)) % layout.spawns.size()]
+	var open := layout.open_spawns()
+	var s: Array = open[(index + randi() % 2 * (open.size() / 2)) % open.size()]
 	if Race.active:
 		s = layout.spawns[index % layout.spawns.size()]   # everyone has their own place on the start line
 	var team_spot := _team_spawn(p)

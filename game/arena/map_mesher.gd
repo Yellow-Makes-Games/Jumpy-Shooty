@@ -38,6 +38,7 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 			"cyl": _prism(buf, piece, 0.0)
 			"tube": _prism(buf, piece, piece.get("inner", 0.0))
 			"cone": _cone(buf, piece)
+			"wedge", "bevel", "dome", "arch": _hulls(buf, piece)
 			_: _box(buf, piece)
 	var result := {}
 	for kind in by_kind:
@@ -152,6 +153,245 @@ static func cone_points(piece: Dictionary) -> PackedVector3Array:
 	else:
 		pts.append(Vector3(0, hy, 0))
 	return pts
+
+
+# ---------------------------------------------------------------------------
+# Wedges, bevelled boxes, domes and arches. Each is one or more convex lumps, given
+# by their corners (hull_points); what you see and what you bump into are both made
+# from those same corners, so they always agree.
+
+## The convex lumps a piece is made of, each a list of corners in the piece's own
+## frame. A wedge, a bevelled box and a whole solid dome are one lump; a hollow or
+## cut-open dome and an arch are several.
+static func hull_points(piece: Dictionary) -> Array:
+	match piece.shape:
+		"wedge": return [wedge_points(piece)]
+		"bevel": return [bevel_points(piece)]
+		"dome": return dome_hulls(piece)
+		"arch": return arch_hulls(piece)
+	return []
+
+
+## A slope: tall at the back (-z), down to nothing at the front (+z).
+static func wedge_points(piece: Dictionary) -> PackedVector3Array:
+	var h: Vector3 = piece.size * 0.5
+	return PackedVector3Array([
+		Vector3(-h.x, -h.y, -h.z), Vector3(h.x, -h.y, -h.z), Vector3(-h.x, -h.y, h.z), Vector3(h.x, -h.y, h.z),
+		Vector3(-h.x, h.y, -h.z), Vector3(h.x, h.y, -h.z)])
+
+
+## A box with every edge cut off: three corners where each of the box's was.
+static func bevel_points(piece: Dictionary) -> PackedVector3Array:
+	var h: Vector3 = piece.size * 0.5
+	var c: float = clampf(piece.get("bevel", 0.1), 0.0, minf(h.x, minf(h.y, h.z)) * 0.98)
+	var pts := PackedVector3Array()
+	for sx in [-1.0, 1.0]:
+		for sy in [-1.0, 1.0]:
+			for sz in [-1.0, 1.0]:
+				pts.append(Vector3(sx * h.x, sy * (h.y - c), sz * (h.z - c)))
+				pts.append(Vector3(sx * (h.x - c), sy * h.y, sz * (h.z - c)))
+				pts.append(Vector3(sx * (h.x - c), sy * (h.y - c), sz * h.z))
+	return pts
+
+
+## How many rings a dome has from its foot to its top.
+static func dome_rings(piece: Dictionary) -> int:
+	return maxi(2, int(piece.get("sides", 12)) / 4)
+
+
+## A point on a dome's skin (`shrink` metres inside it): `i` of `sides` steps round,
+## ring `j` of dome_rings() up.
+static func _dome_point(piece: Dictionary, i: int, j: int, shrink: float) -> Vector3:
+	var sides: int = piece.get("sides", 12)
+	var arc: float = deg_to_rad(piece.get("arc", 360.0))
+	var a := PI * 0.5 + (TAU - arc) * 0.5 + arc * i / sides   # the open slice faces +z
+	var up := PI * 0.5 * j / dome_rings(piece)
+	var rx: float = maxf(piece.size.x * 0.5 - shrink, 0.0)
+	var rz: float = maxf(piece.size.z * 0.5 - shrink, 0.0)
+	var height: float = maxf(piece.size.y - shrink, 0.0)
+	return Vector3(cos(a) * cos(up) * rx, sin(up) * height - piece.size.y * 0.5, sin(a) * cos(up) * rz)
+
+
+static func _dome_wall(piece: Dictionary) -> float:
+	var inner: float = piece.get("inner", 0.0)
+	return clampf((piece.size.x - inner) * 0.5, 0.01, piece.size.x * 0.5) if inner > 0.0 else 0.0
+
+
+static func dome_hulls(piece: Dictionary) -> Array:
+	var sides: int = piece.get("sides", 12)
+	var rings := dome_rings(piece)
+	var wall := _dome_wall(piece)
+	var whole: bool = piece.get("arc", 360.0) >= 359.9
+	var foot := Vector3(0, -piece.size.y * 0.5, 0)
+	var hulls := []
+	if wall <= 0.0 and whole:
+		var all := PackedVector3Array()
+		for i in sides:
+			for j in rings:
+				all.append(_dome_point(piece, i, j, 0.0))
+		all.append(_dome_point(piece, 0, rings, 0.0))
+		return [all]
+	for i in sides:
+		if wall <= 0.0:   # solid, with a slice out: one lump per side, from the middle out
+			var lump := PackedVector3Array([foot])
+			for j in rings + 1:
+				lump.append(_dome_point(piece, i, j, 0.0))
+				if j < rings:
+					lump.append(_dome_point(piece, i + 1, j, 0.0))
+			hulls.append(lump)
+			continue
+		for j in rings:     # a shell: one lump per panel
+			var lump := PackedVector3Array()
+			for shrink in [0.0, wall]:
+				lump.append(_dome_point(piece, i, j, shrink))
+				lump.append(_dome_point(piece, i + 1, j, shrink))
+				lump.append(_dome_point(piece, i, j + 1, shrink))
+				if j + 1 < rings:
+					lump.append(_dome_point(piece, i + 1, j + 1, shrink))
+			hulls.append(lump)
+	return hulls
+
+
+## An arch's opening: half its width and its height.
+static func arch_opening(piece: Dictionary) -> Vector2:
+	var inner: float = piece.get("inner", 0.0)
+	var half: float = piece.size.x * 0.5
+	return Vector2(minf(inner * 0.5, half) if inner > 0.0 else half, clampf(piece.size.y - piece.get("top", 0.0), 0.01, piece.size.y))
+
+
+static func arch_hulls(piece: Dictionary) -> Array:
+	var h: Vector3 = piece.size * 0.5
+	var open := arch_opening(piece)
+	var sides: int = maxi(int(piece.get("sides", 12)), 2)
+	var hulls := []
+	for k in sides:
+		var lump := PackedVector3Array()
+		for t in [k, k + 1]:
+			var a: float = PI * t / sides
+			var x: float = cos(a) * open.x
+			for z in [-h.z, h.z]:
+				lump.append(Vector3(x, -h.y + sin(a) * open.y, z))
+				lump.append(Vector3(x, h.y, z))
+		hulls.append(lump)
+	if open.x < h.x - 0.001:   # a leg either side of the opening
+		for s in [-1.0, 1.0]:
+			var leg := PackedVector3Array()
+			for x in [s * open.x, s * h.x]:
+				for y in [-h.y, h.y]:
+					for z in [-h.z, h.z]:
+						leg.append(Vector3(x, y, z))
+			hulls.append(leg)
+	return hulls
+
+
+## Draws each lump's faces (its convex hull), leaving out the faces two lumps share.
+static func _hulls(buf: Array, piece: Dictionary) -> void:
+	var xf: Transform3D = piece.xf
+	var color: Color = piece.get("tint", Color.WHITE)
+	if piece.shape == "dome" and _dome_wall(piece) <= 0.0 and piece.get("arc", 360.0) >= 359.9:
+		# A whole solid dome is one lump of many corners: its panels are known, no need to look for them.
+		var sides: int = piece.get("sides", 12)
+		var rings := dome_rings(piece)
+		var foot := PackedVector3Array()
+		for i in sides:
+			foot.append(_dome_point(piece, sides - i, 0, 0.0))
+			for j in rings:
+				var a := _dome_point(piece, i, j, 0.0)
+				var b := _dome_point(piece, i + 1, j, 0.0)
+				var c := _dome_point(piece, i + 1, j + 1, 0.0)
+				var d := _dome_point(piece, i, j + 1, 0.0)
+				var n := (c - a).cross(b - a) if j + 1 == rings else (c - a).cross(b - d)
+				n = n.normalized()
+				if n.dot(a + c) < 0.0:
+					n = -n
+				_flat(buf, xf, [a, b, c] if j + 1 == rings else [a, b, c, d], n, color)
+		_flat(buf, xf, Array(foot), Vector3.DOWN, color)
+		return
+	# Every face of every lump; a face two lumps share (the same place, looking opposite
+	# ways) is inside the piece and is left out.
+	var faces := []   # [normal, corners in order, a key for where its middle is]
+	var count := {}
+	for pts in hull_points(piece):
+		for face in hull_faces(pts):
+			var mid := Vector3.ZERO
+			for p in face[1]:
+				mid += p
+			mid /= face[1].size()
+			var key := Vector3i((mid * 200.0).round())
+			face.append(key)
+			count[key] = count.get(key, 0) + 1
+			faces.append(face)
+	for face in faces:
+		if count[face[2]] == 1:
+			_flat(buf, xf, face[1], face[0], color)
+
+
+## One flat face with these corners (in the piece's own frame, in order round it,
+## either way), facing along `n`.
+static func _flat(buf: Array, xf: Transform3D, corners: Array, n: Vector3, color: Color) -> void:
+	if corners.size() < 3:
+		return
+	var turn: Vector3 = ((corners[1] as Vector3) - corners[0]).cross((corners[2] as Vector3) - corners[0])
+	if turn.dot(n) < 0.0:
+		corners = corners.duplicate()
+		corners.reverse()
+	var out: Vector3 = xf.basis * n
+	for k in range(1, corners.size() - 1):
+		_tri(buf, xf * corners[0], xf * corners[k], xf * corners[k + 1], out, color)
+
+
+## The flat faces of the convex lump with these corners: [[normal, corners going
+## counter-clockwise seen from outside], ...]. Corners that lie in one plane make one face.
+static func hull_faces(pts: PackedVector3Array) -> Array:
+	var n := pts.size()
+	var faces := []
+	var seen := {}
+	for a in n:
+		for b in range(a + 1, n):
+			for c in range(b + 1, n):
+				var normal := (pts[b] - pts[a]).cross(pts[c] - pts[a])
+				if normal.length_squared() < 1e-10:
+					continue
+				normal = normal.normalized()
+				var d := normal.dot(pts[a])
+				var above := false
+				var below := false
+				var on := []
+				for i in n:
+					var s := normal.dot(pts[i]) - d
+					if s > 0.0005:
+						above = true
+					elif s < -0.0005:
+						below = true
+					else:
+						on.append(i)
+				if above and below:
+					continue
+				if above:
+					normal = -normal
+				var key := "%d %d %d %d" % [roundi(normal.x * 500), roundi(normal.y * 500), roundi(normal.z * 500), roundi(normal.dot(pts[a]) * 500)]
+				if seen.has(key):
+					continue
+				seen[key] = true
+				# Put the corners in order round the face.
+				var mid := Vector3.ZERO
+				for i in on:
+					mid += pts[i]
+				mid /= on.size()
+				var u := (pts[on[0]] - mid).normalized()
+				var v := normal.cross(u)
+				var ring := []
+				for i in on:
+					var r: Vector3 = pts[i] - mid
+					ring.append([atan2(r.dot(v), r.dot(u)), pts[i]])
+				ring.sort_custom(func(p, q): return p[0] < q[0])
+				var corners := []
+				for r in ring:
+					if corners.is_empty() or (corners[-1] as Vector3).distance_to(r[1]) > 0.0005:
+						corners.append(r[1])
+				if corners.size() >= 3:
+					faces.append([normal, corners])
+	return faces
 
 
 static func _tri(buf: Array, a: Vector3, b: Vector3, c: Vector3, n: Vector3, color: Color) -> void:

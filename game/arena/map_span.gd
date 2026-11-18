@@ -98,10 +98,11 @@ func build(map: MapRoot, on: Node3D, base: Transform3D, with_meshes: bool) -> vo
 				deck_area = b.size.x * b.size.z
 				deck_top = b.end.y
 			if piece.solid:
-				var shape := CollisionShape3D.new()
-				shape.shape = map._collision_shape(piece)
-				shape.transform = piece.xf
-				body.add_child(shape)
+				for lump in map.collision_shapes(piece):
+					var shape := CollisionShape3D.new()
+					shape.shape = lump
+					shape.transform = piece.xf
+					body.add_child(shape)
 				box = box.merge(b) if any else b
 				any = true
 		var holder := Node3D.new()

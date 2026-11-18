@@ -26,6 +26,19 @@ extends Resource
 		surface = v
 		emit_changed()
 
+## Makes every pattern bigger (2 = panels, tiles and boards twice the size).
+@export_range(0.25, 8.0) var surface_scale := 1.0:
+	set(v):
+		surface_scale = v
+		emit_changed()
+
+## How strongly the patterns show: 1 = as drawn, 0.5 = seams and the difference from
+## one panel to the next half as marked, 0 = flat colour.
+@export_range(0.0, 1.0) var surface_strength := 1.0:
+	set(v):
+		surface_strength = v
+		emit_changed()
+
 ## How rough (matte) every surface is: 1 = no shine at all.
 @export_range(0.0, 1.0) var roughness := 0.85:
 	set(v):
