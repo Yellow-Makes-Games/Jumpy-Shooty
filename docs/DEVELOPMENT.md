@@ -621,8 +621,8 @@ stance, two taps that take turns and a heavy blow, each with where it winds up t
 where it lands and where it ends; a key named `fp_...` is used instead in first person.
 A weapon's `"air"` entry is its move off the ground: the same three keys, with `axis` and
 `turns` (the body goes round that axis that many times, from the start of the wind-up to
-the hit), `wind` (how much of that a full wind-up covers) and `after` (turns it carries
-on round after the hit). The ground slam's pose is `SLAM_FALL` and `SLAM_HIT` in the same file.
+the hit), `wind` (how much of that a full wind-up covers), `after` (turns it carries
+on round after the hit) or `dive` (no turn: the body tips back, then over into the blow). The ground slam's pose is `SLAM_FALL` and `SLAM_HIT` in the same file.
 Change a number and film it:
 
 ```

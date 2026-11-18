@@ -56,7 +56,9 @@ enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT, HANDS }
 ## "turns" (the body goes round that axis this many times in all, one long spin from the
 ## start of the wind-up to the moment the blow lands; + is to the left about UP) and
 ## "wind" (how much of that a full wind-up covers, the blow bringing the rest: SPIN_WIND unless
-## given) and "after" (turns the body carries on round after the blow lands, the
+## given), "dive" (instead of turning: the body tips about the axis, back by dive.x radians as
+## it winds up and over by dive.y into the blow, as in a dive, and comes level again after;
+## other players see it, your own view stays level) and "after" (turns the body carries on round after the blow lands, the
 ## same way, or to the left if it did not spin before). A key named "fp_" and one of those
 ## ("fp_ready", "fp_wound", "fp_hit"...) is used instead in first person, where the weapon
 ## has to stay in view and clear of the middle of it, and a thrust has to go where you look.
@@ -280,17 +282,17 @@ const MOVES := {
 			"end": [Vector3(0.0, -0.12, -0.52), Vector3(0.64, 0.0, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
 			"fp_end": [Vector3(0.1, -0.14, -0.48), Vector3(-0.2, -0.02, -0.98), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
 		},
-		# In mid-air: a tight corkscrew, two quick turns with the dagger drawn back to the ribs, into a stab
-		# lunged straight out and down ahead as the second turn comes round.
+		# In mid-air: a dive. The body arches back, the dagger drawn back to the ribs, then throws itself
+		# forward and down head first behind a stab at full stretch.
 		"air": {
-			"wound": [Vector3(0.3, -0.14, 0.06), Vector3(-0.25, 0.05, -0.97), Vector3(0.0, -1.0, 0.0), -0.6, -0.15, 0.0],
+			"wound": [Vector3(0.3, -0.14, 0.08), Vector3(-0.25, 0.15, -0.96), Vector3(0.0, -1.0, 0.0), -0.7, -0.3, 0.0],
 			"fp_wound": [Vector3(0.28, -0.22, -0.2), Vector3(-0.1, 0.1, -0.99), Vector3(0.0, -1.0, 0.0), -0.4, -0.05, 0.0],
-			"hit": [Vector3(0.02, -0.16, -0.52), Vector3(0.58, -0.2, -0.79), Vector3(0.0, -1.0, 0.0), 0.4, 0.5, 0.0],
+			"hit": [Vector3(0.04, 0.3, -0.44), Vector3(0.5, 0.5, -0.7), Vector3(0.0, -1.0, 0.0), 0.4, 0.2, 0.0],
 			"fp_hit": [Vector3(0.1, -0.16, -0.46), Vector3(-0.2, -0.2, -0.96), Vector3(0.0, -1.0, 0.0), 0.4, 0.5, 0.0],
-			"end": [Vector3(0.0, -0.17, -0.54), Vector3(0.6, -0.22, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.52, 0.0],
+			"end": [Vector3(0.03, 0.3, -0.46), Vector3(0.52, 0.48, -0.7), Vector3(0.0, -1.0, 0.0), 0.45, 0.22, 0.0],
 			"fp_end": [Vector3(0.1, -0.17, -0.48), Vector3(-0.2, -0.22, -0.95), Vector3(0.0, -1.0, 0.0), 0.45, 0.52, 0.0],
-			"axis": Vector3(0.0, 1.0, 0.0),
-			"turns": 2.0,
+			"axis": Vector3(-1.0, 0.0, 0.0),
+			"dive": Vector2(0.3, 0.8),
 		},
 	},
 	"brass_knuckles": {
@@ -390,6 +392,7 @@ var _clock := 0.0
 var _in_air := false       # the wind-up (or the blow) is a mid-air one
 var _air := 0.0            # how far the pose has gone over to its mid-air form, 0..1
 var _spin := 0.0           # radians the body has spun round in a mid-air wind-up
+var _diving := false       # a mid-air blow is tipping the body over in a dive
 var _spin_base := -1.0     # how wound up the swing was when it left the ground (the spin starts from there); -1: not spinning
 var _spinning := false     # a blow is bringing the spin round
 var _spin_from := 0.0      # ...from here...
@@ -419,6 +422,7 @@ func set_weapon(weapon_id: String) -> void:
 		_air_move["axis"] = m.air.get("axis", Vector3.UP)
 		_air_move["turns"] = m.air.get("turns", 0.0)
 		_air_move["wind"] = m.air.get("wind", SPIN_WIND)
+		_air_move["dive"] = m.air.get("dive", Vector2.ZERO)
 		_air_move["after"] = m.air.get("after", 0.0)
 	_pace = PACE.get(weapon_id, 1.0)
 	two_handed = WeaponData.by_id(weapon_id).two_handed
@@ -489,6 +493,9 @@ func swing(power: float, side: int = 0, in_air: bool = false) -> void:
 	_spin_first = full if full != 0.0 and absf(_spin) >= absf(full) * SPIN_COMMIT else roundf(_spin / TAU) * TAU
 	_spin_to = _spin_first + (TAU * float(_air_move.get("after", 0.0)) * (signf(full) if full != 0.0 else 1.0) if _in_air else 0.0)
 	_spinning = _spin != 0.0 or _spin_to != 0.0
+	_diving = _in_air and (_air_move.get("dive", Vector2.ZERO) as Vector2).y != 0.0
+	if _diving:
+		_spinning = false
 	_path = [_cur.duplicate(), blow.hit, _mix(blow.hit, blow.end, through), _ready]
 	_times = PackedFloat32Array([0.0, strike * HIT_AT, strike + FOLLOW * _pace, _length])
 	_sweep = [blow.wound, blow.end, blow.way, blow.left]
@@ -513,6 +520,7 @@ func stop() -> void:
 	_air = 0.0
 	_spin = 0.0
 	_spinning = false
+	_diving = false
 	_landed = 0.0
 	_in_air = false
 	_wound = false
@@ -570,6 +578,7 @@ func slam_land(power: float) -> void:
 	_spin_first = roundf(_spin / TAU) * TAU
 	_spin_to = _spin_first
 	_spinning = _spin != 0.0
+	_diving = false
 	_length = SLAM_STRIKE + SLAM_HOLD + SLAM_RISE
 	var hit := _slam_key(true)
 	_path = [_cur.duplicate(), hit, hit, _ready]
@@ -606,6 +615,8 @@ func spin_axis() -> Vector3:
 
 
 func spin() -> float:
+	if first_person and (_air_move.get("dive", Vector2.ZERO) as Vector2) != Vector2.ZERO:
+		return 0.0   # a dive tips the body, not the view
 	return _spin
 
 
@@ -678,7 +689,11 @@ func sample(delta: float) -> Array:
 					# ...and the body goes round with the charge: one long spin, most of the
 					# way by the time it is fully wound, the rest left for the blow.
 					var done := clampf((_charge - _spin_base) / (1.0 - _spin_base), 0.0, 1.0)
-					_spin = move_toward(_spin, TAU * float(_air_move.turns) * float(_air_move.wind) * done, delta * SPIN_MAX * absf(float(_air_move.turns)))
+					var back: float = (_air_move.dive as Vector2).x   # (a dive arches back first instead)
+					if back != 0.0:
+						_spin = move_toward(_spin, -back * done, delta * SPIN_MAX * 0.25)
+					else:
+						_spin = move_toward(_spin, TAU * float(_air_move.turns) * float(_air_move.wind) * done, delta * SPIN_MAX * absf(float(_air_move.turns)))
 				elif _spin != 0.0:   # back on the ground part way round: face front again the short way
 					_spin = move_toward(_spin, roundf(_spin / TAU) * TAU, delta * SPIN_SETTLE)
 				_cur = _mix(_cur, target, follow)
@@ -686,7 +701,18 @@ func sample(delta: float) -> Array:
 		SWING:
 			_cur = _along(_path, _times, _t)
 			_drawn = move_toward(_drawn, 0.0, delta * 8.0)
-			if _spinning:   # the spin comes round to the front as the blow lands (and may carry on round after it)
+			if _diving:   # a dive: tipped right over as the blow lands, held through it, level again after
+				var over: float = (_air_move.dive as Vector2).y
+				var lands: float = _times[_times.size() - 3]
+				var ends: float = _times[_times.size() - 2]
+				if _t < lands:
+					_spin = lerpf(_spin_from, over, _ease_out(_t / maxf(lands, 0.001)))
+				elif _t < ends:
+					_spin = over
+				else:
+					_spin = over * (1.0 - smoothstep(ends, _length, _t))
+					_diving = _t < _length
+			elif _spinning:   # the spin comes round to the front as the blow lands (and may carry on round after it)
 				var lands: float = _times[_times.size() - 3]
 				var ends: float = _times[_times.size() - 2]
 				if _t < lands:
