@@ -145,6 +145,84 @@ func _check_face_moves() -> void:
 	b.free()
 	c.free()
 	_check_cone()
+	_check_hull_shapes()
+
+
+## Wedges, bevelled boxes, domes and arches: each fills its box, is closed all round
+## with every face seen from outside, and is bumped into as the same corners.
+func _check_hull_shapes() -> void:
+	print("  wedges, bevelled boxes, domes and arches")
+	var map := MapRoot.new()
+	var cases := [
+		["a wedge", MapBlock.Shape.WEDGE, Vector3(4, 2, 6), {}, 1],
+		["a bevelled box", MapBlock.Shape.BEVEL, Vector3(3, 1, 2), {"bevel": 0.2}, 1],
+		["a dome", MapBlock.Shape.DOME, Vector3(8, 4, 8), {"sides": 16}, 1],
+		["a hollow dome", MapBlock.Shape.DOME, Vector3(8, 4, 8), {"sides": 16, "inner": 7.0}, 64],
+		["a hollow dome with a slit", MapBlock.Shape.DOME, Vector3(8, 4, 8), {"sides": 15, "inner": 7.0, "arc": 337.5}, 45],
+		["a solid dome with a slice out", MapBlock.Shape.DOME, Vector3(8, 4, 8), {"sides": 12, "arc": 270.0}, 12],
+		["an arch", MapBlock.Shape.ARCH, Vector3(4, 2.5, 0.6), {"sides": 10, "top": 0.5}, 10],
+		["an arch with legs", MapBlock.Shape.ARCH, Vector3(4, 3, 0.6), {"sides": 8, "inner": 3.0, "top": 0.4}, 10],
+	]
+	for case in cases:
+		var b := MapBlock.new()
+		b.shape = case[1]
+		b.size = case[2]
+		for key in case[3]:
+			b.set(key, case[3][key])
+		var piece := b.to_piece(Transform3D.IDENTITY)
+		var mesh: ArrayMesh = MapMesher.build([piece])[b.kind]
+		var verts: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = mesh.surface_get_arrays(0)[Mesh.ARRAY_NORMAL]
+		var box := AABB(verts[0], Vector3.ZERO)
+		var wound := true
+		var edges := {}
+		for t in range(0, verts.size(), 3):
+			for k in 3:
+				box = box.expand(verts[t + k])
+				var from := verts[t + k].snappedf(0.001)
+				var to := verts[t + (k + 1) % 3].snappedf(0.001)
+				if from != to:
+					edges[[from, to]] = edges.get([from, to], 0) + 1
+			if (verts[t + 2] - verts[t]).cross(verts[t + 1] - verts[t]).dot(normals[t]) < -0.0001:
+				wound = false
+		var open_edges := 0
+		for edge in edges:
+			if edges.get([edge[1], edge[0]], 0) != edges[edge]:
+				open_edges += 1
+		if not case[3].has("arc"):   # (with a slice out it stops short on that side)
+			_expect(box.size.is_equal_approx(case[2]) and box.get_center().length() < 0.001, "%s fills its box (%s)" % [case[0], box.size])
+		_expect(wound, "%s: every face is wound to be seen from the side its normal points" % case[0])
+		_expect(open_edges == 0, "%s is closed all round (%d open edges)" % [case[0], open_edges])
+		var shapes := map.collision_shapes(piece)
+		var convex := true
+		for shape in shapes:
+			convex = convex and shape is ConvexPolygonShape3D
+		_expect(shapes.size() == case[4] and convex, "%s is bumped into as %d convex lump(s) (%d)" % [case[0], case[4], shapes.size()])
+		b.free()
+	# What they are for: a wedge's slope, a dome's top, the way through an arch.
+	var w := MapBlock.new()
+	w.shape = MapBlock.Shape.WEDGE
+	w.size = Vector3(4, 2, 6)
+	var pts := MapMesher.wedge_points(w.to_piece(Transform3D.IDENTITY))
+	var top_z := -INF
+	var foot_z := -INF
+	for p in pts:
+		if p.y > 0.0:
+			top_z = maxf(top_z, p.z)
+		else:
+			foot_z = maxf(foot_z, p.z)
+	_expect(is_equal_approx(top_z, -3.0) and is_equal_approx(foot_z, 3.0), "a wedge is tall at the back (-z) and runs down to its front edge (+z)")
+	w.free()
+	var arch := MapBlock.new()
+	arch.shape = MapBlock.Shape.ARCH
+	arch.size = Vector3(4, 3, 0.6)
+	arch.inner = 3.0
+	arch.top = 0.4
+	var open := MapMesher.arch_opening(arch.to_piece(Transform3D.IDENTITY))
+	_expect(open.is_equal_approx(Vector2(1.5, 2.6)), "an arch's opening is Inner wide and stops Top short of the block's top (%s)" % open)
+	_expect(not arch.is_round() and MapBlock.SHAPE_NAMES.size() == MapBlock.Shape.size(), "every shape has a name, and only cylinders, tubes and cones have one diameter")
+	arch.free()
+	map.free()
 
 
 ## A cone: its mesh and its collision are the same flat-sided shape, narrowing to its

@@ -503,9 +503,10 @@ func _rebuild_whole(panel: Dictionary) -> void:
 		return
 	var piece: Dictionary = (panel.piece as Dictionary).duplicate()
 	piece.xf = Transform3D.IDENTITY   # the body sits where the block does
-	var shape := CollisionShape3D.new()
-	shape.shape = root._collision_shape(piece)
-	(panel.body as StaticBody3D).add_child(shape)
+	for lump in root.collision_shapes(piece):
+		var shape := CollisionShape3D.new()
+		shape.shape = lump
+		(panel.body as StaticBody3D).add_child(shape)
 	if DisplayServer.get_name() == "headless" and not root.has_meshes:
 		return
 	var shade: float = CRACK_SHADE[cell.stage]

@@ -40,23 +40,8 @@ const RING_RADIUS := 1.4
 	set(v):
 		range = v
 		_refresh_ghost()
-## The event it fires: a MapEvent node in this map (a GravityEvent, a LayoutEvent).
+## The event it fires: a MapEvent node in this map (a GravityEvent).
 @export_node_path("Node") var event: NodePath
-## Bots: one that is within this many metres of it (measured flat) and on its way
-## keeps going when someone comes into sight, shooting back as it goes, and gets
-## longer to arrive. 0 (the default): a bot drops the idea the moment it sees anyone.
-## For a terminal at the end of a climb in the open (Cirrus's bell, at the top of the
-## clock tower: 22 m covers the quad). A bot still only sets off with nobody in sight.
-@export var bot_commit := 0.0
-@export_group("Look and sound")
-## The colour of its ring of light.
-@export var light_color := Color(0.2, 0.55, 1.0)
-## The small ring lying on the console top. Off for a terminal that is not a console
-## (Cirrus's bell).
-@export var plate := true
-## The hum that winds down as it goes off. Off when the event has its own sound for
-## that moment (the bell's toll).
-@export var hum := true
 
 var phase := Phase.READY
 ## Who is holding it (a peer id), while phase is CHANNEL.
@@ -280,9 +265,6 @@ func _build_screen() -> void:
 	shader.code = SCREEN_SHADER
 	_material = ShaderMaterial.new()
 	_material.shader = shader
-	if not light_color.is_equal_approx(Color(0.2, 0.55, 1.0)):   # (the shader's own blue otherwise)
-		_material.set_shader_parameter("lit", light_color)
-		_material.set_shader_parameter("track", Color(light_color.r * 0.3, light_color.g * 0.25, light_color.b * 0.25))
 	_ring = MeshInstance3D.new()
 	_ring.name = "Ring"
 	_ring.mesh = _band(RING_RADIUS, RING_RADIUS, 0.0, 0.5)   # an upright band, seen from every side
@@ -290,8 +272,6 @@ func _build_screen() -> void:
 	_ring.material_override = _material
 	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ring)
-	if not plate:
-		return
 	_plate = MeshInstance3D.new()
 	_plate.name = "Plate"
 	_plate.mesh = _band(0.22, 0.42, 0.0, 0.0)   # the same ring lying flat on the console top
@@ -354,8 +334,6 @@ func _process(delta: float) -> void:
 
 ## `gain` (dB): where it starts from, against a hold's quiet start.
 func _start_hum(gain: float = -16.0) -> void:
-	if not hum:
-		return
 	var dev := _autoload("DevArgs")
 	var sound := _autoload("Sound")
 	if sound == null:

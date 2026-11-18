@@ -113,6 +113,9 @@ var shifting := false:
 ## The bots' navigation mesh is being redone for where the parts now are (the arena
 ## says so): bots keep standing still.
 var nav_pending := false
+## The parts are about to move (a LayoutEvent's bell has gone): walkways that are
+## going away are no place to be. Bots get off them and keep off.
+var warning := false
 ## Which layout the map is in (a LayoutEvent's state: 0 until one says otherwise).
 var layout_state := 0
 
@@ -199,10 +202,11 @@ func build(with_meshes: bool = true) -> void:
 	add_child(body)
 	for piece in pieces:
 		if piece.solid:
-			var shape := CollisionShape3D.new()
-			shape.shape = _collision_shape(piece)
-			shape.transform = piece.xf
-			body.add_child(shape)
+			for lump in collision_shapes(piece):
+				var shape := CollisionShape3D.new()
+				shape.shape = lump
+				shape.transform = piece.xf
+				body.add_child(shape)
 	if not with_meshes:
 		return
 	var meshes := MapMesher.build(pieces, face_shade)
@@ -432,10 +436,11 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 	m.bounds = bounds
 	for piece in built:
 		if piece.solid:
-			var shape := CollisionShape3D.new()
-			shape.shape = _collision_shape(piece)
-			shape.transform = piece.xf
-			body.add_child(shape)
+			for lump in collision_shapes(piece):
+				var shape := CollisionShape3D.new()
+				shape.shape = lump
+				shape.transform = piece.xf
+				body.add_child(shape)
 	if not with_meshes:
 		return
 	var meshes := MapMesher.build(built, face_shade)
@@ -603,6 +608,20 @@ func _collect_dummies(node: Node, xf: Transform3D) -> void:
 		if child is MapDummy:
 			dummies.append([at.origin, atan2(at.basis.z.x, at.basis.z.z), child])
 		_collect_dummies(child, at)
+
+
+## What a piece is to bump into: one shape for most, several for a hollow dome or an
+## arch (each in the piece's own frame).
+func collision_shapes(piece: Dictionary) -> Array:
+	var lumps := MapMesher.hull_points(piece)
+	if lumps.is_empty():
+		return [_collision_shape(piece)]
+	var shapes := []
+	for pts in lumps:
+		var hull := ConvexPolygonShape3D.new()
+		hull.points = pts
+		shapes.append(hull)
+	return shapes
 
 
 func _collision_shape(piece: Dictionary) -> Shape3D:

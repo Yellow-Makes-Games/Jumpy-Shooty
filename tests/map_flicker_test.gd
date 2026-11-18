@@ -162,6 +162,16 @@ func _faces(piece: Dictionary) -> Array:
 		return out
 	if piece.shape == "cone":
 		return _cone_faces(piece)
+	if piece.shape == "dome":
+		return out   # curved all over: no flat face to share a plane with
+	if piece.shape in ["wedge", "bevel", "arch"]:
+		for lump in MapMesher.hull_points(piece):
+			for face in MapMesher.hull_faces(lump):
+				var pts := []
+				for corner in face[1]:
+					pts.append(xf * (corner as Vector3))
+				out.append(_face(pts, xf.basis * (face[0] as Vector3)))
+		return out
 	var sides: int = piece.get("sides", 12)
 	var r: float = piece.size.x * 0.5
 	var ri: float = piece.get("inner", 0.0) * 0.5 if piece.shape == "tube" else 0.0
@@ -319,6 +329,8 @@ func _covered(point: Vector3, skip_a: int, skip_b: int, solids: Array, grid: Dic
 				if absf(local.x) <= half.x and absf(local.z) <= half.z:
 					return true
 				continue
+			if s.shape in ["wedge", "bevel", "dome", "arch"]:
+				continue   # (not worked out: such a piece is taken to hide nothing)
 			var reach := Vector2(local.x, local.z).length()
 			var radius: float = half.x
 			if s.shape == "cone":   # narrows from the foot to the top

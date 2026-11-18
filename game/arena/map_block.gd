@@ -1,15 +1,15 @@
 @tool
 class_name MapBlock
 extends Node3D
-## One piece of a map: a box, a cylinder, a tube or a cone, painted with a "kind" from the
-## map's palette. Move and turn it like any node; resize it with the inspector's
+## One piece of a map: a box, a cylinder, a tube, a cone, a wedge (a slope), a bevelled
+## box, a dome or an arch, painted with a "kind" from the map's palette. Move and turn it like any node; resize it with the inspector's
 ## Size or by dragging the orange handles on its faces (see addons/map_tools).
 ##
 ## In the game, MapRoot.build() merges every block into one mesh per kind and one
 ## collision body, so a map of thousands of blocks still draws in a few calls. A
 ## block (or a group of them) hidden with the eye icon is left out of the game.
 
-enum Shape { BOX, CYLINDER, TUBE, CONE }
+enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH }
 
 @export var shape := Shape.BOX:
 	set(v):
@@ -20,6 +20,12 @@ enum Shape { BOX, CYLINDER, TUBE, CONE }
 ## Box: width (x), height (y), depth (z). Cylinder and tube: diameter (x) and
 ## height (y), standing along the block's own y axis; z is not used. Cone: the
 ## diameter at its foot (x) and its height (y), narrowing to Top at the top.
+## Wedge: a slope filling the box, its tall side at the back (-z), running down to
+## nothing at the front (+z). Bevel: a box with every edge cut off by Bevel. Dome: half
+## a ball standing on its flat side, x and z across (they can differ) and y high;
+## with Inner it is a shell you can stand inside, with Arc under 360 a slice is left
+## open (toward +z). Arch: a box (x wide, y high, z thick) with an arched opening cut
+## up into it from below, Inner wide (0 = the whole width) and leaving Top at the crown.
 @export var size := Vector3.ONE:
 	set(v):
 		size = v.max(Vector3(0.01, 0.01, 0.01))
@@ -73,25 +79,41 @@ enum Breakable { DEFAULT, YES, NO }
 		tint = v
 		_changed()
 
-## Cylinders, tubes and cones: how many flat sides.
+## Cylinders, tubes, cones and domes: how many flat sides round. Arches: how many
+## pieces the curve is made of.
 @export_range(3, 48) var sides := 12:
 	set(v):
 		sides = v
 		_changed()
 
-## Tubes: the inside diameter.
+## Tubes: the inside diameter. Domes: the same, for a hollow one (0 = solid).
+## Arches: how wide the opening is (0 = as wide as the block).
 @export var inner := 0.0:
 	set(v):
 		inner = v
 		_changed()
 
 ## Cones: the diameter at the top. 0 comes to a point; more cuts the tip off flat.
+## Arches: how thick it is left over the top of the opening.
 @export var top := 0.0:
 	set(v):
 		top = maxf(v, 0.0)
 		_changed()
 
-const SHAPE_NAMES := ["box", "cyl", "tube", "cone"]
+## Bevelled boxes: how much is cut off every edge (metres).
+@export var bevel := 0.1:
+	set(v):
+		bevel = maxf(v, 0.0)
+		_changed()
+
+## Domes: how much of the way round it goes, in degrees. Under 360 leaves a slice
+## open, facing +z (an observatory's slit).
+@export_range(10.0, 360.0) var arc := 360.0:
+	set(v):
+		arc = v
+		_changed()
+
+const SHAPE_NAMES := ["box", "cyl", "tube", "cone", "wedge", "bevel", "dome", "arch"]
 
 var _preview: MeshInstance3D
 var _triangles: TriangleMesh
@@ -119,11 +141,22 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["material"] = material_type
 	if shape != Shape.BOX:
 		piece["sides"] = sides
-	if shape == Shape.TUBE:
+	if shape == Shape.TUBE or shape == Shape.DOME or shape == Shape.ARCH:
 		piece["inner"] = inner * scale.x
 	if shape == Shape.CONE:
 		piece["top"] = top * scale.x
+	if shape == Shape.ARCH:
+		piece["top"] = top * scale.y
+	if shape == Shape.BEVEL:
+		piece["bevel"] = bevel * minf(scale.x, minf(scale.y, scale.z))
+	if shape == Shape.DOME and arc < 360.0:
+		piece["arc"] = arc
 	return piece
+
+
+## Round the y axis, with one diameter (x): a cylinder, a tube or a cone.
+func is_round() -> bool:
+	return shape == Shape.CYLINDER or shape == Shape.TUBE or shape == Shape.CONE
 
 
 ## Moves one face (0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z) to `reach` from the block's
@@ -134,7 +167,7 @@ func to_piece(xf: Transform3D) -> Dictionary:
 func move_face(face: int, reach: float, step: float) -> void:
 	var axis := face / 2
 	var dir := 1.0 if face % 2 == 0 else -1.0
-	if shape != Shape.BOX and axis != 1:
+	if is_round() and axis != 1:
 		var d := maxf(roundf(reach * 2.0 / step) * step, step)
 		size = Vector3(d, size.y, d)
 		return
@@ -222,13 +255,19 @@ func _validate_property(property: Dictionary) -> void:
 				property.hint = PROPERTY_HINT_ENUM_SUGGESTION
 				property.hint_string = ",".join(root.palette.colors.keys())
 		"sides":
-			if shape == Shape.BOX:
+			if shape == Shape.BOX or shape == Shape.WEDGE or shape == Shape.BEVEL:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"inner":
-			if shape != Shape.TUBE:
+			if shape != Shape.TUBE and shape != Shape.DOME and shape != Shape.ARCH:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"top":
-			if shape != Shape.CONE:
+			if shape != Shape.CONE and shape != Shape.ARCH:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"bevel":
+			if shape != Shape.BEVEL:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"arc":
+			if shape != Shape.DOME:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 
 
