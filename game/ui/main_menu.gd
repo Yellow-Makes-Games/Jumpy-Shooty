@@ -59,7 +59,7 @@ func _build_front() -> void:
 	var notice := Label.new()
 	notice.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT, Control.PRESET_MODE_MINSIZE, 44)
 	notice.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	notice.text = "MILESTONE 1  ·  WORK IN PROGRESS"
+	notice.text = "%s  ·  WORK IN PROGRESS" % Game.version_label()
 	notice.add_theme_font_override("font", HudStyle.font_spaced(2))
 	notice.add_theme_font_size_override("font_size", 12)
 	notice.add_theme_color_override("font_color", Color(UiKit.TEXT_DIM, 0.7))

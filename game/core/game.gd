@@ -53,6 +53,14 @@ func local_character() -> String:
 	return DevArgs.character if DevArgs.character != "" else Settings.character
 
 
+## The release this copy of the game is ("v0.1.29"), or "DEV BUILD" when it is not a
+## release build. The playtest build workflow stamps the version tag into the project
+## (application/config/version) before it exports the game.
+func version_label() -> String:
+	var v := str(ProjectSettings.get_setting("application/config/version", "")).strip_edges()
+	return v if v != "" else "DEV BUILD"
+
+
 ## The mobility tool this copy of the game takes into a match.
 func local_mobility() -> String:
 	return DevArgs.mobility if DevArgs.mobility != "" else Settings.mobility
