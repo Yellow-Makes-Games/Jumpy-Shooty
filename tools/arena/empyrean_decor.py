@@ -5,8 +5,12 @@ clutter, each tier's extra character, turrets and lit slit windows on the shell,
 on the docking ring. Most of it is drawn only (not solid): what stands on a floor in the
 open is solid, what hugs a wall, hangs or lies flat is not.
 
-Both halves in everything: stone pilasters by turns with alloy ones, flames by turns
-with tube lamps, tapestries by turns with screens, bookcases with data cabinets.
+The tower was built by wizards, of stone, wood and brass; the sci-fi is what was fitted to
+it afterwards. So everything structural here is stone (pilasters, ribs, courses) or wood
+(beams), and the alloy is always something added: a strip of light clamped to a pilaster,
+a cable tray along a wall, a pipe run or a dish bolted outside. Among the furnishings the
+two stand side by side: flames by tube lamps, tapestries by screens, bookcases by data
+cabinets.
 
 See empyrean.py for the plan and the conventions (P, rot, sectors of 15 degrees)."""
 import math
@@ -66,15 +70,15 @@ def lantern(m, g, at, drop, acc, flame=True):
 
 
 def pilaster(m, g, r, deg, y0, y1, n, acc, deep=0.35, wide=0.8):
-    """A pilaster on the outer wall's inner face (radius r): stone with a brass capital,
-    or (odd n) alloy with a strip of light."""
-    stone = n % 2 == 0
-    m.pb(g, "Pilaster", "stone_dark" if stone else "alloy_dark", r - deep, r + 0.5, deg, wide, y0, y1, solid=False)
+    """A pilaster on the outer wall's inner face (radius r): stone with a brass capital.
+    Every other one (odd n) has had a strip of light clamped to it."""
+    m.pb(g, "Pilaster", "stone_dark", r - deep, r + 0.5, deg, wide, y0, y1, solid=False)
     m.pb(g, "PilasterCap", "brass", r - deep - 0.12, r + 0.3, deg, wide + 0.24, y1 - 0.7, y1 - 0.45, solid=False)
-    if not stone:
-        m.pb(g, "PilasterLight", acc, r - deep - 0.03, r - deep, deg, 0.14, y0 + 0.6, y1 - 1.0, solid=False)
-    else:
-        m.pb(g, "PilasterFoot", "stone_dark", r - deep - 0.1, r + 0.3, deg, wide + 0.2, y0, y0 + 0.4, solid=False)
+    m.pb(g, "PilasterFoot", "stone_dark", r - deep - 0.1, r + 0.3, deg, wide + 0.2, y0, y0 + 0.4, solid=False)
+    if n % 2:
+        m.pb(g, "PilasterLight", acc, r - deep - 0.05, r - deep, deg, 0.12, y0 + 0.9, y1 - 1.2, solid=False)
+        for y in (y0 + 0.7, y1 - 1.25):
+            m.pb(g, "LightClamp", "alloy_dark", r - deep - 0.1, r - deep, deg, 0.34, y, y + 0.25, solid=False)
 
 
 def clutter(m, g, x, y, z, seed, acc, n=3):
@@ -204,7 +208,7 @@ def corridor_trim(m, g, i):
         rw = ri(top)
         for k in range(1, 14):
             deg = (FEAT + k) * 15.0
-            m.pb(g, "Beam", "stone_dark" if k % 2 else "alloy_dark", Rc + 0.2, Rc + LANE + 0.1, deg, 0.5, top - 0.4, top, solid=False)
+            m.pb(g, "Beam", "wood", Rc + 0.2, Rc + LANE + 0.1, deg, 0.5, top - 0.4, top, solid=False)
             skip = (lvl == 0 and (deg in (210.0, 300.0) or (i == 3 and deg == 255.0))) or (lvl == 1 and (deg in (180.0, 270.0) or (i in (1, 2, 4) and deg == 255.0)))
             if not skip:
                 pilaster(m, g, rw, deg, yb, top, k + lvl, acc)
@@ -250,6 +254,13 @@ def rooms_decor(m, g, i):
                 m.pb(g, "WallScreen", "screen", rw - 0.14, rw - 0.1, deg, 1.9, yb + 1.65, yb + 3.15, solid=False)
                 m.pb(g, "WallScreenLine", acc, rw - 0.17, rw - 0.14, deg, 1.3, yb + 2.5, yb + 2.62, solid=False)
                 m.pb(g, "WallScreenLine", "alloy_dark", rw - 0.17, rw - 0.14, deg, 1.5, yb + 2.0, yb + 2.1, solid=False)
+        # A cable tray run along the top of the corridor wall, a junction box at every third sector: fitted later.
+        for k in range(14):
+            m.pb(g, "CableTray", "alloy_dark", Rc + 0.2, Rc + 0.5, c(k), chord(Rc + 0.5, 24) + 0.02, top - 0.95, top - 0.8, solid=False)
+            m.pb(g, "Cable", "conduit" if (lvl + i) % 2 else "glow", Rc + 0.28, Rc + 0.4, c(k), chord(Rc + 0.4, 24) + 0.02, top - 0.8, top - 0.74, solid=False)
+            if k % 3 == 1:
+                m.pb(g, "JunctionBox", "alloy", Rc + 0.2, Rc + 0.48, c(k), 0.7, top - 1.6, top - 0.95, solid=False)
+                m.pb(g, "JunctionLight", acc, Rc + 0.48, Rc + 0.5, c(k), 0.3, top - 1.4, top - 1.3, solid=False)
         # Lanterns down the corridor's inner lane, hung from every other beam.
         for k in range(1, 14, 2):
             lantern(m, g, P(Rc + LANE * 0.5 + 0.1, (FEAT + k) * 15.0, top - 0.4), 1.5, acc, flame=(k // 2 + lvl) % 2 == 0)
@@ -279,7 +290,7 @@ def feature_trim(m, g, i):
         deg = k * 15.0
         if k in (0, FEAT):
             deg += 1.2 if k == 0 else -1.2
-        m.pb(g, "VaultRib", "stone_dark" if k % 2 else "alloy_dark", RS + 0.3, ri(ceil) - 0.1, deg, 0.6, ceil - 0.55, ceil, solid=False)
+        m.pb(g, "VaultRib", "stone_dark", RS + 0.3, ri(ceil) - 0.1, deg, 0.6, ceil - 0.55, ceil, solid=False)
         at = P(mid, deg, ceil - 0.75)
         m.block(g, "Boss", "brass", at, (1.1, 0.5, 1.1), shape="cone", cols=FLIP, sides=8, solid=False)
         m.block(g, "BossLight", acc if k % 2 else "glow", (at[0], at[1] - 0.3, at[2]), (0.4, 0.2, 0.4), shape="cone", cols=FLIP, sides=6, solid=False)
@@ -314,7 +325,7 @@ def hall_decor(m, g, i):
         deg = k * 15.0
         if deg in (225.0, 240.0, 270.0, 285.0):
             continue      # (where the long ramps go up through the ceiling)
-        m.pb(g, "HallRib", "alloy_dark" if k % 2 else "stone_dark", RS + 0.4, ri(ceil) - 0.1, deg, 0.5, ceil - 0.4, ceil, solid=False)
+        m.pb(g, "HallRib", "stone_dark", RS + 0.4, ri(ceil) - 0.1, deg, 0.5, ceil - 0.4, ceil, solid=False)
     for k in range(1, 24, 2):
         deg = k * 15.0 + 7.5
         lantern(m, g, P(RS + 1.3, deg, ceil), 2.6 + (k % 4) * 0.4, acc, flame=k % 4 == 1)
@@ -501,7 +512,7 @@ def observatory_extras(m, g):
         if 60 < deg < 90 or 150 <= deg <= 172.5 or 205 < deg < 225 or 295 < deg < 315 or 330 <= deg <= 352.5:
             continue
         ym = y0 + 15.0
-        m.block(g, "Pilaster", "stone_dark" if k % 2 else "alloy_dark", P(ri(ym) - 0.1, deg, ym), (0.9, 29.0, 0.5), cols=E.lean(deg), solid=False)
+        m.block(g, "Pilaster", "stone_dark", P(ri(ym) - 0.1, deg, ym), (0.9, 29.0, 0.5), cols=E.lean(deg), solid=False)
         m.block(g, "PilasterLight", acc if k % 2 == 0 else "glow", P(ri(ym) - 0.38, deg, ym), (0.14, 24.0, 0.04), cols=E.lean(deg), solid=False)
         m.pb(g, "PilasterCap", "brass", ri(TOP - 1) - 0.5, ri(TOP - 1) + 0.2, deg, 1.2, TOP - 1.2, TOP - 0.4, solid=False)
     for n, deg in enumerate((55.0, 95.0)):            # chart tables, a map of stars in light over each
@@ -589,7 +600,7 @@ def exterior_decor(m):
     for i in range(E.TIERS):
         for n, lvl in enumerate((L1, L2, L3)):
             y = TIER * i + lvl
-            m.block(g, "StringCourse", "stone_dark" if (n + i) % 2 else "alloy_dark", (0, y, 0), (2 * ro(y) + 0.5, 0.45, 2 * ro(y) + 0.5), shape="tube", sides=SEG,
+            m.block(g, "StringCourse", "stone_dark", (0, y, 0), (2 * ro(y) + 0.5, 0.45, 2 * ro(y) + 0.5), shape="tube", sides=SEG,
                     inner=2 * ro(y) - 0.4, solid=False)
     # Slit windows: a lit slot through the wall here and there, warm in stone, cool in alloy.
     g = m.group("Slits", f)
@@ -601,7 +612,35 @@ def exterior_decor(m):
                     continue
                 y = TIER * i + base + up
                 deg = (s + 0.5) * 7.5
-                m.block(g, "Slit", "screen" if E.alloy_segment(i, s) else "slit", P(ro(y) - 0.5, deg, y), (0.36, 1.8, 1.25), cols=rot(deg), solid=False)
+                m.block(g, "Slit", "slit", P(ro(y) - 0.5, deg, y), (0.36, 1.8, 1.25), cols=rot(deg), solid=False)
+    # Retrofits bolted to the stone: pipe runs up the wall, equipment boxes with a status light, small dishes.
+    g = m.group("Retrofits", f)
+    for i in range(E.TIERS):
+        cuts = E.openings(i)
+        free = [s for s in range(SEG) if s % 6 not in (1, 2) and not any(((s + d) % SEG) in cuts for d in (-2, -1, 0, 1, 2))]
+        for n, s in enumerate(free[(i * 2) % 3::3][:6]):
+            deg = (s + 0.5) * 7.5
+            if n % 3 == 0:
+                ym = TIER * i + 14.0
+                m.block(g, "Pipe", "alloy_dark", P(ro(ym) + 0.2, deg, ym), (0.3, 18.0, 0.3), cols=E.lean(deg), shape="cyl", sides=6, solid=False)
+                m.block(g, "Pipe", "alloy", P(ro(ym) + 0.2, deg + 0.9, ym), (0.2, 18.0, 0.2), cols=E.lean(deg), shape="cyl", sides=6, solid=False)
+                for yb in (TIER * i + 6.5, TIER * i + 14.0, TIER * i + 21.5):
+                    m.block(g, "PipeBracket", "alloy", P(ro(yb) + 0.2, deg + 0.45, yb), (1.1, 0.25, 0.5), cols=E.lean(deg), solid=False)
+            elif n % 3 == 1:
+                y = TIER * i + 9.0 + (n % 2) * 6.0
+                m.block(g, "Unit", "alloy", P(ro(y) + 0.45, deg, y), (1.8, 1.4, 0.9), cols=E.lean(deg), shape="bevel", bevel=0.12, solid=False)
+                m.block(g, "UnitVent", "alloy_dark", P(ro(y) + 0.92, deg, y + 0.15), (1.3, 0.6, 0.06), cols=E.lean(deg), solid=False)
+                m.block(g, "UnitLight", ACCENT[i], P(ro(y) + 0.92, deg, y - 0.45), (0.9, 0.1, 0.06), cols=E.lean(deg), solid=False)
+            else:
+                y = TIER * i + 23.0
+                at = P(ro(y) + 1.1, deg, y)
+                th = math.radians(deg)
+                out = (math.sin(th), 0.35, math.cos(th))
+                Y = norm(out)
+                X = norm(cross(Y, (0, 1, 0)))
+                m.bar(g, "DishArm", "alloy_dark", P(ro(y), deg, y - 0.6), at, thick=0.16, solid=False)
+                m.block(g, "Dish", "ship", at, (2.0, 0.6, 2.0), cols=(X, Y, cross(X, Y)), shape="dome", sides=10, solid=False)
+                m.block(g, "DishEye", ACCENT[i], (at[0] + Y[0] * 0.5, at[1] + Y[1] * 0.5, at[2] + Y[2] * 0.5), (0.2, 0.2, 0.2), solid=False)
     # Turrets: little round towers corbelled out from the ribs, a mast and a lamp on each roof.
     g = m.folder("Turrets", f)
     for i in range(5):

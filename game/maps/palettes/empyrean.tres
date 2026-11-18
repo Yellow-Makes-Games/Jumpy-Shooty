@@ -60,7 +60,7 @@ colors = Dictionary[String, Color]({
 "soil": Color(0.3, 0.24, 0.2, 1),
 "stone": Color(0.84, 0.78, 0.68, 1),
 "stone_dark": Color(0.33, 0.28, 0.33, 1),
-"stone_floor": Color(0.7, 0.64, 0.56, 1),
+"stone_floor": Color(0.58, 0.52, 0.46, 1),
 "vine": Color(0.2, 0.44, 0.34, 1),
 "wood": Color(0.42, 0.29, 0.2, 1)
 })

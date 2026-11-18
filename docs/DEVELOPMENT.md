@@ -778,8 +778,8 @@ Things to keep true when editing it:
 `game/maps/empyrean.tscn` is a wizard's tower in low orbit for up to 16 players, the tallest
 arena by far: round, 61 m across at its foot and 40 m at the eaves 183 m up, under a
 conical roof with a crystal and an orrery at its peak and with a root of rock hanging
-below. Half fantasy and half sci-fi in every view: a stone shell with alloy ribs and
-conduits of light, brass, thrusters, a docking ring with a parked starship, holograms.
+below. Fantasy in its construction and sci-fi in its modification: a stone shell with stone ribs
+and brass, and fitted to it conduits of light, pipes and dishes, thrusters, a docking ring with a parked starship, holograms.
 
 Inside, six tiers of 30.5 m round a hollow shaft 16 m across: Arcane Engine (cyan),
 Grand Library (gold), Alchemy Labs (green), Menagerie (teal), Summoning Chamber (violet),
@@ -826,9 +826,12 @@ in a real Practice match.
 
 Things to keep true when editing it:
 
-- Both halves in every view: wherever you add stone, brass, runes, crystals or books, add
-  machines, alloy, consoles, conduits or holograms beside them, and the other way round.
-  More alloy the higher the tier.
+- Fantasy in its construction, sci-fi in its modification. It is an old tower, built of
+  stone, wood and brass with magic in mind, and fitted out with technology long after.
+  So nothing structural is alloy: walls, floors, pillars, ribs, pilasters and courses are
+  stone (beams are wood). Alloy, screens, conduits and lamps are always something added
+  to the stone: clamped on, bolted on, hung from it or stood on its floor. Never plate a
+  stretch of wall in metal. Both halves still show in every view, through what is fitted.
 - Nothing stepped or blocky: the shell is 48 leaning wall pieces a tier, roofs are cones,
   ramps are smooth slabs (no steps), trims are tubes and bevelled boxes.
 - A force field (the kind `field`) is drawn only: Solid stays off. It stands in the wall

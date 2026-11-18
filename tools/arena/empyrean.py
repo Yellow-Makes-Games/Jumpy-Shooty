@@ -114,7 +114,7 @@ def chord(r, n):
 
 COLORS = {
     # the fantasy half: pale stone, brass, dark trim
-    "stone": (0.84, 0.78, 0.68), "stone_floor": (0.7, 0.64, 0.56), "stone_dark": (0.33, 0.28, 0.33),
+    "stone": (0.84, 0.78, 0.68), "stone_floor": (0.58, 0.52, 0.46), "stone_dark": (0.33, 0.28, 0.33),
     # each tier's own floor: flags laid in rings round the shaft, a rune glowing on some
     "floor_engine": (0.4, 0.41, 0.47), "floor_library": (0.68, 0.56, 0.42), "floor_labs": (0.52, 0.56, 0.5),
     "floor_menagerie": (0.46, 0.5, 0.44), "floor_summoning": (0.3, 0.25, 0.37), "floor_observatory": (0.2, 0.22, 0.36),
@@ -338,12 +338,6 @@ def openings(i):
     return out
 
 
-def alloy_segment(i, s):
-    """Is wall piece s of tier i plated in alloy? More of them the higher the tier."""
-    share = [0.17, 0.25, 0.37, 0.5, 0.58, 0.67][i]
-    return ((s * 7 + i * 5) % 12) < share * 12
-
-
 def shell(m, i):
     f = m.folder("Shell", NAMES[i])
     y0 = TIER * i
@@ -353,7 +347,7 @@ def shell(m, i):
     frames = m.group("Frames", f)
     for s in range(SEG):
         deg = (s + 0.5) * 7.5
-        kind = "alloy" if alloy_segment(i, s) else "stone"
+        kind = "stone"       # (built of stone, all of it: the sci-fi is what was fitted to it later)
         spans = [(0.0, TIER)]
         for (a, b, what) in sorted(cuts.get(s, [])):
             last = spans.pop()
@@ -420,14 +414,17 @@ def shell(m, i):
 
 
 def ribs(m):
-    """What runs up the outside the whole height: eight alloy ribs with a conduit of
-    light on each, and brass bands at every tier."""
+    """What runs up the outside the whole height: eight stone buttress ribs, a conduit of
+    light clamped to each (fitted later, like everything alloy), and brass bands at every tier."""
     g = m.group("Ribs", "Exterior")
     for k in range(8):
         deg = k * 45.0 + 11.25      # (clear of every doorway and window)
         for i in range(TIERS):      # (one length to a tier: a rib in one piece would count as running through every window it passes)
             ym = TIER * (i + 0.5)
-            m.block(g, "Rib", "alloy", P(ro(ym) + 0.35, deg, ym), (1.5, TIER / math.cos(TILT), 0.9), cols=lean(deg))
+            m.block(g, "Rib", "stone_dark", P(ro(ym) + 0.35, deg, ym), (1.5, TIER / math.cos(TILT), 0.9), cols=lean(deg))
+            for q in range(4):          # the clamps that hold the conduit to the stone
+                yc = TIER * i + 4.0 + q * 7.4
+                m.block(g, "ConduitClamp", "alloy", P(ro(yc) + 0.84, deg, yc), (0.8, 0.5, 0.3), cols=lean(deg), solid=False)
             m.block(g, "Conduit", "conduit", P(ro(ym) + 0.86, deg, ym), (0.3, TIER / math.cos(TILT) - 1.8, 0.14), cols=lean(deg), solid=False)
         for i in range(1, TIERS + 1):       # a housing where each tier's band crosses the rib
             y = TIER * i - 0.5
@@ -463,16 +460,16 @@ def tier(m, i):
     outer = (Rc + LANE, 99.0)
     for lvl, y, gone, feat in ((1, y0 + L1, (0, 1, 13, 12), range(FEAT)), (2, y0 + L2, (2, 3, 11, 10), (0, 1, 2, 7, 8, 9))):
         holes = {c(k): [outer] for k in gone}
-        ring(m, g, "Storey%d" % lvl, "stone_floor" if lvl == 1 else "alloy_floor", y, RS, ri(y) + 0.6, sectors=corr, holes=holes, cuts=lanes)
+        ring(m, g, "Storey%d" % lvl, "stone_floor", y, RS, ri(y) + 0.6, sectors=corr, holes=holes, cuts=lanes)
         for run in ((feat,) if lvl == 1 else ((0, 1, 2), (7, 8, 9))):
-            ring(m, g, "Balcony%d" % lvl, "alloy_floor" if i >= 2 else "stone_floor", y, Rc, ri(y) + 0.6, sectors=run)
+            ring(m, g, "Balcony%d" % lvl, "stone_floor", y, Rc, ri(y) + 0.6, sectors=run)
         # A low parapet along each balcony's open edge, with gaps to drop or swing through.
         for k in feat:
             if k % 3 != 1:
-                m.pb(g, "Parapet", "brass" if i < 3 else "alloy_dark", Rc - 0.12, Rc + 0.12, (k + 0.5) * 15.0, chord(Rc, SEC), y, y + 1.0)
+                m.pb(g, "Parapet", "brass", Rc - 0.12, Rc + 0.12, (k + 0.5) * 15.0, chord(Rc, SEC), y, y + 1.0)
     # 19 m: the upper hall's floor, all the way round.
     holes = {c(k): [outer] for k in (4, 5, 9, 8)}
-    ring(m, g, "UpperFloor", "alloy_floor", y0 + L3, RS, ri(y0 + L3) + 0.6, holes=holes, cuts=lanes)
+    ring(m, g, "UpperFloor", "stone_floor", y0 + L3, RS, ri(y0 + L3) + 0.6, holes=holes, cuts=lanes)
     # Trim round the shaft's rim on the two full floors (drawn only).
     for y in (y0, y0 + L3):
         m.block(g, "ShaftRim", "brass", (0, y - 0.2, 0), (2 * RS + 0.1, 0.5, 2 * RS + 0.1), shape="tube", sides=SEG, inner=2 * RS - 0.5, solid=False)
@@ -489,7 +486,7 @@ def tier(m, i):
 
     # Walls inside: the corridor wall (doors every third sector), and the feature room's two ends.
     g = m.group("Walls", f)
-    wall_kind = "stone" if i < 2 else ("alloy" if i > 3 else ("stone" if i == 2 else "alloy"))
+    wall_kind = "stone"
     for lvl, ya in enumerate((0.0, L1, L2)):
         yb = (L1, L2, L3)[lvl] - 0.5
         for k in range(14):
@@ -498,10 +495,10 @@ def tier(m, i):
             if k % 3 == 2:
                 for side in (-1, 1):
                     m.pb(g, "Jamb", wall_kind, Rc - 0.2, Rc + 0.2, deg + side * math.degrees((w * 0.5 - 0.5) / Rc), 1.0, y0 + ya, y0 + yb)
-                m.pb(g, "DoorHead", "alloy_dark" if lvl else "stone_dark", Rc - 0.25, Rc + 0.25, deg, w - 1.9, y0 + ya + 3.3, y0 + yb)
+                m.pb(g, "DoorHead", "stone_dark", Rc - 0.25, Rc + 0.25, deg, w - 1.9, y0 + ya + 3.3, y0 + yb)
                 m.pb(g, "DoorLight", acc, Rc - 0.3, Rc + 0.3, deg, w - 2.2, y0 + ya + 3.1, y0 + ya + 3.3, solid=False)
             else:
-                m.pb(g, "CorridorWall", wall_kind if (k + lvl) % 2 else ("stone" if wall_kind == "alloy" else "alloy"), Rc - 0.2, Rc + 0.2, deg, w + 0.02, y0 + ya, y0 + yb)
+                m.pb(g, "CorridorWall", wall_kind, Rc - 0.2, Rc + 0.2, deg, w + 0.02, y0 + ya, y0 + yb)
     for deg, name in ((0.0, "EndWallSouth"), (150.0, "EndWallNorth")):
         for lvl, ya in enumerate((0.0, L1, L2)):
             yb = (L1, L2, L3)[lvl] - 0.5
@@ -526,9 +523,9 @@ def tier(m, i):
     for k in range(SEC):
         deg = k * 15.0 + 7.5
         if min(abs((deg - a + 180) % 360 - 180) for a in (LIFT_A, LIFT_B)) > 12.0 and k % 2 == 0:
-            m.cyl(g, "Pillar", "stone" if (k // 2 + i) % 2 else "alloy", P(RS + 1.3, deg, y0 + L3), 1.3, TIER - L3 - 0.6, sides=10)
+            m.cyl(g, "Pillar", "stone", P(RS + 1.3, deg, y0 + L3), 1.3, TIER - L3 - 0.6, sides=10)
         if k < FEAT and k % 2:
-            m.cyl(g, "Pillar", "alloy" if (k // 2 + i) % 2 else "stone", P(Rw - 1.4, deg, y0 + L3), 1.3, TIER - L3 - 0.6, sides=10)
+            m.cyl(g, "Pillar", "stone", P(Rw - 1.4, deg, y0 + L3), 1.3, TIER - L3 - 0.6, sides=10)
     return f
 
 
@@ -567,7 +564,7 @@ def roof(m):
     for k in range(8):       # alloy ribs up the roof, carrying the tower's conduits to the peak
         deg = k * 45.0 + 11.25
         a, b = P(R_TOP - 0.7, deg, TOP + 2.9), P(1.7, deg, TOP + 36.4)
-        m.rod(g, "RoofRib", "alloy", a, b, thick=0.5, wide=0.9)
+        m.rod(g, "RoofRib", "brass", a, b, thick=0.5, wide=0.9)
         m.rod(g, "RoofConduit", "conduit", (a[0], a[1] + 0.3, a[2]), (b[0], b[1] + 0.3, b[2]), thick=0.14, wide=0.3)
     m.cyl(g, "Collar", "alloy_dark", (0, TOP + 36.0, 0), 4.4, 1.6, sides=16)
     m.cone(g, "CrystalSeat", "brass", (0, TOP + 37.6, 0), 4.0, 2.0, top=1.6, sides=12)
@@ -696,14 +693,14 @@ def balconies(m):
             n = int(round(width / 7.5))
             for s in range(n):
                 d = deg - width * 0.5 + (s + 0.5) * 7.5
-                m.pb(g, "Balcony", "stone_floor" if i < 3 else "alloy_floor", r0, r1, d, chord(r1, SEG) + 0.02, y - 0.6, y)
+                m.pb(g, "Balcony", "stone_floor", r0, r1, d, chord(r1, SEG) + 0.02, y - 0.6, y)
                 if not (s in (n // 2 - 1, n // 2) and depth > 4.0 and deg == 75.0):
-                    m.pb(g, "BalconyRail", "brass" if i < 3 else "alloy_dark", r1 - 0.2, r1, d, chord(r1, SEG), y, y + 1.0)
+                    m.pb(g, "BalconyRail", "brass", r1 - 0.2, r1, d, chord(r1, SEG), y, y + 1.0)
             # Brackets under it: a stone corbel and an alloy strut.
             for side in (-1, 1):
                 d = deg + side * (width * 0.5 - 2.0)
                 a, b = P(ro(y - 5.0) + 0.2, d, y - 5.0), P(r1 - 0.6, d, y - 0.6)
-                m.bar(g, "Strut", "alloy" if side > 0 else "stone_dark", a, b, thick=0.5, wide=0.6)
+                m.bar(g, "Strut", "stone_dark", a, b, thick=0.5, wide=0.6)
             m.pb(g, "BalconyLight", ACCENT[i], r1 - 0.05, r1 + 0.06, deg, chord(r1, SEG) * n * 0.8, y - 0.45, y - 0.2, solid=False)
 
 
@@ -722,7 +719,7 @@ def docking_ring(m):
     for k in range(12):      # struts down to the wall: half stone buttress, half alloy truss
         deg = k * 30.0 + 15.0
         a, b = P(ro(y - 12.0) + 0.3, deg, y - 12.0), P(RING_R - 1.5, deg, y - 0.8)
-        m.bar(g, "RingStrut", "stone_dark" if k % 2 else "alloy", a, b, thick=0.7, wide=0.9)
+        m.bar(g, "RingStrut", "alloy", a, b, thick=0.7, wide=0.9)
     # The landing pad, and the starship parked on it.
     pad = m.group("Pad", f, at=P(RING_R + 13.0, PAD_DEG, y), yaw=math.radians(PAD_DEG))
     m.box(pad, "PadDeck", "alloy_floor", (-12, -0.8, -14.5), (12, 0, 14))
