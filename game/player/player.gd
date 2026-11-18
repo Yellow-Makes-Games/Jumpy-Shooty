@@ -855,7 +855,7 @@ func _update_trail(delta: float) -> void:
 		var e := view.edge()
 		_trail.add(e[0], e[1])
 	elif not own_view and alive and visual.visible and animator.cutting() and robot.melee:
-		var e := MeleeModel.edge(robot.melee)
+		var e := MeleeModel.edge(robot.melee_left if animator.melee_swing().left_fist() and robot.melee_left else robot.melee)
 		_trail.add(e[0], e[1])
 	_trail.tick(delta)
 
