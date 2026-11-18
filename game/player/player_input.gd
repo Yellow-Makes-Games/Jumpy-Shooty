@@ -26,6 +26,9 @@ var interact := false      ## interact is down (a MapTerminal takes the press; s
 ## Optional: which way the rocket boots push (bots aim them). Left at zero, they push
 ## toward your WASD direction as seen from where you look, or straight where you look.
 var boost_dir := Vector3.ZERO
+## Optional: which way blink goes or the portal gun shoots (bots aim them). Left at
+## zero, they go where you look.
+var mobility_dir := Vector3.ZERO
 ## Optional crosshair ray (third person aims from the camera, not the eyes).
 ## Left at zero, aiming uses the eyes plus yaw and pitch.
 var aim_origin := Vector3.ZERO
@@ -42,3 +45,4 @@ func clear_edges() -> void:
 	boost_pressed = false
 	glide_pressed = false
 	boost_dir = Vector3.ZERO
+	mobility_dir = Vector3.ZERO

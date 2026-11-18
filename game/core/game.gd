@@ -48,6 +48,11 @@ func local_character() -> String:
 	return DevArgs.character if DevArgs.character != "" else Settings.character
 
 
+## The mobility tool this copy of the game takes into a match.
+func local_mobility() -> String:
+	return DevArgs.mobility if DevArgs.mobility != "" else Settings.mobility
+
+
 ## The gun this copy of the game takes into a match.
 func local_weapon() -> String:
 	return DevArgs.weapon if DevArgs.weapon != "" else Settings.weapon
@@ -72,7 +77,7 @@ func start_practice(map: String = "", game: String = "") -> void:
 		last_practice_map = map
 		last_practice_game = _game_for(map, game)
 		last_map[last_practice_game] = map
-	Net.start_offline(local_name(), local_character(), local_weapon())
+	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	Net.match_settings["map"] = _map_choice(last_practice_map)
 	Net.match_settings["game"] = _game_for(Net.match_settings.map, DevArgs.game if DevArgs.game != "" else last_practice_game)
 	Net.host_start_match()
@@ -98,12 +103,12 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
 		"rules": "gungame" if gun_game else "kills"}
 	last_map[last_bot.game] = picked
-	Net.start_offline(local_name(), local_character(), local_weapon())
+	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	var playing := _map_choice(last_bot.map)
 	Net.match_settings = {"game": _game_for(playing, DevArgs.game if DevArgs.game != "" else last_bot.game),
 		"mode": "gungame" if gun_game else "kills", "kills": kills_to_win, "minutes": 8, "race_minutes": 10, "map": playing}
 	for i in bots:
-		Net.add_bot(difficulty, DevArgs.bot_weapon)
+		Net.add_bot(difficulty, DevArgs.bot_weapon, DevArgs.bot_mobility)
 	Net.host_start_match()
 
 
@@ -124,7 +129,7 @@ func _map_choice(picked: String) -> String:
 func host_online() -> Error:
 	mode = Mode.ONLINE
 	var port := DevArgs.port if DevArgs.port > 0 else Net.DEFAULT_PORT
-	var err := Net.host_direct(local_name(), local_character(), port, local_weapon())
+	var err := Net.host_direct(local_name(), local_character(), port, local_weapon(), local_mobility())
 	if err == OK and (DevArgs.map != "" or DevArgs.race):
 		var with_map := Net.match_settings.duplicate()
 		with_map["map"] = _map_choice("")
@@ -150,7 +155,7 @@ func host_online() -> Error:
 
 func join_online(address: String) -> Error:
 	mode = Mode.ONLINE
-	return Net.join_direct(local_name(), local_character(), address, local_weapon())
+	return Net.join_direct(local_name(), local_character(), address, local_weapon(), local_mobility())
 
 
 func leave_to_menu() -> void:

@@ -25,6 +25,7 @@ var _weapon: WeaponPicker
 var _weapon_box: VBoxContainer   # the right column: your weapon, or a note when the mode has none to pick
 var _no_weapon: VBoxContainer
 var _no_weapon_note: Label
+var _mobility: MobilityPicker
 var _game_label: Label
 var _game_row: Container   # the host's mode switch
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
@@ -125,6 +126,7 @@ func _refresh() -> void:
 		_character.set_color(Net.player_color(Net.my_id()))
 		_weapon.select(Net.player_weapon(Net.my_id()))
 		_character.set_weapon(Net.player_weapon(Net.my_id()))
+		_mobility.select(Net.player_loadout_mobility(Net.my_id()))
 
 
 ## One player: colour stripe, name, HOST and YOU tags, robot and gun.
@@ -149,7 +151,8 @@ func _player_row(id: int) -> PanelContainer:
 		UiKit.tag(row, "YOU", Color(1, 1, 1, 0.85))
 	if Net.is_bot(id):
 		UiKit.tag(row, "BOT", Color(1, 1, 1, 0.6))
-	var who := UiKit.label(row, "%s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name], true, 14)
+	var who := UiKit.label(row, "%s  ·  %s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name,
+		Mobility.short_name(Net.player_loadout_mobility(id))], true, 14)
 	who.autowrap_mode = TextServer.AUTOWRAP_OFF
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return card
@@ -174,6 +177,12 @@ func _build_character(columns: Node) -> void:
 	_weapon_box.add_child(_no_weapon)
 	UiKit.section(_no_weapon, "Weapon")
 	_no_weapon_note = UiKit.label(UiKit.inset(_no_weapon), "", true, 17)
+	_mobility = MobilityPicker.new(Net.player_loadout_mobility(Net.my_id()))
+	_character.add_child(_mobility)   # under the robot: that column has the room
+	_mobility.picked.connect(func(id: String):
+		Settings.mobility = id
+		Settings.save_settings()
+		Net.set_my_mobility(id))
 	_weapon.picked.connect(func(id: String):
 		Settings.weapon = id
 		Settings.save_settings()
@@ -288,6 +297,7 @@ func _refresh_rules() -> void:
 		# No guns in a race; Gun Game hands them out; a Deathmatch finds them on the map.
 		_weapon.visible = not race and not gun_game and not Net.is_deathmatch()
 		_no_weapon.visible = not _weapon.visible
+		_mobility.visible = not race   # a race always has the grapple
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
 			else "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.")

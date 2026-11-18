@@ -69,6 +69,9 @@ var boosts := 0
 var since_boost := 99.0
 
 var _knock := Vector3.ZERO   # knockback waiting to be added on the next step
+## Set when the body was just moved somewhere new (blink, a portal): the next step
+## does not count the floor it was standing on before.
+var warped := false
 
 var _since_ground := 0.0   # seconds since we last stood on the floor
 var _jump_buffer := 0.0    # seconds left on a buffered jump press
@@ -99,7 +102,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var t := tuning
 	_bind_shape(body)
 	var vel := body.velocity
-	var grounded := body.is_on_floor()
+	var grounded := body.is_on_floor() and not warped
+	warped = false
 
 	if grounded:
 		_since_ground = 0.0
