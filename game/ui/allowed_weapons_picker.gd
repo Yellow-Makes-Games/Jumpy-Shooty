@@ -24,11 +24,16 @@ var _body: VBoxContainer
 var _kind: Container          # Any mix / One gun
 var _all: Button
 var _chips := {}              # weapon id -> Button
+var _prefix := ""             # "Weapons: " under a shared heading (see LobbySettings.section)
 
 
-func _init(ids: Array = [], editable: bool = true) -> void:
+## heading: false when it sits under a shared "Loadout rules" heading.
+func _init(ids: Array = [], editable: bool = true, heading: bool = true) -> void:
 	add_theme_constant_override("separation", 8)
-	UiKit.section(self, "Weapons allowed")
+	if heading:
+		UiKit.section(self, "Weapons allowed")
+	else:
+		_prefix = "Weapons: "
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 10)
 	add_child(head)
@@ -141,7 +146,7 @@ func _set_ids(ids: Array) -> void:
 
 ## The line, the mode switch and the chips match the value.
 func _sync() -> void:
-	_summary.text = LobbySettings.weapons_summary(_ids)
+	_summary.text = _prefix + LobbySettings.weapons_summary(_ids)
 	var allowed := LobbySettings.weapons_from(_ids)
 	for id in _chips:
 		_chips[id].set_pressed_no_signal(id in allowed)

@@ -400,6 +400,7 @@ func _show_bot() -> void:
 	var map_ref: Array[OptionButton] = [null]   # filled below; see _show_practice
 	var rules_ref: Array[AllowedWeaponsPicker] = [null]   # the weapons allowed; filled below
 	var moves_ref: Array[AllowedMobilityPicker] = [null]  # the mobility tools allowed; filled below
+	var head_ref: Array[Control] = [null]                 # their "Loadout rules" heading; filled below
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
 		var race := g == "race"
@@ -414,6 +415,7 @@ func _show_bot() -> void:
 			rules_ref[0].visible = g == "ffa"   # a shoot-out: you pick the weapons you and the bots may use
 		if moves_ref[0]:
 			moves_ref[0].visible = g != "race"   # a race always has the grapple
+			head_ref[0].visible = g != "race"    # ...and no loadout rules
 		set_mode.call(g, rules_ref[0].value() if rules_ref[0] else [], moves_ref[0].value() if moves_ref[0] else [])
 	for i in seg.get_child_count():
 		(seg.get_child(i) as Button).pressed.connect(func():
@@ -429,12 +431,14 @@ func _show_bot() -> void:
 	left.move_child(left.get_child(mode_row_start + 1), 1)
 	var map := _map_picker(left, Game.last_bot.map, GunGame.game_of_mode(mode[0]))
 	map_ref[0] = map
-	var rules := AllowedWeaponsPicker.new(Game.last_bot.get("weapons", []))
+	var rules_head := UiKit.section(left, "Loadout rules").get_parent()
+	var rules := AllowedWeaponsPicker.new(Game.last_bot.get("weapons", []), true, false)
 	rules.preferred = Game.local_weapon()
 	left.add_child(rules)
 	rules_ref[0] = rules
+	head_ref[0] = rules_head
 	rules.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
-	var allowed_moves := AllowedMobilityPicker.new(Game.last_bot.get("mobility", []))
+	var allowed_moves := AllowedMobilityPicker.new(Game.last_bot.get("mobility", []), true, false)
 	left.add_child(allowed_moves)
 	moves_ref[0] = allowed_moves
 	allowed_moves.changed.connect(func(_ids: Array): show_mode.call(mode[0]))

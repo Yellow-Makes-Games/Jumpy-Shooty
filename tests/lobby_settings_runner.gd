@@ -283,7 +283,7 @@ func _mobility() -> void:
 	await get_tree().process_frame
 	var control: AllowedMobilityPicker = lobby.find_children("*", "AllowedMobilityPicker", true, false)[0]
 	var mine: MobilityPicker = lobby.find_children("*", "MobilityPicker", true, false)[0]
-	_expect(control.is_visible_in_tree() and control._row.visible, "the host sees the Mobility allowed control in the lobby")
+	_expect(control.is_visible_in_tree() and control._edit.visible, "the host sees the Mobility allowed control in the lobby")
 	_expect(mine.allowed() == ["grapple", "blink"], "the lobby's mobility picker offers only the allowed tools")
 	control._on_chip("grapple")
 	await get_tree().process_frame
