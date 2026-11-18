@@ -470,6 +470,7 @@ func _show_multiplayer() -> void:
 	_code_edit = UiKit.line_edit(join, "ABCD-EFGH", Settings.last_address)   # the last code you joined
 	_code_edit.text_submitted.connect(func(_t: String): _on_join())
 	UiKit.button(join, "Join lobby", _on_join)
+	UiKit.button(join, "Join as spectator", func(): _on_join(true))
 	_status = UiKit.label(col, "", true, 16)
 	_frame.back_button("Back", _show_main)
 
@@ -516,7 +517,8 @@ func _on_create() -> void:
 		_status.text = "Could not create the lobby (%s). Is another copy already hosting on this PC?" % error_string(err)
 
 
-func _on_join() -> void:
+## spectate: watch with a free camera instead of playing (you can join in from the menu).
+func _on_join(spectate: bool = false) -> void:
 	_save_name()
 	var address := _code_edit.text.strip_edges()
 	var bad: String = LobbyCode.parse(address).error
@@ -526,7 +528,7 @@ func _on_join() -> void:
 	if address != Settings.last_address:
 		Settings.last_address = address
 		Settings.save_settings()
-	var err := Game.join_online(address)
+	var err := Game.join_online(address, spectate)
 	if err != OK:
 		_status.text = "Could not start joining (%s)." % error_string(err)
 	else:

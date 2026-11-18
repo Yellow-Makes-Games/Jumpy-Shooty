@@ -179,12 +179,14 @@ func host_online() -> Error:
 
 ## Joins the lobby with this code, or at this address (see LobbyCode.parse; check its
 ## "error" first to tell the player what is wrong: a bad code returns ERR_INVALID_DATA).
-func join_online(code_or_address: String) -> Error:
+## spectate: join to watch with a free camera (see Net.set_spectating).
+func join_online(code_or_address: String, spectate: bool = false) -> Error:
 	var where := LobbyCode.parse(code_or_address)
 	if where.error != "":
 		return ERR_INVALID_DATA
 	mode = Mode.ONLINE
-	return Net.join_direct(local_name(), local_character(), "%s:%d" % [where.host, where.port], local_weapon(), local_mobility())
+	return Net.join_direct(local_name(), local_character(), "%s:%d" % [where.host, where.port], local_weapon(), local_mobility(),
+		spectate or DevArgs.spectate)
 
 
 func leave_to_menu() -> void:
@@ -234,12 +236,16 @@ func _on_players_changed() -> void:
 func _run_dev_args() -> void:
 	if DevArgs.bot >= 0:
 		start_bot(DevArgs.bot, DevArgs.kill_target if DevArgs.kill_target > 0 else 10, "", DevArgs.bots, DevArgs.rules)
+		if DevArgs.spectate:
+			Net.set_spectating(true)   # watch the bots
 	elif DevArgs.practice:
 		start_practice()
 	elif DevArgs.host:
 		var err := host_online()
 		if err != OK:
 			push_error("Could not host: %s" % error_string(err))
+		elif DevArgs.spectate:
+			Net.set_spectating(true)
 	elif DevArgs.join_address != "":
 		var err := join_online(DevArgs.join_address)
 		if err == ERR_INVALID_DATA:

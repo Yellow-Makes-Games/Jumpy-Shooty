@@ -101,6 +101,9 @@ var _asked := false             # asked to respawn (Match.request_respawn)
 var _pulse := 0.0
 var _board_age := 0.0
 var _race: HudRace
+## You are watching (Net.spectating): no health, gun or crosshair; who is winning,
+## the kill feed and how to fly instead.
+var spectating := false
 
 
 func _ready() -> void:
@@ -270,6 +273,53 @@ func update_local(p: Player) -> void:
 	_overlay.queue_redraw()
 
 
+## Spectating: called every frame instead of update_local.
+func set_spectating(on: bool) -> void:
+	spectating = on
+	_dead = false
+	_killer_view.visible = false
+	_vignette.modulate.a = 0.0
+	_flash.color.a = 0.0
+	_layout.visible = not on
+	_overlay.queue_redraw()
+
+
+func update_spectator() -> void:
+	var delta := get_process_delta_time()
+	_age(delta)
+	_scoreboard.visible = Input.is_action_pressed("scoreboard")
+	if _scoreboard.visible:
+		_place_scoreboard()
+		_board_age += delta
+		if _board_age > 0.5:
+			_board_age = 0.0
+			_refresh_scoreboard()
+	_layout.visible = false
+	_overlay.queue_redraw()
+
+
+func _draw_spectating(ci: CanvasItem, size: Vector2) -> void:
+	var cx := size.x * 0.5
+	var y := 38.0
+	var top := "SPECTATING"
+	if Match.time_left < 1e8:
+		var t := int(ceil(Match.time_left))
+		top = "%d:%02d   SPECTATING" % [t / 60, t % 60]
+	_pill(ci, Vector2(cx, y), top, 22, HudStyle.ORANGE)
+	var rows: Array = Match.build_results() if not Race.active else []
+	var sub := Maps.name_of(Net.map_id()).to_upper()
+	if not rows.is_empty():
+		sub += "  ·  LEADING: %s %d" % [str(rows[0].name).to_upper(), int(rows[0].kills)]
+	elif Race.active:
+		sub += "  ·  RACE"
+	HudStyle.label(ci, Vector2(cx, y + 34.0), sub, 11, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
+	var keys := "%s %s %s %s FLY   ·   %s UP   ·   %s DOWN   ·   HOLD %s FAST   ·   HOLD %s SCOREBOARD   ·   ESC MENU: JOIN IN" % [
+		Settings.action_text("move_forward"), Settings.action_text("move_left"), Settings.action_text("move_back"),
+		Settings.action_text("move_right"), Settings.action_text("jump"), Settings.action_text("crouch"),
+		Settings.action_text("sprint"), Settings.action_text("scoreboard")]
+	HudStyle.label(ci, Vector2(cx, size.y - 34.0), keys.to_upper(), 11, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_CENTER)
+
+
 func _hit_recently() -> bool:
 	return _flash.color.a > 0.05
 
@@ -424,6 +474,12 @@ func _draw_overlay() -> void:
 	var ci := _overlay
 	var size := ci.size
 	var c := size * 0.5
+	if spectating:
+		if not _scoreboard.visible:
+			_draw_spectating(ci, size)
+		if not Race.active:
+			_draw_feed(ci, size)
+		return
 	if Race.active:
 		if not _scoreboard.visible:
 			_race.draw(ci, size, self)
@@ -1018,6 +1074,8 @@ func _refresh_scoreboard() -> void:
 	var ping := _ping_ms()
 	if ping >= 0:
 		title += "  ·  Ping %d ms" % ping
+	if not Net.spectators.is_empty():
+		title += "  ·  %d watching" % Net.spectators.size()
 	_score_title.text = title.to_upper()
 	UiKit.clear(_score_rows)
 	# A full 16-player lobby: tighter rows so the board still fits the screen.

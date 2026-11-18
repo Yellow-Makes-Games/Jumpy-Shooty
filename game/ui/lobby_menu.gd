@@ -8,6 +8,8 @@ var _frame: MenuFrame
 var _col: VBoxContainer          # the left column: players, mode, map, rules
 var _list: VBoxContainer
 var _list_scroll: ScrollContainer
+var _watching: Label     # who is spectating
+var _spectate: Button    # watch instead of play, or play again
 var _start: Button
 var _waiting: Label
 var _info: Label
@@ -70,6 +72,15 @@ func _ready() -> void:
 	_list.add_theme_constant_override("separation", 5)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list_scroll.add_child(_list)
+	var watch_row := HBoxContainer.new()
+	watch_row.add_theme_constant_override("separation", 10)
+	_col.add_child(watch_row)
+	_watching = UiKit.label(watch_row, "", true, 14)
+	_watching.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_watching.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_spectate = UiKit.button(watch_row, "Spectate", func(): Net.set_spectating(not Net.spectating()))
+	_spectate.custom_minimum_size = Vector2(0, 38)
+	_spectate.theme_type_variation = "Chip"
 	_build_map()
 	_build_rules()
 	_build_lobby_settings()
@@ -112,6 +123,10 @@ func _refresh() -> void:
 	for id in ids:
 		_list.add_child(_player_row(id))
 	_fit_list.call_deferred()
+	var watchers := Net.spectator_ids().map(func(id): return Net.spectator_name(id) + (" (you)" if id == Net.my_id() else ""))
+	_watching.text = "Spectating: %s" % ", ".join(watchers) if not watchers.is_empty() else "Nobody is spectating."
+	_spectate.text = "Play" if Net.spectating() else "Spectate"
+	_spectate.disabled = Net.spectating() and Net.players.size() >= Net.MAX_PLAYERS
 	_start.visible = Net.is_host()
 	_waiting.visible = not Net.is_host()
 	_start.disabled = Net.players.size() < 1
@@ -131,6 +146,8 @@ func _refresh() -> void:
 	else:
 		where = "The host picks the map and rules and starts the match."
 	_info.text = "%d of %d players.  %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
+	if Net.spectating():
+		_info.text = "You are spectating: you will watch the match with a free camera.  " + _info.text
 	_refresh_rules()
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
