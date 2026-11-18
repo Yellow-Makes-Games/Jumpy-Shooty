@@ -53,6 +53,13 @@ var style := "arcs"
 var grapple := GRAPPLE_NO_TARGET
 var grapple_cooldown := 0.0     ## 1 = just let go, 0 = ready
 var tether := 0.0
+## The mobility tool (see Mobility), and for blink its charges (and how far the next
+## has come back), for the portal gun which of your portals are up and which is next.
+var mobility := Mobility.GRAPPLE
+var blink_charges := 0
+var blink_refill := 1.0
+var portals_up := [false, false]
+var portal_next := 0
 
 var _root: Control
 var _flash: ColorRect
@@ -189,7 +196,16 @@ func update_local(p: Player) -> void:
 
 	var g := p.motor.grapple
 	tether = g.length if g.attached else 0.0
-	if g.attached:
+	mobility = p.mobility
+	if p.blink:
+		blink_charges = p.blink.charges
+		blink_refill = p.blink.recharge_progress()
+	if p.portal_gun and Net.arena and Net.arena.portals:
+		portal_next = p.portal_gun.next_slot
+		portals_up = [Net.arena.portals.get_portal(p.peer_id, 0) != null, Net.arena.portals.get_portal(p.peer_id, 1) != null]
+	if mobility != Mobility.GRAPPLE:
+		grapple = GRAPPLE_NO_TARGET
+	elif g.attached:
 		grapple = GRAPPLE_ON
 	elif g.cooldown_left > 0.0:
 		grapple = GRAPPLE_COOLING
@@ -199,7 +215,7 @@ func update_local(p: Player) -> void:
 	else:
 		grapple = GRAPPLE_NO_TARGET
 	v.moves = [
-		["GRAPPLE", "RMB", 1.0 - grapple_cooldown if grapple == GRAPPLE_COOLING else 1.0, grapple == GRAPPLE_ON],
+		[mobility.to_upper(), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON],
 		["DIVE", "Q", p.motor.dive_readiness(), false],
 		["FLIP", "SPACE", p.motor.flip_readiness(), false],
 		["GLIDE", "SHIFT", p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE],
@@ -386,6 +402,31 @@ func _draw_overlay() -> void:
 		HudStyle.text(ci, c + Vector2(40, 34), "%d m" % roundi(tether), 13, Color(1.0, 0.7, 0.45))
 
 
+## Under the crosshair ring: blink's charges (three short arcs, the next one filling
+## up), or the portal gun's two portals (filled when up, the next one to shoot ringed).
+func _draw_mobility_marks(ci: CanvasItem, c: Vector2, ring: float) -> void:
+	match mobility:
+		Mobility.BLINK:
+			var each := 36.0
+			for i in Blink.CHARGES:
+				var from := 90.0 + (i - 1) * (each + 6.0) - each * 0.5
+				HudStyle.arc(ci, c, ring + 6.0, from, from + each, Color(1, 1, 1, 0.15), 3.0)
+				var fill := 1.0 if i < blink_charges else (blink_refill if i == blink_charges else 0.0)
+				if fill > 0.0:
+					var col := Color(Portal.COLORS[0], 0.95) if fill >= 1.0 else Color(1, 1, 1, 0.45)
+					HudStyle.arc(ci, c, ring + 6.0, from, from + each * fill, col, 3.0)
+		Mobility.PORTAL:
+			for i in 2:
+				var at := c + Vector2((i * 2 - 1) * 9.0, ring + 12.0)
+				var col: Color = Portal.COLORS[i]
+				if portals_up[i]:
+					ci.draw_circle(at, 4.5, col)
+				else:
+					HudStyle.arc(ci, at, 4.5, 0, 360, Color(col, 0.6), 1.5)
+				if i == portal_next:
+					HudStyle.arc(ci, at, 7.5, 0, 360, Color(1, 1, 1, 0.8), 1.5)
+
+
 func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
 	var ring := 30.0 if style == "arcs" else 22.0
 	match grapple:
@@ -398,6 +439,7 @@ func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
 			HudStyle.arc(ci, c, ring, -90, -90 + 360.0 * (1.0 - grapple_cooldown), Color(1, 1, 1, 0.6), 2.0)
 		_:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(1, 1, 1, 0.12), 1.5)
+	_draw_mobility_marks(ci, c, ring)
 	match view.crosshair:
 		"spread":   # the shotgun: four brackets on the edge of its cone
 			var r := maxf(view.spread_px, 12.0)
@@ -614,11 +656,37 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	HudStyle.label(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
 	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	var mid := card.position.x + w * 0.5
+	_draw_mobility_swap(ci, Vector2(mid, bar.end.y + 56.0))
 	if Net.is_deathmatch():
-		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
+		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
 			Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 	else:
-		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0))
+		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW))
+
+
+## Height of the death screen's mobility row (the weapons come below it).
+const MOBILITY_ROW := 58.0
+
+
+## While you wait to respawn: the mobility tool you come back with (the mobility
+## button, right mouse, goes on to the next).
+func _draw_mobility_swap(ci: CanvasItem, at: Vector2) -> void:
+	var mine := Net.pending_mobility()
+	var ids := Mobility.IDS
+	var gap := 6.0
+	var total := DEATH_W
+	var cell := Vector2((total - (ids.size() - 1) * gap) / ids.size(), 25.0)
+	var x := at.x - total * 0.5
+	HudStyle.label(ci, Vector2(x, at.y - 10.0), "MOBILITY", 11, Color(1, 1, 1, 0.85))
+	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), "%s TO SWITCH" % Settings.action_text("grapple").get_slice(" / ", 0).to_upper(), 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
+	for i in ids.size():
+		var id: String = ids[i]
+		var r := Rect2(x + i * (cell.x + gap), at.y + 4.0, cell.x, cell.y)
+		var on := id == mine
+		HudStyle.plate(ci, r, 6.0, Color(HudStyle.CYAN, 0.9) if on else Color(0.04, 0.055, 0.085, 0.88))
+		var col := Color(0.03, 0.06, 0.08) if on else Color(1, 1, 1, 0.78)
+		ci.draw_string(HudStyle.font(true), r.position + Vector2(9.0, 17.0), Mobility.name_of(id).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, col)
+
 
 
 ## Deathmatch: your two weapon slots (keys 1 and 2), each with its weapon's name

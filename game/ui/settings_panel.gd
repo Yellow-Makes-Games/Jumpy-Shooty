@@ -17,7 +17,7 @@ const TABS := ["Controls", "Camera & HUD", "Audio", "Graphics"]
 const CHEAT_SHEET := [
 	["move", "Move"], ["sprint", "Sprint; hold in mid-air to glide"], ["jump", "Jump; again in mid-air to flip"],
 	["crouch", "Crouch; slide when moving fast"], ["dive", "Dive (keep holding to land in a belly slide)"],
-	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Grapple"],
+	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Mobility"],
 	["interact", "Interact: press at a map terminal"],
 	["fire", "Shoot; melee: hold to wind up, let go to swing"], ["reload", "Reload"],
 	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"],

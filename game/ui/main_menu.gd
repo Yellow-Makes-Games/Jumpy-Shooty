@@ -264,11 +264,17 @@ func _three_columns() -> Array:
 	right.add_child(none)
 	UiKit.section(none, "Weapon")
 	var note := UiKit.label(UiKit.inset(none), "", true, 17)
+	var moves := MobilityPicker.new(Game.local_mobility())
+	pick.add_child(moves)   # under the robot: that column has the room
+	moves.picked.connect(func(id: String):
+		Settings.mobility = id
+		Settings.save_settings())
 	var set_mode := func(mode: String):
 		var uses_pick := not NO_WEAPON_NOTES.has(mode)
 		gun.visible = uses_pick
 		none.visible = not uses_pick
 		note.text = NO_WEAPON_NOTES.get(mode, "")
+		moves.visible = mode != "race"   # a race always has the grapple
 	return [left, set_mode]
 
 

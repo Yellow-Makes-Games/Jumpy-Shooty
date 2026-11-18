@@ -89,6 +89,13 @@ var _burst_left := 0              # local: rounds of a burst still to fire
 var _akimbo_shots := 0            # akimbo: shots so far (yours, or seen); odd ones leave the left gun
 var _akimbo_left := false         # akimbo: the last shot came from the left gun
 var _burst_wait := 0.0            # local: seconds until the next round of the burst
+## The tool on the mobility button (an id from Mobility): the grapple, the portal
+## gun or blink. A race always has the grapple.
+var mobility := Mobility.GRAPPLE
+var blink: Blink                  # local, with blink
+var portal_gun: PortalGun         # local, with the portal gun
+## Local: the portal you just came out of. It does nothing until you step clear of it (see Portals).
+var portal_skip: Portal
 
 
 func _init() -> void:
@@ -164,6 +171,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	_build_flame()
 	if motor:
 		motor.grapple.hook_players = not racing
+	set_mobility(Net.player_mobility(id))
 	if WeaponData.melee(robot.weapon):
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
 		add_child(_trail)
@@ -193,7 +201,12 @@ func _physics_process(delta: float) -> void:
 	if alive:
 		_set_crosshair_ray()
 		var was_on := motor.grapple.attached
-		var hooking := input.grapple_pressed and motor.grapple.ready_to_fire()
+		var hooking := input.grapple_pressed and motor.grapple.ready_to_fire() and mobility == Mobility.GRAPPLE
+		# Portal gun and blink take the mobility button: the grapple never sees it.
+		var mobility_pressed := input.grapple_pressed and mobility != Mobility.GRAPPLE
+		if mobility != Mobility.GRAPPLE:
+			input.grapple = false
+			input.grapple_pressed = false
 		var fly := Cheats.flying() and not is_bot
 		if fly != _flying:
 			_flying = fly
@@ -214,6 +227,7 @@ func _physics_process(delta: float) -> void:
 			if motor.boosts != boosts and DevArgs.sync_log:
 				print("BOOST %d" % peer_id)
 			_check_slam(delta)
+			_update_mobility(delta, mobility_pressed)
 		_report_tether()
 		if Cheats.cooldowns_off() and not is_bot:
 			motor.clear_cooldowns()
@@ -318,6 +332,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		weapon.start_reload()
 	elif racing:
 		pass
+	elif not alive and event.is_action_pressed("grapple"):
+		_next_mobility()
 	elif Net.is_deathmatch():
 		if alive:
 			_switch_weapon(event)   # weapons come off the map, not from a pick while dead
@@ -351,6 +367,17 @@ func _pick_on_death(event: InputEvent) -> void:
 		Settings.save_settings()
 	Sound.play("equip_" + ids[pick])
 	Net.set_my_weapon(ids[pick])
+
+
+## Waiting to respawn: the mobility button goes on to the next mobility tool.
+func _next_mobility() -> void:
+	var pick := Mobility.next(Net.pending_mobility())
+	Settings.mobility = pick
+	Settings.save_settings()
+	Sound.play("ui_select")
+	Net.set_my_mobility(pick)
+	if DevArgs.sync_log:
+		print("MOBILITY_PICK %d %s" % [peer_id, pick])
 
 
 ## Reads keyboard and mouse into `input`. Mouse look arrives in _unhandled_input.
@@ -1009,6 +1036,7 @@ func dev_swap_after_death() -> void:
 
 func set_dead() -> void:
 	alive = false
+	portal_skip = null
 	_charge = -1.0
 	_fly_kick = 0.0
 	_tug_by = 0
@@ -1051,6 +1079,11 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 	_kick_cool = 0.0
 	_fly_kick = 0.0
 	_tug_by = 0
+	portal_skip = null
+	if blink:
+		blink.reset()
+	if portal_gun:
+		portal_gun.reset()
 	_send_timer = 0.0  # tell everyone at once
 
 
@@ -1171,6 +1204,8 @@ func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 	var count := int(data[9])
 	if count != _teleport_count:
 		_teleport_count = count
+		if alive and not _awaiting_respawn and visual.visible and buffer.has_data():
+			_show_warp(latest_position(), Vector3(data[0], data[1], data[2]))   # a blink or a portal, not a respawn
 		buffer.clear_history()  # never blend across a respawn
 		if _awaiting_respawn:
 			_awaiting_respawn = false
@@ -1354,6 +1389,7 @@ func position_at(t: float) -> Vector3:
 
 
 func teleport(pos: Vector3, yaw: float) -> void:
+	portal_skip = null
 	_fly_kick = 0.0
 	_tug_by = 0
 	if motor:
@@ -1362,6 +1398,133 @@ func teleport(pos: Vector3, yaw: float) -> void:
 	velocity = Vector3.ZERO
 	input.yaw = yaw
 	input.pitch = 0.0
+
+
+## Local: jump to `pos` keeping on the move (blink, a portal). Others see it as a
+## jump, not a dash across the map: the respawn count goes up, so they don't blend
+## from where you were.
+func warp(pos: Vector3, vel: Vector3, yaw: float) -> void:
+	var from := global_position
+	motor.grapple.reset()
+	if motor.state == MovementController.State.MANTLE:
+		motor.state = MovementController.State.AIR
+	global_position = pos
+	velocity = vel
+	motor.warped = true   # off the floor you were on: no snapping back to it, no ground friction
+	input.yaw = yaw
+	_teleport_count += 1
+	_send_timer = 0.0   # tell everyone at once
+	_show_warp(from, pos)
+
+
+# ---------------------------------------------------------------------------
+# Mobility: the grapple, portal gun or blink (see Mobility)
+
+## Change the tool on the mobility button (picked while waiting to respawn).
+func set_mobility(id: String) -> void:
+	var m := Mobility.GRAPPLE if racing else Mobility.valid(id)
+	if mobility == Mobility.PORTAL and m != Mobility.PORTAL and Net.arena and Net.arena.get("portals"):
+		Net.arena.portals.clear(peer_id)   # the old portal gun's portals go with it
+	mobility = m
+	if not is_local:
+		return
+	blink = Blink.new() if mobility == Mobility.BLINK else null
+	portal_gun = PortalGun.new() if mobility == Mobility.PORTAL else null
+	if motor and mobility != Mobility.GRAPPLE:
+		motor.grapple.reset()
+
+
+## 0..1 how ready the mobility tool is (the HUD).
+func mobility_readiness() -> float:
+	match mobility:
+		Mobility.BLINK:
+			return blink.readiness() if blink else 1.0
+		Mobility.PORTAL:
+			return portal_gun.readiness() if portal_gun else 1.0
+	var g := motor.grapple if motor else null
+	if g and g.cooldown_left > 0.0:
+		return 1.0 - g.cooldown_left / motor.tuning.grapple_cooldown
+	return 1.0
+
+
+## Where the mobility tool aims: the crosshair ray in third person, the eyes otherwise.
+## Bots can pick a direction of their own (PlayerInput.mobility_dir).
+func mobility_aim() -> Array:
+	if input.mobility_dir != Vector3.ZERO:
+		return [eye_position(), input.mobility_dir.normalized()]
+	if input.aim_dir != Vector3.ZERO:
+		return [input.aim_origin, input.aim_dir]
+	return [eye_position(), Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0)) * Vector3.FORWARD]
+
+
+func _update_mobility(delta: float, pressed: bool) -> void:
+	if blink:
+		blink.update(delta)
+		if Cheats.cooldowns_off() and not is_bot:
+			blink.reset()
+		if pressed:
+			_try_blink()
+	if portal_gun:
+		portal_gun.update(delta)
+		if Cheats.cooldowns_off() and not is_bot:
+			portal_gun.cooldown_left = 0.0
+		if pressed:
+			_try_portal()
+	if not racing and Net.arena and Net.arena.get("portals"):
+		Net.arena.portals.check(self)
+
+
+func _try_blink() -> void:
+	if not blink.ready():
+		return
+	var aim := mobility_aim()
+	var dir: Vector3 = aim[1]
+	var to := Blink.destination(self, _shape, dir)
+	if to == Vector3.INF:
+		sounds.grapple_missed()
+		blink._gap = Blink.GAP
+		return
+	blink.charges -= 1
+	blink._gap = Blink.GAP
+	if DevArgs.sync_log:
+		print("BLINK %d %.2f" % [peer_id, global_position.distance_to(to)])
+	warp(to, Blink.carry(velocity, dir), input.yaw)
+
+
+func _try_portal() -> void:
+	if not portal_gun.ready():
+		return
+	portal_gun.cooldown_left = PortalGun.COOLDOWN
+	var aim := mobility_aim()
+	var spot := PortalGun.find_spot(self, aim[0], aim[1])
+	if spot.is_empty():
+		sounds.grapple_missed()   # nothing in range takes a portal
+		return
+	var slot := portal_gun.next_slot
+	portal_gun.next_slot = 1 - slot
+	Net.place_portal(peer_id, slot, spot.at, spot.normal, spot.up)
+
+
+## A flash where a blink or portal trip left from and where it arrived, and its sound.
+func _show_warp(from: Vector3, to: Vector3) -> void:
+	if not is_inside_tree():
+		return
+	var col: Color = Portal.COLORS[0] if mobility == Mobility.BLINK else Portal.COLORS[1]
+	var mid := Vector3(0, body_height() * 0.5, 0)
+	if not (rig and rig.first_person_amount() > 0.5):
+		var fx_parent: Node = Net.arena if Net.arena else get_parent()
+		Portal.flash(fx_parent, from + mid, col)
+		Portal.flash(fx_parent, to + mid, col)
+	var sound := "blink" if mobility == Mobility.BLINK else "portal_through"
+	if is_local and not is_bot:
+		Sound.play(sound, 0.0, 0.05)
+	else:
+		Sound.play_at(sound, to + mid, "move", 0.0, 0.05)
+
+
+## How tall the body's collision shape is right now (crouching, belly sliding...).
+func body_height() -> float:
+	return (_shape.shape as CapsuleShape3D).height if _shape else CAPSULE_HEIGHT
 
 
 # ---------------------------------------------------------------------------
@@ -1388,6 +1551,7 @@ func _hold_still() -> void:
 	input.crouch = false
 	input.dive = false
 	input.grapple = false
+	input.grapple_pressed = false
 	input.fire = false
 	input.kick_pressed = false
 	input.boost_pressed = false
