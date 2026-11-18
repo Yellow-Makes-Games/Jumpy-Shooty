@@ -1,5 +1,5 @@
 class_name MeleeFx
-## What a melee blow looks like where it lands: a flash, a bright streak along the way
+## What a melee blow looks like where it lands (and a ground slam, see slam()): a flash, a bright streak along the way
 ## the weapon was going, a burst of sparks in the attacker's colour and, for a blow
 ## that was wound up, a ring that snaps outward.
 ## Everyone sees them. Bigger the more the swing was wound up (`power` 0..1).
@@ -20,6 +20,89 @@ static func hit(parent: Node, at: Vector3, from: Vector3, color: Color, power: f
 	_sparks(parent, at, away, hot, power)
 	if power >= MeleeSwing.HEAVY_AT:
 		_ring(parent, at, away, color.lerp(Color.WHITE, 0.3), lerpf(0.35, 0.7, power))
+
+
+## A ground slam landed at `at` (on the floor): a shockwave ring racing out across the
+## floor in the attacker's colour, a flash, dust rolling out and debris thrown up.
+static func slam(parent: Node, at: Vector3, color: Color, power: float) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
+		return
+	power = clampf(power, 0.0, 1.0)
+	var hot := color.lerp(Color.WHITE, 0.5)
+	var reach := GroundSlam.RADIUS
+	_flash(parent, at + Vector3(0, 0.25, 0), hot, lerpf(0.3, 0.55, power), 0.1)
+	# Two rings flat on the floor: a bright thin one that reaches the slam's edge, a fainter one behind it.
+	for i in 2:
+		var ring := MeshInstance3D.new()
+		var t := TorusMesh.new()
+		t.inner_radius = 0.9 if i == 0 else 0.8
+		t.outer_radius = 1.0
+		t.rings = 40
+		t.ring_segments = 4
+		ring.mesh = t
+		ring.material_override = _glow(hot if i == 0 else color)
+		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(ring)
+		ring.global_position = at + Vector3(0, 0.06 + 0.04 * i, 0)
+		ring.scale = Vector3(0.3, 0.25, 0.3)
+		var out := reach * (1.0 if i == 0 else 0.7)
+		var life := lerpf(0.28, 0.4, power) + 0.08 * i
+		var tween := ring.create_tween().set_parallel()
+		tween.tween_property(ring, "scale", Vector3(out, 0.12, out), life).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tween.tween_property(ring, "transparency", 1.0, life).set_ease(Tween.EASE_IN)
+		tween.chain().tween_callback(ring.queue_free)
+	# Dust: grey puffs rolling outward along the floor.
+	var puff := SphereMesh.new()
+	puff.radius = 0.5
+	puff.height = 1.0
+	puff.radial_segments = 8
+	puff.rings = 4
+	var dust := StandardMaterial3D.new()
+	dust.albedo_color = Color(0.7, 0.7, 0.72, 0.5)
+	dust.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dust.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var puffs := int(lerpf(8.0, 14.0, power))
+	for i in puffs:
+		var cloud := MeshInstance3D.new()
+		cloud.mesh = puff
+		cloud.material_override = dust
+		cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(cloud)
+		var way := Vector3.FORWARD.rotated(Vector3.UP, TAU * (float(i) + randf_range(-0.3, 0.3)) / float(puffs))
+		cloud.global_position = at + way * 0.4 + Vector3(0, 0.2, 0)
+		cloud.scale = Vector3.ONE * 0.4
+		var life := randf_range(0.45, 0.75)
+		var tween := cloud.create_tween().set_parallel()
+		tween.tween_property(cloud, "global_position", at + way * reach * randf_range(0.6, 0.95) + Vector3(0, randf_range(0.3, 0.7), 0), life).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tween.tween_property(cloud, "scale", Vector3.ONE * randf_range(1.2, 1.9) * lerpf(0.7, 1.0, power), life).set_ease(Tween.EASE_OUT)
+		tween.tween_property(cloud, "transparency", 1.0, life).set_ease(Tween.EASE_IN)
+		tween.chain().tween_callback(cloud.queue_free)
+	# Debris: chips of floor thrown up and out, and sparks with them.
+	var chip := BoxMesh.new()
+	chip.size = Vector3(0.09, 0.07, 0.11)
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.32, 0.33, 0.36)
+	stone.roughness = 0.9
+	for i in int(lerpf(10.0, 26.0, power)):
+		var bit := MeshInstance3D.new()
+		bit.mesh = chip
+		bit.material_override = stone
+		bit.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(bit)
+		var way := Vector3.FORWARD.rotated(Vector3.UP, randf() * TAU)
+		var speed := way * randf_range(2.0, 7.0) + Vector3.UP * randf_range(4.0, lerpf(7.0, 11.0, power))
+		var start := at + way * randf_range(0.1, 0.9) + Vector3(0, 0.1, 0)
+		var life := randf_range(0.5, 0.9)
+		var size := randf_range(0.6, 1.8)
+		var tumble := Vector3(randf_range(-9, 9), randf_range(-9, 9), randf_range(-9, 9))
+		var fly := func(t: float) -> void:
+			bit.global_transform = Transform3D(Basis.from_euler(tumble * t).scaled(Vector3.ONE * size * (1.0 - 0.6 * t / life)),
+				start + speed * t + Vector3.DOWN * 11.0 * t * t)
+		fly.call(0.0)
+		var tween := bit.create_tween()
+		tween.tween_method(fly, 0.0, life, life)
+		tween.tween_callback(bit.queue_free)
+	_sparks(parent, at + Vector3(0, 0.15, 0), Vector3.UP, hot, power)
 
 
 static func _sparks(parent: Node, at: Vector3, away: Vector3, color: Color, power: float) -> void:

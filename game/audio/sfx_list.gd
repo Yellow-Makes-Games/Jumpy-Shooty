@@ -27,7 +27,7 @@ const VOLUME := {
 	"match_start": -6.0, "match_end": -6.0,
 	"swing_sword": -8.0, "swing_hammer": -7.0, "swing_dagger": -10.0,
 	"equip_sword": -10.0, "equip_hammer": -10.0, "equip_dagger": -10.0,
-	"melee_hit": -5.0, "hammer_hit": -4.0, "heavy_hit": -3.0, "slam": -5.0,
+	"melee_hit": -5.0, "hammer_hit": -4.0, "heavy_hit": -3.0, "ground_slam": -1.0, "slam": -5.0,
 	"kick": -9.0, "flying_kick": -6.0, "rocket_boost": -7.0, "glide": -10.0,
 	"break_concrete": -4.0, "break_wood": -5.0, "break_glass": -6.0,
 	# The newer weapons
