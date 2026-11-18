@@ -1199,6 +1199,8 @@ func _ride_lift() -> void:
 	if not me.is_on_floor():
 		_link_left = true
 	elif _link_left and _link_time > 0.6:
+		if DevArgs.sync_log:
+			print("BOT_LIFT %d down at %.1f,%.1f,%.1f wanted %.1f,%.1f,%.1f after %.1f s" % [me.peer_id, pos.x, pos.y, pos.z, land.x, land.y, land.z, _link_time])
 		_end_link(absf(pos.y - land.y) < 3.0 and _flat(pos, land) < 8.0)   # down again: on the floor it wanted?
 		return
 	input.grapple = false
@@ -1207,6 +1209,8 @@ func _ride_lift() -> void:
 	if out and not _link_left:
 		out = false
 	if _link_left and not out and _flat(pos, foot) > 3.5:
+		if DevArgs.sync_log:
+			print("BOT_LIFT %d out of the beam at %.1f,%.1f,%.1f" % [me.peer_id, pos.x, pos.y, pos.z])
 		_end_link(false)   # knocked out of the beam on the way up
 		return
 	var to := (land if out else foot) - pos

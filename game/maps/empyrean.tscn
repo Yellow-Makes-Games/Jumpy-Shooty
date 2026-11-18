@@ -13207,6 +13207,13 @@ size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_cyan"
 solid = false
 
+[node name="EmitterGlowIn" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
+transform = Transform3D(0.3915, 0, 0.9202, 0, 1, 0, -0.9202, 0, 0.3915, 26.6248, 3.85, 11.329)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_cyan"
+solid = false
+
 [node name="Emitter2" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 29.5908, 4, 3.6071)
 script = ExtResource("2_block")
@@ -13215,6 +13222,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow2" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 30.4594, 3.85, 3.713)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_cyan"
+solid = false
+
+[node name="EmitterGlowIn2" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
+transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 28.7222, 3.85, 3.5012)
 script = ExtResource("2_block")
 size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_cyan"
@@ -13323,6 +13337,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_cyan"
 solid = false
 
+[node name="EmitterGlowIn3" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
+transform = Transform3D(-0.8708, 0, -0.4917, 0, 1, 0, 0.4917, 0, -0.8708, -14.2671, 2.4, -25.2685)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_cyan"
+solid = false
+
 [node name="Emitter4" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -18.4245, 2.55, -23.54)
 script = ExtResource("2_block")
@@ -13331,6 +13352,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow4" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -18.9638, 2.4, -24.229)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_cyan"
+solid = false
+
+[node name="EmitterGlowIn4" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
+transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -17.8852, 2.4, -22.8509)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_cyan"
@@ -13402,6 +13430,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_cyan"
 solid = false
 
+[node name="EmitterGlowIn5" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
+transform = Transform3D(0.4917, 0, -0.8708, 0, 1, 0, 0.8708, 0, 0.4917, -25.2685, 2.4, 14.2671)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_cyan"
+solid = false
+
 [node name="Emitter6" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -23.54, 2.55, 18.4245)
 script = ExtResource("2_block")
@@ -13410,6 +13445,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow6" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -24.229, 2.4, 18.9638)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_cyan"
+solid = false
+
+[node name="EmitterGlowIn6" type="Node3D" parent="ArcaneEngine/Shell/Frames"]
+transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -22.8509, 2.4, 17.8852)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_cyan"
@@ -13819,6 +13861,13 @@ size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_gold"
 solid = false
 
+[node name="EmitterGlowIn" type="Node3D" parent="GrandLibrary/Shell/Frames"]
+transform = Transform3D(0.3915, 0, 0.9202, 0, 1, 0, -0.9202, 0, 0.3915, 25.0145, 34.35, 10.6438)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_gold"
+solid = false
+
 [node name="Emitter2" type="Node3D" parent="GrandLibrary/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 27.8537, 34.5, 3.3953)
 script = ExtResource("2_block")
@@ -13827,6 +13876,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow2" type="Node3D" parent="GrandLibrary/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 28.7222, 34.35, 3.5012)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_gold"
+solid = false
+
+[node name="EmitterGlowIn2" type="Node3D" parent="GrandLibrary/Shell/Frames"]
+transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 26.9851, 34.35, 3.2895)
 script = ExtResource("2_block")
 size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_gold"
@@ -13935,6 +13991,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_gold"
 solid = false
 
+[node name="EmitterGlowIn3" type="Node3D" parent="GrandLibrary/Shell/Frames"]
+transform = Transform3D(-0.8708, 0, -0.4917, 0, 1, 0, 0.4917, 0, -0.8708, -13.4067, 32.9, -23.7446)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_gold"
+solid = false
+
 [node name="Emitter4" type="Node3D" parent="GrandLibrary/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -17.3459, 33.05, -22.1619)
 script = ExtResource("2_block")
@@ -13943,6 +14006,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow4" type="Node3D" parent="GrandLibrary/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -17.8852, 32.9, -22.8509)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_gold"
+solid = false
+
+[node name="EmitterGlowIn4" type="Node3D" parent="GrandLibrary/Shell/Frames"]
+transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -16.8066, 32.9, -21.4728)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_gold"
@@ -14070,6 +14140,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_gold"
 solid = false
 
+[node name="EmitterGlowIn5" type="Node3D" parent="GrandLibrary/Shell/Frames"]
+transform = Transform3D(0.4917, 0, -0.8708, 0, 1, 0, 0.8708, 0, 0.4917, -23.7446, 32.9, 13.4067)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_gold"
+solid = false
+
 [node name="Emitter6" type="Node3D" parent="GrandLibrary/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -22.1619, 33.05, 17.3459)
 script = ExtResource("2_block")
@@ -14078,6 +14155,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow6" type="Node3D" parent="GrandLibrary/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -22.8509, 32.9, 17.8852)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_gold"
+solid = false
+
+[node name="EmitterGlowIn6" type="Node3D" parent="GrandLibrary/Shell/Frames"]
+transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -21.4728, 32.9, 16.8066)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_gold"
@@ -14487,6 +14571,13 @@ size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_green"
 solid = false
 
+[node name="EmitterGlowIn" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
+transform = Transform3D(0.3915, 0, 0.9202, 0, 1, 0, -0.9202, 0, 0.3915, 23.4042, 64.85, 9.9586)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_green"
+solid = false
+
 [node name="Emitter2" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 26.1165, 65, 3.1836)
 script = ExtResource("2_block")
@@ -14495,6 +14586,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow2" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 26.9851, 64.85, 3.2895)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_green"
+solid = false
+
+[node name="EmitterGlowIn2" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
+transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 25.2479, 64.85, 3.0777)
 script = ExtResource("2_block")
 size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_green"
@@ -14603,6 +14701,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_green"
 solid = false
 
+[node name="EmitterGlowIn3" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
+transform = Transform3D(-0.8708, 0, -0.4917, 0, 1, 0, 0.4917, 0, -0.8708, -12.5463, 63.4, -22.2207)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_green"
+solid = false
+
 [node name="Emitter4" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -16.2673, 63.55, -20.7838)
 script = ExtResource("2_block")
@@ -14611,6 +14716,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow4" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -16.8066, 63.4, -21.4728)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_green"
+solid = false
+
+[node name="EmitterGlowIn4" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
+transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -15.728, 63.4, -20.0948)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_green"
@@ -14738,6 +14850,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_green"
 solid = false
 
+[node name="EmitterGlowIn5" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
+transform = Transform3D(0.4917, 0, -0.8708, 0, 1, 0, 0.8708, 0, 0.4917, -22.2207, 63.4, 12.5463)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_green"
+solid = false
+
 [node name="Emitter6" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -20.7838, 63.55, 16.2673)
 script = ExtResource("2_block")
@@ -14746,6 +14865,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow6" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -21.4728, 63.4, 16.8066)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_green"
+solid = false
+
+[node name="EmitterGlowIn6" type="Node3D" parent="AlchemyLabs/Shell/Frames"]
+transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -20.0948, 63.4, 15.728)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_green"
@@ -15150,6 +15276,13 @@ size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_teal"
 solid = false
 
+[node name="EmitterGlowIn" type="Node3D" parent="Menagerie/Shell/Frames"]
+transform = Transform3D(0.3915, 0, 0.9202, 0, 1, 0, -0.9202, 0, 0.3915, 21.7939, 95.35, 9.2734)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_teal"
+solid = false
+
 [node name="Emitter2" type="Node3D" parent="Menagerie/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 24.3794, 95.5, 2.9718)
 script = ExtResource("2_block")
@@ -15158,6 +15291,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow2" type="Node3D" parent="Menagerie/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 25.2479, 95.35, 3.0777)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_teal"
+solid = false
+
+[node name="EmitterGlowIn2" type="Node3D" parent="Menagerie/Shell/Frames"]
+transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 23.5108, 95.35, 2.8659)
 script = ExtResource("2_block")
 size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_teal"
@@ -15266,6 +15406,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_teal"
 solid = false
 
+[node name="EmitterGlowIn3" type="Node3D" parent="Menagerie/Shell/Frames"]
+transform = Transform3D(-0.8708, 0, -0.4917, 0, 1, 0, 0.4917, 0, -0.8708, -11.6859, 93.9, -20.6968)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_teal"
+solid = false
+
 [node name="Emitter4" type="Node3D" parent="Menagerie/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -15.1887, 94.05, -19.4057)
 script = ExtResource("2_block")
@@ -15274,6 +15421,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow4" type="Node3D" parent="Menagerie/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -15.728, 93.9, -20.0948)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_teal"
+solid = false
+
+[node name="EmitterGlowIn4" type="Node3D" parent="Menagerie/Shell/Frames"]
+transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -14.6494, 93.9, -18.7167)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_teal"
@@ -15308,6 +15462,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_teal"
 solid = false
 
+[node name="EmitterGlowIn5" type="Node3D" parent="Menagerie/Shell/Frames"]
+transform = Transform3D(-0.2681, 0, -0.9634, 0, 1, 0, 0.9634, 0, -0.2681, -22.898, 93.9, -6.3717)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_teal"
+solid = false
+
 [node name="Emitter6" type="Node3D" parent="Menagerie/Shell/Frames"]
 transform = Transform3D(-0.121, 0, -0.9927, 0, 1, 0, 0.9927, 0, -0.121, -24.462, 94.05, -2.9819)
 script = ExtResource("2_block")
@@ -15316,6 +15477,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow6" type="Node3D" parent="Menagerie/Shell/Frames"]
 transform = Transform3D(-0.121, 0, -0.9927, 0, 1, 0, 0.9927, 0, -0.121, -25.3305, 93.9, -3.0878)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_teal"
+solid = false
+
+[node name="EmitterGlowIn6" type="Node3D" parent="Menagerie/Shell/Frames"]
+transform = Transform3D(-0.121, 0, -0.9927, 0, 1, 0, 0.9927, 0, -0.121, -23.5934, 93.9, -2.876)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_teal"
@@ -15387,6 +15555,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_teal"
 solid = false
 
+[node name="EmitterGlowIn7" type="Node3D" parent="Menagerie/Shell/Frames"]
+transform = Transform3D(0.4917, 0, -0.8708, 0, 1, 0, 0.8708, 0, 0.4917, -20.6968, 93.9, 11.6859)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_teal"
+solid = false
+
 [node name="Emitter8" type="Node3D" parent="Menagerie/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -19.4057, 94.05, 15.1887)
 script = ExtResource("2_block")
@@ -15395,6 +15570,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow8" type="Node3D" parent="Menagerie/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -20.0948, 93.9, 15.728)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_teal"
+solid = false
+
+[node name="EmitterGlowIn8" type="Node3D" parent="Menagerie/Shell/Frames"]
+transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -18.7167, 93.9, 14.6494)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_teal"
@@ -15804,6 +15986,13 @@ size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_violet"
 solid = false
 
+[node name="EmitterGlowIn" type="Node3D" parent="SummoningChamber/Shell/Frames"]
+transform = Transform3D(0.3915, 0, 0.9202, 0, 1, 0, -0.9202, 0, 0.3915, 20.1836, 125.85, 8.5882)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_violet"
+solid = false
+
 [node name="Emitter2" type="Node3D" parent="SummoningChamber/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 22.6422, 126, 2.7601)
 script = ExtResource("2_block")
@@ -15812,6 +16001,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow2" type="Node3D" parent="SummoningChamber/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 23.5108, 125.85, 2.8659)
+script = ExtResource("2_block")
+size = Vector3(0.22, 6.9, 0.1)
+kind = "accent_violet"
+solid = false
+
+[node name="EmitterGlowIn2" type="Node3D" parent="SummoningChamber/Shell/Frames"]
+transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 21.7737, 125.85, 2.6542)
 script = ExtResource("2_block")
 size = Vector3(0.22, 6.9, 0.1)
 kind = "accent_violet"
@@ -15920,6 +16116,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_violet"
 solid = false
 
+[node name="EmitterGlowIn3" type="Node3D" parent="SummoningChamber/Shell/Frames"]
+transform = Transform3D(-0.8708, 0, -0.4917, 0, 1, 0, 0.4917, 0, -0.8708, -10.8255, 124.4, -19.173)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_violet"
+solid = false
+
 [node name="Emitter4" type="Node3D" parent="SummoningChamber/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -14.1101, 124.55, -18.0276)
 script = ExtResource("2_block")
@@ -15928,6 +16131,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow4" type="Node3D" parent="SummoningChamber/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -14.6494, 124.4, -18.7167)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_violet"
+solid = false
+
+[node name="EmitterGlowIn4" type="Node3D" parent="SummoningChamber/Shell/Frames"]
+transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -13.5708, 124.4, -17.3386)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_violet"
@@ -16055,6 +16265,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_violet"
 solid = false
 
+[node name="EmitterGlowIn5" type="Node3D" parent="SummoningChamber/Shell/Frames"]
+transform = Transform3D(0.4917, 0, -0.8708, 0, 1, 0, 0.8708, 0, 0.4917, -19.173, 124.4, 10.8255)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_violet"
+solid = false
+
 [node name="Emitter6" type="Node3D" parent="SummoningChamber/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -18.0276, 124.55, 14.1101)
 script = ExtResource("2_block")
@@ -16063,6 +16280,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow6" type="Node3D" parent="SummoningChamber/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -18.7167, 124.4, 14.6494)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_violet"
+solid = false
+
+[node name="EmitterGlowIn6" type="Node3D" parent="SummoningChamber/Shell/Frames"]
+transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -17.3386, 124.4, 13.5708)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_violet"
@@ -16424,6 +16648,13 @@ size = Vector3(0.22, 8.4, 0.1)
 kind = "accent_silver"
 solid = false
 
+[node name="EmitterGlowIn" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(0.3915, 0, 0.9202, 0, 1, 0, -0.9202, 0, 0.3915, 18.5338, 157.1, 7.8862)
+script = ExtResource("2_block")
+size = Vector3(0.22, 8.4, 0.1)
+kind = "accent_silver"
+solid = false
+
 [node name="Emitter2" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 20.8624, 157.25, 2.5431)
 script = ExtResource("2_block")
@@ -16432,6 +16663,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow2" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 21.7309, 157.1, 2.649)
+script = ExtResource("2_block")
+size = Vector3(0.22, 8.4, 0.1)
+kind = "accent_silver"
+solid = false
+
+[node name="EmitterGlowIn2" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(0.121, 0, 0.9927, 0, 1, 0, -0.9927, 0, 0.121, 19.9938, 157.1, 2.4372)
 script = ExtResource("2_block")
 size = Vector3(0.22, 8.4, 0.1)
 kind = "accent_silver"
@@ -16466,6 +16704,13 @@ size = Vector3(0.22, 11.4, 0.1)
 kind = "glow"
 solid = false
 
+[node name="EmitterGlowIn3" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(-0.8612, 0, 0.5083, 0, 1, 0, -0.5083, 0, -0.8612, 10.1941, 158.6, -17.2717)
+script = ExtResource("2_block")
+size = Vector3(0.22, 11.4, 0.1)
+kind = "glow"
+solid = false
+
 [node name="Emitter4" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(-0.9927, 0, 0.121, 0, 1, 0, -0.121, 0, -0.9927, 2.5327, 158.75, -20.7769)
 script = ExtResource("2_block")
@@ -16474,6 +16719,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow4" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(-0.9927, 0, 0.121, 0, 1, 0, -0.121, 0, -0.9927, 2.6386, 158.6, -21.6455)
+script = ExtResource("2_block")
+size = Vector3(0.22, 11.4, 0.1)
+kind = "glow"
+solid = false
+
+[node name="EmitterGlowIn4" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(-0.9927, 0, 0.121, 0, 1, 0, -0.121, 0, -0.9927, 2.4268, 158.6, -19.9084)
 script = ExtResource("2_block")
 size = Vector3(0.22, 11.4, 0.1)
 kind = "glow"
@@ -16508,6 +16760,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_silver"
 solid = false
 
+[node name="EmitterGlowIn5" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(-0.8708, 0, -0.4917, 0, 1, 0, 0.4917, 0, -0.8708, -9.9651, 154.9, -17.6491)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_silver"
+solid = false
+
 [node name="Emitter6" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -13.0315, 155.05, -16.6496)
 script = ExtResource("2_block")
@@ -16516,6 +16775,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow6" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -13.5708, 154.9, -17.3386)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_silver"
+solid = false
+
+[node name="EmitterGlowIn6" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(-0.7875, 0, -0.6163, 0, 1, 0, 0.6163, 0, -0.7875, -12.4922, 154.9, -15.9605)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_silver"
@@ -16550,6 +16816,13 @@ size = Vector3(0.22, 4, 0.1)
 kind = "accent_silver"
 solid = false
 
+[node name="EmitterGlowIn7" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(0.4917, 0, -0.8708, 0, 1, 0, 0.8708, 0, 0.4917, -17.6491, 154.9, 9.9651)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_silver"
+solid = false
+
 [node name="Emitter8" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -16.6496, 155.05, 13.0315)
 script = ExtResource("2_block")
@@ -16558,6 +16831,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow8" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -17.3386, 154.9, 13.5708)
+script = ExtResource("2_block")
+size = Vector3(0.22, 4, 0.1)
+kind = "accent_silver"
+solid = false
+
+[node name="EmitterGlowIn8" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(0.6163, 0, -0.7875, 0, 1, 0, 0.7875, 0, 0.6163, -15.9605, 154.9, 12.4922)
 script = ExtResource("2_block")
 size = Vector3(0.22, 4, 0.1)
 kind = "accent_silver"
@@ -16592,6 +16872,13 @@ size = Vector3(0.22, 11.4, 0.1)
 kind = "glow"
 solid = false
 
+[node name="EmitterGlowIn9" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(0.8612, 0, -0.5083, 0, 1, 0, 0.5083, 0, 0.8612, -10.1941, 158.6, 17.2717)
+script = ExtResource("2_block")
+size = Vector3(0.22, 11.4, 0.1)
+kind = "glow"
+solid = false
+
 [node name="Emitter10" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(0.9927, 0, -0.121, 0, 1, 0, 0.121, 0, 0.9927, -2.5327, 158.75, 20.7769)
 script = ExtResource("2_block")
@@ -16600,6 +16887,13 @@ kind = "alloy_dark"
 
 [node name="EmitterGlow10" type="Node3D" parent="Observatory/Shell/Frames"]
 transform = Transform3D(0.9927, 0, -0.121, 0, 1, 0, 0.121, 0, 0.9927, -2.6386, 158.6, 21.6455)
+script = ExtResource("2_block")
+size = Vector3(0.22, 11.4, 0.1)
+kind = "glow"
+solid = false
+
+[node name="EmitterGlowIn10" type="Node3D" parent="Observatory/Shell/Frames"]
+transform = Transform3D(0.9927, 0, -0.121, 0, 1, 0, 0.121, 0, 0.9927, -2.4268, 158.6, 19.9084)
 script = ExtResource("2_block")
 size = Vector3(0.22, 11.4, 0.1)
 kind = "glow"

@@ -383,6 +383,7 @@ def shell(m, i):
                 for side in (-1, 1):
                     m.pb(frames, "Emitter", "alloy_dark", r - 1.3, r + 0.35, mid + side * (half + 0.55), 0.6, ya, yb + 0.5)
                     m.pb(frames, "EmitterGlow", ACCENT[i] if what == "field" else "glow", r + 0.35, r + 0.45, mid + side * (half + 0.55), 0.22, ya + 0.4, yb - 0.2, solid=False)
+                    m.pb(frames, "EmitterGlowIn", ACCENT[i] if what == "field" else "glow", r - 1.4, r - 1.3, mid + side * (half + 0.55), 0.22, ya + 0.4, yb - 0.2, solid=False)
                 m.pb(frames, "Lintel", "brass" if what == "sky" else "alloy_dark", r - 1.3, r + 0.35, mid, chord(r, SEG) * len(run) + 1.6, yb, yb + 0.7)
                 # A stone arch springs over it: the fantasy half of every doorway.
                 m.block(frames, "Arch", "stone_dark", P(r + 0.1, mid, yb + 1.75), (chord(r, SEG) * len(run) + 3.0, 2.1, 1.5), cols=rot(mid),
