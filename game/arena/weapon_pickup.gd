@@ -39,6 +39,14 @@ static func make(i: int, pos: Vector3, gun: String) -> WeaponPickup:
 	return p
 
 
+## Its spot has moved (it sits on an island that is under way: see MapIsland).
+func move_to(pos: Vector3) -> void:
+	if position.is_equal_approx(pos):
+		return
+	position = pos
+	spot = pos + Vector3(0, HOVER, 0)
+
+
 func _ready() -> void:
 	_float = Node3D.new()
 	_float.name = "Float"

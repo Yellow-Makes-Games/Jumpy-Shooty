@@ -1058,19 +1058,22 @@ func _terminal_state(index: int, phase: int, who: int, progress: float) -> void:
 func send_map_event_state(index: int, running: bool, elapsed: float, to: int = 0) -> void:
 	if not is_host():
 		return
+	var event := MapEvent.at(get_tree(), index)
+	var state := event.state if event else 0   # (a LayoutEvent's layout; 0 for the others)
 	if to != 0:
-		_map_event_state.rpc_id(to, index, running, elapsed)
+		_map_event_state.rpc_id(to, index, running, elapsed, state)
 	else:
-		_map_event_state.rpc(index, running, elapsed)
+		_map_event_state.rpc(index, running, elapsed, state)
 
 
 @rpc("authority", "call_local", "reliable")
-func _map_event_state(index: int, running: bool, elapsed: float) -> void:
+func _map_event_state(index: int, running: bool, elapsed: float, state: int = 0) -> void:
 	var event := MapEvent.at(get_tree(), index)
 	if event:
+		event.take_state(state)
 		event.apply_state(running, elapsed)
 		if DevArgs.sync_log:
-			print("MAP_EVENT %d %s %.2f" % [index, "on" if running else "off", elapsed])
+			print("MAP_EVENT %d %s %.2f %d" % [index, "on" if running else "off", elapsed, state])
 
 
 ## A copy that has just built the arena asks the host where the terminals and events are.
@@ -1087,8 +1090,8 @@ func _map_state_request() -> void:
 	var events := get_tree().get_nodes_in_group(MapEvent.GROUP)
 	for i in events.size():
 		var e := events[i] as MapEvent
-		if e.running:
-			send_map_event_state(i, true, e.elapsed, to)
+		if e.running or e.state != 0:   # (an event that has run and left the map in another state)
+			send_map_event_state(i, e.running, e.elapsed, to)
 	var terminals := get_tree().get_nodes_in_group(MapTerminal.GROUP)
 	for i in terminals.size():
 		var t := terminals[i] as MapTerminal

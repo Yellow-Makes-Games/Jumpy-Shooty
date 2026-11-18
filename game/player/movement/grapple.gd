@@ -33,6 +33,10 @@ var cooldown_left := 0.0
 var speed_cap := 0.0
 ## The player you have hooked (null when hooked to a wall or not hooked).
 var target: Node3D = null
+## Hooked to something that can move (an island under way, a grapple point riding
+## one): the anchor rides it, kept at the same spot on it.
+var carrier: Node3D = null
+var _anchor_on_carrier := Vector3.ZERO
 ## Can the hook catch players? (Not in a race.)
 var hook_players := true
 var _tether_time := 0.0
@@ -44,6 +48,11 @@ func _init(t: MovementTuning) -> void:
 
 func update(delta: float) -> void:
 	cooldown_left = max(cooldown_left - delta, 0.0)
+	if attached and carrier != null:
+		if not is_instance_valid(carrier) or not carrier.is_inside_tree() or carrier.get_meta("unhookable", false):
+			release()   # what it was hooked on has gone (a walkway drawn in)
+		else:
+			anchor = carrier.global_transform * _anchor_on_carrier
 
 
 ## Hooked to a player: the anchor follows their chest. Lets go if they died or
@@ -158,6 +167,7 @@ static func hit_player(hit: Dictionary) -> Node3D:
 func reset() -> void:
 	attached = false
 	target = null
+	carrier = null
 	cooldown_left = 0.0
 
 
@@ -170,6 +180,11 @@ func try_attach(body: CollisionObject3D, input: PlayerInput) -> bool:
 	target = hit_player(hit)
 	_tether_time = 0.0
 	anchor = target_point(target) if target else hit.get("point", hit.get("position"))
+	carrier = null
+	var on = hit.get("collider")
+	if target == null and (on is AnimatableBody3D or on is MapGrapplePoint):
+		carrier = on
+		_anchor_on_carrier = (on as Node3D).global_transform.affine_inverse() * anchor
 	# A grapple point's reach can be longer than grapple_range.
 	length = maxf(rope_origin(body).distance_to(anchor), tuning.grapple_min_length)
 	attached = true
@@ -180,6 +195,7 @@ func release() -> void:
 	if attached:
 		attached = false
 		target = null
+		carrier = null
 		cooldown_left = tuning.grapple_cooldown
 
 

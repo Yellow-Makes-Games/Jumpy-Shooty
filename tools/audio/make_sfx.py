@@ -1326,10 +1326,102 @@ def gravity_pad():
     return _looped(np.stack(chans, axis=1))
 
 
+# ---------------------------------------------------------------------------
+# Cirrus: the bell, and the campus rearranging itself (see LayoutEvent). Heard all over
+# the map, and meant to feel like an occasion: warm and bright, nothing like an alarm.
+
+def bell_toll():
+    """The clock tower's bell: one deep, warm stroke that rings for five seconds. The
+    partials are a church bell's (hum an octave under the strike note, a minor third, a
+    fifth, the octave above), the low ones ringing longest, with a slow beat between
+    two voices of each as a real bell has."""
+    rng = np.random.default_rng(7201)
+    seconds = 5.2
+    t = tt(seconds)
+    strike = 196.0   # G3: the note you hear; the hum is G2
+    parts = ((0.5, 1.0, 3.6), (1.0, 0.9, 2.6), (1.19, 0.5, 1.9), (1.5, 0.34, 1.5), (2.0, 0.42, 1.2),
+             (2.51, 0.16, 0.8), (3.01, 0.12, 0.6), (4.1, 0.07, 0.4), (5.4, 0.04, 0.25))
+    x = np.zeros_like(t)
+    for ratio, gain, tau in parts:
+        for cents, share in ((0.0, 0.6), (rng.uniform(1.5, 4.0), 0.4)):
+            f = strike * ratio * 2 ** (cents / 1200.0)
+            x += gain * share * np.sin(2 * math.pi * f * t + rng.uniform(0, 2 * math.pi)) * np.exp(-t / tau)
+    x *= np.clip(t / 0.004, 0.0, 1.0)
+    clapper = lp(noise(rng, 0.05) * env(0.05, 0.008, 0.0005), 1800)   # the clapper landing
+    dry = mix(x, (clapper, 0.0, 0.5))
+    wet = fftconv(dry, room_ir(rng, 2.2, bright=2600.0))   # the open sky round the tower
+    return finish(mix(dry, (wet, 0.0, 0.35)), floor_db=-56.0, fade=0.3)
+
+
+def campus_fanfare():
+    """The campus chime as the islands go: a rising run of bright chime notes in D
+    (D5 F#5 A5 D6 F#6), then the full chord ringing out over a warm swell. Cheerful, and
+    over in about four seconds, the length of the move."""
+    rng = np.random.default_rng(7202)
+
+    def chime(f, seconds, bright=1.0):
+        t = tt(seconds)
+        y = np.sin(2 * math.pi * f * t) * np.exp(-t / (seconds * 0.32))
+        y += 0.42 * bright * np.sin(2 * math.pi * f * 2.76 * t) * np.exp(-t / (seconds * 0.12))
+        y += 0.2 * bright * np.sin(2 * math.pi * f * 5.4 * t) * np.exp(-t / (seconds * 0.05))
+        return y * np.clip(t / 0.002, 0.0, 1.0)
+
+    D5, Fs5, A5, D6, Fs6, A6 = 587.33, 739.99, 880.0, 1174.66, 1479.98, 1760.0
+    parts = [(chime(D5, 1.6), 0.0, 0.8), (chime(Fs5, 1.6), 0.22, 0.8), (chime(A5, 1.6), 0.44, 0.85),
+             (chime(D6, 1.8), 0.66, 0.9), (chime(Fs6, 1.8), 0.92, 0.8)]
+    for f, gain in ((D5, 0.7), (A5, 0.6), (D6, 0.75), (Fs6, 0.6), (A6, 0.4)):   # the chord everything lands on
+        parts.append((chime(f, 2.6, 0.8), 1.3 + rng.uniform(0.0, 0.02), gain))
+    # A warm swell under it: D major, soft-edged, rising in and gone by the end.
+    seconds = 4.0
+    t = tt(seconds)
+    pad = np.zeros_like(t)
+    for f in (146.83, 220.0, 293.66, 369.99, 440.0):
+        for k, g in ((1, 1.0), (2, 0.35), (3, 0.16)):
+            pad += g * np.sin(2 * math.pi * f * k * t + rng.uniform(0, 2 * math.pi))
+    pad *= np.sin(np.clip(t / seconds, 0.0, 1.0) * math.pi) ** 1.5
+    dry = mix(*parts, (lp(pad, 1800) / np.max(np.abs(pad)), 0.0, 0.5))
+    wet = fftconv(dry, room_ir(rng, 1.6, bright=5000.0))
+    return finish(mix(dry, (wet, 0.0, 0.3)), floor_db=-54.0, fade=0.25)
+
+
+def island_move():
+    """The islands under way: their engines winding up, holding and easing off over four
+    seconds. A low rush of air with a rising and falling hum in it, kept soft: it sits
+    under the bell and the chime."""
+    rng = np.random.default_rng(7203)
+    seconds = 4.3
+    t = tt(seconds)
+    swell = np.sin(np.clip(t / 4.0, 0.0, 1.0) * math.pi) ** 0.8
+    air = sweep_bp(noise(rng, seconds), 140.0, 420.0, q=0.9) + 0.6 * lp(noise(rng, seconds), 110.0) * 3.0
+    pitch = 62.0 + 34.0 * swell
+    phase = 2 * math.pi * np.cumsum(pitch) / SR
+    hum = np.sin(phase) + 0.5 * np.sin(2 * phase + 0.4) + 0.22 * np.sin(3 * phase + 1.1) + 0.1 * np.sin(5 * phase)
+    hum *= 0.85 + 0.15 * np.sin(2 * math.pi * 7.0 * t)
+    x = (air / np.max(np.abs(air)) * 0.75 + hum / np.max(np.abs(hum)) * 0.6) * swell
+    return finish(x, floor_db=-50.0, fade=0.2)
+
+
+def bridge_lock():
+    """The walkways locking home at the end of a move: a heavy latch dropping, with the
+    short ring of the deck it lands in. A satisfying clunk, not a crash."""
+    rng = np.random.default_rng(7204)
+    thud = sine_sweep(0.3, 120.0, 55.0, 0.06) * env(0.3, 0.07, 0.001)
+    latch = click(rng, 0.012, 0.002, 2200.0)
+    ring = modal(rng, 0.7, [310.0, 494.0, 742.0, 1130.0, 1690.0], [0.22, 0.16, 0.11, 0.07, 0.04], [0.6, 0.5, 0.35, 0.2, 0.1], detune=0.01)
+    second = lp(noise(rng, 0.03) * env(0.03, 0.006, 0.0005), 1400)
+    dry = mix((thud, 0.0, 1.0), (latch, 0.0, 0.7), (ring, 0.002, 0.45), (second, 0.085, 0.4), (thud * 0.5, 0.085, 0.5))
+    wet = fftconv(dry, room_ir(rng, 0.7, bright=3500.0))
+    return finish(mix(dry, (wet, 0.0, 0.22)), fade=0.05)
+
+
 def recipes():
     r = {}
     r["terminal_hum"] = terminal_hum
     r["gravity_pad"] = gravity_pad
+    r["bell_toll"] = bell_toll
+    r["campus_fanfare"] = campus_fanfare
+    r["island_move"] = island_move
+    r["bridge_lock"] = bridge_lock
     for g in GUNS:
         r["fire_" + g] = lambda g=g: gun_fire(g)
         r["fire_%s_fp" % g] = lambda g=g: gun_fire(g, stereo=True, seed=7)

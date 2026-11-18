@@ -8,7 +8,7 @@ extends RefCounted
 ## region to add to the scene.
 static func bake_navigation(level: Node3D) -> NavigationRegion3D:
 	var started := Time.get_ticks_msec()
-	var nav := _nav_settings()
+	var nav := _nav_settings(level)
 	var source := NavigationMeshSourceGeometryData3D.new()
 	NavigationServer3D.parse_source_geometry_data(nav, source, level)
 	NavigationServer3D.bake_from_source_geometry_data(nav, source)
@@ -24,7 +24,7 @@ static func bake_navigation(level: Node3D) -> NavigationRegion3D:
 ## saying how long it took) when it is in.
 static func rebake_navigation(region: NavigationRegion3D, level: Node3D, done: Callable) -> void:
 	var started := Time.get_ticks_msec()
-	var nav := _nav_settings()
+	var nav := _nav_settings(level)
 	var source := NavigationMeshSourceGeometryData3D.new()
 	NavigationServer3D.parse_source_geometry_data(nav, source, level)
 	var parsed := Time.get_ticks_msec() - started
@@ -35,8 +35,12 @@ static func rebake_navigation(region: NavigationRegion3D, level: Node3D, done: C
 		done.call_deferred("%d polygons, parsed in %d ms, %d ms in all" % [nav.get_polygon_count(), parsed, Time.get_ticks_msec() - started]))
 
 
-static func _nav_settings() -> NavigationMesh:
+static func _nav_settings(level: Node3D = null) -> NavigationMesh:
 	var nav := NavigationMesh.new()
+	if level is MapRoot and (level as MapRoot).winding_floors:
+		# A floor that winds up over itself (a spiral stair) is lost by the usual way of
+		# cutting the mesh into regions; this way keeps it.
+		nav.sample_partition_type = NavigationMesh.SAMPLE_PARTITION_MONOTONE
 	nav.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
 	nav.geometry_collision_mask = 1
 	nav.cell_size = 0.25

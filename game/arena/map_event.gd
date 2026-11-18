@@ -24,6 +24,11 @@ signal ended
 var running := false
 ## Seconds since it started, on the host's clock.
 var elapsed := 0.0
+## For an event that leaves the map changed after it has run (a LayoutEvent: which
+## layout the map is in): a number the host owns and sends along with the clock, so
+## it reaches everyone, also someone who joins long after. 0 for events that put
+## everything back.
+var state := 0
 
 var _resync := 0.0
 
@@ -32,7 +37,7 @@ func _ready() -> void:
 	add_to_group(GROUP)
 	var net := autoload("Net")
 	if net:
-		net.match_started.connect(stop)
+		net.match_started.connect(_on_match_started)
 	var rules := autoload("Match")
 	if rules:
 		rules.match_over.connect(_on_match_over)
@@ -63,6 +68,15 @@ func _exit_tree() -> void:
 
 func _on_match_over(_results: Array) -> void:
 	stop()
+
+
+func _on_match_started() -> void:
+	stop()
+
+
+## Everyone: the host says what `state` is (just before apply_state()).
+func take_state(value: int) -> void:
+	state = value
 
 
 ## Seconds from start to the moment a terminal may fire it again.

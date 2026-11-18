@@ -38,7 +38,7 @@ func _expect(ok: bool, what: String) -> void:
 func _maps() -> void:
 	print("  map lists")
 	_expect("dm" in Maps.GAMES, "Deathmatch is one of the games")
-	_expect(Maps.ids_for("dm") == ["construction_site", "office", "kilnworks", "rail_yard", "lost_temple", "neon_arcade", "castle", "halcyon"], "Deathmatch is played on every arena (%s)" % [Maps.ids_for("dm")])
+	_expect(Maps.ids_for("dm") == ["construction_site", "office", "kilnworks", "rail_yard", "lost_temple", "neon_arcade", "castle", "halcyon", "cirrus"], "Deathmatch is played on every arena (%s)" % [Maps.ids_for("dm")])
 	_expect(Maps.fits("office", "dm") and Maps.fits("office", "ffa"), "the Office hosts both a free-for-all and a Deathmatch")
 	_expect(not Maps.fits("rooftop_run", "dm") and not Maps.fits("testing_grounds", "dm"), "race maps and the test map do not host a Deathmatch")
 	_expect(Maps.game_of("office") == "ffa", "an arena's own game is still the free-for-all")

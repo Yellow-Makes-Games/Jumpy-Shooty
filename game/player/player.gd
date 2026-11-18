@@ -244,6 +244,12 @@ func _physics_process(delta: float) -> void:
 					print("JETPACK %d" % peer_id)
 			motor.hang = _charge >= 0.0 and not (jetpack and jetpack.on)   # winding a melee swing up slows a fall (the jetpack takes over from it)
 			motor.step(self, input, delta)
+			if not racing and is_on_floor():
+				# A floor that turns under you (an island swinging round, see MapIsland)
+				# turns you with it, so what you were looking at on it stays in view.
+				var turning := get_platform_angular_velocity().y
+				if turning != 0.0:
+					input.yaw += turning * delta
 			_watch_ground_slam()
 			if hooking and not motor.grapple.attached:
 				sounds.grapple_missed()   # nothing in range to hook
@@ -313,7 +319,11 @@ func _process(delta: float) -> void:
 	var rt := buffer.render_time(Net.now(), delta)
 	last_render_time = rt
 	var s := buffer.sample(rt)
-	global_position = s[0] + Vector3(0, tuck_offset(s[4]), 0)
+	var shown: Vector3 = s[0]
+	if MapRoot.current != null and is_instance_valid(MapRoot.current):
+		# We see them a moment late: on an island under way, put them where it is now.
+		shown = MapRoot.current.carried(shown, buffer.delay())
+	global_position = shown + Vector3(0, tuck_offset(s[4]), 0)
 	velocity = s[1]
 	if alive:
 		_visual_yaw = s[2]

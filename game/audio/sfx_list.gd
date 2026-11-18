@@ -77,6 +77,9 @@ const VOLUME := {
 	# Map events (both loop; MapTerminal and GravityEvent play and fade them). The chord
 	# is heard all over the map and is kept well under the fighting.
 	"terminal_hum": -9.0, "gravity_pad": -15.0,
+	# Cirrus's bell and the move it starts (LayoutEvent plays them, everywhere at once).
+	# The bell is the loudest thing on the map on purpose; the rest sit under the fighting.
+	"bell_toll": -3.0, "campus_fanfare": -9.0, "island_move": -13.0, "bridge_lock": -7.0,
 }
 
 ## Gun handling, in seconds from the start of the clip, matched to the animations

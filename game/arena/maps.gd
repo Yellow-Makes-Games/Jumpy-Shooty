@@ -23,6 +23,7 @@ const LIST := [
 	{"id": "neon_arcade", "name": "Neon Arcade", "scene": "res://game/maps/neon_arcade.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "castle", "name": "Castle", "scene": "res://game/maps/castle.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "halcyon", "name": "Halcyon", "scene": "res://game/maps/halcyon.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
+	{"id": "cirrus", "name": "Cirrus", "scene": "res://game/maps/cirrus.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "testing_grounds", "name": "Testing Grounds", "scene": "res://game/maps/testing_grounds.tscn", "dev": true, "game": "ffa"},
 	{"id": "castle_v2", "name": "Castle 2", "scene": "res://game/maps/castle_v2.tscn", "dev": true, "game": "ffa"},
 	{"id": "rooftop_run", "name": "Rooftop Run", "scene": "res://game/maps/rooftop_run.tscn", "dev": false, "game": "race"},
