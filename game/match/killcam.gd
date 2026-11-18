@@ -139,6 +139,7 @@ func _record() -> void:
 			_tracks[p.peer_id] = track
 		track.character = p.character
 		track.color = Net.player_color(p.peer_id)
+		track.paint = Teams.paint_for(p.peer_id)   # (kept with the clip: the results screen comes after the teams are gone)
 		track.name = Net.player_name(p.peer_id)
 		track.push(now - _lag(p), p.shown_state())
 		track.trim(now - HISTORY)

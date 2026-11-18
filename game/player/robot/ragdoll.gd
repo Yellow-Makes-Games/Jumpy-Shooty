@@ -100,15 +100,17 @@ static func spawn(p: Player, fx: Dictionary) -> Node3D:
 
 ## A replay's ragdoll (see KillcamView): the same robot, powered down, with no physics
 ## of its own, standing in `source`'s pose until pose() moves it. Not yet in the world;
-## the replay frees it. Null for a model without the bones.
-static func puppet(as_character: String, paint: Color, gun: String, source: Skeleton3D) -> Ragdoll:
+## the replay frees it. Null for a model without the bones. `team_paint`: in team modes,
+## the team's paint (Teams.paint_for), as on the body in the match.
+static func puppet(as_character: String, paint: Color, gun: String, source: Skeleton3D,
+		team_paint: Color = Color(0, 0, 0, 0)) -> Ragdoll:
 	var r := Ragdoll.new()
 	r.name = "ReplayRagdoll"
 	r.top_level = true
 	r.character = as_character
 	r.weapon = gun
 	r.body_color = paint
-	r.model = RobotModel.new().build(as_character, paint, false, gun)
+	r.model = RobotModel.new().build(as_character, paint, false, gun, false, team_paint)
 	if r.model.skeleton == null or r.model.rig == null or _plan(r.model.rig).is_empty():
 		r.model.free()
 		r.free()

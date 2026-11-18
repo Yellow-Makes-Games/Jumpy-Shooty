@@ -22,6 +22,7 @@ class Track:
 	var frames: Array = []
 	var character := ""
 	var color := Color.WHITE
+	var paint := Color(0, 0, 0, 0)   ## team modes: the team's paint (Teams.paint_for); clear otherwise
 	var name := ""
 
 	func push(t: float, frame: Array) -> void:
@@ -47,6 +48,7 @@ class Track:
 		var out := Track.new()
 		out.character = character
 		out.color = color
+		out.paint = paint
 		out.name = name
 		var a := maxi(_index(from), 0)
 		var b := mini(_index(to) + 2, times.size())
@@ -120,6 +122,7 @@ class Wreck extends Track:
 		w.fx = remains.get("blow")
 		w.character = str(remains.get("character"))
 		w.color = remains.get("body_color")
+		w.paint = Teams.paint_for(w.who)   # (the team they died on)
 		w.weapon = str(remains.get("weapon"))
 		if remains is Gibs:
 			w.scrap = (remains as Gibs).scrap_count()

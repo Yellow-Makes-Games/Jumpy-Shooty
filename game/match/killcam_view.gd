@@ -336,7 +336,7 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 	g.root.name = "Ghost_%d" % id
 	add_child(g.root)
 	g.root.add_child(g.visual)
-	g.robot = RobotModel.new().build(track.character, track.color, false, weapon)
+	g.robot = RobotModel.new().build(track.character, track.color, false, weapon, false, track.paint)
 	g.visual.add_child(g.robot)
 	g.animator = RobotAnimator.new(g.robot)
 	var rope := _make_rope()
@@ -385,14 +385,14 @@ func _make_wreck(w: KillClip.Wreck) -> Node3D:
 	var source: RobotModel = g.robot if g and g.weapon == w.weapon else null
 	var spare: RobotModel = null   # no body to make them from (not in the clip): a fresh one
 	if source == null:
-		spare = RobotModel.new().build(w.character, w.color, false, w.weapon if w.weapon != "" else "pistol")
+		spare = RobotModel.new().build(w.character, w.color, false, w.weapon if w.weapon != "" else "pistol", false, w.paint)
 		_fx.add_child(spare)
 		source = spare
 	var made: Node3D = null
 	if w.kind == "gibs":
 		made = Gibs.puppet(source, w.scrap, RobotModel.trim_color(w.color))
 	else:
-		made = Ragdoll.puppet(w.character, w.color, w.weapon if w.weapon != "" else "pistol", source.skeleton)
+		made = Ragdoll.puppet(w.character, w.color, w.weapon if w.weapon != "" else "pistol", source.skeleton, w.paint)
 	if made:
 		_fx.add_child(made)
 		if made is Ragdoll:
