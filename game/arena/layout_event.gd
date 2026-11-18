@@ -1,36 +1,46 @@
 class_name LayoutEvent
 extends MapEvent
-## A map with two layouts flips from one to the other (Cirrus: ringing the bell
-## swings the building islands round the quad, between Hub and Ring). Put one in a
-## map scene and point a MapTerminal's Event at it.
+## A map with two layouts changes from one to the other on a timer (Cirrus: the
+## building islands swing round the quad, between Hub and Ring). Put one in a map
+## scene. It needs no terminal: it runs by itself for as long as a match does.
 ##
-## Every time it is started the map moves to its other layout over `move_time`
-## seconds, and stays there: nothing brings it back but starting it again. After a
-## move the terminal stays locked for `cooldown`. `state` is the layout the map is in,
-## or on its way to: 0 = the first (how the scene is laid out), 1 = the second.
+## One turn of its clock:
+##  - `hold_time` seconds in the layout the map is in. A clock ticks once a second,
+##    softly, all over the map and a little louder near `tick_from` (the clock tower).
+##  - A bell tolls, and for `windup_time` seconds the move builds up, slowly and then
+##    fast: a rising tone, a growing rumble, the engines (Flare Kinds) spooling up, and
+##    the walkways that are about to go flashing their lights. Nothing moves yet: this
+##    is the time to get off a walkway.
+##  - The parts move for `move_time` seconds, slowly at first and then fast, and lock
+##    with a clunk.
+## Then the next turn begins, in the other layout. `state` is the layout a turn begins
+## in: 0 = the first (how the scene is laid out), 1 = the second.
 ##
 ## What moves: every MapIsland in the map (to its second place and back), every
 ## MapSpan (out in one layout, drawn in in the other), and the look of the whole
 ## map, which has a second version too: the sky, the sun, the ambient light and the
-## kinds listed in Lit Kinds (windows and lamps that come on). It is meant to feel
-## like an occasion, and all of it is in the world, none on the HUD: a bell tolls
-## across the map, the camera rumbles, a fanfare plays as the islands go, the kinds
-## in Flare Kinds (their engines) burn bright, the clouds below swirl, paper and
-## leaves blow about, and the walkways lock with a clunk at the end. The kinds in
-## Ready Kinds (the bell) glow and pulse gently while it can be started and sit dim
-## while it cannot, to be read from across the map.
+## kinds listed in Lit Kinds (windows and lamps that come on). During the wind-up and
+## the move the clouds below swirl and paper and leaves blow about. All of it is in
+## the world, none on the HUD. MapSpinners set to Countdown are the hands of a clock:
+## once round per turn, at twelve when the bell goes. One set to Swing is the bell.
 ##
-## The host owns it, like every MapEvent: it flips `state` and keeps the clock, and
-## every copy places everything from those two numbers, so islands and walkways are
-## in the same place for everyone, also for someone who joins mid-move or after it.
-## A new match always begins in the first layout.
+## The host owns it, like every MapEvent: it keeps the clock and says which layout a
+## turn began in, and every copy places everything from those two numbers, so islands
+## and walkways are in the same place for everyone, also for someone who joins
+## part-way. A new match always begins in the first layout. In a team mode (Search and
+## Destroy, Capture the Flag) it does not run at all: their bomb sites and flag stands
+## are fixed spots worked out when the map loads, and would be left in mid-air.
 
 ## What the two layouts are called (for the log and the tests).
 @export var layouts: PackedStringArray = ["Hub", "Ring"]
+## Seconds the map stays in a layout before the bell goes.
+@export var hold_time := 60.0
+## Seconds from the bell to the move: the warning.
+@export var windup_time := 5.0
 ## Seconds a move takes, each way.
 @export var move_time := 4.0
-## Seconds after a move before a terminal can start the next.
-@export var cooldown := 60.0
+## Where the clock's tick comes from (in the map's frame): it is a little louder near here.
+@export var tick_from := Vector3(0, 24, 0)
 
 @export_group("Second layout's look")
 ## The way to the sun in the second layout (the first is the scene's Sun as it stands).
@@ -44,31 +54,43 @@ extends MapEvent
 @export var lit_glow := 2.4
 
 @export_group("The move")
-## Kinds that burn bright while the islands move (their engines), and how many times brighter.
+## Kinds that burn bright as the move builds and goes (the islands' engines), and how
+## many times brighter.
 @export var flare_kinds: PackedStringArray = []
 @export var flare_gain := 3.5
-## Kinds that show whether it can be started (the bell): pulsing when ready, dim when not.
-@export var ready_kinds: PackedStringArray = []
-@export var ready_glow := 2.2
 ## Scraps of paper and leaves blown about during a move: how many (0 = none), and the
 ## box (in the map's frame) they blow through.
 @export var scraps := 260
 @export var scrap_volume := AABB(Vector3(-44, -18, -44), Vector3(88, 44, 88))
 
+## Something to hear is due: "tick", "tock", "toll" (the bell: the warning begins),
+## "move" (the islands go) or "lock" (they have arrived).
+signal cue(what: String)
+
+const TICK_SOUND := "clock_tick"
+const TOCK_SOUND := "clock_tock"
 const TOLL_SOUND := "bell_toll"
-const FANFARE_SOUND := "campus_fanfare"
+const RISE_SOUND := "layout_rise"
 const MOVE_SOUND := "island_move"
 const LOCK_SOUND := "bridge_lock"
-const RUMBLE_TIME := 0.9
+const RISE_LENGTH := 5.0      ## seconds the rising tone lasts as recorded
+const TICK_QUIET := -7.0      ## dB: the tick heard everywhere, under the one from the tower
+const SWING := 0.5            ## radians the bell swings at first
+const SWING_RATE := 0.55      ## swings per second
+const SWING_FADE := 3.2       ## seconds for the swing to die down to about a third
 
 ## 0..1: where the parts are right now (0 = first layout, 1 = second).
 var blend := 0.0
 ## 0..1: how far through a move it is (0 when nothing moves).
 var progress := 0.0
+## 0..1: how far through the warning before a move it is (0 at any other time).
+var windup := 0.0
 
 var _map: MapRoot
 var _islands: Array = []
 var _spans: Array = []
+var _hands: Array = []     # MapSpinners that are clock hands
+var _bells: Array = []     # MapSpinners that swing when the bell goes
 var _found := false
 var _looks := false
 var _env: Environment
@@ -78,14 +100,13 @@ var _sun: DirectionalLight3D
 var _sun_base := {}
 var _lit: Array = []      # [StandardMaterial3D, base energy, had emission]
 var _flare: Array = []    # [StandardMaterial3D, base energy]
-var _ready_mats: Array = []
 var _scraps: MultiMeshInstance3D
 var _scrap_mat: ShaderMaterial
 var _shown := -1.0
 var _shown_flare := -1.0
-var _time := 0.0
-var _rumble := 0.0
-var _was_moving := false
+var _shake_wait := 0.0
+var _tolled := -1.0       # seconds since the bell last went on this copy (-1 = it has not)
+var _turn_due := false
 
 
 func _ready() -> void:
@@ -93,58 +114,74 @@ func _ready() -> void:
 	_place.call_deferred()   # spans drawn in, islands home, once the map is built
 
 
-## Locked for the whole match in a team mode (Search and Destroy, Capture the Flag):
-## their bomb sites and flag stands are fixed spots worked out when the map loads, and
-## would be left in mid-air when the islands move. So the map stays in its first layout.
-func busy() -> bool:
-	return running or team_mode()
-
-
 func team_mode() -> bool:
 	var teams := autoload("Teams")
 	return teams != null and teams.active()
 
 
+## One whole turn: the wait, the warning and the move.
 func length() -> float:
-	return move_time + cooldown
+	return hold_time + windup_time + move_time
 
 
-## The name of the layout the map is in (or on its way to).
+## The name of the layout this turn began in.
 func layout_name() -> String:
 	return layouts[state] if state >= 0 and state < layouts.size() else str(state)
 
 
-## Are the islands on the move right now? (False in the cooldown.)
+## Are the islands on the move right now?
 func moving() -> bool:
-	return running and elapsed < move_time
+	return running and elapsed >= hold_time + windup_time
 
 
-## Host: start the move to the other layout. `by` is who set it off (0 = nobody).
+## Has the bell gone, with the move still to come?
+func warning() -> bool:
+	return running and elapsed >= hold_time and elapsed < hold_time + windup_time
+
+
+## Seconds until the bell (0 once it has gone, or when the clock is not running).
+func time_to_bell() -> float:
+	return maxf(hold_time - elapsed, 0.0) if running else 0.0
+
+
+## Host: start the clock (a match has begun). Never in a team mode.
 func host_start(by: int = 0) -> void:
-	if running or not is_host():
+	if team_mode():
 		return
-	state = 1 - state
-	print("[map] %s: to %s" % [name, layout_name()])
 	super(by)
 
 
+## Should the clock be running? (The host asks.) Only while a match is being played.
+func _wanted() -> bool:
+	var rules := autoload("Match")
+	return rules != null and rules.running and not team_mode()
+
+
+func take_state(value: int) -> void:
+	# The host says the turn is over before this copy's own clock got there: the clunk is due.
+	if value != state and running and elapsed > length() - 1.0:
+		_turn_due = true
+	super(value)
+
+
 func apply_state(now_running: bool, at: float) -> void:
-	var was := running
 	super(now_running, at)
-	if running and not was and elapsed < 0.5:   # (not for someone who joins part-way through)
-		_announce()
+	if _turn_due:
+		_turn_due = false
+		_locked()
 	_place()
 
 
-## A new match: back to the first layout at once, whatever happened in the last one.
+## A new match: back to the first layout at once, the clock at nought.
 func _on_match_started() -> void:
 	state = 0
+	_tolled = -1.0
 	if running:
 		stop()
 	_place()
 
 
-## The match is over: whatever layout it is in, it stays (a move under way finishes).
+## The match is over: the clock runs on while the scores are up. The next match puts it back.
 func _on_match_over(_results: Array) -> void:
 	pass
 
@@ -153,17 +190,49 @@ func _update(_delta: float) -> void:
 	_place()
 
 
-## Where the parts are `t` seconds into a move toward layout `to`.
-func blend_at(t: float, to: int) -> float:
-	var p := clampf(t / maxf(move_time, 0.01), 0.0, 1.0)
-	return lerpf(float(1 - to), float(to), smoothstep(0.0, 1.0, p))
+func _physics_process(delta: float) -> void:
+	if not running:
+		if is_host() and _wanted():
+			host_start()
+		return
+	var before := elapsed
+	elapsed += delta
+	if elapsed >= length():
+		# The move is done: the next turn begins, in the other layout.
+		elapsed -= length()
+		state = 1 - state
+		before = -1.0
+		_locked()
+		if is_host():
+			print("[map] %s: %s" % [name, layout_name()])
+			_resync = 0.0   # (everyone is told at once)
+	_cues(before, elapsed)
+	_place()
+	var net := autoload("Net")
+	if net and net.is_host() and net.is_online:
+		_resync -= delta
+		if _resync <= 0.0:
+			_resync = RESYNC
+			net.send_map_event_state(index(), true, elapsed)
+
+
+## How far the islands have got, `p` of the way (0..1) through a move's time: slowly at
+## first, then fast, and gently to a stop.
+static func ease_in(p: float) -> float:
+	return smoothstep(0.0, 1.0, pow(clampf(p, 0.0, 1.0), 1.6))
+
+
+## Where the parts are `t` seconds into a turn that began in layout `from`.
+func blend_at(t: float, from: int) -> float:
+	var p := clampf((t - hold_time - windup_time) / maxf(move_time, 0.01), 0.0, 1.0)
+	return lerpf(float(from), float(1 - from), ease_in(p))
 
 
 ## How much of a span is out, `p` of the way (0..1) through a move toward layout `to`.
 static func span_extent(out_in: int, to: int, p: float) -> float:
 	if out_in == to:
 		return smoothstep(0.35, 1.0, p)   # coming out: it arrives as the islands do
-	return 1.0 - smoothstep(0.15, 0.85, p)   # going in: the lights warn first
+	return 1.0 - smoothstep(0.1, 0.7, p)   # going in: gone before the islands have got far
 
 
 ## Puts every part where the state and the clock say.
@@ -173,21 +242,28 @@ func _place() -> void:
 	if not _found:
 		_find_parts()
 	var now_moving := moving()
-	progress = clampf(elapsed / maxf(move_time, 0.01), 0.0, 1.0) if now_moving else 0.0
+	var now_warning := warning()
+	var to := 1 - state
+	progress = clampf((elapsed - hold_time - windup_time) / maxf(move_time, 0.01), 0.0, 1.0) if now_moving else 0.0
+	windup = clampf((elapsed - hold_time) / maxf(windup_time, 0.01), 0.0, 1.0) if now_warning else 0.0
 	blend = blend_at(elapsed, state) if now_moving else float(state)
 	for island in _islands:
 		(island as MapIsland).blend = blend
 	for s in _spans:
 		var span := s as MapSpan
-		span.racing = now_moving
-		span.extent = span_extent(span.out_in, state, progress) if now_moving else (1.0 if span.out_in == state else 0.0)
+		# Flashing: everything while it moves; before that, the ones about to be drawn in.
+		span.racing = now_moving or (now_warning and span.out_in == state)
+		span.extent = span_extent(span.out_in, to, progress) if now_moving else (1.0 if span.out_in == state else 0.0)
 	if _map:
 		_map.layout_state = state
+		_map.warning = now_warning
 		_map.shifting = now_moving
-	if _was_moving and not now_moving and running:
-		_locked()
-	_was_moving = now_moving
-	_show(sin(progress * PI) if now_moving else 0.0)
+	var flare := 0.0
+	if now_warning:
+		flare = 0.6 * windup * windup
+	elif now_moving:
+		flare = lerpf(0.6, 1.0, sin(progress * PI)) if progress < 0.5 else sin(progress * PI)
+	_show(flare)
 
 
 func _find_parts() -> void:
@@ -195,33 +271,60 @@ func _find_parts() -> void:
 	if _map == null:
 		return
 	_found = true
-	_islands = _map.find_children("*", "", true, false).filter(func(n): return n is MapIsland)
-	_spans = _map.find_children("*", "", true, false).filter(func(n): return n is MapSpan)
+	var all := _map.find_children("*", "", true, false)
+	_islands = all.filter(func(n): return n is MapIsland)
+	_spans = all.filter(func(n): return n is MapSpan)
+	_hands = all.filter(func(n): return n is MapSpinner and (n as MapSpinner).driven == MapSpinner.Driven.COUNTDOWN)
+	_bells = all.filter(func(n): return n is MapSpinner and (n as MapSpinner).driven == MapSpinner.Driven.SWING)
 
 
 # ---------------------------------------------------------------------------
-# The occasion: bell, rumble, fanfare, and the clunk at the end
+# What you hear and feel: the tick, the bell, the build-up, the clunk
 
-func _announce() -> void:
-	_rumble = RUMBLE_TIME
-	_sound(TOLL_SOUND)
-	_sound(FANFARE_SOUND)
-	_sound(MOVE_SOUND)
+## The sounds due between two moments of a turn (`before` is -1 just after a turn began).
+func _cues(before: float, now: float) -> void:
+	if now - before > 0.5 and before >= 0.0:
+		return   # the clock was put right, not run: nothing is due
+	if now < hold_time:
+		var second := int(now)
+		if before >= 0.0 and second > int(before):
+			cue.emit("tick" if second % 2 == 1 else "tock")
+			_tick(TICK_SOUND if second % 2 == 1 else TOCK_SOUND)
+	if before < hold_time and now >= hold_time:
+		_tolled = now - hold_time
+		cue.emit("toll")
+		_sound(TOLL_SOUND)
+		_sound(RISE_SOUND, RISE_LENGTH / maxf(windup_time, 0.5))
+	if before < hold_time + windup_time and now >= hold_time + windup_time:
+		cue.emit("move")
+		_sound(MOVE_SOUND)
 
 
+## The move is over: the walkways lock.
 func _locked() -> void:
+	cue.emit("lock")
 	_sound(LOCK_SOUND)
 	_shake(0.5)
 
 
-func _sound(which: String) -> void:
-	var dev := autoload("DevArgs")
+## Heard all over the map: not placed in the world.
+func _sound(which: String, pitch: float = 1.0) -> void:
 	var sound := autoload("Sound")
-	if dev and dev.sound_log:
-		print("SFX %s" % which)
-	if sound == null or sound.silent:
+	if sound == null:
 		return
-	sound.play(which)   # heard all over the map: not placed in the world
+	var player: AudioStreamPlayer = sound.play(which)
+	if player and not is_equal_approx(pitch, 1.0):
+		player.pitch_scale = pitch
+
+
+## The clock: quiet everywhere, and once more from the tower for whoever is near it.
+func _tick(which: String) -> void:
+	var sound := autoload("Sound")
+	if sound == null:
+		return
+	sound.play(which, TICK_QUIET)
+	if _map:
+		sound.play_at(which, _map.global_transform * tick_from, "body")
 
 
 func _shake(amount: float) -> void:
@@ -235,19 +338,30 @@ func _shake(amount: float) -> void:
 
 
 func _process(delta: float) -> void:
-	_time += delta
-	if _rumble > 0.0:
-		# A short rumble for everyone as the bell goes: strongest at once, gone in under a second.
-		var before := _rumble
-		_rumble = maxf(_rumble - delta, 0.0)
-		if int(before / 0.06) != int(_rumble / 0.06):
-			_shake(0.55 * _rumble / RUMBLE_TIME)
-	if not _ready_mats.is_empty():
-		var can := not busy()
-		var want := ready_glow * (0.72 + 0.28 * sin(_time * 2.2)) if can else ready_glow * 0.07
-		for m in _ready_mats:
-			var mat: StandardMaterial3D = m
-			mat.emission_energy_multiplier = move_toward(mat.emission_energy_multiplier, want, delta * ready_glow * 1.5)
+	if _tolled >= 0.0:
+		_tolled += delta
+	# A rumble that grows through the warning, and carries on while the islands go.
+	var rumble := 0.0
+	if warning():
+		rumble = 0.04 + 0.26 * windup * windup
+	elif moving():
+		rumble = 0.3 * (1.0 - 0.5 * progress)
+	if rumble > 0.0:
+		_shake_wait -= delta
+		if _shake_wait <= 0.0:
+			_shake_wait = 0.07
+			_shake(rumble)
+	# The clock's hands: a step each second, at twelve when the bell goes.
+	var turn := 0.0
+	if running and elapsed < hold_time:
+		turn = floorf(elapsed) / maxf(hold_time, 1.0)
+	for hand in _hands:
+		(hand as MapSpinner).angle = -TAU * turn
+	var swing := 0.0
+	if _tolled >= 0.0 and _tolled < SWING_FADE * 5.0:
+		swing = SWING * sin(TAU * SWING_RATE * _tolled) * exp(-_tolled / SWING_FADE)
+	for bell in _bells:
+		(bell as MapSpinner).angle = swing
 
 
 # ---------------------------------------------------------------------------
@@ -327,12 +441,6 @@ func _find_looks() -> void:
 		var mat := _map.material_for(kind) as StandardMaterial3D
 		if mat and mat.emission_enabled:
 			_flare.append([mat, mat.emission_energy_multiplier])
-	for kind in ready_kinds:
-		var mat := _map.material_for(kind) as StandardMaterial3D
-		if mat:
-			mat.emission_enabled = true
-			mat.emission = mat.albedo_color
-			_ready_mats.append(mat)
 
 
 const SCRAP_SHADER := "

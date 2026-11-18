@@ -1353,45 +1353,50 @@ def bell_toll():
     return finish(mix(dry, (wet, 0.0, 0.35)), floor_db=-56.0, fade=0.3)
 
 
-def campus_fanfare():
-    """The campus chime as the islands go: a rising run of bright chime notes in D
-    (D5 F#5 A5 D6 F#6), then the full chord ringing out over a warm swell. Cheerful, and
-    over in about four seconds, the length of the move."""
-    rng = np.random.default_rng(7202)
+def clock_tick(low=False):
+    """The clock tower's works: one soft, dry tick (and its lower twin, the tock). A
+    small wooden knock with a short ring, meant to sit far under everything else."""
+    rng = np.random.default_rng(7205 + int(low))
+    freqs = [1250.0, 2050.0, 3300.0] if low else [1750.0, 2700.0, 4300.0]
+    body = modal(rng, 0.16, freqs, [0.03, 0.02, 0.012], [0.5, 0.3, 0.12], detune=0.004)
+    tap = click(rng, 0.008, 0.0012, 2600.0 if low else 3400.0)
+    knock = sine_sweep(0.05, 190.0 if low else 240.0, 120.0, 0.02) * env(0.05, 0.012, 0.0005)
+    dry = mix((tap, 0.0, 0.6), (body, 0.0, 0.8), (knock, 0.0, 0.35))
+    wet = fftconv(dry, room_ir(rng, 0.5, bright=3000.0))
+    return finish(mix(dry, (wet, 0.0, 0.18)), fade=0.03)
 
-    def chime(f, seconds, bright=1.0):
-        t = tt(seconds)
-        y = np.sin(2 * math.pi * f * t) * np.exp(-t / (seconds * 0.32))
-        y += 0.42 * bright * np.sin(2 * math.pi * f * 2.76 * t) * np.exp(-t / (seconds * 0.12))
-        y += 0.2 * bright * np.sin(2 * math.pi * f * 5.4 * t) * np.exp(-t / (seconds * 0.05))
-        return y * np.clip(t / 0.002, 0.0, 1.0)
 
-    D5, Fs5, A5, D6, Fs6, A6 = 587.33, 739.99, 880.0, 1174.66, 1479.98, 1760.0
-    parts = [(chime(D5, 1.6), 0.0, 0.8), (chime(Fs5, 1.6), 0.22, 0.8), (chime(A5, 1.6), 0.44, 0.85),
-             (chime(D6, 1.8), 0.66, 0.9), (chime(Fs6, 1.8), 0.92, 0.8)]
-    for f, gain in ((D5, 0.7), (A5, 0.6), (D6, 0.75), (Fs6, 0.6), (A6, 0.4)):   # the chord everything lands on
-        parts.append((chime(f, 2.6, 0.8), 1.3 + rng.uniform(0.0, 0.02), gain))
-    # A warm swell under it: D major, soft-edged, rising in and gone by the end.
-    seconds = 4.0
+def layout_rise():
+    """Five seconds between the bell and the move: the islands' engines spooling up. A
+    low hum and a rush of air that start almost unheard and climb, slowly at first and
+    then fast, in pitch and in loudness, right up to the moment the islands go."""
+    rng = np.random.default_rng(7206)
+    seconds = 5.0
     t = tt(seconds)
-    pad = np.zeros_like(t)
-    for f in (146.83, 220.0, 293.66, 369.99, 440.0):
-        for k, g in ((1, 1.0), (2, 0.35), (3, 0.16)):
-            pad += g * np.sin(2 * math.pi * f * k * t + rng.uniform(0, 2 * math.pi))
-    pad *= np.sin(np.clip(t / seconds, 0.0, 1.0) * math.pi) ** 1.5
-    dry = mix(*parts, (lp(pad, 1800) / np.max(np.abs(pad)), 0.0, 0.5))
-    wet = fftconv(dry, room_ir(rng, 1.6, bright=5000.0))
-    return finish(mix(dry, (wet, 0.0, 0.3)), floor_db=-54.0, fade=0.25)
+    p = np.clip(t / seconds, 0.0, 1.0)
+    grow = p ** 2.6                       # slow, then fast
+    pitch = 48.0 + 150.0 * grow
+    phase = 2 * math.pi * np.cumsum(pitch) / SR
+    hum = np.sin(phase) + 0.45 * np.sin(2 * phase + 0.3) + 0.25 * np.sin(3 * phase + 1.0) + 0.12 * np.sin(4 * phase)
+    hum *= 0.8 + 0.2 * np.sin(2 * math.pi * (3.0 + 9.0 * grow) * t)      # a flutter that quickens
+    air = sweep_bp(noise(rng, seconds), 160.0, 1500.0, q=1.1, curve=2.6)
+    shimmer = np.sin(2 * math.pi * np.cumsum(392.0 + 392.0 * grow) / SR) * grow ** 2   # a G that climbs an octave
+    loud = 0.05 + 0.95 * p ** 2.2
+    x = (hum / np.max(np.abs(hum)) * 0.7 + air / np.max(np.abs(air)) * 0.55 + shimmer * 0.12) * loud
+    x *= np.clip((seconds - t) / 0.06, 0.0, 1.0)      # (cut short at the top: the move's own sound takes over)
+    return finish(x, floor_db=-70.0, fade=0.05)
 
 
 def island_move():
-    """The islands under way: their engines winding up, holding and easing off over four
-    seconds. A low rush of air with a rising and falling hum in it, kept soft: it sits
-    under the bell and the chime."""
+    """The islands under way: their engines at full pitch for the four seconds of the
+    move, building as the islands gather speed and easing off as they arrive. A low
+    rush of air with a hum in it, kept soft: it sits under the fighting."""
     rng = np.random.default_rng(7203)
     seconds = 4.3
     t = tt(seconds)
-    swell = np.sin(np.clip(t / 4.0, 0.0, 1.0) * math.pi) ** 0.8
+    # (the islands start slowly and are fastest near the end: so is this)
+    swell = np.clip(t / 3.3, 0.0, 1.0) ** 1.4 * np.clip((seconds - t) / 0.9, 0.0, 1.0) ** 0.7 + 0.25 * np.exp(-t / 0.5)
+    swell /= swell.max()
     air = sweep_bp(noise(rng, seconds), 140.0, 420.0, q=0.9) + 0.6 * lp(noise(rng, seconds), 110.0) * 3.0
     pitch = 62.0 + 34.0 * swell
     phase = 2 * math.pi * np.cumsum(pitch) / SR
@@ -1419,7 +1424,9 @@ def recipes():
     r["terminal_hum"] = terminal_hum
     r["gravity_pad"] = gravity_pad
     r["bell_toll"] = bell_toll
-    r["campus_fanfare"] = campus_fanfare
+    r["clock_tick"] = clock_tick
+    r["clock_tock"] = lambda: clock_tick(low=True)
+    r["layout_rise"] = layout_rise
     r["island_move"] = island_move
     r["bridge_lock"] = bridge_lock
     for g in GUNS:

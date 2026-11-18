@@ -18,6 +18,13 @@ extends Node3D
 ## 0..1: where in its turn it starts.
 @export_range(0.0, 1.0) var phase := 0.0
 
+## What turns it. Itself: at Speed, by its own clock. Countdown and Swing: a
+## LayoutEvent does. Countdown is the hand of a clock, once round (clockwise, seen
+## from the side its y axis points to) for every turn of the event's timer and at its
+## starting place when the bell goes; Swing rocks to and fro when the bell goes.
+enum Driven { ITSELF, COUNTDOWN, SWING }
+@export var driven := Driven.ITSELF
+
 ## Multiplies the speed (a GravityEvent eases this down and back up).
 var speed_scale := 1.0
 ## How far it has turned, in radians.
@@ -44,7 +51,7 @@ func build(map: MapRoot, with_meshes: bool) -> void:
 		mesh.mesh = meshes[kind]
 		mesh.material_override = map.material_for(kind)
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		# It is huge and mostly off screen: never cull it by its (unturned) bounds.
+		# It may be huge and mostly off screen: never cull it by its (unturned) bounds.
 		mesh.extra_cull_margin = 16384.0
 		_pivot.add_child(mesh)
 
@@ -64,5 +71,6 @@ func _collect(node: Node, xf: Transform3D, pieces: Array) -> void:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint() or _pivot == null:
 		return
-	angle = fposmod(angle + deg_to_rad(speed * speed_scale) * delta, TAU)
+	if driven == Driven.ITSELF:
+		angle = fposmod(angle + deg_to_rad(speed * speed_scale) * delta, TAU)
 	_pivot.rotation.y = angle

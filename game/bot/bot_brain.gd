@@ -236,6 +236,16 @@ func update(delta: float) -> void:
 	var hold := _map_moving()
 	var world_dir := _choose_direction(delta, visible)
 	_hook_frame = false
+	var map := MapRoot.current
+	if not hold and map != null and is_instance_valid(map) and map.warning:
+		# The bell has gone: off a walkway that is about to be drawn in, and not onto one.
+		var off := _hold_spot()
+		if off != Vector3.ZERO:
+			world_dir = off
+			input.grapple = false
+			_link = null
+		elif _span_ahead(world_dir):
+			world_dir = Vector3.ZERO
 	if hold:
 		# The map's parts are moving: stay put (or get off a walkway that is going), no tricks.
 		world_dir = _hold_spot()
@@ -646,11 +656,7 @@ func _terminal_spot(delta: float, visible: bool) -> Vector3:
 		var mine := is_instance_valid(_terminal) and _terminal.phase == MapTerminal.Phase.CHANNEL and _terminal.channeler == me.peer_id
 		if not mine:
 			_terminal_time += delta
-		# (A terminal that takes a climb in the open to reach, Cirrus's bell, lets a bot that
-		# has got to its foot carry on with someone in sight, and gives it longer to get there.)
-		var committed := is_instance_valid(_terminal) and _terminal.bot_commit > 0.0 and _flat(me.global_position, _terminal.global_position) < _terminal.bot_commit
-		var patience := TERMINAL_GIVE_UP if not is_instance_valid(_terminal) or _terminal.bot_commit <= 0.0 else TERMINAL_GIVE_UP * 2.5
-		if not is_instance_valid(_terminal) or (visible and not committed) or (not mine and not _terminal.ready_to_use()) or _terminal_time > patience:
+		if not is_instance_valid(_terminal) or visible or (not mine and not _terminal.ready_to_use()) or _terminal_time > TERMINAL_GIVE_UP:
 			_terminal = null
 	else:
 		_terminal_think -= delta
@@ -887,6 +893,21 @@ func _floor_ahead(dir: Vector3, reach: float) -> bool:
 			return false
 		step += 1.0
 	return true
+
+
+## Is there a walkway that comes and goes (a MapSpan) underfoot a few steps that way?
+func _span_ahead(dir: Vector3) -> bool:
+	var flat := Vector3(dir.x, 0.0, dir.z)
+	if flat.length() < 0.1:
+		return false
+	flat = flat.normalized()
+	var space := me.get_world_3d().direct_space_state
+	for step in [1.5, 3.0, 4.5]:
+		var from: Vector3 = me.global_position + flat * step + Vector3(0, 1.0, 0)
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 2.5, 0), 1, [me.get_rid()]))
+		if not hit.is_empty() and (hit.collider as Object).has_meta("span"):
+			return true
+	return false
 
 
 ## While the map moves: nowhere, unless it stands on a walkway that is being drawn in

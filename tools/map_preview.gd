@@ -113,9 +113,9 @@ func _hold_layout() -> void:
 		if event == null:
 			continue
 		event.set_physics_process(false)
-		event.state = 1
+		event.state = 0 if _layout < 1.0 else 1
 		event.running = _layout < 1.0
-		event.elapsed = _layout * event.move_time if _layout < 1.0 else 0.0
+		event.elapsed = event.hold_time + event.windup_time + _layout * event.move_time if _layout < 1.0 else 0.0
 		event._place()
 
 
