@@ -227,6 +227,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--press=SEC:ACTION` | Press an input action after SEC seconds, e.g. `--press=10:toggle_camera` (pairs with `--screenshot`) |
 | `--hold=SEC:ACTION:DURATION` | Hold an input action down, e.g. `--hold=5:move_forward:3` |
 | `--look=SEC:YAW,PITCH` | Turn your view by YAW and to PITCH (degrees) after SEC seconds, e.g. `--look=3:0,-60` to look down |
+| `--speed=X` | Game speed, e.g. `0.25` for quarter speed (to film a move in slow motion) |
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
@@ -612,6 +613,25 @@ blades), in weapon space with the grip at the origin and the blade up +Y. To loo
 on its own: `tools/combat/melee_preview.sh hammer OUT_DIR` (side, three-quarter and face
 on, then close up). How far each rests lower in first person is `MELEE_REST_VIEW` in
 `view_model.gd`.
+
+**Melee swings** have no clips either: `game/combat/melee_swing.gd` animates the weapon
+(where the grip is, which way the blade points, how far the body turns and leans) and
+bends the arms to hold it. Each weapon's blows are keys in its `MOVES` table: a ready
+stance, two taps that take turns and a heavy blow, each with where it winds up to,
+where it lands and where it ends; a key named `fp_...` is used instead in first person.
+Change a number and film it:
+
+```
+tools/combat/swing_preview.sh hammer OUT_DIR            # front, side and behind, quarter speed, OUT_DIR/swing.mp4
+tools/combat/swing_preview.sh hammer OUT_DIR --step=0.0166667 --blows=heavy   # full speed, the heavy blow only
+```
+
+For first person, film the real game: `godot --fixed-fps 60 --write-movie OUT/m.png --path .
+-- --practice --map=testing_grounds --game-clock --weapon=hammer --spawn=47,0,2,-90
+--hold=1.0:fire:0.13 --hold=2.5:fire:1.3 --quit-after=4.5` stands you in front of a target
+dummy, taps once and then lets go a full wind-up (add `--speed=0.25` for slow motion).
+`tests/weapon_test.gd` checks every blow: the left hand stays on the handle, the blow
+ends back at ready, the taps take turns.
 
 ## Sound effects
 

@@ -51,8 +51,9 @@ enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT, HANDS }
 ## the wind-up draws to), "hit" (the moment it lands) and "end" (the end of a full
 ## follow-through), and perhaps "lead" (passed on the way in, so that even a blow from
 ## barely drawn back comes round from its own side) and "way" (which way it crosses the
-## view, where the blade's turning does not say). "fp_ready" and "fp_wound" are used instead in first person, where
-## the weapon has to stay in view (and clear of the middle of it).
+## view, where the blade's turning does not say). A key named "fp_" and one of those
+## ("fp_ready", "fp_wound", "fp_hit"...) is used instead in first person, where the weapon
+## has to stay in view and clear of the middle of it, and a thrust has to go where you look.
 const MOVES := {
 	"sword": {
 		# A low guard, at ease: both hands at the hip, the point low and forward (in first person it is
@@ -176,18 +177,24 @@ const MOVES := {
 			{
 				"wound": [Vector3(0.22, -0.16, 0.06), Vector3(-0.6, 0.12, -0.79), Vector3(0.0, -1.0, 0.0), -0.55, -0.08, 0.27],
 				"hit": [Vector3(0.02, -0.08, -0.38), Vector3(0.5, 0.1, -0.86), Vector3(0.0, -1.0, 0.0), 0.3, 0.3, 0.05],
+				"fp_hit": [Vector3(0.06, -0.1, -0.3), Vector3(-0.14, 0.04, -0.99), Vector3(0.0, -1.0, 0.0), 0.3, 0.3, 0.05],
 				"end": [Vector3(0.0, -0.09, -0.42), Vector3(0.55, 0.08, -0.83), Vector3(0.0, -1.0, 0.0), 0.36, 0.36, 0.05],
+				"fp_end": [Vector3(0.05, -0.11, -0.33), Vector3(-0.14, 0.02, -0.99), Vector3(0.0, -1.0, 0.0), 0.36, 0.36, 0.05],
 			},
 			{
 				"wound": [Vector3(0.22, -0.28, 0.06), Vector3(-0.6, -0.1, -0.79), Vector3(0.0, -1.0, 0.0), -0.55, -0.08, 0.27],
 				"hit": [Vector3(0.02, -0.2, -0.33), Vector3(0.5, -0.22, -0.86), Vector3(0.0, -1.0, 0.0), 0.3, 0.3, 0.05],
+				"fp_hit": [Vector3(0.06, -0.22, -0.3), Vector3(-0.14, -0.12, -0.99), Vector3(0.0, -1.0, 0.0), 0.3, 0.3, 0.05],
 				"end": [Vector3(0.0, -0.21, -0.37), Vector3(0.55, -0.26, -0.83), Vector3(0.0, -1.0, 0.0), 0.36, 0.36, 0.05],
+				"fp_end": [Vector3(0.05, -0.23, -0.33), Vector3(-0.14, -0.14, -0.99), Vector3(0.0, -1.0, 0.0), 0.36, 0.36, 0.05],
 			},
 		],
 		"heavy": {
 			"wound": [Vector3(0.28, -0.16, 0.14), Vector3(-0.82, 0.04, -0.57), Vector3(0.0, -1.0, 0.0), -0.95, -0.18, 0.3],
 			"hit": [Vector3(0.0, -0.12, -0.44), Vector3(0.64, 0.0, -0.77), Vector3(0.77, 0.0, 0.64), 0.42, 0.4, 0.04],
+			"fp_hit": [Vector3(0.05, -0.12, -0.34), Vector3(-0.12, 0.0, -0.99), Vector3(0.99, 0.0, -0.12), 0.42, 0.4, 0.04],
 			"end": [Vector3(0.0, -0.13, -0.45), Vector3(0.66, 0.0, -0.75), Vector3(0.75, 0.0, 0.66), 0.46, 0.44, 0.04],
+			"fp_end": [Vector3(0.05, -0.13, -0.35), Vector3(-0.12, -0.02, -0.99), Vector3(0.99, 0.0, -0.12), 0.46, 0.44, 0.04],
 		},
 	},
 	"dagger": {
@@ -210,7 +217,9 @@ const MOVES := {
 		"heavy": {
 			"wound": [Vector3(0.3, -0.16, 0.04), Vector3(-0.25, 0.05, -0.97), Vector3(0.0, -1.0, 0.0), -0.9, -0.1, 0.0],
 			"hit": [Vector3(0.02, -0.12, -0.5), Vector3(0.6, 0.0, -0.8), Vector3(0.0, -1.0, 0.0), 0.4, 0.4, 0.0],
+			"fp_hit": [Vector3(0.1, -0.14, -0.46), Vector3(-0.2, 0.0, -0.98), Vector3(0.0, -1.0, 0.0), 0.4, 0.4, 0.0],
 			"end": [Vector3(0.0, -0.12, -0.52), Vector3(0.64, 0.0, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
+			"fp_end": [Vector3(0.1, -0.14, -0.48), Vector3(-0.2, -0.02, -0.98), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
 		},
 	},
 	"brass_knuckles": {
@@ -303,8 +312,8 @@ func set_weapon(weapon_id: String) -> void:
 
 
 func _blow(from: Dictionary) -> Dictionary:
-	return {"wound": _whole(_pick(from, "wound")), "lead": _whole(from.get("lead", [])), "hit": _whole(from.hit),
-		"end": _whole(from.end), "left": from.get("left", false), "way": from.get("way", Vector2.ZERO)}
+	return {"wound": _whole(_pick(from, "wound")), "lead": _whole(_pick(from, "lead")), "hit": _whole(_pick(from, "hit")),
+		"end": _whole(_pick(from, "end")), "left": from.get("left", false), "way": from.get("way", Vector2.ZERO)}
 
 
 ## A key with every part filled in (both hands on, unless it says otherwise).
@@ -313,7 +322,7 @@ static func _whole(k: Array) -> Array:
 
 
 func _pick(from: Dictionary, what: String) -> Array:
-	return from["fp_" + what] if first_person and from.has("fp_" + what) else from[what]
+	return from["fp_" + what] if first_person and from.has("fp_" + what) else from.get(what, [])
 
 
 ## A weapon's blows (see MOVES).
@@ -514,6 +523,11 @@ func _wind_depth() -> float:
 ## blow. The first-person view makes room for it.
 func coil() -> float:
 	return -_drawn if _phase == WIND else 0.0
+
+
+## How far the chest is turned in the ready stance.
+func rest_turn() -> float:
+	return _ready[TURN]
 
 
 ## How brightly the weapon's glowing parts shine right now (1 = as at rest): they

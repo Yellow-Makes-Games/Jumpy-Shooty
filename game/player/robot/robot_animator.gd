@@ -271,9 +271,11 @@ func hit_stop(seconds: float = 0.07) -> void:
 	_swing.hit_stop(seconds)
 
 
-## How far the chest is turned by a melee swing right now, radians (+ = to the left).
+## How far a melee swing has turned the chest from where it rests, radians (+ = to the left).
 func melee_turn() -> float:
-	return float(_swing_key[MeleeSwing.TURN]) * _hold if _melee and not _swing_key.is_empty() else 0.0
+	if not _melee or _swing_key.is_empty():
+		return 0.0
+	return (float(_swing_key[MeleeSwing.TURN]) - _swing.rest_turn()) * _hold
 
 
 ## The swing itself (its glow, its power, whether it is the heavy blow).

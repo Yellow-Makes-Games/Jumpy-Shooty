@@ -186,6 +186,31 @@ func _melee_animation() -> void:
 	sword.swing(1.0, 0)
 	_check(from_right.x < -0.5 and from_left.x > 0.5, "sword: taps take turns, from the right then from the left")
 	_check(sword.travel().y < -0.4 and sword.travel().x < -0.4, "sword: the heavy blow cuts down and across")
+	# Every weapon's two taps are different blows, and its heavy blow is neither of them.
+	for id in WeaponData.MELEE:
+		var moves := MeleeSwing.moves(id)
+		var a: Dictionary = moves.taps[0]
+		var b: Dictionary = moves.taps[1]
+		_check(a.hit != b.hit or a.get("left", false) != b.get("left", false), "%s: its two taps differ" % id)
+		_check(moves.heavy.wound != a.wound and moves.heavy.wound != b.wound, "%s: its heavy blow winds up its own way" % id)
+	# Brass knuckles: a weapon on each fist. The left hooks, then the right; the uppercut is the right's.
+	var fists := MeleeSwing.new("brass_knuckles")
+	_check(fists.both_fists and not MeleeSwing.new("dagger").both_fists, "brass knuckles: both fists strike (the dagger's free hand does not)")
+	fists.swing(0.0, 0)
+	_check(fists.left_fist() and fists.travel().x > 0.5, "brass knuckles: the first tap is a left hook")
+	var struck := 0.0
+	for i in 8:
+		var key := fists.sample(1.0 / 60.0)
+		struck = maxf(struck, (key[MeleeSwing.GRIP] as Vector3).distance_to(MeleeSwing.ready("brass_knuckles")[MeleeSwing.GRIP]))
+	var guard := (fists.other_fist()[MeleeSwing.GRIP] as Vector3).distance_to(MeleeSwing.ready("brass_knuckles")[MeleeSwing.GRIP])
+	_check(struck > 0.2 and guard < 0.02, "brass knuckles: the left fist swings while the right stays up")
+	fists.swing(0.0, 1)
+	_check(not fists.left_fist() and fists.travel().x < -0.5, "brass knuckles: the next is a right hook")
+	fists.swing(1.0, 0)
+	_check(not fists.left_fist() and fists.heavy() and fists.travel().y > 0.5, "brass knuckles: the heavy blow is a right uppercut")
+	# A full wind-up takes 80% of the time it used to.
+	_check(is_equal_approx(WeaponData.by_id("sword").charge_time, 0.64) and is_equal_approx(WeaponData.by_id("hammer").charge_time, 0.96),
+		"a full wind-up takes 0.64 s with the sword and 0.96 s with the hammer")
 
 
 ## Poses a skeleton to hold the weapon as key `k` says, and measures how far the left
