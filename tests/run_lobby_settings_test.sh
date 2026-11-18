@@ -77,6 +77,21 @@ for name in ["host", "early", "late"]:
         if m:
             tools |= {p.split(":")[1] for p in m.group(1).split()}
     check(bool(tools) and tools <= {"blink", "jetpack"}, f"{name}: only allowed mobility tools on record ({sorted(tools)})")
+    # The scoreboard: every copy adds up each kill's killcam score as the killer's points
+    # (a shoot-out, not Killcam), and clients are told everyone's ping.
+    sums, bad = {}, []
+    for line in lines(name):
+        if line.startswith("KILL_SCORE "):
+            f = line.split()
+            sums[f[2]] = sums.get(f[2], 0) + int(f[4])
+        elif line.startswith("POINTS "):
+            f = line.split()
+            if int(f[2]) != sums.get(f[1], 0): bad.append(line)
+    check(bool(sums) and not bad, f"{name}: points add up every kill's score in a shoot-out ({sums}, mismatches {bad[:2]})")
+    if name != "host":
+        pings = [l for l in lines(name) if l.startswith("PINGS ")]
+        last = max((dict(p.split(":") for p in l.split()[2:]) for l in pings), key=len, default={})
+        check(len(last) >= 2 and all(0 <= int(v) < 1000 for v in last.values()), f"{name}: told every client's ping ({last})")
 late = loadouts("late")
 check(any(len(l) == 3 for l in late), "the late joiner is in the list with the others")
 pellets = [l.split()[2] for l in lines("host") if l.startswith("PELLETS ")]

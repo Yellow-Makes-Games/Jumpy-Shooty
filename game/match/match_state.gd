@@ -1153,10 +1153,12 @@ func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = f
 		if cause == "kick" and scores.has(victim) and int(scores[victim].get("level", 0)) > 0:
 			scores[victim]["level"] = int(scores[victim].level) - 1   # kicked to death: back one weapon
 			moves.append([victim, scores[victim].level])
-	if KillcamMode.active() and scored.size() >= 2 and scores.has(killer):
-		# Killcam: the kill is worth its killcam score (KillScore), the same number sent with it.
+	if scored.size() >= 2 and scores.has(killer):
+		# Every kill adds its killcam score (KillScore, the same number sent with it) to the
+		# killer's points, shown on the scoreboard in every mode. In Killcam they win.
 		scores[killer]["points"] = points(killer) + int(scored[1])
-		finished = points(killer) >= KillcamMode.target()
+		if KillcamMode.active():
+			finished = points(killer) >= KillcamMode.target()
 	_died.rpc(victim, killer, scores, cause, scored)
 	for m in moves:
 		Net.host_set_weapon(m[0], GunGame.weapon_at(m[1]))
@@ -1240,6 +1242,7 @@ func _died(victim: int, killer: int, new_scores: Dictionary, cause: String, scor
 		kill_log.append(info)
 		if DevArgs.sync_log:
 			print("KILL_SCORE %d %d %d %d %s" % [info.seq, killer, victim, info.score, ",".join(KillScore.words(info))])
+			print("POINTS %d %d" % [killer, points(killer)])   # the scoreboard's SCORE column
 		kill_scored.emit(info)
 	player_died.emit(victim, killer)
 	state_changed.emit()

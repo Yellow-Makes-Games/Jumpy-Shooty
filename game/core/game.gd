@@ -167,13 +167,12 @@ func host_online() -> Error:
 		elif not kind in GunGame.RULES:
 			s.kills = int(amount)
 		Net.set_match_settings(s)
-	if err == OK and not DevArgs.allowed_weapons.is_empty():
-		var s := Net.match_settings.duplicate()
-		s["weapons"] = DevArgs.allowed_weapons.duplicate()
-		Net.set_match_settings(s)
-	if err == OK and not DevArgs.allowed_mobility.is_empty():
-		var s := Net.match_settings.duplicate()
-		s["mobility"] = DevArgs.allowed_mobility.duplicate()
+	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty()):
+		var s := Net.match_settings.duplicate()   # tests: lobby settings, in one go
+		if not DevArgs.allowed_weapons.is_empty():
+			s["weapons"] = DevArgs.allowed_weapons.duplicate()
+		if not DevArgs.allowed_mobility.is_empty():
+			s["mobility"] = DevArgs.allowed_mobility.duplicate()
 		Net.set_match_settings(s)
 	return err
 

@@ -55,6 +55,12 @@ var _upnp_thread: Thread = null
 ## Plus the lobby settings (see LobbySettings), such as which weapons are allowed.
 var match_settings := LobbySettings.clean({"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id(), "powerups": true})
 
+## Each player's ping to the host in ms (peer id -> ms), measured by the host from its
+## ENet links and sent to everyone every PING_GAP seconds (the Tab scoreboard shows it).
+var pings: Dictionary = {}
+const PING_GAP := 2.0
+var _ping_wait := 0.0
+
 ## The arena currently running, if any. It registers itself here.
 var arena: Node = null
 
@@ -153,6 +159,7 @@ func leave() -> void:
 	in_match = false
 	is_online = false
 	players.clear()
+	pings.clear()
 	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
@@ -972,7 +979,8 @@ func _sim_receive(sender: int, time: float, data: PackedFloat32Array) -> void:
 	_sim_queue.append([now() + delay, sender, time, data])
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_share_pings(delta)
 	if _sim_queue.is_empty():
 		return
 	var t := now()
@@ -983,3 +991,55 @@ func _process(_delta: float) -> void:
 		else:
 			keep.append(item)
 	_sim_queue = keep
+
+
+# ---------------------------------------------------------------------------
+# Ping: the host knows the round trip to each client (ENet keeps it), so it sends
+# everyone the list now and then. A client knows its own round trip best itself.
+
+## Host: every PING_GAP seconds, tell everyone each player's ping.
+func _share_pings(delta: float) -> void:
+	if not is_host() or not is_online:
+		return
+	_ping_wait -= delta
+	if _ping_wait > 0.0:
+		return
+	_ping_wait = PING_GAP
+	var now_pings := {}
+	for id in players:
+		if id != host_id() and not is_bot(id):
+			var ms := _rtt_to(id)
+			if ms >= 0:
+				now_pings[id] = ms
+	_sync_pings.rpc(now_pings)
+
+
+@rpc("authority", "call_local", "unreliable_ordered")
+func _sync_pings(new_pings: Dictionary) -> void:
+	pings = new_pings
+	if DevArgs.sync_log:
+		var ids := pings.keys()
+		ids.sort()
+		print("PINGS %d %s" % [my_id(), " ".join(ids.map(func(i): return "%d:%d" % [i, pings[i]]))])
+
+
+## The round trip in ms on our ENet link to `id` (-1 if there is none).
+func _rtt_to(id: int) -> int:
+	var peer := multiplayer.multiplayer_peer
+	if peer is ENetMultiplayerPeer:
+		var link: ENetPacketPeer = (peer as ENetMultiplayerPeer).get_peer(id)
+		if link:
+			return int(link.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
+	return -1
+
+
+## A player's ping to the host in ms: 0 for the host itself, -1 when there is none
+## (bots, playing offline, or not measured yet). Your own comes from your own link.
+func player_ping(id: int) -> int:
+	if not is_online or is_bot(id) or not players.has(id):
+		return -1
+	if id == host_id():
+		return 0
+	if id == my_id():
+		return _rtt_to(host_id())
+	return int(pings.get(id, -1))

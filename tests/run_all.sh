@@ -39,6 +39,7 @@ CHECKS=(
   "killcam|--script tests/killcam_test.gd"
   "mobility|--fixed-fps 60 --script tests/mobility_test.gd"
   "lobby_settings|--script tests/lobby_settings_test.gd"
+  "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
 )
 # Practice mode boots without errors on every map.
@@ -81,6 +82,6 @@ echo "== Killcam: Vs Bots (watch, skip), online host and laggy client agree on t
 tests/run_killcam_test.sh
 echo "== Killcam mode: snipers only, points from killcam scores, the #1 killcam bonus, online agreement"
 tests/run_killcam_mode_test.sh
-echo "== Lobby settings: the host allows only some weapons; an early and a late joiner, the death-screen pick, Vs Bots with one gun"
+echo "== Lobby settings: the host allows only some weapons and mobility tools; an early and a late joiner, the death-screen pick, Vs Bots with one gun; scoreboard points and pings"
 tests/run_lobby_settings_test.sh
 echo "ALL TESTS PASSED"
