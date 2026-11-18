@@ -111,6 +111,18 @@ func goto_main_menu(notice: String = "") -> void:
 	get_tree().change_scene_to_file.call_deferred(MAIN_MENU)
 
 
+## The graphics benchmark (Settings > Graphics): flies over three maps and saves a
+## report (see Benchmark). Only from the menus, never during a match.
+func start_benchmark() -> void:
+	mode = Mode.NONE
+	var bench := Benchmark.new()
+	bench.finished.connect(func(path: String):
+		print("BENCHMARK_REPORT %s" % path)
+		if DevArgs.benchmark:
+			get_tree().quit())
+	get_tree().change_scene_to_node.call_deferred(bench)
+
+
 func goto_lobby() -> void:
 	_release_mouse()
 	get_tree().change_scene_to_file.call_deferred(LOBBY)
@@ -332,6 +344,8 @@ func _run_dev_args() -> void:
 		start_bot(DevArgs.bot, DevArgs.kill_target if DevArgs.kill_target > 0 else 10, "", DevArgs.bots, DevArgs.rules)
 		if DevArgs.spectate:
 			Net.set_spectating(true)   # watch the bots
+	elif DevArgs.benchmark:
+		start_benchmark()
 	elif DevArgs.practice:
 		start_practice()
 	elif DevArgs.host:

@@ -28,6 +28,7 @@ extends Node
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
 ## --spectate          Watch instead of play: --join joins as a spectator; with --host or --bot, you spectate.
 ## --practice           Skip the menus and drop into the arena alone.
+## --benchmark          Run the graphics benchmark (see Benchmark), print where the report went, and quit.
 ## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
 ##                      --map=random: a random map, picked as the match starts (from --map-pool, if given).
@@ -87,6 +88,7 @@ var player_name := ""
 var port := 0
 var autostart := 0
 var practice := false
+var benchmark := false
 var spectate := false
 var character := ""
 var switch_character := false
@@ -172,6 +174,7 @@ func _ready() -> void:
 			"--port": port = int(value)
 			"--autostart": autostart = int(value)
 			"--practice": practice = true
+			"--benchmark": benchmark = true
 			"--spectate": spectate = true
 			"--character":
 				if Characters.has(value):
