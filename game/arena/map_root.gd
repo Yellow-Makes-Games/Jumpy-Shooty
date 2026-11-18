@@ -643,9 +643,23 @@ func _standing_on(point: Vector3, at_nav: bool) -> int:
 				continue
 			var p: Vector3 = (piece.xf as Transform3D).affine_inverse() * local
 			var half: Vector3 = piece.size * 0.5
-			var inside := (absf(p.x) <= half.x + 0.3 and absf(p.z) <= half.z + 0.3) if piece.shape == "box" \
-				else Vector2(p.x, p.z).length() <= half.x + 0.3
+			var inside := false
 			var gap := p.y - half.y
+			var up: float = (piece.xf as Transform3D).basis.x.y
+			if piece.shape == "box":
+				inside = absf(p.x) <= half.x + 0.3 and absf(p.z) <= half.z + 0.3
+			elif piece.shape == "wedge" and absf(up) > 0.99:
+				# A wedge lying on its side is a three-cornered slab of ground (Sky Island's
+				# deck round its hole is made of them): its own x is up, and it covers the
+				# triangle with the right angle at its low back corner.
+				# (how far past its long side the point is, in metres)
+				var past := ((p.y + half.y) / (2.0 * half.y) + (p.z + half.z) / (2.0 * half.z) - 1.0) \
+					/ Vector2(0.5 / half.y, 0.5 / half.z).length()
+				inside = p.y >= -half.y - 0.3 and p.z >= -half.z - 0.3 and past <= 0.3
+				gap = p.x * signf(up) - half.x
+			else:
+				var reach := Vector2(p.x, p.z).length()
+				inside = reach <= half.x + 0.3 and (piece.shape != "tube" or reach >= float(piece.get("inner", 0.0)) * 0.5 - 0.3)
 			if inside and gap >= -1.0 and gap <= 8.0 and gap < best_gap:
 				best = i
 				best_gap = gap
@@ -731,6 +745,8 @@ func mover_ground_at(point: Vector3, at: float, tolerance: float = 0.5) -> int:
 			var half: Vector3 = piece.size * 0.5
 			if absf(local.x) > half.x or absf(local.z) > half.z:
 				continue
+			if piece.shape == "tube" and Vector2(local.x, local.z).length() < float(piece.get("inner", 0.0)) * 0.5:
+				continue   # in a tube's hole: nothing there to stand on
 			near = true
 			if absf(local.y - half.y) <= tolerance:
 				return 1
@@ -747,10 +763,12 @@ func _collect_dummies(node: Node, xf: Transform3D) -> void:
 		_collect_dummies(child, at)
 
 
-## What a piece is to bump into: one shape for most, several for a hollow dome or an
-## arch (each in the piece's own frame).
+## What a piece is to bump into: one shape for most, several for a hollow dome, an
+## arch or a tube (each in the piece's own frame). A tube is its ring, one lump per
+## flat side, so you can stand in the hole you can see through; it is not in
+## hull_points() because it is drawn by _prism, not from its lumps.
 func collision_shapes(piece: Dictionary) -> Array:
-	var lumps := MapMesher.hull_points(piece)
+	var lumps := MapMesher.tube_hulls(piece) if piece.shape == "tube" else MapMesher.hull_points(piece)
 	if lumps.is_empty():
 		return [_collision_shape(piece)]
 	var shapes := []
@@ -762,7 +780,7 @@ func collision_shapes(piece: Dictionary) -> Array:
 
 
 func _collision_shape(piece: Dictionary) -> Shape3D:
-	if piece.shape == "cyl":
+	if piece.shape == "cyl" or piece.shape == "tube":   # (a tube here has no hole: it is drawn as a cylinder)
 		var c := CylinderShape3D.new()
 		c.radius = piece.size.x * 0.5
 		c.height = piece.size.y

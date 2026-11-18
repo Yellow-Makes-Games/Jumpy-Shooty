@@ -282,7 +282,7 @@ func _seen_overlap(a: Dictionary, b: Dictionary, solids: Array, grid: Dictionary
 func _solid(piece: Dictionary) -> Dictionary:
 	var xf: Transform3D = piece.xf
 	var box: AABB = xf * AABB(-(piece.size as Vector3) * 0.5, piece.size)
-	if piece.shape != "box":
+	if piece.shape not in ["box", "wedge"]:
 		var d: float = piece.size.x
 		box = xf * AABB(Vector3(-d, -piece.size.y, -d) * 0.5, Vector3(d, piece.size.y, d))
 	return {"inv": xf.affine_inverse(), "half": piece.size * 0.5, "shape": piece.shape, "box": box,
@@ -329,7 +329,12 @@ func _covered(point: Vector3, skip_a: int, skip_b: int, solids: Array, grid: Dic
 				if absf(local.x) <= half.x and absf(local.z) <= half.z:
 					return true
 				continue
-			if s.shape in ["wedge", "bevel", "dome", "arch"]:
+			if s.shape == "wedge":
+				# A slope: full height at the back (-z), down to nothing at the front.
+				if absf(local.x) <= half.x and absf(local.z) <= half.z and local.y <= half.y - (local.z + half.z) * half.y / half.z:
+					return true
+				continue
+			if s.shape in ["bevel", "dome", "arch"]:
 				continue   # (not worked out: such a piece is taken to hide nothing)
 			var reach := Vector2(local.x, local.z).length()
 			var radius: float = half.x
