@@ -348,11 +348,14 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 
 ## Remains: from the moment of each death in the clip, the replay's own ragdoll or
 ## giblets where the recording says, the body they replaced out of sight until it is
-## back (respawned).
+## back (respawned). Only deaths the clip shows: a body left lying from before it
+## starts (someone's previous death) is not drawn, so the only one that falls is the
+## one that falls in the replay.
 func _play_wrecks() -> void:
 	for w: KillClip.Wreck in clip.wrecks:
 		var t := clip.time_for(w.who, time)
 		var shown := t >= w.first_time() and t < w.first_time() + Remains.LIFETIME and _gore_shows(w) \
+			and w.first_time() >= clip.time_for(w.who, clip.start) \
 			and (third_person or w.who != clip.killer)   # (no body of the killer's own in front of their eyes)
 		var body: Node3D = _wrecks.get(w)
 		if not shown:
