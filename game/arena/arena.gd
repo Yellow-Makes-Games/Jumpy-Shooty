@@ -16,6 +16,8 @@ var gates: Array = []
 var pickups: Array = []
 ## Deathmatch: the map's power-ups (ItemPickup), in the order of their index.
 var items: Array = []
+## Everyone's portals (portal gun: see Portals).
+var portals: Portals
 ## Seconds until the bots' navigation mesh is redone after walls or floors broke.
 var _nav_rebake := 0.0
 var _nav_baking := false
@@ -44,6 +46,9 @@ func _ready() -> void:
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
+	portals = Portals.new()
+	portals.name = "Portals"
+	add_child(portals)
 	hud = Hud.new()
 	add_child(hud)
 	pause_menu = PauseMenu.new()
@@ -134,6 +139,7 @@ func on_snapshot(sender: int, remote_time: float, data: PackedFloat32Array) -> v
 
 
 func _on_player_died(victim: int, _killer: int) -> void:
+	portals.clear(victim)   # your portals go when you die
 	var p := get_player(victim)
 	if p:
 		p.set_dead()
@@ -210,6 +216,8 @@ func _sync_players() -> void:
 			_spawn(id)
 		else:
 			var p := get_player(id)
+			if p.mobility != Net.player_mobility(id):
+				p.set_mobility(Net.player_mobility(id))   # picked while waiting to respawn
 			if p.character != Net.player_character(id):
 				rebuild_player(id)   # a new robot from the loadout (picked while waiting to respawn)
 			elif not p.racing and p.robot.weapon != Net.player_weapon(id):
@@ -224,6 +232,7 @@ func _sync_players() -> void:
 			p.queue_free()
 		elif not Match.is_alive((p as Player).peer_id) and (p as Player).alive:
 			(p as Player).set_dead()  # joined while they were dead
+	portals.prune()
 	hud.set_players(Net.players)
 
 
@@ -283,6 +292,7 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 			gone.append(layout.destruction.cell_box(cells[i]).grow(0.15))
 	if gone.is_empty():
 		return
+	portals.remove_in(gone)
 	for p in players_root.get_children():
 		var player := p as Player
 		if not player.is_local or player.motor == null or not player.motor.grapple.attached:

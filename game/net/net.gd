@@ -31,7 +31,7 @@ const PLAYER_COLORS := [
 ]
 
 ## peer id -> { "name": String, "color": int, "character": String (see Characters),
-##   "weapon": String (see WeaponData) },
+##   "weapon": String (see WeaponData), "mobility": String (see Mobility) },
 ## plus "bot": true and "difficulty" for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
 var in_match := false
@@ -60,6 +60,7 @@ var arena: Node = null
 var _local_name := "Player"
 var _local_character := Characters.default_id()
 var _local_weapon := WeaponData.default_id()
+var _local_mobility := Mobility.default_id()
 
 
 func _ready() -> void:
@@ -92,17 +93,18 @@ func host_id() -> int:
 
 ## Play alone (bot mode and practice). Uses the offline peer, so the same code
 ## paths run with this player as "host".
-func start_offline(player_name: String, character: String, weapon: String = "") -> void:
+func start_offline(player_name: String, character: String, weapon: String = "", mobility: String = "") -> void:
 	leave()
 	_local_name = player_name
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon}}
+	_local_mobility = Mobility.valid(mobility)
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon, "mobility": _local_mobility}}
 	is_online = false
 	players_changed.emit()
 
 
-func host_direct(player_name: String, character: String, listen_port: int = DEFAULT_PORT, weapon: String = "") -> Error:
+func host_direct(player_name: String, character: String, listen_port: int = DEFAULT_PORT, weapon: String = "", mobility: String = "") -> Error:
 	leave()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(listen_port, MAX_PLAYERS - 1)
@@ -112,7 +114,8 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_name = player_name
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon}}
+	_local_mobility = Mobility.valid(mobility)
+	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": _local_weapon, "mobility": _local_mobility}}
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -122,7 +125,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	return OK
 
 
-func join_direct(player_name: String, character: String, address: String, weapon: String = "") -> Error:
+func join_direct(player_name: String, character: String, address: String, weapon: String = "", mobility: String = "") -> Error:
 	leave()
 	var join_port := DEFAULT_PORT
 	if ":" in address:
@@ -138,6 +141,7 @@ func join_direct(player_name: String, character: String, address: String, weapon
 	_local_name = player_name
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
+	_local_mobility = Mobility.valid(mobility)
 	is_online = true
 	print("[net] joining %s:%d" % [address, join_port])
 	return OK
@@ -228,7 +232,7 @@ static func _is_private(ip: String) -> bool:
 
 func _on_connected_to_server() -> void:
 	_tune_link(1)
-	_register.rpc_id(1, _local_name, _local_character, _local_weapon)
+	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility)
 
 
 func _on_connection_failed() -> void:
@@ -276,7 +280,7 @@ func _broadcast_players() -> void:
 # Lobby
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register(player_name: String, character: String, weapon: String) -> void:
+func _register(player_name: String, character: String, weapon: String, mobility: String = "") -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
@@ -284,7 +288,7 @@ func _register(player_name: String, character: String, weapon: String) -> void:
 		_refused.rpc_id(id, "The lobby is full.")
 		return
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
-		"character": Characters.valid(character), "weapon": WeaponData.valid(weapon)}
+		"character": Characters.valid(character), "weapon": WeaponData.valid(weapon), "mobility": Mobility.valid(mobility)}
 	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
 	_sync_settings.rpc_id(id, match_settings)
 	_sync_players.rpc(players)
@@ -318,14 +322,18 @@ func confirm_my_character() -> void:
 		set_my_character(_local_character)
 	if players.has(my_id()) and player_loadout_weapon(my_id()) != _local_weapon:
 		set_my_weapon(_local_weapon)
+	if players.has(my_id()) and player_loadout_mobility(my_id()) != _local_mobility:
+		set_my_mobility(_local_mobility)
 
 
 ## Pause menu "Loadout": change robot and/or weapon mid-match. It takes effect when
 ## you next respawn: sent now if you are dead (or racing, where nobody dies), else
 ## as soon as you die (see _on_player_died).
-func set_loadout(character: String, weapon: String) -> void:
+func set_loadout(character: String, weapon: String, mobility: String = "") -> void:
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
+	if mobility != "":
+		_local_mobility = Mobility.valid(mobility)
 	if not in_match or not Match.is_alive(my_id()) or Race.active:
 		confirm_my_character()
 
@@ -337,6 +345,10 @@ func pending_character() -> String:
 
 func pending_weapon() -> String:
 	return _local_weapon
+
+
+func pending_mobility() -> String:
+	return _local_mobility
 
 
 func _on_player_died(victim: int, _killer: int) -> void:
@@ -389,6 +401,35 @@ func _apply_weapon(id: int, weapon: String) -> void:
 		return   # mid-fight you can only swap while waiting to respawn
 	players[id]["weapon"] = WeaponData.valid(weapon)
 	print("[net] %d took the %s" % [id, players[id].weapon])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Pick the mobility tool (an id from Mobility): the grapple, the portal gun or blink.
+## Same rules as the weapon: in the lobby, or during a fight while you are dead.
+func set_my_mobility(mobility: String) -> void:
+	_local_mobility = Mobility.valid(mobility)
+	if is_host():
+		_apply_mobility(my_id(), _local_mobility)
+	else:
+		_choose_mobility.rpc_id(1, _local_mobility)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_mobility(mobility: String) -> void:
+	if is_host():
+		_apply_mobility(multiplayer.get_remote_sender_id(), mobility)
+
+
+func _apply_mobility(id: int, mobility: String) -> void:
+	if not players.has(id) or players[id].get("mobility", "") == Mobility.valid(mobility):
+		return
+	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
+		return   # mid-fight you can only swap while waiting to respawn
+	players[id]["mobility"] = Mobility.valid(mobility)
+	print("[net] %d took the %s" % [id, players[id].mobility])
 	if is_online:
 		_sync_players.rpc(players)
 	else:
@@ -465,7 +506,7 @@ const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston"]   # never the name of
 ## Bots take turns through the robots, starting with the one after yours, so in a
 ## 1v1 the bot never plays the robot you picked; colours always differ. Each bot
 ## takes a gun at random (or `weapon`, if given).
-func add_bot(difficulty: int, weapon: String = "") -> int:
+func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int:
 	var id := BOT_ID_BASE
 	while players.has(id):
 		id += 1
@@ -478,6 +519,7 @@ func add_bot(difficulty: int, weapon: String = "") -> int:
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
 		"character": character,
 		"weapon": WeaponData.valid(weapon) if weapon != "" else WeaponData.IDS[randi() % WeaponData.IDS.size()],
+		"mobility": Mobility.valid(mobility) if mobility != "" else Mobility.IDS[randi() % Mobility.IDS.size()],
 	}
 	players_changed.emit()
 	return id
@@ -519,6 +561,18 @@ func player_weapon(id: int) -> String:
 		var held := str(players[id].get("held", "none"))
 		return held if WeaponData.has(held) else "none"
 	return WeaponData.valid(str(players[id].get("weapon", "")))
+
+
+## The mobility tool a player has (an id from Mobility). A race always has the grapple.
+func player_mobility(id: int) -> String:
+	if Race.active or (in_match and game_kind() == "race"):
+		return Mobility.GRAPPLE
+	return player_loadout_mobility(id)
+
+
+## The mobility tool a player picked (whatever the game).
+func player_loadout_mobility(id: int) -> String:
+	return Mobility.valid(str(players[id].get("mobility", ""))) if players.has(id) else Mobility.default_id()
 
 
 ## The weapon a player chose in the lobby or the loadout (what they spawn with
@@ -758,6 +812,41 @@ func _map_state_request() -> void:
 	for i in terminals.size():
 		var t := terminals[i] as MapTerminal
 		send_terminal_state(i, t.phase, t.channeler, t.progress, to)
+	if arena and is_instance_valid(arena) and arena.portals:   # ...and where everyone's portals are
+		for owner in arena.portals.owners():
+			for slot in 2:
+				var p: Portal = arena.portals.get_portal(owner, slot)
+				if p:
+					_portal_from_host.rpc_id(to, owner, slot, p.frame.origin, p.normal, p.frame.basis.y)
+
+
+# ---------------------------------------------------------------------------
+# Portals (see PortalGun and Portals). The copy that runs a player (you, or the
+# host for a bot) places their portals and tells everyone; each copy moves its own
+# players through them. They go on every copy by itself when their owner dies.
+
+## The local player `owner` (you, or one of the host's bots) put a portal up.
+func place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+	if arena and is_instance_valid(arena) and arena.portals:
+		arena.portals.place(owner, slot, at, normal, up)
+	if is_online:
+		_place_portal.rpc(owner, slot, at, normal, up)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+	var sender := multiplayer.get_remote_sender_id()
+	if sender != owner and not (sender == host_id() and is_bot(owner)):
+		return   # only a player's own copy places their portals
+	if arena and is_instance_valid(arena) and arena.portals and Match.is_alive(owner):
+		arena.portals.place(owner, slot, at, normal, up)
+
+
+## Host to a copy that has just joined: a portal that is already up.
+@rpc("authority", "call_remote", "reliable")
+func _portal_from_host(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+	if arena and is_instance_valid(arena) and arena.portals:
+		arena.portals.place(owner, slot, at, normal, up)
 
 
 # ---------------------------------------------------------------------------

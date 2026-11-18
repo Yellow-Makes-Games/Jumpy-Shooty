@@ -52,6 +52,7 @@ var _applied_fullscreen := false
 var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
+var mobility: String = Mobility.default_id()       # the tool on the mobility button: grapple, portal gun or blink (see Mobility)
 var last_address: String = ""   # the host address you last joined (filled in on the Join box next time)
 
 
@@ -83,6 +84,7 @@ func load_settings() -> void:
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
+	mobility = Mobility.valid(str(cfg.get_value("profile", "mobility", mobility)))
 	last_address = str(cfg.get_value("network", "last_address", last_address))
 	_load_bindings(cfg)
 
@@ -106,6 +108,7 @@ func save_settings() -> void:
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
 	cfg.set_value("profile", "weapon", weapon)
+	cfg.set_value("profile", "mobility", mobility)
 	cfg.set_value("network", "last_address", last_address)
 	_save_bindings(cfg)
 	cfg.save(SAVE_PATH)
@@ -227,7 +230,7 @@ const ACTIONS := [
 	["kick", "Kick", ["key:%d" % KEY_F]],
 	["boost", "Rocket boots", ["key:%d" % KEY_E]],
 	["interact", "Interact", ["key:%d" % KEY_G]],
-	["grapple", "Grapple", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
+	["grapple", "Mobility (grapple, portal, blink)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
 	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
 	["weapon_1", "Weapon slot 1", ["key:%d" % KEY_1]],

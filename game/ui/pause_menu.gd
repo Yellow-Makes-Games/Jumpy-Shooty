@@ -67,9 +67,9 @@ func _show_loadout() -> void:
 	var dead := not race and not Match.is_alive(me)
 	if dead:
 		note = "Changes apply when you respawn."
-	_frame.title("Loadout", "Paused  /  robot and weapon")
+	_frame.title("Loadout", "Paused  /  robot, weapon and mobility")
 	UiKit.label(_frame.header, note, true, 15)
-	var picked := {"character": Net.pending_character(), "weapon": Net.pending_weapon()}
+	var picked := {"character": Net.pending_character(), "weapon": Net.pending_weapon(), "mobility": Net.pending_mobility()}
 	var gun: String = picked.weapon if with_weapons else "none"
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 28)
@@ -78,6 +78,10 @@ func _show_loadout() -> void:
 	robots.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(robots)
 	robots.picked.connect(func(id: String): picked.character = id)
+	var moves := MobilityPicker.new(picked.mobility)
+	moves.picked.connect(func(id: String): picked.mobility = id)
+	moves.visible = not race   # a race always has the grapple
+	robots.add_child(moves)
 	if with_weapons:
 		robots.size_flags_horizontal = Control.SIZE_FILL
 		var weapons := WeaponPicker.new(picked.weapon)
@@ -90,8 +94,9 @@ func _show_loadout() -> void:
 	_frame.main_button("Apply", func():
 		Settings.character = picked.character
 		Settings.weapon = picked.weapon
+		Settings.mobility = picked.mobility
 		Settings.save_settings()
-		Net.set_loadout(picked.character, picked.weapon)
+		Net.set_loadout(picked.character, picked.weapon, picked.mobility)
 		if dead:
 			visible = false   # back to the death screen, to respawn with it
 		else:

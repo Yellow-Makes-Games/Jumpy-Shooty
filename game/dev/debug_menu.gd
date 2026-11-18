@@ -285,7 +285,7 @@ func _add_bot() -> void:
 	if _bots().size() >= Game.MAX_BOTS or not Net.arena:
 		return
 	Net.arena.ensure_navigation()
-	Net.add_bot(_difficulty, DevArgs.bot_weapon)
+	Net.add_bot(_difficulty, DevArgs.bot_weapon, DevArgs.bot_mobility)
 
 
 func _remove_bots(count: int) -> void:

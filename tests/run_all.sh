@@ -37,6 +37,7 @@ CHECKS=(
   "office|--fixed-fps 60 --script tests/office_test.gd"
   "debug|--script tests/debug_test.gd"
   "killcam|--script tests/killcam_test.gd"
+  "mobility|--fixed-fps 60 --script tests/mobility_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
