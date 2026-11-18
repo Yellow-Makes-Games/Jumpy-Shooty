@@ -163,6 +163,59 @@ static func pistol(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) ->
 	ci.draw_colored_polygon(pts, color)
 
 
+## A headshot (kill feed, death screen): a robot's head, visor slit across it, with a
+## hit bursting on its left side (the gun's side in the feed) and a crack running in
+## from it. `at` is the top left; it is headshot_width() across and 16 tall at size 1.
+## Returns its width.
+static func headshot_icon(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
+	var edge := Color(0, 0, 0, 0.6 * color.a)
+	var cut := Color(0, 0, 0, 0.8 * color.a)   # holes in the head: the visor and the crack
+	var head := [Vector2(9, 3), Vector2(19, 3), Vector2(21, 5), Vector2(21, 14), Vector2(19, 16),
+		Vector2(9, 16), Vector2(7, 14), Vector2(7, 5)]
+	var antenna := [Vector2(13.3, 0.5), Vector2(14.7, 0.5), Vector2(14.7, 3.5), Vector2(13.3, 3.5)]
+	var visor := [Vector2(11, 7), Vector2(19.5, 7), Vector2(19.5, 9.5), Vector2(11, 9.5)]
+	var crack := [Vector2(9.5, 10), Vector2(12.5, 11.5), Vector2(12, 12.5), Vector2(14.5, 14.8), Vector2(11.2, 12.8),
+		Vector2(11.6, 11.9), Vector2(9.2, 10.8)]
+	var burst := []   # a fat star: thin sparks blur into a smudge at 14 px, a solid star still reads
+	for i in 14:
+		var r: float = (5.4 if i % 4 == 0 else 4.4) if i % 2 == 0 else 2.5
+		burst.append(Vector2(5.2, 9.5) + Vector2.from_angle(TAU * i / 14.0 + PI) * r)
+	# Edges under fills, so no edge covers the head's own fill.
+	for shape in [head, antenna]:
+		_edged_shape(ci, at, shape, s, color, edge, true)
+	for shape in [head, antenna]:
+		_edged_shape(ci, at, shape, s, color, edge, false)
+	for shape in [visor, crack]:
+		ci.draw_colored_polygon(_placed(at, shape, s), cut)
+	# The burst's own edge cuts it out of the head behind it.
+	_edged_shape(ci, at, burst, s, color, edge, true)
+	_edged_shape(ci, at, burst, s, color, edge, false)
+	return headshot_width() * s
+
+
+## How wide the headshot icon is at size 1 (it is 16 tall).
+static func headshot_width() -> float:
+	return 21.0
+
+
+## An icon's shape (points at size 1) scaled by `s` and moved to `at`.
+static func _placed(at: Vector2, shape: Array, s: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	for p in shape:
+		pts.append(at + p * s)
+	return pts
+
+
+## One shape of an icon: its dark edge (grown 1.5 px all round) or its fill.
+static func _edged_shape(ci: CanvasItem, at: Vector2, shape: Array, s: float, color: Color, edge: Color, under: bool) -> void:
+	var pts := _placed(at, shape, s)
+	if not under:
+		ci.draw_colored_polygon(pts, color)
+		return
+	for grown in Geometry2D.offset_polygon(pts, 1.5, Geometry2D.JOIN_MITER):
+		ci.draw_colored_polygon(grown, edge)
+
+
 ## A small silhouette of a gun, barrel to the right (kill feed, death screen). Returns its width.
 static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s: float = 1.0) -> float:
 	id = WeaponData.look_of(id)   # (the Golden Gun: the revolver)
