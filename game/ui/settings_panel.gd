@@ -3,15 +3,18 @@ extends VBoxContainer
 ## Settings, used from the main menu and the in-game pause menu. Built in a
 ## MenuFrame: the title and tabs stay at the top and Back at the bottom while the
 ## tab's own controls scroll between them if the window is short.
-## Four tabs (Controls, Camera & HUD, Audio, Graphics); every change applies at once
+## Five tabs (Controls, Camera, HUD, Audio, Graphics); every change applies at once
 ## (Controls also rebinds keys: click one, then press the new key or mouse button)
 ## and is saved when you leave, except the display settings on the Graphics tab: those
 ## wait for Apply, and a new resolution or screen mode puts itself back after a few
 ## seconds unless you press Keep (in case the new one is unusable).
+## HUD has its own tab because of its preview (HudPreview), which sits in the header
+## under the tabs so it stays in view while the HUD options scroll under it.
 
 signal closed
 
-const TABS := ["Controls", "Camera & HUD", "Audio", "Graphics"]
+const TABS := ["Controls", "Camera", "HUD", "Audio", "Graphics"]
+const HUD_TAB := 2
 ## The short controls list on the pause menu: [action, description]. Keys come from
 ## the current bindings.
 const CHEAT_SHEET := [
@@ -28,8 +31,10 @@ const DISPLAY_KEYS := ["fullscreen", "vsync", "resolution", "frame_rate"]
 const CONFIRM_SECONDS := 15
 
 static var _last_tab := 0
+static var _preview_third := false   # the HUD preview showed the third-person layout last
 
 var _frame: MenuFrame
+var _preview: HudPreview   # HUD tab, in the frame's header
 var _page: VBoxContainer
 var _pending := {}       # display settings picked on the Graphics tab, not applied yet
 var _revert_to := {}     # what Revert (or running out of time) puts back
@@ -61,6 +66,7 @@ func _ready() -> void:
 	_timer.wait_time = 1.0
 	_timer.timeout.connect(_tick)
 	add_child(_timer)
+	_preview_third = Settings.third_person   # the HUD preview starts on the view you play in
 	_show_tab(_last_tab)
 	if _frame:
 		_frame.back_button("Back", _on_back)
@@ -73,6 +79,11 @@ func _show_tab(i: int) -> void:
 	_stop_listening()
 	_on_keep()   # leaving the tab while asked to keep new display settings keeps them
 	UiKit.clear(_page)
+	if is_instance_valid(_preview):
+		_preview_third = _preview.third_person
+		if _preview.get_parent():
+			_preview.get_parent().remove_child(_preview)
+		_preview.queue_free()
 	match i:
 		0:
 			UiKit.section(_page, "Mouse")
@@ -83,17 +94,15 @@ func _show_tab(i: int) -> void:
 			UiKit.section(_page, "Camera")
 			_slider("Field of view", 70.0, 120.0, 1.0, Settings.field_of_view, func(v): Settings.field_of_view = v)
 			_switch("Third-person camera (V switches in game)", Settings.third_person, func(v): Settings.third_person = v)
-			UiKit.section(_page, "HUD")
-			_option("In first person", Settings.HUD_STYLES, Settings.hud_first_person, func(v): Settings.hud_first_person = v)
-			_option("In third person", Settings.HUD_STYLES, Settings.hud_third_person, func(v): Settings.hud_third_person = v)
-			UiKit.label(_page, "Twin arcs keeps health, ammo and move cooldowns round the crosshair. Clean puts them in the bottom corners.", true, 15)
 			_switch("Killcam when you are knocked out (Space skips it)", Settings.killcam, func(v): Settings.killcam = v)
-		2:
+		HUD_TAB:
+			_build_hud()
+		3:
 			UiKit.section(_page, "Volume")
 			_slider("Master", 0.0, 1.0, 0.05, Settings.master_volume, func(v): Settings.master_volume = v, true)
 			_slider("Music", 0.0, 1.0, 0.05, Settings.music_volume, func(v): Settings.music_volume = v, true)
 			_slider("Effects", 0.0, 1.0, 0.05, Settings.sfx_volume, func(v): Settings.sfx_volume = v, true)
-		3:
+		4:
 			_build_display()
 			UiKit.section(_page, "Effects")
 			_option("Knocked-out robots", Settings.GORE, Settings.gore, func(v): Settings.gore = v)
@@ -123,6 +132,45 @@ static func cheat_sheet() -> Array:
 			keys = Settings.action_text(c[0])
 		rows.append([keys, c[1]])
 	return rows
+
+
+# ---------------------------------------------------------------------------
+# HUD tab: the layout for each view, then tuning on top of it (see HudConfig), with
+# a live preview in the header.
+
+func _build_hud() -> void:
+	var hud := Settings.hud
+	_preview = HudPreview.new(_preview_third)
+	(_frame.header if _frame else _page).add_child(_preview)
+	UiKit.section(_page, "Layout")
+	_option("In first person", Settings.HUD_STYLES, Settings.hud_first_person, func(v): Settings.hud_first_person = v)
+	_option("In third person", Settings.HUD_STYLES, Settings.hud_third_person, func(v): Settings.hud_third_person = v)
+	UiKit.label(_page, "Twin arcs keeps health, ammo and move cooldowns round the crosshair. Clean puts them in the bottom corners.", true, 15)
+	UiKit.section(_page, "Size and opacity")
+	_slider("HUD scale", HudConfig.SPEC.scale[1], HudConfig.SPEC.scale[2], 0.05, hud.scale, func(v): hud.scale = v, true)
+	_slider("HUD opacity", HudConfig.SPEC.opacity[1], HudConfig.SPEC.opacity[2], 0.05, hud.opacity, func(v): hud.opacity = v, true)
+	UiKit.label(_page, "Scale and opacity cover everything you see while playing; the crosshair has its own size below and never fades. The killcam, death screen and scoreboard stay as they are.", true, 15)
+	UiKit.section(_page, "Crosshair")
+	_option("Style", HudConfig.CROSSHAIRS, hud.crosshair, func(v): hud.crosshair = v)
+	_option("Colour", HudConfig.COLOR_NAMES, hud.crosshair_color, func(v): hud.crosshair_color = v)
+	_slider("Size", HudConfig.SPEC.crosshair_size[1], HudConfig.SPEC.crosshair_size[2], 0.05, hud.crosshair_size, func(v): hud.crosshair_size = v, true)
+	_slider("Gap", HudConfig.SPEC.crosshair_gap[1], HudConfig.SPEC.crosshair_gap[2], 1.0, hud.crosshair_gap, func(v): hud.crosshair_gap = v)
+	_slider("Thickness", HudConfig.SPEC.crosshair_thickness[1], HudConfig.SPEC.crosshair_thickness[2], 1.0, hud.crosshair_thickness,
+		func(v): hud.crosshair_thickness = v)
+	_switch("Dark outline", hud.crosshair_outline, func(v): hud.crosshair_outline = v)
+	_switch("Centre dot", hud.crosshair_dot, func(v): hud.crosshair_dot = v)
+	UiKit.label(_page, "Weapon's own changes with the weapon: a cross, the shotgun's brackets, a ring for launchers, ticks round a dot for snipers.", true, 15)
+	UiKit.section(_page, "Show")
+	_switch("Hit markers", hud.hit_markers, func(v): hud.hit_markers = v)
+	_switch("Damage numbers", hud.damage_numbers, func(v): hud.damage_numbers = v)
+	_switch("Speed and what you are doing", hud.speed, func(v): hud.speed = v)
+	_switch("Killcam score when you get a kill", hud.killcam_points, func(v): hud.killcam_points = v)
+	_option("Moves", HudConfig.MOVES, hud.moves, func(v): hud.moves = v)
+	_option("Kill feed", HudConfig.FEED_CORNERS, hud.feed_corner, func(v): hud.feed_corner = v)
+	_slider("Kill feed lines", HudConfig.SPEC.feed_lines[1], HudConfig.SPEC.feed_lines[2], 1.0, hud.feed_lines, func(v): hud.feed_lines = int(v))
+	UiKit.button(_page, "Reset HUD", func():
+		Settings.reset_hud()
+		_show_tab(HUD_TAB))
 
 
 # ---------------------------------------------------------------------------

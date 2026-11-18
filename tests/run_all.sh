@@ -26,6 +26,7 @@ CHECKS=(
   "controls|--script tests/controls_check.gd"
   "menu|--script tests/menu_mode_test.gd"
   "ui_layout|--script tests/ui_layout_test.gd"
+  "hud_settings|--script tests/hud_settings_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
   "block_settings|--script tests/block_settings_test.gd"

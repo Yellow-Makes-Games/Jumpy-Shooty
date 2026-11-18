@@ -378,3 +378,76 @@ static func weapon_width(id: String) -> float:
 
 static func health_color(hp: float) -> Color:
 	return RED if hp <= LOW_HEALTH else WHITE
+
+
+## The crosshair at `c`, as the player set it (see HudConfig). `kind` is the weapon's
+## own (WeaponData.crosshair: "spread" brackets on the shotgun's cone, a launcher's
+## "ring", the sniper's "dot" with ticks round it, otherwise a cross), used unless the
+## options pick one shape for every weapon. `spread_px`: how far the gun's spread
+## reaches on screen. At the defaults each weapon's crosshair is drawn as it always was.
+static func crosshair(ci: CanvasItem, c: Vector2, kind: String, spread_px: float, cfg: HudConfig) -> void:
+	var style := cfg.crosshair if cfg.crosshair != "weapon" else kind
+	var col := cfg.color()
+	var k := cfg.crosshair_size
+	var t := cfg.crosshair_thickness
+	var shift := cfg.crosshair_gap - 5.0   # further out (or in) than the weapon's own shape
+	var dark := cfg.crosshair_outline
+	match style:
+		"spread":   # four brackets on the edge of the cone
+			var r := maxf(spread_px, 12.0) + shift
+			for i in 4:
+				var a := 45.0 + i * 90.0
+				if dark:
+					arc(ci, c, r, a - 15.0 * k - 1.0, a + 15.0 * k + 1.0, Color(0, 0, 0, 0.5), t + 2.0)
+				arc(ci, c, r, a - 15.0 * k, a + 15.0 * k, col, t)
+		"ring":     # a circle where it will land, with a gap at the bottom
+			var r := maxf(11.0 * k + shift, 3.0)
+			if dark:
+				arc(ci, c, r, 110.0, 430.0, Color(0, 0, 0, 0.5), t + 2.0)
+			arc(ci, c, r, 110.0, 430.0, col, t)
+			ci.draw_line(c + Vector2(0, r + 3.0 * k), c + Vector2(0, r + 11.0 * k), col, t)
+		"dot":      # the sniper: short ticks well clear of a precise dot
+			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+				if dark:
+					ci.draw_line(c + d * (9.0 + shift), c + d * (9.0 + shift + 6.0 * k), Color(0, 0, 0, 0.55), t + 2.0)
+				ci.draw_line(c + d * (9.0 + shift), c + d * (9.0 + shift + 6.0 * k), col, t)
+		"point":    # a dot and nothing else (drawn below)
+			pass
+		"circle":
+			var r := maxf(cfg.crosshair_gap + 5.0 * k + spread_px * 0.6, 3.0)
+			if dark:
+				arc(ci, c, r, 0.0, 360.0, Color(0, 0, 0, 0.5), t + 2.0)
+			arc(ci, c, r, 0.0, 360.0, col, t)
+		_:          # a cross that opens up with the spread ("t": no top arm)
+			var gap := cfg.crosshair_gap + spread_px * 0.6
+			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+				if style == "t" and d == Vector2.UP:
+					continue
+				if dark:
+					ci.draw_line(c + d * gap, c + d * (gap + 8.0 * k), Color(0, 0, 0, 0.55), t + 2.0)
+				ci.draw_line(c + d * gap, c + d * (gap + 8.0 * k), col, t)
+	if style == "point":
+		var r := 1.25 * t * k
+		if dark:
+			ci.draw_circle(c, r + 1.0, Color(0, 0, 0, 0.5))
+		ci.draw_circle(c, r, col)
+	elif cfg.crosshair_dot:
+		if style == "dot":   # the sniper's dot sits on a dark disc
+			if dark:
+				ci.draw_circle(c, t, Color(0, 0, 0, 0.5))
+			ci.draw_circle(c, 0.7 * t, col)
+		else:
+			ci.draw_circle(c, 0.75 * t, col)
+
+
+## Lines out from the crosshair when your shot lands: white for a hit, yellow for a
+## headshot, red and longer for a kill ("hit", "head", "kill").
+static func hit_marker(ci: CanvasItem, c: Vector2, kind: String) -> void:
+	var kill := kind == "kill"
+	var col := RED if kill else (YELLOW if kind == "head" else Color.WHITE)
+	var reach := 24.0 if kill else (20.0 if kind == "head" else 17.0)
+	var w := 4.0 if kill else 3.0
+	for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
+		var n: Vector2 = d.normalized()
+		ci.draw_line(c + n * 9.0, c + n * reach, Color(0, 0, 0, 0.5), w + 2.0)
+		ci.draw_line(c + n * 9.0, c + n * reach, col, w)

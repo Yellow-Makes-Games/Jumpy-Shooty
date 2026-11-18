@@ -57,7 +57,7 @@ extends Node
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
 ## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, creator.
-## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics).
+## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
 ## --manual-respawn     Wait for a Jump or Fire press to respawn, as in a real game, even in a
 ##                      headless or scripted run (those otherwise ask as soon as the wait is over).
@@ -65,6 +65,7 @@ extends Node
 ## --save-killcam=N     On the results screen, save best kill #N as a video straight away, into the game's
 ##                      own data folder (user://killcams) rather than Videos (tests).
 ## --hud=STYLE          Use this HUD layout in both views: arcs or clean (screenshots).
+## --hud-scale=X        HUD scale, 0.75 to 1.25 (screenshots).
 ## --third-person      Start in third-person view (not saved to settings).
 ## --speed=X            Game speed (0.25: quarter speed, for filming a move in slow motion; Practice and Vs Bots).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
@@ -260,6 +261,7 @@ func _ready() -> void:
 				if Settings.HUD_STYLES.has(value):
 					Settings.hud_first_person = value
 					Settings.hud_third_person = value
+			"--hud-scale": Settings.hud.scale = HudConfig.valid("scale", float(value))
 			"--kill-target": kill_target = int(value)
 			"--points": points_target = int(value)
 			"--rules": rules = value
