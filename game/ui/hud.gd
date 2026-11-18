@@ -105,6 +105,8 @@ var _teams: HudTeams   ## team modes: the score bar, objective markers and banne
 ## You are watching (Net.spectating): no health, gun or crosshair; who is winning,
 ## the kill feed and how to fly instead.
 var spectating := false
+## Search and Destroy, out for the round: who you are watching (Arena.follow_cam), or "".
+var follow_name := ""
 
 
 func _ready() -> void:
@@ -257,8 +259,8 @@ func update_local(p: Player) -> void:
 	_screen_age = _screen_age + delta if _dead and not watching else 0.0
 	if _dead and not _asked and _respawn_left <= 0.0 and DevArgs.auto_respawn():
 		_ask_respawn()   # tests: nobody is there to press a key
-	_scoreboard.visible = Input.is_action_pressed("scoreboard") or (_dead and not watching)
-	_killer_view.visible = _dead and _killer != 0 and not watching
+	_scoreboard.visible = Input.is_action_pressed("scoreboard") or (_dead and not watching and follow_name == "")
+	_killer_view.visible = _dead and _killer != 0 and not watching and follow_name == ""
 	if _scoreboard.visible:
 		_place_scoreboard()
 		_board_age += delta
@@ -325,6 +327,16 @@ func _draw_spectating(ci: CanvasItem, size: Vector2) -> void:
 		sub += "  ·  RACE"
 	HudStyle.label(ci, Vector2(cx, y + 34.0), sub, 11, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
 	_draw_fly_keys(ci, size)
+
+
+## Out for the round, watching someone (see FollowCamera).
+func _draw_following(ci: CanvasItem, size: Vector2) -> void:
+	var cx := size.x * 0.5
+	var col := Teams.team_color(Teams.team_of(Net.arena.follow_cam.target)) if Net.arena and Net.arena.follow_cam else HudStyle.ORANGE
+	_pill(ci, Vector2(cx, size.y - 92.0), "SPECTATING  %s" % follow_name.to_upper(), 18, col)
+	var keys := "%s NEXT PLAYER   ·   %s PREVIOUS   ·   HOLD %s SCOREBOARD   ·   BACK WHEN THE NEXT ROUND STARTS" % [
+		Settings.action_text("fire"), Settings.action_text("grapple"), Settings.action_text("scoreboard")]
+	HudStyle.label(ci, Vector2(cx, size.y - 56.0), keys.to_upper(), 11, Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _draw_fly_keys(ci: CanvasItem, size: Vector2) -> void:
@@ -504,6 +516,8 @@ func _draw_overlay() -> void:
 			var back := "RESPAWN IN %.1f S" % _respawn_left if _respawn_left > 0.0 else ""
 			KillcamOverlay.draw(ci, Rect2(Vector2.ZERO, size), Killcam.view, "KILLCAM",
 				("%s  SKIP" % Settings.action_text("jump").to_upper() + ("   ·   " + back if back != "" else "")) if Killcam.can_skip() else back)
+		elif _dead and follow_name != "":
+			_draw_following(ci, size)
 		elif _dead:
 			_draw_death(ci, size)
 		if Teams.active():

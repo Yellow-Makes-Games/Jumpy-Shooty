@@ -132,6 +132,13 @@ func _snd() -> void:
 	var p_blue: Player = Net.arena.get_player(blue[0])
 	_expect(p_red.global_position.distance_to(Teams.bases[0]) < p_red.global_position.distance_to(Teams.bases[1]), "the attackers start at their end")
 	_expect(p_blue.global_position.distance_to(Teams.bases[1]) < p_blue.global_position.distance_to(Teams.bases[0]), "the defenders start at theirs")
+	for team in [red, blue]:
+		var a: Player = Net.arena.get_player(team[0])
+		var b: Player = Net.arena.get_player(team[1])
+		var apart := a.global_position.distance_to(b.global_position)
+		_expect(apart > 1.0 and apart < 7.0, "a team starts together, side by side (%.1f m apart)" % apart)
+	_expect(Teams.paint_for(red[0]).is_equal_approx(Teams.team_color(0).darkened(0.12)) and Teams.paint_for(blue[0]).is_equal_approx(Teams.team_color(1).darkened(0.12)),
+		"robots are painted in their team's colour")
 	# The bomb.
 	var carrier := Teams.bomb_carrier
 	_expect(carrier in red, "an attacker has the bomb (%d)" % carrier)
@@ -172,10 +179,26 @@ func _snd() -> void:
 	_hold(carrier, true)
 	await _until(func(): return Teams.phase == Teams.Phase.PLANTED, Teams.PLANT_TIME + 3.0)
 	_hold(carrier, false)
+	# Out for the round: you watch someone still in it.
+	Match._host_damage(blue[0], 1, 500.0)
+	var watching := await _until(func(): return Net.arena.follow_cam != null and Net.arena.follow_cam.target != 0, 15.0)
+	var fc: FollowCamera = Net.arena.follow_cam
+	_expect(watching and fc.target != 1 and Match.is_alive(fc.target) and fc.current, "dead for the round, you spectate a living player in third person (%s)" % (fc.target_name() if fc else "none"))
+	if watching:
+		var first := fc.target
+		fc.cycle(1)
+		_expect(fc.target != first and Match.is_alive(fc.target), "Fire moves on to another player")
+		await _wait(0.3)
+		var tp: Player = Net.arena.get_player(fc.target)
+		var d := fc.global_position.distance_to(tp.global_position)
+		_expect(d > 0.5 and d < 6.0, "the camera sits behind them (%.1f m)" % d)
 	Teams.fuse_left = 0.05
 	var boom := await _until(func(): return Teams.phase == Teams.Phase.OVER, 2.0)
 	_expect(boom and Teams.round_reason == "exploded" and Teams.score == [1, 2], "the fuse running out blows the site: Red wins the round (%s)" % [Teams.score])
 	_expect(not Match.is_alive(carrier), "the blast takes out whoever is next to it")
+	await _until(func(): return Teams.round_number == 4 and Match.is_alive(1), Teams.ROUND_END_TIME + 3.0)
+	await _wait(0.2)
+	_expect(Net.arena.follow_cam == null and Net.arena.local_player.rig.camera.current, "the next round gives you your own view back")
 
 
 func _ctf() -> void:
