@@ -231,8 +231,9 @@ func _start_button(on_press: Callable) -> void:
 
 ## A match page's body: match options on the left, then your robot, then your
 ## weapon. Returns [the options column, a function to call with the mode ("ffa",
-## "dm", "race", "gungame") so the weapon cards give way to a note when the mode
-## doesn't use your pick].
+## "dm", "race", "gungame") and the weapons allowed in a shoot-out (see LobbySettings;
+## [] for all), so the weapon cards offer only those, or give way to a note when the
+## mode doesn't use your pick or there is one gun for everyone].
 func _three_columns() -> Array:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 26)
@@ -269,11 +270,16 @@ func _three_columns() -> Array:
 	moves.picked.connect(func(id: String):
 		Settings.mobility = id
 		Settings.save_settings())
-	var set_mode := func(mode: String):
-		var uses_pick := not NO_WEAPON_NOTES.has(mode)
+	var set_mode := func(mode: String, allowed: Array = []):
+		var guns := LobbySettings.weapons_from(allowed if mode == "ffa" else [])
+		var uses_pick := not NO_WEAPON_NOTES.has(mode) and guns.size() > 1
+		gun.set_allowed(guns)
+		var shown := Game.local_weapon() if Game.local_weapon() in guns else str(guns[0])
+		gun.select(shown)   # your saved pick stays saved; it comes back when it is allowed
+		pick.set_weapon(shown)
 		gun.visible = uses_pick
 		none.visible = not uses_pick
-		note.text = NO_WEAPON_NOTES.get(mode, "")
+		note.text = NO_WEAPON_NOTES.get(mode, "One gun for everyone: the %s." % WeaponData.name_of(guns[0]))
 		moves.visible = mode != "race"   # a race always has the grapple
 	return [left, set_mode]
 
@@ -388,6 +394,7 @@ func _show_bot() -> void:
 	if game == "ffa" and str(Game.last_bot.get("rules", "")) == "gungame":
 		game = "gungame"
 	var map_ref: Array[OptionButton] = [null]   # filled below; see _show_practice
+	var rules_ref: Array[AllowedWeaponsPicker] = [null]   # the weapons allowed; filled below
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
 		var race := g == "race"
@@ -398,7 +405,9 @@ func _show_bot() -> void:
 				t = "%d bot%s (race)" % [n, "" if n == 1 else "s"]
 			count.set_item_text(n - 1, t)
 		blurb.text = (RACE_BLURBS if race else BOT_BLURBS)[level[0]]
-		set_mode.call(g)
+		if rules_ref[0]:
+			rules_ref[0].visible = g == "ffa"   # a shoot-out: you pick the weapons you and the bots may use
+		set_mode.call(g, rules_ref[0].value() if rules_ref[0] else [])
 	for i in seg.get_child_count():
 		(seg.get_child(i) as Button).pressed.connect(func():
 			level[0] = i
@@ -413,10 +422,15 @@ func _show_bot() -> void:
 	left.move_child(left.get_child(mode_row_start + 1), 1)
 	var map := _map_picker(left, Game.last_bot.map, GunGame.game_of_mode(mode[0]))
 	map_ref[0] = map
+	var rules := AllowedWeaponsPicker.new(Game.last_bot.get("weapons", []))
+	rules.preferred = Game.local_weapon()
+	left.add_child(rules)
+	rules_ref[0] = rules
+	rules.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
 	show_mode.call(mode[0])
 	_frame.back_button("Back", _show_play)
 	_start_button(func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
-			count.get_selected_id(), mode[0] == "gungame", GunGame.game_of_mode(mode[0])))
+			count.get_selected_id(), mode[0] == "gungame", GunGame.game_of_mode(mode[0]), rules.value()))
 
 
 func _show_multiplayer() -> void:
