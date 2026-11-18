@@ -60,6 +60,20 @@ extends Node3D
 		show_invisible_blocks = v
 		_palette_changed()
 
+@export_group("Drawing")
+## Do blocks that are drawn only (not solid: decoration) cast shadows? Off saves drawing
+## them again for every shadow, and thin things make shadows that shimmer. For a map
+## with a great deal of decoration.
+@export var decor_shadows := true
+## Drawn-only blocks no bigger than Detail Size are small decoration. From farther than
+## this many metres they are not drawn (0: always drawn, as on most maps).
+@export var detail_range := 0.0
+## The biggest a block can be (its longest side, metres) and still count as small.
+@export var detail_size := 1.5
+## The small decoration's meshes are cut into cubes this many metres across, and it is
+## each cube's middle that Detail Range is measured to.
+@export var detail_chunk := 30.0
+
 @export_group("Rules")
 ## Falling below this height counts as falling out of the map.
 @export var kill_height := -25.0
@@ -230,13 +244,39 @@ func build(with_meshes: bool = true) -> void:
 	add_child(body)
 	if not with_meshes:
 		return
-	var meshes := MapMesher.build(pieces, face_shade)
-	for kind in meshes:
-		var mesh := MeshInstance3D.new()
-		mesh.name = "Mesh_%s" % kind
-		mesh.mesh = meshes[kind]
-		mesh.material_override = material_for(kind)
-		add_child(mesh)
+	# One mesh for each kind. A big map can say more (see Drawing): its decoration (the
+	# blocks that are drawn only) apart from its structure, so that it casts no shadow,
+	# and its small decoration cut into cubes, so that the far ones are left out.
+	var lots := {}      # [cube, 0 structure / 1 decoration / 2 small decoration] -> pieces
+	for piece in pieces:
+		if piece.get("hidden", false):
+			continue
+		var size: Vector3 = piece.size
+		var lot := 0
+		var cube := Vector3i.ZERO
+		if not piece.solid and detail_range > 0.0 and maxf(size.x, maxf(size.y, size.z)) <= detail_size:
+			lot = 2
+			cube = Vector3i(((piece.xf as Transform3D).origin / maxf(detail_chunk, 1.0)).floor())
+		elif not piece.solid and not decor_shadows:
+			lot = 1
+		var key := [cube, lot]
+		if not lots.has(key):
+			lots[key] = []
+		lots[key].append(piece)
+	for key: Array in lots:
+		var meshes := MapMesher.build(lots[key], face_shade)
+		for kind in meshes:
+			var mesh := MeshInstance3D.new()
+			mesh.name = ["Mesh_%s", "Mesh_%s_decor", "Mesh_%s_detail"][key[1]] % kind
+			if key[1] == 2:
+				mesh.name = "Mesh_%s_detail_%d_%d_%d" % [kind, key[0].x, key[0].y, key[0].z]
+				mesh.visibility_range_end = detail_range
+				mesh.visibility_range_end_margin = detail_range * 0.1
+			if key[1] > 0 and not decor_shadows:
+				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mesh.mesh = meshes[kind]
+			mesh.material_override = material_for(kind)
+			add_child(mesh)
 
 
 const SURFACE_BUCKET := 4.0

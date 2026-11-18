@@ -569,14 +569,8 @@ def shaft_decor(m):
             y += 9.5
             k += 1
     # Lamp posts at each bridge's ends and a banner under its middle.
-    turns = [165.0, 15.0, 135.0]
-    n = 0
-    for i in range(5):
-        for y in (TIER * i, TIER * i + L3):
-            if y == 0.0:
-                continue
-            deg = turns[n % 3]
-            n += 1
+    for n, (y, deg, i) in enumerate(E.bridges(), 1):
+        if True:
             th = math.radians(deg + 90.0)
             for end in (-1, 1):
                 for side in (-1, 1):
@@ -586,8 +580,8 @@ def shaft_decor(m):
                     m.block(g, "BridgeLantern", "flame" if (n + (end > 0)) % 2 else ACCENT[i], (x, y + 2.6, z), (0.4, 0.5, 0.4), shape="bevel", bevel=0.1, solid=False)
             for side in (-1, 1):
                 c = (math.sin(th) * 1.72 * side, y - 0.5, math.cos(th) * 1.72 * side)
-                m.block(g, "BridgeBanner", CLOTH[i] if side > 0 else "cloth_violet", (c[0], c[1] - 1.6, c[2]), (2.0, 3.2, 0.06), cols=rot(deg + 90.0), solid=False)
-                m.block(g, "BridgeEmblem", ACCENT[i], (c[0] + math.sin(th) * 0.04 * side, c[1] - 1.4, c[2] + math.cos(th) * 0.04 * side), (0.8, 0.8, 0.06), cols=rot(deg + 90.0), solid=False)
+                m.block(g, "BridgeBanner", CLOTH[i] if side > 0 else "cloth_violet", (c[0], c[1] - 1.3, c[2]), (2.0, 2.6, 0.06), cols=rot(deg + 90.0), solid=False)
+                m.block(g, "BridgeEmblem", ACCENT[i], (c[0] + math.sin(th) * 0.04 * side, c[1] - 1.2, c[2] + math.cos(th) * 0.04 * side), (0.8, 0.8, 0.06), cols=rot(deg + 90.0), solid=False)
 
 
 # ---------------------------------------------------------------------------

@@ -37,7 +37,7 @@ PALE = (0.9, 0.95, 1.0)
 _n = [0]
 
 
-def magic(m, parent, name, kind, at, size, count, col, col_b=None, deg=0.0, piece=None, power=None):
+def magic(m, parent, name, kind, at, size, count, col, col_b=None, deg=0.0, piece=None, power=None, far=None):
     """A MapMagic box centred on `at`, turned square to the radius at `deg` (x along the wall, z outward)."""
     _n[0] += 1
     props = [("transform", xform(rot(deg), at)), ("kind", str(kind)), ("size", vec(size)), ("count", str(int(count))),
@@ -45,6 +45,8 @@ def magic(m, parent, name, kind, at, size, count, col, col_b=None, deg=0.0, piec
              ("power", fmt(power or POWER.get(kind, 1.4))), ("variation", str(_n[0]))]
     if kind not in REACTS:
         props.append(("reacts", "false"))
+    if far is not None:
+        props.append(("draw_range", fmt(far)))       # (the default is 90 m; the things meant to be seen from far off say more)
     return m.node(name, parent, "magic", props)
 
 
@@ -58,42 +60,65 @@ def stream(m, parent, name, path, cols, width, speed=2.2, power=1.2, taper=(4.0,
 # ---------------------------------------------------------------------------
 # The river up the shaft
 
-RIVER_FOOT, RIVER_HEAD = 11.0, TIER * 5 - 1.1       # the core crystal's tip; just under the Observatory's platform
-RIVER_R = 2.7
-BRIDGES = ((30.5, 165.0), (49.5, 15.0), (61.0, 135.0), (80.0, 165.0), (91.5, 15.0), (110.5, 135.0), (122.0, 165.0), (141.0, 15.0))
+RIVER_FOOT, RIVER_HEAD, river_at = E.RIVER_FOOT, E.RIVER_HEAD, E.river_at
+RIVER_WIDE, THREAD_WIDE = 1.0, 0.26
+# How far the river's (a thread's) middle has to stay from anything in the shaft: half
+# its width, its swell (a third more) and its sway, and a hand's breadth of air.
+RIVER_CLEAR = RIVER_WIDE * 0.5 * 1.35 + 0.18 + 0.15
+THREAD_CLEAR = THREAD_WIDE * 0.5 * 1.35 + 0.08 + 0.1
 
 
-def _river_turns():
-    """(height, angle) the river passes through: about a turn every 19 m, and at every
-    bridge's height it is square on to the bridge, so it never runs through one."""
-    pts = [(RIVER_FOOT, 75.0)]
-    for y, d in BRIDGES:
-        y0, a0 = pts[-1]
-        want = a0 + 19.0 * (y - y0)
-        base = (d + 90.0) % 180.0
-        cand = base + 180.0 * round((want - base) / 180.0)
-        if cand < a0 + 60.0:
-            cand += 180.0
-        pts.append((y, cand))
-    pts.append((RIVER_HEAD, pts[-1][1] + 19.0 * (RIVER_HEAD - pts[-1][0])))
-    return pts
+def _box_gap(p, centre, axes, half):
+    """How far point p is from a box (its middle, its three unit axes, its half sizes)."""
+    d = [p[k] - centre[k] for k in range(3)]
+    out = 0.0
+    for axis, h in zip(axes, half):
+        along = sum(d[k] * axis[k] for k in range(3))
+        over = max(abs(along) - h, 0.0)
+        out += over * over
+    return math.sqrt(out)
 
 
-_TURNS = _river_turns()
+def shaft_gap(p):
+    """How far point p is from the nearest thing in the shaft that liquid magic must not
+    run through: a bridge (its deck, rails, lamp posts and the banners under it) or a
+    floating stone. (name, metres)."""
+    best = ("nothing", 99.0)
+    for y, deg, _i in E.bridges():
+        th = math.radians(deg)
+        along = (math.sin(th), 0.0, math.cos(th))
+        across = (math.cos(th), 0.0, -math.sin(th))
+        up = (0.0, 1.0, 0.0)
+        parts = [("bridge at %.1f m" % y, (0, y + 0.2, 0), (RS + 0.3, 0.7, 1.82))]                 # deck and rails
+        for side in (-1, 1):
+            c = (across[0] * 1.72 * side, y - 1.8, across[2] * 1.72 * side)
+            parts.append(("banner under the bridge at %.1f m" % y, c, (1.0, 1.3, 0.09)))
+            for end in (-1, 1):
+                c = (along[0] * (RS - 0.4) * end + across[0] * 1.7 * side, y + 1.9, along[2] * (RS - 0.4) * end + across[2] * 1.7 * side)
+                parts.append(("lamp post on the bridge at %.1f m" % y, c, (0.2, 1.0, 0.2)))
+        for name, c, half in parts:
+            gap = _box_gap(p, c, (along, up, across), half)
+            if gap < best[1]:
+                best = (name, gap)
+    for at in E.STONES:
+        gap = max(math.dist(p, (at[0], at[1] - 1.6, at[2])) - 1.45, 0.0)
+        if gap < best[1]:
+            best = ("floating stone at %.1f m" % at[1], gap)
+    return best
 
 
-def _river_angle(y):
-    for (y0, a0), (y1, a1) in zip(_TURNS, _TURNS[1:]):
-        if y <= y1:
-            return a0 + (a1 - a0) * (y - y0) / (y1 - y0)
-    return _TURNS[-1][1]
-
-
-def river_at(y):
-    """Where the river is at height y (the angle is smoothed over 3 m so it has no corners)."""
-    deg = sum(_river_angle(min(max(y + d, RIVER_FOOT), RIVER_HEAD)) for d in (-1.5, -0.75, 0.0, 0.75, 1.5)) / 5.0
-    u = min(max((y - RIVER_FOOT) / 9.0, 0.0), 1.0)
-    return P(RIVER_R * u * u * (3 - 2 * u), deg, y)
+def check_clear(name, path, need):
+    """Stops the build if a stream's path runs closer than `need` to something in the shaft."""
+    worst = ("nothing", 99.0, None)
+    for k in range(len(path) - 1):
+        for u in (0.0, 0.25, 0.5, 0.75):
+            p = tuple(a + (b - a) * u for a, b in zip(path[k], path[k + 1]))
+            what, gap = shaft_gap(p)
+            if gap < worst[1]:
+                worst = (what, gap, p)
+    if worst[1] < need:
+        raise SystemExit("%s runs %.2f m from the %s (it needs %.2f m) at %s" % (name, worst[1], worst[0], need, worst[2]))
+    return worst
 
 
 def tier_colour(y):
@@ -116,7 +141,9 @@ def shaft_magic(m):
         y += 0.35
     path.append(river_at(RIVER_HEAD))
     stops = [tier_colour(RIVER_FOOT + (RIVER_HEAD - RIVER_FOOT) * k / 23.0) for k in range(24)]
-    stream(m, g, "River", path, stops, 1.0, speed=2.4, power=1.7, taper=(3.0, 2.0))
+    worst = check_clear("the river", path, RIVER_CLEAR)
+    print("  the river's closest pass: %.2f m from the %s" % (worst[1], worst[0]))
+    stream(m, g, "River", path, stops, RIVER_WIDE, speed=2.4, power=1.7, taper=(3.0, 2.0))
     top = river_at(RIVER_HEAD)
     pool = m.group("Pool", g)
     m.cyl(pool, "PoolLight", "accent_silver", (0, RIVER_HEAD + 0.42, 0), 7.2, 0.05, sides=24, solid=False)
@@ -162,13 +189,21 @@ def mana_line(m, g, i):
     ceil = y0 + L3 - 0.5
     lip = P(RS + 0.9, MANA_DEG, ceil - 1.5)
     # The thread drawn off the river.
-    src = river_at(ceil - 3.4)
-    path = []
-    for k in range(13):
-        u = k / 12.0
-        p = tuple(a + (b - a) * u for a, b in zip(src, lip))
-        path.append((p[0], p[1] + 0.7 * math.sin(math.pi * u), p[2]))
-    stream(m, g, "Thread", path, [ACCENT_RGB[i]], 0.26, speed=3.2, power=1.3, taper=(0.8, 0.5))
+    path = None
+    for below in (3.4, 4.6, 5.8, 7.0, 8.4, 2.4):          # leave the river at the first height that gives a clear run to the intake
+        src = river_at(ceil - below)
+        trial = []
+        for k in range(13):
+            u = k / 12.0
+            p = tuple(a + (b - a) * u for a, b in zip(src, lip))
+            trial.append((p[0], p[1] + 0.7 * math.sin(math.pi * u), p[2]))
+        if min(shaft_gap(tuple(a + (b - a) * u for a, b in zip(trial[k], trial[k + 1])))[1] for k in range(12) for u in (0.0, 0.33, 0.66)) >= THREAD_CLEAR:
+            path = trial
+            break
+    if path is None:
+        raise SystemExit("no clear run for the thread off the river at tier %d" % i)
+    check_clear("the thread at tier %d" % i, path, THREAD_CLEAR)
+    stream(m, g, "Thread", path, [ACCENT_RGB[i]], THREAD_WIDE, speed=3.2, power=1.3, taper=(0.8, 0.5))
     # The intake, hung from the vault at the shaft's rim.
     m.block(g, "IntakeFunnel", "alloy", (lip[0], lip[1] + 0.1, lip[2]), (1.3, 0.9, 1.3), cols=rot(MANA_DEG), shape="cone", sides=8, top=0.5, solid=False)
     m.block(g, "IntakeBand", "brass", (lip[0], lip[1] - 0.3, lip[2]), (1.4, 0.14, 1.4), shape="tube", sides=8, inner=1.2, solid=False)
@@ -236,7 +271,7 @@ def outside_motes(m):
             magic(m, g, "BalconyMotes", MOTES, P(ro(y) + 2.6, deg, y + 1.9), (wide, 3.0, 4.0), 9, ACCENT_RGB[i], WARM, deg=deg)
     for deg in (20.0, 75.0, 130.0, 190.0, 320.0):
         magic(m, g, "RingMotes", MOTES, P(E.RING_R - 3.5, deg, E.RING_Y + 2.0), (9.0, 3.2, 5.0), 10, ACCENT_RGB[3], WARM, deg=deg)
-    magic(m, g, "CrownMotes", MOTES, (0, TOP + 44.0, 0), (14.0, 14.0, 14.0), 50, ACCENT_RGB[5], ACCENT_RGB[4])
+    magic(m, g, "CrownMotes", MOTES, (0, TOP + 44.0, 0), (14.0, 14.0, 14.0), 50, ACCENT_RGB[5], ACCENT_RGB[4], far=220.0)
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +398,7 @@ def phantoms(m):
         cols = ((math.cos(t), -math.sin(t), 0), (math.sin(t), math.cos(t), 0), (0, 0, 1))
         m.block(g, "ArchStone", "phantom", (x, y, rng.uniform(-0.35, 0.35)), (1.25, 1.5, 1.9), cols=cols, shape="bevel", bevel=0.3, solid=False)
     m.block(g, "Keystone", "phantom_light", (0, rise + 2.4 + span * 0.9 + 1.7, 0), (1.3, 2.4, 2.0), shape="cone", sides=4, top=0.9, cols=FLIP, solid=False)
-    magic(m, g, "ArchMotes", MOTES, (0, 8.0, 0), (16.0, 16.0, 5.0), 40, (0.72, 0.8, 1.0), ACCENT_RGB[1])
+    magic(m, g, "ArchMotes", MOTES, (0, 8.0, 0), (16.0, 16.0, 5.0), 40, (0.72, 0.8, 1.0), ACCENT_RGB[1], far=220.0)
     # 2. A stair of floating treads winding off the tower into nothing: by the Summoning Chamber.
     y0 = TIER * 4 + 6.0
     hub = P(ro(y0) + 9.5, 338.0, y0)
@@ -378,7 +413,7 @@ def phantoms(m):
         if k % 2 == 0 and k < steps - 6:        # a baluster at the outer end of every other tread, a rail's ghost along their tops
             m.block(g, "Baluster", "phantom", (math.sin(a) * (r + 1.3 * fade), k * 0.46 + 0.6, math.cos(a) * (r + 1.3 * fade)), (0.14, 1.1, 0.14), solid=False)
     m.block(g, "Newel", "phantom", (0, 9.0, 0), (0.6, 20.0, 0.6), shape="cyl", sides=8, solid=False)
-    magic(m, g, "StairMotes", MOTES, (0, 10.0, 0), (20.0, 22.0, 20.0), 50, (0.72, 0.8, 1.0), ACCENT_RGB[4])
+    magic(m, g, "StairMotes", MOTES, (0, 10.0, 0), (20.0, 22.0, 20.0), 50, (0.72, 0.8, 1.0), ACCENT_RGB[4], far=220.0)
     # 3. The tower's own top, mirrored upside down under the root.
     g = m.group("Reflection", f, at=(0, -E.ROOT_DEPTH - 3.5, 0))
     m.cone(g, "MirrorWall", "phantom", (0, 0, 0), 15.0, 9.0, top=13.6, sides=16, flip=True, solid=False)
@@ -391,7 +426,7 @@ def phantoms(m):
     m.cone(g, "MirrorCrystalFoot", "phantom_light", (0, -24.6, 0), 1.9, 1.8, sides=6, solid=False)
     sp = m.node("MirrorOrrery", g, "spinner", [("transform", xform(((0.96, 0.28, 0), (-0.28, 0.96, 0), (0, 0, 1)), (0, -24.6, 0))), ("speed", "-7")])
     m.block(sp, "MirrorRing", "phantom_light", (0, 0, 0), (7.0, 0.12, 7.0), shape="tube", sides=24, inner=6.6, solid=False)
-    magic(m, g, "MirrorMotes", MOTES, (0, -12.0, 0), (16.0, 22.0, 16.0), 60, (0.72, 0.8, 1.0), ACCENT_RGB[4])
+    magic(m, g, "MirrorMotes", MOTES, (0, -12.0, 0), (16.0, 22.0, 16.0), 60, (0.72, 0.8, 1.0), ACCENT_RGB[4], far=220.0)
 
 
 # ---------------------------------------------------------------------------
