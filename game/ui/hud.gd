@@ -446,7 +446,7 @@ func _on_kill_scored(info: Dictionary) -> void:
 
 func _on_died(victim: int, killer: int) -> void:
 	var me := Net.my_id()
-	var head: bool = killer != 0 and _last_head.get(victim, false)
+	var head: bool = killer != 0 and _was_headshot(victim)
 	if killer == victim:
 		killer = 0   # crashed into a wall on their own
 	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": Net.player_weapon(killer),
@@ -461,7 +461,7 @@ func _on_died(victim: int, killer: int) -> void:
 		_dead = true
 		_killer = killer if killer != victim else 0
 		_killer_hp = Match.health.get(killer, 0.0)
-		_killed_by_head = _last_head.get(me, false)
+		_killed_by_head = _was_headshot(me)
 		_killer_dist = -1.0
 		var mine: Player = Net.arena.get_player(me) if Net.arena else null
 		var theirs: Player = Net.arena.get_player(_killer) if Net.arena and _killer != 0 else null
@@ -476,6 +476,13 @@ func _on_died(victim: int, killer: int) -> void:
 		_arrows.clear()
 		_numbers.clear()
 		_refresh_scoreboard()
+
+
+## Was `victim`'s death a headshot: the host's word on the killing blow (Match.death_fx),
+## or, with none (an older host), whether the last hit on them was one.
+func _was_headshot(victim: int) -> bool:
+	var fx: Dictionary = Match.death_fx.get(victim, {})
+	return bool(fx.head) if fx.has("head") else bool(_last_head.get(victim, false))
 
 
 ## Dead: Jump or Fire brings you back once the wait is over (you can change your
@@ -817,13 +824,15 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 		else:
 			parts = [[victim, Net.player_color(e.victim)]]
 			if e.head:
-				parts.append(["HEAD", HudStyle.YELLOW])
+				parts.append(["@head", HudStyle.YELLOW])   # the headshot icon, between the gun and the victim
 			parts.append(["@gun", Color.WHITE])
 			parts.append([Net.player_name(e.killer), Net.player_color(e.killer)])
 		var widths: Array = []
 		var total := 0.0
 		for part in parts:
-			var w := _gun_width(e.gun) if part[0] == "@gun" else HudStyle.text_width(part[0], 16 if part[0] != "HEAD" else 11)
+			var w := _gun_width(e.gun) if part[0] == "@gun" else HudStyle.text_width(part[0], 16)
+			if part[0] == "@head":
+				w = HudStyle.headshot_width()
 			widths.append(w)
 			total += w + 8.0
 		var plate := Rect2(right - total - 16.0, y - 14.0, total + 16.0 + 8.0, 28.0)
@@ -837,8 +846,10 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 			col = Color(col.lightened(0.25), col.a * alpha)
 			if part[0] == "@gun":
 				HudStyle.weapon_icon(ci, e.gun, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
+			elif part[0] == "@head":   # (16 tall: centred on the line)
+				HudStyle.headshot_icon(ci, Vector2(x - widths[i], y - 8.0), Color(HudStyle.YELLOW, alpha))
 			else:
-				HudStyle.text(ci, Vector2(x, y), part[0], 16 if part[0] != "HEAD" else 11, col, HORIZONTAL_ALIGNMENT_RIGHT)
+				HudStyle.text(ci, Vector2(x, y), part[0], 16, col, HORIZONTAL_ALIGNMENT_RIGHT)
 			x -= widths[i] + 8.0
 		y += 32.0
 
@@ -884,10 +895,13 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 			chips.append("%d M AWAY" % roundi(_killer_dist))
 		var cx := x
 		for chip in chips:
-			var cw := HudStyle.text_width(chip, 12) + 18.0
+			var icon := HudStyle.headshot_width() * 0.8 + 5.0 if chip == "HEADSHOT" else 0.0   # the icon before the word
+			var cw := HudStyle.text_width(chip, 12) + 18.0 + icon
 			var col: Color = HudStyle.YELLOW if chip == "HEADSHOT" else Color(1, 1, 1, 0.85)
 			HudStyle.plate(ci, Rect2(cx, y + 112, cw, 24), 6.0, Color(1, 1, 1, 0.09))
-			HudStyle.text(ci, Vector2(cx + 9, y + 124), chip, 12, col)
+			if icon > 0.0:
+				HudStyle.headshot_icon(ci, Vector2(cx + 9, y + 124 - 8.0 * 0.8), col, 0.8)
+			HudStyle.text(ci, Vector2(cx + 9 + icon, y + 124), chip, 12, col)
 			cx += cw + 6.0
 	else:
 		var crashed: bool = Match.death_cause.get(Net.my_id(), "") == "slam"
