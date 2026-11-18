@@ -606,7 +606,7 @@ func _show_achievements() -> void:
 	_frame.body.add_child(AchievementsPanel.medals())
 	UiKit.section(_frame.body, "Achievements")
 	var panel := AchievementsPanel.new()
-	_frame.body.add_child(AchievementsPanel.sort_bar(panel))
+	_frame.body.add_child(AchievementsPanel.tabs(panel))
 	_frame.body.add_child(panel)
 	_frame.back_button("Back", _show_main).grab_focus()
 	_frame.back_button("Calling Card", _show_calling_card).custom_minimum_size.x = 220

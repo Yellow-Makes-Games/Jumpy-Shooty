@@ -224,8 +224,8 @@ The sync, match and bot tests take a map and a player count, for example
   the game add to it; a kill counts for its weapon's group and each weapon once, kills
   without dying, revenge, the first kill, big, far and fast kills; wins count for their
   mode, by one kill, with no deaths, against an Expert bot, online and hosted; plants,
-  defuses and captures; race medals and best times; every order the page can sort
-  them in shows each once, in that order;
+  defuses and captures; race medals and best times; every achievement has a kind,
+  and the page's tabs show each kind's own;
 - calling cards (`tests/calling_card_test.gd`): every card and icon has its own id and
   draws, with a glyph or pattern the drawing code knows; the plain ones are free and the rest locked; the picker takes a free one and
   refuses a locked one, saying what it needs; your card goes into the lobby with you,
@@ -1369,7 +1369,7 @@ test pick it up from the table. Its colour button repaints the material that
 covers most of it; if that is the wrong one, name the right one in `Accessories.MAIN`.
 
 **Adding an achievement:** add a line to `LIST` in `game/core/achievements.gd`: an id, a
-name, the count it watches (`stat`), the `goal`, the line under its name (`what`) and
+name, its kind (`group`: the tab it is under, an id from `GROUPS`), the count it watches (`stat`), the `goal`, the line under its name (`what`) and
 the items it unlocks (`rewards`: `"part:ninja"`, `"paint:gold"`, `"<slot>:<accessory>"`
 such as `"hat:crown"`, or `"card:sunset"` and `"icon:skull"`). An item named by no
 achievement is free. The counts are bumped in `_on_kill` (from a kill's tags, see

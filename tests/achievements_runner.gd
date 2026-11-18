@@ -192,57 +192,34 @@ func run() -> void:
 	Teams.event.emit("flag_taken", 0, 1)
 	_expect(Achievements.stat("plants") == 1 and Achievements.stat("defuses") == 1 and Achievements.stat("captures") == 1, "your plants, defuses and captures count")
 
-	print("  the page's order")
-	var ids_of := func(mode: String) -> Array: return AchievementsPanel.sorted(mode).map(func(a): return a.id)
-	var listed: Array = ids_of.call("list")
-	_expect(listed == Achievements.LIST.map(func(a): return a.id), "Default is the list as written")
-	var all_there := true
-	for option in AchievementsPanel.SORTS:
-		var got: Array = ids_of.call(option[0])
-		got.sort()
-		var want := listed.duplicate()
-		want.sort()
-		all_there = all_there and got == want
-	_expect(all_there, "every order shows every achievement once")
-	var done_first: Array = AchievementsPanel.sorted("done")
-	var seen_todo := false
-	var grouped := true
-	for a in done_first:
-		if not Achievements.done(a.id):
-			seen_todo = true
-		elif seen_todo:
-			grouped = false
-	_expect(grouped and Achievements.done(done_first[0].id) and not Achievements.done(AchievementsPanel.sorted("todo")[0].id),
-		"Done first puts the done ones on top; To do first the rest")
-	var closest: Array = AchievementsPanel.sorted("closest")
-	var falling := true
-	var last := 2.0
-	for a in closest:
-		if Achievements.done(a.id):
-			last = -1.0
-			continue
-		var part := float(Achievements.stat(a.stat)) / float(a.goal)
-		falling = falling and part <= last + 0.0001 and last >= 0.0
-		last = part
-	_expect(falling and not Achievements.done(closest[0].id) and Achievements.done(closest[-1].id), "Closest to done runs from nearly there down to not started, the done ones last")
-	var by_name: Array = AchievementsPanel.sorted("name").map(func(a): return str(a.name).to_lower())
-	var in_abc := by_name.duplicate()
-	in_abc.sort()
-	_expect(by_name == in_abc, "A to Z is by name")
-	var by_reward: Array = AchievementsPanel.sorted("reward")
-	_expect(by_reward[0].rewards.any(func(item): return str(item).begins_with("card:"))
-		and not by_reward[-1].rewards.any(func(item): return str(item).begins_with("card:") or str(item).begins_with("icon:")),
-		"By reward starts with the calling cards and ends with the creator's accessories")
+	print("  the page's tabs")
+	var kinds: Array = Achievements.GROUPS.map(func(group): return group[0])
+	_expect(Achievements.LIST.all(func(a): return a.get("group", "") in kinds), "every achievement has a kind: %s" % ", ".join(kinds))
+	var counted := 0
+	var each_has_some := true
+	for kind in kinds:
+		var of_kind: Array = AchievementsPanel.shown(kind)
+		counted += of_kind.size()
+		each_has_some = each_has_some and of_kind.size() >= 4 and of_kind.all(func(a): return a.group == kind)
+	_expect(each_has_some and counted == Achievements.LIST.size() and AchievementsPanel.shown("all").size() == Achievements.LIST.size(),
+		"each tab shows its own kind, and between them every achievement once")
+	var by_id := func(id: String) -> String: return Achievements.by_id(id).group
+	_expect(by_id.call("headshots_10") == "combat" and by_id.call("wall_10") == "movement" and by_id.call("gun_game_3") == "matches"
+		and by_id.call("medal_gold") == "races" and by_id.call("falls_10") == "misc", "headshots are Combat, wall-running Movement, Gun Game wins Matches, medals Races, falls Misc")
 	var page := AchievementsPanel.new()
 	add_child(page)
-	var bar := AchievementsPanel.sort_bar(page)
+	var bar := AchievementsPanel.tabs(page)
 	add_child(bar)
-	(bar.get_child(1).get_child(4) as Button).pressed.emit()
-	_expect(AchievementsPanel.sort == "name" and page.get_child_count() == Achievements.LIST.size() and page.get_child(0).name == StringName(AchievementsPanel.sorted("name")[0].id),
-		"pressing a sort button puts the cards in that order")
+	_expect(bar.get_child_count() == kinds.size() + 1 and (bar.get_child(0) as Button).text.begins_with("All") and (bar.get_child(4) as Button).text.begins_with("Races")
+		and ("/ %d" % AchievementsPanel.shown("races").size()) in (bar.get_child(4) as Button).text, "a tab for All and one for each kind, with how many are done (%s)" % (bar.get_child(4) as Button).text)
+	(bar.get_child(4) as Button).pressed.emit()
+	_expect(AchievementsPanel.category == "races" and page.get_child_count() == AchievementsPanel.shown("races").size()
+		and page.get_child(0).name == StringName(AchievementsPanel.shown("races")[0].id), "pressing Races shows only the race achievements")
+	(bar.get_child(0) as Button).pressed.emit()
+	_expect(page.get_child_count() == Achievements.LIST.size(), "and All shows them all again")
 	_expect(page.find_child("streak_10", false, false).find_children("", "Control", true, false).any(func(c): return c is AchievementsPanel.Thumb),
 		"an achievement's card shows the calling card or icon it unlocks")
-	AchievementsPanel.sort = "list"
+	AchievementsPanel.category = "all"
 	page.queue_free()
 	bar.queue_free()
 

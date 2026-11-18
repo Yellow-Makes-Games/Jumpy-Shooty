@@ -4,20 +4,15 @@ extends GridContainer
 ## achievement with what to do, how far along you are, and what it unlocks (in the
 ## Character Creator, or a calling card or an icon). The ones you have done are lit.
 ## The page (MenuFrame) scrolls. Over the cards the page puts medals(): your best
-## time on every race course, and the times to beat; and sort_bar(): the order the
-## cards come in.
+## time on every race course, and the times to beat; and tabs(): the kind of
+## achievement shown (All, Combat, Movement, Matches, Races, Misc).
 
 const COLUMNS := 3
 const DONE := Color(0.45, 0.95, 0.5)
 const MEDAL_COLORS := [Color(0.80, 0.52, 0.30), Color(0.80, 0.84, 0.90), Color(1.0, 0.80, 0.25)]   ## bronze, silver, gold
-## The orders the page can show them in (see sorted): id, and the button's text.
-const SORTS := [["list", "Default"], ["closest", "Closest to done"], ["done", "Done first"], ["todo", "To do first"],
-	["name", "A to Z"], ["reward", "By reward"]]
-## "By reward": the kinds of item, in the order they come.
-const REWARD_ORDER := ["card", "icon", "part", "paint"]
 
-## The order picked (an id from SORTS): kept while the game is open.
-static var sort := "list"
+## The kind picked ("all", or an id from Achievements.GROUPS): kept while the game is open.
+static var category := "all"
 
 
 ## A calling card or an icon an achievement unlocks, small, on its card.
@@ -47,60 +42,47 @@ func _init() -> void:
 	_fill()
 
 
-## Show the cards in another order (an id from SORTS).
-func set_sort(mode: String) -> void:
-	sort = mode
+## Show one kind of achievement ("all", or an id from Achievements.GROUPS).
+func set_category(kind: String) -> void:
+	category = kind
 	_fill()
 
 
 func _fill() -> void:
 	UiKit.clear(self)
-	for a in sorted(sort):
+	for a in shown(category):
 		add_child(_card(a))
 
 
-## The achievements in an order: "list" as written (by kind), "closest" the ones you
-## are nearest to finishing first (the done ones last), "done" or "todo" first, "name"
-## A to Z, "reward" by what they unlock (calling cards, icons, bodies, paints, then
-## accessories). Ones that tie stay in the list's order.
-static func sorted(mode: String = sort) -> Array:
-	var rows := []
-	for i in Achievements.LIST.size():
-		var a: Dictionary = Achievements.LIST[i]
-		var done := Achievements.done(a.id)
-		var key: Variant = 0
-		match mode:
-			"closest": key = 2.0 if done else 1.0 - clampf(float(Achievements.stat(a.stat)) / float(a.goal), 0.0, 1.0)
-			"done": key = 0 if done else 1
-			"todo": key = 1 if done else 0
-			"name": key = str(a.name).to_lower()
-			"reward":
-				key = REWARD_ORDER.size()
-				for item in a.rewards:
-					var kind := REWARD_ORDER.find(str(item).get_slice(":", 0))
-					if kind >= 0:
-						key = mini(key, kind)
-		rows.append([key, i, a])
-	rows.sort_custom(func(x, y): return x[0] < y[0] if x[0] != y[0] else x[1] < y[1])
-	return rows.map(func(row): return row[2])
+## The achievements of a kind, in the list's order; "all": every one, kind by kind.
+static func shown(kind: String = category) -> Array:
+	var out := []
+	for group in Achievements.GROUPS:
+		if kind == "all" or kind == group[0]:
+			out.append_array(Achievements.LIST.filter(func(a): return a.group == group[0]))
+	return out
 
 
-## The row of buttons that picks `panel`'s order.
-static func sort_bar(panel: AchievementsPanel) -> HBoxContainer:
-	var row := HBoxContainer.new()
-	row.name = "sort"
-	row.add_theme_constant_override("separation", 12)
-	var title := UiKit.label(row, "Sort", true, 16)
-	title.autowrap_mode = TextServer.AUTOWRAP_OFF
-	var now := 0
-	for i in SORTS.size():
-		if SORTS[i][0] == sort:
-			now = i
-	var buttons := UiKit.segmented(row, SORTS.map(func(option): return option[1]), now, func(i: int): panel.set_sort(SORTS[i][0]))
-	buttons.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	for b in buttons.get_children():
-		b.custom_minimum_size.y = 36
-		b.add_theme_font_size_override("font_size", 15)
+## The row of tabs that picks which kind `panel` shows: All, then one for each kind,
+## each with how many of its achievements are done.
+static func tabs(panel: AchievementsPanel) -> Container:
+	var kinds := ["all"]
+	var names := []
+	for group in Achievements.GROUPS:
+		kinds.append(group[0])
+	for kind in kinds:
+		var list := shown(kind)
+		var title: String = "All" if kind == "all" else Achievements.GROUPS[kinds.find(kind) - 1][1]
+		names.append("%s  %d / %d" % [title, list.filter(func(a): return Achievements.done(a.id)).size(), list.size()])
+	var holder := HBoxContainer.new()
+	var row := UiKit.segmented(holder, names, maxi(kinds.find(category), 0), func(i: int): panel.set_category(kinds[i]))
+	holder.remove_child(row)
+	holder.free()
+	row.name = "tabs"
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for b in row.get_children():
+		b.custom_minimum_size.y = 38
+		b.add_theme_font_size_override("font_size", 16)
 		b.set_meta("sfx", "select")
 	return row
 
