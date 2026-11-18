@@ -11,8 +11,9 @@ extends Node3D
 ##  - MapGrapplePoint nodes: glowing spots the grappling hook snaps to when you aim
 ##    near them (any map, any mode).
 ##  - MapItemSpawn nodes (under "ItemSpawns"): Deathmatch power-ups (health, damage).
-##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
-##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
+##  - MapHazard blocks: touch one and, in a race, you go back to your checkpoint; in
+##    an arena it is a death, the same as falling out of the map.
+##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
 ##    steps bots follow round the course.
 ##  - MapGravityZone volumes: places with their own gravity (see WorldGravity).
@@ -648,6 +649,13 @@ func hazard_at(point: Vector3, margin: float = 0.0, at: float = -INF) -> bool:
 		elif Vector2(local.x, local.z).length() <= half.x:
 			return true
 	return false
+
+
+## Is a player standing at `feet` touching a hazard? (Feet, middle and head, as a
+## race checks its racers.)
+func body_in_hazard(feet: Vector3) -> bool:
+	return hazard_at(feet + Vector3(0, 0.25, 0), 0.05) or hazard_at(feet + Vector3(0, 0.9, 0), 0.0) \
+		or hazard_at(feet + Vector3(0, 1.5, 0), 0.0)
 
 
 ## Will a moving part be there to stand on at `point` at map clock `at`? -1 if no

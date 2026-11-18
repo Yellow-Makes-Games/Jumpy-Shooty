@@ -112,14 +112,19 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	# Falling out of the map, or getting outside its fence, counts as a death.
+	# Falling out of the map, or getting outside its fence, counts as a death. So does
+	# touching a MapHazard in an arena (Empyrean Tower's engine core): the same death as
+	# a fall. In a race a hazard sends you back to your checkpoint instead (see Race).
 	var floor_y := layout.kill_height
 	var area := layout.bounds
+	var deadly := not Race.active and not layout.hazards.is_empty()
 	for p in players_root.get_children():
 		if not (p as Player).is_local or (p == local_player and Cheats.flying()):
 			continue
 		var pos: Vector3 = p.global_position
 		if pos.y < floor_y or (area.has_area() and not area.has_point(Vector2(pos.x, pos.z))):
+			(p as Player).report_fell_once()
+		elif deadly and (p as Player).alive and layout.body_in_hazard(pos):
 			(p as Player).report_fell_once()
 	if layout.has_riders():
 		# Pickups on an island (see MapIsland) stay over their spots as it moves.
