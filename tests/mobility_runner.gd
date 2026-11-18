@@ -28,7 +28,8 @@ func run() -> void:
 	await _physics(2)
 	var went := Vector2(me.global_position.x - from.x, me.global_position.z - from.z).length()
 	_check(went > Blink.RANGE - 1.5, "a blink goes about its range (%.1f m)" % went)
-	_check(me.blink.charges == Blink.CHARGES - 1, "it uses a charge (%d left)" % me.blink.charges)
+	_check(Blink.CHARGES == 1 and me.blink.charges == 0, "it uses its one charge (%d left)" % me.blink.charges)
+	_check(Net.arena.get_node_or_null("BlinkTrail") != null, "a trail of sparks follows you to where you land")
 	_check(me.velocity.dot(open[2]) >= Blink.BLINK_PUSH - 0.5, "you keep moving the way you blinked (%.1f m/s)" % me.velocity.dot(open[2]))
 	me.input.mobility_dir = open[2]
 	me.input.grapple_pressed = true

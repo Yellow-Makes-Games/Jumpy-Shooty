@@ -4,11 +4,11 @@ extends RefCounted
 ##
 ## You keep the speed you had, and get at least BLINK_PUSH along the blink so it
 ## feels like a dash; falling speed is cancelled. The body is swept along the way
-## first, so a blink stops short of a wall instead of going through it. Three
-## charges; each comes back RECHARGE seconds after the last one did.
+## first, so a blink stops short of a wall instead of going through it. One
+## charge, back RECHARGE seconds after you use it.
 
 const RANGE := 11.0
-const CHARGES := 3
+const CHARGES := 1
 const RECHARGE := 2.4     ## seconds per charge
 const GAP := 0.22         ## seconds between two blinks
 const MIN_DISTANCE := 1.2 ## a blink that would go less far than this (a wall in your face) is refused

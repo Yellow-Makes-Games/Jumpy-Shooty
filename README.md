@@ -46,7 +46,7 @@ Right mouse is your **mobility** tool, picked before a match, in the pause menu'
 by pressing right mouse while you wait to respawn: the **grappling hook**, the **portal gun**
 (each press puts up your next portal, blue then orange; walk into one and come out of the other
 with your speed carried through; anyone can use anyone's portals, and yours go when you die) or
-**blink** (a short teleport where you look, three charges). A race always has the grapple.
+**blink** (a short teleport where you look, one charge that recharges, with a trail of sparks to where you land). A race always has the grapple.
 Grapple is right mouse, crouch / slide is Ctrl or C, dive is Q or Alt. Every key except Esc can be
 rebound under **Settings > Controls** (two bindings per action, keys or mouse buttons); a key
 you give to one action is taken off any other that had it, and **Reset controls to defaults**
