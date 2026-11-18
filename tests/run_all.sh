@@ -44,6 +44,7 @@ CHECKS=(
   "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
   "spectator|--script tests/spectator_test.gd"
+  "team_modes|--script tests/team_modes_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins summit_plunge; do

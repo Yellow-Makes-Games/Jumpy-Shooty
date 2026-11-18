@@ -101,6 +101,7 @@ var _asked := false             # asked to respawn (Match.request_respawn)
 var _pulse := 0.0
 var _board_age := 0.0
 var _race: HudRace
+var _teams: HudTeams   ## team modes: the score bar, objective markers and banners
 ## You are watching (Net.spectating): no health, gun or crosshair; who is winning,
 ## the kill feed and how to fly instead.
 var spectating := false
@@ -131,6 +132,8 @@ func _ready() -> void:
 	_root.add_child(_killer_view)
 	_build_scoreboard()
 	_race = HudRace.new()
+	_teams = HudTeams.new()
+	Teams.changed.connect(_refresh_scoreboard)
 	Race.changed.connect(_refresh_scoreboard)
 
 	Match.state_changed.connect(_refresh_scoreboard)
@@ -247,6 +250,7 @@ func update_local(p: Player) -> void:
 			v.moves.append(["SLAM", "C", p.ground_slam_readiness(), p.ground_slamming()])
 
 	_age(delta)
+	_teams.age(delta)
 	if _respawn_left > 0.0:
 		_respawn_left = maxf(_respawn_left - delta, 0.0)
 	var watching := _dead and Killcam.watching()   # the killcam has the screen while it plays
@@ -287,6 +291,7 @@ func set_spectating(on: bool) -> void:
 func update_spectator() -> void:
 	var delta := get_process_delta_time()
 	_age(delta)
+	_teams.age(delta)
 	_scoreboard.visible = Input.is_action_pressed("scoreboard")
 	if _scoreboard.visible:
 		_place_scoreboard()
@@ -302,6 +307,12 @@ func _draw_spectating(ci: CanvasItem, size: Vector2) -> void:
 	var cx := size.x * 0.5
 	var y := 38.0
 	var top := "SPECTATING"
+	if Teams.active():   # the teams' score and what is going on, then the fly keys
+		_teams.draw_bar(ci, size, self)
+		_teams.draw_banner(ci, size)
+		HudStyle.label(ci, Vector2(cx, y + 58.0), top, 11, HudStyle.ORANGE, HORIZONTAL_ALIGNMENT_CENTER)
+		_draw_fly_keys(ci, size)
+		return
 	if Match.time_left < 1e8:
 		var t := int(ceil(Match.time_left))
 		top = "%d:%02d   SPECTATING" % [t / 60, t % 60]
@@ -313,6 +324,11 @@ func _draw_spectating(ci: CanvasItem, size: Vector2) -> void:
 	elif Race.active:
 		sub += "  ·  RACE"
 	HudStyle.label(ci, Vector2(cx, y + 34.0), sub, 11, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
+	_draw_fly_keys(ci, size)
+
+
+func _draw_fly_keys(ci: CanvasItem, size: Vector2) -> void:
+	var cx := size.x * 0.5
 	var keys := "%s %s %s %s FLY   ·   %s UP   ·   %s DOWN   ·   HOLD %s FAST   ·   HOLD %s SCOREBOARD   ·   ESC MENU: JOIN IN" % [
 		Settings.action_text("move_forward"), Settings.action_text("move_left"), Settings.action_text("move_back"),
 		Settings.action_text("move_right"), Settings.action_text("jump"), Settings.action_text("crouch"),
@@ -398,7 +414,7 @@ func _on_died(victim: int, killer: int) -> void:
 	if killer == victim:
 		killer = 0   # crashed into a wall on their own
 	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": Net.player_weapon(killer),
-		"how": "crashed" if Match.death_cause.get(victim, "") == "slam" else "fell"})
+		"how": {"slam": "crashed", "bomb": "blown up"}.get(Match.death_cause.get(victim, ""), "fell")})
 	while _feed.size() > FEED_MAX:
 		_feed.pop_front()
 	if killer == me and victim != me:
@@ -430,8 +446,8 @@ func _on_died(victim: int, killer: int) -> void:
 ## loadout first; see Match.request_respawn). Not while the killcam plays (they skip
 ## it there), nor in the first RESPAWN_GRACE seconds of the death screen.
 func _unhandled_input(event: InputEvent) -> void:
-	if not _dead or _asked or Race.active or Killcam.watching() or not Match.respawn_needs_press(Net.my_id()):
-		return
+	if not _dead or _asked or Race.active or Killcam.watching() or not Match.respawn_needs_press(Net.my_id()) or Teams.no_respawn():
+		return   # (Search and Destroy: everyone comes back at the next round)
 	if event.is_echo() or not (event.is_action_pressed("jump") or event.is_action_pressed("fire")):
 		return
 	if Net.arena and Net.arena.menu_open():
@@ -490,10 +506,17 @@ func _draw_overlay() -> void:
 				("%s  SKIP" % Settings.action_text("jump").to_upper() + ("   ·   " + back if back != "" else "")) if Killcam.can_skip() else back)
 		elif _dead:
 			_draw_death(ci, size)
-		_draw_score_bar(ci, size)
+		if Teams.active():
+			_teams.draw_bar(ci, size, self)
+		else:
+			_draw_score_bar(ci, size)
 		_draw_feed(ci, size)
+	if _dead and Teams.active() and not Killcam.watching():
+		_teams.draw_banner(ci, size)
 	if _dead or _scoreboard.visible:
 		return
+	if Teams.active():
+		_teams.draw_play(ci, size)
 	_draw_crosshair(ci, c)
 	_draw_arrows(ci, c)
 	if not _promo.is_empty():
@@ -836,7 +859,10 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
 	ci.draw_rect(Rect2(bar.position.x + w * progress - 2.0, bar.position.y - 3.0, 4.0, 12.0), Color.WHITE)
 	var row := bar.end.y + 18.0
-	if not Match.respawn_needs_press(Net.my_id()):
+	if Teams.no_respawn():   # Search and Destroy: out for the rest of the round
+		var a := 0.8 + 0.2 * sin(_pulse * 3.0)
+		HudStyle.label(ci, Vector2(bar.position.x, row), "OUT FOR THIS ROUND  ·  BACK WHEN THE NEXT ONE STARTS", 12, Color(1, 1, 1, a))
+	elif not Match.respawn_needs_press(Net.my_id()):
 		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
 		HudStyle.text(ci, Vector2(bar.end.x, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
 	elif _asked:
@@ -850,7 +876,7 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 		var keys := "%s OR %s" % [Settings.action_text("jump").to_upper(), Settings.action_text("fire").to_upper()]
 		var w1 := HudStyle.text(ci, Vector2(bar.position.x, row + 2.0), keys, 16, Color(HudStyle.ORANGE, a))
 		HudStyle.label(ci, Vector2(bar.position.x + w1 + 10.0, row + 2.0), "TO RESPAWN", 12, Color(1, 1, 1, a))
-	if Match.respawn_needs_press(Net.my_id()) and not _asked:
+	if Match.respawn_needs_press(Net.my_id()) and not _asked and not Teams.no_respawn():
 		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0), "ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	var mid := card.position.x + w * 0.5
 	_draw_mobility_swap(ci, Vector2(mid, bar.end.y + 56.0))
@@ -1062,6 +1088,10 @@ func _refresh_scoreboard() -> void:
 	var title := Maps.name_of(Net.map_id())
 	var gun_game := GunGame.active()
 	var killcam := KillcamMode.active()
+	if Teams.active():
+		title += "  ·  %s  ·  Red %d - %d Blue" % [Teams.MODE_NAMES[Teams.mode()], Teams.score[0], Teams.score[1]]
+		if Teams.is_snd():
+			title += "  ·  Round %d" % Teams.round_number
 	if gun_game:
 		title += "  ·  Gun Game: %d weapons" % GunGame.steps()
 	elif killcam:

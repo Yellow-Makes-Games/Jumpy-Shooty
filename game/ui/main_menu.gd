@@ -243,7 +243,7 @@ func _three_columns() -> Array:
 	row.add_theme_constant_override("separation", 26)
 	_frame.body.add_child(row)
 	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", 12)
+	left.add_theme_constant_override("separation", 10)   # (room for the four rows of modes in Vs Bots)
 	left.custom_minimum_size = Vector2(410, 0)
 	row.add_child(left)
 	_divider(row)
@@ -275,7 +275,7 @@ func _three_columns() -> Array:
 		Settings.mobility = id
 		Settings.save_settings())
 	var set_mode := func(mode: String, allowed: Array = [], allowed_mobility: Array = []):
-		var guns := LobbySettings.weapons_from(allowed if mode == "ffa" else [])
+		var guns := LobbySettings.weapons_from(allowed if mode == "ffa" or mode in Teams.MODES else [])
 		var uses_pick := not NO_WEAPON_NOTES.has(mode) and guns.size() > 1
 		gun.set_allowed(guns)
 		var shown := Game.local_weapon() if Game.local_weapon() in guns else str(guns[0])
@@ -377,10 +377,10 @@ func _show_bot() -> void:
 	row.add_child(bots_box)
 	UiKit.section(bots_box, "Bots")
 	var count := OptionButton.new()
-	for n in range(1, Game.MAX_BOTS + 1):
+	for n in range(1, Game.MAX_TEAM_BOTS + 1):
 		count.add_item("", n)
 	count.custom_minimum_size = Vector2(0, 46)
-	count.select(clampi(int(Game.last_bot.get("bots", 1)), 1, Game.MAX_BOTS) - 1)
+	count.select(clampi(int(Game.last_bot.get("bots", 1)), 1, Game.MAX_TEAM_BOTS) - 1)
 	bots_box.add_child(count)
 	var kills_box := VBoxContainer.new()
 	kills_box.custom_minimum_size = Vector2(150, 0)
@@ -432,16 +432,24 @@ func _show_bot() -> void:
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
 		var race := g == "race"
+		var teams: bool = g in Teams.MODES
 		kills_box.visible = g == "ffa" or g == "dm"
 		killcam_row.visible = g == "killcam"
-		for n in range(1, Game.MAX_BOTS + 1):
+		# Team modes take up to 7 bots (4v4): you are Red, the bots alternate Blue, Red...
+		var most := Game.max_bots(g)
+		var keep := clampi(count.get_selected_id(), 1, most)
+		count.clear()
+		for n in range(1, most + 1):
 			var t := "%d (1v1)" % n if n == 1 else "%d (free-for-all)" % n
 			if race:
 				t = "%d bot%s (race)" % [n, "" if n == 1 else "s"]
-			count.set_item_text(n - 1, t)
+			elif teams:
+				t = "%d bot%s (%dv%d)" % [n, "" if n == 1 else "s", ceili((n + 1) / 2.0), (n + 1) / 2]
+			count.add_item(t, n)
+		count.select(keep - 1)
 		blurb.text = (RACE_BLURBS if race else BOT_BLURBS)[level[0]]
 		if rules_ref[0]:
-			rules_ref[0].visible = g == "ffa"   # a shoot-out: you pick the weapons you and the bots may use
+			rules_ref[0].visible = g == "ffa" or teams   # you pick the weapons you and the bots may use
 		if moves_ref[0]:
 			moves_ref[0].visible = g != "race"   # a race always has the grapple
 			head_ref[0].visible = g != "race"    # ...and no loadout rules

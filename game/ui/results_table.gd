@@ -22,7 +22,8 @@ static func build(parent: Control, rows: Array) -> void:
 	for row in rows:
 		rank += 1
 		var me: bool = row.id == Net.my_id()
-		var card := _row(list, Color(UiKit.ACCENT, 0.14) if me else Color(1, 1, 1, 0.05), Net.player_color(row.id))
+		var stripe := Teams.team_color(int(row.team)) if int(row.get("team", -1)) >= 0 else Net.player_color(row.id)
+		var card := _row(list, Color(UiKit.ACCENT, 0.14) if me else Color(1, 1, 1, 0.05), stripe)
 		_cell(card, str(rank), 22, GOLD if rank == 1 else UiKit.TEXT_DIM, true, 34)
 		var who := VBoxContainer.new()
 		who.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -30,6 +31,8 @@ static func build(parent: Control, rows: Array) -> void:
 		card.add_child(who)
 		_cell(who, row.name + ("  (you)" if me else ""), 20, Color.WHITE, true)
 		var about := Characters.name_of(Net.player_character(row.id))
+		if int(row.get("team", -1)) >= 0:
+			about = "%s team  ·  %s" % [Teams.team_name(int(row.team)), about]
 		var bonus := int(row.get("bonus", 0))
 		if killcam:
 			about += "  ·  %d kill%s" % [row.kills, "" if row.kills == 1 else "s"]

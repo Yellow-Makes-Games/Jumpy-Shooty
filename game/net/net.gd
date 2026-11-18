@@ -351,6 +351,8 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "") -> void:
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
 		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": LobbySettings.fit_mobility(Mobility.valid(mobility))}
+	if in_match and Teams.active():
+		players[id]["team"] = Teams.smaller_team()   # joining a team match: onto the smaller team
 	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
 
 
@@ -753,7 +755,7 @@ func _free_color() -> int:
 
 
 ## Names for computer players, so several bots can be told apart on the scoreboard.
-const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston"]   # never the name of a robot you can play
+const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston", "Widget", "Ratchet", "Dynamo"]   # never the name of a robot you can play
 
 
 ## Adds a computer player (offline matches only for now). Returns its id.
@@ -778,6 +780,8 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 		"weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)) if weapon != "" else guns[randi() % guns.size()],
 		"mobility": LobbySettings.fit_mobility(Mobility.valid(mobility)) if mobility != "" else tools[randi() % tools.size()],
 	}
+	if in_match and Teams.active():
+		players[id]["team"] = Teams.smaller_team()   # the debug menu adding one mid-match
 	players_changed.emit()
 	return id
 
@@ -934,7 +938,11 @@ func _players_updated() -> void:
 		players_changed.emit()
 
 
+## A player's colour (their robot, name and stripes): in a team mode, their team's.
 func player_color(id: int) -> Color:
+	var team := Teams.team_of(id)
+	if team >= 0:
+		return Teams.team_color(team)
 	return PLAYER_COLORS[players[id].color] if players.has(id) else Color.WHITE
 
 
@@ -973,10 +981,14 @@ func host_start_match(force: bool = false) -> void:
 	for id in players:
 		players[id].erase("ready")   # (handing out the weapons below changes the players, which can call this again: dev autostart)
 	host_fit_loadouts()   # nobody starts with a weapon the lobby does not allow
-	if GunGame.active() or KillcamMode.active():   # the first rung of the ladder; Killcam: the sniper
+	var teams_before := players.values().map(func(p): return p.get("team", -1))
+	Teams.host_assign()   # team modes: everyone onto Red or Blue (otherwise no teams)
+	var teams_changed := teams_before != players.values().map(func(p): return p.get("team", -1))
+	if GunGame.active() or KillcamMode.active() or teams_changed:   # the first rung of the ladder; Killcam: the sniper
 		for id in players:
-			players[id]["weapon"] = GunGame.weapon_at(0) if GunGame.active() else KillcamMode.WEAPON
-	_players_updated()   # the weapons above, and nobody ready any more
+			if GunGame.active() or KillcamMode.active():
+				players[id]["weapon"] = GunGame.weapon_at(0) if GunGame.active() else KillcamMode.WEAPON
+	_players_updated()   # the weapons and teams above, and nobody ready any more
 	_log_loadouts()
 	_start_match.rpc()
 	_starting = false

@@ -20,6 +20,8 @@ var pickups: Array = []
 var items: Array = []
 ## Everyone's portals (portal gun: see Portals).
 var portals: Portals
+## Team modes: the flags, bomb sites and bomb (see Teams), or null.
+var objectives: ObjectiveProps
 ## Seconds until the bots' navigation mesh is redone after walls or floors broke.
 var _nav_rebake := 0.0
 var _nav_baking := false
@@ -41,6 +43,11 @@ func _ready() -> void:
 	elif Net.has_bots():
 		ensure_navigation()   # only when bots play: it takes a moment (racing bots follow the map's route instead)
 	_spawn_dummies()
+	if Teams.active():
+		Teams.setup_map(layout)   # the bases, each side's spawn points and the bomb sites
+		objectives = ObjectiveProps.new()
+		add_child(objectives)
+		Teams.event.connect(_on_team_event)
 	if Net.is_deathmatch():
 		_spawn_pickups()
 		if Net.powerups_on():
@@ -156,7 +163,9 @@ func _on_player_respawned(id: int, _spawn_index: int) -> void:
 	if p == null:
 		return
 	if p.is_local:
-		var s: Array = _safest_spawn(p)
+		var s: Array = _team_spawn(p)
+		if s.is_empty():
+			s = _safest_spawn(p)
 		p.respawn_at(s[0], s[1])
 	else:
 		p.expect_respawn()
@@ -201,6 +210,29 @@ func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit
 	Sound.shot_landed(p.muzzle_position() if p else muzzle, ends, hits, false)
 
 
+## Team modes: where `who` comes back, on their team's side ([] otherwise).
+func _team_spawn(who: Player) -> Array:
+	if not Teams.active() or not Teams.map_ready:
+		return []
+	return Teams.spawn_for(who, who.peer_id, players_root.get_children())
+
+
+## Team modes: the bomb going off (the blast, its sound and a shake).
+func _on_team_event(kind: String, _team: int, _who: int) -> void:
+	if kind != "bomb_exploded" or objectives == null:
+		return
+	var at := Teams.bomb_pos
+	if at == Vector3.INF:
+		return
+	objectives.blast(at)
+	Sound.play_at("explosion_1", at, "fire", 6.0)
+	var d := at.distance_to(Sound.listener_position())
+	if d > 40.0 and d < INF:
+		Sound.play_at("explosion_far", at, "far", 3.0)
+	if local_player and local_player.rig:
+		local_player.shake(clampf(1.2 - d / 40.0, 0.0, 1.0))
+
+
 ## The spawn point furthest from every living opponent of `who`.
 func _safest_spawn(who: Player) -> Array:
 	var best: Array = layout.spawns[0]
@@ -208,7 +240,7 @@ func _safest_spawn(who: Player) -> Array:
 	for s in layout.spawns:
 		var nearest := INF
 		for p in players_root.get_children():
-			if p != who and (p as Player).alive:
+			if p != who and (p as Player).alive and not Teams.same_team(who.peer_id, (p as Player).peer_id):
 				nearest = min(nearest, (s[0] as Vector3).distance_to(p.global_position))
 		if nearest > best_score:
 			best_score = nearest
@@ -283,6 +315,9 @@ func _respawn(p: Player) -> void:
 	var s: Array = layout.spawns[(index + randi() % 2 * (layout.spawns.size() / 2)) % layout.spawns.size()]
 	if Race.active:
 		s = layout.spawns[index % layout.spawns.size()]   # everyone has their own place on the start line
+	var team_spot := _team_spawn(p)
+	if not team_spot.is_empty():
+		s = team_spot   # team modes: on your team's side
 	if not DevArgs.spawn.is_empty() and not p.is_bot:
 		s = DevArgs.spawn
 	p.teleport(s[0], s[1])

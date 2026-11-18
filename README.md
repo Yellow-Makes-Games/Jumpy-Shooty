@@ -2,7 +2,9 @@
 
 A fast, high-mobility 3D multiplayer arena shooter: grapple, wall-run, slide, dive and
 fight in free-for-all matches of up to 16 players, or offline against 1 to 4 bots. Play a
-**Deathmatch** where everyone starts unarmed and grabs weapons floating around the map. Or put
+**Deathmatch** where everyone starts unarmed and grabs weapons floating around the map, or
+team up as Red or Blue for **Search and Destroy** (plant or defuse the bomb, no respawns in a
+round) and **Capture the Flag** (online, or with up to 7 bots for a 4v4). Or put
 the guns away and **race**: run an obstacle course against friends or bots, from
 checkpoint to checkpoint, to the finish.
 
@@ -35,7 +37,7 @@ More detail, including how to play with a friend and run several copies on one P
 | Deathmatch: take out the weapon in slot 1 or 2 (you carry two) | 1 / 2 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |
 | Rocket boots (a burst toward WASD as you look; hold Space to tip it up; while gliding, turns the glide that way) | E |
-| Interact (press at the terminal in Halcyon's Control Room: low gravity) | G |
+| Interact (press at the terminal in Halcyon's Control Room: low gravity; Search and Destroy: hold to plant or defuse the bomb) | G |
 | Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |
 | Scoreboard | Tab (hold) |

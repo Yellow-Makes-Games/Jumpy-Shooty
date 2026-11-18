@@ -169,6 +169,9 @@ func _on_match_started() -> void:
 		elif KillcamMode.active():
 			kill_target = 0   # it ends on points (KillcamMode.target()) or the clock
 			time_left = KillcamMode.minutes() * 60.0 if DevArgs.time_limit <= 0.0 else DevArgs.time_limit
+		elif Teams.active():
+			kill_target = 0   # it ends on rounds or captures (see Teams), or the clock in Capture the Flag
+			time_left = Teams.match_time()
 		scores.clear()
 		health.clear()
 		respawn_timers.clear()
@@ -197,6 +200,8 @@ func _on_players_changed() -> void:
 		if not scores.has(id):  # someone joined mid-match
 			scores[id] = {"kills": 0, "deaths": 0, "level": 0, "points": 0}
 			health[id] = MAX_HEALTH
+			if Teams.no_respawn() and Teams.phase != Teams.Phase.OVER:
+				health[id] = 0.0   # Search and Destroy: in from the next round
 			changed = true
 			if GunGame.active():
 				Net.host_set_weapon(id, GunGame.weapon_at(0))
@@ -595,7 +600,7 @@ func _physics_process(delta: float) -> void:
 		var head := false
 		var at := to
 		var best := INF
-		for b in _live_bodies(p.shooter):
+		for b in _live_bodies(p.shooter, true):
 			var pts := Geometry3D.get_closest_points_between_segments(from, to,
 				b[1] + Vector3(0, Player.CAPSULE_RADIUS, 0), b[1] + Vector3(0, b[2] - Player.CAPSULE_RADIUS, 0))
 			if pts[0].distance_to(pts[1]) <= Player.CAPSULE_RADIUS + 0.12:
@@ -616,11 +621,12 @@ func _physics_process(delta: float) -> void:
 			p.pos = to
 
 
-## Everyone alive who can be hit, where they are now: [id, feet, height]. Not `except`.
-func _live_bodies(except: int = 0) -> Array:
+## Everyone alive who can be hit, where they are now: [id, feet, height]. Not `except`
+## (nor, with `allies_too`, anyone on their team).
+func _live_bodies(except: int = 0, allies_too: bool = false) -> Array:
 	var out := []
 	for id in Net.players:
-		if id == except or not is_alive(id):
+		if id == except or not is_alive(id) or (allies_too and Teams.same_team(except, id)):
 			continue
 		var p: Player = Net.arena.get_player(id)
 		if p:
@@ -649,6 +655,8 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 			feet + Vector3(0, b[2] - Player.CAPSULE_RADIUS, 0))
 		if not w.explosive and b[0] != direct:
 			continue
+		if Teams.same_team(shooter, b[0]):
+			continue   # no blast damage or shove for teammates
 		var d := 0.0 if b[0] == direct else maxf(at.distance_to(near) - Player.CAPSULE_RADIUS, 0.0)
 		if d > w.splash_radius:
 			continue
@@ -686,8 +694,8 @@ func _projectile_boom(id: int, at: Vector3, weapon_id: String) -> void:
 func _rewound_bodies(attacker: int, view_times: Dictionary) -> Array:
 	var bodies := []
 	for id in Net.players:
-		if id == attacker or not is_alive(id):
-			continue
+		if id == attacker or not is_alive(id) or Teams.same_team(attacker, id):
+			continue   # (shots pass through teammates)
 		var target: Player = Net.arena.get_player(id)
 		if target == null:
 			continue
@@ -977,7 +985,7 @@ func _host_tether(by: int, target: int, on: bool) -> void:
 	if not Net.players.has(target) or target == by or not Net.arena:
 		return
 	if on:
-		if not running or Race.active or not is_alive(by) or not is_alive(target):
+		if not running or Race.active or not is_alive(by) or not is_alive(target) or Teams.same_team(by, target):
 			return
 		var a: Player = Net.arena.get_player(by)
 		var b: Player = Net.arena.get_player(target)
@@ -1067,7 +1075,7 @@ func _breaks_request() -> void:
 ## Push `target` (a player, not a dummy). Movement is run by whoever plays that
 ## player, so the push goes to them: you, a friend, or one of the host's bots.
 func _host_shove(attacker: int, target: int, push: Vector3) -> void:
-	if push.length_squared() < 0.01 or not is_alive(target) or not Net.players.has(target):
+	if push.length_squared() < 0.01 or not is_alive(target) or not Net.players.has(target) or Teams.same_team(attacker, target):
 		return
 	if target == Net.my_id() and Cheats.god_mode():
 		return
@@ -1148,8 +1156,8 @@ func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_m
 # Damage, death, respawn (host decides, everyone is told)
 
 func _host_damage(shooter: int, target: int, amount: float, headshot: bool = false, cause: String = "") -> void:
-	if not is_alive(target):
-		return
+	if not is_alive(target) or Teams.same_team(shooter, target):
+		return   # (no friendly fire)
 	if target == Net.my_id() and Cheats.god_mode():
 		return
 	if shooter != 0 and shooter != target and cause != "fell":
@@ -1237,7 +1245,8 @@ func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = f
 		scores[victim].deaths += 1
 	if killer != 0 and killer != victim and scores.has(killer):
 		scores[killer].kills += 1
-	respawn_timers[victim] = RESPAWN_DELAY
+	if not Teams.no_respawn():
+		respawn_timers[victim] = RESPAWN_DELAY   # (Search and Destroy: out until the next round)
 	respawn_asked.erase(victim)
 	_last_shove.erase(victim)
 	var finished := false
@@ -1264,6 +1273,7 @@ func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = f
 		_gun_game_level.rpc(m[0], m[1])
 	if Net.is_deathmatch():
 		Net.host_clear_inventory(victim)   # what you picked up is gone with you
+	Teams.host_on_death(victim, cause)   # the bomb or a flag drops where they fell
 	if finished:
 		host_end_match()
 	elif killer != 0 and kill_target > 0 and kills(killer) >= kill_target:
@@ -1345,6 +1355,28 @@ func _died(victim: int, killer: int, new_scores: Dictionary, cause: String, scor
 		kill_scored.emit(info)
 	player_died.emit(victim, killer)
 	state_changed.emit()
+
+
+## Host (Teams): `id` is out, by something other than a player (the bomb).
+func host_team_kill(id: int, cause: String) -> void:
+	if not running or not is_alive(id):
+		return
+	health[id] = 0.0
+	_host_kill(id, 0, cause)
+
+
+## Host (Teams, Search and Destroy): a new round, everyone back at full health on their side.
+func host_new_round() -> void:
+	if not running:
+		return
+	respawn_timers.clear()
+	respawn_asked.clear()
+	_last_shove.clear()
+	_tethers.clear()
+	var ids := Net.players.keys()
+	ids.sort()
+	for id in ids:
+		_host_respawn(id)
 
 
 func _host_respawn(id: int) -> void:
@@ -1440,11 +1472,21 @@ func build_results() -> Array:
 	var rows: Array = []
 	var gun_game := GunGame.active()
 	var killcam := KillcamMode.active()
+	var teams := Teams.active()
+	var ahead := Teams.leader()
 	for id in scores:
 		rows.append({"id": id, "name": Net.player_name(id), "kills": scores[id].kills, "deaths": scores[id].deaths,
 			"level": int(scores[id].get("level", 0)), "points": points(id), "bonus": int(scores[id].get("bonus", 0)),
 			"killcam": killcam})
+		if teams:   # team modes: which team, its score, and the mode
+			var t := Teams.team_of(id)
+			rows[-1].merge({"team": t, "team_score": Teams.score[t] if t >= 0 else 0, "team_won": t >= 0 and t == ahead,
+				"teams": Teams.mode(), "scores": Teams.score.duplicate()})
 	rows.sort_custom(func(a, b):
+		if teams and a.team != b.team:   # the team ahead first, each team together
+			if a.team_won != b.team_won:
+				return a.team_won
+			return a.team < b.team
 		if gun_game and a.level != b.level:
 			return a.level > b.level
 		if killcam and a.points != b.points:

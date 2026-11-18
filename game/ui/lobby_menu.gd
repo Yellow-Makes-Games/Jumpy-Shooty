@@ -295,9 +295,13 @@ func _build_map() -> void:
 			return
 		var m: String = GunGame.MODES[i]
 		var g := GunGame.game_of_mode(m)
-		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 3)   # 3 across: two rows for the five modes
+		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 3)   # 3 across: three rows for the seven modes
 	for b in _game_row.get_children():
 		(b as Button).add_theme_font_size_override("font_size", 16)   # "Deathmatch" in a third of the column
+		var short: String = {"Search & Destroy": "S&D", "Capture the Flag": "CTF"}.get((b as Button).text, "")
+		if short != "":   # the team modes, by their usual short names (the full name in the tooltip and the rules)
+			(b as Button).tooltip_text = (b as Button).text
+			(b as Button).text = short
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()
@@ -423,7 +427,8 @@ func _refresh_rules() -> void:
 	var race := Net.game_kind() == "race"
 	var gun_game := GunGame.active()
 	var killcam := KillcamMode.active()
-	var own_rules := gun_game or killcam   # a mode with rules of its own: no kills/time choice
+	var team_mode := Teams.mode()   # "snd", "ctf" or ""
+	var own_rules := gun_game or killcam or team_mode != ""   # a mode with rules of its own: no kills/time choice
 	var kills_mode: bool = s.mode != "time"
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
 	if race:
@@ -436,7 +441,13 @@ func _refresh_rules() -> void:
 		if Net.is_host():   # (the host's boxes below show the points and minutes)
 			_rules_label.text = "Snipers only. Every kill scores its killcam points. The match's #1 killcam earns +%s at the end." \
 				% KillcamMode.format(KillcamMode.BEST_BONUS)
-	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else Maps.GAME_NAMES.get(Net.game_kind(), ""))
+	if team_mode == "snd":
+		_rules_label.text = "Two teams, Red and Blue, no respawns in a round. The attackers carry a bomb: hold %s on site A or B to plant it. Defenders: hold %s on it to defuse. Blow a site, defuse, or knock the other team out to win the round. Sides swap after %d rounds; first to %d rounds wins." \
+			% [Settings.action_text("interact"), Settings.action_text("interact"), Teams.HALF, Teams.ROUNDS_TO_WIN]
+	elif team_mode == "ctf":
+		_rules_label.text = "Two teams, Red and Blue. Walk over the other team's flag to take it and bring it to your own flag (it must be home) to score. Walk over your own dropped flag to send it home. First to %d captures, or the most after %d minutes." \
+			% [Teams.CAPTURES_TO_WIN, int(Teams.CTF_TIME / 60.0)]
+	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else (Teams.MODE_NAMES[team_mode] if team_mode != "" else Maps.GAME_NAMES.get(Net.game_kind(), "")))
 	_game_label.visible = not Net.is_host()
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
