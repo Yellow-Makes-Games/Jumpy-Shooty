@@ -166,9 +166,14 @@ func host_online() -> Error:
 	return err
 
 
-func join_online(address: String) -> Error:
+## Joins the lobby with this code, or at this address (see LobbyCode.parse; check its
+## "error" first to tell the player what is wrong: a bad code returns ERR_INVALID_DATA).
+func join_online(code_or_address: String) -> Error:
+	var where := LobbyCode.parse(code_or_address)
+	if where.error != "":
+		return ERR_INVALID_DATA
 	mode = Mode.ONLINE
-	return Net.join_direct(local_name(), local_character(), address, local_weapon(), local_mobility())
+	return Net.join_direct(local_name(), local_character(), "%s:%d" % [where.host, where.port], local_weapon(), local_mobility())
 
 
 func leave_to_menu() -> void:
@@ -226,7 +231,9 @@ func _run_dev_args() -> void:
 			push_error("Could not host: %s" % error_string(err))
 	elif DevArgs.join_address != "":
 		var err := join_online(DevArgs.join_address)
-		if err != OK:
+		if err == ERR_INVALID_DATA:
+			push_error("Could not join %s: %s" % [DevArgs.join_address, LobbyCode.parse(DevArgs.join_address).error])
+		elif err != OK:
 			push_error("Could not join: %s" % error_string(err))
 
 

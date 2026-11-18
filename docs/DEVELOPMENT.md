@@ -31,12 +31,15 @@ one and **Multiplayer → Join lobby** with address `127.0.0.1` in the other.
 
 ## Playing with a friend
 
-**Until Steam is wired in**, connecting works over direct IP:
+**Until Steam is wired in**, connecting is direct (no server). The host's lobby shows a
+**lobby code** (like `ABCD-EFGH`) that stands for the host's address; friends type it into
+the Join box on the Multiplayer page. An IP address works there too.
 
-- **Same home network:** host with **Create lobby**. The lobby shows your local address
-  (for example `192.168.1.20`). Your friend types that into **Join lobby**.
+- **Same home network:** host with **Create lobby**. If the router can't be opened, the
+  lobby's code stands for your local address (for example `192.168.1.20`, shown beside it).
+  Your friend types the code (or that address) into **Join lobby**.
 - **Over the internet:** when you create a lobby, the game asks your router to open
-  UDP port 24680 (UPnP) and the lobby shows your public address with a **Copy address**
+  UDP port 24680 (UPnP) and the lobby shows a code for your public address with a **Copy code**
   button. Send that to friends; they type it into **Join lobby**. If the lobby says the
   router would not open the port, forward UDP 24680 to your PC by hand in the router's
   settings (or UPnP is switched off there, or your provider shares one address between

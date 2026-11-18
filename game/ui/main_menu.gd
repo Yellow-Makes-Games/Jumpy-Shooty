@@ -16,7 +16,7 @@ var _front: Control             # the front page
 var _robot: RobotPreview
 var _frame: MenuFrame           # every other page
 var _name_edit: LineEdit
-var _address_edit: LineEdit
+var _code_edit: LineEdit
 var _status: Label
 
 
@@ -443,12 +443,13 @@ func _show_multiplayer() -> void:
 	col.add_child(row)
 	var host := UiKit.inset(row)
 	UiKit.section(host, "Host")
-	UiKit.label(host, "Start a lobby that friends join by your address. You pick the map and rules.", true, 15)
+	UiKit.label(host, "Start a lobby. It shows a lobby code to give your friends. You pick the map and rules.", true, 15)
 	UiKit.primary_button(host, "Create lobby", _on_create)
 	var join := UiKit.inset(row)
 	UiKit.section(join, "Join")
-	UiKit.label(join, "Type the host's address (direct IP; Steam invites come next).", true, 15)
-	_address_edit = UiKit.line_edit(join, "127.0.0.1", Settings.last_address)   # the last address you joined
+	UiKit.label(join, "Lobby code: type the code the host's lobby shows (an IP address works too).", true, 15)
+	_code_edit = UiKit.line_edit(join, "ABCD-EFGH", Settings.last_address)   # the last code you joined
+	_code_edit.text_submitted.connect(func(_t: String): _on_join())
 	UiKit.button(join, "Join lobby", _on_join)
 	_status = UiKit.label(col, "", true, 16)
 	_frame.back_button("Back", _show_main)
@@ -477,8 +478,12 @@ func _on_create() -> void:
 
 func _on_join() -> void:
 	_save_name()
-	var address := _address_edit.text.strip_edges()
-	if address != "" and address != Settings.last_address:
+	var address := _code_edit.text.strip_edges()
+	var bad: String = LobbyCode.parse(address).error
+	if bad != "":
+		_status.text = bad
+		return
+	if address != Settings.last_address:
 		Settings.last_address = address
 		Settings.save_settings()
 	var err := Game.join_online(address)

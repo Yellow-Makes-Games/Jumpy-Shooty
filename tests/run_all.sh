@@ -39,6 +39,7 @@ CHECKS=(
   "killcam|--script tests/killcam_test.gd"
   "mobility|--fixed-fps 60 --script tests/mobility_test.gd"
   "lobby_settings|--script tests/lobby_settings_test.gd"
+  "lobby_code|--script tests/lobby_code_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
@@ -59,7 +60,7 @@ run_check() {  # fails on any script error, even if the script itself reports PA
 export -f run_check
 export OUT
 
-echo "== Quick checks: movement, robots, weapons, sounds, maps and routes, menus, modes, practice on every map"
+echo "== Quick checks: movement, robots, weapons, sounds, maps and routes, menus, modes, lobby codes, practice on every map"
 if ! printf '%s\n' "${CHECKS[@]}" | xargs -d '\n' -P "${JOBS:-4}" -I{} bash -c 'run_check "$1"' _ {}; then
   for f in "$OUT"/check_*.log; do
     if grep -q "FAIL\|SCRIPT ERROR\|^ERROR" "$f"; then echo "--- $f"; grep -B2 -A4 "FAIL\|SCRIPT ERROR\|^ERROR" "$f" | head -40; fi

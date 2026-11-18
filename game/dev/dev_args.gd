@@ -4,7 +4,7 @@ extends Node
 ##   godot --path . -- --host --name=Austin --autostart=2
 ##
 ## --host               Host a direct-IP lobby straight away.
-## --join=ADDRESS       Join a direct-IP lobby straight away (ADDRESS may include :PORT).
+## --join=CODE          Join a lobby straight away, by its lobby code or by address (ADDRESS may include :PORT).
 ## --port=PORT         Host only: port to listen on (default 24680).
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.

@@ -11,7 +11,8 @@ var _list_scroll: ScrollContainer
 var _start: Button
 var _waiting: Label
 var _info: Label
-var _copy: Button   # copies the host's internet address
+var _code: Label    # the host's lobby code, big
+var _copy: Button   # copies the lobby code
 var _rules_label: Label
 var _host_rules: HBoxContainer
 var _mode_pick: OptionButton
@@ -43,8 +44,11 @@ func _ready() -> void:
 	_info = UiKit.label(info_row, "", true, 16)
 	_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_copy = UiKit.button(info_row, "Copy address", func():
-		DisplayServer.clipboard_set(_public_address())
+	_code = UiKit.label(info_row, "", false, 26)
+	_code.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_code.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_copy = UiKit.button(info_row, "Copy code", func():
+		DisplayServer.clipboard_set(Net.lobby_code())
 		_copy.text = "Copied")
 	_copy.custom_minimum_size = Vector2(0, 38)
 	_copy.theme_type_variation = "Chip"
@@ -110,15 +114,18 @@ func _refresh() -> void:
 	_waiting.visible = not Net.is_host()
 	_start.disabled = Net.players.size() < 1
 	var where := ""
-	_copy.visible = Net.is_host() and Net.internet_state == "open"
+	var code := Net.lobby_code() if Net.is_host() else ""
+	_code.text = code
+	_code.visible = code != ""
+	_copy.visible = code != ""
 	if Net.is_host():
 		match Net.internet_state:
 			"open":
-				where = "Friends anywhere can join at %s." % _public_address()
+				where = "Friends anywhere join with the lobby code (or at %s)." % _address(Net.join_ip())
 			"checking":
 				where = "Opening your router for internet play..."
 			_:
-				where = "Your router would not open port %d, so only friends on your network can join (at %s)." % [Net.port, _local_ip()]
+				where = "Your router would not open port %d, so only friends on your network can join, with the lobby code (or at %s)." % [Net.port, _address(Net.join_ip())]
 	else:
 		where = "The host picks the map and rules and starts the match."
 	_info.text = "%d of %d players.  %s" % [Net.players.size(), Net.MAX_PLAYERS, where]
@@ -357,13 +364,7 @@ func _refresh_rules() -> void:
 	_updating = false
 
 
-## What friends type to join over the internet (the port only if it isn't the usual one).
-func _public_address() -> String:
-	return Net.public_ip if Net.port == Net.DEFAULT_PORT else "%s:%d" % [Net.public_ip, Net.port]
-
-
-func _local_ip() -> String:
-	for ip in IP.get_local_addresses():
-		if ip.begins_with("192.168.") or ip.begins_with("10.") or ip.begins_with("172."):
-			return ip
-	return "127.0.0.1"
+## The address the lobby code stands for, for LAN and development use (the port only
+## if it isn't the usual one).
+func _address(ip: String) -> String:
+	return ip if Net.port == Net.DEFAULT_PORT else "%s:%d" % [ip, Net.port]
