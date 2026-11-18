@@ -2,13 +2,17 @@ class_name CustomCharacter
 extends RefCounted
 ## A character made in the Character Creator: the legs of one body, the torso (and
 ## arms) of another and the head of a third (robots, or the other bodies: a person,
-## a goblin, a frog... see Characters.KITS), a coat of paint, a skin tone, and up to
-## one accessory in each slot (hat, face, neck, shoulder, back, waist, tail).
+## a goblin, a frog... see Characters.KITS), three colours for the body (its main
+## colour, a second colour and a detail colour), a skin tone, and up to one accessory
+## in each slot (hat, face, neck, shoulder, back, waist, tail), each in a colour of
+## its own if you like.
 ##
 ## It travels as a character id like any robot's ("needle", "templar"), so the lobby,
 ## the save file and every match pass it around unchanged:
 ##
-##   custom:n=Sir Bolt|l=frog|t=templar|h=goblin|p=gold|s=tan|hat=top_hat|face=shades|neck=gold_chain|back=cape
+##   custom:n=Sir Bolt|l=frog|t=templar|h=goblin|p=gold|p2=red|s=tan|hat=top_hat.purple|face=shades|back=cape
+##
+## (p, p2, p3: the three body colours; s: skin; "top_hat.purple": a purple top hat.)
 ##
 ## normalize() rebuilds the id from what it can read, so an id from another player
 ## only ever names parts that exist, and a name that is short and plain.
@@ -20,8 +24,11 @@ const MAX_NAME := 16
 const HEAD_BONES := ["head"]
 const LEG_BONES := ["hips", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r"]
 
-## Body paint: the colour of a robot's main shell and of the other bodies' clothes,
-## fur or hide ("armor": see RobotModel.material_kind). "" = as it was built.
+## The colours a body or an accessory can be painted. "" = as it was built.
+## A body has three: its main colour (a robot's shell, a creature's clothes, fur or
+## hide: "armor"), its second colour (a robot's frame, jeans, a belly, a beak: "trim")
+## and its detail colour (a robot's fittings, hair, spots, horns: "mark"). See
+## RobotModel.CHANNELS.
 const PAINTS := [
 	{"id": "", "name": "Original", "color": Color(0.90, 0.91, 0.93)},
 	{"id": "white", "name": "Snow", "color": Color(0.97, 0.97, 0.97)},
@@ -40,7 +47,22 @@ const PAINTS := [
 	{"id": "lime", "name": "Lime", "color": Color(0.58, 0.85, 0.20)},
 	{"id": "brown", "name": "Chestnut", "color": Color(0.42, 0.27, 0.15)},
 	{"id": "sand", "name": "Desert", "color": Color(0.80, 0.68, 0.48)},
+	{"id": "cream", "name": "Cream", "color": Color(0.96, 0.91, 0.76)},
+	{"id": "silver", "name": "Silver", "color": Color(0.70, 0.72, 0.76)},
+	{"id": "maroon", "name": "Maroon", "color": Color(0.42, 0.08, 0.14)},
+	{"id": "hotpink", "name": "Hot Pink", "color": Color(0.96, 0.18, 0.55)},
+	{"id": "lavender", "name": "Lavender", "color": Color(0.72, 0.62, 0.92)},
+	{"id": "navy", "name": "Navy", "color": Color(0.08, 0.13, 0.36)},
+	{"id": "cyan", "name": "Cyan", "color": Color(0.12, 0.82, 0.92)},
+	{"id": "mint", "name": "Mint", "color": Color(0.55, 0.92, 0.72)},
+	{"id": "olive", "name": "Olive", "color": Color(0.42, 0.44, 0.18)},
+	{"id": "forest", "name": "Forest", "color": Color(0.08, 0.30, 0.15)},
+	{"id": "coral", "name": "Coral", "color": Color(0.98, 0.48, 0.40)},
+	{"id": "peach", "name": "Peach", "color": Color(0.99, 0.78, 0.60)},
+	{"id": "indigo", "name": "Indigo", "color": Color(0.30, 0.20, 0.66)},
 ]
+## The body's colours, in RobotModel.CHANNELS order: [key in an id, what the creator calls it].
+const BODY_COLORS := [["p", "Main colour"], ["p2", "Second colour"], ["p3", "Detail colour"], ["s", "Skin"]]
 
 ## Skin tone: the colour of bare skin on the bodies that have some (a person's, a
 ## goblin's, an imp's, a zombie's, the yeti's face: "skin"). "" = as it was built.
@@ -195,9 +217,12 @@ var name := "Custom"
 var legs := "vanguard"
 var torso := "vanguard"
 var head := "vanguard"
-var paint := ""
-var skin := ""
+var paint := ""    ## main colour (an id from PAINTS)
+var paint2 := ""   ## second colour
+var paint3 := ""   ## detail colour
+var skin := ""     ## an id from SKINS
 var accessories := {"hat": "", "face": "", "neck": "", "shoulder": "", "back": "", "waist": "", "tail": ""}
+var colors := {}   ## slot -> the colour its accessory is painted (an id from PAINTS; none or "": as built)
 
 
 static func is_custom(id: String) -> bool:
@@ -228,22 +253,56 @@ static func parse(id: String) -> CustomCharacter:
 			"t": c.torso = _part(v)
 			"h": c.head = _part(v)
 			"p": c.paint = v if has_paint(v) else ""
+			"p2": c.paint2 = v if has_paint(v) else ""
+			"p3": c.paint3 = v if has_paint(v) else ""
 			"s": c.skin = v if has_skin(v) else ""
 			_:
-				if k in SLOTS and has_accessory(k, v):
-					c.accessories[k] = v
+				var piece := v.get_slice(".", 0)   # "top_hat.purple": a purple top hat
+				if k in SLOTS and has_accessory(k, piece) and piece != "":
+					c.accessories[k] = piece
+					var tint := v.get_slice(".", 1) if "." in v else ""
+					if tint != "" and has_paint(tint):
+						c.colors[k] = tint
 	return c
+
+
+## A body colour by its key in an id ("p", "p2", "p3", "s").
+func body_color(key: String) -> String:
+	match key:
+		"p": return paint
+		"p2": return paint2
+		"p3": return paint3
+	return skin
+
+
+func set_body_color(key: String, id: String) -> void:
+	match key:
+		"p": paint = id
+		"p2": paint2 = id
+		"p3": paint3 = id
+		"s": skin = id
+
+
+## The body's four colours as RobotModel wants them (alpha 0: as built).
+func channel_colors() -> Array[Color]:
+	return [paint_color(paint), paint_color(paint2), paint_color(paint3), skin_color(skin)]
+
+
+## The colour a slot's accessory is painted ("" = as built).
+func color_of(slot: String) -> String:
+	return colors.get(slot, "") if accessories.get(slot, "") != "" else ""
 
 
 func to_id() -> String:
 	var out := PREFIX + "n=%s|l=%s|t=%s|h=%s" % [clean_name(name), legs, torso, head]
-	if paint != "":
-		out += "|p=" + paint
-	if skin != "":
-		out += "|s=" + skin
+	for pair in BODY_COLORS:
+		if body_color(pair[0]) != "":
+			out += "|%s=%s" % [pair[0], body_color(pair[0])]
 	for slot in SLOTS:
 		if accessories.get(slot, "") != "":
 			out += "|%s=%s" % [slot, accessories[slot]]
+			if color_of(slot) != "":
+				out += "." + color_of(slot)
 	return out
 
 
@@ -356,20 +415,27 @@ func blurb() -> String:
 
 
 ## A random character (the creator's Randomize button). Accessories: each slot
-## filled a little under half the time.
-static func random(rng: RandomNumberGenerator = null) -> CustomCharacter:
+## filled a little under half the time. allowed(key): whether an item may be used
+## (see Achievements for the keys); without it, anything goes.
+static func random(rng: RandomNumberGenerator = null, allowed: Callable = Callable()) -> CustomCharacter:
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
+	var ok := func(key: String) -> bool: return not allowed.is_valid() or allowed.call(key)
 	var c := CustomCharacter.new()
-	var ids := Characters.part_ids()
+	var ids := Characters.part_ids().filter(func(id): return ok.call("part:" + id))
+	var paints := PAINTS.filter(func(p): return p.id != "" and ok.call("paint:" + p.id))
 	c.legs = ids[rng.randi() % ids.size()]
 	c.torso = ids[rng.randi() % ids.size()]
 	c.head = ids[rng.randi() % ids.size()]
 	# Paint and skin: as built about half the time, so a frog is often green.
-	c.paint = PAINTS[rng.randi() % PAINTS.size()].id if rng.randf() < 0.5 else ""
+	c.paint = paints[rng.randi() % paints.size()].id if rng.randf() < 0.5 else ""
+	c.paint2 = paints[rng.randi() % paints.size()].id if rng.randf() < 0.3 else ""
+	c.paint3 = paints[rng.randi() % paints.size()].id if rng.randf() < 0.3 else ""
 	c.skin = SKINS[rng.randi() % SKINS.size()].id if rng.randf() < 0.5 else ""
 	for slot in SLOTS:
-		var list: Array = ACCESSORIES[slot]
-		c.accessories[slot] = list[rng.randi_range(1, list.size() - 1)].id if rng.randf() < 0.45 else ""
+		var list: Array = ACCESSORIES[slot].filter(func(a): return a.id != "" and ok.call("%s:%s" % [slot, a.id]))
+		c.accessories[slot] = list[rng.randi() % list.size()].id if rng.randf() < 0.45 and not list.is_empty() else ""
+		if c.accessories[slot] != "" and rng.randf() < 0.3:
+			c.colors[slot] = paints[rng.randi() % paints.size()].id
 	return c

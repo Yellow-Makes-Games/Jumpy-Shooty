@@ -35,6 +35,7 @@ var _killcam_points: SpinBox
 var _killcam_minutes: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
+var _movement: CheckButton   # every game: the movement variant everyone plays with (A/B testing)
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
 var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
@@ -218,6 +219,7 @@ func _refresh() -> void:
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
 		_character.set_color(Net.player_color(Net.my_id()))
+		_character.offer_colors(Teams.mode() == "")   # a team mode dresses you in your team's colour
 		_weapon.select(Net.player_weapon(Net.my_id()))
 		_show_weapon_card(Net.player_weapon(Net.my_id()))
 		_character.set_weapon(Net.player_weapon(Net.my_id()))
@@ -284,6 +286,11 @@ func _build_character(columns: Node) -> void:
 	_robot_panel = _floating(_character.list)
 	_character.list_requested.connect(func(): _robot_panel.open(_character._name_button))
 	_character.create_requested.connect(_open_creator)
+	# Your colour: saved as the one you like, and yours here if nobody else has it.
+	_character.color_picked.connect(func(index: int):
+		Settings.player_color = index
+		Settings.save_settings()
+		Net.set_my_color(index))
 	# Your mobility tool: a button with it on, which opens the mobility window.
 	_mobility_box = VBoxContainer.new()
 	_mobility_box.add_theme_constant_override("separation", 8)
@@ -430,6 +437,8 @@ func _open_creator() -> void:
 	keep.custom_minimum_size = Vector2(160, 50)
 	var play := UiKit.primary_button(buttons, "Save and play as this", func():
 		var id := creator.save()
+		if id == "":
+			return   # it wears something still locked (the creator says what)
 		_character.refresh_custom()
 		Settings.character = id
 		Settings.save_settings()
@@ -437,6 +446,11 @@ func _open_creator() -> void:
 		Net.set_my_character(id)
 		panel.close())
 	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var lock := func():   # something locked on it: it can be looked at, not saved
+		keep.disabled = not creator.can_save()
+		play.disabled = keep.disabled
+	creator.changed.connect(lock)
+	lock.call()
 	panel.open(_character._name_button)
 
 
@@ -656,6 +670,19 @@ func _build_rules() -> void:
 # Lobby settings (see LobbySettings): the host picks; everyone else sees them. New
 # settings get their control here.
 func _build_lobby_settings() -> void:
+	# The movement variant (see MovementTuning.VARIANTS): on is Variant B for everyone.
+	_movement = CheckButton.new()
+	_movement.text = "Movement: Variant B (A/B test)"
+	_movement.tooltip_text = "Off: classic movement. On: everyone in the match moves with Variant B."
+	_movement.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(_movement)
+	_movement.toggled.connect(func(on: bool):
+		if _updating:
+			return
+		var ms := Net.match_settings.duplicate()
+		ms["movement"] = "b" if on else "classic"
+		Game.last_movement = ms.movement   # (the next lobby or offline match starts with it too)
+		Net.set_match_settings(ms))
 	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
 	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
 	var mobility_window := _floating()   # (its chips move to the window before the page has them)
@@ -771,6 +798,9 @@ func _refresh_rules() -> void:
 	_powerups.set_pressed_no_signal(Net.powerups_on())
 	if _allowed:
 		_allowed.set_value(s.get("weapons", []))
+	if _movement:
+		_movement.disabled = not Net.is_host()   # everyone else just sees the host's choice
+		_movement.set_pressed_no_signal(LobbySettings.movement() == "b")
 	if _allowed_mobility:
 		_allowed_mobility.visible = LobbySettings.mobility_apply()   # a race always has the grapple
 		_rules_head.visible = _allowed_mobility.visible   # a race has no loadout rules

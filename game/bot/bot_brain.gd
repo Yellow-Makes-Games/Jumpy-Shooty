@@ -86,6 +86,10 @@ const TERMINAL_THINK := 5.0      ## seconds between thinking about going for one
 const TERMINAL_CHANCE := [0.04, 0.06, 0.08, 0.1]   ## ...and the chance it does each time (Easy to Expert)
 const TERMINAL_GIVE_UP := 14.0   ## seconds it spends getting there before it drops the idea
 const LINK_SHORT := 3.0          ## a path that ends this far (metres) from where it is going does not get there...
+const LIFT_WORTH := 12.0         ## a goal this far above it (metres) is worth a tractor-beam lift, if one is near
+const GATE_WORTH := 25.0         ## an open ring gate is worth stepping through if it brings the goal this much nearer (metres)
+const GATE_NEAR := 30.0          ## ...and stands no further off than this, on its own floor
+const LIFT_NEAR := 45.0          ## ...whose foot is no further off than this, on its own floor
 const LINK_SHORT_UP := 4.0       ## ...nor one that ends this far above or below it: time to look for a MapJumpLink
 const LINK_GIVE_UP := 6.0        ## seconds a crossing may take before it stops trying
 
@@ -148,9 +152,14 @@ var _link_flying := false        # it has taken off
 var _link_time := 0.0
 var _link_hooked := false        # grapple crossing: the hook has caught
 var _link_left := false          # it has left the floor
+var _link_jumped := 0.0          # hop or boost crossing: when (into the crossing) it jumped
+var _link_boosted := false       # boost crossing: the boots have fired
+var _link_gliding := false       # boost crossing: it has started its glide
 var _flee := false               # it stands on an island that is about to go down: off, by the nearest crossing
 var _link_wait := 0.0            # seconds before it thinks of a crossing again (after one failed)
 var _open_map := -1              # 1: a map of islands over a drop (see _open()), 0: not, -1: not looked yet
+var _ground_map := -1            # 1: many moving parts, routes worked out part by part (see _by_ground()), 0: not, -1: not looked yet
+var _link_places := {}           # a crossing's instance id -> [the part it sets off from, the part it comes down on]
 var _blink_side := 0.0           # it was just hit: blink this way (-1 left, 1 right, 0 no)
 var _jet_time := 0.0             # seconds left of a jetpack burst it is holding
 var _portal_plan := 0.0          # seconds left of a portal trip in progress (0: none)
@@ -335,6 +344,7 @@ func _reset() -> void:
 	_link = null
 	_link_flying = false
 	_blink_side = 0.0
+	input.glide = false
 	_portal_plan = 0.0
 	_portal_step = 0
 	_jet_time = 0.0
@@ -603,32 +613,33 @@ func _guard_point(spot: Vector3, room: float, delta: float) -> Vector3:
 		_wander_time = _rng.randf_range(2.5, 5.0)
 		var offset := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)).limit_length(1.0) * room * 0.8
 		var nav := me.get_world_3d().navigation_map
-		_wander = NavigationServer3D.map_get_closest_point(nav, spot + offset) if NavigationServer3D.map_get_iteration_id(nav) > 0 else spot
+		_wander = _from_nav(NavigationServer3D.map_get_closest_point(nav, _to_nav(spot) + offset)) if NavigationServer3D.map_get_iteration_id(nav) > 0 else spot
 	return _wander
 
 
 ## Where to walk when it cannot see its target: the spot it last saw or heard it,
 ## then other places close to that spot. With nobody to go after, anywhere on the map.
+## (_goal is kept in the navigation mesh's frame, so it rides whatever it is on.)
 func _hunt_goal(delta: float) -> Vector3:
 	var nav := me.get_world_3d().navigation_map
 	_goal_time += delta
 	var info: Array = _known[_target.peer_id] if _target != null and _known.has(_target.peer_id) else []
 	if not info.is_empty() and float(info[0]) != _goal_from:
 		_goal_from = info[0]   # a new sighting or sound: go there
-		_goal = info[1]
+		_goal = _to_nav(info[1])
 		_goal_time = 0.0
-	var pos := me.global_position
+	var pos := _to_nav(me.global_position)
 	var arrived := _goal != Vector3.INF and _flat(pos, _goal) < 1.5 and absf(_goal.y - pos.y) < 2.5
 	if _goal == Vector3.INF or arrived or _goal_time > 12.0:
 		_goal_time = 0.0
 		if not info.is_empty():
-			var spot: Vector3 = info[1]
+			var spot: Vector3 = _to_nav(info[1])
 			var off := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)).normalized() * _rng.randf_range(3.0, SEARCH_RADIUS)
 			_goal = NavigationServer3D.map_get_closest_point(nav, spot + off)
 		else:
 			_goal_from = -1.0
 			_goal = NavigationServer3D.map_get_random_point(nav, 1, true)
-	return _goal
+	return _from_nav(_goal)
 
 
 ## Once it is running fast it mixes in movement tricks: slides, bunny-hops, dives.
@@ -653,13 +664,19 @@ func _chase_tricks(delta: float, dir: Vector3, grounded: bool, speed: float) -> 
 
 ## Low gravity (a map event): everything that leaves the floor carries further.
 func _light() -> bool:
-	return WorldGravity.scale < 0.9
+	return _gravity() < 0.9
 
 
 ## How much further ahead to look for floor before leaving it: 1 normally, up to
 ## 2.5 times as far in low gravity.
 func _air() -> float:
-	return clampf(1.0 / maxf(WorldGravity.scale, 0.01), 1.0, 3.4)
+	return clampf(1.0 / maxf(_gravity(), 0.01), 1.0, 3.4)
+
+
+## Its own body's gravity, as a share of normal: the map event's times the zone it
+## stands in (low outside Empyrean Tower's walls).
+func _gravity() -> float:
+	return me.motor.gravity_scale if me != null and me.motor != null else WorldGravity.scale
 
 
 ## Where to walk to use a map terminal, or INF when it is not going for one. It
@@ -692,7 +709,7 @@ func _terminal_spot(delta: float, visible: bool) -> Vector3:
 	var at := _terminal.global_position
 	var from := Vector3(me.global_position.x - at.x, 0.0, me.global_position.z - at.z)
 	var beside := at + (from.normalized() if from.length() > 0.2 else Vector3.FORWARD) * 1.2
-	return NavigationServer3D.map_get_closest_point(me.get_world_3d().navigation_map, beside)
+	return _from_nav(NavigationServer3D.map_get_closest_point(me.get_world_3d().navigation_map, _to_nav(beside)))
 
 
 ## Dive, and the better bots usually keep the button held to land in a belly slide
@@ -712,32 +729,32 @@ func _straight_ahead(dir: Vector3) -> float:
 	return 12.0 if hit.is_empty() else from.distance_to(hit.position)
 
 
-func _follow_path(goal: Vector3, delta: float) -> Vector3:
-	var pos := me.global_position
+## The way to `goal`, one step at a time: which way to walk now. The path is kept in
+## the navigation mesh's frame (see _to_nav), and so is everything it is compared with.
+func _follow_path(goal_at: Vector3, delta: float) -> Vector3:
+	var world_pos := me.global_position
+	var pos := _to_nav(world_pos)
+	var goal := _to_nav(goal_at)
 	_repath -= delta
-	if _repath <= 0.0 or _path_goal.distance_to(goal) > 2.5 or _path_index >= _path.size():
+	if _repath <= 0.0 or _path_goal.distance_to(goal_at) > 2.5 or _path_index >= _path.size():
 		_repath = 0.6
-		_path_goal = goal
-		var found := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, pos, goal, true)
-		_path = PackedVector3Array()
-		for point in found:   # the server repeats points where the path changes height
-			if _path.is_empty() or _path[_path.size() - 1].distance_to(point) > 0.05:
-				_path.append(point)
+		_path_goal = goal_at
+		_path = _nav_path(pos, goal)
 		_path_index = 1 if _path.size() > 1 else 0
 		if _flee:
-			_link = _escape_link(pos)
+			_link = _escape_link(world_pos)
 		else:
-			_link = _pick_link(pos, goal) if _stops_short(goal) else null
+			_link = _pick_link(world_pos, goal_at) if _stops_short(goal) else null
+			if _link == null:
+				_link = _pick_lift(world_pos, goal_at)   # well above it: a tractor beam is quicker than the stairs
+			if _link == null:
+				_link = _pick_gate(world_pos, goal_at)   # an open ring gate close by that saves a long walk
 		if _link != null:
 			# Walking does not get there: walk to the crossing instead.
-			found = NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, pos, _link.takeoff(), true)
-			_path = PackedVector3Array()
-			for point in found:
-				if _path.is_empty() or _path[_path.size() - 1].distance_to(point) > 0.05:
-					_path.append(point)
+			_path = _nav_path(pos, _to_nav(_link.takeoff()))
 			_path_index = 1 if _path.size() > 1 else 0
 	if _link != null:
-		goal = _link.takeoff()
+		goal = _to_nav(_link.takeoff())
 	while _path_index < _path.size() and _reached(pos, _path_index):
 		_path_index += 1
 	if _path_index >= _path.size() and _link == null and _open() and not _path.is_empty() \
@@ -751,6 +768,29 @@ func _follow_path(goal: Vector3, delta: float) -> Vector3:
 	var to := next - pos
 	to.y = 0.0
 	return to.normalized() if to.length() > 0.3 else Vector3.ZERO
+
+
+## A path from `a` to `b`, both in the navigation mesh's frame (and so is the path).
+func _nav_path(a: Vector3, b: Vector3) -> PackedVector3Array:
+	var found := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, a, b, true)
+	var path := PackedVector3Array()
+	for point in found:   # the server repeats points where the path changes height
+		if path.is_empty() or path[path.size() - 1].distance_to(point) > 0.05:
+			path.append(point)
+	return path
+
+
+## A point in the map as it was in the navigation mesh's frame, and back: on a map whose
+## parts keep moving (Sky Island) the mesh was worked out from where they stood at one
+## moment (see MapRoot.to_nav). Elsewhere these change nothing.
+func _to_nav(point: Vector3) -> Vector3:
+	var map := MapRoot.current
+	return map.to_nav(point) if point != Vector3.INF and map != null and is_instance_valid(map) else point
+
+
+func _from_nav(point: Vector3) -> Vector3:
+	var map := MapRoot.current
+	return map.from_nav(point) if point != Vector3.INF and map != null and is_instance_valid(map) else point
 
 
 ## Has it got to this point of the path? Close is enough on a straight stretch, but
@@ -857,7 +897,7 @@ func _open() -> bool:
 		_open_map = 0
 		if map != null and is_instance_valid(map):
 			for m in map.movers:
-				if m.node is MapIsland:
+				if m.node is MapIsland or m.moves_node:   # (moves_node: a part that carries crossings, as on Sky Island)
 					_open_map = 1
 	return _open_map == 1
 
@@ -955,13 +995,14 @@ func _stops_short(goal: Vector3) -> bool:
 	return _flat(end, goal) > LINK_SHORT or absf(end.y - goal.y) > LINK_SHORT_UP
 
 
-## Does walking get from `a` to `b`?
+## Does walking get from `a` to `b` (both in the map)?
 func _walkable(a: Vector3, b: Vector3) -> bool:
-	var path := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, a, b, true)
+	var to := _to_nav(b)
+	var path := _nav_path(_to_nav(a), to)
 	if path.is_empty():
 		return false
 	var end := path[path.size() - 1]
-	return _flat(end, b) < 1.5 and absf(end.y - b.y) < 2.0
+	return _flat(end, to) < 1.5 and absf(end.y - to.y) < 2.0
 
 
 ## The crossing to take to get from `pos` to `goal`: one it can walk to, that comes
@@ -973,10 +1014,12 @@ func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
 	if NavigationServer3D.map_get_iteration_id(nav) == 0:
 		return null   # (the navigation mesh is not there yet: the first moments of a match)
 	var links := _links()
+	if _by_ground():
+		return _route_link(pos, goal, links)
 	for l in links:
 		var link := l as MapJumpLink
 		var cost: float = pos.distance_to(link.takeoff()) + link.landing_point().distance_to(goal)
-		var down := NavigationServer3D.map_get_closest_point(nav, link.landing_point())
+		var down := _from_nav(NavigationServer3D.map_get_closest_point(nav, _to_nav(link.landing_point())))
 		if not _walkable(pos, link.takeoff()) or _flat(down, goal) > _flat(pos, goal) + 60.0:
 			continue
 		if not _gets_to(down, goal):
@@ -987,7 +1030,7 @@ func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
 				var second := l2 as MapJumpLink
 				if second == link or not _walkable(down, second.takeoff()):
 					continue
-				var far_side := NavigationServer3D.map_get_closest_point(nav, second.landing_point())
+				var far_side := _from_nav(NavigationServer3D.map_get_closest_point(nav, _to_nav(second.landing_point())))
 				if _gets_to(far_side, goal):
 					onward = minf(onward, down.distance_to(second.takeoff()) + second.landing_point().distance_to(goal))
 			if onward == INF:
@@ -996,6 +1039,58 @@ func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
 		if cost < best_cost:
 			best = link
 			best_cost = cost
+	return best
+
+
+## The tractor-beam lift (a MapJumpLink set to Lift) to ride toward `goal`, or null:
+## only when the goal is well above it, the beam's foot is on its own floor and the
+## link gets off near the goal's height. Walking would get there too; this is quicker.
+func _pick_lift(pos: Vector3, goal: Vector3) -> MapJumpLink:
+	if _link_wait > 0.0 or goal.y - pos.y < LIFT_WORTH:
+		return null
+	var best: MapJumpLink = null
+	var best_cost := INF
+	for l in _links():
+		var link := l as MapJumpLink
+		if link.how != MapJumpLink.How.LIFT:
+			continue
+		var foot := link.takeoff()
+		var land := link.landing_point()
+		if absf(foot.y - pos.y) > 3.0 or land.y - pos.y < LIFT_WORTH * 0.5 or land.y > goal.y + 6.0 or _flat(pos, foot) > LIFT_NEAR:
+			continue
+		var cost := _flat(pos, foot) + absf(goal.y - land.y) * 3.0 + _flat(land, goal) * 0.5
+		if cost < best_cost:
+			best = link
+			best_cost = cost
+	if best == null or NavigationServer3D.map_get_iteration_id(me.get_world_3d().navigation_map) == 0:
+		return null
+	return best if _walkable(pos, best.takeoff()) else null
+
+
+## The open ring gate (a MapJumpLink set to Gate) worth stepping through on the way to
+## `goal`, or null: one close by, on its own floor, whose far side is much nearer the
+## goal than it is now and from where walking gets there.
+func _pick_gate(pos: Vector3, goal: Vector3) -> MapJumpLink:
+	if _link_wait > 0.0:
+		return null
+	var best: MapJumpLink = null
+	var best_saved := GATE_WORTH
+	for l in _links():
+		var link := l as MapJumpLink
+		if link.how != MapJumpLink.How.GATE:
+			continue
+		var front := link.takeoff()
+		if absf(front.y - pos.y) > 3.0 or _flat(pos, front) > GATE_NEAR:
+			continue
+		var saved := pos.distance_to(goal) - link.landing_point().distance_to(goal) - pos.distance_to(front)
+		if saved > best_saved:
+			best = link
+			best_saved = saved
+	var nav := me.get_world_3d().navigation_map
+	if best == null or NavigationServer3D.map_get_iteration_id(nav) == 0:
+		return null
+	if not _walkable(pos, best.takeoff()) or not _gets_to(NavigationServer3D.map_get_closest_point(nav, best.landing_point()), goal):
+		return null
 	return best
 
 
@@ -1012,10 +1107,87 @@ func _links() -> Array:
 	return out
 
 
-## Does walking from `from` end at `goal` (near enough)?
-func _gets_to(from: Vector3, goal: Vector3) -> bool:
-	var end := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, from, goal, true)
+## Does walking from `from` end at `goal` (near enough)? Both in the map.
+func _gets_to(from: Vector3, goal_at: Vector3) -> bool:
+	var goal := _to_nav(goal_at)
+	var end := _nav_path(_to_nav(from), goal)
 	return not end.is_empty() and _flat(end[end.size() - 1], goal) <= LINK_SHORT and absf(end[end.size() - 1].y - goal.y) <= LINK_SHORT_UP
+
+
+## A map of many small moving parts joined by crossings (Sky Island: islands and
+## stepping pads that bob): routes are worked out part by part (see _route_link)
+## rather than by trying every crossing against every other.
+func _by_ground() -> bool:
+	if _ground_map < 0:
+		_ground_map = 0
+		var map := MapRoot.current
+		if map != null and is_instance_valid(map):
+			for m in map.movers:
+				if m.moves_node and not m.node is MapIsland:
+					_ground_map = 1
+	return _ground_map == 1
+
+
+## Which crossing to take first, on a map of many moving parts: every part is a place
+## (the fixed ground is -1), every crossing a way from the part its takeoff is on to the
+## part its landing is on. The shortest way, by distance, from the part it stands on to
+## the part the goal is on; null if they are the same part, or nothing joins them.
+## A crossing that has to wait for its moment (MapJumpLink.ready_now) still counts:
+## the bot walks to it and waits there.
+func _route_link(pos: Vector3, goal: Vector3, links: Array) -> MapJumpLink:
+	var map := MapRoot.current
+	if map == null or not is_instance_valid(map):
+		return null
+	var start := map.standing_on(pos)
+	var end := map.standing_on(goal)
+	if start == end or end < 0:
+		return null
+	# Dijkstra over the crossings: the cost of one is the walk to its takeoff (from where
+	# the last one came down) plus the jump.
+	var cost := {}
+	var first := {}
+	var at := {}
+	var open := []
+	for l in links:
+		var link := l as MapJumpLink
+		var places := _places_of(link, map)
+		if places[0] == start:
+			cost[link] = pos.distance_to(link.takeoff()) + link.takeoff().distance_to(link.landing_point())
+			first[link] = link
+			open.append(link)
+	var done := {}
+	while not open.is_empty():
+		var best_i := 0
+		for i in open.size():
+			if cost[open[i]] < cost[open[best_i]]:
+				best_i = i
+		var link: MapJumpLink = open[best_i]
+		open.remove_at(best_i)
+		if done.has(link):
+			continue
+		done[link] = true
+		var lands: int = _places_of(link, map)[1]
+		if lands == end:
+			return first[link]
+		for l2 in links:
+			var next := l2 as MapJumpLink
+			if done.has(next) or _places_of(next, map)[0] != lands:
+				continue
+			var c: float = cost[link] + link.landing_point().distance_to(next.takeoff()) + next.takeoff().distance_to(next.landing_point())
+			if c < float(cost.get(next, INF)):
+				cost[next] = c
+				first[next] = first[link]
+				open.append(next)
+	return null
+
+
+## [the part a crossing sets off from, the part it comes down on] (see _route_link).
+## They never change: a crossing rides the part it sets off from.
+func _places_of(link: MapJumpLink, map: MapRoot) -> Array:
+	var key := link.get_instance_id()
+	if not _link_places.has(key):
+		_link_places[key] = [map.standing_on(link.takeoff()), map.standing_on(link.landing_point())]
+	return _link_places[key]
 
 
 ## The nearest crossing that leads off the island it is on (which is about to go down).
@@ -1039,23 +1211,41 @@ func _start_link() -> void:
 	if not is_instance_valid(_link) or not _link.usable():
 		_link = null
 		return
-	if not me.is_on_floor() or _flat(me.global_position, _link.takeoff()) > 0.9 or absf(me.global_position.y - _link.takeoff().y) > 1.5:
+	if _link.how == MapJumpLink.How.LIFT:
+		# A tractor beam: it has it as soon as it walks in (and lifts it off the floor).
+		if _flat(me.global_position, _link.takeoff()) > 1.2 or absf(me.global_position.y - _link.takeoff().y) > 2.5:
+			return
+	elif _link.how == MapJumpLink.How.GATE:
+		if _flat(me.global_position, _link.takeoff()) > 1.5 or absf(me.global_position.y - _link.takeoff().y) > 2.0:
+			return
+	elif not me.is_on_floor() or _flat(me.global_position, _link.takeoff()) > 0.9 or absf(me.global_position.y - _link.takeoff().y) > 1.5:
 		return
 	if _link.how == MapJumpLink.How.GRAPPLE and not me.motor.grapple.ready_to_fire():
 		input.move = Vector2.ZERO   # wait for the hook
+		return
+	if not _link.ready_now() or (_link.how == MapJumpLink.How.BOOST and me.motor.boost_readiness() < 1.0):
+		input.move = Vector2.ZERO   # wait for the moment (the far side comes round), or for the boots
 		return
 	_link_flying = true
 	_link_time = 0.0
 	_link_hooked = false
 	_link_left = false
+	_link_boosted = false
+	_link_gliding = false
 	if DevArgs.sync_log:
-		print("BOT_LINK %d %s start" % [me.peer_id, "grapple" if _link.how == MapJumpLink.How.GRAPPLE else "leap"])
+		print("BOT_LINK %d %s start" % [me.peer_id, MapJumpLink.How.keys()[_link.how].to_lower()])
 
 
 ## One frame of a crossing: aim and hold the rope, or run off the edge, then steer
 ## for the landing until it is down.
 func _fly_link(delta: float) -> void:
 	_link_time += delta
+	if is_instance_valid(_link) and _link.how == MapJumpLink.How.LIFT:
+		_ride_lift()
+		return
+	if is_instance_valid(_link) and _link.how == MapJumpLink.How.GATE:
+		_walk_through_gate()
+		return
 	if not is_instance_valid(_link) or _link_time > LINK_GIVE_UP:
 		_end_link(false)
 		return
@@ -1092,6 +1282,37 @@ func _fly_link(delta: float) -> void:
 			input.grapple = not (close or over)
 			input.yaw = atan2(-aim.x, -aim.z)
 			input.pitch = asin(clampf(aim.y, -1.0, 1.0))
+	elif _link.how == MapJumpLink.How.HOP or _link.how == MapJumpLink.How.BOOST:
+		if not _link_left:
+			# The run-up: sprint at the landing and jump where the floor runs out.
+			input.sprint = true
+			var ahead := pos + to.normalized() * 0.5 + Vector3(0, 0.3, 0)
+			var q := PhysicsRayQueryParameters3D.create(ahead, ahead - Vector3(0, 1.2, 0), 1, [me.get_rid()])
+			if me.get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+				input.jump_pressed = true
+			_link_jumped = _link_time
+		elif _link.how == MapJumpLink.How.BOOST:
+			input.sprint = false
+			if not _link_boosted and _link_time - _link_jumped >= 0.03:
+				# The boots, toward the landing and up: the higher the landing, the steeper
+				# (about 25 degrees for one level with the takeoff, 60 for one 6 m up).
+				var lift := deg_to_rad(clampf((_link.rise_at_landing() + 2.5) * 7.0, 10.0, 60.0))
+				input.boost_pressed = true
+				input.boost_dir = to.normalized() * cos(lift) + Vector3.UP * sin(lift)
+				_link_boosted = true
+			# Past the top of the climb: glide on (it holds its height) until the landing is
+			# close enough to drop onto.
+			var speed := Vector2(me.velocity.x, me.velocity.z).length()
+			var above := pos.y - land.y
+			var drop_reach := speed * sqrt(2.0 * maxf(above, 0.1) / 22.0) + 1.0
+			if _link_boosted and me.velocity.y < 0.5 and above > 0.3 and to.length() > drop_reach:
+				input.glide = true
+				input.glide_pressed = not _link_gliding
+				_link_gliding = true
+			else:
+				input.glide = false
+		else:
+			input.sprint = false
 	else:
 		input.sprint = false
 	# Steer for the landing; ease off (push back against the speed) when about to overshoot.
@@ -1106,12 +1327,75 @@ func _fly_link(delta: float) -> void:
 	_set_move(dir)
 
 
+## One frame of a ride up a tractor beam: keep to the middle of the beam until just
+## under the floor to get off at, then steer out over it and come down. It goes on
+## looking where it was (it can fight on the way up).
+func _ride_lift() -> void:
+	var pos := me.global_position
+	var foot := _link.takeoff()
+	var land := _link.landing_point()
+	var rise := maxf(land.y - foot.y, 1.0)
+	if _link_time > rise / 6.0 + 8.0:
+		_end_link(false)   # (it should have been up long ago)
+		return
+	if not me.is_on_floor():
+		_link_left = true
+	elif _link_left and _link_time > 0.6:
+		if DevArgs.sync_log:
+			print("BOT_LIFT %d down at %.1f,%.1f,%.1f wanted %.1f,%.1f,%.1f after %.1f s" % [me.peer_id, pos.x, pos.y, pos.z, land.x, land.y, land.z, _link_time])
+		_end_link(absf(pos.y - land.y) < 3.0 and _flat(pos, land) < 8.0)   # down again: on the floor it wanted?
+		return
+	input.grapple = false
+	input.sprint = false
+	var out := pos.y > land.y - 1.0
+	if out and not _link_left:
+		out = false
+	if _link_left and not out and _flat(pos, foot) > 3.5:
+		if DevArgs.sync_log:
+			print("BOT_LIFT %d out of the beam at %.1f,%.1f,%.1f" % [me.peer_id, pos.x, pos.y, pos.z])
+		_end_link(false)   # knocked out of the beam on the way up
+		return
+	var to := (land if out else foot) - pos
+	to.y = 0.0
+	var dir := to.normalized() if to.length() > 0.25 else Vector3.ZERO
+	if out:
+		# Over the landing already? Push back against the speed, so it drops onto it.
+		var flat_speed := Vector3(me.velocity.x, 0.0, me.velocity.z)
+		if flat_speed.length() > 1.0 and to.length() < flat_speed.length() * 0.45:
+			dir = -flat_speed.normalized()
+	if _target == null and to.length() > 0.5:
+		input.yaw = atan2(-to.x, -to.z)
+		input.pitch = 0.0
+	_set_move(dir)
+
+
+## One frame of stepping through an open ring gate: walk straight at the middle of
+## the ring until it is suddenly somewhere else (the far gate), then carry on.
+func _walk_through_gate() -> void:
+	var pos := me.global_position
+	if pos.distance_to(_link.landing_point()) < 6.0:
+		_end_link(true)   # through
+		return
+	if _link_time > 4.0 or not _link.usable():
+		_end_link(false)  # it closed, or something is in the way
+		return
+	var to := _link.hook_point() - pos
+	to.y = 0.0
+	input.grapple = false
+	input.sprint = false
+	if to.length() > 0.2:
+		input.yaw = atan2(-to.x, -to.z)
+		input.pitch = 0.0
+	_set_move(to.normalized() if to.length() > 0.05 else Vector3.FORWARD.rotated(Vector3.UP, input.yaw))
+
+
 func _end_link(made_it: bool) -> void:
 	if DevArgs.sync_log:
 		print("BOT_LINK %d %s" % [me.peer_id, "landed" if made_it else "failed"])
 	_link = null
 	_link_flying = false
 	input.grapple = false
+	input.glide = false
 	_repath = 0.0
 	_path_goal = Vector3.INF
 	if not made_it:
@@ -1204,7 +1488,7 @@ func _grapple(delta: float, visible: bool) -> void:
 	if _open():
 		return   # islands over a drop: a free swing ends in the clouds (crossings go by MapJumpLink)
 	# Toward its target when it can see it, otherwise toward where it is walking.
-	var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
+	var spot := _target_spot() if visible or _goal == Vector3.INF else _from_nav(_goal)
 	if not d.grapples or spot == Vector3.INF or not g.ready_to_fire():
 		return
 	var dist := me.global_position.distance_to(spot)
@@ -1246,7 +1530,7 @@ func _blink(delta: float, visible: bool) -> void:
 		dir = Vector3.RIGHT.rotated(Vector3.UP, input.yaw) * _blink_side
 		_blink_side = 0.0
 	else:
-		var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
+		var spot := _target_spot() if visible or _goal == Vector3.INF else _from_nav(_goal)
 		if spot == Vector3.INF:
 			return
 		var rate: float = [0.15, 0.5, 1.0, 1.4][d.level]
@@ -1286,7 +1570,7 @@ func _jetpack(delta: float, visible: bool) -> void:
 	input.grapple = false
 	if jet.fuel < 0.6:
 		return
-	var spot := _target_spot() if visible or _goal == Vector3.INF else _goal
+	var spot := _target_spot() if visible or _goal == Vector3.INF else _from_nav(_goal)
 	if spot == Vector3.INF:
 		return
 	var rate: float = [0.2, 0.5, 0.9, 1.2][d.level]

@@ -11,10 +11,12 @@ extends Node3D
 ##  - MapGrapplePoint nodes: glowing spots the grappling hook snaps to when you aim
 ##    near them (any map, any mode).
 ##  - MapItemSpawn nodes (under "ItemSpawns"): Deathmatch power-ups (health, damage).
-##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
-##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
+##  - MapHazard blocks: touch one and, in a race, you go back to your checkpoint; in
+##    an arena it is a death, the same as falling out of the map.
+##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
 ##    steps bots follow round the course.
+##  - MapGravityZone volumes: places with their own gravity (see WorldGravity).
 ##  - MapSpinner groups: scenery that turns (drawn, never solid); MapTerminal consoles
 ##    players press interact at, and the MapEvent (GravityEvent, LayoutEvent) each one
 ##    sets off.
@@ -74,6 +76,9 @@ extends Node3D
 ## open sky between them, crossed at MapJumpLinks): every bot then carries the grapple
 ## here, whatever tool it was dealt.
 @export var bots_grapple := false
+## Gravity wherever no MapGravityZone covers, as a share of normal (see WorldGravity).
+## 1 = normal. Empyrean Tower: 0.4, with a zone of 1.0 filling the tower.
+@export_range(0.05, 2.0) var gravity_outside := 1.0
 ## A high point near the middle that scripted test players swing from.
 @export var swing_point := Vector3(0, 5.5, 0):
 	set(v):
@@ -100,6 +105,8 @@ var movers: Array = []
 var route: Array = []
 ## The map's MapSpinner nodes (scenery that turns), filled in by build().
 var spinners: Array = []
+## The map's MapGravityZone volumes, as WorldGravity takes them; filled in by build().
+var gravity_zones: Array = []
 ## The map's MapSpan walkways (they extend and retract), filled in by build():
 ## {node: MapSpan, base: Transform3D (in its mover's frame, or the map's), mover: int}.
 var spans: Array = []
@@ -183,9 +190,14 @@ func build(with_meshes: bool = true) -> void:
 	item_spawns = []
 	spinners = []
 	spans = []
+	gravity_zones = []
 	_riders = []
+	_nav_poses = []
 	_trail = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
+	# Gravity by place (none on most maps: then it is 1.0 everywhere, whatever the
+	# last map said).
+	WorldGravity.set_zones(gravity_zones, gravity_outside)
 	for s in spinners:
 		(s as MapSpinner).build(self, with_meshes)
 	checkpoints.sort_custom(func(a, b): return a.number < b.number)
@@ -205,7 +217,6 @@ func build(with_meshes: bool = true) -> void:
 		(s.node as MapSpan).build(self, on, s.base, with_meshes)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
-	add_child(body)
 	for piece in pieces:
 		if piece.solid:
 			for lump in collision_shapes(piece):
@@ -213,6 +224,10 @@ func build(with_meshes: bool = true) -> void:
 				shape.shape = lump
 				shape.transform = piece.xf
 				body.add_child(shape)
+	# (Into the world only once it has all its shapes: added one at a time to a body that
+	# is already there, each makes the physics engine put the whole body together again,
+	# which on a map of thousands of solid blocks took ten seconds.)
+	add_child(body)
 	if not with_meshes:
 		return
 	var meshes := MapMesher.build(pieces, face_shade)
@@ -367,6 +382,12 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			if not (child as Node3D).visible:
 				continue   # hidden in the editor: left out of the game
 			at = xf * (child as Node3D).transform
+		if child is MapGravityZone:
+			if mover < 0 and not gravity_zones.any(func(z): return z.node == child):
+				var zone := (child as MapGravityZone).to_zone(at)
+				zone["node"] = child
+				gravity_zones.append(zone)
+			continue
 		if child is MapSpinner:
 			if not spinners.has(child):
 				spinners.append(child)   # scenery that turns: it draws its own blocks, none of them solid
@@ -377,8 +398,11 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 		if child is MapMover and mover == -1:
 			# Its blocks are built into a moving body of their own (see _build_mover),
 			# in the mover's own frame.
+			# The scene's node goes along with the body when it carries jump links (bots
+			# read where those are from the nodes), or when it says so (a MapIsland).
 			var m := {"node": child, "base": at, "pieces": [], "body": null, "bounds": AABB(),
-				"parent": xf.affine_inverse(), "moves_node": child.get("carries_nodes") == true}
+				"parent": xf.affine_inverse(), "moves_node": child.get("carries_nodes") == true \
+					or not child.find_children("*", "MapJumpLink", true, false).is_empty()}
 			movers.append(m)
 			_collect(child, Transform3D.IDENTITY, m.pieces, spawn_list, movers.size() - 1)
 			continue
@@ -565,6 +589,89 @@ func island_at(point: Vector3) -> MapIsland:
 	return movers[on].node as MapIsland if on >= 0 else null
 
 
+# -- Bots on parts that never stop (Sky Island's bobbing islands and pads) -----------
+# The bots' navigation mesh is worked out once, from where everything stood at that
+# moment. A plain MapMover keeps moving after that, so a bot asks its way in the
+# mesh's frame: where it is and where it is going are put back to where the mover
+# they stand on stood then (to_nav), and the path's points are carried forward to
+# where that mover is now (from_nav). A MapIsland is left out: it stands still
+# between a LayoutEvent's moves and its mesh is redone (or swapped) for each layout.
+var _nav_poses: Array = []
+
+
+## The navigation mesh is about to be worked out from where everything stands now.
+func remember_nav_poses() -> void:
+	_nav_poses = []
+	for m in movers:
+		_nav_poses.append((m.body as AnimatableBody3D).transform if m.body else m.base)
+
+
+## `point` (in the map) as it was in the navigation mesh's frame.
+func to_nav(point: Vector3) -> Vector3:
+	if _nav_poses.size() != movers.size():
+		return point   # (no mesh made yet)
+	var i := _standing_on(point, false)
+	if i < 0:
+		return point
+	return (_nav_poses[i] as Transform3D) * ((movers[i].body as AnimatableBody3D).transform.affine_inverse() * point)
+
+
+## A point of the navigation mesh, carried to where its mover is now.
+func from_nav(point: Vector3) -> Vector3:
+	var i := _standing_on(point, true)
+	if i < 0:
+		return point
+	return (movers[i].body as AnimatableBody3D).transform * ((_nav_poses[i] as Transform3D).affine_inverse() * point)
+
+
+## Where `point`, riding whatever mover it stands on, will be `seconds` from now.
+func ahead(point: Vector3, seconds: float) -> Vector3:
+	var i := _standing_on(point, false)
+	if i < 0:
+		return point
+	var m: Dictionary = movers[i]
+	var then: Transform3D = m.base * (m.node as MapMover).offset_at(clock + seconds)
+	return then * ((m.body as AnimatableBody3D).transform.affine_inverse() * point)
+
+
+## Which plain mover `point` stands on (or over, by up to 8 m), or -1: the ground a bot
+## is on, for working out a route across many moving parts (see BotBrain).
+func standing_on(point: Vector3) -> int:
+	return _standing_on(point, false)
+
+
+## The plain mover (never a MapIsland) whose solid top is under `point`, at most 8 m
+## below it (the highest such), or -1. `at_nav`: where the movers stood for the
+## navigation mesh rather than where they are now.
+func _standing_on(point: Vector3, at_nav: bool) -> int:
+	if at_nav and _nav_poses.size() != movers.size():
+		return -1
+	var best := -1
+	var best_gap := INF
+	for i in movers.size():
+		var m: Dictionary = movers[i]
+		if m.body == null or m.node is MapIsland:
+			continue
+		var pose: Transform3D = _nav_poses[i] if at_nav else (m.body as AnimatableBody3D).transform
+		var local := pose.affine_inverse() * point
+		var box: AABB = m.bounds
+		if local.x < box.position.x - 1.0 or local.x > box.end.x + 1.0 or local.z < box.position.z - 1.0 or local.z > box.end.z + 1.0 \
+				or local.y < box.position.y - 1.0 or local.y > box.end.y + 8.0:
+			continue
+		for piece in m.pieces:
+			if not piece.solid:
+				continue
+			var p: Vector3 = (piece.xf as Transform3D).affine_inverse() * local
+			var half: Vector3 = piece.size * 0.5
+			var inside := (absf(p.x) <= half.x + 0.3 and absf(p.z) <= half.z + 0.3) if piece.shape == "box" \
+				else Vector2(p.x, p.z).length() <= half.x + 0.3
+			var gap := p.y - half.y
+			if inside and gap >= -1.0 and gap <= 8.0 and gap < best_gap:
+				best = i
+				best_gap = gap
+	return best
+
+
 ## Is `point` on an island that is about to go down?
 func doomed_at(point: Vector3) -> bool:
 	var island := island_at(point)
@@ -603,6 +710,12 @@ func _physics_process(delta: float) -> void:
 		update_movers(delta)
 
 
+func _exit_tree() -> void:
+	# The map's gravity zones go with it (the next map sets its own in build()).
+	if not Engine.is_editor_hint() and current == self:
+		WorldGravity.clear_zones()
+
+
 ## Where a hazard is right now (it may be riding a mover).
 func hazard_xf(h: Dictionary) -> Transform3D:
 	if h.mover < 0:
@@ -629,6 +742,13 @@ func hazard_at(point: Vector3, margin: float = 0.0, at: float = -INF) -> bool:
 		elif Vector2(local.x, local.z).length() <= half.x:
 			return true
 	return false
+
+
+## Is a player standing at `feet` touching a hazard? (Feet, middle and head, as a
+## race checks its racers.)
+func body_in_hazard(feet: Vector3) -> bool:
+	return hazard_at(feet + Vector3(0, 0.25, 0), 0.05) or hazard_at(feet + Vector3(0, 0.9, 0), 0.0) \
+		or hazard_at(feet + Vector3(0, 1.5, 0), 0.0)
 
 
 ## Will a moving part be there to stand on at `point` at map clock `at`? -1 if no

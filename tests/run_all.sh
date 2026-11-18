@@ -16,6 +16,8 @@ echo "== Importing project"
 # Each quick check: "name|args". Logs go to tests/out/check_<name>.log.
 CHECKS=(
   "movement|--fixed-fps 60 --script tests/movement_test.gd"
+  "movement_variant|--script tests/movement_variant_test.gd"
+  "movement_b|--fixed-fps 60 --script tests/movement_b_test.gd"
   "grapple_points|--script tests/grapple_point_test.gd"
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
   "ragdoll|--fixed-fps 60 --script tests/ragdoll_test.gd"
@@ -41,6 +43,9 @@ CHECKS=(
   "terminal|--script tests/terminal_test.gd"
   "cirrus|--fixed-fps 60 --script tests/cirrus_test.gd"
   "gravity|--fixed-fps 60 --script tests/gravity_test.gd"
+  "lift|--fixed-fps 60 --script tests/lift_test.gd"
+  "empyrean|--script tests/empyrean_test.gd"
+  "empyrean_play|--script tests/empyrean_play_test.gd"
   "testing_grounds|--fixed-fps 60 --script tests/course_test.gd"
   "construction_site|--fixed-fps 60 --script tests/site_test.gd"
   "office|--fixed-fps 60 --script tests/office_test.gd"
@@ -53,10 +58,12 @@ CHECKS=(
   "host_controls|--script tests/host_controls_test.gd"
   "spectator|--script tests/spectator_test.gd"
   "team_modes|--script tests/team_modes_test.gd"
+  "player_color|--script tests/player_color_test.gd"
+  "achievements|--script tests/achievements_test.gd"
   "respawn_visible|--script tests/respawn_visible_test.gd"
 )
 # Practice mode boots without errors on every map.
-for map in construction_site office kilnworks castle halcyon cirrus testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
+for map in construction_site office kilnworks castle halcyon cirrus empyrean testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
   CHECKS+=("boot_$map|-- --practice --map=$map --quit-after=3")
 done
 

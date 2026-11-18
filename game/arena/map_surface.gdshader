@@ -14,7 +14,9 @@ uniform float roughness = 0.85;
 // 0 panels, 1 tiles, 2 plates (rivets), 3 grating, 4 slats, 5 hazard stripes, 6 treads, 7 corrugated,
 // 8 bricks, 9 blocks (dressed stone), 10 cobbles, 11 planks, 12 mottle (grass, dirt, gravel),
 // 13 windows (far-off buildings), 14 strata (cliffs), 15 confetti (arcade carpet), 16 water,
-// 17 shingles (and thatch), 18 bark
+// 17 shingles (and thatch), 18 bark, 19 masonry (a wizard's tower: courses of four heights, runes),
+// 20 ring flags (a round floor laid in courses round the middle; masonry on its walls),
+// 21 arcane plate (metal plates with a brass inlay and glowing runes)
 uniform int style = 0;
 uniform vec2 wall_cell = vec2(3.0, 2.0);    // a wall panel: width, height (m)
 uniform vec2 floor_cell = vec2(2.0, 2.0);   // a floor or ceiling tile (m)
@@ -28,7 +30,12 @@ uniform float checker = 0.0;                // tiles: how much darker every othe
 uniform bool turn = false;                  // planks: boards run the other way (upright on a wall)
 uniform vec3 lit : source_color = vec3(1.0, 0.85, 0.55);       // windows: the light in a lit one
 uniform float lit_power = 0.0;              // windows, confetti: how brightly they shine
-uniform vec3 accent_a : source_color = vec3(1.0, 0.25, 0.7);   // confetti: its three colours
+uniform vec2 centre = vec2(0.0);            // ring flags: the middle the courses are laid round (map x, z)
+uniform vec4 near[4];                       // runes: players near by (where in the world, and how much: 0..1), from MapMagicField
+uniform float near_reach = 4.0;             // runes: how near a player brightens them (metres)
+uniform float stir = 0.0;                   // runes: the map's event is running (0..1)
+uniform float inlay = 0.0;                  // ring flags: a line inlaid (in accent_a) every this many courses; 0 = none
+uniform vec3 accent_a : source_color = vec3(1.0, 0.25, 0.7);   // confetti: its three colours; ring flags: the inlay
 uniform vec3 accent_b : source_color = vec3(0.2, 0.95, 1.0);
 uniform vec3 accent_c : source_color = vec3(1.0, 0.86, 0.2);
 
@@ -108,6 +115,33 @@ vec2 stones(vec2 p, float size) {
 // Where a jagged line of stone ends falls in a course: the edge near whole number k.
 float joint(float k, float row) {
 	return k + (hash(vec2(k, row)) - 0.5) * 0.56;
+}
+
+// A rune cut into a stone: 1 on its strokes. m: metres from the stone's middle divided by
+// the rune's height; pick: 0..1, which of four runes; px: a pixel in the same measure.
+float rune(vec2 m, float pick, float px) {
+	float w = 0.045;
+	float stem = stroke(abs(m.x), w, px) * (1.0 - step(0.34, abs(m.y)));
+	float k = floor(pick * 4.0);
+	float side = k < 2.0 ? 1.0 : -1.0;
+	float ax = m.x * side;
+	float reach = step(0.0, ax) * (1.0 - step(0.24, ax));
+	float arm = stroke(abs((m.y - 0.12) - ax) * 0.7071, w, px) * reach;
+	float arm2 = mod(k, 2.0) < 0.5 ? 0.0 : stroke(abs((m.y + 0.1) + ax) * 0.7071, w, px) * reach;
+	return max(stem, max(arm, arm2));
+}
+
+// How much brighter a rune at `pos` on a face pointing `nrm` glows: it breathes on its
+// own, and flares for a player within reach on the side the face looks out on.
+float rune_life(vec3 pos, vec3 nrm, float pick) {
+	float life = 0.72 + 0.28 * sin(TIME * (0.5 + pick * 9.0) + pick * 300.0);
+	float flare = 0.0;
+	for (int i = 0; i < 4; i++) {
+		vec3 to = near[i].xyz - pos;
+		float far = length(to);
+		flare = max(flare, near[i].w * smoothstep(near_reach, near_reach * 0.3, far) * step(0.02, dot(to, nrm)));
+	}
+	return life * (1.0 + 0.8 * stir) + 2.6 * flare;
 }
 
 void fragment() {
@@ -387,6 +421,127 @@ void fragment() {
 			shade *= 1.0 + (noise(vec2(p.x * 0.9, p.y * 0.2 + 3.0)) - 0.5) * 2.0 * vary;
 		} else {
 			shade *= 1.0 + blotch(p, px, 1.2) * vary * 2.0;
+		}
+	} else if (style == 20 && flat_face) {
+		// Ring flags: a round floor laid in courses round the middle of the map, every
+		// joint pointing at it; a line of metal inlaid every `inlay` courses; now and then
+		// a flag with a rune cut into it that glows.
+		vec2 d = map_pos.xz - centre;
+		float r = length(d);
+		float pr = max(px.x, px.y);
+		float course = floor(r / cell.y);
+		float in_r = r - course * cell.y;
+		float count = max(6.0, floor(6.2831853 * (course + 0.5) * cell.y / cell.x + 0.5));
+		float f = (atan(d.x, d.y) / 6.2831853 + 0.5) * count + hash(vec2(course, 7.0));
+		float k = floor(f);
+		float in_a = f - k;
+		float arc = 6.2831853 * max(r, 0.01) / count;
+		float ex = min(in_a, 1.0 - in_a) * arc;
+		float ey = min(in_r, cell.y - in_r);
+		float fine = clear_at(vec2(pr), min(cell.y, arc));
+		vec2 stone = vec2(mod(k, count), course);
+		float mortar = max(stroke(ex, seam, pr), stroke(ey, seam, pr));
+		float cover = 2.0 * seam / max(arc, 0.05) + 2.0 * seam / cell.y;
+		shade *= 1.0 + (hash(stone + vec2(5.0, 13.0)) - 0.5) * 2.0 * vary * fine;
+		shade *= 1.0 + blotch(p, px, 5.0) * vary;
+		shade *= mix(1.0, seam_shade, mix(cover, mortar, fine));
+		if (inlay > 0.0) {
+			float every = inlay * cell.y;
+			float off = abs(r - floor(r / every + 0.5) * every);
+			paint = accent_a;
+			painted = stroke(off, 0.05, pr) * clear_at(vec2(pr), every * 0.2) * step(every * 0.5, r);
+		}
+		float pick = hash(stone + vec2(2.0, 47.0));
+		if (detail > 0.0 && pick < detail && arc > cell.y * 0.6) {
+			float tall = cell.y * 0.8;
+			float glyph = rune(vec2((in_a - 0.5) * arc, in_r - cell.y * 0.5) / tall, pick / detail, pr / tall) * fine;
+			shade *= 1.0 - glyph * 0.3;
+			shine = lit * lit_power * glyph * rune_life(map_pos, n, pick);
+		}
+	} else if (style == 19 || style == 20) {
+		// Masonry: a wizard's tower. Courses of four different heights, every stone its own
+		// length and tone, worn, a light arris along its top and a shadow under it; now and
+		// then one with a rune cut into it that glows. (On a floor: flagstones in rows.)
+		float h0 = cell.y;
+		float h1 = cell.y * 0.62;
+		float h2 = cell.y * 0.85;
+		float h3 = cell.y * 0.5;
+		float period = h0 + h1 + h2 + h3;
+		float lift = floor(p.y / period);
+		float yy = p.y - lift * period;
+		float base = 0.0;
+		float h = h0;
+		float ci = 0.0;
+		if (yy >= h0 + h1 + h2) {
+			base = h0 + h1 + h2;
+			h = h3;
+			ci = 3.0;
+		} else if (yy >= h0 + h1) {
+			base = h0 + h1;
+			h = h2;
+			ci = 2.0;
+		} else if (yy >= h0) {
+			base = h0;
+			h = h1;
+			ci = 1.0;
+		}
+		float row = lift * 4.0 + ci;
+		float in_y = yy - base;
+		float len = cell.x * (0.75 + 0.5 * hash(vec2(row, 3.0)));     // this course's usual stone
+		float f = p.x / len + hash(vec2(row, 7.0)) * 5.0;
+		float k = floor(f);
+		float left = joint(k, row);
+		float right = joint(k + 1.0, row);
+		if (f < left) {
+			right = left;
+			k -= 1.0;
+			left = joint(k, row);
+		} else if (f >= right) {
+			left = right;
+			k += 1.0;
+			right = joint(k + 1.0, row);
+		}
+		float ex = min(f - left, right - f) * len;
+		float ey = min(in_y, h - in_y);
+		float fine = clear_at(px, min(len, h));
+		vec2 stone = vec2(k, row);
+		float mortar = max(stroke(ex, seam, px.x), stroke(ey, seam, px.y));
+		float cover = 2.0 * seam / len + 2.0 * seam / h;
+		shade *= 1.0 + (hash(stone + vec2(5.0, 13.0)) - 0.5) * 2.0 * vary * fine;
+		shade *= 1.0 + blotch(p, px, 4.0) * vary * 1.2;
+		shade *= 1.0 - smoothstep(0.8, 1.0, hash(stone + vec2(31.0, 2.0))) * 0.08 * fine;
+		float top_edge = stroke(abs((h - in_y) - seam * 2.6), seam * 0.9, px.y);
+		float low_edge = stroke(abs(in_y - seam * 2.4), seam * 1.1, px.y);
+		shade *= 1.0 + (top_edge * 0.06 - low_edge * 0.05) * fine;
+		shade *= mix(1.0, seam_shade, mix(cover, mortar, fine));
+		float pick = hash(stone + vec2(2.0, 47.0));
+		if (detail > 0.0 && pick < detail && (right - left) * len > h * 0.7) {
+			float tall = h * 0.82;
+			float glyph = rune(vec2((f - 0.5 * (left + right)) * len, in_y - h * 0.5) / tall, pick / detail, max(px.x, px.y) / tall) * fine;
+			shade *= 1.0 - glyph * 0.3;
+			shine = lit * lit_power * glyph * rune_life(map_pos, n, pick);
+		}
+	} else if (style == 21) {
+		// Arcane plate: a wizard's metal. Seams with a rivet in each corner, a thin line of
+		// brass (accent_a) inlaid a hand in from the seams, and on some plates a rune in a
+		// ring, cut in and glowing.
+		shade *= 1.0 + (rnd - 0.5) * 2.0 * vary * clear;
+		float pr = max(px.x, px.y);
+		float rivet = stroke(length(to_edge - vec2(0.11)), 0.03, pr) * clear_at(px, 0.3);
+		vec2 inset = to_edge - vec2(0.22);
+		float line = max(stroke(abs(inset.x), 0.013, px.x) * step(-0.013, inset.y), stroke(abs(inset.y), 0.013, px.y) * step(-0.013, inset.x));
+		paint = accent_a;
+		painted = line * clear_at(px, 0.12) * 0.85;
+		shade *= mix(1.0, seam_shade, max(seams, rivet));
+		float pick = hash(id + vec2(2.0, 47.0));
+		if (detail > 0.0 && pick < detail) {
+			float tall = min(cell.x, cell.y) * 0.46;
+			vec2 mid = in_cell - cell * 0.5;
+			float fine = clear_at(px, tall * 0.5);
+			float glyph = rune(mid / tall, pick / detail, pr / tall);
+			glyph = max(glyph, stroke(abs(length(mid) - tall * 0.66), 0.016, pr)) * fine;
+			shade *= 1.0 - glyph * 0.35;
+			shine = lit * lit_power * glyph * rune_life(map_pos, n, pick);
 		}
 	} else {
 		// Corrugated: upright ridges on the sides (a shipping container), plain on top.

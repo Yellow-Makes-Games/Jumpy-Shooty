@@ -22,7 +22,8 @@ const BOT_ID_BASE := 9001
 const MAX_PLAYERS := 16
 ## Spectators do not take a player's place; this many can watch on top of a full lobby.
 const MAX_SPECTATORS := 8
-## One colour per player, all different (the first five are the originals).
+## One colour per player, all different (the first five are the originals). You get
+## the first free one unless you picked one (see set_my_color).
 const PLAYER_COLORS := [
 	Color(0.95, 0.35, 0.25), Color(0.25, 0.65, 0.95), Color(0.40, 0.85, 0.35),
 	Color(0.95, 0.80, 0.25), Color(0.75, 0.40, 0.95), Color(0.20, 0.90, 0.85),
@@ -31,6 +32,9 @@ const PLAYER_COLORS := [
 	Color(0.55, 0.75, 0.55), Color(0.95, 0.95, 0.45), Color(0.45, 0.45, 0.50),
 	Color(0.70, 0.50, 0.30),
 ]
+
+const PLAYER_COLOR_NAMES := ["Red", "Blue", "Green", "Yellow", "Purple", "Cyan", "Pink", "Orange", "Lime", "Indigo",
+	"White", "Maroon", "Sage", "Lemon", "Grey", "Brown"]
 
 ## peer id -> { "name": String, "color": int, "character": String (see Characters),
 ##   "weapon": String (see WeaponData), "mobility": String (see Mobility) },
@@ -114,7 +118,7 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	is_online = false
 	players_changed.emit()
 
@@ -130,7 +134,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -276,7 +280,7 @@ static func _is_private(ip: String) -> bool:
 
 func _on_connected_to_server() -> void:
 	_tune_link(1)
-	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility, _join_spectating)
+	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility, _join_spectating, Settings.player_color)
 
 
 func _on_connection_failed() -> void:
@@ -400,7 +404,7 @@ func _broadcast_players() -> void:
 # Lobby
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register(player_name: String, character: String, weapon: String, mobility: String = "", spectate: bool = false) -> void:
+func _register(player_name: String, character: String, weapon: String, mobility: String = "", spectate: bool = false, color: int = -1) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
@@ -415,7 +419,7 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 	if spectate:
 		host_add_spectator(id, player_name)
 	else:
-		host_add_player(id, player_name, character, weapon, mobility)
+		host_add_player(id, player_name, character, weapon, mobility, color)
 	_sync_settings.rpc_id(id, match_settings)
 	_sync_spectators.rpc(spectators)
 	_sync_players.rpc(players)
@@ -424,10 +428,12 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 
 
 ## Host: put a player who has just connected in the list. Their weapon must be one the
-## lobby allows (see LobbySettings); if not, they get one that is.
-func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "") -> void:
+## lobby allows (see LobbySettings); if not, they get one that is. color: the colour
+## they would like (see set_my_color), theirs if nobody has it.
+func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "", color: int = -1) -> void:
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
 		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": LobbySettings.fit_mobility(Mobility.valid(mobility))}
+	_take_color(id, color)
 	if in_match and Teams.active():
 		players[id]["team"] = Teams.smaller_team()   # joining a team match: onto the smaller team
 	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
@@ -550,6 +556,8 @@ func confirm_my_character() -> void:
 		set_my_weapon(_local_weapon)   # the host gives you an allowed one if this one is not
 	if players.has(my_id()) and player_loadout_mobility(my_id()) != LobbySettings.fit_mobility(_local_mobility):
 		set_my_mobility(_local_mobility)
+	if players.has(my_id()) and Settings.player_color >= 0 and color_index(my_id()) != Settings.player_color and not color_taken(Settings.player_color):
+		set_my_color(Settings.player_color)   # the colour you like is free again
 
 
 ## Pause menu "Loadout": change robot and/or weapon mid-match. It takes effect when
@@ -600,6 +608,69 @@ func _apply_character(id: int, character: String) -> void:
 		_sync_players.rpc(players)
 	else:
 		players_changed.emit()
+
+
+## Pick your colour (a number in PLAYER_COLORS): your robot's trim and visor, your
+## name and your stripes in a free-for-all (a team mode dresses you in your team's).
+## Works in the lobby, for a colour no other player has; a bot hands its colour over.
+func set_my_color(index: int) -> void:
+	if is_host():
+		_apply_color(my_id(), index)
+	else:
+		_choose_color.rpc_id(1, index)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_color(index: int) -> void:
+	if is_host():
+		_apply_color(multiplayer.get_remote_sender_id(), index)
+
+
+func _apply_color(id: int, index: int) -> void:
+	if in_match or not _take_color(id, index):
+		return   # (in a match everything is already drawn in the colour you have)
+	print("[net] %d took colour %d" % [id, index])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Host: give a player the colour they asked for, if no other player has it. A bot
+## that has it takes theirs instead, but not mid-match, when it is already drawn.
+func _take_color(id: int, index: int) -> bool:
+	if not players.has(id) or index < 0 or index >= PLAYER_COLORS.size() or players[id].color == index:
+		return false
+	for other in players:
+		if other != id and players[other].color == index:
+			if not is_bot(other) or in_match:
+				return false
+			players[other]["color"] = players[id].color
+	players[id]["color"] = index
+	return true
+
+
+## The number of a player's colour in PLAYER_COLORS (-1: no such player).
+func color_index(id: int) -> int:
+	return int(players[id].color) if players.has(id) else -1
+
+
+## Whether another player (not a bot) already has this colour.
+func color_taken(index: int) -> bool:
+	for id in players:
+		if id != my_id() and players[id].color == index and not is_bot(id):
+			return true
+	return false
+
+
+## The colour you chose in the menus (Settings.player_color), or the first one.
+func _wanted_color() -> int:
+	return Settings.player_color if Settings.player_color >= 0 and Settings.player_color < PLAYER_COLORS.size() else 0
+
+
+## The colour the menus show you in before there is a lobby.
+func menu_color() -> Color:
+	return PLAYER_COLORS[_wanted_color()]
 
 
 ## Pick the weapon you take into the match (an id from WeaponData). Works in the lobby,
@@ -702,6 +773,7 @@ func _sync_settings(settings: Dictionary) -> void:
 		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility())])
 		print("LOBBY_MAP %d map=%s random=%s pool=%s song=%s" % [my_id(), map_id(), match_settings.random_map,
 			",".join(LobbySettings.map_pool()), match_settings.song])
+		print("LOBBY_MOVEMENT %d movement=%s" % [my_id(), LobbySettings.movement()])
 	if is_host() and not in_match:
 		host_fit_loadouts()   # weapons no longer allowed are swapped (everyone is told)
 	elif players.has(my_id()) and not in_match:
