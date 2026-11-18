@@ -13,6 +13,9 @@ extends Node
 ##  - allowed mobility tools: the host enforces them for itself, remote players and
 ##    bots; the death screen's mobility button and every mobility picker go through the
 ##    allowed tools only; a race ignores the setting; the host's control changes it.
+##  - the lobby size is kept between 2 and 16; players ready up, the host can only
+##    start once everyone is ready (bots and the host count as ready), the lobby shows
+##    who is ready and gives the host a Kick button on everyone else's row.
 ## Started by tests/lobby_settings_test.gd.
 
 var _fails: Array[String] = []
@@ -30,6 +33,7 @@ func run() -> void:
 	await _lobby_menu()
 	await _loadout_menu()
 	await _mobility()
+	await _ready_and_size()
 	Net.leave()
 	if _fails.is_empty():
 		print("PASS: every check passed")
@@ -300,4 +304,55 @@ func _mobility() -> void:
 	_expect(moves.allowed() == ["blink"] and moves.current == "blink", "the pause menu Loadout offers only the allowed tools")
 	menu.queue_free()
 	Net.in_match = false
+	await get_tree().process_frame
+
+
+func _ready_and_size() -> void:
+	print("  lobby size, ready and kick")
+	_expect(LobbySettings.clean({}).max_players == 16, "the lobby takes 16 players unless the host says otherwise")
+	_expect(LobbySettings.clean({"max_players": 1}).max_players == 2 and LobbySettings.clean({"max_players": 40}).max_players == 16,
+		"the lobby size stays between 2 and 16")
+	Net.start_offline("Host", "needle", "pistol")
+	Net.players[2] = {"name": "Client", "color": 1, "character": "orbit", "weapon": "rifle", "mobility": "grapple"}
+	Net.players[3] = {"name": "Other", "color": 2, "character": "rivet", "weapon": "smg", "mobility": "blink"}
+	var s := Net.match_settings.duplicate()
+	s["game"] = "ffa"
+	s["map"] = Maps.default_id("ffa")
+	s["mode"] = "kills"
+	s["max_players"] = 4
+	Net.set_match_settings(s)
+	_expect(LobbySettings.max_players() == 4, "the host's lobby size is kept in the match settings")
+	_expect(Net.is_ready(1) and not Net.is_ready(2) and Net.not_ready() == [2, 3], "the host counts as ready; the others start not ready")
+	Net.is_online = true   # pretend: the ready rule is for online lobbies
+	Net.host_start_match()
+	_expect(not Net.in_match, "the host cannot start while anyone is not ready")
+	Net._apply_ready(2, true)
+	_expect(Net.is_ready(2) and Net.not_ready() == [3], "a player who readies up is ready")
+	var bot := Net.add_bot(1)
+	_expect(Net.is_ready(bot), "bots are always ready")
+	Net.is_online = false   # (bots can only be taken out offline)
+	Net.remove_bot(bot)
+	Net.is_online = true
+	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
+	get_tree().root.add_child(lobby)
+	await get_tree().process_frame
+	var start: Button = lobby._start
+	_expect(start.disabled and "1" in start.text, "Start waits for the one player not ready yet (%s)" % start.text)
+	var kicks := lobby.find_children("*", "Button", true, false).filter(func(b): return (b as Button).text == "Kick")
+	_expect(kicks.size() == 2, "the host has a Kick button on each other player's row (%d)" % kicks.size())
+	var tags := []
+	for l in lobby.find_children("*", "Label", true, false):
+		if (l as Label).text in ["READY", "NOT READY"]:
+			tags.append((l as Label).text)
+	tags.sort()
+	_expect(tags == ["NOT READY", "READY"], "the list shows who is ready (%s)" % [tags])
+	_expect(lobby._size_box.visible and int(lobby._size.value) == 4 and int(lobby._size.min_value) == 3,
+		"the host sets the lobby size, never below the players already in")
+	Net._apply_ready(3, true)
+	await get_tree().process_frame
+	_expect(Net.all_ready() and not start.disabled and start.text == "START MATCH", "once everyone is ready the host can start")
+	Net._apply_ready(3, false)
+	_expect(not Net.all_ready(), "a player can take back their ready")
+	lobby.queue_free()
+	Net.is_online = false
 	await get_tree().process_frame

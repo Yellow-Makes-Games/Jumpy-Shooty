@@ -190,6 +190,17 @@ func _mode() -> void:
 		"...and switching back gives an ordinary shoot-out")
 	_expect(GunGame.mode_of(GunGame.with_mode(on, "gungame", Maps.default_id())) == "gungame", "Gun Game still switches as before")
 	_expect(KillcamMode.format(10000) == "10,000" and KillcamMode.format(1500) == "1,500" and KillcamMode.format(999) == "999" 		and KillcamMode.format(1234567) == "1,234,567", "points read with commas")
+	var defaults := LobbySettings.clean({})
+	_expect(defaults.killcam_points == 5000 and defaults.killcam_minutes == 5, "by default: first to 5,000 points or the most after 5 minutes (%s)" % [defaults])
+	_expect(LobbySettings.clean({"killcam_points": 12345, "killcam_minutes": 7}).killcam_points == 12500, "points are picked in steps of %d" % KillcamMode.POINTS_STEP)
+	var wild := LobbySettings.clean({"killcam_points": 99999999, "killcam_minutes": -4})
+	_expect(wild.killcam_points == KillcamMode.POINTS_MAX and wild.killcam_minutes == KillcamMode.MINUTES_MIN, "out of range is brought back in (%s)" % [wild])
+	_expect(LobbySettings.clean({"killcam_points": "lots", "killcam_minutes": null}).killcam_minutes == KillcamMode.MINUTES,
+		"nonsense falls back to the defaults")
+	var was := Net.match_settings
+	Net.match_settings = LobbySettings.clean({"game": "ffa", "mode": "killcam", "map": Maps.default_id(), "killcam_points": 8000, "killcam_minutes": 12})
+	_expect(KillcamMode.target() == 8000 and KillcamMode.minutes() == 12, "the match goes by the host's settings (%d, %d)" % [KillcamMode.target(), KillcamMode.minutes()])
+	Net.match_settings = was
 
 
 func _packing() -> void:

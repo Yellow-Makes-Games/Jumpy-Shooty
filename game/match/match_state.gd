@@ -128,6 +128,8 @@ func deaths(id: int) -> int:
 
 func _on_match_started() -> void:
 	running = true
+	if DevArgs.sync_log and KillcamMode.active():   # (every copy: the host's settings reach them all)
+		print("KILLCAM_RULES %d %d %d" % [Net.my_id(), KillcamMode.target(), KillcamMode.minutes()])
 	last_results = []
 	kill_log.clear()
 	highlights.clear()
@@ -166,7 +168,7 @@ func _on_match_started() -> void:
 			time_left = GunGame.TIME_LIMIT if DevArgs.time_limit <= 0.0 else DevArgs.time_limit
 		elif KillcamMode.active():
 			kill_target = 0   # it ends on points (KillcamMode.target()) or the clock
-			time_left = KillcamMode.TIME_LIMIT if DevArgs.time_limit <= 0.0 else DevArgs.time_limit
+			time_left = KillcamMode.minutes() * 60.0 if DevArgs.time_limit <= 0.0 else DevArgs.time_limit
 		elif Teams.active():
 			kill_target = 0   # it ends on rounds or captures (see Teams), or the clock in Capture the Flag
 			time_left = Teams.match_time()

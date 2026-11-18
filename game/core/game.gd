@@ -101,8 +101,10 @@ func _game_for(map: String, game: String) -> String:
 ## Blue, Red, Blue... (up to MAX_TEAM_BOTS).
 ## weapons: the weapons allowed in a shoot-out (see LobbySettings; [] all of them,
 ## null keeps the last choice). mobility: the same for mobility tools.
+## killcam: the Killcam mode's {"killcam_points", "killcam_minutes"} (see KillcamMode;
+## {} keeps the last choice).
 func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int = 0, rules: String = "kills", game: String = "",
-		weapons = null, mobility = null) -> void:
+		weapons = null, mobility = null, killcam: Dictionary = {}) -> void:
 	if not rules in GunGame.RULES:
 		rules = "kills"
 	mode = Mode.BOT
@@ -120,14 +122,20 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 		mobility = last_bot.get("mobility", [])
 	if not DevArgs.allowed_mobility.is_empty():
 		mobility = DevArgs.allowed_mobility
+	var killcam_points := KillcamMode.clean_points(killcam.get("killcam_points", last_bot.get("killcam_points")))
+	if DevArgs.points_target > 0:
+		killcam_points = KillcamMode.clean_points(DevArgs.points_target)
+	var killcam_minutes := KillcamMode.clean_minutes(killcam.get("killcam_minutes", last_bot.get("killcam_minutes")))
 	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
-		"rules": rules, "weapons": LobbySettings.normalized_weapons(weapons), "mobility": LobbySettings.normalized_mobility(mobility)}
+		"rules": rules, "weapons": LobbySettings.normalized_weapons(weapons), "mobility": LobbySettings.normalized_mobility(mobility),
+		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes}
 	last_map[last_bot.game] = picked
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	var playing := _map_choice(last_bot.map)
 	Net.match_settings = LobbySettings.clean({"game": _game_for(playing, DevArgs.game if DevArgs.game != "" else last_bot.game),
 		"mode": rules, "kills": kills_to_win, "minutes": 8, "race_minutes": 10, "map": playing,
-		"weapons": last_bot.weapons, "mobility": last_bot.mobility})
+		"weapons": last_bot.weapons, "mobility": last_bot.mobility,
+		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes})
 	for i in bots:
 		Net.add_bot(difficulty, DevArgs.bot_weapon, DevArgs.bot_mobility)
 	Net.host_start_match()
@@ -176,12 +184,17 @@ func host_online() -> Error:
 		elif not kind in GunGame.RULES:
 			s.kills = int(amount)
 		Net.set_match_settings(s)
-	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty()):
+	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty() and DevArgs.lobby_size == 0 \
+			and DevArgs.points_target == 0):
 		var s := Net.match_settings.duplicate()   # tests: lobby settings, in one go
+		if DevArgs.lobby_size > 0:
+			s["max_players"] = DevArgs.lobby_size
 		if not DevArgs.allowed_weapons.is_empty():
 			s["weapons"] = DevArgs.allowed_weapons.duplicate()
 		if not DevArgs.allowed_mobility.is_empty():
 			s["mobility"] = DevArgs.allowed_mobility.duplicate()
+		if DevArgs.points_target > 0:
+			s["killcam_points"] = DevArgs.points_target
 		Net.set_match_settings(s)
 	return err
 
@@ -220,6 +233,8 @@ func _on_join_failed(reason: String) -> void:
 
 
 func _on_session_ended(reason: String) -> void:
+	if DevArgs.sync_log:
+		print("SESSION_ENDED %s" % reason)
 	goto_main_menu(reason)
 
 
@@ -239,7 +254,7 @@ func _on_players_changed() -> void:
 	if DevArgs.autostart > 0 and Net.is_host() and not Net.in_match and Net.players.size() >= DevArgs.autostart \
 			and Match.last_results.is_empty():
 		print("[dev] autostart with %d players" % Net.players.size())
-		Net.host_start_match()
+		Net.host_start_match(true)
 
 
 func _run_dev_args() -> void:
