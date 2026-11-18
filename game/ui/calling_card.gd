@@ -19,7 +19,7 @@ extends RefCounted
 ## lock it. The picker, the network check and the test read the tables.
 
 const DEFAULT_CARD := "standard"
-const DEFAULT_ICON := "star"
+const DEFAULT_ICON := "recruit"
 
 ## id, name, pattern, and its colours: a and b the background (a gradient), c the pattern.
 const CARDS := [
@@ -31,12 +31,12 @@ const CARDS := [
 	{"id": "tide", "name": "Tide", "pattern": "waves", "a": Color(0.04, 0.20, 0.28), "b": Color(0.10, 0.45, 0.50), "c": Color(0.55, 0.95, 0.9)},
 	{"id": "sunset", "name": "Sunset Drive", "pattern": "sun", "a": Color(0.20, 0.05, 0.32), "b": Color(0.95, 0.35, 0.40), "c": Color(1.0, 0.85, 0.3)},
 	{"id": "starfield", "name": "Starfield", "pattern": "stars", "a": Color(0.02, 0.03, 0.09), "b": Color(0.08, 0.06, 0.22), "c": Color(0.9, 0.55, 0.3)},
-	{"id": "hazard", "name": "Hazard", "pattern": "hazard", "a": Color(0.10, 0.10, 0.11), "b": Color(0.22, 0.21, 0.20), "c": Color(1.0, 0.78, 0.1)},
+	{"id": "hazard", "name": "Breach", "pattern": "hazard", "a": Color(0.10, 0.10, 0.11), "b": Color(0.22, 0.21, 0.20), "c": Color(1.0, 0.78, 0.1)},
 	{"id": "inferno", "name": "Inferno", "pattern": "flames", "a": Color(0.10, 0.02, 0.02), "b": Color(0.40, 0.05, 0.02), "c": Color(1.0, 0.5, 0.1)},
 	{"id": "woodland", "name": "Woodland Camo", "pattern": "camo", "a": Color(0.22, 0.28, 0.14), "b": Color(0.12, 0.17, 0.09), "c": Color(0.42, 0.36, 0.22)},
 	{"id": "arctic", "name": "Arctic Camo", "pattern": "camo", "a": Color(0.82, 0.86, 0.90), "b": Color(0.55, 0.62, 0.70), "c": Color(0.96, 0.97, 1.0)},
 	{"id": "circuit", "name": "Circuit", "pattern": "circuit", "a": Color(0.02, 0.10, 0.08), "b": Color(0.04, 0.22, 0.16), "c": Color(0.4, 1.0, 0.6)},
-	{"id": "sunburst", "name": "Sunburst", "pattern": "rays", "a": Color(0.85, 0.45, 0.05), "b": Color(1.0, 0.75, 0.2), "c": Color(1.0, 0.95, 0.7)},
+	{"id": "sunburst", "name": "Flashbulb", "pattern": "rays", "a": Color(0.85, 0.45, 0.05), "b": Color(1.0, 0.75, 0.2), "c": Color(1.0, 0.95, 0.7)},
 	{"id": "skyline", "name": "Night Shift", "pattern": "skyline", "a": Color(0.03, 0.05, 0.14), "b": Color(0.25, 0.12, 0.35), "c": Color(1.0, 0.85, 0.45)},
 	{"id": "bullseye", "name": "Bullseye", "pattern": "target", "a": Color(0.14, 0.02, 0.03), "b": Color(0.40, 0.06, 0.07), "c": Color(1.0, 0.92, 0.9)},
 	{"id": "storm", "name": "Storm Front", "pattern": "bolts", "a": Color(0.06, 0.07, 0.14), "b": Color(0.22, 0.24, 0.38), "c": Color(1.0, 0.95, 0.5)},
@@ -51,46 +51,59 @@ const CARDS := [
 	{"id": "chrome", "name": "Chrome", "pattern": "chrome", "a": Color(0.25, 0.30, 0.38), "b": Color(0.80, 0.86, 0.94), "c": Color(1.0, 1.0, 1.0)},
 	{"id": "blueprint", "name": "Blueprint", "pattern": "circuit", "a": Color(0.05, 0.16, 0.40), "b": Color(0.08, 0.26, 0.58), "c": Color(0.85, 0.93, 1.0)},
 	{"id": "magma", "name": "Magma", "pattern": "hex", "a": Color(0.08, 0.02, 0.02), "b": Color(0.28, 0.05, 0.02), "c": Color(1.0, 0.4, 0.1)},
-	{"id": "frostbite", "name": "Frostbite", "pattern": "mountains", "a": Color(0.05, 0.10, 0.25), "b": Color(0.55, 0.80, 0.95), "c": Color(0.92, 0.97, 1.0)},
+	{"id": "frostbite", "name": "Crevasse", "pattern": "mountains", "a": Color(0.05, 0.10, 0.25), "b": Color(0.55, 0.80, 0.95), "c": Color(0.92, 0.97, 1.0)},
 	{"id": "vaporwave", "name": "Vaporwave", "pattern": "grid", "a": Color(0.95, 0.45, 0.70), "b": Color(0.25, 0.10, 0.45), "c": Color(1.0, 0.95, 0.5)},
 ]
 
-## id, name, glyph, its colour, and the badge behind it (shape: circle, shield, hex, diamond or square).
+## Icons are emblems: a metal-rimmed plate with a glyph on it. id, name, glyph (see
+## _draw_glyph), its colour (`color`) and second colour (`accent`: a glow, a gem, a
+## grip), the plate (`back`, and its `shape`: circle, shield, crest, hex, diamond,
+## square or burst), the rim's metal (`rim`: steel if it does not say) and whether
+## rays fan out behind the glyph (`rays`).
+const STEEL := Color(0.62, 0.67, 0.74)
+const BRONZE := Color(0.78, 0.50, 0.28)
+const GOLD := Color(1.0, 0.80, 0.28)
+const BONE := Color(0.90, 0.88, 0.80)
 const ICONS := [
-	{"id": "star", "name": "Star", "glyph": "star", "color": Color(1.0, 0.85, 0.3), "back": Color(0.12, 0.18, 0.30), "shape": "circle"},
-	{"id": "robot", "name": "Robot", "glyph": "robot", "color": Color(0.9, 0.93, 0.97), "back": Color(0.15, 0.35, 0.55), "shape": "square"},
-	{"id": "bolt", "name": "Bolt", "glyph": "bolt", "color": Color(1.0, 0.9, 0.3), "back": Color(0.20, 0.12, 0.35), "shape": "hex"},
-	{"id": "heart", "name": "Heart", "glyph": "heart", "color": Color(1.0, 0.35, 0.45), "back": Color(0.25, 0.06, 0.12), "shape": "circle"},
-	{"id": "rank", "name": "Stripes", "glyph": "chevrons", "color": Color(1.0, 0.8, 0.3), "back": Color(0.14, 0.22, 0.14), "shape": "shield"},
-	{"id": "paw", "name": "Paw", "glyph": "paw", "color": Color(0.98, 0.92, 0.85), "back": Color(0.45, 0.25, 0.12), "shape": "circle"},
-	{"id": "sun", "name": "Sun", "glyph": "sun", "color": Color(1.0, 0.8, 0.2), "back": Color(0.15, 0.40, 0.65), "shape": "circle"},
-	{"id": "moon", "name": "Moon", "glyph": "moon", "color": Color(0.95, 0.95, 0.8), "back": Color(0.08, 0.08, 0.22), "shape": "circle"},
-	{"id": "skull", "name": "Skull", "glyph": "skull", "color": Color(0.95, 0.95, 0.92), "back": Color(0.12, 0.12, 0.14), "shape": "circle"},
-	{"id": "crosshair", "name": "Crosshair", "glyph": "crosshair", "color": Color(1.0, 0.3, 0.25), "back": Color(0.10, 0.10, 0.12), "shape": "square"},
-	{"id": "crown", "name": "Crown", "glyph": "crown", "color": Color(1.0, 0.82, 0.25), "back": Color(0.35, 0.08, 0.45), "shape": "shield"},
-	{"id": "flame", "name": "Flame", "glyph": "flame", "color": Color(1.0, 0.55, 0.1), "back": Color(0.22, 0.04, 0.03), "shape": "circle"},
-	{"id": "gem", "name": "Gem", "glyph": "gem", "color": Color(0.4, 0.9, 1.0), "back": Color(0.06, 0.12, 0.25), "shape": "diamond"},
-	{"id": "shield", "name": "Shield", "glyph": "shield", "color": Color(0.75, 0.82, 0.9), "back": Color(0.12, 0.25, 0.50), "shape": "circle"},
-	{"id": "wings", "name": "Wings", "glyph": "wings", "color": Color(0.97, 0.97, 1.0), "back": Color(0.30, 0.55, 0.85), "shape": "circle"},
-	{"id": "boot", "name": "Boot", "glyph": "boot", "color": Color(0.95, 0.6, 0.3), "back": Color(0.18, 0.12, 0.08), "shape": "hex"},
-	{"id": "hook", "name": "Hook", "glyph": "hook", "color": Color(0.85, 0.9, 0.95), "back": Color(0.10, 0.30, 0.32), "shape": "circle"},
-	{"id": "stopwatch", "name": "Stopwatch", "glyph": "stopwatch", "color": Color(0.95, 0.95, 0.95), "back": Color(0.55, 0.12, 0.10), "shape": "circle"},
-	{"id": "flag", "name": "Flag", "glyph": "flag", "color": Color(0.95, 0.95, 0.95), "back": Color(0.10, 0.10, 0.12), "shape": "shield"},
-	{"id": "duck", "name": "Duck", "glyph": "duck", "color": Color(1.0, 0.85, 0.2), "back": Color(0.20, 0.55, 0.75), "shape": "circle"},
-	{"id": "eye", "name": "Eye", "glyph": "eye", "color": Color(0.95, 0.95, 0.9), "back": Color(0.30, 0.08, 0.35), "shape": "diamond"},
-	{"id": "swords", "name": "Crossed Swords", "glyph": "swords", "color": Color(0.88, 0.92, 0.96), "back": Color(0.45, 0.08, 0.08), "shape": "shield"},
-	{"id": "rocket", "name": "Rocket", "glyph": "rocket", "color": Color(0.95, 0.95, 0.97), "back": Color(0.08, 0.10, 0.28), "shape": "circle"},
-	{"id": "trophy", "name": "Trophy", "glyph": "trophy", "color": Color(1.0, 0.82, 0.25), "back": Color(0.10, 0.25, 0.18), "shape": "hex"},
-	{"id": "ghost", "name": "Ghost", "glyph": "ghost", "color": Color(0.92, 0.96, 1.0), "back": Color(0.15, 0.10, 0.30), "shape": "circle"},
-	{"id": "bomb", "name": "Bomb", "glyph": "bomb", "color": Color(0.18, 0.18, 0.2), "back": Color(0.95, 0.65, 0.15), "shape": "circle"},
-	{"id": "dice", "name": "Dice", "glyph": "dice", "color": Color(0.96, 0.96, 0.96), "back": Color(0.10, 0.40, 0.20), "shape": "square"},
-	{"id": "medal", "name": "Medal", "glyph": "medal", "color": Color(1.0, 0.82, 0.25), "back": Color(0.10, 0.16, 0.36), "shape": "circle"},
-	{"id": "ninja", "name": "Ninja", "glyph": "mask", "color": Color(0.14, 0.14, 0.18), "back": Color(0.75, 0.12, 0.12), "shape": "circle"},
-	{"id": "gold_star", "name": "Gold Star", "glyph": "star", "color": Color(1.0, 0.97, 0.75), "back": Color(0.85, 0.6, 0.1), "shape": "hex"},
-	{"id": "gold_skull", "name": "Golden Skull", "glyph": "skull", "color": Color(1.0, 0.85, 0.3), "back": Color(0.20, 0.03, 0.03), "shape": "diamond"},
-	{"id": "ace", "name": "Ace", "glyph": "wings", "color": Color(1.0, 0.85, 0.3), "back": Color(0.10, 0.12, 0.30), "shape": "shield"},
-	{"id": "speed", "name": "Speed", "glyph": "bolt", "color": Color(0.3, 1.0, 0.9), "back": Color(0.03, 0.12, 0.14), "shape": "circle"},
-	{"id": "target", "name": "Marksman", "glyph": "crosshair", "color": Color(0.5, 1.0, 0.5), "back": Color(0.05, 0.14, 0.06), "shape": "circle"},
+	{"id": "recruit", "name": "Recruit", "glyph": "chevron", "color": Color(0.95, 0.78, 0.30), "accent": Color(0.95, 0.78, 0.30), "back": Color(0.20, 0.26, 0.16), "shape": "shield"},
+	{"id": "unit", "name": "Unit", "glyph": "unit", "color": Color(0.80, 0.84, 0.90), "accent": Color(0.35, 0.95, 1.0), "back": Color(0.10, 0.22, 0.36), "shape": "hex"},
+	{"id": "volt", "name": "Live Wire", "glyph": "bolt", "color": Color(1.0, 0.90, 0.30), "accent": Color(1.0, 0.60, 0.10), "back": Color(0.16, 0.10, 0.30), "shape": "diamond"},
+	{"id": "claw", "name": "Claw Marks", "glyph": "claw", "color": Color(0.95, 0.22, 0.20), "accent": Color(1.0, 0.60, 0.50), "back": Color(0.10, 0.10, 0.12), "shape": "circle"},
+	{"id": "rounds", "name": "Live Rounds", "glyph": "rounds", "color": Color(0.88, 0.70, 0.30), "accent": Color(0.80, 0.42, 0.25), "back": Color(0.14, 0.16, 0.14), "shape": "square"},
+	{"id": "dagger", "name": "Combat Knife", "glyph": "dagger", "color": Color(0.82, 0.86, 0.92), "accent": Color(0.30, 0.32, 0.36), "back": Color(0.30, 0.08, 0.08), "shape": "crest"},
+	{"id": "eclipse", "name": "Eclipse", "glyph": "eclipse", "color": Color(1.0, 0.92, 0.75), "accent": Color(1.0, 0.65, 0.25), "back": Color(0.06, 0.06, 0.14), "shape": "circle"},
+	{"id": "pulse", "name": "Pulse", "glyph": "pulse", "color": Color(0.40, 1.0, 0.55), "accent": Color(0.10, 0.50, 0.25), "back": Color(0.04, 0.10, 0.08), "shape": "square"},
+	{"id": "skull", "name": "Skull", "glyph": "skull", "color": BONE, "accent": Color(0.90, 0.15, 0.12), "back": Color(0.12, 0.12, 0.15), "shape": "crest"},
+	{"id": "skull_king", "name": "Skull King", "glyph": "skull_king", "color": Color(1.0, 0.82, 0.32), "accent": Color(1.0, 0.25, 0.15), "back": Color(0.22, 0.03, 0.05), "shape": "burst", "rim": GOLD, "rays": true},
+	{"id": "headhunter", "name": "Headhunter", "glyph": "headhunter", "color": BONE, "accent": Color(1.0, 0.25, 0.20), "back": Color(0.08, 0.14, 0.10), "shape": "circle", "rim": GOLD},
+	{"id": "swords", "name": "Crossed Blades", "glyph": "swords", "color": Color(0.85, 0.89, 0.95), "accent": Color(0.90, 0.72, 0.28), "back": Color(0.38, 0.07, 0.08), "shape": "shield"},
+	{"id": "laurels", "name": "Laurels", "glyph": "laurels", "color": Color(1.0, 0.82, 0.30), "accent": Color(1.0, 0.95, 0.70), "back": Color(0.08, 0.22, 0.16), "shape": "circle", "rim": GOLD},
+	{"id": "crown", "name": "Crown", "glyph": "crown", "color": Color(1.0, 0.80, 0.25), "accent": Color(0.95, 0.20, 0.30), "back": Color(0.28, 0.07, 0.40), "shape": "crest", "rim": GOLD, "rays": true},
+	{"id": "six_shooter", "name": "Six-Shooter", "glyph": "cylinder", "color": Color(0.70, 0.74, 0.80), "accent": Color(0.92, 0.72, 0.30), "back": Color(0.24, 0.14, 0.08), "shape": "hex"},
+	{"id": "reticle", "name": "Scope", "glyph": "reticle", "color": Color(0.85, 0.95, 0.88), "accent": Color(1.0, 0.22, 0.18), "back": Color(0.05, 0.14, 0.10), "shape": "circle"},
+	{"id": "grenade", "name": "Frag", "glyph": "grenade", "color": Color(0.42, 0.52, 0.28), "accent": Color(0.74, 0.77, 0.80), "back": Color(0.30, 0.16, 0.05), "shape": "hex"},
+	{"id": "flame", "name": "Hot Streak", "glyph": "flame", "color": Color(0.95, 0.30, 0.10), "accent": Color(1.0, 0.70, 0.15), "back": Color(0.14, 0.04, 0.04), "shape": "diamond", "rim": BRONZE, "rays": true},
+	{"id": "ace", "name": "Death Card", "glyph": "ace", "color": Color(0.93, 0.93, 0.90), "accent": Color(0.90, 0.15, 0.15), "back": Color(0.08, 0.08, 0.10), "shape": "square"},
+	{"id": "phantom", "name": "Phantom", "glyph": "phantom", "color": Color(0.72, 0.80, 0.92), "accent": Color(0.40, 1.0, 0.95), "back": Color(0.10, 0.08, 0.24), "shape": "crest"},
+	{"id": "blitz", "name": "Blitz", "glyph": "blitz", "color": Color(0.35, 1.0, 0.90), "accent": Color(0.90, 1.0, 1.0), "back": Color(0.03, 0.12, 0.16), "shape": "diamond"},
+	{"id": "comet", "name": "Comet", "glyph": "comet", "color": Color(1.0, 0.95, 0.75), "accent": Color(0.45, 0.70, 1.0), "back": Color(0.05, 0.07, 0.22), "shape": "circle", "rim": GOLD},
+	{"id": "overwatch", "name": "Overwatch", "glyph": "overwatch", "color": Color(0.90, 0.80, 0.50), "accent": Color(0.45, 0.90, 1.0), "back": Color(0.20, 0.06, 0.26), "shape": "hex"},
+	{"id": "wings", "name": "Flight Wings", "glyph": "wings", "color": Color(0.86, 0.90, 0.96), "accent": Color(0.95, 0.75, 0.28), "back": Color(0.10, 0.22, 0.42), "shape": "circle"},
+	{"id": "hook", "name": "Grapnel", "glyph": "hook", "color": Color(0.78, 0.83, 0.90), "accent": Color(0.85, 0.65, 0.35), "back": Color(0.06, 0.24, 0.26), "shape": "shield"},
+	{"id": "boot", "name": "Steel Toe", "glyph": "boot", "color": Color(0.80, 0.56, 0.30), "accent": Color(0.86, 0.90, 0.95), "back": Color(0.12, 0.15, 0.20), "shape": "hex"},
+	{"id": "sergeant", "name": "Top Rank", "glyph": "sergeant", "color": Color(1.0, 0.80, 0.28), "accent": Color(1.0, 0.95, 0.70), "back": Color(0.16, 0.20, 0.12), "shape": "shield", "rim": GOLD},
+	{"id": "rec", "name": "On Tape", "glyph": "rec", "color": Color(0.92, 0.94, 0.96), "accent": Color(1.0, 0.18, 0.18), "back": Color(0.08, 0.09, 0.12), "shape": "square"},
+	{"id": "c4", "name": "Charge", "glyph": "c4", "color": Color(0.78, 0.68, 0.48), "accent": Color(1.0, 0.20, 0.15), "back": Color(0.12, 0.16, 0.10), "shape": "square"},
+	{"id": "defuser", "name": "Wire Cutters", "glyph": "defuser", "color": Color(0.78, 0.82, 0.88), "accent": Color(0.20, 0.55, 0.95), "back": Color(0.08, 0.14, 0.26), "shape": "shield"},
+	{"id": "flag", "name": "War Flag", "glyph": "flag", "color": Color(0.90, 0.20, 0.18), "accent": Color(0.95, 0.90, 0.80), "back": Color(0.10, 0.11, 0.14), "shape": "crest"},
+	{"id": "stopwatch", "name": "Stopwatch", "glyph": "stopwatch", "color": Color(0.85, 0.88, 0.92), "accent": Color(1.0, 0.35, 0.20), "back": Color(0.30, 0.16, 0.08), "shape": "circle", "rim": BRONZE},
+	{"id": "medal", "name": "Gold Medal", "glyph": "medal", "color": Color(1.0, 0.80, 0.25), "accent": Color(0.20, 0.40, 0.90), "back": Color(0.08, 0.12, 0.28), "shape": "circle", "rim": GOLD},
+	{"id": "mach", "name": "Mach One", "glyph": "mach", "color": Color(1.0, 0.84, 0.35), "accent": Color(0.55, 0.90, 1.0), "back": Color(0.05, 0.16, 0.30), "shape": "burst", "rim": GOLD},
+	{"id": "scrapper", "name": "Scrap", "glyph": "scrapper", "color": Color(0.62, 0.64, 0.68), "accent": Color(1.0, 0.25, 0.15), "back": Color(0.20, 0.10, 0.06), "shape": "hex"},
+	{"id": "signal", "name": "Signal", "glyph": "signal", "color": Color(0.85, 0.88, 0.92), "accent": Color(0.35, 1.0, 0.55), "back": Color(0.06, 0.16, 0.14), "shape": "circle"},
+	{"id": "service", "name": "Service Stripes", "glyph": "service", "color": Color(0.95, 0.76, 0.28), "accent": Color(1.0, 0.92, 0.60), "back": Color(0.12, 0.16, 0.30), "shape": "crest"},
+	{"id": "boomerang", "name": "Boomerang", "glyph": "boomerang", "color": Color(0.80, 0.55, 0.28), "accent": Color(0.95, 0.90, 0.75), "back": Color(0.10, 0.24, 0.12), "shape": "circle"},
+	{"id": "diamond", "name": "Flawless", "glyph": "diamond", "color": Color(0.45, 0.88, 1.0), "accent": Color(1.0, 1.0, 1.0), "back": Color(0.05, 0.10, 0.24), "shape": "diamond", "rim": GOLD},
 ]
 
 
@@ -383,215 +396,501 @@ static func _draw_pattern(ci: CanvasItem, r: Rect2, c: Dictionary) -> void:
 			_gradient(ci, r, a, b)
 
 
-## The badge and its glyph, in a square.
+## An emblem, in a square: a shadow, a metal rim, the plate, and the glyph with a
+## shadow of its own.
 static func draw_icon(ci: CanvasItem, rect: Rect2, id: String) -> void:
 	var i := icon(id)
 	var mid := rect.get_center()
 	var half := minf(rect.size.x, rect.size.y) * 0.5
 	var back: Color = i.back
-	var badge := _badge(i.shape, mid, half)
-	ci.draw_colored_polygon(badge, back)
-	ci.draw_colored_polygon(_badge(i.shape, mid - Vector2(0, half * 0.08), half * 0.8), back.lightened(0.10))
-	badge.append(badge[0])
-	ci.draw_polyline(badge, back.lightened(0.45), maxf(1.0, half * 0.07), true)
-	_draw_glyph(ci, i.glyph, mid, half * (0.56 if i.shape in ["diamond", "hex"] else 0.62), i.color, back.lightened(0.10))
+	var rim: Color = i.get("rim", STEEL)
+	var shape: String = i.shape
+	ci.draw_colored_polygon(_badge(shape, mid + Vector2(0, half * 0.07), half), Color(0, 0, 0, 0.45))
+	_shaded(ci, _badge(shape, mid, half * 0.97), rim.lightened(0.45), rim.darkened(0.6))
+	ci.draw_colored_polygon(_badge(shape, mid, half * 0.86), Color(0.02, 0.025, 0.04))
+	var plate := _badge(shape, mid, half * 0.80)
+	_shaded(ci, plate, back.lightened(0.22), back.darkened(0.5))
+	if i.get("rays", false):   # rays fanning out from the middle
+		for n in 10:
+			var a := n * TAU / 10.0 - PI / 2.0
+			var ray := PackedVector2Array([mid, mid + Vector2.from_angle(a - 0.14) * half, mid + Vector2.from_angle(a + 0.14) * half])
+			for piece in Geometry2D.intersect_polygons(ray, plate):
+				if piece.size() >= 3 and not Geometry2D.triangulate_polygon(piece).is_empty():
+					ci.draw_colored_polygon(piece, Color(1, 1, 1, 0.07))
+	# A gloss over the top of the plate.
+	var gloss := PackedVector2Array([mid + Vector2(-half, -half), mid + Vector2(half, -half), mid + Vector2(half, -half * 0.25), mid + Vector2(-half, half * 0.05)])
+	for piece in Geometry2D.intersect_polygons(gloss, plate):
+		if piece.size() >= 3 and not Geometry2D.triangulate_polygon(piece).is_empty():
+			ci.draw_colored_polygon(piece, Color(1, 1, 1, 0.06))
+	plate.append(plate[0])
+	ci.draw_polyline(plate, Color(back.lightened(0.55), 0.55), maxf(1.0, half * 0.035), true)
+	var s := half * (0.50 if shape in ["diamond", "burst"] else 0.56)
+	var pen := Pen.new()
+	pen.ci = ci
+	pen.s = s
+	pen.mid = mid + Vector2(half * 0.04, half * 0.07)
+	pen.flat = Color(back.darkened(0.82), 1.0)   # the glyph's shadow first
+	_draw_glyph(pen, i.glyph, i.color, i.accent, back.darkened(0.7))
+	pen.mid = mid
+	pen.flat = Color(0, 0, 0, 0)
+	_draw_glyph(pen, i.glyph, i.color, i.accent, back.darkened(0.7))
+
+
+## A filled shape whose colour runs from `top` at its highest point to `bottom` at its lowest.
+static func _shaded(ci: CanvasItem, points: PackedVector2Array, top: Color, bottom: Color) -> void:
+	var lo := INF
+	var hi := -INF
+	for p in points:
+		lo = minf(lo, p.y)
+		hi = maxf(hi, p.y)
+	var colors := PackedColorArray()
+	for p in points:
+		colors.append(top.lerp(bottom, (p.y - lo) / maxf(hi - lo, 0.001)))
+	ci.draw_polygon(points, colors)
 
 
 static func _badge(shape: String, mid: Vector2, half: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
 	match shape:
 		"square":
-			var out := PackedVector2Array()
 			var cut := half * 0.28
 			for p in [Vector2(-half + cut, -half), Vector2(half - cut, -half), Vector2(half, -half + cut), Vector2(half, half - cut),
 					Vector2(half - cut, half), Vector2(-half + cut, half), Vector2(-half, half - cut), Vector2(-half, -half + cut)]:
 				out.append(mid + p * 0.94)
-			return out
 		"diamond":
-			return PackedVector2Array([mid + Vector2(0, -half), mid + Vector2(half, 0), mid + Vector2(0, half), mid + Vector2(-half, 0)])
+			for p in [Vector2(0, -1), Vector2(0.16, -0.84), Vector2(0.84, -0.16), Vector2(1, 0), Vector2(0.84, 0.16), Vector2(0.16, 0.84),
+					Vector2(0, 1), Vector2(-0.16, 0.84), Vector2(-0.84, 0.16), Vector2(-1, 0), Vector2(-0.84, -0.16), Vector2(-0.16, -0.84)]:
+				out.append(mid + p * half)
 		"hex":
-			var out := PackedVector2Array()
 			for i in 6:
 				out.append(mid + Vector2.from_angle(PI / 6.0 + i * PI / 3.0) * half)
-			return out
 		"shield":
-			return PackedVector2Array([mid + Vector2(-half * 0.86, -half * 0.92), mid + Vector2(half * 0.86, -half * 0.92), mid + Vector2(half * 0.86, half * 0.1),
-				mid + Vector2(half * 0.5, half * 0.66), mid + Vector2(0, half), mid + Vector2(-half * 0.5, half * 0.66), mid + Vector2(-half * 0.86, half * 0.1)])
-	return _disc(mid, half, 28)
+			for p in [Vector2(-0.86, -0.92), Vector2(0.86, -0.92), Vector2(0.86, 0.1), Vector2(0.5, 0.66), Vector2(0, 1), Vector2(-0.5, 0.66), Vector2(-0.86, 0.1)]:
+				out.append(mid + p * half)
+		"crest":   # a shield with a peak and cut shoulders
+			for p in [Vector2(0, -1), Vector2(0.3, -0.84), Vector2(0.9, -0.84), Vector2(0.9, 0.18), Vector2(0.6, 0.66), Vector2(0, 1),
+					Vector2(-0.6, 0.66), Vector2(-0.9, 0.18), Vector2(-0.9, -0.84), Vector2(-0.3, -0.84)]:
+				out.append(mid + p * half)
+		"burst":   # a saw-toothed disc
+			for i in 24:
+				out.append(mid + Vector2.from_angle(i * TAU / 24.0 - PI / 2.0) * half * (1.0 if i % 2 == 0 else 0.86))
+		_:
+			out = _disc(mid, half, 32)
+	return out
 
 
-## A glyph round `mid`, about `s` in every direction, in `ink`; `gap`: the badge's
-## colour, for the holes (a skull's eyes).
-static func _draw_glyph(ci: CanvasItem, glyph: String, mid: Vector2, s: float, ink: Color, gap: Color) -> void:
-	var at := func(x: float, y: float) -> Vector2: return mid + Vector2(x, y) * s
-	var poly := func(points: Array, color: Color) -> void:
+## Draws a glyph's shapes round `mid`, `s` to a unit, moved (`shift`), shrunk (`zoom`)
+## or turned (`turn`); with `flat` set, everything is that one colour (the shadow).
+class Pen:
+	var ci: CanvasItem
+	var mid := Vector2.ZERO
+	var s := 1.0
+	var shift := Vector2.ZERO
+	var zoom := 1.0
+	var turn := 0.0
+	var flat := Color(0, 0, 0, 0)
+
+	func at(p: Vector2) -> Vector2:
+		return mid + (p * zoom).rotated(turn) * s + shift * s
+
+	func ink(color: Color) -> Color:
+		return flat if flat.a > 0.0 else color
+
+	func poly(points: Array, color: Color) -> void:
 		var out := PackedVector2Array()
 		for p in points:
-			out.append(mid + (p as Vector2) * s)
-		ci.draw_colored_polygon(out, color)
-	var w := maxf(1.0, s * 0.16)   # a stroke
+			out.append(at(p))
+		if Geometry2D.triangulate_polygon(out).is_empty():
+			return
+		ci.draw_colored_polygon(out, ink(color))
+		out.append(out[0])
+		ci.draw_polyline(out, ink(color), 1.0, true)   # a smooth edge
+
+	func line(a: Vector2, b: Vector2, color: Color, width: float = 0.14) -> void:
+		ci.draw_line(at(a), at(b), ink(color), maxf(1.0, width * zoom * s), true)
+
+	func path(points: Array, color: Color, width: float = 0.14) -> void:
+		var out := PackedVector2Array()
+		for p in points:
+			out.append(at(p))
+		ci.draw_polyline(out, ink(color), maxf(1.0, width * zoom * s), true)
+
+	func dot(p: Vector2, radius: float, color: Color) -> void:
+		ci.draw_circle(at(p), radius * zoom * s, ink(color), true, -1.0, true)
+
+	func arc(p: Vector2, radius: float, from: float, to: float, color: Color, width: float = 0.14) -> void:
+		ci.draw_arc(at(p), radius * zoom * s, from + turn, to + turn, 28, ink(color), maxf(1.0, width * zoom * s), true)
+
+	## A star with `n` points.
+	func star(p: Vector2, radius: float, color: Color, n: int = 5, inner: float = 0.42) -> void:
+		var pts := []
+		for i in n * 2:
+			pts.append(p + Vector2.from_angle(-PI / 2.0 + i * PI / n) * radius * (1.0 if i % 2 == 0 else inner))
+		poly(pts, color)
+
+	## The same shape on both sides: `points` are the right side's.
+	func both(points: Array, right: Color, left: Color) -> void:
+		poly(points, right)
+		poly(points.map(func(p: Vector2): return Vector2(-p.x, p.y)), left)
+
+
+## A glyph: `k` its colour (and `d`, that in shadow), `a` its second colour, `g` the
+## dark of the plate, for holes (a skull's eyes).
+static func _draw_glyph(pen: Pen, glyph: String, k: Color, a: Color, g: Color) -> void:
+	var d := k.darkened(0.32)
+	var l := k.lightened(0.35)
 	match glyph:
-		"star":
-			var pts := []
-			for i in 10:
-				pts.append(Vector2.from_angle(-PI / 2.0 + i * PI / 5.0) * (1.0 if i % 2 == 0 else 0.42))
-			poly.call(pts, ink)
-		"skull":
-			ci.draw_circle(at.call(0, -0.2), s * 0.72, ink)
-			poly.call([Vector2(-0.42, 0.2), Vector2(0.42, 0.2), Vector2(0.36, 0.9), Vector2(-0.36, 0.9)], ink)
-			ci.draw_circle(at.call(-0.3, -0.18), s * 0.2, gap)
-			ci.draw_circle(at.call(0.3, -0.18), s * 0.2, gap)
-			poly.call([Vector2(0, 0.08), Vector2(0.1, 0.32), Vector2(-0.1, 0.32)], gap)
-			for x in [-0.14, 0.14]:
-				ci.draw_line(at.call(x, 0.56), at.call(x, 0.9), gap, w * 0.6)
-		"crosshair":
-			ci.draw_arc(mid, s * 0.66, 0, TAU, 28, ink, w, true)
-			for d in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
-				ci.draw_line(mid + d * s * 0.38, mid + d * s * 1.0, ink, w)
-			ci.draw_circle(mid, s * 0.12, ink)
+		"chevron":
+			_chevron(pen, -0.3, 0.5, k, d)
+		"sergeant":
+			pen.zoom = 0.8
+			for i in 3:
+				_chevron(pen, -0.3 + i * 0.4, 0.26, k, d)
+			pen.star(Vector2(0, -0.74), 0.36, a)
+			pen.zoom = 1.0
+		"service":
+			for i in 3:
+				var x := -0.86 + i * 0.5
+				pen.poly([Vector2(x, 0.8), Vector2(x + 0.42, -0.8), Vector2(x + 0.74, -0.8), Vector2(x + 0.32, 0.8)], k if i != 1 else a)
+				pen.poly([Vector2(x + 0.2, 0.8), Vector2(x + 0.62, -0.8), Vector2(x + 0.74, -0.8), Vector2(x + 0.32, 0.8)], d)
+		"unit":
+			_bot_head(pen, k, d, g)
+			pen.poly([Vector2(-0.6, -0.14), Vector2(0, 0.08), Vector2(0.6, -0.14), Vector2(0.6, 0.0), Vector2(0, 0.22), Vector2(-0.6, 0.0)], a)
+		"scrapper":
+			_bot_head(pen, k, d, g)
+			pen.poly([Vector2(-0.6, -0.14), Vector2(-0.12, 0.04), Vector2(-0.12, 0.18), Vector2(-0.6, 0.0)], a)
+			pen.path([Vector2(0.22, -0.9), Vector2(0.02, -0.55), Vector2(0.3, -0.38), Vector2(0.08, -0.12), Vector2(0.34, 0.2), Vector2(0.2, 0.52)], g, 0.1)
+			pen.line(Vector2(0.3, -0.38), Vector2(0.62, -0.5), g, 0.07)
+			for p in [[Vector2(0.5, -1.0), Vector2(0.72, -1.2)], [Vector2(0.86, -0.7), Vector2(1.12, -0.78)], [Vector2(0.2, -1.08), Vector2(0.16, -1.28)]]:
+				pen.line(p[0], p[1], a, 0.09)   # sparks
 		"bolt":
-			poly.call([Vector2(0.25, -1.0), Vector2(-0.5, 0.12), Vector2(-0.05, 0.12), Vector2(-0.3, 1.0), Vector2(0.55, -0.2), Vector2(0.08, -0.2), Vector2(0.42, -1.0)], ink)
-		"crown":
-			poly.call([Vector2(-0.9, 0.55), Vector2(-0.9, -0.5), Vector2(-0.45, 0.05), Vector2(0, -0.75), Vector2(0.45, 0.05), Vector2(0.9, -0.5), Vector2(0.9, 0.55)], ink)
-			ci.draw_line(at.call(-0.9, 0.78), at.call(0.9, 0.78), ink, w)
-			for x in [-0.9, 0.0, 0.9]:
-				ci.draw_circle(at.call(x, -0.62 if x != 0.0 else -0.86), s * 0.13, ink)
-		"flame":
-			poly.call([Vector2(0.05, -1.0), Vector2(0.55, -0.2), Vector2(0.7, 0.35), Vector2(0.4, 0.85), Vector2(0, 1.0), Vector2(-0.4, 0.85), Vector2(-0.7, 0.35),
-				Vector2(-0.5, -0.1), Vector2(-0.25, 0.1), Vector2(-0.2, -0.5)], ink)
-			poly.call([Vector2(0.05, 0.0), Vector2(0.32, 0.5), Vector2(0.15, 0.85), Vector2(-0.15, 0.85), Vector2(-0.3, 0.5)], Color(1.0, 0.92, 0.5))
-		"heart":
-			ci.draw_circle(at.call(-0.42, -0.3), s * 0.5, ink)
-			ci.draw_circle(at.call(0.42, -0.3), s * 0.5, ink)
-			poly.call([Vector2(-0.88, -0.08), Vector2(0.88, -0.08), Vector2(0, 0.95)], ink)
-		"gem":
-			poly.call([Vector2(-0.5, -0.7), Vector2(0.5, -0.7), Vector2(0.95, -0.2), Vector2(0, 0.9), Vector2(-0.95, -0.2)], ink)
-			poly.call([Vector2(-0.5, -0.7), Vector2(0.5, -0.7), Vector2(0.3, -0.2), Vector2(-0.3, -0.2)], ink.lightened(0.5))
-			poly.call([Vector2(-0.3, -0.2), Vector2(0.3, -0.2), Vector2(0, 0.9)], ink.darkened(0.25))
-		"shield":
-			poly.call([Vector2(-0.75, -0.85), Vector2(0.75, -0.85), Vector2(0.75, 0.1), Vector2(0, 0.95), Vector2(-0.75, 0.1)], ink)
-			poly.call([Vector2(-0.14, -0.85), Vector2(0.14, -0.85), Vector2(0.14, 0.78), Vector2(0, 0.95), Vector2(-0.14, 0.78)], gap)
-			poly.call([Vector2(-0.75, -0.35), Vector2(0.75, -0.35), Vector2(0.75, -0.08), Vector2(-0.75, -0.08)], gap)
-		"wings":
-			for side: float in [-1.0, 1.0]:
-				poly.call([Vector2(0.08 * side, 0.1), Vector2(0.3 * side, -0.55), Vector2(1.0 * side, -0.75), Vector2(0.85 * side, -0.35), Vector2(1.0 * side, -0.2),
-					Vector2(0.72 * side, 0.02), Vector2(0.82 * side, 0.2), Vector2(0.5 * side, 0.3), Vector2(0.55 * side, 0.5), Vector2(0.08 * side, 0.55)], ink)
-			ci.draw_circle(at.call(0, 0.05), s * 0.2, ink)
-		"boot":
-			poly.call([Vector2(-0.45, -0.95), Vector2(0.2, -0.95), Vector2(0.2, 0.05), Vector2(0.9, 0.3), Vector2(0.95, 0.75), Vector2(-0.6, 0.75), Vector2(-0.6, 0.1)], ink)
-			ci.draw_line(at.call(-0.65, 0.92), at.call(0.98, 0.92), ink.darkened(0.3), w)
-			ci.draw_line(at.call(-0.45, -0.6), at.call(0.2, -0.6), gap, w * 0.6)
-		"hook":
-			ci.draw_arc(at.call(0, -0.72), s * 0.22, 0, TAU, 16, ink, w, true)
-			ci.draw_line(at.call(0, -0.5), at.call(0, 0.85), ink, w)
-			ci.draw_arc(at.call(0, 0.2), s * 0.68, 0.15, PI - 0.15, 18, ink, w, true)
-			for side: float in [-1.0, 1.0]:
-				poly.call([Vector2(0.9 * side, 0.02), Vector2(0.48 * side, 0.3), Vector2(0.86 * side, 0.5)], ink)
-			ci.draw_line(at.call(-0.4, -0.2), at.call(0.4, -0.2), ink, w)
-		"stopwatch":
-			ci.draw_arc(at.call(0, 0.12), s * 0.72, 0, TAU, 28, ink, w, true)
-			poly.call([Vector2(-0.16, -0.98), Vector2(0.16, -0.98), Vector2(0.16, -0.66), Vector2(-0.16, -0.66)], ink)
-			ci.draw_line(at.call(0.55, -0.6), at.call(0.72, -0.78), ink, w)
-			ci.draw_line(at.call(0, 0.12), at.call(0.3, -0.32), ink, w)
-			ci.draw_circle(at.call(0, 0.12), s * 0.1, ink)
-		"flag":
-			ci.draw_line(at.call(-0.6, -0.9), at.call(-0.6, 0.95), ink, w)
-			for row in 3:
-				for col in 4:
-					if (row + col) % 2 == 0:
-						var x := -0.5 + col * 0.36
-						var y := -0.85 + row * 0.3 + 0.05 * col
-						poly.call([Vector2(x, y), Vector2(x + 0.36, y + 0.05), Vector2(x + 0.36, y + 0.35), Vector2(x, y + 0.3)], ink)
-			var edge := PackedVector2Array([at.call(-0.5, -0.85), at.call(0.94, -0.65), at.call(0.94, 0.25), at.call(-0.5, 0.05), at.call(-0.5, -0.85)])
-			ci.draw_polyline(edge, ink, w * 0.5, true)
-		"duck":
-			ci.draw_colored_polygon(_disc(at.call(-0.1, 0.4), s * 0.72, 20, 0.62), ink)
-			ci.draw_circle(at.call(0.32, -0.38), s * 0.4, ink)
-			poly.call([Vector2(0.62, -0.42), Vector2(1.0, -0.3), Vector2(0.62, -0.16)], Color(1.0, 0.5, 0.1))
-			ci.draw_circle(at.call(0.4, -0.46), s * 0.08, Color(0.1, 0.1, 0.12))
-			poly.call([Vector2(-0.82, 0.25), Vector2(-1.0, -0.1), Vector2(-0.55, 0.12)], ink)
-		"robot":
-			poly.call([Vector2(-0.7, -0.45), Vector2(0.7, -0.45), Vector2(0.82, -0.3), Vector2(0.82, 0.7), Vector2(0.6, 0.9), Vector2(-0.6, 0.9), Vector2(-0.82, 0.7), Vector2(-0.82, -0.3)], ink)
-			poly.call([Vector2(-0.6, -0.12), Vector2(0.6, -0.12), Vector2(0.6, 0.28), Vector2(-0.6, 0.28)], Color(0.1, 0.14, 0.2))
-			ci.draw_circle(at.call(-0.3, 0.08), s * 0.13, Color(0.4, 0.95, 1.0))
-			ci.draw_circle(at.call(0.3, 0.08), s * 0.13, Color(0.4, 0.95, 1.0))
-			ci.draw_line(at.call(0, -0.45), at.call(0, -0.85), ink, w * 0.7)
-			ci.draw_circle(at.call(0, -0.9), s * 0.12, Color(1.0, 0.4, 0.3))
-			ci.draw_line(at.call(-0.3, 0.6), at.call(0.3, 0.6), Color(0.1, 0.14, 0.2), w * 0.6)
-		"eye":
-			var lid := PackedVector2Array()
-			for i in 13:
-				lid.append(at.call(-1.0 + i / 6.0, -0.62 * sin(i * PI / 12.0)))
-			for i in 13:
-				lid.append(at.call(1.0 - i / 6.0, 0.62 * sin(i * PI / 12.0)))
-			ci.draw_colored_polygon(lid, ink)
-			ci.draw_circle(mid, s * 0.42, Color(0.25, 0.6, 0.9))
-			ci.draw_circle(mid, s * 0.2, Color(0.05, 0.05, 0.08))
-			ci.draw_circle(at.call(0.14, -0.14), s * 0.08, Color.WHITE)
+			pen.poly([Vector2(0.34, -1.06), Vector2(-0.68, 0.14), Vector2(-0.1, 0.14), Vector2(-0.42, 1.06), Vector2(0.68, -0.26), Vector2(0.1, -0.26), Vector2(0.56, -1.06)], a)
+			pen.poly([Vector2(0.3, -0.92), Vector2(-0.5, 0.06), Vector2(0.02, 0.06), Vector2(-0.24, 0.8), Vector2(0.5, -0.18), Vector2(-0.02, -0.18), Vector2(0.4, -0.92)], k)
+		"blitz":
+			for i in 3:
+				var y := -0.5 + i * 0.5
+				pen.poly([Vector2(-1.0 + i * 0.12, y - 0.06), Vector2(-0.2, y - 0.06), Vector2(-0.3, y + 0.06), Vector2(-1.0 + i * 0.12, y + 0.06)], Color(k, 0.6))
+			pen.shift = Vector2(0.3, 0)
+			pen.poly([Vector2(0.3, -0.92), Vector2(-0.5, 0.06), Vector2(0.02, 0.06), Vector2(-0.24, 0.9), Vector2(0.5, -0.18), Vector2(-0.02, -0.18), Vector2(0.4, -0.92)], k)
+			pen.poly([Vector2(0.3, -0.92), Vector2(-0.3, -0.18), Vector2(-0.02, -0.18), Vector2(0.4, -0.92)], a)
+			pen.shift = Vector2.ZERO
+		"claw":
+			for x: float in [-0.56, 0.0, 0.56]:
+				pen.poly([Vector2(x - 0.02, -1.0), Vector2(x + 0.3, -0.72), Vector2(x + 0.16, 0.1), Vector2(x - 0.2, 1.0), Vector2(x - 0.16, 0.1)], k)
+				pen.poly([Vector2(x + 0.06, -0.7), Vector2(x + 0.2, -0.6), Vector2(x + 0.08, 0.0), Vector2(x - 0.04, 0.3)], a)
+		"rounds":
+			for x: float in [-0.58, 0.0, 0.58]:
+				var top := -0.96 if x == 0.0 else -0.72
+				pen.poly([Vector2(x - 0.19, top + 0.5), Vector2(x - 0.17, top + 0.3), Vector2(x, top), Vector2(x + 0.17, top + 0.3), Vector2(x + 0.19, top + 0.5)], a)
+				pen.poly([Vector2(x - 0.2, top + 0.54), Vector2(x + 0.2, top + 0.54), Vector2(x + 0.2, 0.8), Vector2(x - 0.2, 0.8)], k)
+				pen.poly([Vector2(x + 0.06, top + 0.54), Vector2(x + 0.2, top + 0.54), Vector2(x + 0.2, 0.8), Vector2(x + 0.06, 0.8)], d)
+				pen.poly([Vector2(x - 0.24, 0.8), Vector2(x + 0.24, 0.8), Vector2(x + 0.24, 0.94), Vector2(x - 0.24, 0.94)], d)
+		"dagger":
+			pen.turn = 0.6
+			_blade(pen, k, d, a, 0.2)
+			pen.turn = 0.0
 		"swords":
 			for side: float in [-1.0, 1.0]:
-				ci.draw_line(at.call(-0.8 * side, -0.9), at.call(0.5 * side, 0.55), ink, w * 1.2)
-				ci.draw_line(at.call(0.15 * side, 0.62), at.call(0.72 * side, 0.2), ink.darkened(0.25), w)
-				ci.draw_line(at.call(0.5 * side, 0.55), at.call(0.78 * side, 0.9), Color(0.55, 0.35, 0.15), w * 1.2)
-		"rocket":
-			poly.call([Vector2(0, -1.0), Vector2(0.38, -0.45), Vector2(0.38, 0.5), Vector2(-0.38, 0.5), Vector2(-0.38, -0.45)], ink)
+				pen.turn = 0.72 * side
+				_blade(pen, k, d, a, 0.12)
+			pen.turn = 0.0
+		"eclipse":
+			for i in 16:   # the corona
+				var dir := Vector2.from_angle(i * TAU / 16.0)
+				pen.poly([dir.rotated(-0.14) * 0.7, dir * (1.12 if i % 2 == 0 else 0.92), dir.rotated(0.14) * 0.7], Color(a, 0.75))
+			pen.dot(Vector2.ZERO, 0.78, k)
+			pen.dot(Vector2(-0.06, 0.05), 0.68, Color(0.02, 0.02, 0.05))
+			pen.arc(Vector2(-0.06, 0.05), 0.5, 2.2, 3.6, Color(1, 1, 1, 0.12), 0.06)
+			pen.dot(Vector2(0.5, -0.5), 0.13, Color.WHITE)
+		"pulse":
+			var beat := [Vector2(-1.05, 0.12), Vector2(-0.6, 0.12), Vector2(-0.44, -0.24), Vector2(-0.26, 0.12), Vector2(-0.1, 0.12), Vector2(0.1, -0.95),
+				Vector2(0.3, 0.8), Vector2(0.46, 0.12), Vector2(0.62, 0.12), Vector2(0.72, -0.14), Vector2(0.84, 0.12), Vector2(1.05, 0.12)]
+			for y: float in [-0.6, -0.24, 0.48, 0.84]:
+				pen.line(Vector2(-1.0, y), Vector2(1.0, y), Color(a, 0.5), 0.04)   # the monitor's grid
+			pen.path(beat, Color(a, 0.9), 0.34)
+			pen.path(beat, k, 0.15)
+		"skull":
+			_skull(pen, k, d, a, g)
+		"skull_king":
+			pen.zoom = 0.82
+			pen.shift = Vector2(0, 0.26)
+			_skull(pen, k, d, a, g)
+			pen.zoom = 1.0
+			pen.shift = Vector2.ZERO
+			pen.poly([Vector2(-0.6, -0.5), Vector2(-0.7, -1.08), Vector2(-0.32, -0.76), Vector2(0, -1.2), Vector2(0.32, -0.76), Vector2(0.7, -1.08), Vector2(0.6, -0.5)], k)
+			pen.poly([Vector2(0, -0.5), Vector2(0, -1.2), Vector2(0.32, -0.76), Vector2(0.7, -1.08), Vector2(0.6, -0.5)], d)
+			for x: float in [-0.36, 0.0, 0.36]:
+				pen.dot(Vector2(x, -0.62), 0.08, a)
+		"headhunter":
+			pen.zoom = 0.72
+			pen.shift = Vector2(0, 0.04)
+			_skull(pen, k, d, a, g)
+			pen.zoom = 1.0
+			pen.shift = Vector2.ZERO
+			pen.arc(Vector2.ZERO, 0.98, 0.0, TAU, a, 0.1)
+			for dir in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+				pen.line(dir * 0.72, dir * 1.22, a, 0.12)
+		"reticle":
+			pen.arc(Vector2.ZERO, 0.94, 0.0, TAU, k, 0.12)
+			pen.arc(Vector2.ZERO, 0.4, 0.0, TAU, Color(k, 0.7), 0.05)
+			for dir in [Vector2.UP, Vector2.DOWN, Vector2.LEFT, Vector2.RIGHT]:
+				pen.line(dir * 0.94, dir * 0.1, Color(k, 0.85), 0.05)
+				if dir != Vector2.UP:
+					pen.line(dir * 0.94, dir * 0.52, k, 0.17)   # the heavy posts
+				for n in 2:
+					pen.dot(dir * (0.22 + n * 0.15), 0.035, k)
+			pen.dot(Vector2.ZERO, 0.1, a)
+		"cylinder":
+			pen.dot(Vector2.ZERO, 1.0, d)
+			pen.dot(Vector2.ZERO, 0.9, k)
+			for i in 6:
+				var dir := Vector2.from_angle(i * TAU / 6.0 - PI / 2.0)
+				pen.dot(Vector2.from_angle(i * TAU / 6.0 - PI / 3.0) * 1.0, 0.16, g)   # the flutes
+				pen.dot(dir * 0.55, 0.23, g)
+				if i % 2 == 0 or i == 1:
+					pen.dot(dir * 0.55, 0.17, a)   # loaded
+					pen.dot(dir * 0.55, 0.07, a.darkened(0.4))
+			pen.dot(Vector2.ZERO, 0.15, g)
+		"grenade":
+			pen.poly([Vector2(-0.5, -0.12), Vector2(-0.32, -0.38), Vector2(0.32, -0.38), Vector2(0.5, -0.12), Vector2(0.5, 0.62), Vector2(0.3, 0.95), Vector2(-0.3, 0.95), Vector2(-0.5, 0.62)], k)
+			pen.poly([Vector2(0.1, -0.38), Vector2(0.32, -0.38), Vector2(0.5, -0.12), Vector2(0.5, 0.62), Vector2(0.3, 0.95), Vector2(0.1, 0.95)], d)
+			for y: float in [-0.02, 0.3, 0.62]:
+				pen.line(Vector2(-0.5, y), Vector2(0.5, y), g, 0.06)
+			for x: float in [-0.18, 0.16]:
+				pen.line(Vector2(x, -0.38), Vector2(x, 0.95), g, 0.06)
+			pen.poly([Vector2(-0.22, -0.38), Vector2(0.22, -0.38), Vector2(0.22, -0.66), Vector2(-0.22, -0.66)], a)
+			pen.poly([Vector2(0.16, -0.66), Vector2(0.16, -0.84), Vector2(0.66, -0.68), Vector2(0.8, 0.1), Vector2(0.64, 0.1), Vector2(0.54, -0.54)], a.darkened(0.15))
+			pen.arc(Vector2(-0.46, -0.74), 0.2, 0.0, TAU, a, 0.08)
+		"flame":
+			pen.poly([Vector2(0.1, -1.1), Vector2(0.34, -0.5), Vector2(0.66, -0.7), Vector2(0.78, 0.22), Vector2(0.48, 0.86), Vector2(0, 1.05), Vector2(-0.48, 0.86), Vector2(-0.78, 0.28),
+				Vector2(-0.56, -0.36), Vector2(-0.32, -0.06), Vector2(-0.24, -0.62)], k)
+			pen.poly([Vector2(0.06, -0.46), Vector2(0.44, 0.1), Vector2(0.42, 0.62), Vector2(0, 0.94), Vector2(-0.42, 0.62), Vector2(-0.44, 0.2), Vector2(-0.2, 0.3)], a)
+			pen.poly([Vector2(0, 0.12), Vector2(0.22, 0.56), Vector2(0, 0.88), Vector2(-0.22, 0.56)], Color(1.0, 0.96, 0.7))
+		"ace":
+			var spade := [Vector2(0, -1.05), Vector2(0.78, -0.08), Vector2(0.84, 0.3), Vector2(0.58, 0.6), Vector2(0.22, 0.56), Vector2(0.1, 0.42), Vector2(0.34, 1.0), Vector2(0, 1.0)]
+			pen.both(spade, d, k)
+			pen.zoom = 0.4
+			pen.shift = Vector2(0, -0.02)
+			_skull(pen, g, g, a, k)
+			pen.zoom = 1.0
+			pen.shift = Vector2.ZERO
+		"phantom":
+			var cloak := [Vector2(0, -1.08), Vector2(0.5, -0.76), Vector2(0.7, -0.16), Vector2(0.62, 0.36), Vector2(0.94, 1.0), Vector2(0.46, 0.76), Vector2(0.22, 1.04), Vector2(0, 0.76)]
+			pen.both(cloak, d, k)
+			pen.poly([Vector2(0, -0.78), Vector2(0.36, -0.5), Vector2(0.42, 0.0), Vector2(0, 0.4), Vector2(-0.42, 0.0), Vector2(-0.36, -0.5)], g)
+			pen.both([Vector2(0.08, -0.14), Vector2(0.3, -0.26), Vector2(0.32, -0.12), Vector2(0.1, -0.02)], a, a)
+		"comet":
+			pen.poly([Vector2(0.02, -0.6), Vector2(-1.05, 0.5), Vector2(0.0, -0.1)], Color(a, 0.55))
+			pen.poly([Vector2(0.6, 0.0), Vector2(-0.5, 1.05), Vector2(0.14, 0.02)], Color(a, 0.55))
+			pen.poly([Vector2(0.0, -0.4), Vector2(-1.0, 1.0), Vector2(0.44, 0.02)], a)
+			pen.poly([Vector2(0.1, -0.2), Vector2(-0.62, 0.62), Vector2(0.3, -0.02)], Color.WHITE)
+			pen.star(Vector2(0.34, -0.3), 0.62, k)
+			pen.star(Vector2(0.34, -0.3), 0.26, Color.WHITE)
+		"overwatch":
+			pen.both([Vector2(0, -1.08), Vector2(1.0, 0.78), Vector2(0, 0.78)], d, k)
+			pen.poly([Vector2(0, -0.66), Vector2(0.66, 0.58), Vector2(-0.66, 0.58)], g)
+			var lid := []
+			for i in 9:
+				lid.append(Vector2(-0.5 + i * 0.125, 0.16 - 0.3 * sin(i * PI / 8.0)))
+			for i in 9:
+				lid.append(Vector2(0.5 - i * 0.125, 0.16 + 0.3 * sin(i * PI / 8.0)))
+			pen.poly(lid, k)
+			pen.dot(Vector2(0, 0.16), 0.2, a)
+			pen.dot(Vector2(0, 0.16), 0.09, g)
+			for i in 5:   # light from the peak
+				var dir := Vector2.from_angle(-PI / 2.0 + (i - 2) * 0.42)
+				pen.line(Vector2(0, -1.08) + dir * 0.12, Vector2(0, -1.08) + dir * 0.3, a, 0.06)
+		"wings":
+			_wings(pen, k, d)
+			pen.poly([Vector2(-0.22, -0.52), Vector2(0.22, -0.52), Vector2(0.22, 0.3), Vector2(0, 0.62), Vector2(-0.22, 0.3)], a)
+			pen.poly([Vector2(0, -0.52), Vector2(0.22, -0.52), Vector2(0.22, 0.3), Vector2(0, 0.62)], a.darkened(0.3))
+			pen.star(Vector2(0, -0.06), 0.16, g)
+		"mach":
+			for i in 3:   # the shock cone
+				var y := -0.5 + i * 0.5
+				pen.path([Vector2(-0.95 + i * 0.1, y + 0.62), Vector2(0, y - 0.42), Vector2(0.95 - i * 0.1, y + 0.62)], Color(a, 0.7 - i * 0.2), 0.08)
+			var jet := [Vector2(0, -1.1), Vector2(0.17, -0.3), Vector2(0.82, 0.46), Vector2(0.82, 0.64), Vector2(0.2, 0.46), Vector2(0.3, 0.92), Vector2(0, 0.8)]
+			pen.both(jet, d, k)
+			pen.poly([Vector2(0, -0.66), Vector2(0.08, -0.3), Vector2(-0.08, -0.3)], g)
+		"hook":
+			pen.path([Vector2(0, 0.9), Vector2(0.3, 1.08), Vector2(0.6, 0.86), Vector2(0.95, 1.05)], a, 0.1)   # the rope
+			pen.poly([Vector2(-0.08, -0.3), Vector2(0.08, -0.3), Vector2(0.08, 0.72), Vector2(-0.08, 0.72)], k)
+			pen.arc(Vector2(0, 0.86), 0.15, 0.0, TAU, k, 0.09)
+			pen.poly([Vector2(-0.12, -0.3), Vector2(0, -1.08), Vector2(0.12, -0.3)], k)
 			for side: float in [-1.0, 1.0]:
-				poly.call([Vector2(0.38 * side, 0.05), Vector2(0.82 * side, 0.7), Vector2(0.38 * side, 0.5)], Color(0.95, 0.3, 0.25))
-			ci.draw_circle(at.call(0, -0.25), s * 0.18, Color(0.3, 0.7, 1.0))
-			poly.call([Vector2(-0.24, 0.55), Vector2(0.24, 0.55), Vector2(0, 1.0)], Color(1.0, 0.7, 0.2))
-		"trophy":
-			poly.call([Vector2(-0.6, -0.85), Vector2(0.6, -0.85), Vector2(0.5, -0.1), Vector2(0.15, 0.25), Vector2(0.15, 0.55), Vector2(-0.15, 0.55), Vector2(-0.15, 0.25), Vector2(-0.5, -0.1)], ink)
-			poly.call([Vector2(-0.5, 0.55), Vector2(0.5, 0.55), Vector2(0.5, 0.88), Vector2(-0.5, 0.88)], ink)
+				pen.arc(Vector2(0.4 * side, -0.28), 0.4, PI, TAU, k if side < 0.0 else d, 0.19)
+				pen.poly([Vector2(0.64 * side, -0.3), Vector2(0.96 * side, -0.3), Vector2(0.82 * side, 0.2)], k if side < 0.0 else d)
+			pen.poly([Vector2(-0.2, 0.1), Vector2(0.2, 0.1), Vector2(0.2, 0.26), Vector2(-0.2, 0.26)], d)
+		"boot":
+			pen.turn = -0.3
+			pen.poly([Vector2(-0.58, -0.98), Vector2(0.02, -0.98), Vector2(0.06, -0.1), Vector2(0.74, 0.14), Vector2(0.92, 0.46), Vector2(0.92, 0.66), Vector2(-0.58, 0.66)], k)
+			pen.poly([Vector2(0.46, 0.24), Vector2(0.74, 0.14), Vector2(0.92, 0.46), Vector2(0.92, 0.66), Vector2(0.46, 0.66)], a)
+			pen.poly([Vector2(-0.64, 0.66), Vector2(0.96, 0.66), Vector2(0.96, 0.88), Vector2(0.2, 0.88), Vector2(0.14, 0.78), Vector2(-0.2, 0.78), Vector2(-0.26, 0.88), Vector2(-0.64, 0.88)], k.darkened(0.55))
+			pen.poly([Vector2(-0.58, -0.98), Vector2(0.02, -0.98), Vector2(0.02, -0.8), Vector2(-0.58, -0.8)], k.lightened(0.25))
+			for y: float in [-0.6, -0.36, -0.12]:
+				pen.line(Vector2(-0.18, y), Vector2(0.06, y + 0.06), a, 0.06)
+			pen.turn = 0.0
+			for i in 3:   # the hit
+				var dir := Vector2.from_angle(-0.5 + i * 0.5)
+				pen.line(Vector2(0.72, 0.1) + dir * 0.22, Vector2(0.72, 0.1) + dir * 0.5, a, 0.08)
+		"rec":
+			for sx: float in [-1.0, 1.0]:
+				for sy: float in [-1.0, 1.0]:
+					pen.path([Vector2(0.92 * sx, 0.44 * sy), Vector2(0.92 * sx, 0.84 * sy), Vector2(0.48 * sx, 0.84 * sy)], k, 0.11)
+			pen.line(Vector2(-0.16, 0.14), Vector2(0.16, 0.14), Color(k, 0.8), 0.05)
+			pen.line(Vector2(0, -0.02), Vector2(0, 0.3), Color(k, 0.8), 0.05)
+			pen.dot(Vector2(-0.52, -0.46), 0.2, a)
+			for i in 3:   # "REC"
+				pen.poly([Vector2(-0.2 + i * 0.28, -0.6), Vector2(0.0 + i * 0.28, -0.6), Vector2(0.0 + i * 0.28, -0.32), Vector2(-0.2 + i * 0.28, -0.32)], k)
+			for i in 5:   # the tape counter
+				pen.line(Vector2(-0.6 + i * 0.3, 0.56), Vector2(-0.6 + i * 0.3, 0.68), Color(k, 0.7), 0.05)
+		"c4":
+			pen.path([Vector2(-0.4, -0.6), Vector2(-0.8, -0.72), Vector2(-0.74, -0.2)], Color(0.3, 0.6, 1.0), 0.09)
+			pen.path([Vector2(0.4, -0.6), Vector2(0.8, -0.72), Vector2(0.74, -0.2)], a, 0.09)
+			pen.poly([Vector2(-0.92, -0.22), Vector2(0.92, -0.22), Vector2(0.92, 0.86), Vector2(-0.92, 0.86)], k)
+			pen.poly([Vector2(-0.92, 0.5), Vector2(0.92, 0.5), Vector2(0.92, 0.86), Vector2(-0.92, 0.86)], d)
+			for x: float in [-0.56, 0.42]:
+				pen.poly([Vector2(x, -0.22), Vector2(x + 0.16, -0.22), Vector2(x + 0.16, 0.86), Vector2(x, 0.86)], g)
+			pen.poly([Vector2(-0.46, -0.9), Vector2(0.46, -0.9), Vector2(0.46, -0.3), Vector2(-0.46, -0.3)], g.lightened(0.1))
+			pen.poly([Vector2(-0.38, -0.82), Vector2(0.38, -0.82), Vector2(0.38, -0.38), Vector2(-0.38, -0.38)], Color(0.05, 0.02, 0.02))
+			for x: float in [-0.28, -0.1, 0.12, 0.3]:
+				pen.line(Vector2(x, -0.74), Vector2(x, -0.46), a, 0.08)
+			pen.dot(Vector2(0.01, -0.68), 0.035, a)
+			pen.dot(Vector2(0.01, -0.52), 0.035, a)
+		"defuser":
+			pen.line(Vector2(-1.0, -0.62), Vector2(-0.2, -0.62), Color(0.95, 0.2, 0.15), 0.12)
+			pen.line(Vector2(0.2, -0.62), Vector2(1.0, -0.62), Color(0.95, 0.2, 0.15), 0.12)
 			for side: float in [-1.0, 1.0]:
-				ci.draw_arc(at.call(0.62 * side, -0.48), s * 0.27, -PI / 2.0 if side > 0.0 else PI / 2.0, PI / 2.0 if side > 0.0 else PI * 1.5, 12, ink, w * 0.8, true)
-		"ghost":
-			var body := PackedVector2Array()
-			for i in 13:
-				body.append(at.call(-0.72 * cos(i * PI / 12.0), -0.15 - 0.8 * sin(i * PI / 12.0)))
-			for p in [Vector2(0.72, 0.9), Vector2(0.48, 0.62), Vector2(0.24, 0.9), Vector2(0.0, 0.62), Vector2(-0.24, 0.9), Vector2(-0.48, 0.62), Vector2(-0.72, 0.9)]:
-				body.append(mid + p * s)
-			ci.draw_colored_polygon(body, ink)
-			ci.draw_circle(at.call(-0.26, -0.2), s * 0.15, Color(0.1, 0.1, 0.2))
-			ci.draw_circle(at.call(0.26, -0.2), s * 0.15, Color(0.1, 0.1, 0.2))
-		"paw":
-			ci.draw_colored_polygon(_disc(at.call(0, 0.38), s * 0.52, 18, 0.85), ink)
-			for p in [Vector2(-0.68, -0.12), Vector2(-0.26, -0.58), Vector2(0.26, -0.58), Vector2(0.68, -0.12)]:
-				ci.draw_circle(mid + p * s, s * 0.23, ink)
-		"moon":
-			for piece in Geometry2D.clip_polygons(_disc(mid, s * 0.9, 28), _disc(at.call(0.42, -0.2), s * 0.74, 28)):
-				ci.draw_colored_polygon(piece, ink)
-		"sun":
-			ci.draw_circle(mid, s * 0.48, ink)
-			for i in 8:
-				var d := Vector2.from_angle(i * TAU / 8.0)
-				ci.draw_line(mid + d * s * 0.66, mid + d * s * 1.0, ink, w)
-		"chevrons":
-			for i in 3:
-				var y := -0.75 + i * 0.52
-				poly.call([Vector2(-0.8, y + 0.4), Vector2(0, y), Vector2(0.8, y + 0.4), Vector2(0.8, y + 0.68), Vector2(0, y + 0.28), Vector2(-0.8, y + 0.68)], ink)
-		"bomb":
-			ci.draw_circle(at.call(-0.1, 0.25), s * 0.68, ink)
-			poly.call([Vector2(0.18, -0.6), Vector2(0.5, -0.3), Vector2(0.3, -0.12), Vector2(0.0, -0.42)], ink)
-			ci.draw_line(at.call(0.36, -0.48), at.call(0.72, -0.8), Color(0.6, 0.45, 0.25), w * 0.7)
-			ci.draw_circle(at.call(0.78, -0.86), s * 0.16, Color(1.0, 0.3, 0.1))
-			ci.draw_circle(at.call(-0.35, 0.02), s * 0.14, Color(1, 1, 1, 0.35))
-		"dice":
-			poly.call([Vector2(-0.6, -0.8), Vector2(0.6, -0.8), Vector2(0.8, -0.6), Vector2(0.8, 0.6), Vector2(0.6, 0.8), Vector2(-0.6, 0.8), Vector2(-0.8, 0.6), Vector2(-0.8, -0.6)], ink)
-			for p in [Vector2(-0.42, -0.42), Vector2(0.42, -0.42), Vector2(0, 0), Vector2(-0.42, 0.42), Vector2(0.42, 0.42)]:
-				ci.draw_circle(mid + p * s, s * 0.14, Color(0.1, 0.1, 0.12))
+				pen.line(Vector2(0.46 * side, 1.0), Vector2(-0.16 * side, -0.2), a, 0.24)   # a grip
+				pen.poly([Vector2(-0.3 * side, -0.02), Vector2(-0.04 * side, -0.14), Vector2(0.02 * side, -0.86), Vector2(-0.16 * side, -0.62)], k if side < 0.0 else d)
+			pen.dot(Vector2(0, 0.08), 0.13, k)
+			pen.dot(Vector2(0, 0.08), 0.05, g)
+			for dir in [Vector2(-0.5, -1.0), Vector2(0.0, -1.0), Vector2(0.5, -1.0)]:   # the snip
+				pen.line(Vector2(0, -0.78) + dir * 0.16, Vector2(0, -0.78) + dir * 0.36, Color.WHITE, 0.06)
+		"flag":
+			pen.line(Vector2(-0.72, -1.05), Vector2(-0.72, 1.05), a.darkened(0.25), 0.12)
+			pen.dot(Vector2(-0.72, -1.05), 0.1, a)
+			pen.poly([Vector2(-0.66, -0.92), Vector2(-0.14, -0.76), Vector2(0.38, -0.94), Vector2(0.98, -0.72), Vector2(0.7, -0.46), Vector2(0.94, -0.2), Vector2(0.62, -0.1),
+				Vector2(0.86, 0.14), Vector2(0.38, 0.04), Vector2(-0.14, 0.22), Vector2(-0.66, 0.06)], k)
+			pen.poly([Vector2(-0.14, -0.76), Vector2(0.38, -0.94), Vector2(0.38, 0.04), Vector2(-0.14, 0.22)], d)
+			pen.poly([Vector2(-0.66, -0.52), Vector2(-0.14, -0.36), Vector2(0.38, -0.54), Vector2(0.74, -0.42), Vector2(0.7, -0.34), Vector2(0.38, -0.36), Vector2(-0.14, -0.18), Vector2(-0.66, -0.34)], a)
+		"stopwatch":
+			pen.poly([Vector2(-0.14, -1.08), Vector2(0.14, -1.08), Vector2(0.14, -0.7), Vector2(-0.14, -0.7)], k)
+			pen.line(Vector2(0.52, -0.56), Vector2(0.72, -0.78), k, 0.16)
+			pen.dot(Vector2(0, 0.14), 0.86, k)
+			pen.dot(Vector2(0, 0.14), 0.7, g)
+			var pie := [Vector2(0, 0.14)]
+			for i in 9:
+				pie.append(Vector2(0, 0.14) + Vector2.from_angle(-PI / 2.0 + i * 0.26) * 0.62)
+			pen.poly(pie, Color(a, 0.75))
+			for i in 12:
+				var dir := Vector2.from_angle(i * TAU / 12.0)
+				pen.line(Vector2(0, 0.14) + dir * (0.5 if i % 3 == 0 else 0.56), Vector2(0, 0.14) + dir * 0.64, k, 0.05)
+			pen.line(Vector2(0, 0.14), Vector2(0, 0.14) + Vector2.from_angle(-PI / 2.0 + 2.08) * 0.52, Color.WHITE, 0.08)
+			pen.dot(Vector2(0, 0.14), 0.09, Color.WHITE)
 		"medal":
-			poly.call([Vector2(-0.55, -1.0), Vector2(-0.15, -1.0), Vector2(0.2, -0.2), Vector2(-0.2, -0.2)], Color(0.85, 0.2, 0.2))
-			poly.call([Vector2(0.55, -1.0), Vector2(0.15, -1.0), Vector2(-0.2, -0.2), Vector2(0.2, -0.2)], Color(0.25, 0.45, 0.9))
-			ci.draw_circle(at.call(0, 0.35), s * 0.6, ink)
-			ci.draw_circle(at.call(0, 0.35), s * 0.4, ink.darkened(0.18))
-			var pts := []
-			for i in 10:
-				pts.append(Vector2(0, 0.35) + Vector2.from_angle(-PI / 2.0 + i * PI / 5.0) * (0.3 if i % 2 == 0 else 0.13))
-			poly.call(pts, ink.lightened(0.5))
-		"mask":
-			ci.draw_circle(mid, s * 0.86, ink)
-			poly.call([Vector2(-0.8, -0.3), Vector2(0.8, -0.3), Vector2(0.86, 0.12), Vector2(-0.86, 0.12)], Color(0.92, 0.8, 0.68))
-			ci.draw_line(at.call(-0.55, -0.16), at.call(-0.16, -0.02), Color(0.08, 0.08, 0.1), w)
-			ci.draw_line(at.call(0.55, -0.16), at.call(0.16, -0.02), Color(0.08, 0.08, 0.1), w)
-			poly.call([Vector2(0.7, -0.5), Vector2(1.15, -0.85), Vector2(1.05, -0.4)], ink)
+			pen.poly([Vector2(-0.62, -1.08), Vector2(-0.2, -1.08), Vector2(0.16, -0.2), Vector2(-0.24, -0.06)], a)
+			pen.poly([Vector2(0.62, -1.08), Vector2(0.2, -1.08), Vector2(-0.16, -0.2), Vector2(0.24, -0.06)], a.darkened(0.3))
+			pen.poly([Vector2(-0.5, -1.08), Vector2(-0.36, -1.08), Vector2(0.0, -0.18), Vector2(-0.12, -0.12)], Color.WHITE)
+			pen.star(Vector2(0, 0.38), 0.7, d, 12, 0.84)
+			pen.dot(Vector2(0, 0.38), 0.52, k)
+			pen.dot(Vector2(0, 0.38), 0.4, d)
+			pen.star(Vector2(0, 0.38), 0.32, l)
+		"signal":
+			for i in 3:
+				for side: float in [0.0, PI]:
+					pen.arc(Vector2(0, -0.42), 0.36 + i * 0.3, side - 0.7, side + 0.7, Color(a, 1.0 - i * 0.25), 0.1)
+			pen.line(Vector2(0, -0.42), Vector2(-0.46, 1.0), k, 0.1)
+			pen.line(Vector2(0, -0.42), Vector2(0.46, 1.0), d, 0.1)
+			for i in 3:
+				var y := 0.0 + i * 0.36
+				var wide := (y + 0.42) * 0.32
+				pen.line(Vector2(-wide, y), Vector2(wide + 0.11, y + 0.36), k, 0.06)
+				pen.line(Vector2(wide, y), Vector2(-wide - 0.11, y + 0.36), d, 0.06)
+			pen.dot(Vector2(0, -0.42), 0.15, a)
+		"boomerang":
+			pen.arc(Vector2(0, 0.1), 1.0, -2.6, -0.6, Color(a, 0.5), 0.06)   # where it has been
+			pen.arc(Vector2(0, 0.1), 0.74, -2.3, -0.9, Color(a, 0.35), 0.05)
+			pen.turn = 0.5
+			var arm := [Vector2(0, -0.82), Vector2(1.02, 0.42), Vector2(0.94, 0.76), Vector2(0.62, 0.7), Vector2(0, -0.2)]
+			pen.both(arm, d, k)
+			pen.both([Vector2(0.56, 0.2), Vector2(0.76, 0.1), Vector2(0.88, 0.26), Vector2(0.66, 0.4)], a, a)
+			pen.turn = 0.0
+		"diamond":
+			pen.poly([Vector2(-0.56, -0.72), Vector2(0.56, -0.72), Vector2(0.4, -0.2), Vector2(-0.4, -0.2)], l)
+			pen.poly([Vector2(-0.56, -0.72), Vector2(-0.4, -0.2), Vector2(-1.04, -0.2)], k)
+			pen.poly([Vector2(0.56, -0.72), Vector2(0.4, -0.2), Vector2(1.04, -0.2)], d)
+			pen.poly([Vector2(-1.04, -0.2), Vector2(-0.4, -0.2), Vector2(0, 1.0)], k)
+			pen.poly([Vector2(-0.4, -0.2), Vector2(0.4, -0.2), Vector2(0, 1.0)], l.lightened(0.3))
+			pen.poly([Vector2(0.4, -0.2), Vector2(1.04, -0.2), Vector2(0, 1.0)], d)
+			pen.star(Vector2(0.62, -0.82), 0.34, a, 4, 0.22)
+		"laurels":
+			for side: float in [-1.0, 1.0]:
+				pen.arc(Vector2.ZERO, 0.8, PI / 2.0 - 1.36 * (1.0 + side), PI / 2.0 + 1.36 * (1.0 - side), d, 0.05)   # the stem
+				for i in 7:
+					var ang := PI / 2.0 - 0.16 - i * 0.36
+					var p := Vector2(cos(ang) * side, sin(ang)) * 0.84
+					var t := Vector2(sin(ang) * side, -cos(ang)).rotated(-0.7 * side)   # along the leaf: up and out
+					var n := t.orthogonal()
+					pen.poly([p - t * 0.1, p + n * 0.12, p + t * 0.36, p - n * 0.12], k if i % 2 == 0 else d)
+			pen.star(Vector2(0, -0.02), 0.5, a)
+			pen.star(Vector2(0, -0.02), 0.22, k)
+		"crown":
+			pen.zoom = 0.86
+			pen.poly([Vector2(-0.82, 0.4), Vector2(-1.0, -0.6), Vector2(-0.46, -0.08), Vector2(0, -0.98), Vector2(0.46, -0.08), Vector2(1.0, -0.6), Vector2(0.82, 0.4)], k)
+			pen.poly([Vector2(0, 0.4), Vector2(0, -0.98), Vector2(0.46, -0.08), Vector2(1.0, -0.6), Vector2(0.82, 0.4)], d)
+			pen.poly([Vector2(-0.84, 0.46), Vector2(0.84, 0.46), Vector2(0.84, 0.8), Vector2(-0.84, 0.8)], l)
+			pen.poly([Vector2(0, 0.46), Vector2(0.84, 0.46), Vector2(0.84, 0.8), Vector2(0, 0.8)], k)
+			for x: float in [-0.5, 0.0, 0.5]:
+				pen.dot(Vector2(x, 0.63), 0.1, a)
+			for p in [Vector2(-1.0, -0.6), Vector2(0, -0.98), Vector2(1.0, -0.6)]:
+				pen.dot(p, 0.12, l)
+			pen.zoom = 1.0
 		_:
-			ci.draw_circle(mid, s * 0.5, ink)
+			pen.dot(Vector2.ZERO, 0.5, k)
+
+
+## A rank chevron, its point at the top, `y` its point's height.
+static func _chevron(pen: Pen, y: float, thick: float, k: Color, d: Color) -> void:
+	pen.poly([Vector2(-0.84, y + 0.52), Vector2(0, y), Vector2(0, y + thick), Vector2(-0.84, y + 0.52 + thick)], k)
+	pen.poly([Vector2(0.84, y + 0.52), Vector2(0, y), Vector2(0, y + thick), Vector2(0.84, y + 0.52 + thick)], d)
+
+
+## A robot's head with a V of a visor (dark: the caller lights it).
+static func _bot_head(pen: Pen, k: Color, d: Color, g: Color) -> void:
+	var half := [Vector2(0, -0.92), Vector2(0.56, -0.92), Vector2(0.86, -0.46), Vector2(0.86, 0.26), Vector2(0.5, 0.92), Vector2(0, 0.92)]
+	pen.both(half, d, k)
+	pen.poly([Vector2(-0.72, -0.28), Vector2(0, -0.04), Vector2(0.72, -0.28), Vector2(0.72, 0.08), Vector2(0, 0.34), Vector2(-0.72, 0.08)], g)
+	for y: float in [0.58, 0.74]:
+		pen.line(Vector2(-0.22, y), Vector2(0.22, y), g, 0.06)
+	pen.line(Vector2(-0.56, -0.92), Vector2(-0.7, -1.16), k, 0.08)
+
+
+## A blade, point up, with a guard and a grip (`half`: half the blade's width).
+static func _blade(pen: Pen, k: Color, d: Color, a: Color, half: float) -> void:
+	pen.poly([Vector2(0, -1.12), Vector2(-half, -0.8), Vector2(-half, 0.3), Vector2(0, 0.3)], k)
+	pen.poly([Vector2(0, -1.12), Vector2(half, -0.8), Vector2(half, 0.3), Vector2(0, 0.3)], d)
+	pen.poly([Vector2(-half - 0.26, 0.3), Vector2(half + 0.26, 0.3), Vector2(half + 0.2, 0.44), Vector2(-half - 0.2, 0.44)], a)
+	pen.poly([Vector2(-half * 0.7, 0.44), Vector2(half * 0.7, 0.44), Vector2(half * 0.7, 0.96), Vector2(-half * 0.7, 0.96)], a.darkened(0.45))
+	pen.dot(Vector2(0, 1.02), half * 0.9, a)
+
+
+## A skull, all angles: `a` glows in its eyes.
+static func _skull(pen: Pen, k: Color, d: Color, a: Color, g: Color) -> void:
+	var half := [Vector2(0, -1.0), Vector2(0.46, -0.84), Vector2(0.66, -0.36), Vector2(0.58, 0.14), Vector2(0.36, 0.3), Vector2(0.32, 0.84), Vector2(0, 0.84)]
+	pen.both(half, d, k)
+	pen.both([Vector2(0.12, -0.1), Vector2(0.52, -0.26), Vector2(0.44, 0.14), Vector2(0.14, 0.18)], g, g)
+	pen.both([Vector2(0.22, -0.02), Vector2(0.4, -0.1), Vector2(0.36, 0.06), Vector2(0.24, 0.08)], a, a)
+	pen.poly([Vector2(0, 0.14), Vector2(0.1, 0.38), Vector2(-0.1, 0.38)], g)
+	for x: float in [-0.16, 0.0, 0.16]:
+		pen.line(Vector2(x, 0.56), Vector2(x, 0.84), g, 0.06)
+	pen.line(Vector2(-0.32, 0.54), Vector2(0.32, 0.54), g, 0.05)
+
+
+## A pair of wings spread from the middle: three rows of feathers a side.
+static func _wings(pen: Pen, k: Color, d: Color) -> void:
+	var rows := [[Vector2(0.14, -0.3), Vector2(1.08, -0.7), Vector2(0.98, -0.32), Vector2(0.2, -0.04)],
+		[Vector2(0.14, -0.04), Vector2(0.94, -0.28), Vector2(0.82, 0.04), Vector2(0.2, 0.2)],
+		[Vector2(0.14, 0.2), Vector2(0.76, 0.08), Vector2(0.6, 0.38), Vector2(0.2, 0.42)]]
+	for i in 3:
+		pen.both(rows[i], d if i != 1 else k, k if i != 1 else d)

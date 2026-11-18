@@ -8,7 +8,7 @@ extends VBoxContainer
 signal picked   ## a card or an icon was chosen
 
 const CARD_COLUMNS := 6
-const ICON_COLUMNS := 17
+const ICON_COLUMNS := 20
 const CARD_SIZE := Vector2(0, 46)
 const ICON_SIZE := Vector2(54, 54)
 

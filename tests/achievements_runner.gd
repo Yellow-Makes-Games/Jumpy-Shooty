@@ -192,6 +192,60 @@ func run() -> void:
 	Teams.event.emit("flag_taken", 0, 1)
 	_expect(Achievements.stat("plants") == 1 and Achievements.stat("defuses") == 1 and Achievements.stat("captures") == 1, "your plants, defuses and captures count")
 
+	print("  the page's order")
+	var ids_of := func(mode: String) -> Array: return AchievementsPanel.sorted(mode).map(func(a): return a.id)
+	var listed: Array = ids_of.call("list")
+	_expect(listed == Achievements.LIST.map(func(a): return a.id), "Default is the list as written")
+	var all_there := true
+	for option in AchievementsPanel.SORTS:
+		var got: Array = ids_of.call(option[0])
+		got.sort()
+		var want := listed.duplicate()
+		want.sort()
+		all_there = all_there and got == want
+	_expect(all_there, "every order shows every achievement once")
+	var done_first: Array = AchievementsPanel.sorted("done")
+	var seen_todo := false
+	var grouped := true
+	for a in done_first:
+		if not Achievements.done(a.id):
+			seen_todo = true
+		elif seen_todo:
+			grouped = false
+	_expect(grouped and Achievements.done(done_first[0].id) and not Achievements.done(AchievementsPanel.sorted("todo")[0].id),
+		"Done first puts the done ones on top; To do first the rest")
+	var closest: Array = AchievementsPanel.sorted("closest")
+	var falling := true
+	var last := 2.0
+	for a in closest:
+		if Achievements.done(a.id):
+			last = -1.0
+			continue
+		var part := float(Achievements.stat(a.stat)) / float(a.goal)
+		falling = falling and part <= last + 0.0001 and last >= 0.0
+		last = part
+	_expect(falling and not Achievements.done(closest[0].id) and Achievements.done(closest[-1].id), "Closest to done runs from nearly there down to not started, the done ones last")
+	var by_name: Array = AchievementsPanel.sorted("name").map(func(a): return str(a.name).to_lower())
+	var in_abc := by_name.duplicate()
+	in_abc.sort()
+	_expect(by_name == in_abc, "A to Z is by name")
+	var by_reward: Array = AchievementsPanel.sorted("reward")
+	_expect(by_reward[0].rewards.any(func(item): return str(item).begins_with("card:"))
+		and not by_reward[-1].rewards.any(func(item): return str(item).begins_with("card:") or str(item).begins_with("icon:")),
+		"By reward starts with the calling cards and ends with the creator's accessories")
+	var page := AchievementsPanel.new()
+	add_child(page)
+	var bar := AchievementsPanel.sort_bar(page)
+	add_child(bar)
+	(bar.get_child(1).get_child(4) as Button).pressed.emit()
+	_expect(AchievementsPanel.sort == "name" and page.get_child_count() == Achievements.LIST.size() and page.get_child(0).name == StringName(AchievementsPanel.sorted("name")[0].id),
+		"pressing a sort button puts the cards in that order")
+	_expect(page.find_child("streak_10", false, false).find_children("", "Control", true, false).any(func(c): return c is AchievementsPanel.Thumb),
+		"an achievement's card shows the calling card or icon it unlocks")
+	AchievementsPanel.sort = "list"
+	page.queue_free()
+	bar.queue_free()
+
 	print("  the Character Creator")
 	var creator: Node = load("res://game/ui/character_creator.gd").new("")
 	add_child(creator)

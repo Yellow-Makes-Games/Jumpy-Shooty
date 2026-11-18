@@ -49,6 +49,17 @@ func run() -> void:
 	canvas.queue_free()
 	_expect(_drawn == CallingCard.CARDS.size() + CallingCard.ICONS.size(), "every card and icon draws (%d)" % _drawn)
 
+	# No glyph falls through to the plain dot the drawing code uses for one it does not know.
+	var source := FileAccess.get_file_as_string("res://game/ui/calling_card.gd")
+	var unknown := []
+	for i in CallingCard.ICONS:
+		if not ('\t\t"%s":' % i.glyph) in source:
+			unknown.append(i.glyph)
+	for c in CallingCard.CARDS:
+		if not ('"%s"' % c.pattern) in source.get_slice("static func _draw_pattern", 1):
+			unknown.append(c.pattern)
+	_expect(unknown.is_empty(), "every icon's glyph and every card's pattern is one the drawing code knows %s" % [unknown])
+
 	print("  the picker")
 	var picker := CallingCardPicker.new()
 	picker.saves = false
@@ -59,9 +70,9 @@ func run() -> void:
 	_expect(Settings.calling_card == CallingCard.DEFAULT_CARD and "locked" in picker.status.text and "Unstoppable" in picker.status.text,
 		"a locked card is not taken, and the page says what it needs (%s)" % picker.status.text)
 	picker.pick("card", "ember")
-	picker.pick("icon", "bolt")
-	_expect(Settings.calling_card == "ember" and Settings.icon == "bolt" and picker.find_child("icon_bolt", true, false).chosen
-		and not picker.find_child("icon_star", true, false).chosen, "a free card and a free icon are yours at a click")
+	picker.pick("icon", "volt")
+	_expect(Settings.calling_card == "ember" and Settings.icon == "volt" and picker.find_child("icon_volt", true, false).chosen
+		and not picker.find_child("icon_recruit", true, false).chosen, "a free card and a free icon are yours at a click")
 	Achievements.add("streaks_10")
 	picker._refresh()
 	picker.pick("card", "inferno")
@@ -69,7 +80,7 @@ func run() -> void:
 
 	print("  the lobby")
 	Net.start_offline("Host", "needle", "pistol")
-	_expect(Net.player_card(1) == "inferno" and Net.player_icon(1) == "bolt", "you take your card and icon into a lobby")
+	_expect(Net.player_card(1) == "inferno" and Net.player_icon(1) == "volt", "you take your card and icon into a lobby")
 	picker.pick("card", "tide")
 	_expect(Net.player_card(1) == "tide", "a pick made in a lobby shows there at once")
 	Net.set_my_card("nonsense", "also nonsense")

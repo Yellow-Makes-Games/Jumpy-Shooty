@@ -224,9 +224,10 @@ The sync, match and bot tests take a map and a player count, for example
   the game add to it; a kill counts for its weapon's group and each weapon once, kills
   without dying, revenge, the first kill, big, far and fast kills; wins count for their
   mode, by one kill, with no deaths, against an Expert bot, online and hosted; plants,
-  defuses and captures; race medals and best times;
+  defuses and captures; race medals and best times; every order the page can sort
+  them in shows each once, in that order;
 - calling cards (`tests/calling_card_test.gd`): every card and icon has its own id and
-  draws; the plain ones are free and the rest locked; the picker takes a free one and
+  draws, with a glyph or pattern the drawing code knows; the plain ones are free and the rest locked; the picker takes a free one and
   refuses a locked one, saying what it needs; your card goes into the lobby with you,
   a pick there shows at once, a made-up id becomes the plain card, and bots have one;
 - your colour (`tests/player_color_test.gd`): the colour you picked is yours when you
@@ -1384,7 +1385,10 @@ Expert bots' time).
 **Adding a calling card or an icon:** add a line to `CARDS` or `ICONS` in
 `game/ui/calling_card.gd`: an id, a name, and for a card a `pattern` (one of the ones
 `_draw_pattern` knows, or a new branch there) and its three colours `a`, `b`, `c`; for
-an icon a `glyph` (see `_draw_glyph`), its colour, the badge's colour and its `shape`.
+an icon a `glyph` (a branch of `_draw_glyph`, drawn with the `Pen` there: shapes in a
+-1 to 1 square, which the pen also draws once in a dark colour as the glyph's shadow),
+its `color` and `accent`, the plate's colour (`back`) and `shape`, and if it should
+stand out the rim's metal (`rim`: `BRONZE` or `GOLD`) and `rays`.
 It is free unless an achievement's `rewards` name it (`"card:<id>"`, `"icon:<id>"`).
 The picker, the lobby and the test read the tables.
 
