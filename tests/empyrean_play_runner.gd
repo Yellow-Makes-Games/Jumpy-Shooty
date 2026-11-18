@@ -26,6 +26,7 @@ func run() -> void:
 	_check(not arena.layout.bounds.has_area() and WorldGravity.zones.size() >= 1 and is_equal_approx(WorldGravity.outside, 0.4), "no bounds; gravity zones set, 0.4 outside")
 	await _gravity()
 	await _lift()
+	await _magic()
 	await _surge()
 	await _deaths()
 	print("PASS" if _ok else "FAILED")
@@ -85,6 +86,65 @@ func _lift() -> void:
 	_check(me.motor.state == MovementController.State.AIR and me.weapon != null, "riding it you are simply in the air, gun in hand")
 
 
+## The magic answers to players within 4 m in plain sight, not to the dead or to anyone
+## sneaking, and never through a wall.
+func _magic() -> void:
+	print("the magic answering to players")
+	var field: MapMagicField = null
+	for n in arena.layout.find_children("*", "Node", true, false):
+		if n is MapMagicField:
+			field = n
+	_check(field != null and field.boxes.size() > 100 and field.streams.size() >= 6, "the map has a magic field that knows its boxes (%d) and streams (%d)" % [field.boxes.size() if field else 0, field.streams.size() if field else 0])
+	if field == null:
+		return
+	var library: Node = arena.layout.get_node("GrandLibrary/Magic")
+	var room: MapMagic = null
+	var corridor: MapMagic = null
+	for n in library.get_children():
+		if n is MapMagic and n.name.begins_with("RoomMotes") and room == null:
+			room = n
+		elif n is MapMagic and n.name.begins_with("CorridorMotes") and corridor == null:
+			corridor = n
+	# Far away: at rest.
+	await _settle(at(12.0, 75.0, 0.1))
+	await _wait(0.8)
+	_check(is_zero_approx(room.stir()) and is_zero_approx(corridor.stir()), "nobody near: the Library's motes are at rest")
+	# Standing among them: they scatter, and the runes flare.
+	var among := room.global_position
+	among.y = TIER + 0.1
+	await _settle(among)
+	await _wait(0.8)
+	_check(room.stir() > 0.9, "standing among the motes: they are stirred (%.2f)" % room.stir())
+	_check(field.rune_level(me.peer_id) > 0.9, "and the runes near you flare (%.2f)" % field.rune_level(me.peer_id))
+	_check(is_zero_approx(corridor.stir()), "the corridor's motes, out of reach, are not")
+	# Sneaking: crouched and still, nothing answers.
+	DevArgs.drives_keys = true       # (as --hold does: the player reads the keys with no mouse captured)
+	Input.action_press("crouch")
+	await _wait(1.6)
+	_check(me.motor.crouched and not MapMagicField.noticed(me), "crouched: you are not noticed")
+	_check(room.stir() < 0.05 and field.rune_level(me.peer_id) < 0.05, "they settle while you sneak (%.2f, runes %.2f)" % [room.stir(), field.rune_level(me.peer_id)])
+	Input.action_release("crouch")
+	await _wait(0.8)
+	DevArgs.drives_keys = false
+	_check(room.stir() > 0.9, "standing up again stirs them (%.2f)" % room.stir())
+	# Not through a wall: in the room behind the corridor's wall, 2 m from the corridor's motes.
+	var r := Vector2(corridor.global_position.x, corridor.global_position.z).length()
+	var deg := rad_to_deg(atan2(corridor.global_position.x, corridor.global_position.z))
+	var behind := at(r - 3.0, deg, TIER + 0.1)
+	await _settle(behind)
+	await _wait(0.8)
+	var gap := corridor.nearest(behind + Vector3(0, MapMagicField.CHEST, 0)).distance_to(behind + Vector3(0, MapMagicField.CHEST, 0))
+	_check(gap < MapMagicField.REACH and is_zero_approx(corridor.stir()), "behind the corridor's wall, %.1f m from its motes: they do not answer" % gap)
+	await _settle(at(r, deg, TIER + 0.1))
+	await _wait(0.8)
+	_check(corridor.stir() > 0.9, "in the corridor itself: they do (%.2f)" % corridor.stir())
+	# Glass does not block it; stone does. (The stained glass at 180 degrees, 6.35 m up.)
+	var y := TIER + 6.35 + 3.0
+	var wall_r := Vector2(arena.layout.get_node("GrandLibrary/Shell").get_child(0).get_child(0).global_position.x, arena.layout.get_node("GrandLibrary/Shell").get_child(0).get_child(0).global_position.z).length()
+	_check(field.in_sight(at(wall_r - 2.0, 180.0, y), at(wall_r + 2.5, 180.0, y)), "through a stained-glass window: in sight")
+	_check(not field.in_sight(at(wall_r - 2.0, 200.0, y), at(wall_r + 2.5, 200.0, y)), "through the stone beside it: not")
+
+
 func _hold(on: bool) -> void:
 	Net.terminal_hold(terminal.index(), on, me.peer_id)
 
@@ -140,6 +200,12 @@ func _surge() -> void:
 	_check(not surge.passable() and gates.all(func(g): return not (g as MapRingGate).open), "the gates take time to power up: nothing teleports yet")
 	await _wait(2.3)
 	_check(surge.passable() and gates.all(func(g): return (g as MapRingGate).open and (g as MapRingGate).power > 0.99), "2 s later all four pairs are open")
+	var magic: MapMagicField = null
+	for n in arena.layout.find_children("*", "Node", true, false):
+		if n is MapMagicField:
+			magic = n
+	await _frames(3)
+	_check(magic != null and magic.surge > 0.99 and magic.streams.all(func(s): return (s as MapMagicStream).surge > 0.99), "and the magic is at full strength (%.2f)" % (magic.surge if magic else -1.0))
 	_check(arena.portals.map_pairs().size() >= 4, "the arena's Portals node has the map's pairs (%d)" % arena.portals.map_pairs().size())
 	# It cannot be used again while it runs.
 	_hold(true)
@@ -240,6 +306,7 @@ func _deaths() -> void:
 	me.teleport(Vector3(1.5, 1.0, 0.0), 0.0)
 	await _frames(12)
 	_check(not Match.is_alive(me.peer_id) and died.has(me.peer_id) and Match.death_cause.get(me.peer_id, "") == "fell", "touching the Engine's core: a death, handled like a fall")
+	_check(not MapMagicField.noticed(me), "(the dead do not stir the magic)")
 	await _back()
 	me.teleport(Vector3(2.0, 12.0, 2.0), 0.0)     # falling into it from the shaft
 	await _frames(90)

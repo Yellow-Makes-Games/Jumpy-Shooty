@@ -140,11 +140,13 @@ COLORS = {
     "cloth_blue": (0.15, 0.22, 0.52), "cloth_red": (0.52, 0.13, 0.17), "cloth_green": (0.15, 0.38, 0.24),
     "cloth_teal": (0.1, 0.36, 0.4), "cloth_violet": (0.33, 0.16, 0.52), "carpet": (0.42, 0.11, 0.2),
     "parchment": (0.87, 0.79, 0.6), "flame": (1.0, 0.6, 0.22), "slit": (1.0, 0.74, 0.38),
+    # phantoms: the impossible things outside, plainly not there
+    "phantom": (0.72, 0.8, 1.0, 0.3), "phantom_light": (0.86, 0.9, 1.0, 0.55), "phantom_roof": (0.52, 0.45, 0.9, 0.42),
 }
 GLOW = {"glow": 1.6, "conduit": 2.0, "screen": 1.2, "accent_cyan": 1.8, "accent_gold": 1.6, "accent_green": 1.6,
         "accent_teal": 1.7, "accent_violet": 1.9, "accent_silver": 1.3, "crystal": 2.4, "hazard_glow": 3.0, "jet": 3.0,
         "burn": 1.9, "burn_haze": 1.3, "field": 1.6, "holo": 1.5, "holo_gold": 1.5, "fluid": 1.3, "planet_holo": 1.4,
-        "glass_stained": 0.35, "flame": 2.6, "slit": 1.7}
+        "glass_stained": 0.35, "flame": 2.6, "slit": 1.7, "phantom": 0.8, "phantom_light": 1.5, "phantom_roof": 0.9}
 SURFACE = {"stone": "masonry_runes", "stone_floor": "ring_flags", "stone_dark": "masonry_small",
            "floor_engine": "ring_flags_cyan", "floor_library": "ring_flags", "floor_labs": "ring_flags_green",
            "floor_menagerie": "ring_flags_teal", "floor_summoning": "ring_flags_violet", "floor_observatory": "ring_flags_stars", "alloy": "arcane_plates", "alloy_floor": "arcane_plates",
@@ -169,6 +171,8 @@ class EmpyreanMap(CirrusMap):
         "lift": "res://game/arena/map_lift_well.gd", "gate": "res://game/arena/map_ring_gate.gd",
         "surge": "res://game/arena/portal_surge_event.gd", "terminal": "res://game/arena/map_terminal.gd",
         "orbit": "res://game/arena/orbit_event.gd", "drone": "res://game/arena/map_drone.gd",
+        "magic": "res://game/arena/map_magic.gd", "stream": "res://game/arena/map_magic_stream.gd",
+        "field": "res://game/arena/map_magic_field.gd", "ambient": "res://game/arena/map_ambient_sound.gd",
     }
 
     def pb(self, g, name, kind, r0, r1, deg, width, y0, y1, **kw):
@@ -864,5 +868,7 @@ def build(path):
     dressing.dress(m, folders)
     import empyrean_decor as decor
     decor.decorate(m, folders)
+    import empyrean_magic as magic
+    magic.enchant(m, folders)
     m.write(path)
     write_palette(path.replace("game/maps/", "game/maps/palettes/").replace(".tscn", ".tres"))

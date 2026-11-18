@@ -103,7 +103,9 @@ Quick checks:
   the altar, four pairs of gates and the lifts, only the glass breaks, and on the bots'
   navigation mesh every tier from its neighbours, every storey, the docking ring and the
   altar from six directions; and in a real Practice match
-  (`tests/empyrean_play_test.gd`): gravity through a doorway, a lift ride, the whole
+  (`tests/empyrean_play_test.gd`): gravity through a doorway, a lift ride, the magic
+  answering to you (stirred when you stand in it, at rest while you sneak, never through a
+  wall, through glass), the whole
   Portal Surge (what cancels the hold, both ways through a gate with speed carried, a
   rocket flying straight through, the portal gun beside it, closing after 30 s, the
   cooldown), and the three deaths (the core, the burn layer, not flying off);
@@ -817,7 +819,8 @@ and a debris island, 3 Labs and Summoning Chamber, 4 Menagerie and another islan
 It was laid out by `python3 tools/arena/build_arena_maps.py empyrean` (the structure is
 `tools/arena/empyrean.py`, what stands in it `tools/arena/empyrean_dressing.py`, and the
 decor laid over both, banners, sconces, lanterns, wall units, turrets and the rest, most
-of it drawn only, `tools/arena/empyrean_decor.py`), followed by
+of it drawn only, `tools/arena/empyrean_decor.py`, and the magic,
+`tools/arena/empyrean_magic.py`: see "Living magic" below), followed by
 `tools/arena/migrate_breakable.gd` on the scene so its stained glass breaks. Like the
 other generated arenas the scene is what you edit from here on, and running the script
 again **overwrites hand edits**. After moving things, `godot --headless --path . --script
@@ -919,6 +922,41 @@ and add an **OrbitEvent** node to the scene: for as long as a match runs it goes
 carrying riders, pickups and grapple points, in the same place on every copy (the host
 owns the clock). **MapDrone** is unrelated: a drone drawn by its script that drifts round
 a spot, for looks only.
+
+### Living magic
+
+Scenery that moves, glows and answers to players, made for Empyrean Tower and usable on
+any map. None of it is solid, can be shot or hooked, or is sent over the network: every
+copy of the game runs it by itself.
+
+- **MapMagic** (`game/arena/map_magic.gd`): a box of air with something drifting in it.
+  Put the node at the middle, set **Size** and pick a **Kind**: motes, sparks, pages,
+  books (a flock), droplets, bubbles, fish, jellyfish, moths, candles, stars (a
+  constellation) or arcs (caged lightning). **Count**, **Piece** (a piece's size),
+  **Color** / **Color B**, **Power** and **Variation** shape it. It is one MultiMesh and
+  one shader (`map_magic_glow.gdshader` for light, `map_magic_solid.gdshader` for books,
+  pages and candles) and all its movement is worked out on the graphics card, so it
+  costs nothing on the CPU while nobody is near.
+- **MapMagicStream** (`map_magic_stream.gd`): a rope of liquid magic along **Path** (the
+  tower's river, and the threads drawn off it), its light running toward the path's end.
+- **MapMagicField** (`map_magic_field.gd`): one per map; it is what makes the magic
+  answer. Ten times a second it finds each MapMagic with **Reacts** ticked that has a
+  player within 4 m (13 ft) **in plain sight** (a ray from the player's chest to the box:
+  walls, floors and furniture block it, glass does not) and tells the box, which
+  scatters, flees or gutters. It also tells the rune surfaces (`masonry_runes`,
+  `ring_flags_*`, `arcane_plates`) where those players are, and runes within reach
+  **that face the player** flare (so a wall's far side never lights). Every living
+  player and bot counts, yours too; the dead, spectators and anyone crouched and moving
+  no faster than a crouch-walk do not (`MapMagicField.noticed`). Its **Event** is the
+  map event that livens everything up while it runs (the Portal Surge here).
+  Boxes are sorted into bands of height so each player is compared with few of them;
+  with 16 players spread through the tower a look takes about 1.6 ms.
+- **MapAmbientSound** (`map_ambient_sound.gd`): a quiet loop that belongs to a place.
+
+Empyrean Tower's rules for it (see docs/DESIGN.md): looks and sound only, no fog indoors,
+nothing that hides a player, never red, and the three impossible things outside are
+drawn as **phantoms** (the `phantom` kinds: pale and see-through), so nobody takes one
+for something to land on.
 
 ### Terminals and map events
 
@@ -1270,7 +1308,9 @@ Cirrus's clock has six sounds of its own (`clock_tick`, `clock_tock`, `bell_toll
 quietest sound in the game on purpose.
 
 Empyrean Tower's Portal Surge has three (`surge_open`, `surge_close`, and `gate_hum`,
-which loops and is played by each open MapRingGate).
+which loops and is played by each open MapRingGate). Each of its tiers has a quiet loop
+of its own (`magic_engine`, `magic_library`, `magic_labs`, `magic_menagerie`,
+`magic_summoning`, `magic_observatory`), played in the room by a MapAmbientSound.
 
 Two more of the sounds loop (`terminal_hum` and `gravity_pad`, for Halcyon's terminal and low
 gravity): every frequency in them fits a whole number of times into the file, so the end

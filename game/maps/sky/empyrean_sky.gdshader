@@ -1,8 +1,12 @@
 shader_type sky;
 // Empyrean Tower's sky: low orbit at twilight. A huge teal-and-purple planet fills the
 // sky below the horizon line and bulges up over it, lit along its rim; above it a
-// violet dusk deepening to near-black, a field of stars and a faint aurora. No rings
+// violet dusk deepening to near-black, a field of stars and an aurora. No rings
 // (that is Cirrus's planet). Made in code, no textures.
+//
+// It is alive: the aurora's curtains ripple, the planet turns slowly under the tower,
+// every few seconds a shooting star crosses, and now and then a ribbon of magic
+// winds across the whole sky for a while and fades.
 
 uniform vec3 sun_dir = vec3(-0.86, 0.4, 0.31);
 uniform float star_density : hint_range(0.0, 0.05) = 0.014;
@@ -49,6 +53,26 @@ vec3 stars(vec3 d, float scale, float size) {
 	return tint * spot * (0.5 + 1.8 * hash(cell + 5.5));
 }
 
+// A shooting star: one every `every` seconds somewhere above, lasting a second or so.
+float meteor(vec3 d, float every, float salt) {
+	float turn = floor(TIME / every);
+	float along = fract(TIME / every) * every / 1.3;        // 0..1 while it flies
+	if (along > 1.0) {
+		return 0.0;
+	}
+	float az = hash(vec3(turn, salt, 1.0)) * 6.2831853;
+	float up = 0.3 + 0.55 * hash(vec3(turn, salt, 2.0));
+	vec3 from = normalize(vec3(cos(az) * (1.0 - up), up, sin(az) * (1.0 - up)));
+	float way = az + 1.6 + hash(vec3(turn, salt, 3.0)) * 1.4;
+	vec3 heading = normalize(vec3(cos(way), -0.35, sin(way)));
+	vec3 head = normalize(from + heading * along * 0.55);
+	vec3 tail = normalize(from + heading * max(along - 0.3, 0.0) * 0.55);
+	vec3 line = head - tail;
+	float u = clamp(dot(d - tail, line) / max(dot(line, line), 0.00001), 0.0, 1.0);
+	float off = length(d - (tail + line * u));
+	return smoothstep(0.0035, 0.0, off) * u * u * sin(3.14159 * along) * 2.2;
+}
+
 void sky() {
 	vec3 d = normalize(EYEDIR);
 	// The planet is straight below and enormous: seen from low orbit its limb is a
@@ -66,16 +90,30 @@ void sky() {
 		// Stars, fewer near the bright limb.
 		float clear = smoothstep(0.03, 0.4, h);
 		colour += (stars(d, 90.0, 0.22) + stars(d, 46.0, 0.34) * 1.4) * clear;
-		// A faint aurora: tall, slow curtains of green and violet over the limb.
-		float curtain = fbm(vec3(d.x * 3.0, d.z * 3.0, TIME * 0.02));
-		float fold = sin(d.x * 9.0 + curtain * 6.0 + TIME * 0.05) * 0.5 + 0.5;
-		float rise = smoothstep(0.04, 0.16, h) * smoothstep(0.62, 0.2, h);
-		float rays = 0.6 + 0.4 * noise(vec3(d.x * 40.0, d.z * 40.0, 1.0));
-		colour += mix(vec3(0.2, 0.9, 0.6), vec3(0.6, 0.35, 1.0), smoothstep(0.1, 0.5, h)) * pow(fold, 3.0) * rise * rays * 0.16;
+		// The aurora: tall curtains of green and violet over the limb, folding slowly,
+		// their rays rippling along them.
+		float curtain = fbm(vec3(d.x * 3.0, d.z * 3.0, TIME * 0.045));
+		float fold = sin(d.x * 9.0 + curtain * 6.0 + TIME * 0.11) * 0.5 + 0.5;
+		float rise = smoothstep(0.04, 0.16, h) * smoothstep(0.66, 0.2, h);
+		float rays = 0.55 + 0.45 * noise(vec3(d.x * 40.0 + TIME * 0.35, d.z * 40.0, TIME * 0.2));
+		float breath = 0.8 + 0.2 * sin(TIME * 0.23 + d.x * 2.0);
+		colour += mix(vec3(0.2, 0.9, 0.6), vec3(0.6, 0.35, 1.0), smoothstep(0.1, 0.5, h)) * pow(fold, 3.0) * rise * rays * breath * 0.21;
+		// Shooting stars.
+		colour += vec3(0.9, 0.95, 1.0) * (meteor(d, 6.5, 1.0) + meteor(d, 11.0, 5.0)) * clear;
+		// A ribbon of magic: a thin bright thread winding right round the sky, there for
+		// a while every minute and a half, sparks running along it.
+		float az = atan(d.z, d.x);
+		float path = 0.36 + 0.09 * sin(az * 2.0 + TIME * 0.05) + 0.035 * sin(az * 5.0 - TIME * 0.13);
+		float off = abs(d.y - path);
+		float shown = smoothstep(0.35, 0.8, sin(TIME * 0.07) * 0.5 + 0.5);
+		float sparks = 0.6 + 0.4 * noise(vec3(az * 30.0 - TIME * 1.5, 3.0, 7.0));
+		float thread = exp(-off * off * 16000.0) * sparks + exp(-off * 40.0) * 0.07;
+		colour += mix(vec3(0.7, 0.45, 1.0), vec3(1.0, 0.82, 0.5), 0.5 + 0.5 * sin(az * 3.0 + TIME * 0.2)) * thread * shown * 0.3;
 	} else {
 		// The planet: bands and storms of teal and purple, darker toward the night side.
 		float depth = clamp(-h * 1.4, 0.0, 1.0);
 		vec2 map = d.xz / max(0.18 - d.y, 0.12);          // stretched as it falls away below
+		map += vec2(TIME * 0.006, TIME * 0.0015);         // it turns, slowly, under the tower
 		float bands = fbm(vec3(map * 0.55 + vec2(fbm(vec3(map * 0.3, 0.0)) * 1.8, 0.0), 0.3));
 		float storms = fbm(vec3(map * 1.7, 4.0));
 		vec3 land = mix(vec3(0.05, 0.36, 0.4), vec3(0.34, 0.14, 0.5), smoothstep(0.35, 0.65, bands));

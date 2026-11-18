@@ -261,6 +261,23 @@ func _objects() -> void:
 	var debris := map.get_node_or_null("Debris")
 	var pieces := debris.get_child_count() if debris else 0
 	_expect(pieces >= 20 and pieces <= 30, "20 to 30 pieces of debris float round the tower (%d)" % pieces)
+	# The magic: looks only. A field, the river and a thread off it at every tier, boxes
+	# of living magic everywhere, and not one of them (nor a phantom) solid.
+	var fields := map.find_children("*", "Node", true, false).filter(func(n): return n is MapMagicField)
+	var boxes := map.find_children("*", "Node3D", true, false).filter(func(n): return n is MapMagic)
+	var streams := map.find_children("*", "Node3D", true, false).filter(func(n): return n is MapMagicStream)
+	_expect(fields.size() == 1 and (fields[0] as MapMagicField).get_node_or_null((fields[0] as MapMagicField).event) is PortalSurgeEvent, "one magic field, livened by the Portal Surge")
+	_expect(boxes.size() >= 200 and streams.size() == 6, "%d boxes of living magic, the river and five threads off it (%d)" % [boxes.size(), streams.size()])
+	var kinds := {}
+	for b: MapMagic in boxes:
+		kinds[b.kind] = true
+	_expect(kinds.size() == MapMagic.Kind.size(), "every kind of magic is somewhere on it (%d of %d)" % [kinds.size(), MapMagic.Kind.size()])
+	var stray := (boxes + streams).filter(func(n): return not n.find_children("*", "CollisionObject3D", true, false).is_empty())
+	_expect(stray.is_empty(), "none of it is solid")
+	var ghosts := map.find_children("*", "Node3D", true, false).filter(func(n): return n is MapBlock and String(n.kind).begins_with("phantom"))
+	_expect(ghosts.size() >= 60 and ghosts.all(func(n): return not (n as MapBlock).solid), "%d phantom pieces outside, none solid" % ghosts.size())
+	var sounds := map.find_children("*", "Node3D", true, false).filter(func(n): return n is MapAmbientSound)
+	_expect(sounds.size() == 6 and sounds.all(func(n): return SfxList.VOLUME.has((n as MapAmbientSound).sound)), "a quiet sound of its own in each of the six tiers")
 	# No floating label text anywhere on this map (a rule from the team).
 	var labels := map.find_children("*", "Label3D", true, false).size()
 	_expect(labels == 0, "no signs or floating text (%d)" % labels)

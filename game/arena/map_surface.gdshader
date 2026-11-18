@@ -31,6 +31,9 @@ uniform bool turn = false;                  // planks: boards run the other way 
 uniform vec3 lit : source_color = vec3(1.0, 0.85, 0.55);       // windows: the light in a lit one
 uniform float lit_power = 0.0;              // windows, confetti: how brightly they shine
 uniform vec2 centre = vec2(0.0);            // ring flags: the middle the courses are laid round (map x, z)
+uniform vec4 near[4];                       // runes: players near by (where in the world, and how much: 0..1), from MapMagicField
+uniform float near_reach = 4.0;             // runes: how near a player brightens them (metres)
+uniform float stir = 0.0;                   // runes: the map's event is running (0..1)
 uniform float inlay = 0.0;                  // ring flags: a line inlaid (in accent_a) every this many courses; 0 = none
 uniform vec3 accent_a : source_color = vec3(1.0, 0.25, 0.7);   // confetti: its three colours; ring flags: the inlay
 uniform vec3 accent_b : source_color = vec3(0.2, 0.95, 1.0);
@@ -126,6 +129,19 @@ float rune(vec2 m, float pick, float px) {
 	float arm = stroke(abs((m.y - 0.12) - ax) * 0.7071, w, px) * reach;
 	float arm2 = mod(k, 2.0) < 0.5 ? 0.0 : stroke(abs((m.y + 0.1) + ax) * 0.7071, w, px) * reach;
 	return max(stem, max(arm, arm2));
+}
+
+// How much brighter a rune at `pos` on a face pointing `nrm` glows: it breathes on its
+// own, and flares for a player within reach on the side the face looks out on.
+float rune_life(vec3 pos, vec3 nrm, float pick) {
+	float life = 0.72 + 0.28 * sin(TIME * (0.5 + pick * 9.0) + pick * 300.0);
+	float flare = 0.0;
+	for (int i = 0; i < 4; i++) {
+		vec3 to = near[i].xyz - pos;
+		float far = length(to);
+		flare = max(flare, near[i].w * smoothstep(near_reach, near_reach * 0.3, far) * step(0.02, dot(to, nrm)));
+	}
+	return life * (1.0 + 0.8 * stir) + 2.6 * flare;
 }
 
 void fragment() {
@@ -440,7 +456,7 @@ void fragment() {
 			float tall = cell.y * 0.8;
 			float glyph = rune(vec2((in_a - 0.5) * arc, in_r - cell.y * 0.5) / tall, pick / detail, pr / tall) * fine;
 			shade *= 1.0 - glyph * 0.3;
-			shine = lit * lit_power * glyph;
+			shine = lit * lit_power * glyph * rune_life(map_pos, n, pick);
 		}
 	} else if (style == 19 || style == 20) {
 		// Masonry: a wizard's tower. Courses of four different heights, every stone its own
@@ -503,7 +519,7 @@ void fragment() {
 			float tall = h * 0.82;
 			float glyph = rune(vec2((f - 0.5 * (left + right)) * len, in_y - h * 0.5) / tall, pick / detail, max(px.x, px.y) / tall) * fine;
 			shade *= 1.0 - glyph * 0.3;
-			shine = lit * lit_power * glyph;
+			shine = lit * lit_power * glyph * rune_life(map_pos, n, pick);
 		}
 	} else if (style == 21) {
 		// Arcane plate: a wizard's metal. Seams with a rivet in each corner, a thin line of
@@ -525,7 +541,7 @@ void fragment() {
 			float glyph = rune(mid / tall, pick / detail, pr / tall);
 			glyph = max(glyph, stroke(abs(length(mid) - tall * 0.66), 0.016, pr)) * fine;
 			shade *= 1.0 - glyph * 0.35;
-			shine = lit * lit_power * glyph;
+			shine = lit * lit_power * glyph * rune_life(map_pos, n, pick);
 		}
 	} else {
 		// Corrugated: upright ridges on the sides (a shipping container), plain on top.

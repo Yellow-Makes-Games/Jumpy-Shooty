@@ -623,7 +623,7 @@ def exterior_decor(m):
             if n % 3 == 0:
                 ym = TIER * i + 14.0
                 m.block(g, "Pipe", "alloy_dark", P(ro(ym) + 0.2, deg, ym), (0.3, 18.0, 0.3), cols=E.lean(deg), shape="cyl", sides=6, solid=False)
-                m.block(g, "Pipe", "alloy", P(ro(ym) + 0.2, deg + 0.9, ym), (0.2, 18.0, 0.2), cols=E.lean(deg), shape="cyl", sides=6, solid=False)
+                m.block(g, "PipeMana", ACCENT[i], P(ro(ym) + 0.2, deg + 0.9, ym), (0.2, 18.0, 0.2), cols=E.lean(deg), shape="cyl", sides=6, solid=False)     # (liquid magic, piped)
                 for yb in (TIER * i + 6.5, TIER * i + 14.0, TIER * i + 21.5):
                     m.block(g, "PipeBracket", "alloy", P(ro(yb) + 0.2, deg + 0.45, yb), (1.1, 0.25, 0.5), cols=E.lean(deg), solid=False)
             elif n % 3 == 1:
