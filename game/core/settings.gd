@@ -53,7 +53,7 @@ var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
 var mobility: String = Mobility.default_id()       # the tool on the mobility button: grapple, portal gun or blink (see Mobility)
-var last_address: String = ""   # the host address you last joined (filled in on the Join box next time)
+var last_address: String = ""   # the lobby code (or address) you last joined (filled in on the Join box next time)
 
 
 func _ready() -> void:

@@ -11,7 +11,7 @@ Last updated: Killcam mode (snipers only, every kill scores its killcam points, 
 | --- | --- | --- |
 | Main menu (Play, Multiplayer, Settings, Exit) | working | Styled to match the HUD (Chakra Petch, dark panels with cut corners and thin blue lines, orange accent, a backdrop of a lit floor grid and honeycomb). Front page shows every robot side by side, idling; Play has cards for Vs Bots, Practice and Multiplayer. Vs Bots, Practice and the lobby are one page of three columns: the match options, your robot, your weapon. **No page can push a button off screen:** every page sits in one frame whose title and buttons (Back, Start) stay put while the middle scrolls if the window is too small for it; checked at 18 window sizes and shapes by `tests/ui_layout_test.gd` |
 | Mode select (Vs Bots, Practice, Multiplayer FFA) | working | Vs Bots page: pick how many bots (1 for a 1v1, up to 4 for a 5-player free-for-all), difficulty and kills to win; Rematch on the results screen |
-| Lobby: create, join, player list, host shown, start, leave | working | Direct IP only for now |
+| Lobby: create, join, player list, host shown, start, leave | working | Join with the host's lobby code (see Lobby codes); direct connection, no server |
 | Character select | working | Eight characters (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit, Templar), shown on a lit stage in your colour, holding your weapon, with arrows to step through them and a button for each. On the Practice and Vs Bots pages and in the lobby (each player picks their own; the list shows everyone's pick). Remembered between sessions. Looks only |
 | Lobby win condition (first to N kills, or time limit) | working | Host picks; everyone sees it |
 | Settings menu (mouse, camera, HUD, audio, graphics) | working | Tabs: Controls (rebind any key but Esc to a key or mouse button, two per action; a key taken from another action is moved, with a note; per-action and full reset to defaults; saved in settings.cfg), Camera & HUD, Audio, Graphics. Switches and sliders apply at once. Audio: Master, Music (nothing plays on it yet) and Effects. Graphics: fullscreen, V-Sync, resolution (window size, or the 3D render resolution in fullscreen) and a frame rate cap (or match the monitor) |
@@ -23,13 +23,14 @@ Last updated: Killcam mode (snipers only, every kill scores its killcam points, 
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Host and join over direct IP | working | Lobbies hold up to 16 players (the player list scrolls, the scoreboard tightens). The Join box remembers the last address you joined. Tested with up to 5 copies on one machine |
+| Host and join over direct IP | working | Lobbies hold up to 16 players (the player list scrolls, the scoreboard tightens). The Join box takes a lobby code or, for LAN and development, an IP address (`192.168.1.20` or `192.168.1.20:24681`), and remembers the last one you joined. Tested with up to 5 copies on one machine |
+| Lobby codes | working | The host's lobby shows a code (`ABCD-EFGH`; `ABCD-EFGH-JKLM` when hosting on a port other than 24680) with a Copy code button, and the address it stands for. Friends type it into the Multiplayer page's Join box (any case, dashes optional; Enter joins). There is no server: the code is the host's IPv4 address and port (the public address once the router port is open, else the LAN address) in 32 characters that read aloud well (no 0, O, 1 or I), with a CRC check, so any single mistyped character and any two neighbours swapped are caught; a bad code gives a clear message instead of connecting. `--join=` takes a code or an address. `tests/lobby_code_test.gd` (round trips, every typo and swap, messages, addresses) |
 | Steam lobbies, invites, relay | not started | Next step; needs the GodotSteam plugin |
 | Movement sync with smoothing | working | Sync test passes at 100 ms latency, 60 ms jitter, 10% loss. ENet throttling switched off so movement updates are not dropped |
 | Player leaves mid-match | working | Their character disappears for everyone |
 | Host leaves: match ends, everyone back to menu | working | Covered by the sync test |
 | Rejoin a match in progress | rough | Joining mid-match drops you into the arena; a rejoining player starts at 0 kills |
-| Internet play between two PCs | working | Not yet verified on real PCs. Hosting asks the router to open the port (UPnP) and the lobby shows the public address with a Copy button; otherwise forward UDP 24680 by hand |
+| Internet play between two PCs | working | Not yet verified on real PCs. Hosting asks the router to open the port (UPnP) and the lobby shows a lobby code for the public address, with a Copy code button; otherwise forward UDP 24680 by hand |
 | Hit detection (host decides with rewind) | working | Laggy-network test: 90% of aimed shots hit with rewind vs 37% without |
 | Headshots | working | 1.5x damage above the shoulders (lower when crouched). Yellow hit marker |
 | Character sync | working | Every copy shows each player as the robot they picked, including a new pick made in the lobby between matches. Checked by the sync and match tests |
@@ -122,5 +123,6 @@ Last updated: Killcam mode (snipers only, every kill scores its killcam points, 
   real fight, need checking on a PC.
 - The sniper rifle has no scope or zoom: right mouse is the grapple. It can be added
   with a new key if wanted.
-- No LAN address detection on some networks: the lobby may show 127.0.0.1. Use `ipconfig`
-  to find your address if so.
+- No LAN address detection on some networks: the lobby's code may stand for 127.0.0.1 (the
+  lobby shows the address too). Use `ipconfig` to find your address and join with that if so.
+- Lobby codes hold an IPv4 address only; a host reachable only over IPv6 needs the address typed.

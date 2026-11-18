@@ -201,6 +201,7 @@ func _upnp_done(upnp: UPNP, ip: String, opened_port: int) -> void:
 		internet_state = "open"
 		public_ip = ip
 		print("[net] router port %d open; public address %s" % [opened_port, ip])
+	print("[net] lobby code %s (%s:%d)" % [lobby_code(), join_ip(), port])
 	internet_changed.emit()
 
 
@@ -216,6 +217,28 @@ func _exit_tree() -> void:
 	_close_router_port()
 	if _upnp_thread:
 		_upnp_thread.wait_to_finish()
+
+
+## The lobby code friends type to join us (see LobbyCode): our public address once the
+## router is open, else our address on the local network. "" when not hosting, or
+## while we are still asking the router.
+func lobby_code() -> String:
+	if not is_online or not is_host() or internet_state == "checking":
+		return ""
+	return LobbyCode.encode(join_ip(), port)
+
+
+## The address the lobby code stands for (shown too, for LAN and development use).
+func join_ip() -> String:
+	return public_ip if internet_state == "open" else lan_ip()
+
+
+## Our address on the local network (127.0.0.1 if we cannot find one).
+static func lan_ip() -> String:
+	for ip in IP.get_local_addresses():
+		if ip.begins_with("192.168.") or ip.begins_with("10.") or ip.begins_with("172."):
+			return ip
+	return "127.0.0.1"
 
 
 static func _is_private(ip: String) -> bool:
