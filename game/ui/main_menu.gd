@@ -247,8 +247,13 @@ func _three_columns() -> Array:
 	left.custom_minimum_size = Vector2(410, 0)
 	row.add_child(left)
 	_divider(row)
-	var pick := CharacterPicker.new(Game.local_character(), Net.PLAYER_COLORS[0], Game.local_weapon())
+	var pick := CharacterPicker.new(Game.local_character(), Net.menu_color(), Game.local_weapon())
 	row.add_child(pick)
+	pick.offer_colors(true)   # your colour in a free-for-all (a team mode gives you your team's)
+	pick.color_picked.connect(func(index: int):
+		Settings.player_color = index
+		Settings.save_settings()
+		pick.set_color(Net.menu_color()))
 	pick.picked.connect(func(id: String):
 		Settings.character = id
 		Settings.save_settings())

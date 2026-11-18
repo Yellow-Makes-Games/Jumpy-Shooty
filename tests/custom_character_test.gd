@@ -10,8 +10,11 @@ extends SceneTree
 ## body still leaves the head (and so a hat) out. The creatures (a person, a
 ## goblin, a frog...: Characters.KITS) are parts like the robots': they mix with
 ## them, take the paint, the team colour and a skin tone, borrow the default
-## robot's skeleton and guns, and have first-person arms of their own. The
-## creator's rows step through and list every choice.
+## robot's skeleton and guns, and have first-person arms of their own. A body has
+## a main, a second and a detail colour (the Templar's plate, surcoat and cross; a
+## frog's back, belly and spots) and each accessory a colour of its own. The
+## creator's rows step through and list every choice, and its colour buttons open
+## a palette.
 
 var failures := 0
 var _done := false
@@ -155,6 +158,76 @@ func _checks() -> void:
 			parts[0] > 20 and parts[1] > 20 and parts[2] > 4 and armed and own > 40 and arms_gun)
 	_expect("the default robot's own arms are untouched (%d triangles)" % host_arms, host_arms > 100)
 
+	print("Colours")
+	var t := CustomCharacter.new()
+	t.name = "Sir Red"
+	t.legs = "templar"
+	t.torso = "templar"
+	t.head = "templar"
+	t.paint = "red"
+	t.paint2 = "gold"
+	t.paint3 = "black"
+	t.accessories.hat = "top_hat"
+	t.accessories.back = "cape"
+	t.colors = {"hat": "purple", "neck": "green"}   # nothing round the neck: that colour is dropped
+	var tid := t.to_id()
+	var tback := CustomCharacter.parse(Characters.valid(tid))
+	_expect("second, detail and accessory colours read back the same", Characters.valid(tid) == tid and tback.paint2 == "gold"
+		and tback.paint3 == "black" and tback.color_of("hat") == "purple" and tback.color_of("back") == "" and not "green" in tid)
+	var odd := CustomCharacter.parse(Characters.valid("custom:n=x|l=templar|t=templar|h=templar|p2=plaid|p3=gold|hat=top_hat.plaid|face=.red|neck=tie.red.blue"))
+	_expect("made-up colours are dropped", odd.paint2 == "" and odd.paint3 == "gold" and odd.accessories.hat == "top_hat"
+		and odd.color_of("hat") == "" and odd.accessories.face == "" and Characters.valid(odd.to_id()) == odd.to_id())
+	var knight := RobotModel.new().build(tid, Color.RED)
+	_expect("the Templar's plate takes the main colour", _has_color(knight, "armor", CustomCharacter.paint_color("red")))
+	_expect("its surcoat the second and its cross the detail colour", _has_color(knight, "trim", CustomCharacter.paint_color("gold"))
+		and _has_color(knight, "mark", CustomCharacter.paint_color("black")))
+	_expect("the hat is purple and the cape is as it comes", _tinted(knight, CustomCharacter.paint_color("purple")) == 1 and _tints(knight) == 1)
+	_free(knight)
+	var knight_team := RobotModel.new().build(tid, Color.RED, false, "pistol", false, Color(0.9, 0.1, 0.1))
+	_expect("a team's colour replaces the main colour only", _has_color(knight_team, "armor", Color(0.9, 0.1, 0.1))
+		and not _has_color(knight_team, "armor", CustomCharacter.paint_color("red")) and _has_color(knight_team, "trim", CustomCharacter.paint_color("gold")))
+	_free(knight_team)
+	var plain_team := RobotModel.new().build("templar", Color.RED, false, "pistol", false, Color(0.9, 0.1, 0.1))
+	_expect("the plain Templar wears its team's colour too", _painted(plain_team, Color(0.9, 0.1, 0.1)))
+	_free(plain_team)
+	for robot in Characters.ids():
+		var two := CustomCharacter.new()
+		two.legs = robot
+		two.torso = robot
+		two.head = robot
+		two.paint = "red"
+		two.paint2 = "lime"
+		var built := RobotModel.new().build(two.to_id(), Color.RED)
+		var arms := RobotModel.new().build(two.to_id(), Color.RED, false, "pistol", true)
+		_expect("%s takes a main and a second colour, in first person too" % robot, _has_color(built, "armor", CustomCharacter.paint_color("red"))
+			and _has_color(built, "trim", CustomCharacter.paint_color("lime")) and _painted(arms, CustomCharacter.paint_color("red"))
+			and (_painted(arms, CustomCharacter.paint_color("lime")) or robot == "templar"))   # (its arms are all plate and mail)
+		_free(built)
+		_free(arms)
+	var spotty := CustomCharacter.new()
+	spotty.legs = "frog"
+	spotty.torso = "frog"
+	spotty.head = "frog"
+	spotty.paint2 = "pink"
+	spotty.paint3 = "navy"
+	var frog := RobotModel.new().build(spotty.to_id(), Color.RED)
+	_expect("a frog's belly takes the second colour and its spots the detail", _has_color(frog, "trim", CustomCharacter.paint_color("pink"))
+		and _has_color(frog, "mark", CustomCharacter.paint_color("navy")) and RobotModel.shows(spotty, 1) and RobotModel.shows(spotty, 2))
+	_free(frog)
+	for slot in CustomCharacter.SLOTS:
+		var missed := []
+		for a in CustomCharacter.ACCESSORIES[slot]:
+			if a.id == "":
+				continue
+			var one := CustomCharacter.new()
+			one.accessories[slot] = a.id
+			one.colors[slot] = "hotpink"
+			var model := RobotModel.new().build(one.to_id(), Color.RED)
+			if _tinted(model, CustomCharacter.paint_color("hotpink")) != 1:
+				missed.append(a.id)
+			_free(model)
+		_expect("every %s accessory takes a colour %s" % [slot, missed], missed.is_empty())
+
 	print("Creator")
 	# Loaded here, not named: the creator uses the autoloads, which a test script can't.
 	var creator: Node = load("res://game/ui/character_creator.gd").new("")
@@ -175,9 +248,20 @@ func _checks() -> void:
 	list.index_pressed.emit(3)
 	_expect("and picking one sets it", creator.current.accessories.hat == CustomCharacter.ACCESSORIES.hat[3].id)
 	list.hide()
-	creator.find_child("skin_deep", true, false).pressed.emit()
-	creator.find_child("paint_gold", true, false).pressed.emit()
-	_expect("the colour grids set the skin and the paint", creator.current.skin == "deep" and creator.current.paint == "gold")
+	creator.open_palette("p")
+	_expect("a colour button opens the palette (%d paints)" % creator._palette_grid.get_child_count(), creator._palette_grid.get_child_count() == CustomCharacter.PAINTS.size())
+	creator._palette_grid.find_child("pick_gold", false, false).pressed.emit()
+	creator.pick_color("s", "deep")
+	creator.pick_color("p2", "teal")
+	_expect("and picking sets the paint, the skin and the second colour", creator.current.paint == "gold" and creator.current.skin == "deep"
+		and creator.current.paint2 == "teal" and not creator._palette.visible)
+	creator.pick_color("hat", "red")
+	_expect("an accessory's colour button sets its colour", creator.current.color_of("hat") == "red" and ".red" in creator.current.to_id())
+	creator.set_part("hat", "")
+	creator.set_part("hat", "crown")
+	_expect("taking the hat off forgets its colour", creator.current.color_of("hat") == "")
+	_expect("with no neckwear its colour button is off", (creator.find_child("color_neck", true, false) as Button).disabled
+		and not (creator.find_child("color_hat", true, false) as Button).disabled)
 	_expect("what the creator made is a valid character", Characters.valid(creator.current.to_id()) == creator.current.to_id())
 	creator.queue_free()
 
@@ -233,6 +317,34 @@ func _has_color(model: RobotModel, kind: String, color: Color) -> bool:
 		if o is StandardMaterial3D and RobotModel.material_kind(o.resource_name) == kind and o.albedo_color.is_equal_approx(color):
 			return true
 	return false
+
+
+## Whether any surface is repainted this colour, whatever it is called.
+func _painted(model: RobotModel, color: Color) -> bool:
+	for s in model.mesh.mesh.get_surface_count():
+		var o := model.mesh.get_surface_override_material(s)
+		if o is StandardMaterial3D and o.albedo_color.is_equal_approx(color):
+			return true
+	return false
+
+
+## Surfaces painted an accessory's own colour (all of them, or those of `color`).
+func _tints(model: RobotModel) -> int:
+	var n := 0
+	for s in model.mesh.mesh.get_surface_count():
+		var mat := model.mesh.mesh.surface_get_material(s)
+		if mat and mat.resource_name == "tint":
+			n += 1
+	return n
+
+
+func _tinted(model: RobotModel, color: Color) -> int:
+	var n := 0
+	for s in model.mesh.mesh.get_surface_count():
+		var mat := model.mesh.mesh.surface_get_material(s) as StandardMaterial3D
+		if mat and mat.resource_name == "tint" and Color(mat.albedo_color, 1.0).is_equal_approx(color):
+			n += 1
+	return n
 
 
 ## Let go of the materials first (headless Godot grumbles otherwise), then free.

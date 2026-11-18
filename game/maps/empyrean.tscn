@@ -20128,7 +20128,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8154, 30.5, 1.0223)
 
 [node name="Ride1" type="Marker3D" parent="Lifts/LiftA"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop1")
 
 [node name="Stop2" type="Marker3D" parent="Lifts/LiftA"]
@@ -20136,7 +20136,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8154, 61, 1.0223)
 
 [node name="Ride2" type="Marker3D" parent="Lifts/LiftA"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop2")
 
 [node name="Stop3" type="Marker3D" parent="Lifts/LiftA"]
@@ -20144,7 +20144,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.8154, 91.5, 1.0223)
 
 [node name="Ride3" type="Marker3D" parent="Lifts/LiftA"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop3")
 
 [node name="LiftB" type="Node3D" parent="Lifts"]
@@ -20219,7 +20219,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8154, 30.5, -1.0223)
 
 [node name="Ride1" type="Marker3D" parent="Lifts/LiftB"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop1")
 
 [node name="Stop2" type="Marker3D" parent="Lifts/LiftB"]
@@ -20227,7 +20227,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8154, 61, -1.0223)
 
 [node name="Ride2" type="Marker3D" parent="Lifts/LiftB"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop2")
 
 [node name="Stop3" type="Marker3D" parent="Lifts/LiftB"]
@@ -20235,7 +20235,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.8154, 91.5, -1.0223)
 
 [node name="Ride3" type="Marker3D" parent="Lifts/LiftB"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop3")
 
 [node name="LiftC" type="Node3D" parent="Lifts"]
@@ -20310,7 +20310,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.118, 30.5, -2.0834)
 
 [node name="Ride1" type="Marker3D" parent="Lifts/LiftC"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop1")
 
 [node name="Stop2" type="Marker3D" parent="Lifts/LiftC"]
@@ -20318,7 +20318,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5731, 61, -3.0556)
 
 [node name="Ride2" type="Marker3D" parent="Lifts/LiftC"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop2")
 
 [node name="LiftD" type="Node3D" parent="Lifts"]
@@ -20385,7 +20385,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3056, 30.5, 3.4506)
 
 [node name="Ride1" type="Marker3D" parent="Lifts/LiftD"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop1")
 
 [node name="Stop2" type="Marker3D" parent="Lifts/LiftD"]
@@ -20393,7 +20393,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.2779, 61, 4.9057)
 
 [node name="Ride2" type="Marker3D" parent="Lifts/LiftD"]
 script = ExtResource("8_link")
-how = 2
+how = 4
 landing = NodePath("../Stop2")
 
 [node name="Balconies" type="Node3D" parent="Exterior"]
@@ -45696,7 +45696,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 [node name="Through" type="Marker3D" parent="Gates/GateEngine"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 script = ExtResource("8_link")
-how = 3
+how = 5
 hook = NodePath("../Gate")
 landing = NodePath("../../GateObservatory/Front")
 
@@ -45891,7 +45891,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 [node name="Through" type="Marker3D" parent="Gates/GateObservatory"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 script = ExtResource("8_link")
-how = 3
+how = 5
 hook = NodePath("../Gate")
 landing = NodePath("../../GateEngine/Front")
 
@@ -46086,7 +46086,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 [node name="Through" type="Marker3D" parent="Gates/GateLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 script = ExtResource("8_link")
-how = 3
+how = 5
 hook = NodePath("../Gate")
 landing = NodePath("../../GateSummoning/Front")
 
@@ -46281,7 +46281,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 [node name="Through" type="Marker3D" parent="Gates/GateSummoning"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 2.4)
 script = ExtResource("8_link")
-how = 3
+how = 5
 hook = NodePath("../Gate")
 landing = NodePath("../../GateLabs/Front")
 

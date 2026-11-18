@@ -12,12 +12,16 @@ extends VBoxContainer
 ## `list` instead, which the page shows in a FloatingPanel when the name is pressed
 ## (list_requested).
 ##
+## Where the screen offers it (offer_colors), a swatch in the corner of the stage
+## opens your own colour: the one you wear in a free-for-all.
+##
 ## The picker only reports the choice; the screen using it decides what to do with
 ## it (save it, tell the lobby).
 
 signal picked(id: String)
 signal list_requested   ## compact: the name under the stage was pressed
 signal create_requested ## compact: "Make new character" in the list was pressed
+signal color_picked(index: int)   ## a colour from the stage's swatch (a number in Net.PLAYER_COLORS)
 
 const STAGE := Vector2(360, 292)
 const COLUMNS := 4
@@ -37,6 +41,8 @@ var _preview: RobotPreview
 var _time := 0.0
 var _compact := false
 var _name_button: Button   ## compact: the robot's name under the stage; opens the list
+var _color_button: Button  ## the swatch in the corner of the stage (see offer_colors)
+var _palette: SwatchPalette
 
 ## Compact: the buttons for every robot and the line about the one picked (the page
 ## puts it in a FloatingPanel). Otherwise null: they are in the picker itself.
@@ -61,6 +67,22 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: 
 	_stage.add_child(_preview)
 	_arrow("<", Control.PRESET_CENTER_LEFT, -1)
 	_arrow(">", Control.PRESET_CENTER_RIGHT, 1)
+	_color_button = Button.new()
+	_color_button.name = "color"
+	_color_button.theme_type_variation = "Chip"
+	_color_button.custom_minimum_size = Vector2(40, 36)
+	_color_button.focus_mode = Control.FOCUS_NONE
+	_color_button.icon = SwatchPalette.swatch(_color)
+	_color_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	SwatchPalette.true_colors(_color_button)
+	_color_button.tooltip_text = "Your colour in a free-for-all"
+	_color_button.set_meta("sfx", "select")
+	_color_button.visible = false
+	_color_button.pressed.connect(open_colors)
+	_stage.add_child(_color_button)
+	_color_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
+	_palette = SwatchPalette.new(8)
+	add_child(_palette)
 	var holder: VBoxContainer = self
 	if compact:
 		_name_button = Button.new()
@@ -194,7 +216,25 @@ func select(id: String) -> void:
 func set_color(player_color: Color) -> void:
 	if player_color != _color:
 		_color = player_color
+		_color_button.icon = SwatchPalette.swatch(_color)
 		_show_robot()
+
+
+## Show (or hide) the swatch that lets you pick your own colour. The screen hears
+## color_picked and shows the result with set_color.
+func offer_colors(on: bool) -> void:
+	_color_button.visible = on
+
+
+## The colours to pick from: all of them, less the ones other players have.
+func open_colors() -> void:
+	var entries := []
+	for i in Net.PLAYER_COLORS.size():
+		var e := {"id": i, "name": Net.PLAYER_COLOR_NAMES[i], "color": Net.PLAYER_COLORS[i]}
+		if Net.color_taken(i):
+			e["off"] = "another player has it"
+		entries.append(e)
+	_palette.open(_color_button, "Your colour", entries, Net.PLAYER_COLORS.find(_color), func(i): color_picked.emit(i))
 
 
 func _on_pressed(id: String) -> void:

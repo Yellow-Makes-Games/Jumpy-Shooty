@@ -66,6 +66,10 @@ Quick checks:
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- ragdolls (`tests/ragdoll_test.gd`, with `--fixed-fps 60`), for every robot and two
+  custom characters: thrown over a floor they settle above it, at rest, with elbows and
+  knees bent the right way; each lasts 10 s and dissolves, a respawn or the player
+  leaving changes nothing, at most 8 at once, none with the setting off;
 - weapons (`tests/weapon_test.gd`): damage and falloff, magazine and shell-by-shell
   reloads, melee wind-ups and shoves;
 - sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
@@ -79,8 +83,8 @@ Quick checks:
   the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
 - breakable walls and floors (`tests/destruction_test.gd`);
-- flicker (`tests/map_flicker_test.gd`), on the Castle, Castle 2, Rail Yard, Lost Temple and Neon
-  Arcade: no two surfaces of different colours share a plane where both can be seen,
+- flicker (`tests/map_flicker_test.gd`), on the Castle, Castle 2, Rail Yard, Lost Temple, Neon
+  Arcade and Sky Island: no two surfaces of different colours share a plane where both can be seen,
   and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
   `FLICKER_LIST=40` prints more of what it found;
 - Halcyon (`tests/halcyon_test.gd`): spawn points, pickups, the terminal on its dais,
@@ -90,6 +94,10 @@ Quick checks:
   pool of arrangements, the clock's timing and sounds, no writing, what crosses the gap,
   a move (riders on an island that stays are carried, those on one that goes die), the
   glass, bots' routes and crossings;
+- Sky Island (`tests/sky_island_test.gd`): its moving parts, spawns and pickups; the
+  bots' crossings join every island to every other; the navigation mesh's frame
+  (`MapRoot.to_nav`); and the crossings themselves, done the way a bot does them, with
+  the clock stopped and with the islands and pads on the move;
 - the map terminal (`tests/terminal_test.gd`): a 2 s hold in range fires its event,
   what cancels a hold, no use during the event or cooldown, one player at a time;
 - low gravity (`tests/gravity_test.gd`): the multiplier's schedule, jump heights,
@@ -128,6 +136,11 @@ Quick checks:
 - spectating (`tests/spectator_test.gd`): in a Vs Bots match you switch to spectating and
   back; a spectator has no robot, score or scoreboard row, the bots play on, and the free
   camera flies through the floor, faster with Sprint, the way it looks;
+- respawn visibility (`tests/respawn_visible_test.gd`): another player who dies and comes
+  back is shown again (drawn and solid) whether their first snapshot from the new life
+  or the news of the respawn gets here first, when killed again before any snapshot
+  from the new life, after a new robot or gun while waiting to see them back, and
+  through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the game boots into practice mode on every map without script errors.
 
 Networked and bot runs (real time):
@@ -151,6 +164,9 @@ Networked and bot runs (real time):
 - ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
   the target dummy, and online a client's slam is ruled on by the host, hits the host's
   player and is heard by both;
+- respawn visibility online (`tests/run_respawn_visible_test.sh`): a host and two clients
+  shoot it out; one client gets every respawn 300 ms late (`--delay-respawn`), behind the
+  player's first snapshot from the new life, and both must show every respawned player;
 - Halcyon online and with bots (`tests/run_gravity_test.sh`): a client fires the
   terminal on the host, a client across the room cannot, a late joiner is told how far
   along the event is, and bots use the terminal and keep moving in low gravity;
@@ -194,6 +210,9 @@ The sync, match and bot tests take a map and a player count, for example
   kept down does not fire it again; and for a terminal set to need a hold: a 2 s hold
   fires it, letting go, leaving the range and dying cancel and taking damage does not,
   one player at a time;
+- your colour (`tests/player_color_test.gd`): the colour you picked is yours when you
+  host, a joiner gets theirs unless another player has it, a bot hands its colour over,
+  nobody changes mid-match, and the swatch on the robot stage offers the free ones;
 - low gravity (`tests/gravity_test.gd`): the multiplier reaches 0.3 and returns to 1.0
   on schedule, a jump reaches about 4 m against about 1.2 m, rockets and grenades fly
   the same path, the centrifuge slows to half speed, and gravity is back at 1.0 when a
@@ -264,18 +283,21 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
 | `--net-sim=L,J,P` | Pretend the connection is bad: L ms latency, J ms jitter, P% loss |
+| `--delay-respawn=MS` | Client: apply other players' respawns MS ms late, as if the message were held up on the way, so their first snapshot from the new life arrives first (`tests/run_respawn_visible_test.sh`) |
 | `--third-person` | Start in third person |
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
-| `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics (with `--menu=settings`, or in the pause menu) |
+| `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
+| `--hud-scale=X` | HUD scale for this run, 0.75 to 1.25 (as Settings → HUD → HUD scale) |
 | `--manual-respawn` | Respawn only on a Jump or Fire press, as in a real game, even headless or with `--scripted-input` (which otherwise ask to respawn as soon as the wait is over) |
 | `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar`, or as a Character Creator id (`'--character=custom:n=Greg|l=frog|t=human|h=goblin|hat=crown'`), without changing your saved choice |
+| `--color=N` | Your colour in a free-for-all: a number in `Net.PLAYER_COLORS` (0 red, 1 blue, 2 green... 15 brown) |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
 | `--switch-weapon` | With `--auto-return`: pick the next gun in the lobby between matches (for the match test) |
@@ -349,8 +371,18 @@ block-out script starts over from the old Castle. The scene is edited by hand no
 `CASTLE_V2_REBUILD=1` is set: a run would throw the hand edits away. Try the map with
 `--map=castle_v2 --practice`.
 
-`game/maps/sky_island.tscn` (test map `sky_island`, "Sky Island (whitebox)") is a grey
-block-out of seven floating islands. The Hearth, in the middle, is the lowest (-3 m,
+`game/maps/sky_island.tscn` (test map `sky_island`, "Sky Island") is a stone castle in
+the clouds: seven floating islands, grass on top over a band of earth, rock hanging
+underneath in jagged cones, moss hanging over every rim, bushes (some in flower) and a
+few trees round the edges, and castle ruins in pale stone with copings, ivy, banners,
+columns and paved floors. Below is a sea of cloud (the sky is a shader,
+`game/maps/sky/sky_island_sky.gdshader`, at -30 m) with a slow ring of cloud turning among
+the islands' rocks and big clouds far out (MapSpinners, drawn only). The grey block-out
+it started from is kept as `game/maps/sky_island_layout.tscn` (test map
+`sky_island_layout`, "Sky Island (layout)", its own copy of the old palette). The
+scene is grouped like the castle maps: by object, each holding its own dressing, and
+whatever you would move as one (a pad, a wall piece with its coping, a bush, a tree, a
+lobe of an island with its rocks) is a selection group. The Hearth, in the middle, is the lowest (-3 m,
 the ruined Keep: broken walls, a corner of its upper floor, two corner drums); the six
 stand round it about a sixth of a turn apart, at mixed heights: the Shelf (3 m, open), the Bluff
 (8 m, open), the Spire (4 m, open), the Citadel (7 m, the Gate
@@ -374,13 +406,20 @@ looks a little uneven until the game runs it. A mover carries its patterns with 
 distance grid and the palette's Surface patterns are measured from the moving body, not
 from the map (`MapMesher.riding()`, `MapRoot.riding_material_for()`), because a pattern
 measured from the map stands still while the block slides through it, and shimmers.
-This holds for every `MapMover` in every map. Bots only walk, so
-each stays on the island it spawns on. Falling is
-death (Kill Height -36). It has 30 spawn
-points and no weapon pickups yet, so it is listed for free-for-all only. It is written
-from scratch by `godot --headless --path . --script tools/arena/sky_island_blockout.gd`
-(the islands and their sizes are at the top); run that again after changing them, until
-the scene is edited by hand. Try it with `--map=sky_island --practice`.
+This holds for every `MapMover` in every map. Bots get round by 68 MapJumpLinks:
+a hop each way between neighbours along every row of pads (at any moment: the pads keep
+every step to about 2 m), the rocket boots down to the Hearth from every outer island
+(any moment), and back up to the Shelf, Bluff, Spire and Garden only while the landing
+will be 6 m up or less (the Citadel and Terrace never come that low: bots go round by
+the pads). Each link rides the part it sets off from. Falling is death (Kill Height
+-36). It has 30 spawn points and 15 weapon pickups (the rocket launcher on the Keep's
+upper floor, the sniper rifle on the Citadel's wall walk, the railgun on the Broken
+Tower's floor), all inside islands so they ride the bob, so it is listed for
+free-for-all and Deathmatch. It is written from scratch by `godot --headless --path .
+--script tools/arena/sky_island_blockout.gd` (the islands and their sizes are at the
+top; pads, crossings and pickups after them; the dressing has its own random numbers,
+so changing it never moves a pad); run that again after changing them, until the
+scene is edited by hand. Try it with `--map=sky_island --practice`.
 
 **What a map is made of.** The root node is a `MapRoot`. Under it:
 
@@ -1044,8 +1083,16 @@ Three node kinds, all in `game/arena/`, none of them tied to Cirrus:
   **Driven** set to Countdown are clock hands it turns (once round per turn, at twelve
   when the bell goes); one set to Swing is the bell, which it rocks.
 - **MapJumpLink** (`map_jump_link.gd`): tells bots how to cross where the navigation
-  mesh has no way. **How** is Grapple (hook, ride the rope, let go) or Leap (run off
-  toward the landing). **Hook** names what to hook, or **Hook Group** says "the nearest
+  mesh has no way. **How** is Grapple (hook, ride the rope, let go), Leap (run off
+  toward the landing), Hop (sprint at the landing and jump at the edge: a gap a running
+  jump clears, or a step up a ledge climb takes) or Boost (sprint, jump at the edge,
+  fire the rocket boots toward the landing, steeper the higher it is, and glide on until
+  it can drop onto it: about 24 m of open sky, up to about 6 m higher), Lift (ride the
+tractor beam here up to the landing) or Gate (step through the ring gate Hook names while
+it is open). **Rise Min** and
+  **Rise Max** (Timing) are for parts that keep moving: the bot waits at the takeoff
+  until the landing will be that far above it (below, if negative) when it comes down,
+  **Flight** seconds on; both zero, any time. **Hook** names what to hook, or **Hook Group** says "the nearest
   node of this group" (a hook found that way may have a child called Land: the
   landing). **Landing** is where it comes down (empty: the link itself). With **Round
   From** and **Round Radius** the takeoff is worked out: on a round floor, facing
@@ -1053,6 +1100,14 @@ Three node kinds, all in `game/arena/`, none of them tied to Cirrus:
   island: the only kind bots may take from a doomed island. A link on an island that is
   down or on its way cannot be used. Bots use one only when walking will not get them
   where they are going, and will take two in a row (island to quad, quad to island).
+  A link inside a plain MapMover rides it (MapRoot moves the mover's node along). On a
+  map of many such parts (Sky Island) bots work out a route part by part instead: each
+  part is a place, each link a way from one to another, the shortest way wins, however
+  many links long.
+  A plain MapMover keeps moving after the bots' navigation mesh is made, so bots ask
+  their way in the mesh's own frame: `MapRoot.to_nav()` puts a point back where the part
+  under it stood when the mesh was made, `from_nav()` carries a path point forward to
+  where that part is now. (A MapIsland is left out: its mesh is redone for each layout.)
 
 (**MapSpan**, a walkway that runs out and draws in, is still in `game/arena/` from the
 first version of Cirrus. No map uses it now.)
@@ -1240,18 +1295,26 @@ animations of its own: a character with a creature's torso uses the first robot'
 skeleton, clips and guns, and its first-person arms are cut from the creature's own arm
 triangles (`RobotModel._kit_arms_mesh`; bulky arms get an entry in
 `Characters.KIT_FP_SLIM`). What a material is called decides how the game treats it, by
-the part of its name before the first `_`: `armor_*` takes the paint and the team colour,
-`extra_*` takes them too but is left out when accessories are fitted (ears, fins),
-`skin_*` and `flesh_*` take the skin tone (same split), `hair_*` and `shell_*` count as
-the head's surface for fitting hats, `eye_*` is where glasses sit, and `accent` is the
-player's colour. Anything else is drawn as built.
+the part of its name before the first `_`: `armor_*` takes the main colour and the team
+colour, `extra_*` takes them too but is left out when accessories are fitted (ears,
+fins), `trim_*` takes the second colour, `mark_*` and `hair_*` the detail colour,
+`skin_*` and `flesh_*` the skin tone (same split as armor and extra), `hair_*` and
+`shell_*` count as the head's surface for fitting hats, `eye_*` is where glasses sit, and
+`accent` is the player's colour. Anything else is drawn as built. (`RobotModel.CHANNELS`
+is the list.) A creature's shape functions use plain names ("belly", "leather"); `ROLES`
+in `creatures.py` says which of them are its second and detail colours, and the build
+writes them as `trim_belly`, `mark_spot`. The robots' files keep their own names:
+`Characters.material_role` maps them as the model is put together (every robot's `joint`
+is its second colour and `detail` its detail colour; the Templar's `steel`, `cloth` and
+`cross` are its main, second and detail colours).
 
 **Adding an accessory:** add it to `CustomCharacter.ACCESSORIES` under its slot and write
 a function of the same name with a leading underscore in
 `game/player/robot/accessories.gd` (`"fox_tail"` is built by `_fox_tail()`), from the
 helpers there (`_ball`, `_tube`, `_cone`, `_plate`...), placed with the measurements in
 `f` (the head, chest and waist of the body it is on). The creator, the id check and the
-test pick it up from the table.
+test pick it up from the table. Its colour button repaints the material that
+covers most of it; if that is the wrong one, name the right one in `Accessories.MAIN`.
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted

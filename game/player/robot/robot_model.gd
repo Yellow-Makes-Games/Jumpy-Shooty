@@ -13,8 +13,12 @@ const VIEW_HIDDEN := ["head", "upper_arm_l", "forearm_l", "hand_l", "grapple", "
 	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "pistol_l", "pistol_l_slide", "pistol_l_mag"]
 
 ## What a surface's material kind (see material_kind) means for a character:
-const PAINTED := ["armor", "extra"]          ## takes the body paint and the team colour
-const SKINNED := ["skin", "flesh"]           ## takes the skin tone
+## which of a character's colours it takes (CustomCharacter.BODY_COLORS: 0 the main
+## colour, which is also what a team's colour repaints; 1 the second colour; 2 the
+## detail colour; 3 the skin tone). A robot's own materials are read through
+## Characters.material_role first ("joint" is "trim_joint").
+const CHANNELS := {"armor": 0, "extra": 0, "trim": 1, "mark": 2, "hair": 2, "skin": 3, "flesh": 3}
+const NO_COLORS: Array[Color] = [Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)]
 ## ...and for measuring a body for its accessories: a head's shell (not its ears, horns
 ## or antennas), its eyes, and what to leave out of the chest and the waist.
 const SHELL := ["armor", "steel", "cloth", "mail", "visor", "skin", "hair", "shell"]
@@ -29,7 +33,8 @@ static var _view_meshes := {}     # body mesh -> the mesh without VIEW_HIDDEN
 static var _gun_meshes := {}      # [model file, gun] -> [the mesh with only that gun, which surface of the full mesh each surface was]
 static var _custom_meshes := {}   # custom character's parts + gun -> its mesh (see _custom_mesh)
 static var _sources := {}         # model file -> [its full mesh, its skin]
-static var _skin_parts := {}    # "part id|region" -> whether it shows bare skin
+static var _shown := {}           # "part id|region|channel" -> whether that part has anything of that colour
+static var _roles := {}           # [material, role name] -> the material under its role's name
 static var _arm_meshes := {}      # kit + gun -> a kit's first-person arms (see _kit_arms_mesh)
 
 ## The gun this robot holds (an id from WeaponData). Every model file holds every
@@ -60,11 +65,10 @@ func build(character: String, player_color: Color, viewmodel: bool = false, gun:
 		team_paint: Color = Color(0, 0, 0, 0)) -> RobotModel:
 	var custom: CustomCharacter = CustomCharacter.parse(character) if Characters.is_custom(character) else null
 	var path := Characters.arms(character) if arms else Characters.body(character)
-	var paint := CustomCharacter.paint_color(custom.paint) if custom else Color(0, 0, 0, 0)
-	var skin := CustomCharacter.skin_color(custom.skin) if custom else Color(0, 0, 0, 0)
+	var colors: Array[Color] = custom.channel_colors() if custom else NO_COLORS.duplicate()
 	if team_paint.a > 0.0:
-		paint = team_paint
-	return _setup(path, player_color, viewmodel, gun, custom, paint, skin, arms)
+		colors[0] = team_paint
+	return _setup(path, player_color, viewmodel, gun, custom, colors, arms)
 
 
 ## viewmodel: draw with the first-person shader (own field of view, never clips into walls).
@@ -74,11 +78,11 @@ func setup(path: String, player_color: Color, viewmodel: bool = false, gun: Stri
 
 
 ## custom: a custom character to put together (`path` is its base robot's file: the
-## skeleton, the animations and the guns); paint: the colour of its shell ("armor"),
-## skin: of its bare skin; alpha 0 leaves either as built. arms: `path` is the
-## first-person arms' file.
+## skeleton, the animations and the guns); colors: its main, second and detail
+## colours and its skin tone (see CHANNELS; alpha 0 leaves one as built). arms: `path`
+## is the first-person arms' file.
 func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, custom: CustomCharacter = null,
-		paint: Color = Color(0, 0, 0, 0), skin: Color = Color(0, 0, 0, 0), arms: bool = false) -> RobotModel:
+		colors: Array[Color] = NO_COLORS, arms: bool = false) -> RobotModel:
 	rig = RobotRig.open(path)
 	var node := rig.scene.instantiate()
 	add_child(node)
@@ -104,13 +108,18 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 		melee = MeleeModel.attach(self, weapon, trim, viewmodel)
 		melee_left = MeleeModel.attach_left(self, weapon, trim, viewmodel)
 	_glow_color = trim
+	# A mesh straight from a robot's file still has the robot's own material names (a
+	# custom character's body was renamed as it was put together, and a kit's arms
+	# already go by role).
+	var plain := "" if custom and (not arms or Characters.is_kit(custom.torso)) else path.get_file().get_basename().trim_suffix("_arms")
 	for i in mesh.mesh.get_surface_count():
 		var base: StandardMaterial3D = mesh.mesh.surface_get_material(i)
-		var kind := material_kind(base.resource_name)
+		var kind := material_kind(Characters.material_role(plain, base.resource_name) if plain != "" else base.resource_name)
 		var color := trim if kind == "accent" else base.albedo_color
-		var painted := (kind in PAINTED and paint.a > 0.0) or (kind in SKINNED and skin.a > 0.0)
+		var channel: int = CHANNELS.get(kind, -1)
+		var painted := channel >= 0 and colors[channel].a > 0.0
 		if painted:
-			color = paint if kind in PAINTED else skin
+			color = colors[channel]
 		var gilded := golden and base.resource_name.begins_with(shown_gun + ".")   # the gun's own surfaces
 		if gilded:
 			color = GOLD if kind != "accent" else GOLD.darkened(0.25)
@@ -143,30 +152,48 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 	return self
 
 
-## Whether any of this character's parts shows bare skin (so a skin tone would change it).
-static func shows_skin(c: CustomCharacter) -> bool:
+## Whether any of this character's parts has something of this colour (a CHANNELS
+## number): bare skin for a skin tone, a second colour to paint...
+static func shows(c: CustomCharacter, channel: int) -> bool:
 	for part in ["legs", "torso", "head"]:
 		var id := c.part(part)
-		var key := "%s|%s" % [id, part]
-		if not _skin_parts.has(key):
-			_skin_parts[key] = false
+		var key := "%s|%s|%d" % [id, part, channel]
+		if not _shown.has(key):
+			_shown[key] = false
 			var path := Characters.part_file(id)
 			var source: Mesh = _source(path)[0]
 			var names := _bind_list(_source(path)[1])
 			for s in source.get_surface_count():
 				var mat := source.surface_get_material(s)
-				if mat == null or material_kind(mat.resource_name) not in SKINNED:
+				if mat == null or CHANNELS.get(material_kind(Characters.material_role(id, mat.resource_name)), -1) != channel:
 					continue
 				var arrays := source.surface_get_arrays(s)
 				var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
 				var per := bones.size() / (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 				for v in range(0, bones.size(), per):
 					if CustomCharacter.region_of(names[bones[v]]) == part:
-						_skin_parts[key] = true
+						_shown[key] = true
 						break
-		if _skin_parts[key]:
+		if _shown[key]:
 			return true
 	return false
+
+
+static func shows_skin(c: CustomCharacter) -> bool:
+	return shows(c, 3)
+
+
+## A material under the name of its role (see Characters.material_role), so the
+## colours find it: the same material, renamed, made once.
+static func _in_role(mat: Material, role: String) -> Material:
+	if mat == null or mat.resource_name == role:
+		return mat
+	var key := [mat, role]
+	if not _roles.has(key):
+		var copy: Material = mat.duplicate()
+		copy.resource_name = role
+		_roles[key] = copy
+	return _roles[key]
 
 
 ## A custom character's mesh: each body region's triangles from the body it comes
@@ -177,7 +204,7 @@ static func shows_skin(c: CustomCharacter) -> bool:
 static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: String) -> Mesh:
 	var picked := []
 	for slot in CustomCharacter.SLOTS:
-		picked.append(c.accessories.get(slot, ""))
+		picked.append("%s.%s" % [c.accessories.get(slot, ""), c.color_of(slot)])
 	var key := "%s|%s|%s|%s|%s" % [c.legs, c.torso, c.head, ",".join(picked), gun]
 	if _custom_meshes.has(key):
 		return _custom_meshes[key]
@@ -235,7 +262,7 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 			arrays[Mesh.ARRAY_BONES] = _rebind(bones, names, bind_of)
 			var flags := Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if per == 8 else 0
 			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
-			out.surface_set_material(out.get_surface_count() - 1, mat)
+			out.surface_set_material(out.get_surface_count() - 1, _in_role(mat, Characters.material_role(c.part(part), mat.resource_name)) if mat else mat)
 	_add_gun(out, host, gun, bind_of)
 	if not seen.shell:
 		head_shell = AABB(Vector3(-0.12, 1.5, -0.14), Vector3(0.24, 0.3, 0.27))
@@ -263,7 +290,11 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 				collar = verts[i].z if not collar_set else minf(collar, verts[i].z)
 				collar_set = true
 	var fit := Accessories.fit(head_shell, visor, chest, collar, waist)
-	for piece in Accessories.build(c.accessories, fit):
+	var tints := {}
+	for slot in CustomCharacter.SLOTS:
+		if c.color_of(slot) != "":
+			tints[slot] = CustomCharacter.paint_color(c.color_of(slot))
+	for piece in Accessories.build(c.accessories, fit, tints):
 		var pts: PackedVector3Array = piece.points
 		if pts.is_empty():
 			continue
@@ -292,7 +323,7 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 		arrays[Mesh.ARRAY_BONES] = bones
 		arrays[Mesh.ARRAY_WEIGHTS] = weights
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		out.surface_set_material(out.get_surface_count() - 1, Accessories.material(piece.material))
+		out.surface_set_material(out.get_surface_count() - 1, Accessories.material(piece.material, piece.get("tint", Color(0, 0, 0, 0))))
 	if _custom_meshes.size() > 64:
 		_custom_meshes.clear()
 	_custom_meshes[key] = out

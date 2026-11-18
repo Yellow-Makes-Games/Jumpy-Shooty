@@ -14,6 +14,7 @@ const VIEWMODEL_LAYER := 3   ## render layer for the first-person gun
 const CROUCH_HEIGHT := 1.1
 const PRONE_HEIGHT := 0.8    ## lying on your front (belly slide)
 const TUCK_LIFT := CAPSULE_HEIGHT - CROUCH_HEIGHT
+const OVERDUE_RESPAWN := 1.0  ## seconds a living remote player may stay hidden waiting for their respawn snapshot
 
 var _dev_group := -1   # --swap-on-death: the weapon group to pick (see dev_swap_after_death)
 var peer_id := 1
@@ -37,6 +38,17 @@ var _scripted_time := 0.0
 var _remote_state := 0
 var _teleport_count := 0          # local: bumped on every respawn; remote: last seen value
 var _awaiting_respawn := false    # remote: hidden until the first post-respawn snapshot
+## Lives are numbered by the host (the spawn index of Match._respawned; 0 before the
+## first respawn) and the number travels in snapshots, so a copy can tell which life a
+## snapshot is from whichever of the two (snapshot or respawn) gets here first.
+var _life := 0                    # local: this life's number
+var _seen_life := -1              # remote: the life of the newest snapshot (-1: none yet)
+var _awaited_life := -1           # remote: the life we were told they are back in
+var _dead_life := -1              # remote: the newest life we knew of when they died
+var _newest_snap := -INF          # remote: sender time of the newest snapshot (older ones that arrive late are dropped)
+var _newest_snap_at := 0.0        # remote: when it got here (our clock)
+var _hidden_for := 0.0            # remote: seconds hidden waiting for the respawn snapshot (see _check_overdue_respawn)
+var _hidden_snaps := 0            # remote: snapshots that arrived in that time
 var robot: RobotModel             ## the body everyone sees
 var character := ""               ## the robot it was built as (an id from Characters)
 var _ammo := {}                   # local, Deathmatch: weapon id -> rounds left in the ones you are not holding
@@ -314,6 +326,8 @@ func _process(delta: float) -> void:
 		_update_trail(delta)
 		_update_flame(delta)
 		return
+	if _awaiting_respawn:
+		_check_overdue_respawn(delta)
 	if not buffer.has_data():
 		return
 	var rt := buffer.render_time(Net.now(), delta)
@@ -1202,12 +1216,21 @@ func set_dead() -> void:
 	_corpse_room = maxf(global_position.y - hit.position.y, 0.0) if hit else 200.0
 	if not is_local and not buffer.has_data():
 		visual.visible = false   # joined while they were dead: nothing to show yet
+	if _awaiting_respawn:
+		# Killed again before a snapshot from that life got here: we never saw them back.
+		_awaiting_respawn = false
+		if DevArgs.sync_log:
+			print("RESPAWN_CANCEL %d %d" % [Net.my_id(), peer_id])
+	_dead_life = maxi(_seen_life, _awaited_life)
 
 
-## Local player: come back at a spawn point.
-func respawn_at(pos: Vector3, yaw: float) -> void:
+## Local player: come back at a spawn point, in the life the host numbered `life`
+## (see Match._respawned; -1 keeps the number, for a race's send-back).
+func respawn_at(pos: Vector3, yaw: float, life: int = -1) -> void:
 	teleport(pos, yaw)
 	_teleport_count += 1
+	if life >= 0:
+		_life = life
 	_fell_reported = false
 	alive = true
 	_ammo.clear()   # Deathmatch: what you carried went with you
@@ -1246,6 +1269,19 @@ func respawn_count() -> int:
 
 func set_respawn_count(n: int) -> void:
 	_teleport_count = n
+
+
+## Arena.rebuild_player: the new body takes over which life the old one was in, and
+## (for someone else) whether it was still waiting to see them back.
+func carry_life_from(old: Player) -> void:
+	_life = old._life
+	_seen_life = old._seen_life
+	_awaited_life = old._awaited_life
+	_dead_life = old._dead_life
+	if old._awaiting_respawn and not is_local:
+		_awaiting_respawn = true
+		visual.visible = false
+		collision_layer = 0
 
 
 ## A blast went off nearby: the view jolts (0..1, how close).
@@ -1316,14 +1352,50 @@ func expect_dead() -> void:
 	visual.visible = false
 
 
-## Remote player: alive again, but stay hidden until their new position arrives.
-func expect_respawn() -> void:
+## Remote player: alive again in `life` (the host's number for it, see Match._respawned).
+## Their snapshots and the news of the respawn travel separately, so either can get
+## here first: if a snapshot from the new life is already here they show at once,
+## otherwise they stay hidden until one arrives (where they were is no place to draw them).
+func expect_respawn(life: int) -> void:
 	alive = true
 	if _pending_gun != "":
 		equip(_pending_gun)
-	_awaiting_respawn = true
-	visual.visible = false
 	sounds.respawned()
+	_awaited_life = life
+	if _seen_life >= life and buffer.has_data():
+		_show_respawned("early")   # (a new life clears the buffer: it holds only snapshots from after the respawn)
+		return
+	_awaiting_respawn = true
+	_hidden_for = 0.0
+	_hidden_snaps = 0
+	visual.visible = false
+	if DevArgs.sync_log:
+		print("RESPAWN_WAIT %d %d" % [Net.my_id(), peer_id])
+
+
+## Remote player: back, and we know where: show them. `how` is for --sync-log: "snapshot"
+## (it came after the respawn), "early" (before it) or "late" (the safety net).
+func _show_respawned(how: String) -> void:
+	_awaiting_respawn = false
+	visual.visible = true
+	collision_layer = 1 << 1
+	animator.respawn()
+	if DevArgs.sync_log:
+		print("RESPAWN_SHOW %d %d %s" % [Net.my_id(), peer_id, how])
+
+
+## Safety net: someone the host says is alive, still hidden waiting for a snapshot from
+## their new life over a second after we were told, while their snapshots keep coming,
+## is shown anyway. Being shot by someone you cannot see is worse than a jump on screen.
+func _check_overdue_respawn(delta: float) -> void:
+	_hidden_for += delta
+	if _hidden_for < OVERDUE_RESPAWN or _hidden_snaps < 10 or not alive or not Match.is_alive(peer_id):
+		return
+	if Net.now() - _newest_snap_at > 0.5:
+		return   # their snapshots have stopped coming: nothing new to draw them with
+	if DevArgs.sync_log:
+		print("RESPAWN_SHOW_LATE %d" % peer_id)
+	_show_respawned("late")
 
 
 func report_fell_once() -> void:
@@ -1339,8 +1411,8 @@ func report_fell_once() -> void:
 # Network state
 
 ## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state,
-## respawn count, grapple attached (0/1), grapple anchor (3), animation flags
-## (see RobotAnimInput.make_flags).
+## respawn count (it also goes up on a blink or a portal), grapple attached (0/1),
+## grapple anchor (3), animation flags (see RobotAnimInput.make_flags), life (see _life).
 func make_snapshot() -> PackedFloat32Array:
 	var p := _sent_position()
 	var v := velocity
@@ -1348,27 +1420,36 @@ func make_snapshot() -> PackedFloat32Array:
 	var a := g.anchor
 	return PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch,
 		float(_my_pose()), float(_teleport_count), 1.0 if g.attached else 0.0, a.x, a.y, a.z,
-		float(_my_anim_flags())])
+		float(_my_anim_flags()), float(_life)])
 
 
 func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 	if data.size() < 10:
 		return
+	if remote_time <= _newest_snap:
+		return   # older than one already here (unreliable packets can arrive out of order): it would undo a respawn or a jump
+	_newest_snap = remote_time
+	_newest_snap_at = Net.now()
 	var count := int(data[9])
-	if count != _teleport_count:
+	var life := int(data[15]) if data.size() >= 16 else _seen_life
+	var new_life := life != _seen_life
+	if count != _teleport_count or new_life:
 		_teleport_count = count
-		if alive and not _awaiting_respawn and visual.visible and buffer.has_data():
+		if alive and not _awaiting_respawn and visual.visible and buffer.has_data() and not new_life:
 			_show_warp(latest_position(), Vector3(data[0], data[1], data[2]))   # a blink or a portal, not a respawn
 		buffer.clear_history()  # never blend across a respawn
-		if _awaiting_respawn:
-			_awaiting_respawn = false
-			if alive:
-				visual.visible = true
-				collision_layer = 1 << 1
-				animator.respawn()
+		if new_life and not alive and _dead_life >= 0 and life > _dead_life:
+			# Back already, and we have not been told yet: the body that fell is not
+			# dragged to where they are now. They show once the respawn gets here.
+			visual.visible = false
+	_seen_life = life
 	buffer.push(remote_time, Net.now(),
 		Vector3(data[0], data[1], data[2]), Vector3(data[3], data[4], data[5]),
 		data[6], data[7], int(data[8]), int(data[14]) if data.size() >= 15 else 0)
+	if _awaiting_respawn:
+		_hidden_snaps += 1
+		if life >= _awaited_life:
+			_show_respawned("snapshot")
 	if data.size() >= 14:
 		var on := data[10] > 0.5
 		var anchor := Vector3(data[11], data[12], data[13])

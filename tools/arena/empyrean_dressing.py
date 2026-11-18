@@ -227,7 +227,7 @@ def gate(m, name, at, face, pair, acc, two_sided=True, link_to=None):
     m.node("Gate", g, "gate", props)
     FRONTS[name] = m.node("Front", g, None, [("transform", xform(IDENTITY, (0, 0.2, 2.4)))], type_="Marker3D")
     if link_to:
-        m.node("Through", g, "link", [("transform", xform(IDENTITY, (0, 0.2, 2.4))), ("how", "3"), ("hook", 'NodePath("../Gate")'),
+        m.node("Through", g, "link", [("transform", xform(IDENTITY, (0, 0.2, 2.4))), ("how", "5"), ("hook", 'NodePath("../Gate")'),
                                       ("landing", 'NodePath("../../%s/Front")' % link_to)], type_="Marker3D")
     return g
 

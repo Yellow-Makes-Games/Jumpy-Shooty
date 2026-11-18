@@ -665,7 +665,7 @@ def lifts(m):
         for n, stop in enumerate(stops):
             land = tuple(s - a for s, a in zip(stop, at))
             m.node("Stop%d" % (n + 1), g, None, [("transform", xform(IDENTITY, land))], type_="Marker3D")
-            m.node("Ride%d" % (n + 1), g, "link", [("how", "2"), ("landing", 'NodePath("../Stop%d")' % (n + 1))], type_="Marker3D")
+            m.node("Ride%d" % (n + 1), g, "link", [("how", "4"), ("landing", 'NodePath("../Stop%d")' % (n + 1))], type_="Marker3D")
         return g
 
     # In the shaft: A from the Engine to the Menagerie, B from the Labs to the Observatory.

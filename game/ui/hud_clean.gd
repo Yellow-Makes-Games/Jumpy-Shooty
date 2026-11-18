@@ -4,7 +4,7 @@ extends RefCounted
 ## Bottom left: your moves (grapple, dive, flip, glide, slide boost, rocket boots, kick) above your health.
 ## Bottom right: ammo with one tick per round. Each sits on a dark plate with two
 ## corners cut off and a coloured edge. Under the crosshair: speed and what you are
-## doing, small and faint.
+## doing, small and faint. (Settings → HUD can leave out the moves or the speed.)
 
 const MARGIN := 28.0
 const PLATE := Vector2(336.0, 96.0)
@@ -51,13 +51,17 @@ static func _draw_health(ci: CanvasItem, v: Hud.View, bottom: float, hp_col: Col
 
 
 static func _draw_rest(ci: CanvasItem, c: Vector2, v: Hud.View, size: Vector2, bottom: float) -> void:
-	# Moves: a chip each, with a ring that refills as the move recharges.
+	# Moves: a chip each, with a ring that refills as the move recharges. Settings → HUD:
+	# compact leaves out those ready to use (the rest close up), off all of them.
+	var moves := Settings.hud.moves
 	var x := MARGIN - 12.0
 	var y := bottom - 108.0
-	for i in v.moves.size():
+	for i in (v.moves.size() if moves != "off" else 0):
 		var m: Array = v.moves[i]
 		var ready: float = m[2]
 		var label: String = m[0]
+		if moves == "compact" and ready >= 1.0 and not m[3]:
+			continue
 		var cw := 36.0 + HudStyle.text_width(label, 11)
 		HudStyle.plate(ci, Rect2(x, y - 15.0, cw, 30.0), 7.0, Color(HudStyle.ORANGE, 0.3) if m[3] else HudStyle.PANEL)
 		var ring_c := Vector2(x + 16.0, y)
@@ -72,8 +76,9 @@ static func _draw_rest(ci: CanvasItem, c: Vector2, v: Hud.View, size: Vector2, b
 		HudStyle.text(ci, Vector2(x + 31.0, y), label, 11, text_col)
 		x += cw + 6.0
 
-	var speed := "%s  ·  %.1f M/S" % [v.move_state, v.speed]
-	HudStyle.label(ci, c + Vector2(0, 40), speed, 11, Color(1, 1, 1, 0.85), HORIZONTAL_ALIGNMENT_CENTER)
+	if Settings.hud.speed:
+		var speed := "%s  ·  %.1f M/S" % [v.move_state, v.speed]
+		HudStyle.label(ci, c + Vector2(0, 40), speed, 11, Color(1, 1, 1, 0.85), HORIZONTAL_ALIGNMENT_CENTER)
 	if v.race:
 		return
 	# Ammo: count, magazine, a tick per round, weapon. Melee: the weapon and a swing bar.

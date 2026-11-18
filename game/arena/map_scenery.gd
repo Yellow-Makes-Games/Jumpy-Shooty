@@ -10,6 +10,8 @@ static func bake_navigation(level: Node3D) -> NavigationRegion3D:
 	var started := Time.get_ticks_msec()
 	var nav := _nav_settings(level)
 	var source := NavigationMeshSourceGeometryData3D.new()
+	if level is MapRoot:
+		(level as MapRoot).remember_nav_poses()   # (bots ask their way in this frame: see MapRoot.to_nav)
 	NavigationServer3D.parse_source_geometry_data(nav, source, level)
 	NavigationServer3D.bake_from_source_geometry_data(nav, source)
 	var region := NavigationRegion3D.new()
@@ -26,6 +28,8 @@ static func rebake_navigation(region: NavigationRegion3D, level: Node3D, done: C
 	var started := Time.get_ticks_msec()
 	var nav := _nav_settings(level)
 	var source := NavigationMeshSourceGeometryData3D.new()
+	if level is MapRoot:
+		(level as MapRoot).remember_nav_poses()   # (bots ask their way in this frame: see MapRoot.to_nav)
 	NavigationServer3D.parse_source_geometry_data(nav, source, level)
 	var parsed := Time.get_ticks_msec() - started
 	NavigationServer3D.bake_from_source_geometry_data_async(nav, source, func():

@@ -25,6 +25,8 @@ extends Marker3D
 enum How {
 	GRAPPLE,   ## aim at Hook, fire the grapple, ride the rope, let go and steer to Landing
 	LEAP,      ## run at Landing and off the edge, steering in the air (a drop to somewhere lower)
+	HOP,       ## sprint at Landing and jump at the edge (a gap a running jump clears; a step up it climbs)
+	BOOST,     ## sprint at Landing, jump at the edge, fire the rocket boots and glide on (a gap too wide to jump)
 	LIFT,      ## walk into the tractor beam here (a MapLiftWell), ride it up, steer out to Landing
 	GATE,      ## walk into the ring gate Hook names (a MapRingGate) while it is open; you come out at Landing
 }
@@ -49,6 +51,13 @@ const GROUP := "map_jump_links"
 ## It leads off the island it is on: bots may still take it when that island is about
 ## to go down (it is their way out), where every other crossing there is closed.
 @export var leaves := false
+@export_group("Timing")
+## Between parts that keep moving (Sky Island's bobbing islands and pads): set off only
+## when the landing will be between Rise Min and Rise Max metres above the takeoff
+## (negative: below) when you come down, Flight seconds from now. Both zero: any time.
+@export var rise_min := 0.0
+@export var rise_max := 0.0
+@export var flight := 0.8
 
 
 func _enter_tree() -> void:
@@ -82,6 +91,22 @@ func usable() -> bool:
 	if not on.up:
 		return false
 	return leaves or not on.doomed
+
+
+## Is this a good moment to set off (see Rise Min and Rise Max)?
+func ready_now() -> bool:
+	if rise_min == 0.0 and rise_max == 0.0:
+		return true
+	return rise_at_landing() >= rise_min and rise_at_landing() <= rise_max
+
+
+## How far above the takeoff (now) the landing will be by the time you come down.
+func rise_at_landing() -> float:
+	var land := landing_point()
+	var map := MapRoot.of(self)
+	if map != null and is_inside_tree():
+		land = map.ahead(land, flight)
+	return land.y - takeoff().y
 
 
 func takeoff() -> Vector3:

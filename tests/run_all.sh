@@ -18,7 +18,9 @@ CHECKS=(
   "movement|--fixed-fps 60 --script tests/movement_test.gd"
   "grapple_points|--script tests/grapple_point_test.gd"
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
+  "ragdoll|--fixed-fps 60 --script tests/ragdoll_test.gd"
   "custom_character|--script tests/custom_character_test.gd"
+  "gibs|--fixed-fps 60 --script tests/gibs_test.gd"
   "weapons|--script tests/weapon_test.gd"
   "new_weapons|--script tests/new_weapons_test.gd"
   "audio|--script tests/audio_test.gd"
@@ -26,6 +28,9 @@ CHECKS=(
   "controls|--script tests/controls_check.gd"
   "menu|--script tests/menu_mode_test.gd"
   "ui_layout|--script tests/ui_layout_test.gd"
+  "hud_icons|--script tests/hud_icons_test.gd"
+  "kill_feed|--script tests/kill_feed_test.gd"
+  "hud_settings|--script tests/hud_settings_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
   "block_settings|--script tests/block_settings_test.gd"
@@ -51,6 +56,8 @@ CHECKS=(
   "host_controls|--script tests/host_controls_test.gd"
   "spectator|--script tests/spectator_test.gd"
   "team_modes|--script tests/team_modes_test.gd"
+  "player_color|--script tests/player_color_test.gd"
+  "respawn_visible|--script tests/respawn_visible_test.gd"
 )
 # Practice mode boots without errors on every map.
 for map in construction_site office kilnworks castle halcyon cirrus empyrean testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
@@ -86,6 +93,10 @@ echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword 
 MAP=construction_site tests/run_bot_test.sh
 echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by the host"
 tests/run_slam_test.sh
+echo "== Respawn visibility: players dying and coming back online, a client's respawn news held up behind their snapshots; nobody stays invisible"
+tests/run_respawn_visible_test.sh
+echo "== Kick kills in the kill feed: a client kicked into a wall and kicked down, the boot and the wall on both copies"
+tests/run_kick_feed_test.sh
 echo "== Halcyon online and with bots: a client fires the terminal, a late joiner is told, bots use it and cope"
 tests/run_gravity_test.sh
 echo "== Race mode: bots finish a race, fail conditions, results"
