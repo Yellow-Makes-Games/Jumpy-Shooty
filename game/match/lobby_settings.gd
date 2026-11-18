@@ -49,7 +49,7 @@ static func weapons_from(ids) -> Array:
 
 ## Does the allowed-weapons setting apply to the game that is set up?
 static func weapons_apply() -> bool:
-	return Net.game_kind() == "ffa" and not GunGame.active()
+	return Net.game_kind() == "ffa" and not GunGame.active() and not KillcamMode.active()
 
 
 ## The weapons a player may pick now, in the pickers' order (every weapon when the

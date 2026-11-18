@@ -131,6 +131,10 @@ Networked and bot runs (real time):
   screen plays the best kills and saves the best as a video; online, a host and a client on a laggy network each
   watch their killcams, score every kill the same, show each killer their kill's points
   (adding up to its score), pick the same best three and have a clip of each;
+- Killcam mode (`tests/run_killcam_mode_test.sh`): Vs Bots and online, everyone has the
+  sniper rifle (even a client who picked another gun), each player's points are their
+  kills' killcam scores plus the #1 killcam bonus, the match ends at the kill that
+  reaches the target, the rankings go by points, and host and client agree;
 - races (`tests/run_race_test.sh`, in game time): you and 4 bots finish Rooftop Run in
   time order and "Race again" starts another, Easy bots finish, and a hazard, a fall and
   R each send you back. After changing a course, run it on that map:
@@ -248,6 +252,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--look=SEC:YAW,PITCH` | Turn your view by YAW and to PITCH (degrees) after SEC seconds, e.g. `--look=3:0,-60` to look down |
 | `--game-clock` | Count the SEC of `--press`, `--hold`, `--look`, `--screenshot` and `--quit-after` in game time. With Godot's own `--fixed-fps 60` (before the `--`) a scripted run plays out the same however slowly the machine renders, so screenshots land on the right frame |
 | `--kill-target=N` / `--time-limit=S` | Host: shorter matches for testing |
+| `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (default 10,000) |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
 | `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`...) |
 | `--map-event=SEC` | Start the map's events (Halcyon's low gravity) after SEC seconds, as if a terminal had fired them: for tests and screenshots |

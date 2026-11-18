@@ -356,8 +356,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ## With only some weapons allowed (see LobbySettings), the groups are those that have
 ## any, numbered from 1; with a single gun there is nothing to pick.
 func _pick_on_death(event: InputEvent) -> void:
-	if GunGame.active():
-		return   # Gun Game hands out the weapons
+	if GunGame.active() or KillcamMode.active():
+		return   # Gun Game hands out the weapons; Killcam is snipers only
 	var k := _weapon_slot(event, LobbySettings.weapon_groups().size()) if event else _dev_group
 	var step := 0
 	if event and event.is_action_pressed("weapon_next"):

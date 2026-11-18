@@ -161,6 +161,9 @@ func _on_match_started() -> void:
 		elif GunGame.active():
 			kill_target = 0   # it ends when someone gets through the ladder
 			time_left = GunGame.TIME_LIMIT if DevArgs.time_limit <= 0.0 else DevArgs.time_limit
+		elif KillcamMode.active():
+			kill_target = 0   # it ends on points (KillcamMode.target()) or the clock
+			time_left = KillcamMode.TIME_LIMIT if DevArgs.time_limit <= 0.0 else DevArgs.time_limit
 		scores.clear()
 		health.clear()
 		respawn_timers.clear()
@@ -175,7 +178,7 @@ func _on_match_started() -> void:
 		_kill_seq = 0
 		_recent_kills.clear()
 		for id in Net.players:
-			scores[id] = {"kills": 0, "deaths": 0, "level": 0}
+			scores[id] = {"kills": 0, "deaths": 0, "level": 0, "points": 0}
 			health[id] = MAX_HEALTH
 		_broadcast_state()
 
@@ -186,11 +189,13 @@ func _on_players_changed() -> void:
 	var changed := false
 	for id in Net.players:
 		if not scores.has(id):  # someone joined mid-match
-			scores[id] = {"kills": 0, "deaths": 0, "level": 0}
+			scores[id] = {"kills": 0, "deaths": 0, "level": 0, "points": 0}
 			health[id] = MAX_HEALTH
 			changed = true
 			if GunGame.active():
 				Net.host_set_weapon(id, GunGame.weapon_at(0))
+			elif KillcamMode.active():
+				Net.host_set_weapon(id, KillcamMode.WEAPON)
 			if Net.is_online and not Net.is_bot(id) and id != Net.my_id():
 				_pickups_sync.rpc_id(id, pickups_taken.keys())   # which weapons are gone right now
 				_items_sync.rpc_id(id, items_taken.keys(), damage_boost)
@@ -1148,6 +1153,10 @@ func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = f
 		if cause == "kick" and scores.has(victim) and int(scores[victim].get("level", 0)) > 0:
 			scores[victim]["level"] = int(scores[victim].level) - 1   # kicked to death: back one weapon
 			moves.append([victim, scores[victim].level])
+	if KillcamMode.active() and scored.size() >= 2 and scores.has(killer):
+		# Killcam: the kill is worth its killcam score (KillScore), the same number sent with it.
+		scores[killer]["points"] = points(killer) + int(scored[1])
+		finished = points(killer) >= KillcamMode.target()
 	_died.rpc(victim, killer, scores, cause, scored)
 	for m in moves:
 		Net.host_set_weapon(m[0], GunGame.weapon_at(m[1]))
@@ -1165,6 +1174,11 @@ func _gun_game_level(id: int, level: int) -> void:
 	if DevArgs.sync_log:
 		print("GUNGAME %d %d %s" % [id, level, GunGame.weapon_at(level)])
 	gun_game_level.emit(id, level)
+
+
+## Killcam: a player's points (their kills' killcam scores, plus the best-killcam bonus at the end).
+func points(id: int) -> int:
+	return int(scores[id].get("points", 0)) if scores.has(id) else 0
 
 
 ## Gun Game: how far along the ladder a player is (0 = the first weapon).
@@ -1289,6 +1303,14 @@ func host_end_match() -> void:
 	var best := []
 	for k in KillScore.best(kill_log, 3):
 		best.append(pack_kill(k))
+	if KillcamMode.active() and not best.is_empty():
+		# Killcam: the match's #1 killcam earns its killer a bonus, which can change the winner.
+		var top := kill_info(best[0])
+		if scores.has(top.killer):
+			scores[top.killer]["points"] = points(top.killer) + KillcamMode.BEST_BONUS
+			scores[top.killer]["bonus"] = KillcamMode.BEST_BONUS
+			if DevArgs.sync_log:
+				print("KILLCAM_BONUS %d %d %d" % [top.killer, top.seq, points(top.killer)])
 	_match_over.rpc(build_results(), best)
 
 
@@ -1308,18 +1330,23 @@ static func kill_info(p: Array, killer: int = 0, victim: int = 0) -> Dictionary:
 		"victim": victim if victim != 0 else (int(p[10]) if p.size() > 10 else 0)}
 
 
-## Rankings: most kills first, then fewest deaths. In a race: the race standings.
+## Rankings: most kills first, then fewest deaths (Gun Game: furthest along the ladder;
+## Killcam: most points). In a race: the race standings.
 func build_results() -> Array:
 	if Race.active:
 		return Race.standings()
 	var rows: Array = []
 	var gun_game := GunGame.active()
+	var killcam := KillcamMode.active()
 	for id in scores:
 		rows.append({"id": id, "name": Net.player_name(id), "kills": scores[id].kills, "deaths": scores[id].deaths,
-			"level": int(scores[id].get("level", 0))})
+			"level": int(scores[id].get("level", 0)), "points": points(id), "bonus": int(scores[id].get("bonus", 0)),
+			"killcam": killcam})
 	rows.sort_custom(func(a, b):
 		if gun_game and a.level != b.level:
 			return a.level > b.level
+		if killcam and a.points != b.points:
+			return a.points > b.points
 		if a.kills != b.kills:
 			return a.kills > b.kills
 		return a.deaths < b.deaths)

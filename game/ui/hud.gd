@@ -637,20 +637,27 @@ func _draw_score_bar(ci: CanvasItem, size: Vector2) -> void:
 	var mid := clock if timed else "First to %d" % Match.kill_target
 	var mid_w := _pill(ci, Vector2(cx, y), mid, 28 if timed else 20, HudStyle.WHITE)
 	var gap := mid_w * 0.5 + 10.0
+	var killcam := KillcamMode.active()
 	var mine := "YOU %d" % Match.kills(me)
 	if gun_game:   # how far along the ladder: weapon 5 of 16
 		mine = "YOU %d/%d" % [Match.level(me) + 1, GunGame.steps()]
+	elif killcam:   # points, not kills
+		mine = "YOU %s" % KillcamMode.format(Match.points(me))
 	_pill(ci, Vector2(cx - gap - (HudStyle.text_width(mine, 22) + 32.0) * 0.5, y), mine, 22, HudStyle.ORANGE)
 	if best_id != 0:
 		var theirs := "%s %d" % [Net.player_name(best_id).to_upper(), Match.kills(best_id)]
 		if gun_game:
 			theirs = "%s %d/%d" % [Net.player_name(best_id).to_upper(), Match.level(best_id) + 1, GunGame.steps()]
+		elif killcam:
+			theirs = "%s %s" % [Net.player_name(best_id).to_upper(), KillcamMode.format(Match.points(best_id))]
 		_pill(ci, Vector2(cx + gap + (HudStyle.text_width(theirs, 22) + 32.0) * 0.5, y), theirs, 22, HudStyle.WHITE)
 	var sub := "FIRST TO %d" % Match.kill_target if Match.kill_target > 0 and timed else ("MOST KILLS WINS" if timed else "")
 	if gun_game:
 		var lv := Match.level(me)
 		sub = "GUN GAME  ·  LAST WEAPON: GET A KILL TO WIN" if lv >= GunGame.steps() - 1 \
 			else "GUN GAME  ·  NEXT: %s" % WeaponData.name_of(GunGame.weapon_at(lv + 1)).to_upper()
+	elif killcam:
+		sub = "KILLCAM  ·  FIRST TO %s  ·  #1 KILLCAM +%s AT THE END" % [KillcamMode.format(KillcamMode.target()), KillcamMode.format(KillcamMode.BEST_BONUS)]
 	if sub != "":
 		HudStyle.label(ci, Vector2(cx, y + 34.0), sub, 10, Color(1, 1, 1, 0.8), HORIZONTAL_ALIGNMENT_CENTER)
 
@@ -862,6 +869,11 @@ func _draw_inventory(ci: CanvasItem, at: Vector2) -> void:
 ## In Gun Game: the weapon you come back with, and the next one.
 func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
 	var mine := Net.player_weapon(Net.my_id())
+	if KillcamMode.active():
+		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), "SNIPERS ONLY", 16, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+		HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "EVERY KILL SCORES ITS KILLCAM POINTS  ·  YOU HAVE %s" % KillcamMode.format(Match.points(Net.my_id())), 12,
+			Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
+		return
 	if GunGame.active():
 		var lv := Match.level(Net.my_id())
 		var line := "WEAPON %d OF %d: %s" % [lv + 1, GunGame.steps(), WeaponData.name_of(mine).to_upper()]
@@ -990,8 +1002,11 @@ func _refresh_scoreboard() -> void:
 		return
 	var title := Maps.name_of(Net.map_id())
 	var gun_game := GunGame.active()
+	var killcam := KillcamMode.active()
 	if gun_game:
 		title += "  ·  Gun Game: %d weapons" % GunGame.steps()
+	elif killcam:
+		title += "  ·  Killcam: first to %s" % KillcamMode.format(KillcamMode.target())
 	if Match.kill_target > 0:
 		title += "  ·  First to %d" % Match.kill_target
 	if Match.time_left < 1e8:
@@ -1007,7 +1022,7 @@ func _refresh_scoreboard() -> void:
 	var dim := Color(1, 1, 1, 0.6)
 	var none := Color(0, 0, 0, 0)
 	_board_row([["#", 22.0, 11, dim, false, false], ["PLAYER", 0.0, 11, dim, false, false],
-		["ROBOT  ·  WEAPON", 190.0, 11, dim, false, false], ["WEAPON #" if gun_game else "KILLS", 70.0, 11, dim, false, true],
+		["ROBOT  ·  WEAPON", 190.0, 11, dim, false, false], ["WEAPON #" if gun_game else ("POINTS" if killcam else "KILLS"), 90.0 if killcam else 70.0, 11, dim, false, true],
 		["DEATHS", 60.0, 11, dim, false, true]], none, false, true)
 	var rank := 0
 	for row in Match.build_results():
@@ -1017,7 +1032,8 @@ func _refresh_scoreboard() -> void:
 		_board_row([[str(rank), 22.0, 15, dim, true, false],
 			[row.name + ("  (bot)" if Net.is_bot(row.id) else ""), 0.0, 17, col, true, false],
 			["%s  ·  %s" % [Characters.name_of(Net.player_character(row.id)), _weapon_label(row.id)], 190.0, 14, Color(col, 0.75), false, false],
-			[("%d/%d" % [row.level + 1, GunGame.steps()]) if gun_game else str(row.kills), 70.0, 19, col, true, true],
+			[("%d/%d" % [row.level + 1, GunGame.steps()]) if gun_game else (KillcamMode.format(row.points) if killcam else str(row.kills)),
+				90.0 if killcam else 70.0, 19, col, true, true],
 			[str(row.deaths), 60.0, 15, Color(col, 0.75), false, true]], Net.player_color(row.id), mine, false, tight)
 
 

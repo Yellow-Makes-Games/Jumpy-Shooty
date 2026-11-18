@@ -405,8 +405,8 @@ func _apply_weapon(id: int, weapon: String) -> void:
 	weapon = LobbySettings.fit_weapon(WeaponData.valid(weapon))   # only what the lobby allows
 	if not players.has(id) or players[id].get("weapon", "") == weapon:
 		return
-	if in_match and GunGame.active():
-		return   # Gun Game hands out the weapons
+	if in_match and (GunGame.active() or KillcamMode.active()):
+		return   # Gun Game hands out the weapons; Killcam is snipers only
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
 		return   # mid-fight you can only swap while waiting to respawn
 	players[id]["weapon"] = weapon
@@ -749,18 +749,23 @@ func map_id() -> String:
 
 
 func host_start_match() -> void:
-	if not is_host():
+	if not is_host() or _starting:
 		return
+	_starting = true   # (handing out the weapons below changes the players, which can call this again: dev autostart)
 	host_fit_loadouts()   # nobody starts with a weapon the lobby does not allow
-	if GunGame.active():   # everyone starts on the first rung of the ladder
+	if GunGame.active() or KillcamMode.active():   # the first rung of the ladder; Killcam: the sniper
 		for id in players:
-			players[id]["weapon"] = GunGame.weapon_at(0)
+			players[id]["weapon"] = GunGame.weapon_at(0) if GunGame.active() else KillcamMode.WEAPON
 		if is_online:
 			_sync_players.rpc(players)
 		else:
 			players_changed.emit()
 	_log_loadouts()
 	_start_match.rpc()
+	_starting = false
+
+
+var _starting := false
 
 
 @rpc("authority", "call_local", "reliable")
