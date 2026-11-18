@@ -18,6 +18,8 @@ var third_person: bool = false
 const HUD_STYLES := {"arcs": "Twin arcs (around the crosshair)", "clean": "Clean (corners)"}
 var hud_first_person: String = "arcs"
 var hud_third_person: String = "clean"
+## Scale, opacity, crosshair and which parts of the HUD show (see HudConfig).
+var hud := HudConfig.new()
 ## When you are knocked out, watch the kill again from the eyes of whoever got you.
 var killcam: bool = true
 
@@ -79,6 +81,7 @@ func load_settings() -> void:
 	hud_first_person = _hud_style(cfg.get_value("hud", "first_person", hud_first_person))
 	hud_third_person = _hud_style(cfg.get_value("hud", "third_person", hud_third_person))
 	killcam = bool(cfg.get_value("hud", "killcam", killcam))
+	hud.load_from(cfg)
 	master_volume = cfg.get_value("audio", "master_volume", master_volume)
 	music_volume = cfg.get_value("audio", "music_volume", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx_volume", sfx_volume)
@@ -112,6 +115,7 @@ func save_settings() -> void:
 	cfg.set_value("hud", "first_person", hud_first_person)
 	cfg.set_value("hud", "third_person", hud_third_person)
 	cfg.set_value("hud", "killcam", killcam)
+	hud.save_to(cfg)
 	cfg.set_value("audio", "master_volume", master_volume)
 	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("audio", "sfx_volume", sfx_volume)
@@ -247,6 +251,15 @@ func hud_style() -> String:
 
 static func _hud_style(value) -> String:
 	return str(value) if HUD_STYLES.has(str(value)) else "arcs"
+
+
+## Settings → HUD → Reset HUD: both layouts and every HUD option back to the defaults
+## (the killcam switch, on the Camera tab, stays as it is).
+func reset_hud() -> void:
+	hud_first_person = "arcs"
+	hud_third_person = "clean"
+	hud.reset()
+	changed.emit()
 
 
 func set_third_person(value: bool) -> void:

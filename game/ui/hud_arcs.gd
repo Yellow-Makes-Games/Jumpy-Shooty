@@ -9,7 +9,7 @@ extends RefCounted
 ## Each gauge has a hairline outside it with a tick at either end and a soft glow
 ## under the lit part.
 ## Under the crosshair: a short arc each for grapple, dive, flip, glide, slide boost, rocket boots and kick,
-## then your speed and what you are doing.
+## then your speed and what you are doing (Settings → HUD can leave out either).
 
 const R := 92.0           ## radius of the health and ammo arcs
 const SPAN := 70.0        ## degrees each of them covers
@@ -99,9 +99,13 @@ static func _draw_ammo(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 
 static func _draw_moves(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 	# Moves, under the crosshair: grapple, dive, flip, glide, slide, boots, kick (left to right).
-	for i in v.moves.size():
+	# Settings → HUD: compact leaves out those ready to use (the rest keep their places), off all of them.
+	var moves := Settings.hud.moves
+	for i in (v.moves.size() if moves != "off" else 0):
 		var m: Array = v.moves[i]
 		var ready: float = m[2]
+		if moves == "compact" and ready >= 1.0 and not m[3]:
+			continue
 		var a0 := 90.0 + (v.moves.size() * 16.0 - 3.0) * 0.5 - i * 16.0   # centred under; angles grow clockwise, so go right to left
 		var a1 := a0 - 13.0
 		HudStyle.edged_arc(ci, c, MOVES_R, a1, a0, HudStyle.DIM, 4.0)
@@ -117,6 +121,8 @@ static func _draw_moves(ci: CanvasItem, c: Vector2, v: Hud.View) -> void:
 		HudStyle.arc(ci, c, MOVES_R, a0 - 13.0 * ready, a0, col, 4.0)
 
 	# Speed and what you are doing, between two small brackets.
+	if not Settings.hud.speed:
+		return
 	var speed := "%.1f M/S  ·  %s" % [v.speed, v.move_state]
 	var at := c + Vector2(0, 76)
 	var w := HudStyle.label(ci, at, speed, 11, Color(1, 1, 1, 0.9), HORIZONTAL_ALIGNMENT_CENTER)

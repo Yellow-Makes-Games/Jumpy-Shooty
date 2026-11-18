@@ -30,6 +30,7 @@ CHECKS=(
   "ui_layout|--script tests/ui_layout_test.gd"
   "hud_icons|--script tests/hud_icons_test.gd"
   "kill_feed|--script tests/kill_feed_test.gd"
+  "hud_settings|--script tests/hud_settings_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
   "block_settings|--script tests/block_settings_test.gd"
