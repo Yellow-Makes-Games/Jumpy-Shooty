@@ -184,6 +184,7 @@ func build(with_meshes: bool = true) -> void:
 	spinners = []
 	spans = []
 	_riders = []
+	_nav_poses = []
 	_trail = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
 	for s in spinners:
@@ -377,8 +378,11 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 		if child is MapMover and mover == -1:
 			# Its blocks are built into a moving body of their own (see _build_mover),
 			# in the mover's own frame.
+			# The scene's node goes along with the body when it carries jump links (bots
+			# read where those are from the nodes), or when it says so (a MapIsland).
 			var m := {"node": child, "base": at, "pieces": [], "body": null, "bounds": AABB(),
-				"parent": xf.affine_inverse(), "moves_node": child.get("carries_nodes") == true}
+				"parent": xf.affine_inverse(), "moves_node": child.get("carries_nodes") == true \
+					or not child.find_children("*", "MapJumpLink", true, false).is_empty()}
 			movers.append(m)
 			_collect(child, Transform3D.IDENTITY, m.pieces, spawn_list, movers.size() - 1)
 			continue
@@ -563,6 +567,89 @@ func mover_under(point: Vector3, poses: Array = []) -> int:
 func island_at(point: Vector3) -> MapIsland:
 	var on := mover_under(point)
 	return movers[on].node as MapIsland if on >= 0 else null
+
+
+# -- Bots on parts that never stop (Sky Island's bobbing islands and pads) -----------
+# The bots' navigation mesh is worked out once, from where everything stood at that
+# moment. A plain MapMover keeps moving after that, so a bot asks its way in the
+# mesh's frame: where it is and where it is going are put back to where the mover
+# they stand on stood then (to_nav), and the path's points are carried forward to
+# where that mover is now (from_nav). A MapIsland is left out: it stands still
+# between a LayoutEvent's moves and its mesh is redone (or swapped) for each layout.
+var _nav_poses: Array = []
+
+
+## The navigation mesh is about to be worked out from where everything stands now.
+func remember_nav_poses() -> void:
+	_nav_poses = []
+	for m in movers:
+		_nav_poses.append((m.body as AnimatableBody3D).transform if m.body else m.base)
+
+
+## `point` (in the map) as it was in the navigation mesh's frame.
+func to_nav(point: Vector3) -> Vector3:
+	if _nav_poses.size() != movers.size():
+		return point   # (no mesh made yet)
+	var i := _standing_on(point, false)
+	if i < 0:
+		return point
+	return (_nav_poses[i] as Transform3D) * ((movers[i].body as AnimatableBody3D).transform.affine_inverse() * point)
+
+
+## A point of the navigation mesh, carried to where its mover is now.
+func from_nav(point: Vector3) -> Vector3:
+	var i := _standing_on(point, true)
+	if i < 0:
+		return point
+	return (movers[i].body as AnimatableBody3D).transform * ((_nav_poses[i] as Transform3D).affine_inverse() * point)
+
+
+## Where `point`, riding whatever mover it stands on, will be `seconds` from now.
+func ahead(point: Vector3, seconds: float) -> Vector3:
+	var i := _standing_on(point, false)
+	if i < 0:
+		return point
+	var m: Dictionary = movers[i]
+	var then: Transform3D = m.base * (m.node as MapMover).offset_at(clock + seconds)
+	return then * ((m.body as AnimatableBody3D).transform.affine_inverse() * point)
+
+
+## Which plain mover `point` stands on (or over, by up to 8 m), or -1: the ground a bot
+## is on, for working out a route across many moving parts (see BotBrain).
+func standing_on(point: Vector3) -> int:
+	return _standing_on(point, false)
+
+
+## The plain mover (never a MapIsland) whose solid top is under `point`, at most 8 m
+## below it (the highest such), or -1. `at_nav`: where the movers stood for the
+## navigation mesh rather than where they are now.
+func _standing_on(point: Vector3, at_nav: bool) -> int:
+	if at_nav and _nav_poses.size() != movers.size():
+		return -1
+	var best := -1
+	var best_gap := INF
+	for i in movers.size():
+		var m: Dictionary = movers[i]
+		if m.body == null or m.node is MapIsland:
+			continue
+		var pose: Transform3D = _nav_poses[i] if at_nav else (m.body as AnimatableBody3D).transform
+		var local := pose.affine_inverse() * point
+		var box: AABB = m.bounds
+		if local.x < box.position.x - 1.0 or local.x > box.end.x + 1.0 or local.z < box.position.z - 1.0 or local.z > box.end.z + 1.0 \
+				or local.y < box.position.y - 1.0 or local.y > box.end.y + 8.0:
+			continue
+		for piece in m.pieces:
+			if not piece.solid:
+				continue
+			var p: Vector3 = (piece.xf as Transform3D).affine_inverse() * local
+			var half: Vector3 = piece.size * 0.5
+			var inside := (absf(p.x) <= half.x + 0.3 and absf(p.z) <= half.z + 0.3) if piece.shape == "box" \
+				else Vector2(p.x, p.z).length() <= half.x + 0.3
+			var gap := p.y - half.y
+			if inside and gap >= -1.0 and gap <= 8.0 and gap < best_gap:
+				best = i
+				best_gap = gap
+	return best
 
 
 ## Is `point` on an island that is about to go down?
