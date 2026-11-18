@@ -58,7 +58,6 @@ FEAT = 10              # sectors 0..9 are the feature room
 ROOT_DEPTH = 42.0      # the root rock hangs this far below y = 0
 KILL = -(ROOT_DEPTH + 46.0)     # the burn layer: 150 ft below the lowest rock
 NAMES = ["ArcaneEngine", "GrandLibrary", "AlchemyLabs", "Menagerie", "SummoningChamber", "Observatory"]
-SIGNS = ["ARCANE ENGINE", "GRAND LIBRARY", "ALCHEMY LABS", "MENAGERIE", "SUMMONING CHAMBER", "OBSERVATORY"]
 ACCENT = ["accent_cyan", "accent_gold", "accent_green", "accent_teal", "accent_violet", "accent_silver"]
 ACCENT_RGB = [(0.25, 0.9, 1.0), (1.0, 0.76, 0.28), (0.35, 0.95, 0.4), (0.2, 0.85, 0.7), (0.66, 0.4, 1.0), (0.88, 0.92, 1.0)]
 LIFT_A, LIFT_B = 75.0, 255.0    # the shaft lifts' angles
@@ -196,10 +195,6 @@ class EmpyreanMap(CirrusMap):
         if reach:
             props.append(("reach", fmt(reach)))
         return self.node(name, parent, "hook", props, type_="Marker3D")
-
-    def holo_sign(self, text, at, deg, col, size=120, pixel=0.012, parent="Signs"):
-        """A sign as a hologram: glowing letters floating over a small emitter, read from outside `deg`."""
-        self.sign(text, at, yaw=math.radians(deg), size=size, col=tuple(col) + (0.9,), parent=parent, pixel=pixel, outline=False, one_sided=True)
 
     def write(self, path):
         scripts = dict(__import__("arena_builder").SCRIPTS)

@@ -261,6 +261,9 @@ func _objects() -> void:
 	var debris := map.get_node_or_null("Debris")
 	var pieces := debris.get_child_count() if debris else 0
 	_expect(pieces >= 20 and pieces <= 30, "20 to 30 pieces of debris float round the tower (%d)" % pieces)
+	# No floating label text anywhere on this map (a rule from the team).
+	var labels := map.find_children("*", "Label3D", true, false).size()
+	_expect(labels == 0, "no signs or floating text (%d)" % labels)
 	# The shaft's grapple anchors: from the Engine's floor to the Observatory, never more than 35 m to the next.
 	var heights := [1.5]
 	for n in get_nodes_in_group(MapGrapplePoint.GROUP):

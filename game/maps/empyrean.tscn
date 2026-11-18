@@ -23821,39 +23821,6 @@ size = Vector3(0.5, 0.12, 2.5)
 kind = "accent_cyan"
 solid = false
 
-[node name="SignEmitter" type="Node3D" parent="ArcaneEngine/Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5967, 0.15, 2.3035)
-script = ExtResource("2_block")
-shape = 1
-size = Vector3(0.7, 0.3, 0.7)
-kind = "alloy_dark"
-sides = 8
-
-[node name="SignBeam" type="Node3D" parent="ArcaneEngine/Lights"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 8.5967, 2, 2.3035)
-script = ExtResource("2_block")
-shape = 3
-size = Vector3(0.3, 3.4, 0.3)
-kind = "holo"
-solid = false
-sides = 6
-
-[node name="Sign_ArcaneEngine" type="Label3D" parent="Signs"]
-transform = Transform3D(-0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, -0.2588, 8.5967, 5.2, 2.3035)
-pixel_size = 0.014
-modulate = Color(0.25, 0.9, 1, 0.9)
-double_sided = false
-text = "ARCANE ENGINE"
-font_size = 150
-
-[node name="Sign_ArcaneEngine2" type="Label3D" parent="Signs"]
-transform = Transform3D(0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, 0.2588, 8.645, 5.2, 2.3164)
-pixel_size = 0.014
-modulate = Color(0.25, 0.9, 1, 0.9)
-double_sided = false
-text = "ARCANE ENGINE"
-font_size = 150
-
 [node name="Stacks" type="Node3D" parent="GrandLibrary"]
 metadata/_edit_group_ = true
 
@@ -27849,39 +27816,6 @@ size = Vector3(0.5, 0.12, 2.5)
 kind = "accent_gold"
 solid = false
 
-[node name="SignEmitter" type="Node3D" parent="GrandLibrary/Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5967, 30.65, 2.3035)
-script = ExtResource("2_block")
-shape = 1
-size = Vector3(0.7, 0.3, 0.7)
-kind = "alloy_dark"
-sides = 8
-
-[node name="SignBeam" type="Node3D" parent="GrandLibrary/Lights"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 8.5967, 32.5, 2.3035)
-script = ExtResource("2_block")
-shape = 3
-size = Vector3(0.3, 3.4, 0.3)
-kind = "holo"
-solid = false
-sides = 6
-
-[node name="Sign_GrandLibrary" type="Label3D" parent="Signs"]
-transform = Transform3D(-0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, -0.2588, 8.5967, 35.7, 2.3035)
-pixel_size = 0.014
-modulate = Color(1, 0.76, 0.28, 0.9)
-double_sided = false
-text = "GRAND LIBRARY"
-font_size = 150
-
-[node name="Sign_GrandLibrary2" type="Label3D" parent="Signs"]
-transform = Transform3D(0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, 0.2588, 8.645, 35.7, 2.3164)
-pixel_size = 0.014
-modulate = Color(1, 0.76, 0.28, 0.9)
-double_sided = false
-text = "GRAND LIBRARY"
-font_size = 150
-
 [node name="Apparatus" type="Node3D" parent="AlchemyLabs"]
 metadata/_edit_group_ = true
 
@@ -30605,39 +30539,6 @@ script = ExtResource("2_block")
 size = Vector3(0.5, 0.12, 2.5)
 kind = "accent_green"
 solid = false
-
-[node name="SignEmitter" type="Node3D" parent="AlchemyLabs/Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5967, 61.15, 2.3035)
-script = ExtResource("2_block")
-shape = 1
-size = Vector3(0.7, 0.3, 0.7)
-kind = "alloy_dark"
-sides = 8
-
-[node name="SignBeam" type="Node3D" parent="AlchemyLabs/Lights"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 8.5967, 63, 2.3035)
-script = ExtResource("2_block")
-shape = 3
-size = Vector3(0.3, 3.4, 0.3)
-kind = "holo"
-solid = false
-sides = 6
-
-[node name="Sign_AlchemyLabs" type="Label3D" parent="Signs"]
-transform = Transform3D(-0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, -0.2588, 8.5967, 66.2, 2.3035)
-pixel_size = 0.014
-modulate = Color(0.35, 0.95, 0.4, 0.9)
-double_sided = false
-text = "ALCHEMY LABS"
-font_size = 150
-
-[node name="Sign_AlchemyLabs2" type="Label3D" parent="Signs"]
-transform = Transform3D(0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, 0.2588, 8.645, 66.2, 2.3164)
-pixel_size = 0.014
-modulate = Color(0.35, 0.95, 0.4, 0.9)
-double_sided = false
-text = "ALCHEMY LABS"
-font_size = 150
 
 [node name="Garden" type="Node3D" parent="Menagerie"]
 metadata/_edit_group_ = true
@@ -33967,39 +33868,6 @@ size = Vector3(0.5, 0.12, 2.5)
 kind = "accent_teal"
 solid = false
 
-[node name="SignEmitter" type="Node3D" parent="Menagerie/Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5967, 91.65, 2.3035)
-script = ExtResource("2_block")
-shape = 1
-size = Vector3(0.7, 0.3, 0.7)
-kind = "alloy_dark"
-sides = 8
-
-[node name="SignBeam" type="Node3D" parent="Menagerie/Lights"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 8.5967, 93.5, 2.3035)
-script = ExtResource("2_block")
-shape = 3
-size = Vector3(0.3, 3.4, 0.3)
-kind = "holo"
-solid = false
-sides = 6
-
-[node name="Sign_Menagerie" type="Label3D" parent="Signs"]
-transform = Transform3D(-0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, -0.2588, 8.5967, 96.7, 2.3035)
-pixel_size = 0.014
-modulate = Color(0.2, 0.85, 0.7, 0.9)
-double_sided = false
-text = "MENAGERIE"
-font_size = 150
-
-[node name="Sign_Menagerie2" type="Label3D" parent="Signs"]
-transform = Transform3D(0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, 0.2588, 8.645, 96.7, 2.3164)
-pixel_size = 0.014
-modulate = Color(0.2, 0.85, 0.7, 0.9)
-double_sided = false
-text = "MENAGERIE"
-font_size = 150
-
 [node name="Circles" type="Node3D" parent="SummoningChamber"]
 metadata/_edit_group_ = true
 
@@ -36252,39 +36120,6 @@ size = Vector3(0.5, 0.12, 2.5)
 kind = "accent_violet"
 solid = false
 
-[node name="SignEmitter" type="Node3D" parent="SummoningChamber/Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5967, 122.15, 2.3035)
-script = ExtResource("2_block")
-shape = 1
-size = Vector3(0.7, 0.3, 0.7)
-kind = "alloy_dark"
-sides = 8
-
-[node name="SignBeam" type="Node3D" parent="SummoningChamber/Lights"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 8.5967, 124, 2.3035)
-script = ExtResource("2_block")
-shape = 3
-size = Vector3(0.3, 3.4, 0.3)
-kind = "holo"
-solid = false
-sides = 6
-
-[node name="Sign_SummoningChamber" type="Label3D" parent="Signs"]
-transform = Transform3D(-0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, -0.2588, 8.5967, 127.2, 2.3035)
-pixel_size = 0.014
-modulate = Color(0.66, 0.4, 1, 0.9)
-double_sided = false
-text = "SUMMONING CHAMBER"
-font_size = 150
-
-[node name="Sign_SummoningChamber2" type="Label3D" parent="Signs"]
-transform = Transform3D(0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, 0.2588, 8.645, 127.2, 2.3164)
-pixel_size = 0.014
-modulate = Color(0.66, 0.4, 1, 0.9)
-double_sided = false
-text = "SUMMONING CHAMBER"
-font_size = 150
-
 [node name="Instruments" type="Node3D" parent="Observatory"]
 metadata/_edit_group_ = true
 
@@ -38192,30 +38027,6 @@ kind = "accent_silver"
 solid = false
 sides = 6
 inner = 1.04
-
-[node name="SignEmitter" type="Node3D" parent="Observatory/Instruments"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.5967, 152.65, 2.3035)
-script = ExtResource("2_block")
-shape = 1
-size = Vector3(0.7, 0.3, 0.7)
-kind = "alloy_dark"
-sides = 8
-
-[node name="Sign_Observatory" type="Label3D" parent="Signs"]
-transform = Transform3D(-0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, -0.2588, 8.5967, 157.7, 2.3035)
-pixel_size = 0.014
-modulate = Color(0.88, 0.92, 1, 0.9)
-double_sided = false
-text = "OBSERVATORY"
-font_size = 150
-
-[node name="Sign_Observatory2" type="Label3D" parent="Signs"]
-transform = Transform3D(0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, 0.2588, 8.645, 157.7, 2.3164)
-pixel_size = 0.014
-modulate = Color(0.88, 0.92, 1, 0.9)
-double_sided = false
-text = "OBSERVATORY"
-font_size = 150
 
 [node name="Rooms" type="Node3D" parent="ArcaneEngine"]
 metadata/_edit_group_ = true
@@ -49646,30 +49457,6 @@ speed = -7
 bob = 1.6
 phase = 0.6
 lamp = Color(0.88, 0.92, 1, 1)
-
-[node name="SignEmitter" type="Node3D" parent="Exterior/DockingRing/Ring"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.5801, 91.65, 9.2657)
-script = ExtResource("2_block")
-shape = 1
-size = Vector3(0.7, 0.3, 0.7)
-kind = "alloy_dark"
-sides = 8
-
-[node name="Sign_DockingRing" type="Label3D" parent="Signs"]
-transform = Transform3D(0.2588, 0, 0.9659, 0, 1, 0, -0.9659, 0, 0.2588, 34.5801, 96.1, 9.2657)
-pixel_size = 0.016
-modulate = Color(0.2, 0.85, 0.7, 0.9)
-double_sided = false
-text = "DOCKING RING"
-font_size = 170
-
-[node name="Sign_DockingRing2" type="Label3D" parent="Signs"]
-transform = Transform3D(-0.2588, 0, -0.9659, 0, 1, 0, 0.9659, 0, -0.2588, 34.5318, 96.1, 9.2528)
-pixel_size = 0.016
-modulate = Color(0.2, 0.85, 0.7, 0.9)
-double_sided = false
-text = "DOCKING RING"
-font_size = 170
 
 [node name="PlasmaCannon" type="Marker3D" parent="Exterior/DockingRing/Pad/Starship"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0)

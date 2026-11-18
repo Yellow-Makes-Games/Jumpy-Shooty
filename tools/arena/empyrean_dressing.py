@@ -259,7 +259,7 @@ def altar(m, f):
 
 def hall_lights(m, f, i):
     """What every tier shares: its accent in the feature room (a band of light round the
-    back wall, lamps on the balcony fronts), chandeliers to hook, and a hologram sign."""
+    back wall, lamps on the balcony fronts), chandeliers to hook."""
     y0 = TIER * i
     acc = ACCENT[i]
     g = m.group("Lights", f)
@@ -278,12 +278,6 @@ def hall_lights(m, f, i):
     for n in range(8):                   # the upper hall: lamps on the colonnade
         deg = n * 45.0 + 20.0
         m.pb(g, "HallLamp", acc if n % 2 else "glow", RS + 3.5, RS + 6.0, deg, 0.5, y0 + TIER - 0.72, y0 + TIER - 0.6, solid=False)
-    # The sign: a hologram over an emitter, floating at the shaft's rim, read from the shaft.
-    at = P(RS + 0.9, 75.0, y0 + 0.0)
-    m.cyl(g, "SignEmitter", "alloy_dark", at, 0.7, 0.3, sides=8)
-    m.block(g, "SignBeam", "holo", (at[0], at[1] + 2.0, at[2]), (0.3, 3.4, 0.3), shape="cone", sides=6, cols=FLIP, solid=False)
-    m.holo_sign(E.SIGNS[i], P(RS + 0.9, 75.0, y0 + 5.2), 75.0 + 180.0, ACCENT_RGB[i], size=150, pixel=0.014)
-    m.holo_sign(E.SIGNS[i], P(RS + 0.95, 75.0, y0 + 5.2), 75.0, ACCENT_RGB[i], size=150, pixel=0.014)
 
 
 def engine(m, f):
@@ -555,10 +549,6 @@ def observatory(m, f):
         chandelier(m, g, at[0], at[2], TOP - 0.3, 9.0 + (n % 2) * 4.0, acc, wide=3.4)
     for n, (r, deg, y) in enumerate(((RS + 3.0, 200.0, 14.0), (RS + 7.0, 240.0, 19.0), (RS + 4.0, 305.0, 16.0), (RS + 6.5, 80.0, 21.0), (RS + 2.0, 20.0, 17.0))):
         floating_stone(m, g, P(r, deg, y0 + y), 2.4, acc, n + 20)
-    at = P(RS + 0.9, 75.0, y0)
-    m.cyl(g, "SignEmitter", "alloy_dark", at, 0.7, 0.3, sides=8)
-    m.holo_sign(E.SIGNS[i], P(RS + 0.9, 75.0, y0 + 5.2), 255.0, ACCENT_RGB[i], size=150, pixel=0.014)
-    m.holo_sign(E.SIGNS[i], P(RS + 0.95, 75.0, y0 + 5.2), 75.0, ACCENT_RGB[i], size=150, pixel=0.014)
 
 
 def rooms(m, folders):
@@ -884,11 +874,7 @@ def dress(m, folders):
     anchors(m)
     masts(m)
     drones(m)
-    # The docking ring's sign, and the plasma cannon on the starship's back.
-    at = P(E.RING_R - 1.2, 75.0, E.RING_Y)
-    m.cyl("Exterior/DockingRing/Ring", "SignEmitter", "alloy_dark", at, 0.7, 0.3, sides=8)
-    m.holo_sign("DOCKING RING", P(E.RING_R - 1.2, 75.0, E.RING_Y + 4.6), 75.0, ACCENT_RGB[3], size=170, pixel=0.016)
-    m.holo_sign("DOCKING RING", P(E.RING_R - 1.25, 75.0, E.RING_Y + 4.6), 255.0, ACCENT_RGB[3], size=170, pixel=0.016)
+    # The plasma cannon on the starship's back. (No signs anywhere on this map: no floating label text.)
     m.weapon_in("Exterior/DockingRing/Pad/Starship", (0, 5.0, 0.0), "plasma_cannon")
     spawns(m, isles)
     weapons(m)
