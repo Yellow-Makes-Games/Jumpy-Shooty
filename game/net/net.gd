@@ -170,6 +170,7 @@ func leave() -> void:
 	players.clear()
 	spectators.clear()
 	pings.clear()
+	moved_by_host = false
 	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
@@ -431,12 +432,16 @@ func host_set_spectating(id: int, on: bool, character: String = "", weapon: Stri
 		spectators[id] = {"name": name}
 		print("[net] %d (%s) is spectating" % [id, name])
 	else:
-		if not spectators.has(id) or players.size() >= LobbySettings.max_players():   # no room in the lobby size
+		if not spectators.has(id) or not player_slot_free():   # no room in the lobby size
+			if DevArgs.sync_log and spectators.has(id):
+				print("SPECTATE_FULL %d" % id)
 			return false
 		var name := str(spectators[id].name)
 		spectators.erase(id)
 		host_add_player(id, name, character, weapon, mobility)
 		print("[net] %d (%s) stopped spectating" % [id, name])
+	if DevArgs.sync_log:
+		print("SPECTATE %d %s" % [id, "on" if on else "off"])
 	if is_online:
 		_sync_spectators.rpc(spectators)
 	_players_updated()
@@ -542,6 +547,8 @@ func _apply_weapon(id: int, weapon: String) -> void:
 	weapon = LobbySettings.fit_weapon(WeaponData.valid(weapon))   # only what the lobby allows
 	if not players.has(id) or players[id].get("weapon", "") == weapon:
 		return
+	if str(players[id].get("weapon", "")) in WeaponData.HIDDEN:
+		return   # the Golden Gun's holder keeps it until the host passes it on (see GoldenGun)
 	if in_match and (GunGame.active() or KillcamMode.active()):
 		return   # Gun Game hands out the weapons; Killcam is snipers only
 	if in_match and (Match.is_alive(id) or Race.active or not Match.running):
@@ -617,6 +624,8 @@ func _sync_settings(settings: Dictionary) -> void:
 	if DevArgs.sync_log:
 		print("LOBBY_SETTINGS %d weapons=%s" % [my_id(), ",".join(LobbySettings.allowed_weapons())])
 		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility())])
+		print("LOBBY_MAP %d map=%s random=%s pool=%s song=%s" % [my_id(), map_id(), match_settings.random_map,
+			",".join(LobbySettings.map_pool()), match_settings.song])
 	if is_host() and not in_match:
 		host_fit_loadouts()   # weapons no longer allowed are swapped (everyone is told)
 	elif players.has(my_id()) and not in_match:
@@ -632,6 +641,8 @@ func host_fit_loadouts() -> void:
 	var changed := false
 	for id in players:
 		# Your own pick is known here, so you get it back once it is allowed again.
+		if str(players[id].get("weapon", "")) in WeaponData.HIDDEN:
+			continue   # the Golden Gun's holder keeps it (see GoldenGun)
 		var wanted := _local_weapon if id == my_id() else str(players[id].get("weapon", ""))
 		var w := LobbySettings.fit_weapon(WeaponData.valid(wanted))
 		if players[id].get("weapon", "") != w:
@@ -675,6 +686,36 @@ func _drop_peer_later(id: int) -> void:
 
 ## Host: remove a player from the lobby (not mid-match). They are told and sent back to
 ## the main menu.
+## Host: move another player to the spectators (in the lobby, not mid-match). They are
+## told, and come back with Play (set_spectating) when the lobby has room for them.
+func host_move_to_spectators(id: int) -> bool:
+	if not is_host() or not is_online or in_match or id == host_id() or is_bot(id) or not players.has(id):
+		return false
+	if not host_set_spectating(id, true):
+		return false
+	if DevArgs.sync_log:
+		print("MOVED_TO_SPECTATORS %d" % id)
+	_moved_by_host.rpc_id(id)
+	return true
+
+
+## This copy was moved to the spectators by the host (the lobby says so until you play again).
+var moved_by_host := false
+
+
+@rpc("authority", "call_remote", "reliable")
+func _moved_by_host() -> void:
+	moved_by_host = true
+	if DevArgs.sync_log:
+		print("MOVED_BY_HOST")
+	players_changed.emit()
+
+
+## Room for one more player in the lobby (a spectator can come back to play).
+func player_slot_free() -> bool:
+	return players.size() < LobbySettings.max_players()
+
+
 func host_kick(id: int) -> void:
 	if not is_host() or not is_online or in_match or id == host_id() or not players.has(id) or is_bot(id):
 		return
@@ -981,6 +1022,7 @@ func host_start_match(force: bool = false) -> void:
 	if is_online and not force and not all_ready():
 		return
 	_starting = true
+	host_pick_random_map()
 	for id in players:
 		players[id].erase("ready")   # (handing out the weapons below changes the players, which can call this again: dev autostart)
 	host_fit_loadouts()   # nobody starts with a weapon the lobby does not allow
@@ -1000,17 +1042,33 @@ func host_start_match(force: bool = false) -> void:
 var _starting := false
 
 
+## Host: with a random map set (see LobbySettings), pick one of the pool's maps (not the
+## one just played, when the pool has others) and tell everyone, before the match
+## starts. The pick stays in match_settings.map, so a late joiner loads it too.
+func host_pick_random_map() -> void:
+	if not is_host() or not bool(match_settings.get("random_map", false)):
+		return
+	var s := match_settings.duplicate()
+	s["map"] = LobbySettings.pick_map(s.get("map_pool", []), game_kind(), map_id())
+	if DevArgs.sync_log:
+		print("RANDOM_MAP %d %s pool=%s" % [my_id(), s.map, ",".join(LobbySettings.map_pool())])
+	_sync_settings.rpc(s)   # (reliable and in order: everyone has it before the match starts)
+
+
 @rpc("authority", "call_local", "reliable")
 func _start_match() -> void:
 	in_match = true
 	if DevArgs.sync_log:
 		print("MATCH_START %d players" % players.size())
+		print("MATCH_MAP %d %s" % [my_id(), map_id()])
 	match_started.emit()
 
 
 @rpc("authority", "call_remote", "reliable")
 func _late_join() -> void:
 	in_match = true
+	if DevArgs.sync_log:
+		print("MATCH_MAP %d %s (late)" % [my_id(), map_id()])
 	match_started.emit()
 
 

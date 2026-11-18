@@ -173,7 +173,7 @@ func _init(player: Player, level: int) -> void:
 ## Fight the way the weapon in its hands likes (Gun Game swaps it mid-match; a
 ## Deathmatch pickup or switch too). Empty hands fight like a blade: run in and kick.
 func weapon_changed() -> void:
-	var r: Array = RANGES.get(me.weapon.data.id if me.weapon else "dagger", RANGES.pistol)
+	var r: Array = RANGES.get(WeaponData.look_of(me.weapon.data.id) if me.weapon else "dagger", RANGES.pistol)
 	NEAR = r[0]
 	FAR = r[1]
 	_reach = r[2]

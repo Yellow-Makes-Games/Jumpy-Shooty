@@ -3,11 +3,17 @@ extends Control
 ## player pick their robot and their gun. Everyone else readies up (Ready); the host
 ## starts the match once they all have, can kick a player, and sets the lobby size.
 ## Anyone can leave.
-## Three columns in a MenuFrame (the match, your robot, your weapon); Leave and Start
-## stay on screen at any window size.
+## Three columns in a MenuFrame: the players; the match (mode, loadout rules, map,
+## win condition); your loadout (robot, mobility, weapon). Leave and Start stay on
+## screen at any window size.
+##
+## Each choice with many options shows only what is picked, as a button; pressing it
+## opens a FloatingPanel with every option (the game mode for the host, and your
+## robot, mobility tool and weapon), so the page stays tidy however many modes,
+## robots and weapons there are.
 
 var _frame: MenuFrame
-var _col: VBoxContainer          # the left column: players, mode, map, rules
+var _col: VBoxContainer          # the middle column: mode, loadout rules, map, win condition
 var _list: VBoxContainer
 var _list_scroll: ScrollContainer
 var _watching: Label     # who is spectating
@@ -34,14 +40,25 @@ var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
 var _map_label: Label
 var _map_pick: OptionButton
+var _map_pool: MapPoolPicker   # a random map: the maps it may pick from (the host ticks them)
+var _song_box: HBoxContainer   # the lobby song: the host's pick, or what it is for everyone else
+var _song_pick: OptionButton
+var _song_label: Label
 var _character: CharacterPicker
 var _weapon: WeaponPicker
 var _weapon_box: VBoxContainer   # the right column: your weapon, or a note when the mode has none to pick
-var _no_weapon: VBoxContainer
 var _no_weapon_note: Label
 var _mobility: MobilityPicker
-var _game_label: Label
-var _game_row: Container   # the host's mode switch
+var _game_row: Container   # the host's mode switch (in the mode window)
+var _mode_button: Button   # the mode picked; the host presses it for the mode window
+var _mode_blurb: Label     # in the mode window: about the mode under the mouse
+var _mode_panel: FloatingPanel
+var _robot_panel: FloatingPanel
+var _mobility_button: Button   # your mobility tool; opens the mobility window
+var _mobility_box: VBoxContainer
+var _mobility_panel: FloatingPanel
+var _weapon_card: WeaponPicker.Card   # your weapon; opens the weapon window
+var _weapon_panel: FloatingPanel
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
 
 
@@ -83,37 +100,46 @@ func _ready() -> void:
 		s["max_players"] = int(v)
 		if s != Net.match_settings:
 			Net.set_match_settings(s))
-	# Three columns: the match (players, mode, map, rules), your robot, your weapon.
+	# Three columns: the players, the match, your loadout.
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 26)
 	_frame.body.add_child(columns)
-	_col = VBoxContainer.new()
-	_col.add_theme_constant_override("separation", 10)
-	_col.custom_minimum_size = Vector2(410, 0)
-	columns.add_child(_col)
-	UiKit.section(_col, "Players")
-	_list_scroll = ScrollContainer.new()   # 16 players don't fit: the list scrolls past 4
+	var players_col := VBoxContainer.new()
+	players_col.add_theme_constant_override("separation", 10)
+	players_col.custom_minimum_size = Vector2(430, 0)
+	columns.add_child(players_col)
+	_list_scroll = ScrollContainer.new()   # the list takes the column's height and scrolls past it
 	_list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	_col.add_child(_list_scroll)
+	_list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_list_scroll.custom_minimum_size = Vector2(0, 120)
+	players_col.add_child(_list_scroll)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 5)
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list_scroll.add_child(_list)
 	var watch_row := HBoxContainer.new()
 	watch_row.add_theme_constant_override("separation", 10)
-	_col.add_child(watch_row)
+	players_col.add_child(watch_row)
 	_watching = UiKit.label(watch_row, "", true, 14)
 	_watching.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_watching.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_spectate = UiKit.button(watch_row, "Spectate", func(): Net.set_spectating(not Net.spectating()))
 	_spectate.custom_minimum_size = Vector2(0, 38)
 	_spectate.theme_type_variation = "Chip"
+	_divider(columns)
+	_col = VBoxContainer.new()
+	_col.add_theme_constant_override("separation", 10)
+	_col.custom_minimum_size = Vector2(400, 0)
+	_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(_col)
+	_build_mode()
+	_build_lobby_settings()
 	_build_map()
 	_build_rules()
-	_build_lobby_settings()
 	_divider(columns)
 	_build_character(columns)
 	_frame.back_button("Leave lobby", Game.leave_to_menu)
+	_build_song()
 	_waiting = UiKit.label(_frame.footer, "Waiting for the host to start...", true, 17)
 	_waiting.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -139,24 +165,18 @@ func _divider(row: Node) -> void:
 	row.add_child(line)
 
 
-## The player list grows with the players, up to three rows, then scrolls (so the lobby
-## fits the screen whoever is in it).
-func _fit_list() -> void:
-	if is_instance_valid(_list_scroll):
-		_list_scroll.custom_minimum_size.y = minf(_list.get_combined_minimum_size().y, 124.0)
-
-
 func _refresh() -> void:
 	UiKit.clear(_list)
 	var ids := Net.players.keys()
 	ids.sort()
 	for id in ids:
 		_list.add_child(_player_row(id))
-	_fit_list.call_deferred()
 	var watchers := Net.spectator_ids().map(func(id): return Net.spectator_name(id) + (" (you)" if id == Net.my_id() else ""))
 	_watching.text = "Spectating: %s" % ", ".join(watchers) if not watchers.is_empty() else "Nobody is spectating."
-	_spectate.text = "Play" if Net.spectating() else "Spectate"
-	_spectate.disabled = Net.spectating() and Net.players.size() >= LobbySettings.max_players()
+	if not Net.spectating():
+		Net.moved_by_host = false   # playing again
+	_spectate.text = ("Play" if Net.player_slot_free() else "Play (lobby full)") if Net.spectating() else "Spectate"
+	_spectate.disabled = Net.spectating() and not Net.player_slot_free()
 	_start.visible = Net.is_host()
 	_ready_button.visible = not Net.is_host()
 	_waiting.visible = not Net.is_host()
@@ -189,13 +209,17 @@ func _refresh() -> void:
 	_info.text = "%d of %d players.  %s" % [Net.players.size(), LobbySettings.max_players(), where]
 	if Net.spectating():
 		_info.text = "You are spectating: you will watch the match with a free camera.  " + _info.text
+		if Net.moved_by_host:
+			_info.text = "The host moved you to the spectators. Press Play to join back in when there is room.  " + _info.text
 	_refresh_rules()
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
 		_character.set_color(Net.player_color(Net.my_id()))
 		_weapon.select(Net.player_weapon(Net.my_id()))
+		_show_weapon_card(Net.player_weapon(Net.my_id()))
 		_character.set_weapon(Net.player_weapon(Net.my_id()))
 		_mobility.select(Net.player_loadout_mobility(Net.my_id()))
+		_mobility_button.text = Mobility.short_name(Net.player_loadout_mobility(Net.my_id()))
 
 
 ## One player: colour stripe, name, HOST and YOU tags, robot and gun.
@@ -236,38 +260,77 @@ func _player_row(id: int) -> PanelContainer:
 		kick.custom_minimum_size = Vector2(0, 28)
 		kick.add_theme_font_size_override("font_size", 13)
 		kick.tooltip_text = "Remove %s from the lobby" % Net.player_name(id)
+		var watch := UiKit.button(row, "Spectate", func(): Net.host_move_to_spectators(id))
+		watch.theme_type_variation = "Chip"
+		watch.custom_minimum_size = Vector2(0, 28)
+		watch.add_theme_font_size_override("font_size", 13)
+		watch.tooltip_text = "Move %s to the spectators (they can come back when there is room)" % Net.player_name(id)
 	return card
 
 
 # Character: everyone picks their own robot. Saved as your choice for next time too.
 func _build_character(columns: Node) -> void:
 	Net.confirm_my_character()
+	var loadout := VBoxContainer.new()
+	loadout.add_theme_constant_override("separation", 10)
+	columns.add_child(loadout)
+	# Your robot: the stage, and its name under it, which opens the robot window.
 	_character = CharacterPicker.new(Net.player_character(Net.my_id()), Net.player_color(Net.my_id()),
-		Net.player_weapon(Net.my_id()))
-	columns.add_child(_character)
-	_divider(columns)
-	# Your gun, or (in a race, Gun Game or a Deathmatch) a note saying why there is none to pick.
-	_weapon_box = VBoxContainer.new()
-	_weapon_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_weapon_box.custom_minimum_size = Vector2(520, 0)
-	columns.add_child(_weapon_box)
-	_weapon = WeaponPicker.new(Net.player_weapon(Net.my_id()))
-	_weapon_box.add_child(_weapon)
-	_no_weapon = VBoxContainer.new()
-	_no_weapon.add_theme_constant_override("separation", 8)
-	_weapon_box.add_child(_no_weapon)
-	UiKit.section(_no_weapon, "Weapon")
-	_no_weapon_note = UiKit.label(UiKit.inset(_no_weapon), "", true, 17)
+		Net.player_weapon(Net.my_id()), true)
+	loadout.add_child(_character)
+	_robot_panel = _floating(_character.list)
+	_character.list_requested.connect(func(): _robot_panel.open(_character._name_button))
+	# Your mobility tool: a button with it on, which opens the mobility window.
+	_mobility_box = VBoxContainer.new()
+	_mobility_box.add_theme_constant_override("separation", 8)
+	loadout.add_child(_mobility_box)
+	UiKit.section(_mobility_box, "Mobility")
+	_mobility_button = Button.new()
+	_mobility_button.theme_type_variation = "Chip"
+	_mobility_button.toggle_mode = true
+	_mobility_button.button_pressed = true   # drawn lit, as the pick
+	_mobility_button.custom_minimum_size = Vector2(130, 40)
+	_mobility_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_mobility_button.tooltip_text = "Pick your mobility tool"
+	_mobility_box.add_child(_mobility_button)
 	_mobility = MobilityPicker.new(Net.player_loadout_mobility(Net.my_id()))
-	_character.add_child(_mobility)   # under the robot: that column has the room
+	_mobility.custom_minimum_size = Vector2(480, 0)
+	_mobility_panel = _floating(_mobility)
+	_mobility_button.pressed.connect(func():
+		_mobility_button.set_pressed_no_signal(true)
+		_mobility_panel.open(_mobility_button))
+	# Your weapon: its card, which opens the weapon window; or (in a race, Gun Game,
+	# Killcam, a Deathmatch, or with one gun for everyone) a note saying why there is
+	# none to pick.
+	_weapon_box = VBoxContainer.new()
+	_weapon_box.add_theme_constant_override("separation", 8)
+	loadout.add_child(_weapon_box)
+	UiKit.section(_weapon_box, "Weapon")
+	_weapon_card = WeaponPicker.Card.new(Net.player_weapon(Net.my_id()))
+	_weapon_card.custom_minimum_size = Vector2(150, WeaponPicker.CARD_HEIGHT + 4)
+	_weapon_card.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_weapon_card.button_pressed = true
+	_weapon_card.tooltip_text = "Pick your weapon"
+	_weapon_card.set_meta("sfx", "select")
+	_weapon_box.add_child(_weapon_card)
+	_no_weapon_note = UiKit.label(_weapon_box, "", true, 15)
+	_weapon = WeaponPicker.new(Net.player_weapon(Net.my_id()))
+	_weapon_panel = _floating(_weapon)
+	_weapon_card.pressed.connect(func():
+		_weapon_card.set_pressed_no_signal(true)
+		_weapon_panel.open(_weapon_card))
 	_mobility.picked.connect(func(id: String):
 		Settings.mobility = id
 		Settings.save_settings()
+		_mobility_button.text = Mobility.short_name(id)
+		_mobility_panel.close()
 		Net.set_my_mobility(id))
 	_weapon.picked.connect(func(id: String):
 		Settings.weapon = id
 		Settings.save_settings()
 		_character.set_weapon(id)
+		_show_weapon_card(id)
+		_weapon_panel.close()
 		Net.set_my_weapon(id))
 	if DevArgs.switch_weapon and not Match.last_results.is_empty():
 		get_tree().create_timer(1.2).timeout.connect(func():
@@ -277,7 +340,25 @@ func _build_character(columns: Node) -> void:
 	_character.picked.connect(func(id: String):
 		Settings.character = id
 		Settings.save_settings()
+		_robot_panel.close()
 		Net.set_my_character(id))
+
+
+## A floating window over the page with `what` in it (see FloatingPanel). Beside its
+## button, it starts level with the top of the columns.
+func _floating(what: Control, side: String = "left") -> FloatingPanel:
+	var p := FloatingPanel.new(side)
+	p.top_of = _col
+	p.content.add_child(what)
+	_frame.add_child(p)   # last: drawn over the page, in the menu's theme
+	return p
+
+
+## The weapon card shows this weapon.
+func _show_weapon_card(id: String) -> void:
+	_weapon_card.id = WeaponData.valid(id)
+	_weapon_card.tooltip_text = "%s  ·  pick your weapon" % WeaponData.name_of(id)
+	_weapon_card.queue_redraw()
 	# Dev/test: after a match, come back as the other robot (checks the choice syncs).
 	if DevArgs.switch_character and not Match.last_results.is_empty():
 		get_tree().create_timer(1.0).timeout.connect(func():
@@ -285,36 +366,117 @@ func _build_character(columns: Node) -> void:
 				Net.set_my_character(Characters.next(Net.player_character(Net.my_id()))))
 
 
-# Map: the host picks; everyone else sees it.
-func _build_map() -> void:
-	# Mode first: race maps only show up for a race, arena maps only for a shoot-out.
+# Mode: one button with the mode picked. The host presses it for the mode window (every
+# mode, and a line about the one under the mouse); everyone else just sees it. Mode
+# first: race maps only show up for a race, arena maps only for a shoot-out.
+func _build_mode() -> void:
 	UiKit.section(_col, "Mode")
-	_game_label = UiKit.label(_col, "")
-	_game_row = UiKit.segmented(_col, GunGame.MODE_LABELS, GunGame.MODES.find(GunGame.mode_of(Net.match_settings)), func(i: int):
+	_mode_button = Button.new()
+	_mode_button.theme_type_variation = "Chip"
+	_mode_button.toggle_mode = true
+	_mode_button.button_pressed = true
+	_mode_button.custom_minimum_size = Vector2(170, 44)
+	_mode_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_mode_button.add_theme_font_size_override("font_size", 17)
+	_col.add_child(_mode_button)
+	var window := VBoxContainer.new()
+	window.add_theme_constant_override("separation", 10)
+	window.custom_minimum_size = Vector2(560, 0)
+	UiKit.section(window, "Mode")
+	_game_row = UiKit.segmented(window, GunGame.MODE_LABELS, GunGame.MODES.find(GunGame.mode_of(Net.match_settings)), func(i: int):
 		if _updating:
 			return
+		_mode_panel.close()
 		var m: String = GunGame.MODES[i]
 		var g := GunGame.game_of_mode(m)
-		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 3)   # 3 across: three rows for the seven modes
-	for b in _game_row.get_children():
-		(b as Button).add_theme_font_size_override("font_size", 16)   # "Deathmatch" in a third of the column
-		var short: String = {"Search & Destroy": "S&D", "Capture the Flag": "CTF"}.get((b as Button).text, "")
+		Net.set_match_settings(GunGame.with_mode(Net.match_settings, m, Game.last_map.get(g, Maps.default_id(g)))), 4)
+	_mode_blurb = UiKit.label(window, "", true, 15)
+	_mode_blurb.custom_minimum_size = Vector2(560, 44)   # (a wrapped line needs its width set to know its height)
+	for i in _game_row.get_child_count():
+		var b := _game_row.get_child(i) as Button
+		b.add_theme_font_size_override("font_size", 16)
+		var short: String = {"Search & Destroy": "S&D", "Capture the Flag": "CTF"}.get(b.text, "")
 		if short != "":   # the team modes, by their usual short names (the full name in the tooltip and the rules)
-			(b as Button).tooltip_text = (b as Button).text
-			(b as Button).text = short
+			b.tooltip_text = b.text
+			b.text = short
+		b.mouse_entered.connect(func(): _mode_blurb.text = "%s: %s" % [GunGame.MODE_LABELS[i], GunGame.MODE_BLURBS[i]])
+		b.mouse_exited.connect(_show_mode_blurb)
+	_mode_panel = _floating(window, "below")
+	_mode_button.pressed.connect(func():
+		_mode_button.set_pressed_no_signal(true)
+		if Net.is_host():
+			_show_mode_blurb()
+			_mode_panel.open(_mode_button))
+
+
+## The mode window's line: about the mode picked.
+func _show_mode_blurb() -> void:
+	var i := GunGame.MODES.find(GunGame.mode_of(Net.match_settings))
+	if i >= 0:
+		_mode_blurb.text = "%s: %s" % [GunGame.MODE_LABELS[i], GunGame.MODE_BLURBS[i]]
+
+
+# Map: the host picks; everyone else sees it.
+func _build_map() -> void:
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
 	_map_pick = OptionButton.new()
 	_map_pick.custom_minimum_size = Vector2(0, 44)
-	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
+	Maps.fill(_map_pick, _map_choice(), Net.game_kind(), true)
 	_col.add_child(_map_pick)
 	_map_pick.item_selected.connect(func(_i: int):
 		if _updating:
 			return
 		var s := Net.match_settings.duplicate()
-		s["map"] = Maps.picked(_map_pick)
-		Game.last_map[Net.game_kind()] = s.map
+		var picked := Maps.picked(_map_pick)
+		s["random_map"] = picked == Maps.RANDOM   # the map is picked from the pool as the match starts
+		if picked != Maps.RANDOM:
+			s["map"] = picked
+			Game.last_map[Net.game_kind()] = picked
 		Net.set_match_settings(s))
+	# Random map: the maps it may pick from (only this game's; one always stays ticked).
+	_map_pool = MapPoolPicker.new(Net.match_settings.get("map_pool", []), Net.game_kind(), Net.is_host())
+	_col.add_child(_map_pool)
+	_map_pool.changed.connect(func(ids: Array):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["map_pool"] = ids
+		Net.set_match_settings(s))
+
+
+## What the map drop-down shows: the map, or Random.
+func _map_choice() -> String:
+	return Maps.RANDOM if bool(Net.match_settings.get("random_map", false)) else Net.map_id()
+
+
+# The lobby song (see Music): the host picks it, any time; everyone hears it, in step.
+# In the footer, beside Leave, so the columns keep their room.
+func _build_song() -> void:
+	_song_box = HBoxContainer.new()
+	_song_box.add_theme_constant_override("separation", 8)
+	_frame.footer.add_child(_song_box)
+	var head := UiKit.label(_song_box, "Lobby song", true, 15)
+	head.autowrap_mode = TextServer.AUTOWRAP_OFF
+	head.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_song_pick = OptionButton.new()
+	_song_pick.custom_minimum_size = Vector2(230, 0)
+	_song_pick.add_item(Music.title_of(""))
+	_song_pick.set_item_metadata(0, "")
+	for song in Music.song_names():
+		_song_pick.add_item(Music.title_of(song))
+		_song_pick.set_item_metadata(_song_pick.item_count - 1, song)
+	_song_box.add_child(_song_pick)
+	_song_pick.item_selected.connect(func(i: int):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["song"] = str(_song_pick.get_item_metadata(i))
+		if s != Net.match_settings:
+			Net.set_match_settings(s))
+	_song_label = UiKit.label(_song_box, "", false, 15)
+	_song_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_song_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 
 
 # Win condition: the host picks; everyone else sees it.
@@ -347,7 +509,7 @@ func _build_rules() -> void:
 		var s := Net.match_settings.duplicate()
 		if Net.game_kind() == "race":
 			s.race_minutes = int(v)
-		elif s.mode == "kills":
+		elif s.mode != "time":   # ("kills", or a mode played to a kill target: Golden Gun)
 			s.kills = int(v)
 		else:
 			s.minutes = int(v)
@@ -404,14 +566,6 @@ func _build_rules() -> void:
 # settings get their control here.
 func _build_lobby_settings() -> void:
 	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
-	_allowed = AllowedWeaponsPicker.new(Net.match_settings.get("weapons", []), Net.is_host(), false)
-	_col.add_child(_allowed)
-	_allowed.changed.connect(func(ids: Array):
-		if _updating:
-			return
-		var s := Net.match_settings.duplicate()
-		s["weapons"] = ids
-		Net.set_match_settings(s))
 	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
 	_col.add_child(_allowed_mobility)
 	_allowed_mobility.changed.connect(func(ids: Array):
@@ -419,6 +573,14 @@ func _build_lobby_settings() -> void:
 			return
 		var s := Net.match_settings.duplicate()
 		s["mobility"] = ids
+		Net.set_match_settings(s))
+	_allowed = AllowedWeaponsPicker.new(Net.match_settings.get("weapons", []), Net.is_host(), false)
+	_col.add_child(_allowed)
+	_allowed.changed.connect(func(ids: Array):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["weapons"] = ids
 		Net.set_match_settings(s))
 
 
@@ -429,6 +591,7 @@ func _refresh_rules() -> void:
 	var killcam := KillcamMode.active()
 	var team_mode := Teams.mode()   # "snd", "ctf" or ""
 	var own_rules := gun_game or killcam or team_mode != ""   # a mode with rules of its own: no kills/time choice
+	var golden := GoldenGun.active()   # (first to a kill target the host sets, never a time limit)
 	var kills_mode: bool = s.mode != "time"
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
 	if race:
@@ -441,25 +604,35 @@ func _refresh_rules() -> void:
 		if Net.is_host():   # (the host's boxes below show the points and minutes)
 			_rules_label.text = "Snipers only. Every kill scores its killcam points. The match's #1 killcam earns +%s at the end." \
 				% KillcamMode.format(KillcamMode.BEST_BONUS)
+	if golden:
+		_rules_label.text = "One player has the Golden Gun: one round, and whoever it hits dies. Kill them to take it. Everyone else has their own weapon. First to %d kills." % s.kills
 	if team_mode == "snd":
 		_rules_label.text = "Two teams, Red and Blue, no respawns in a round. The attackers carry a bomb: hold %s on site A or B to plant it. Defenders: hold %s on it to defuse. Blow a site, defuse, or knock the other team out to win the round. Sides swap after %d rounds; first to %d rounds wins." \
 			% [Settings.action_text("interact"), Settings.action_text("interact"), Teams.HALF, Teams.ROUNDS_TO_WIN]
 	elif team_mode == "ctf":
 		_rules_label.text = "Two teams, Red and Blue. Walk over the other team's flag to take it and bring it to your own flag (it must be home) to score. Walk over your own dropped flag to send it home. First to %d captures, or the most after %d minutes." \
 			% [Teams.CAPTURES_TO_WIN, int(Teams.CTF_TIME / 60.0)]
-	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else (Teams.MODE_NAMES[team_mode] if team_mode != "" else Maps.GAME_NAMES.get(Net.game_kind(), "")))
-	_game_label.visible = not Net.is_host()
-	_game_row.visible = Net.is_host()
-	_mode_pick.visible = not race
+	_mode_button.text = GunGame.MODE_LABELS[maxi(GunGame.MODES.find(GunGame.mode_of(s)), 0)]   # as the mode window names it
+	_mode_button.tooltip_text = "Change the game mode" if Net.is_host() else "The host picks the game mode"
+	_mode_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if Net.is_host() else Control.CURSOR_ARROW
+	if not Net.is_host():
+		_mode_panel.close()
+	_show_mode_blurb()
+	_mode_pick.visible = not race and not golden
 	var only := LobbySettings.only_weapon()
 	if _weapon:
 		# No guns in a race; Gun Game hands them out; Killcam is snipers only; a Deathmatch
 		# finds them on the map; the host may have set one gun for everyone.
 		_weapon.set_allowed(LobbySettings.allowed_weapons())
-		_weapon.visible = not race and not gun_game and not killcam and not Net.is_deathmatch() and only == ""
-		_no_weapon.visible = not _weapon.visible
-		_mobility.visible = not race   # a race always has the grapple
+		var pick_weapon := not race and not gun_game and not killcam and not Net.is_deathmatch() and only == ""
+		_weapon_card.disabled = not pick_weapon
+		_weapon_card.visible = not race and not Net.is_deathmatch()   # (a race has none; a Deathmatch finds them)
+		_no_weapon_note.visible = not pick_weapon
+		if not pick_weapon:
+			_weapon_panel.close()
+		_mobility_box.visible = not race   # a race always has the grapple
 		_mobility.set_allowed(LobbySettings.allowed_mobility())
+		_mobility_button.disabled = LobbySettings.only_mobility() != ""
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
 			else ("Killcam is snipers only: every kill scores its killcam points." if killcam \
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
@@ -469,16 +642,29 @@ func _refresh_rules() -> void:
 		_allowed.visible = LobbySettings.weapons_apply()   # a shoot-out: everyone picks their own weapon
 		_allowed.set_editable(Net.is_host())
 		_allowed.preferred = Net.player_loadout_weapon(Net.my_id())
-	_rules_label.visible = not Net.is_host() or own_rules
+	_rules_label.visible = not Net.is_host() or own_rules or golden
 	_host_rules.visible = Net.is_host() and not own_rules
 	_killcam_rules.visible = Net.is_host() and killcam
+	var random := bool(s.get("random_map", false))
 	_map_label.text = Maps.label(Net.map_id())
+	if random:   # everyone else sees the pool below; after a match, what it picked last
+		_map_label.text = "Random map" + ("  ·  last: %s" % Maps.name_of(Net.map_id()) if not Match.last_results.is_empty() else "")
 	_map_label.visible = not Net.is_host()
 	_map_pick.visible = Net.is_host()
+	_map_pool.visible = random
+	_map_pool.set_editable(Net.is_host())
+	_map_pool.set_value(s.get("map_pool", []), Net.game_kind())
+	var song := str(s.get("song", ""))
+	_song_pick.visible = Net.is_host()
+	_song_label.visible = not Net.is_host()
+	_song_label.text = Music.title_of(song)
 	_updating = true
 	for i in _game_row.get_child_count():
 		(_game_row.get_child(i) as Button).set_pressed_no_signal(GunGame.MODES[i] == GunGame.mode_of(s))
-	Maps.fill(_map_pick, Net.map_id(), Net.game_kind())
+	Maps.fill(_map_pick, _map_choice(), Net.game_kind(), true)
+	for i in _song_pick.item_count:
+		if str(_song_pick.get_item_metadata(i)) == song:
+			_song_pick.select(i)
 	_mode_pick.select(0 if kills_mode else 1)
 	_killcam_points.set_value_no_signal(KillcamMode.clean_points(s.get("killcam_points")))
 	_killcam_minutes.set_value_no_signal(KillcamMode.clean_minutes(s.get("killcam_minutes")))
@@ -521,6 +707,12 @@ func _address(ip: String) -> String:
 func _dev_lobby_steps() -> void:
 	if not Match.last_results.is_empty():
 		return
+	if DevArgs.song_at >= 0.0 and Net.is_host():
+		get_tree().create_timer(DevArgs.song_at).timeout.connect(func():
+			if is_inside_tree() and not Net.in_match:
+				var s := Net.match_settings.duplicate()
+				s["song"] = DevArgs.song_later
+				Net.set_match_settings(s))
 	if DevArgs.ready_at >= 0.0 and not Net.is_host():
 		get_tree().create_timer(DevArgs.ready_at).timeout.connect(func():
 			if is_inside_tree() and not Net.in_match:
@@ -531,6 +723,17 @@ func _dev_lobby_steps() -> void:
 				if is_inside_tree() and Net.player_name(id) == DevArgs.kick_name:
 					Net.host_kick(id)
 					return)
+	if DevArgs.move_at >= 0.0 and Net.is_host():
+		get_tree().create_timer(DevArgs.move_at).timeout.connect(func():
+			for id in Net.players:
+				if is_inside_tree() and Net.player_name(id) == DevArgs.move_name:
+					Net.host_move_to_spectators(id)
+					return)
+	for t in DevArgs.play_at:
+		get_tree().create_timer(float(t)).timeout.connect(func():
+			if is_inside_tree() and Net.spectating():
+				print("PLAY_PRESSED")
+				Net.set_spectating(false))
 	if DevArgs.start_when_ready and Net.is_host():
 		Net.players_changed.connect(func():
 			if is_inside_tree() and not Net.in_match and Net.players.size() >= 2 and Net.all_ready():

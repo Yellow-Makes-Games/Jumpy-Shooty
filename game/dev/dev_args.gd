@@ -9,7 +9,7 @@ extends Node
 ## --name=NAME          Player name for this copy of the game.
 ## --autostart=N        Host only: start the match once N players are in the lobby.
 ## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit, templar, or a
-##                      Character Creator id "custom:n=Name|l=kestrel|t=templar|h=rivet|hat=top_hat") without changing the saved choice.
+##                      Character Creator id "custom:n=Name|l=frog|t=human|h=goblin|hat=top_hat") without changing the saved choice.
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
@@ -19,6 +19,8 @@ extends Node
 ## --ready-at=SEC       Lobby: say you are ready SEC seconds after the lobby opens (tests).
 ## --kick-at=SEC:NAME   Host: kick the player called NAME SEC seconds after the lobby opens (tests).
 ## --start-when-ready   Host: start the match as soon as everyone (at least 2) is ready (tests).
+## --move-at=SEC:NAME   Host: move the player called NAME to the spectators SEC seconds after the lobby opens (tests).
+## --play-at=SEC,SEC    Spectator: press Play at these seconds after the lobby opens (tests).
 ## --mobility=ID        Take this mobility tool (grapple, portal, blink) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
@@ -27,6 +29,10 @@ extends Node
 ## --practice           Skip the menus and drop into the arena alone.
 ## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
+##                      --map=random: a random map, picked as the match starts (from --map-pool, if given).
+## --map-pool=ID,ID     The maps a random map may pick from (host, practice and bot; see LobbySettings).
+## --song=NAME          Host: the lobby plays this song (a file name in game/audio/music/, without .mp3).
+## --song-at=SEC:NAME   Host: pick NAME as the lobby song SEC seconds after the lobby opens (tests).
 ## --race               With --practice, --bot or --host and no --map: race on the first race map.
 ## --game=GAME          ffa or dm (Deathmatch: start unarmed, pick weapons up off the map), with --practice, --bot or --host.
 ## --autopilot          Your own racer runs the course like a bot would (race tests and screenshots).
@@ -89,11 +95,18 @@ var ready_at := -1.0              ## --ready-at
 var kick_at := -1.0               ## --kick-at (when)
 var kick_name := ""               ## --kick-at (who)
 var start_when_ready := false     ## --start-when-ready
+var move_at := -1.0               ## --move-at (when)
+var move_name := ""               ## --move-at (who)
+var play_at: Array = []           ## --play-at
 var mobility := ""
 var bot_mobility := ""
 var switch_weapon := false
 var swap_on_death := false
 var map := ""
+var map_pool: Array = []   ## --map-pool (see LobbySettings.pool_for)
+var song := ""             ## --song
+var song_at := -1.0        ## --song-at (when)
+var song_later := ""       ## --song-at (which)
 var race := false
 var game := ""   ## --game=dm: a Deathmatch (on an arena map)
 var autopilot := false
@@ -188,6 +201,12 @@ func _ready() -> void:
 				kick_at = float(value.get_slice(":", 0))
 				kick_name = value.substr(value.find(":") + 1)
 			"--start-when-ready": start_when_ready = true
+			"--move-at":
+				move_at = float(value.get_slice(":", 0))
+				move_name = value.substr(value.find(":") + 1)
+			"--play-at":
+				for t in value.split(",", false):
+					play_at.append(float(t))
 			"--allowed-mobility":
 				for m in value.split(",", false):
 					if Mobility.has(m):
@@ -197,10 +216,20 @@ func _ready() -> void:
 			"--switch-weapon": switch_weapon = true
 			"--swap-on-death": swap_on_death = true
 			"--map":
-				if Maps.has(value):
+				if Maps.has(value) or value == Maps.RANDOM:
 					map = value
 				else:
 					push_warning("Unknown map: %s (maps: %s)" % [value, ", ".join(Maps.ids())])
+			"--map-pool":
+				for m in value.split(",", false):
+					if Maps.has(m):
+						map_pool.append(m)
+					else:
+						push_warning("Unknown map: %s (maps: %s)" % [m, ", ".join(Maps.ids())])
+			"--song": song = value
+			"--song-at":
+				song_at = float(value.get_slice(":", 0))
+				song_later = value.substr(value.find(":") + 1)
 			"--race": race = true
 			"--game":
 				if value in Maps.GAMES:

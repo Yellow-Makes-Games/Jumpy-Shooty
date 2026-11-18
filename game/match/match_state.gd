@@ -33,6 +33,9 @@ signal gun_game_level(id: int, level: int)
 ## A player got a kill, scored for the killcams (see KillScore); `info` is also kept in
 ## `kill_log`. Sent just before player_died for the same kill.
 signal kill_scored(info: Dictionary)
+## Golden Gun: `to` now holds the Golden Gun (`from` lost it, 0 at the start or when it
+## had nobody to go to). See GoldenGun.
+signal golden_gun_passed(to: int, from: int)
 
 const MAX_HEALTH := 100.0
 ## After a death you wait at least this long; then you come back when you press Jump
@@ -190,6 +193,9 @@ func _on_match_started() -> void:
 			scores[id] = {"kills": 0, "deaths": 0, "level": 0, "points": 0}
 			health[id] = MAX_HEALTH
 		_broadcast_state()
+		_golden_own.clear()
+		if GoldenGun.active():
+			_host_give_golden(GoldenGun.pick_next(0), 0)   # a random player starts with it
 
 
 func _on_players_changed() -> void:
@@ -219,6 +225,8 @@ func _on_players_changed() -> void:
 			changed = true
 	if changed:
 		_broadcast_state()
+	if GoldenGun.active() and not _golden_busy and GoldenGun.holder() == 0 and Net.players.size() > 0:
+		_host_give_golden(GoldenGun.pick_next(0), 0)   # the holder left: someone else gets it
 
 
 func _broadcast_state() -> void:
@@ -1267,6 +1275,8 @@ func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = f
 		scores[killer]["points"] = points(killer) + int(scored[1])
 		if KillcamMode.active():
 			finished = points(killer) >= KillcamMode.target()
+	if GoldenGun.active():
+		_host_golden_on_death(victim, killer)   # (before the death goes out: dying sends your own pick)
 	_died.rpc(victim, killer, scores, cause, scored)
 	for m in moves:
 		Net.host_set_weapon(m[0], GunGame.weapon_at(m[1]))
@@ -1290,6 +1300,58 @@ func _gun_game_level(id: int, level: int) -> void:
 ## Killcam: a player's points (their kills' killcam scores, plus the best-killcam bonus at the end).
 func points(id: int) -> int:
 	return int(scores[id].get("points", 0)) if scores.has(id) else 0
+
+
+# ---------------------------------------------------------------------------
+# Golden Gun (see GoldenGun). Who holds it is whose weapon it is (Net.players); the
+# host hands it over.
+
+var _golden_own := {}      # host: id -> the weapon a player had before they got the Golden Gun
+var _golden_busy := false  # host: handing it over (the players change twice on the way)
+
+
+## Host: the holder `victim` died (or someone else did, with it). Killed by another
+## player: the Golden Gun goes to them. Nobody to credit: to someone at random. And a
+## kill with the Golden Gun loads its next round at once.
+func _host_golden_on_death(victim: int, killer: int) -> void:
+	var by_other := killer != 0 and killer != victim and Net.players.has(killer)
+	if by_other and Net.player_weapon(killer) == GoldenGun.WEAPON:
+		_golden_reload.rpc(killer)
+	if Net.player_weapon(victim) != GoldenGun.WEAPON:
+		return
+	_host_give_golden(killer if by_other else GoldenGun.pick_next(victim), victim)
+
+
+## Host: `to` gets the Golden Gun; `from` (if any) gets back the weapon they had.
+func _host_give_golden(to: int, from: int) -> void:
+	if to == 0 or not Net.players.has(to):
+		return
+	_golden_busy = true
+	var own := Net.player_weapon(to)
+	if own != GoldenGun.WEAPON:
+		_golden_own[to] = own
+	Net.host_set_weapon(to, GoldenGun.WEAPON)   # (the new holder first: there is never nobody)
+	if from != 0 and from != to and Net.players.has(from):
+		Net.host_set_weapon(from, LobbySettings.fit_weapon(str(_golden_own.get(from, Net.player_loadout_weapon(from)))))
+	_golden_busy = false
+	_golden_passed.rpc(to, from)
+
+
+@rpc("authority", "call_local", "reliable")
+func _golden_passed(to: int, from: int) -> void:
+	if DevArgs.sync_log:
+		print("GOLDEN %d %d %d" % [Net.my_id(), to, from])
+	golden_gun_passed.emit(to, from)
+
+
+## A kill with the Golden Gun: its next round, on the copy that runs that player.
+@rpc("authority", "call_local", "reliable")
+func _golden_reload(id: int) -> void:
+	var p: Player = Net.arena.get_player(id) if Net.arena else null
+	if p and p.is_local and p.weapon and p.weapon.data.id == GoldenGun.WEAPON:
+		p.weapon.reset()
+		if DevArgs.sync_log:
+			print("GOLDEN_RELOAD %d %d" % [Net.my_id(), id])
 
 
 ## Gun Game: how far along the ladder a player is (0 = the first weapon).

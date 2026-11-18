@@ -6,6 +6,10 @@ extends Node3D
 ## the results screen's own little world (see KillcamScreen).
 ##
 ## Plays once and holds the last frame (`finished`), or, with `loop`, starts over.
+##
+## A blow (a kick, a crash into a wall, a blade; see KillScore.is_blow) plays in third
+## person instead: the killer is a body like everyone else and the camera follows close
+## behind them, turned towards the victim, so you see the swing or the kick land.
 
 signal finished
 signal kill_moment   ## the killing blow lands
@@ -14,6 +18,13 @@ const SLOW := 0.3            ## results screen: the kill plays at this speed...
 const SLOW_FROM := 0.25      ## ...from this long before it...
 const SLOW_UNTIL := 0.45     ## ...to this long after
 const S := MovementController.State
+## Third person: the camera sits this far behind the killer's head...
+const CHASE_BACK := 3.4
+const CHASE_UP := 0.9          ## ...this far above it...
+const CHASE_SIDE := 0.7        ## ...this far to the right...
+const CHASE_EASE := 18.0       ## ...and keeps up at this rate (1/s: tight, so a fast killer stays close)
+const LOOK_EASE := 6.0         ## where it looks turns at this rate (smoother)
+const CHASE_VICTIM := 18.0     ## turns towards the victim when they are this close (m)
 
 var clip: KillClip
 var slow_motion := false
@@ -26,6 +37,8 @@ var done := false
 var camera: Camera3D
 ## Sounds: the killer's gun as your own (2D); others in the world (3D) when `world_sound`.
 var world_sound := true
+## Watched from behind the killer (a blow), not through their eyes.
+var third_person := false
 
 var _puppet: Player          # stands in for the killer, for their first-person arms
 var _view: ViewModel
@@ -40,6 +53,8 @@ var _hook: MeshInstance3D
 var _seen := {}              # killer: swing/kick counters last seen (see _watch)
 var _akimbo_shots := 0
 var _was_reloading := false
+var _chase_ready := false    # third person: the camera has been placed once (then it eases)
+var _chase_look := Vector3.ZERO
 
 
 ## One other player: a body that moves and animates the way the clip says.
@@ -60,6 +75,7 @@ func setup(watch: KillClip, slow: bool = false) -> KillcamView:
 	clip = watch
 	slow_motion = slow
 	name = "Killcam"
+	third_person = KillScore.is_blow(int(clip.info.get("tags", 0)))
 	time = clip.start
 	for e in clip.events:
 		_events.append([clip.event_time(e), e])
@@ -112,6 +128,7 @@ func restart() -> void:
 		(g as Ghost).seen.clear()
 		(g as Ghost).animator.respawn()
 	_seen.clear()
+	_chase_ready = false
 	_frame(0.0)
 
 
@@ -142,10 +159,15 @@ func step(delta: float) -> void:
 
 
 func _frame(delta: float) -> void:
-	_play_killer(delta)
+	if third_person:
+		_play_ghost(clip.killer, delta)
+	else:
+		_play_killer(delta)
 	for id in clip.tracks:
 		if id != clip.killer:
 			_play_ghost(id, delta)
+	if third_person:
+		_chase(delta)
 	while _next < _events.size() and _events[_next][0] <= time:
 		_play_event(_events[_next][1])
 		_next += 1
@@ -220,6 +242,43 @@ func _build_arms(weapon: String, color: Color) -> void:
 	_view.setup(_puppet, color)
 	_view.respawn()
 	_akimbo_shots = 0
+
+
+## Third person: the camera behind and above the killer, looking where they look, or
+## (when the victim is close by and in the clip) between the killer and the victim.
+## It stays on the killer's side of walls.
+func _chase(delta: float) -> void:
+	var track: KillClip.Track = clip.tracks.get(clip.killer)
+	var g: Ghost = _ghosts.get(clip.killer)
+	if track == null or track.is_empty() or g == null:
+		return
+	var f := track.sample(time)
+	var yaw := float(f[2])
+	var head: Vector3 = f[0] + Vector3(0, 1.6, 0)
+	var forward := Vector3.FORWARD.rotated(Vector3.UP, yaw)
+	var right := Vector3.RIGHT.rotated(Vector3.UP, yaw)
+	var look := head + forward * 6.0
+	var victim: Ghost = _ghosts.get(clip.victim)
+	if victim and victim.root.visible:
+		var chest := victim.root.global_position + Vector3(0, 1.1, 0)
+		if chest.distance_to(head) < CHASE_VICTIM:
+			look = head.lerp(chest, 0.6)
+	var want := head - forward * CHASE_BACK + Vector3.UP * CHASE_UP + right * CHASE_SIDE
+	if is_inside_tree():   # stay on this side of a wall
+		var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(head, want))
+		if not hit.is_empty():
+			want = hit.position + (head - hit.position).normalized() * 0.35
+	var k := 1.0 - exp(-CHASE_EASE * delta)
+	var kl := 1.0 - exp(-LOOK_EASE * delta)
+	if not _chase_ready:
+		camera.global_position = want
+		_chase_look = look
+		_chase_ready = true
+	else:
+		camera.global_position = camera.global_position.lerp(want, k)
+		_chase_look = _chase_look.lerp(look, kl)
+	if camera.global_position.distance_to(_chase_look) > 0.05:
+		camera.look_at(_chase_look, Vector3.UP)
 
 
 # ---------------------------------------------------------------------------

@@ -54,7 +54,7 @@ func _play_gun(sound: String) -> void:
 
 ## This player's gun just fired.
 func fired() -> void:
-	if SfxList.FIRE_STEPS.has(weapon_id):
+	if SfxList.FIRE_STEPS.has(WeaponData.look_of(weapon_id)):
 		_fire_t = 0.0
 		_fire_next = 0
 
@@ -247,7 +247,7 @@ func _gun(a: RobotAnimInput, delta: float) -> void:
 		_reload_t = -1.0
 	_reloading = reloading
 	if _reload_t >= 0.0:
-		var steps: Array = SfxList.RELOAD_STEPS.get(weapon_id, [])
+		var steps: Array = SfxList.RELOAD_STEPS.get(WeaponData.look_of(weapon_id), [])
 		_reload_t += delta
 		while _reload_next < steps.size() and _reload_t >= steps[_reload_next][0]:
 			_play_gun(steps[_reload_next][1])
@@ -258,7 +258,7 @@ func _gun(a: RobotAnimInput, delta: float) -> void:
 				_reload_t -= shell
 				_reload_next = 0
 	if _fire_t >= 0.0:
-		var steps: Array = SfxList.FIRE_STEPS.get(weapon_id, [])
+		var steps: Array = SfxList.FIRE_STEPS.get(WeaponData.look_of(weapon_id), [])
 		_fire_t += delta
 		while _fire_next < steps.size() and _fire_t >= steps[_fire_next][0]:
 			_play_gun(steps[_fire_next][1])

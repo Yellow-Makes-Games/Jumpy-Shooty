@@ -7,7 +7,11 @@ extends SceneTree
 ## name or separators in it comes back safe (so a lobby can take one from anyone).
 ## A custom character's model takes each region's triangles from the robot named
 ## for it, every accessory adds triangles on the right bone, and the first-person
-## body still leaves the head (and so a hat) out.
+## body still leaves the head (and so a hat) out. The creatures (a person, a
+## goblin, a frog...: Characters.KITS) are parts like the robots': they mix with
+## them, take the paint, the team colour and a skin tone, borrow the default
+## robot's skeleton and guns, and have first-person arms of their own. The
+## creator's rows step through and list every choice.
 
 var failures := 0
 var _done := false
@@ -39,11 +43,12 @@ func _checks() -> void:
 	_expect("Characters takes a custom id", Characters.has(id) and Characters.valid(id) == id)
 	_expect("its name is its own", Characters.name_of(id) == "Sir Bolt")
 	_expect("its skeleton and arms are its torso's", Characters.body(id).ends_with("templar.glb") and Characters.arms(id).ends_with("templar_arms.glb"))
-	var junk := "custom:n=A|very=long:name|l=dragon|t=../../x|h=rivet|p=plaid|hat=sombrero|face=shades|zz=1"
+	var junk := "custom:n=A|very=long:name|l=dragon|t=../../x|h=rivet|p=plaid|hat=tinfoil|face=shades|shoulder=parrot|s=plaid|zz=1"
 	var fixed := Characters.valid(junk)
 	var f := CustomCharacter.parse(fixed)
 	_expect("unknown parts become the default robot", f.legs == Characters.default_id() and f.torso == Characters.default_id() and f.head == "rivet")
-	_expect("unknown paint and accessories are dropped", f.paint == "" and f.accessories.hat == "" and f.accessories.face == "shades")
+	_expect("unknown paint, skin and accessories are dropped", f.paint == "" and f.skin == "" and f.accessories.hat == ""
+		and f.accessories.face == "shades" and f.accessories.shoulder == "parrot")
 	_expect("a name can't carry separators or run long", CustomCharacter.clean_name("a|b=c:d\nefghijklmnopqrstuvwxyz") == "abcdefghijklmnop")
 	_expect("a plain robot id is untouched", Characters.valid("templar") == "templar" and Characters.valid("nope") == Characters.default_id())
 	_expect("bots after a custom character take the robot after its torso", Characters.next(id) == Characters.next("templar"))
@@ -79,7 +84,7 @@ func _checks() -> void:
 		for a in CustomCharacter.ACCESSORIES[slot]:
 			if a.id == "":
 				continue
-			for torso in ["needle", "bulwark", "templar"]:
+			for torso in ["needle", "bulwark", "frog"]:
 				var one := CustomCharacter.new()
 				one.legs = "vanguard"
 				one.torso = torso
@@ -101,6 +106,88 @@ func _checks() -> void:
 	_expect("first person: the cape and chain are still on the chest", _bone_triangles(m, "chest", "view") > _bone_triangles(
 		RobotModel.new().setup(Characters.body("templar"), Color.RED), "chest", ""))
 	_free(m)
+
+	print("Creatures")
+	var k := CustomCharacter.new()
+	k.name = "Greg"
+	k.legs = "frog"
+	k.torso = "human"
+	k.head = "goblin"
+	k.paint = "blue"
+	k.skin = "deep"
+	k.accessories.tail = "fox_tail"
+	var kid := k.to_id()
+	var kback := CustomCharacter.parse(Characters.valid(kid))
+	_expect("a creature's id reads back the same", Characters.valid(kid) == kid and kback.legs == "frog" and kback.torso == "human"
+		and kback.head == "goblin" and kback.skin == "deep" and kback.accessories.tail == "fox_tail")
+	_expect("a creature's skeleton, guns and arms file are the default robot's", Characters.body(kid).ends_with(Characters.default_id() + ".glb")
+		and Characters.arms(kid).ends_with(Characters.default_id() + "_arms.glb") and Characters.base(kid) == Characters.default_id())
+	_expect("the pickers still list only the robots", Characters.ids().size() == Characters.LIST.size() and not Characters.has("frog")
+		and Characters.has_part("frog") and Characters.part_ids().size() == Characters.LIST.size() + Characters.KITS.size())
+	_expect("skin shows on a person, not on a robot", RobotModel.shows_skin(k) and not RobotModel.shows_skin(CustomCharacter.new()))
+	var greg := RobotModel.new().build(kid, Color.RED)
+	_expect("a creature takes the paint", _has_color(greg, "armor", CustomCharacter.paint_color("blue")))
+	_expect("and the skin tone", _has_color(greg, "skin", CustomCharacter.skin_color("deep")))
+	_expect("it holds the default robot's gun", _has_gun(greg, "pistol"))
+	_free(greg)
+	var team := RobotModel.new().build(kid, Color.RED, false, "pistol", false, Color(0.9, 0.1, 0.1))
+	_expect("a team's colour repaints a creature", _has_color(team, "armor", Color(0.9, 0.1, 0.1)) and not _has_color(team, "armor", CustomCharacter.paint_color("blue")))
+	_free(team)
+	var host_arms := _triangles(RobotModel.new().setup(Characters.arms(Characters.default_id()), Color.RED, true, "pistol"))
+	for kit in Characters.KITS:
+		var whole := CustomCharacter.new()
+		whole.legs = kit.id
+		whole.torso = kit.id
+		whole.head = kit.id
+		var body := RobotModel.new().build(whole.to_id(), Color.RED, false, "rifle")
+		var parts := [_bone_triangles(body, "head", "keep"), _bone_triangles(body, "chest", "keep"), _bone_triangles(body, "thigh_l", "keep")]
+		var armed := _has_gun(body, "rifle")
+		_free(body)
+		var arms := RobotModel.new().build(whole.to_id(), Color.RED, true, "pistol", true)
+		var own := 0   # triangles of the creature's own arms (not the gun's)
+		for s in arms.mesh.mesh.get_surface_count():
+			var mat := arms.mesh.mesh.surface_get_material(s)
+			if mat and not "." in mat.resource_name:
+				own += arms.mesh.mesh.surface_get_array_len(s) / 3 if arms.mesh.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX] == null else (arms.mesh.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+		var arms_gun := _has_gun(arms, "pistol")
+		_free(arms)
+		_expect("%s: a head, a chest and legs (%s triangles), a rifle, and first-person arms (%d triangles) with a pistol" % [kit.name, parts, own],
+			parts[0] > 20 and parts[1] > 20 and parts[2] > 4 and armed and own > 40 and arms_gun)
+	_expect("the default robot's own arms are untouched (%d triangles)" % host_arms, host_arms > 100)
+
+	print("Creator")
+	# Loaded here, not named: the creator uses the autoloads, which a test script can't.
+	var creator: Node = load("res://game/ui/character_creator.gd").new("")
+	root.add_child(creator)
+	creator.set_part("whole", "frog")
+	_expect("the whole-body row sets head, torso and legs", creator.current.head == "frog" and creator.current.torso == "frog" and creator.current.legs == "frog")
+	var all := Characters.part_ids()
+	creator.step_part("head", 1)
+	_expect("a row steps to the next choice", creator.current.head == all[(all.find("frog") + 1) % all.size()] and creator.current.torso == "frog")
+	for i in all.size() - 1:
+		creator.step_part("head", 1)
+	_expect("and comes back round past the robots and the creatures", creator.current.head == "frog")
+	creator.step_part("tail", -1)
+	_expect("an accessory row steps back from None to the last one", creator.current.accessories.tail == CustomCharacter.ACCESSORIES.tail[-1].id)
+	creator.open_list("hat")
+	var list: PopupMenu = creator._list
+	_expect("a row's name lists every choice (%d hats)" % list.item_count, list.item_count == CustomCharacter.ACCESSORIES.hat.size())
+	list.index_pressed.emit(3)
+	_expect("and picking one sets it", creator.current.accessories.hat == CustomCharacter.ACCESSORIES.hat[3].id)
+	list.hide()
+	creator.find_child("skin_deep", true, false).pressed.emit()
+	creator.find_child("paint_gold", true, false).pressed.emit()
+	_expect("the colour grids set the skin and the paint", creator.current.skin == "deep" and creator.current.paint == "gold")
+	_expect("what the creator made is a valid character", Characters.valid(creator.current.to_id()) == creator.current.to_id())
+	creator.queue_free()
+
+
+func _has_gun(model: RobotModel, gun: String) -> bool:
+	for s in model.mesh.mesh.get_surface_count():
+		var mat := model.mesh.mesh.surface_get_material(s)
+		if mat and mat.resource_name.begins_with(gun + "."):
+			return true
+	return false
 
 
 func _triangles(model: RobotModel) -> int:
@@ -125,7 +212,7 @@ func _bone_triangles(model: RobotModel, bone: String, which: String) -> int:
 		for t in range(0, index.size(), 3):
 			if String(mi.skin.get_bind_name(bones[index[t] * per])) == bone:
 				n += 1
-	if which != "view":
+	if which == "":
 		_free(model)
 	return n
 

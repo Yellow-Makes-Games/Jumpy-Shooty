@@ -165,6 +165,7 @@ static func pistol(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) ->
 
 ## A small silhouette of a gun, barrel to the right (kill feed, death screen). Returns its width.
 static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s: float = 1.0) -> float:
+	id = WeaponData.look_of(id)   # (the Golden Gun: the revolver)
 	var shapes := []
 	match id:
 		"shotgun":
@@ -364,6 +365,7 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 
 ## How wide a weapon's icon is at size 1 (to centre it).
 static func weapon_width(id: String) -> float:
+	id = WeaponData.look_of(id)
 	return {"shotgun": 40.0, "rifle": 38.0, "sniper": 49.0, "sword": 40.0, "hammer": 32.0, "dagger": 26.5,
 		"revolver": 26.0, "machine_pistol": 21.0, "akimbo": 24.0, "break_action": 40.0, "smg": 28.0, "burst_rifle": 38.0, "lmg": 46.0,
 		"lever_action": 42.0, "bolt_action": 44.0, "railgun": 44.0, "rocket_launcher": 46.0, "grenade_launcher": 36.0,

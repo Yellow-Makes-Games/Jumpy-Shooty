@@ -31,15 +31,26 @@ static func weapon_at(level: int) -> String:
 
 # ---------------------------------------------------------------------------
 # The menus' mode switch: Shoot-out, Gun Game, Killcam, Search and Destroy, Capture the
-# Flag, Deathmatch or Race. Gun Game, Killcam and the two team modes are played on the
+# Flag, Deathmatch or Race (and Golden Gun, see GoldenGun). Gun Game, Killcam, Golden Gun and the two team modes are played on the
 # arenas ("ffa" maps) with their own rules (match_settings.mode = "gungame", "killcam",
 # "snd" or "ctf", see KillcamMode and Teams); Deathmatch is a game of its own ("dm", on
 # the arenas with weapon pickups).
 
-const MODES := ["ffa", "gungame", "killcam", "snd", "ctf", "dm", "race"]
-const MODE_LABELS := ["Shoot-out", "Gun Game", "Killcam", "Search & Destroy", "Capture the Flag", "Deathmatch", "Race"]
+const MODES := ["ffa", "gungame", "killcam", "golden", "snd", "ctf", "dm", "race"]
+const MODE_LABELS := ["Shoot-out", "Gun Game", "Killcam", "Golden Gun", "Search & Destroy", "Capture the Flag", "Deathmatch", "Race"]
+## A line about each of MODES (the lobby's mode window shows it for the one under the mouse).
+const MODE_BLURBS := [
+	"Everyone for themselves with the weapon they picked. First to the kill target, or the most kills when time runs out.",
+	"Every kill moves you to the next weapon on the ladder. First to get a kill with the last one wins; kicked to death, you go back one.",
+	"Snipers only, and style wins: every kill scores its killcam points for range, headshots, momentum, flicks and trickshots.",
+	"One player holds the Golden Gun: one round, and whoever it hits dies. Kill the holder to take it.",
+	"Two teams, no respawns in a round. The attackers plant a bomb on site A or B; the defenders stop them or defuse it.",
+	"Two teams. Take the other team's flag and bring it home to your own to score.",
+	"Everyone starts unarmed. Weapons float about the map: walk over one to pick it up, and carry two.",
+	"Run a course against the clock and the others, with the grappling hook. No weapons.",
+]
 ## The arena modes with rules of their own (match_settings.mode).
-const RULES := ["gungame", "killcam", "snd", "ctf"]
+const RULES := ["gungame", "killcam", "golden", "snd", "ctf"]
 
 
 ## Which of MODES these match settings are.

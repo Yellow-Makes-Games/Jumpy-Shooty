@@ -299,14 +299,29 @@ func _divider(row: Node) -> void:
 	row.add_child(line)
 
 
-## A "Map" heading and drop-down with the maps for `game`; `current` is selected.
+## A "Map" heading and drop-down with the maps for `game` and "Random map"; `current`
+## is selected. Under it, while Random is picked, the maps it may pick from (a
+## MapPoolPicker, kept in Game.last_map_pool).
 func _map_picker(parent: Node, current: String, game: String = "ffa") -> OptionButton:
 	UiKit.section(parent, "Map")
 	var pick := OptionButton.new()
 	pick.custom_minimum_size = Vector2(0, 46)
-	Maps.fill(pick, current, game)
 	parent.add_child(pick)
+	var pool := MapPoolPicker.new(Game.last_map_pool, game)
+	parent.add_child(pool)
+	pick.set_meta("pool", pool)
+	pool.changed.connect(func(ids: Array): Game.last_map_pool = ids)
+	pick.item_selected.connect(func(_i: int): pool.visible = Maps.picked(pick) == Maps.RANDOM)
+	_fill_map(pick, current, game)
 	return pick
+
+
+## Refill a drop-down made by _map_picker for another kind of game.
+func _fill_map(pick: OptionButton, current: String, game: String) -> void:
+	Maps.fill(pick, current, game, true)
+	var pool: MapPoolPicker = pick.get_meta("pool")
+	pool.set_value(Game.last_map_pool, game)
+	pool.visible = Maps.picked(pick) == Maps.RANDOM
 
 
 ## A "Mode" heading and switch: free-for-all (or 1v1) or race, and Gun Game if
@@ -322,6 +337,12 @@ func _mode_picker(parent: Node, game: String, on_change: Callable, gun_game: boo
 	return mode
 
 
+## The map to select after switching to game `g`: Random stays Random, otherwise the
+## map last picked for that game.
+func _keep_random(pick: OptionButton, g: String) -> String:
+	return Maps.RANDOM if pick and Maps.picked(pick) == Maps.RANDOM else Game.last_map.get(g, Maps.default_id(g))
+
+
 func _show_practice() -> void:
 	_page(1460, "Practice", "Play  /  on your own")
 	var cols := _three_columns()
@@ -329,7 +350,8 @@ func _show_practice() -> void:
 	var set_mode: Callable = cols[1]
 	var note := UiKit.label(left, "", true, 16)
 	note.custom_minimum_size = Vector2(0, 44)
-	var game := Game.last_practice_game if Maps.fits(Game.last_practice_map, Game.last_practice_game) else Maps.game_of(Game.last_practice_map)
+	var game := Game.last_practice_game if Maps.fits(Game.last_practice_map, Game.last_practice_game) or Game.last_practice_map == Maps.RANDOM \
+		else Maps.game_of(Game.last_practice_map)
 	# The map drop-down is made after the mode switch, but the switch refills it, so
 	# the callback reaches it through an array (lambdas copy plain locals when made).
 	var map_ref: Array[OptionButton] = [null]
@@ -341,7 +363,7 @@ func _show_practice() -> void:
 	explain.call(game)
 	var mode := _mode_picker(left, game, func(g: String):
 		explain.call(g)
-		Maps.fill(map_ref[0], Game.last_map.get(g, Maps.default_id(g)), g))
+		_fill_map(map_ref[0], _keep_random(map_ref[0], g), g))
 	var map := _map_picker(left, Game.last_practice_map, mode[0])
 	map_ref[0] = map
 	_frame.back_button("Back", _show_play)
@@ -433,7 +455,7 @@ func _show_bot() -> void:
 	var show_mode := func(g: String):
 		var race := g == "race"
 		var teams: bool = g in Teams.MODES
-		kills_box.visible = g == "ffa" or g == "dm"
+		kills_box.visible = g == "ffa" or g == "dm" or g == "golden"
 		killcam_row.visible = g == "killcam"
 		# Team modes take up to 7 bots (4v4): you are Red, the bots alternate Blue, Red...
 		var most := Game.max_bots(g)
@@ -457,11 +479,11 @@ func _show_bot() -> void:
 	for i in seg.get_child_count():
 		(seg.get_child(i) as Button).pressed.connect(func():
 			level[0] = i
-			blurb.text = (RACE_BLURBS if map_ref[0] and Maps.game_of(Maps.picked(map_ref[0])) == "race" else BOT_BLURBS)[i])
+			blurb.text = (RACE_BLURBS if map_ref[0] and (map_ref[0].get_meta("pool") as MapPoolPicker).game() == "race" else BOT_BLURBS)[i])
 	var mode := _mode_picker(left, game, func(m: String):
 		show_mode.call(m)
 		var g := GunGame.game_of_mode(m)
-		Maps.fill(map_ref[0], Game.last_map.get(g, Maps.default_id(g)), g), true)
+		_fill_map(map_ref[0], _keep_random(map_ref[0], g), g), true)
 	# The mode switch goes first on the page.
 	var mode_row_start := left.get_child_count() - 2
 	left.move_child(left.get_child(mode_row_start), 0)
@@ -513,7 +535,7 @@ func _show_multiplayer() -> void:
 # Character Creator
 
 func _show_creator() -> void:
-	_page(1280, "Character Creator", "Mix any robot's head, torso and legs, then dress it up")
+	_page(1280, "Character Creator", "Robot, dude, goblin, frog: mix any head, torso and legs, then dress it up")
 	var start := Game.local_character()
 	if not Characters.is_custom(start) and not Settings.custom_characters.is_empty():
 		start = Settings.custom_characters[-1]

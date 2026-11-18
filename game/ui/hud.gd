@@ -144,7 +144,13 @@ func _ready() -> void:
 	Match.player_respawned.connect(_on_respawned)
 	Match.gun_game_level.connect(_on_gun_game_level)
 	Match.dummy_hit.connect(_on_dummy_hit)
+	Match.golden_gun_passed.connect(_on_golden_gun_passed)
 	Match.kill_scored.connect(_on_kill_scored)
+
+
+## 0..1: how much of the HUD shows (the end of a match fades it out, see MatchEndFade).
+func set_fade(alpha: float) -> void:
+	_root.modulate.a = alpha
 
 
 func _full_rect(c: Control) -> Control:
@@ -382,6 +388,17 @@ func _age(delta: float) -> void:
 
 
 ## Gun Game: you moved up the ladder (or were kicked back down it).
+## Golden Gun: it changed hands (see GoldenGun).
+func _on_golden_gun_passed(to: int, from: int) -> void:
+	var me := Net.my_id()
+	if to == me:
+		_promo = {"text": "YOU HAVE THE GOLDEN GUN", "sub": "ONE ROUND  ·  WHOEVER IT HITS DIES  ·  A KILL RELOADS IT", "age": 0.0}
+	elif from == me:
+		_promo = {"text": "%s TOOK THE GOLDEN GUN" % Net.player_name(to).to_upper(), "sub": "KILL THEM TO TAKE IT BACK", "age": 0.0}
+	else:
+		_promo = {"text": "%s HAS THE GOLDEN GUN" % Net.player_name(to).to_upper(), "sub": "KILL THEM TO TAKE IT", "age": 0.0}
+
+
 func _on_gun_game_level(id: int, level: int) -> void:
 	if id != Net.my_id():
 		return
@@ -758,6 +775,10 @@ func _draw_score_bar(ci: CanvasItem, size: Vector2) -> void:
 		var lv := Match.level(me)
 		sub = "GUN GAME  ·  LAST WEAPON: GET A KILL TO WIN" if lv >= GunGame.steps() - 1 \
 			else "GUN GAME  ·  NEXT: %s" % WeaponData.name_of(GunGame.weapon_at(lv + 1)).to_upper()
+	elif GoldenGun.active():
+		var holder := GoldenGun.holder()
+		sub = "GOLDEN GUN  ·  YOU HAVE IT: ONE ROUND, WHOEVER IT HITS DIES" if holder == me \
+			else ("GOLDEN GUN  ·  %s HAS IT: KILL THEM TO TAKE IT" % Net.player_name(holder).to_upper() if holder != 0 else "GOLDEN GUN")
 	elif killcam:
 		sub = "KILLCAM  ·  FIRST TO %s  ·  #1 KILLCAM +%s AT THE END" % [KillcamMode.format(KillcamMode.target()), KillcamMode.format(KillcamMode.BEST_BONUS)]
 	if sub != "":

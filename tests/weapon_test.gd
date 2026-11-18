@@ -48,6 +48,17 @@ func _init() -> void:
 		_check(w.damage_at(0.0) == w.damage, "%s: full damage point blank" % id)
 		_check(w.damage_at(1000.0) <= w.damage, "%s: no more damage far away" % id)
 	_check(WeaponData.valid("bazooka") == "pistol", "unknown guns fall back to the pistol")
+	# The Golden Gun (Golden Gun mode): a real weapon nobody can pick.
+	var golden := WeaponData.by_id("golden_gun")
+	_check(golden.id == "golden_gun" and WeaponData.has("golden_gun") and WeaponData.valid("golden_gun") == "golden_gun",
+		"golden gun: a real weapon")
+	_check(not "golden_gun" in WeaponData.IDS and WeaponData.GROUPS.all(func(g): return not "golden_gun" in g[1]),
+		"golden gun: in no picker")
+	_check(golden.magazine == 1 and golden.damage_at(0.0) >= 100.0 and golden.damage_at(300.0) >= 100.0,
+		"golden gun: one round that kills at any range")
+	_check(golden.golden and WeaponData.look_of("golden_gun") == "revolver" and golden.muzzle_bone == "muzzle_revolver",
+		"golden gun: drawn as the revolver, in gold")
+	_check(WeaponData.look_of("rifle") == "rifle" and WeaponData.look_of("none") == "none", "every other weapon looks like itself")
 
 	var shotgun := WeaponData.by_id("shotgun")
 	_check(shotgun.damage_at(5.0) * shotgun.pellets >= 100.0, "shotgun: every pellet at 5 m kills")
