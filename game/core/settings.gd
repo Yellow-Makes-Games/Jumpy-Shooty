@@ -59,6 +59,8 @@ var character: String = Characters.default_id()   # the robot you play as (see C
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
 var mobility: String = Mobility.default_id()       # the tool on the mobility button: grapple, portal gun or blink (see Mobility)
 var player_color := -1   # your colour in a free-for-all: a number in Net.PLAYER_COLORS, or -1 for the first free one
+var calling_card: String = CallingCard.DEFAULT_CARD   # the banner behind your name (see CallingCard)
+var icon: String = CallingCard.DEFAULT_ICON           # the badge beside it
 ## Characters made in the Character Creator, as ids (see CustomCharacter), newest last.
 var custom_characters: Array = []
 const MAX_CUSTOM := 12
@@ -96,6 +98,8 @@ func load_settings() -> void:
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 	player_color = clampi(int(cfg.get_value("profile", "color", player_color)), -1, 15)
+	calling_card = CallingCard.valid_card(str(cfg.get_value("profile", "calling_card", calling_card)))
+	icon = CallingCard.valid_icon(str(cfg.get_value("profile", "icon", icon)))
 	custom_characters.clear()
 	var saved = cfg.get_value("creator", "characters", [])
 	if saved is Array:
@@ -129,6 +133,8 @@ func save_settings() -> void:
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
 	cfg.set_value("profile", "color", player_color)
+	cfg.set_value("profile", "calling_card", calling_card)
+	cfg.set_value("profile", "icon", icon)
 	cfg.set_value("creator", "characters", custom_characters)
 	cfg.set_value("profile", "weapon", weapon)
 	cfg.set_value("profile", "mobility", mobility)

@@ -1,11 +1,14 @@
 class_name AchievementsPanel
 extends GridContainer
 ## The Achievements page's body (main menu > Achievements): a card for every
-## achievement with what to do, how far along you are, and what it unlocks in the
-## Character Creator. The ones you have done are lit. The page (MenuFrame) scrolls.
+## achievement with what to do, how far along you are, and what it unlocks (in the
+## Character Creator, or a calling card or an icon). The ones you have done are lit.
+## The page (MenuFrame) scrolls. Over the cards the page puts medals(): your best
+## time on every race course, and the times to beat.
 
 const COLUMNS := 3
 const DONE := Color(0.45, 0.95, 0.5)
+const MEDAL_COLORS := [Color(0.80, 0.52, 0.30), Color(0.80, 0.84, 0.90), Color(1.0, 0.80, 0.25)]   ## bronze, silver, gold
 
 
 func _init() -> void:
@@ -49,6 +52,49 @@ func _card(a: Dictionary) -> PanelContainer:
 	_line(col, "%s %s" % ["Unlocked:" if done else "Unlocks:", ", ".join(a.rewards.map(Achievements.item_name))], 14,
 		UiKit.CYAN if done else Color(UiKit.CYAN, 0.6)).name = "rewards"
 	return card
+
+
+## Race medals: a card for every course with your best time, the medal it earned,
+## and the bronze, silver and gold times.
+static func medals() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.name = "medals"
+	row.add_theme_constant_override("separation", 10)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for course in Achievements.MEDALS:
+		var best := Achievements.best_time(course)
+		var tier := Achievements.medal(course, best)
+		var card := PanelContainer.new()
+		card.name = course
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var box := UiKit.cut_box(Color(1, 1, 1, 0.04), 8, 14, 9)
+		box.border_width_left = 3
+		box.border_color = MEDAL_COLORS[tier] if tier >= 0 else Color(UiKit.LINE, 0.5)
+		card.add_theme_stylebox_override("panel", box)
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 3)
+		card.add_child(col)
+		var top := HBoxContainer.new()
+		col.add_child(top)
+		var title := UiKit.label(top, Maps.name_of(course), false, 17)
+		title.add_theme_font_override("font", HudStyle.font(true))
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var mine := UiKit.label(top, "%s  %s" % [Achievements.MEDAL_NAMES[tier].to_upper(), Race.format_time(best)] if tier >= 0
+			else (Race.format_time(best) if best > 0.0 else "NO TIME YET"), false, 13)
+		mine.name = "best"
+		mine.autowrap_mode = TextServer.AUTOWRAP_OFF
+		title.autowrap_mode = TextServer.AUTOWRAP_OFF
+		title.clip_text = true
+		mine.add_theme_color_override("font_color", MEDAL_COLORS[tier] if tier >= 0 else UiKit.TEXT_DIM)
+		var times := HBoxContainer.new()
+		times.add_theme_constant_override("separation", 14)
+		col.add_child(times)
+		for i in 3:
+			var t := UiKit.label(times, "%s %s" % [Achievements.MEDAL_NAMES[i].capitalize(), Race.format_time(Achievements.MEDALS[course][i])], false, 14)
+			t.autowrap_mode = TextServer.AUTOWRAP_OFF
+			t.add_theme_color_override("font_color", MEDAL_COLORS[i] if tier >= i else Color(MEDAL_COLORS[i], 0.55))
+		row.add_child(card)
+	return row
 
 
 ## One line of text that is cut short, not wrapped, if the card is narrow.

@@ -36,6 +36,7 @@ func _ready() -> void:
 		"settings": _show_settings()
 		"creator": _show_creator()
 		"achievements": _show_achievements()
+		"card": _show_calling_card()
 		_: _show_main()
 
 
@@ -117,6 +118,7 @@ func _show_main() -> void:
 	UiKit.primary_button(left, "Play", _show_play).grab_focus()
 	_front_button(left, "Multiplayer", _show_multiplayer)
 	_front_button(left, "Character Creator", _show_creator)
+	_front_button(left, "Calling Card", _show_calling_card)
 	_front_button(left, "Achievements", _show_achievements)
 	_front_button(left, "Settings", _show_settings)
 	_front_button(left, "Exit", Game.quit_game)
@@ -570,12 +572,24 @@ func _show_creator() -> void:
 	lock.call()
 
 
+# Calling Card: the banner and the badge other players see with your name.
+func _show_calling_card() -> void:
+	_page(1280, "Calling Card", "Your banner and icon  /  play to unlock more")
+	_frame.body.add_child(CallingCardPicker.new())
+	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Achievements", _show_achievements).custom_minimum_size.x = 220
+
+
 # Achievements: what you have done, how far along the rest are, and what each unlocks.
 func _show_achievements() -> void:
 	var counts := Achievements.item_counts()
-	_page(1280, "Achievements", "%d of %d done  /  %d of %d creator items unlocked" % [Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1]])
+	_page(1280, "Achievements", "%d of %d done  /  %d of %d items unlocked" % [Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1]])
+	UiKit.section(_frame.body, "Race medals")
+	_frame.body.add_child(AchievementsPanel.medals())
+	UiKit.section(_frame.body, "Achievements")
 	_frame.body.add_child(AchievementsPanel.new())
 	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Calling Card", _show_calling_card).custom_minimum_size.x = 220
 
 
 func _show_settings() -> void:

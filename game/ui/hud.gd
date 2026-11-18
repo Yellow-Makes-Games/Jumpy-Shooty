@@ -971,9 +971,11 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	if _killer != 0:
 		_killer_view.position = card.position + Vector2(18, -26)
 		HudStyle.label(ci, Vector2(x, y + 30), "ELIMINATED BY", 12, HudStyle.RED)
-		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
+		# Their calling card, with their name on it.
+		CallingCard.draw(ci, Rect2(x - 10, y + 39, card.end.x - x - 6, 44), Net.player_card(_killer), Net.player_icon(_killer), 0.7)
+		HudStyle.text(ci, Vector2(x + 40, y + 61), Net.player_name(_killer), 30, stripe.lightened(0.45))
 		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), _killed_how]
-		HudStyle.text(ci, Vector2(x, y + 92), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+		HudStyle.text(ci, Vector2(x, y + 97), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
 		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
 		if _killed_by_head:
 			chips.append("HEADSHOT")

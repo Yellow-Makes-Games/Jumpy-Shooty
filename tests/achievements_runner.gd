@@ -29,6 +29,8 @@ func run() -> void:
 			match kind:
 				"part": real = Characters.has_part(id) and not id in ["human", "goblin", "frog", Characters.default_id()]
 				"paint": real = CustomCharacter.paint_color(id).a > 0.0
+				"card": real = CallingCard.valid_card(id) == id and id != CallingCard.DEFAULT_CARD
+				"icon": real = CallingCard.valid_icon(id) == id and id != CallingCard.DEFAULT_ICON
 				_: real = kind in CustomCharacter.SLOTS and CustomCharacter.accessory_name(kind, id) != "None"
 			if not real or seen.has(key):
 				bad.append(key)
@@ -41,6 +43,12 @@ func run() -> void:
 		"a locked item says what it needs (%s)" % Achievements.requirement("hat:crown"))
 	_expect(Achievements.item_name("hat:crown") == "Crown" and Achievements.item_name("part:ninja") == "Ninja" and Achievements.item_name("paint:gold") == "Gold paint",
 		"items go by their creator names")
+	_expect(Achievements.item_name("card:sunset") == "Sunset Drive calling card" and Achievements.item_name("icon:skull") == "Skull icon",
+		"a calling card and an icon say what they are")
+	var ids := {}
+	for a in Achievements.LIST:
+		ids[a.id] = true
+	_expect(ids.size() == Achievements.LIST.size(), "no two achievements share an id")
 
 	print("  kills")
 	Net.start_offline("Host", "needle", "pistol")
@@ -92,7 +100,97 @@ func run() -> void:
 	Race.gate_passed.emit(1, 3, 41.5, true)
 	_expect(Achievements.stat("races") == 2 and Achievements.stat("clean_races") == 1 and Achievements.stat("race_wins") == 1 and Achievements.stat("courses") == 1,
 		"second, after resets, on the same course: only the race counts")
+	_expect(Achievements.stat("bronze_medals") == 1 and Achievements.stat("gold_medals") == 1 and is_equal_approx(Achievements.best_time("rooftop_run"), 41.5),
+		"a time under gold is a bronze, a silver and a gold medal, each once, and your best time")
+	Net.match_settings["map"] = "foundry"
+	Race.gate_passed.emit(1, 3, 90.0, true)
+	Race.gate_passed.emit(1, 3, 95.0, true)
+	_expect(Achievements.stat("bronze_medals") == 2 and Achievements.stat("silver_medals") == 1 and Achievements.stat("gold_medals") == 1
+		and is_equal_approx(Achievements.best_time("foundry"), 90.0), "a slower run on another course: bronze only, and the quicker time is kept")
+	_expect(Achievements.medal("foundry", 74.0) == 2 and Achievements.medal("foundry", 74.01) == 1 and Achievements.medal("foundry", 200.0) == -1
+		and Achievements.medal("nowhere", 1.0) == -1, "medal times are to beat or match")
+	var in_order := true
+	for course in Achievements.MEDALS:
+		var t: Array = Achievements.MEDALS[course]
+		in_order = in_order and Maps.game_of(course) == "race" and t[0] > t[1] and t[1] > t[2] and t[2] > 0.0
+	_expect(in_order and Achievements.MEDALS.size() == Maps.ids().filter(func(id): return Maps.game_of(id) == "race").size(),
+		"every race course has bronze, silver and gold times, each quicker than the last")
 	Race.progress = {}
+	Net.match_settings["map"] = "construction_site"
+
+	print("  weapons, streaks and feats")
+	var before := Achievements.stat("sidearm_kills")
+	for weapon in ["shotgun", "rifle", "sniper", "rocket_launcher", "sword", "kick", "shotgun"]:
+		var k := _kill(1, bot, 0)
+		k.weapon = weapon
+		Match.kill_scored.emit(k)
+	_expect(Achievements.stat("sidearm_kills") == before and Achievements.stat("shotgun_kills") == 2 and Achievements.stat("rifle_kills") == 1
+		and Achievements.stat("marksman_kills") == 1 and Achievements.stat("explosive_kills") == 1, "a kill counts for its weapon's group")
+	_expect(Achievements.stat("weapons_used") == 6, "six different weapons so far: a kick is not one, and a weapon counts once (%d)" % Achievements.stat("weapons_used"))
+	_expect(Achievements.stat("streaks_5") == 1 and Achievements.stat("streaks_10") == 0, "that was 7 kills without dying: On a Roll")
+	for i in 3:
+		Match.kill_scored.emit(_kill(1, bot, 0))
+	_expect(Achievements.stat("streaks_10") == 1 and not Achievements.locked("card:inferno"), "10 without dying unlocks the Inferno card")
+	var revenges := Achievements.stat("revenges")
+	Match.death_cause[1] = ""
+	Match.player_died.emit(1, bot)
+	for i in 4:
+		Match.kill_scored.emit(_kill(1, bot, 0))
+	_expect(Achievements.stat("streaks_5") == 1 and Achievements.stat("revenges") == revenges + 1, "dying starts the count again; killing who killed you is revenge, once")
+	var big := _kill(1, bot, 0, 3)
+	big.merge({"score": 420, "distance": 104.0, "speed": 26.0}, true)
+	Match.kill_log = [big]
+	Match.kill_scored.emit(big)
+	Match.kill_log = []
+	_expect(Achievements.stat("big_kills") == 1 and Achievements.stat("far_kills") == 1 and Achievements.stat("very_far_kills") == 1
+		and Achievements.stat("sonic_kills") == 1 and Achievements.stat("quads") == 1 and Achievements.stat("first_kills") == 1,
+		"a 420 point quad kill from 104 m at 26 m/s, first of the match: all of those count")
+	var deaths := Achievements.stat("deaths")
+	Match.death_cause[1] = "fell"
+	Match.player_died.emit(1, 0)
+	Match.death_cause[1] = ""
+	Match.player_died.emit(1, 1)
+	_expect(Achievements.stat("deaths") == deaths + 2 and Achievements.stat("falls") == 1 and Achievements.stat("self_kills") == 1, "a fall and an own goal are deaths of their own kind")
+
+	print("  modes")
+	var wins := Achievements.stat("wins")
+	var mine := {"id": 1, "kills": 6, "deaths": 0}
+	var theirs := {"id": bot, "kills": 5, "deaths": 6}
+	Match.match_over.emit([mine, theirs])
+	_expect(Achievements.stat("wins") == wins + 1 and Achievements.stat("close_wins") == 1 and Achievements.stat("flawless_wins") == 1,
+		"6 kills to 5 with no deaths: a win by one, and a flawless one")
+	_expect(Achievements.stat("expert_wins") == 0 and Achievements.stat("online_matches") == 0, "a Normal bot, offline: no more than that")
+	var expert := Net.add_bot(3)
+	Net.match_settings["mode"] = "gungame"
+	Match.match_over.emit([mine, {"id": expert, "kills": 2, "deaths": 6}, theirs])
+	Net.match_settings["mode"] = "killcam"
+	Match.match_over.emit([mine, theirs])
+	Net.match_settings["mode"] = "golden"
+	Match.match_over.emit([mine, theirs])
+	Match.match_over.emit([theirs, mine])
+	Net.match_settings["mode"] = ""
+	_expect(Achievements.stat("gun_game_wins") == 1 and Achievements.stat("killcam_wins") == 1 and Achievements.stat("golden_gun_wins") == 1,
+		"a win counts for its mode (a loss does not)")
+	_expect(Achievements.stat("close_wins") == 2 and Achievements.stat("expert_wins") == 3, "by one kill in Golden Gun too; and all three were against an Expert bot")
+	var team_wins := Achievements.stat("team_wins")
+	Match.match_over.emit([{"id": bot, "kills": 9, "deaths": 1, "team": 0, "team_won": true}, {"id": 1, "kills": 0, "deaths": 3, "team": 0, "team_won": true}])
+	_expect(Achievements.stat("team_wins") == team_wins + 1 and Achievements.stat("close_wins") == 2, "a team's win is a team win")
+	Net.is_online = true
+	Match.match_over.emit([theirs, mine])
+	_expect(Achievements.stat("online_matches") == 0, "online with only bots is not company")
+	for id in [2, 3, 4]:
+		Net.players[id] = {"name": "Guest %d" % id, "color": id, "character": "needle", "weapon": "pistol"}
+	Match.match_over.emit([theirs, mine])
+	_expect(Achievements.stat("online_matches") == 1 and Achievements.stat("hosted") == 1, "four people in your lobby: an online match, and one you hosted")
+	for id in [2, 3, 4]:
+		Net.players.erase(id)
+	Net.is_online = false
+	Teams.event.emit("bomb_planted", 0, 1)
+	Teams.event.emit("bomb_planted", 0, bot)
+	Teams.event.emit("bomb_defused", 1, 1)
+	Teams.event.emit("flag_captured", 0, 1)
+	Teams.event.emit("flag_taken", 0, 1)
+	_expect(Achievements.stat("plants") == 1 and Achievements.stat("defuses") == 1 and Achievements.stat("captures") == 1, "your plants, defuses and captures count")
 
 	print("  the Character Creator")
 	var creator: Node = load("res://game/ui/character_creator.gd").new("")
@@ -140,7 +238,9 @@ func run() -> void:
 	Settings.custom_characters = []
 	Achievements._load()
 	_expect(Achievements.stat("kills") == kills and Achievements.stat("wall_kills") == 10 and not Achievements.locked("hat:crown")
-		and not Achievements.locked("part:ninja") and Achievements._courses.has("rooftop_run"), "counts, kept items and courses come back from the file")
+		and not Achievements.locked("part:ninja") and Achievements._sets.courses.has("rooftop_run"), "counts, kept items and courses come back from the file")
+	_expect(Achievements.stat("gold_medals") == 1 and Achievements.stat("bronze_medals") == 2 and Achievements.stat("weapons_used") == 6
+		and is_equal_approx(Achievements.best_time("foundry"), 90.0), "and so do the medals, the weapons you have used and your best times")
 	_announced.clear()
 	Achievements.add("deaths")
 	_expect(_announced.is_empty(), "and nothing already done is announced again")

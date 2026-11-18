@@ -236,6 +236,7 @@ func _player_row(id: int) -> PanelContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	card.add_child(row)
+	row.add_child(CallingCardView.of_player(id, Vector2(64, 28)))   # their calling card and icon
 	var name_label := UiKit.label(row, Net.player_name(id), false, 18)
 	name_label.add_theme_font_override("font", HudStyle.font(true))
 	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -259,6 +260,9 @@ func _player_row(id: int) -> PanelContainer:
 	who.custom_minimum_size = Vector2(60, 0)
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	if Net.is_host() and Net.is_online and id != Net.my_id() and not Net.is_bot(id):
+		# The host's buttons need the room: what they picked moves to the row's tooltip.
+		who.visible = false
+		card.tooltip_text = who.text
 		var kick := UiKit.button(row, "Kick", func(): Net.host_kick(id))
 		kick.theme_type_variation = "Chip"
 		kick.custom_minimum_size = Vector2(0, 28)
