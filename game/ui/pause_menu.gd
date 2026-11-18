@@ -92,7 +92,10 @@ func _show_loadout() -> void:
 		Settings.weapon = picked.weapon
 		Settings.save_settings()
 		Net.set_loadout(picked.character, picked.weapon)
-		_show_main())
+		if dead:
+			visible = false   # back to the death screen, to respawn with it
+		else:
+			_show_main())
 
 
 func _show_settings() -> void:

@@ -33,7 +33,13 @@ signal gun_game_level(id: int, level: int)
 signal kill_scored(info: Dictionary)
 
 const MAX_HEALTH := 100.0
+## After a death you wait at least this long; then you come back when you press Jump
+## or Fire (see request_respawn), so there is time to change your loadout first.
+## Bots, and you in Practice, come back on their own.
 const RESPAWN_DELAY := 3.0
+## A press this close to the end of the wait still counts (the client's own countdown
+## can run a little ahead of the host's).
+const RESPAWN_EARLY := 0.3
 const MAX_REWIND := 0.6           ## seconds; older views are clamped (anti-abuse)
 const HIT_FORGIVENESS := 0.08     ## metres added to player radius when checking hits
 const HEAD_HEIGHT := 1.45         ## a hit above this height (from the feet) is a headshot
@@ -52,8 +58,10 @@ var running := false
 var scores: Dictionary = {}
 ## id -> float
 var health: Dictionary = {}
-## id -> seconds until respawn (only for dead players)
+## id -> seconds until respawn (only for dead players); at 0 it waits for them to ask
 var respawn_timers: Dictionary = {}
+## Host: dead players who asked to come back (id -> true), respawned once their wait is over.
+var respawn_asked: Dictionary = {}
 ## Results of the last finished match, for the results screen.
 var last_results: Array = []
 
@@ -156,6 +164,7 @@ func _on_match_started() -> void:
 		scores.clear()
 		health.clear()
 		respawn_timers.clear()
+		respawn_asked.clear()
 		_last_shot_time.clear()
 		_last_slam_time.clear()
 		_last_shove.clear()
@@ -190,6 +199,7 @@ func _on_players_changed() -> void:
 			scores.erase(id)
 			health.erase(id)
 			respawn_timers.erase(id)
+			respawn_asked.erase(id)
 			changed = true
 	if changed:
 		_broadcast_state()
@@ -223,9 +233,10 @@ func _process(delta: float) -> void:
 	if not Net.is_host():
 		return
 	for id in respawn_timers.keys():
-		respawn_timers[id] -= delta
-		if respawn_timers[id] <= 0.0:
+		respawn_timers[id] = maxf(respawn_timers[id] - delta, 0.0)
+		if respawn_timers[id] <= 0.0 and (respawn_asked.has(id) or not respawn_needs_press(id)):
 			respawn_timers.erase(id)
+			respawn_asked.erase(id)
 			_host_respawn(id)
 	if Net.is_deathmatch():
 		_host_pickups(delta)
@@ -1123,6 +1134,7 @@ func _host_kill(victim: int, killer: int, cause: String = "", headshot: bool = f
 	if killer != 0 and killer != victim and scores.has(killer):
 		scores[killer].kills += 1
 	respawn_timers[victim] = RESPAWN_DELAY
+	respawn_asked.erase(victim)
 	_last_shove.erase(victim)
 	var finished := false
 	var moves := []   # Gun Game: [id, new level]
@@ -1227,8 +1239,42 @@ func _host_respawn(id: int) -> void:
 	_respawned.rpc(id, _respawn_counter)
 
 
+## Whether this player comes back only when they ask (a person in a match), or on
+## their own when the wait is over (a bot, or Practice).
+func respawn_needs_press(id: int) -> bool:
+	return not (Net.is_bot(id) or Game.mode == Game.Mode.PRACTICE or Race.active)
+
+
+## You are dead and want to come back: as soon as the wait is over, or now if it is.
+## A press well before the end of the wait is ignored (press again).
+func request_respawn() -> void:
+	if not running:
+		return
+	if Net.is_host():
+		_host_ask_respawn(Net.my_id())
+	else:
+		_ask_respawn.rpc_id(1)
+
+
+@rpc("any_peer", "reliable")
+func _ask_respawn() -> void:
+	_host_ask_respawn(multiplayer.get_remote_sender_id())
+
+
+func _host_ask_respawn(id: int) -> void:
+	if not Net.is_host() or not running or not respawn_timers.has(id):
+		return
+	var early: bool = respawn_timers[id] > RESPAWN_EARLY
+	if DevArgs.sync_log:
+		print("RESPAWN_ASK %d %.2f %s" % [id, respawn_timers[id], "early" if early else "ok"])
+	if not early:
+		respawn_asked[id] = true
+
+
 @rpc("authority", "call_local", "reliable")
 func _respawned(id: int, spawn_index: int) -> void:
+	if DevArgs.sync_log:
+		print("RESPAWNED %d" % id)
 	health[id] = MAX_HEALTH
 	player_respawned.emit(id, spawn_index)
 	state_changed.emit()
@@ -1285,6 +1331,7 @@ func _match_over(results: Array, best: Array = []) -> void:
 	running = false
 	last_results = results
 	respawn_timers.clear()
+	respawn_asked.clear()
 	highlights.clear()
 	for p in best:
 		highlights.append(kill_info(p))

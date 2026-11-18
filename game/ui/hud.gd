@@ -25,6 +25,8 @@ const DEATH_W := 600.0          ## the death screen's left column
 const BOARD_W := 680.0          ## the scoreboard
 const DEATH_GAP := 36.0
 const DEATH_TOP := 104.0
+const RESPAWN_GRACE := 0.5      ## the death screen ignores the respawn key for this long
+                                ## (a press meant to skip the killcam does not respawn you too)
 
 ## Everything the layouts show about the local player, filled in once per frame.
 class View:
@@ -81,6 +83,8 @@ var _killer_dist := -1.0
 var _killed_by_head := false
 var _killer_view: RobotPreview   # the robot that got you, on the death screen
 var _respawn_left := 0.0
+var _screen_age := 0.0          # how long the death screen has been up (not the killcam)
+var _asked := false             # asked to respawn (Match.request_respawn)
 var _pulse := 0.0
 var _board_age := 0.0
 var _race: HudRace
@@ -217,6 +221,9 @@ func update_local(p: Player) -> void:
 	if _respawn_left > 0.0:
 		_respawn_left = maxf(_respawn_left - delta, 0.0)
 	var watching := _dead and Killcam.watching()   # the killcam has the screen while it plays
+	_screen_age = _screen_age + delta if _dead and not watching else 0.0
+	if _dead and not _asked and _respawn_left <= 0.0 and DevArgs.auto_respawn():
+		_ask_respawn()   # tests: nobody is there to press a key
 	_scoreboard.visible = Input.is_action_pressed("scoreboard") or (_dead and not watching)
 	_killer_view.visible = _dead and _killer != 0 and not watching
 	if _scoreboard.visible:
@@ -336,9 +343,36 @@ func _on_died(victim: int, killer: int) -> void:
 			_killer_view.show_robot(Net.player_character(_killer), Net.player_color(_killer))
 		_killer_view.visible = _killer != 0
 		_respawn_left = Match.RESPAWN_DELAY
+		_screen_age = 0.0
+		_asked = false
 		_arrows.clear()
 		_numbers.clear()
 		_refresh_scoreboard()
+
+
+## Dead: Jump or Fire brings you back once the wait is over (you can change your
+## loadout first; see Match.request_respawn). Not while the killcam plays (they skip
+## it there), nor in the first RESPAWN_GRACE seconds of the death screen.
+func _unhandled_input(event: InputEvent) -> void:
+	if not _dead or _asked or Race.active or Killcam.watching() or not Match.respawn_needs_press(Net.my_id()):
+		return
+	if event.is_echo() or not (event.is_action_pressed("jump") or event.is_action_pressed("fire")):
+		return
+	if Net.arena and Net.arena.menu_open():
+		return
+	get_viewport().set_input_as_handled()
+	if _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE:
+		if DevArgs.sync_log:
+			print("RESPAWN TOO SOON %.2f %.2f" % [_respawn_left, _screen_age])
+		return
+	if DevArgs.sync_log:
+		print("RESPAWN BY %s %.2f" % [event.as_text(), _screen_age])
+	_ask_respawn()
+
+
+func _ask_respawn() -> void:
+	_asked = true
+	Match.request_respawn()
 
 
 func _on_respawned(id: int, _spawn_index: int) -> void:
@@ -369,9 +403,9 @@ func _draw_overlay() -> void:
 			_race.draw(ci, size, self)
 	else:
 		if _dead and Killcam.watching():
-			var back := "BACK IN %.1f S" % _respawn_left
+			var back := "RESPAWN IN %.1f S" % _respawn_left if _respawn_left > 0.0 else ""
 			KillcamOverlay.draw(ci, Rect2(Vector2.ZERO, size), Killcam.view, "KILLCAM",
-				"%s  SKIP   ·   %s" % [Settings.action_text("jump").to_upper(), back] if Killcam.can_skip() else back)
+				("%s  SKIP" % Settings.action_text("jump").to_upper() + ("   ·   " + back if back != "" else "")) if Killcam.can_skip() else back)
 		elif _dead:
 			_draw_death(ci, size)
 		_draw_score_bar(ci, size)
@@ -668,8 +702,23 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	ci.draw_rect(bar, Color(1, 1, 1, 0.15))
 	ci.draw_rect(Rect2(bar.position, Vector2(w * progress, bar.size.y)), HudStyle.ORANGE)
 	ci.draw_rect(Rect2(bar.position.x + w * progress - 2.0, bar.position.y - 3.0, 4.0, 12.0), Color.WHITE)
-	HudStyle.label(ci, Vector2(bar.position.x, bar.end.y + 18.0), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
-	HudStyle.text(ci, Vector2(bar.end.x, bar.end.y + 18.0), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	var row := bar.end.y + 18.0
+	if not Match.respawn_needs_press(Net.my_id()):
+		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
+		HudStyle.text(ci, Vector2(bar.end.x, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	elif _asked:
+		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING...", 12, HudStyle.ORANGE)
+	elif _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE:
+		HudStyle.label(ci, Vector2(bar.position.x, row), "PICK YOUR LOADOUT", 12, Color(1, 1, 1, 0.85))
+		HudStyle.text(ci, Vector2(bar.end.x, row), "%.1f s" % _respawn_left if _respawn_left > 0.0 else "", 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
+	else:   # ready: a pulsing call to come back
+		var a := 0.75 + 0.25 * sin(_pulse * 5.0)
+		var keys := "%s OR %s" % [Settings.action_text("jump").to_upper(), Settings.action_text("fire").to_upper()]
+		var w1 := HudStyle.text(ci, Vector2(bar.position.x, row + 2.0), keys, 16, Color(HudStyle.ORANGE, a))
+		HudStyle.label(ci, Vector2(bar.position.x + w1 + 10.0, row + 2.0), "TO RESPAWN", 12, Color(1, 1, 1, a))
+	if Match.respawn_needs_press(Net.my_id()) and not _asked:
+		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0 if _respawn_left <= 0.0 and _screen_age >= RESPAWN_GRACE else row + 22.0),
+			"ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	var mid := card.position.x + w * 0.5
 	if Net.is_deathmatch():
 		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,

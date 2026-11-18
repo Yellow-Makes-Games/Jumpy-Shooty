@@ -270,8 +270,11 @@ func _start_death_cam(clip: KillClip) -> void:
 		var kt: KillClip.Track = clip.tracks[clip.killer]
 		print("KILLCAM PLAY %d %d %d %d %.2f %.2f" % [Net.my_id(), clip.killer, int(clip.info.seq), kt.frames.size(), kt.first_time() - clip.kill_time, kt.last_time() - clip.kill_time])
 	view.finished.connect(func():
-		if DevArgs.sync_log and view == playing:   # (not one that was just stopped)
-			print("KILLCAM DONE %d" % Net.my_id()))
+		if view != playing:
+			return   # (one that was just stopped)
+		if DevArgs.sync_log:
+			print("KILLCAM DONE %d" % Net.my_id())
+		stop())   # on to the death screen, to pick a loadout and respawn
 	started.emit()
 
 

@@ -126,7 +126,8 @@ Networked and bot runs (real time):
   terminal on the host, a client across the room cannot, a late joiner is told how far
   along the event is, and bots use the terminal and keep moving in low gravity;
 - killcams (`tests/run_killcam_test.sh`): Vs Bots (in game time), the killcam plays each
-  time the bot gets you and runs until you respawn, Jump skips it (not in its first 0.75 s), and the results
+  time the bot gets you and runs until you respawn, Jump skips it (not in its first 0.75 s),
+  with `--manual-respawn` Jump brings you back (and nothing else does), and the results
   screen plays the best kills and saves the best as a video; online, a host and a client on a laggy network each
   watch their killcams, score every kill the same, show each killer their kill's points
   (adding up to its score), pick the same best three and have a clip of each;
@@ -235,6 +236,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
+| `--manual-respawn` | Respawn only on a Jump or Fire press, as in a real game, even headless or with `--scripted-input` (which otherwise ask to respawn as soon as the wait is over) |
 | `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar` without changing your saved choice |
