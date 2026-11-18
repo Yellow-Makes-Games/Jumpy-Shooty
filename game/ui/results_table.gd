@@ -12,8 +12,9 @@ static func build(parent: Control, rows: Array) -> void:
 	if not rows.is_empty() and rows[0].get("race", false):
 		_build_race(list, rows)
 		return
+	var killcam: bool = rows[0].get("killcam", false) if not rows.is_empty() else false   # (from the results: the lobby may have moved on)
 	var head := _row(list, Color(0, 0, 0, 0), Color(0, 0, 0, 0))
-	for h in [["", 34], ["PLAYER", 0], ["WEAPON #" if GunGame.active() else "KILLS", 70], ["DEATHS", 70]]:
+	for h in [["", 34], ["PLAYER", 0], ["WEAPON #" if GunGame.active() else ("POINTS" if killcam else "KILLS"), 120 if killcam else 70], ["DEATHS", 70]]:
 		var l := _cell(head, h[0], 12, UiKit.TEXT_DIM, false, h[1])
 		if h[0] == "PLAYER":
 			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -28,10 +29,16 @@ static func build(parent: Control, rows: Array) -> void:
 		who.add_theme_constant_override("separation", -2)
 		card.add_child(who)
 		_cell(who, row.name + ("  (you)" if me else ""), 20, Color.WHITE, true)
-		_cell(who, Characters.name_of(Net.player_character(row.id)), 13, UiKit.TEXT_DIM, false)
+		var about := Characters.name_of(Net.player_character(row.id))
+		var bonus := int(row.get("bonus", 0))
+		if killcam:
+			about += "  ·  %d kill%s" % [row.kills, "" if row.kills == 1 else "s"]
+			if bonus > 0:
+				about += "  ·  #1 killcam +%s" % KillcamMode.format(bonus)
+		_cell(who, about, 13, GOLD if bonus > 0 else UiKit.TEXT_DIM, false)
 		var score := ("%d/%d" % [mini(int(row.get("level", 0)) + 1, GunGame.steps()), GunGame.steps()]) \
-			if GunGame.active() else str(row.kills)
-		_cell(card, score, 26, GOLD if rank == 1 else Color.WHITE, true, 70)
+			if GunGame.active() else (KillcamMode.format(int(row.get("points", 0))) if killcam else str(row.kills))
+		_cell(card, score, 26, GOLD if rank == 1 else Color.WHITE, true, 120 if killcam else 70)
 		_cell(card, str(row.deaths), 20, UiKit.TEXT_DIM, false, 70)
 
 

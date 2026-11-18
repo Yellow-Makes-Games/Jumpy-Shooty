@@ -344,8 +344,8 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Waiting to respawn: the mouse wheel goes through every weapon, and the number keys
 ## pick a group (1 sidearms, 2 shotguns... 6 melee; again goes on through the group).
 func _pick_on_death(event: InputEvent) -> void:
-	if GunGame.active():
-		return   # Gun Game hands out the weapons
+	if GunGame.active() or KillcamMode.active():
+		return   # Gun Game hands out the weapons; Killcam is snipers only
 	var ids := WeaponData.IDS
 	var current := ids.find(Net.player_weapon(peer_id))
 	var pick := -1

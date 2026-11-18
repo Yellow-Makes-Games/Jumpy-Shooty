@@ -29,6 +29,7 @@ func run() -> void:
 	await get_tree().process_frame
 	print("Killcam checks")
 	_scores()
+	_mode()
 	_packing()
 	_tracks()
 	_clips()
@@ -155,6 +156,17 @@ func _scores() -> void:
 	kills.shuffle()
 	_expect(KillScore.best(kills, 3).map(func(k): return k.seq) == [2, 5, 4], "whatever order the kills are in")
 	_expect(KillScore.best(kills.slice(0, 2), 3).size() == 2, "fewer kills than three: all of them")
+
+
+func _mode() -> void:
+	print("  the Killcam mode")
+	var ffa := {"game": "ffa", "mode": "kills", "map": Maps.default_id()}
+	var on := GunGame.with_mode(ffa, "killcam", Maps.default_id())
+	_expect(on.mode == "killcam" and on.game == "ffa" and GunGame.mode_of(on) == "killcam", "the mode switch sets it up as a free-for-all with its own rules (%s)" % [on])
+	_expect(GunGame.mode_of(GunGame.with_mode(on, "ffa", Maps.default_id())) == "ffa" and GunGame.with_mode(on, "ffa", Maps.default_id()).mode == "kills",
+		"...and switching back gives an ordinary shoot-out")
+	_expect(GunGame.mode_of(GunGame.with_mode(on, "gungame", Maps.default_id())) == "gungame", "Gun Game still switches as before")
+	_expect(KillcamMode.format(10000) == "10,000" and KillcamMode.format(1500) == "1,500" and KillcamMode.format(999) == "999" 		and KillcamMode.format(1234567) == "1,234,567", "points read with commas")
 
 
 func _packing() -> void:

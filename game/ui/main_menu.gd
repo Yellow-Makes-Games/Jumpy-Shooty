@@ -10,6 +10,7 @@ const NO_WEAPON_NOTES := {
 	"race": "A race has no weapons: it is you, the course and the clock.",
 	"dm": "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.",
 	"gungame": "Gun Game hands out the weapons: every kill moves you to the next one.",
+	"killcam": "Killcam is snipers only: every kill scores its killcam points.",
 }
 
 var _front: Control             # the front page
@@ -385,8 +386,8 @@ func _show_bot() -> void:
 	var blurb := UiKit.label(left, "", true, 15)
 	blurb.custom_minimum_size = Vector2(0, 40)
 	var game := str(Game.last_bot.get("game", Maps.game_of(Game.last_bot.map)))
-	if game == "ffa" and str(Game.last_bot.get("rules", "")) == "gungame":
-		game = "gungame"
+	if game == "ffa" and str(Game.last_bot.get("rules", "")) in GunGame.RULES:
+		game = str(Game.last_bot.rules)
 	var map_ref: Array[OptionButton] = [null]   # filled below; see _show_practice
 	# Race or shoot-out: the bot count reads differently, kills to win goes away.
 	var show_mode := func(g: String):
@@ -416,7 +417,7 @@ func _show_bot() -> void:
 	show_mode.call(mode[0])
 	_frame.back_button("Back", _show_play)
 	_start_button(func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
-			count.get_selected_id(), mode[0] == "gungame", GunGame.game_of_mode(mode[0])))
+			count.get_selected_id(), mode[0] if mode[0] in GunGame.RULES else "kills", GunGame.game_of_mode(mode[0])))
 
 
 func _show_multiplayer() -> void:

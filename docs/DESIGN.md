@@ -11,6 +11,13 @@ Decisions Austin has made, so nobody has to ask again. Newest at the top of each
 
 ## Killcams (2026-11-17)
 
+- Killcam mode (asked for, 2026-11-17): snipers only; every kill scores its killcam
+  points; first to 10,000 or the most after 10 minutes; extra points for the match's #1
+  killcam at the end. My call: the bonus is +1,500 (about three good kills, enough to
+  swing a close match but not a rout), awarded after the match ends, so it can change
+  the winner; both end conditions apply at once; the sniper rifle only (not the other
+  marksman guns).
+
 - Asked for: when you die, watch the kill from the enemy's perspective as a short
   replay; and the best killcam of the match, or the top three, at the end.
 - As built: the replay plays in the respawn wait and can be skipped (not in its first

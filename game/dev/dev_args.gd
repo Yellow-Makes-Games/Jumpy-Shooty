@@ -36,8 +36,9 @@ extends Node
 ##                      had fired them (host, practice and bot matches; tests and screenshots).
 ## --eager-terminal    Bots go for a map terminal whenever one is ready and they have nobody to fight (tests;
 ##                      normally they only try now and then).
-## --rules=kills:N | time:MINUTES | gungame  Set the win condition (Gun Game also works with --bot).
+## --rules=kills:N | time:MINUTES | gungame | killcam  Set the win condition (Gun Game and Killcam also work with --bot).
 ## --kill-target=N      Host only: override the kill target for this match.
+## --points=N           Host only, Killcam mode: override the points to win (tests).
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
 ## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings.
@@ -92,6 +93,7 @@ var map_event_at := -1.0     # --map-event: seconds after start (-1 = never)
 var scripted_kicks := false
 var auto_return := false
 var kill_target := 0
+var points_target := 0
 var rules := ""
 var time_limit := 0.0
 var quit_after := 0.0
@@ -187,6 +189,7 @@ func _ready() -> void:
 					Settings.hud_first_person = value
 					Settings.hud_third_person = value
 			"--kill-target": kill_target = int(value)
+			"--points": points_target = int(value)
 			"--rules": rules = value
 			"--time-limit": time_limit = float(value)
 			"--third-person": Settings.third_person = true

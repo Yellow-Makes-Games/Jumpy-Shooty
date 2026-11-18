@@ -283,26 +283,32 @@ func _refresh_rules() -> void:
 	var s: Dictionary = Net.match_settings
 	var race := Net.game_kind() == "race"
 	var gun_game := GunGame.active()
+	var killcam := KillcamMode.active()
+	var own_rules := gun_game or killcam   # a mode with rules of its own: no kills/time choice
 	var kills_mode: bool = s.mode != "time"
 	_rules_label.text = ("First to %d kills" % s.kills) if kills_mode else ("Most kills after %d minutes" % s.minutes)
 	if race:
 		_rules_label.text = "First to the finish  ·  %d minute limit" % int(s.get("race_minutes", 10))
 	if gun_game:
 		_rules_label.text = "Every kill moves you to the next of %d weapons. First to get a kill with the last one (brass knuckles) wins. Kicked to death: back one weapon." % GunGame.steps()
-	_game_label.text = "Gun Game" if gun_game else Maps.GAME_NAMES.get(Net.game_kind(), "")
+	if killcam:
+		_rules_label.text = "Snipers only. Every kill scores its killcam points: range, headshots, momentum (both of you moving), flicks, trickshots. First to %s points, or the most after %d minutes. The match's #1 killcam earns +%s at the end." \
+			% [KillcamMode.format(KillcamMode.target()), int(KillcamMode.TIME_LIMIT / 60.0), KillcamMode.format(KillcamMode.BEST_BONUS)]
+	_game_label.text = "Gun Game" if gun_game else ("Killcam" if killcam else Maps.GAME_NAMES.get(Net.game_kind(), ""))
 	_game_label.visible = not Net.is_host()
 	_game_row.visible = Net.is_host()
 	_mode_pick.visible = not race
 	if _weapon:
 		# No guns in a race; Gun Game hands them out; a Deathmatch finds them on the map.
-		_weapon.visible = not race and not gun_game and not Net.is_deathmatch()
+		_weapon.visible = not race and not own_rules and not Net.is_deathmatch()
 		_no_weapon.visible = not _weapon.visible
 		_mobility.visible = not race   # a race always has the grapple
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
-			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
+			else ("Killcam is snipers only: every kill scores its killcam points." if killcam \
+			else "Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
 			else "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.")
-	_rules_label.visible = not Net.is_host() or gun_game
-	_host_rules.visible = Net.is_host() and not gun_game
+	_rules_label.visible = not Net.is_host() or own_rules
+	_host_rules.visible = Net.is_host() and not own_rules
 	_map_label.text = Maps.label(Net.map_id())
 	_map_label.visible = not Net.is_host()
 	_map_pick.visible = Net.is_host()

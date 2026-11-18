@@ -48,7 +48,12 @@ func _ready() -> void:
 			title = "Victory"
 		elif not results.is_empty():
 			title = "%s wins" % results[0].name
-		if not results.is_empty():
+		var killcam: bool = not results.is_empty() and results[0].get("killcam", false)
+		if killcam:
+			won = results[0].id == Net.my_id() and int(results[0].points) > 0
+			title = "Victory" if won else "%s wins" % results[0].name
+			sub += "  ·  Killcam  ·  %s scored %s points" % ["You" if won else results[0].name, KillcamMode.format(int(results[0].points))]
+		elif not results.is_empty():
 			sub += "  ·  %s scored %d" % ["You" if won else results[0].name, results[0].kills]
 	frame.title(title, "Results", 48)
 	UiKit.label(frame.header, sub, true, 16)
@@ -117,6 +122,9 @@ func _add_killcams(row: HBoxContainer, highlights: Array) -> void:
 		var line := UiKit.label(side, "  ·  ".join(tags.slice(0, 3)) if not tags.is_empty() else "A clean kill", true, 13)
 		line.autowrap_mode = TextServer.AUTOWRAP_OFF
 		line.clip_text = true
+		if i == 0 and not Match.last_results.is_empty() and Match.last_results[0].get("killcam", false):
+			line.text = "+%s points for the best killcam  ·  %s" % [KillcamMode.format(KillcamMode.BEST_BONUS), line.text]
+			line.add_theme_color_override("font_color", ResultsTable.GOLD)
 	UiKit.button(side, "Watch all three" if highlights.size() == 3 else "Watch them all", func(): watch([]))
 	var saved := HBoxContainer.new()
 	saved.add_theme_constant_override("separation", 6)

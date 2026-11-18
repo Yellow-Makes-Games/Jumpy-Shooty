@@ -77,4 +77,6 @@ echo "== Race mode: bots finish a race, fail conditions, results"
 tests/run_race_test.sh
 echo "== Killcam: Vs Bots (watch, skip), online host and laggy client agree on the best kills, results screen plays them"
 tests/run_killcam_test.sh
+echo "== Killcam mode: snipers only, points from killcam scores, the #1 killcam bonus, online agreement"
+tests/run_killcam_mode_test.sh
 echo "ALL TESTS PASSED"
