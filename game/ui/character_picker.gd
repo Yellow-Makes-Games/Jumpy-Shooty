@@ -7,13 +7,20 @@ extends VBoxContainer
 ##
 ## Characters made in the Character Creator come after the robots.
 ##
+## Compact (the lobby): the page keeps only the stage and, under it, a button with the
+## robot's name; the buttons for every robot and the line about the one picked go in
+## `list` instead, which the page shows in a FloatingPanel when the name is pressed
+## (list_requested).
+##
 ## The picker only reports the choice; the screen using it decides what to do with
 ## it (save it, tell the lobby).
 
 signal picked(id: String)
+signal list_requested   ## compact: the name under the stage was pressed
 
 const STAGE := Vector2(360, 292)
 const COLUMNS := 4
+const LIST_COLUMNS := 8   ## compact: robots per row in the list
 
 var current := ""
 
@@ -27,14 +34,22 @@ var _blurb: Label
 var _stage: Control
 var _preview: RobotPreview
 var _time := 0.0
+var _compact := false
+var _name_button: Button   ## compact: the robot's name under the stage; opens the list
+
+## Compact: the buttons for every robot and the line about the one picked (the page
+## puts it in a FloatingPanel). Otherwise null: they are in the picker itself.
+var list: VBoxContainer
 
 
-func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: String = "pistol") -> void:
+func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: String = "pistol", compact: bool = false) -> void:
 	_color = player_color
 	_weapon = WeaponData.valid(gun)
+	_compact = compact
 	add_theme_constant_override("separation", 8)
 	custom_minimum_size = Vector2(STAGE.x, 0)
-	UiKit.section(self, "Robot")
+	if not compact:
+		UiKit.section(self, "Robot")
 	_stage = Control.new()
 	_stage.custom_minimum_size = STAGE
 	_stage.clip_contents = true
@@ -45,15 +60,33 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: 
 	_stage.add_child(_preview)
 	_arrow("<", Control.PRESET_CENTER_LEFT, -1)
 	_arrow(">", Control.PRESET_CENTER_RIGHT, 1)
+	var holder: VBoxContainer = self
+	if compact:
+		_name_button = Button.new()
+		_name_button.theme_type_variation = "Chip"
+		_name_button.toggle_mode = true
+		_name_button.button_pressed = true   # drawn lit, as the pick
+		_name_button.custom_minimum_size = Vector2(150, 38)
+		_name_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		_name_button.add_theme_font_size_override("font_size", 15)
+		_name_button.tooltip_text = "Pick your robot"
+		_name_button.pressed.connect(func():
+			_name_button.set_pressed_no_signal(true)
+			list_requested.emit())
+		add_child(_name_button)
+		list = VBoxContainer.new()
+		list.add_theme_constant_override("separation", 10)
+		UiKit.section(list, "Robot")
+		holder = list
 	# A grid, so the buttons stay compact however many robots there are.
 	_grid = GridContainer.new()
-	_grid.columns = COLUMNS
+	_grid.columns = LIST_COLUMNS if compact else COLUMNS
 	_grid.add_theme_constant_override("h_separation", 6)
 	_grid.add_theme_constant_override("v_separation", 6)
-	add_child(_grid)
+	holder.add_child(_grid)
 	for id in Characters.ids() + Settings.custom_characters:
 		_add_button(id)
-	_blurb = UiKit.label(self, "", true, 15)
+	_blurb = UiKit.label(holder, "", true, 15)
 	_blurb.custom_minimum_size = Vector2(0, 40)
 	select(Characters.valid(start))
 
@@ -67,7 +100,7 @@ func _add_button(id: String) -> void:
 	b.toggle_mode = true
 	b.button_group = _group
 	b.theme_type_variation = "Chip"
-	b.custom_minimum_size = Vector2(0, 36)
+	b.custom_minimum_size = Vector2(110 if _compact else 0, 36)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.clip_text = true
 	b.add_theme_font_size_override("font_size", 14)
@@ -80,8 +113,9 @@ func _add_button(id: String) -> void:
 	_buttons[id] = b
 	# Characters from the Character Creator come after the 8 robots: each extra row of
 	# buttons takes its height off the stage, so the pages it sits on stay the same height.
-	var rows := ceili(_buttons.size() / float(COLUMNS))
-	_stage.custom_minimum_size.y = STAGE.y - maxi(rows - 2, 0) * 42.0
+	if not _compact:   # (compact: the buttons are in the list, not under the stage)
+		var rows := ceili(_buttons.size() / float(COLUMNS))
+		_stage.custom_minimum_size.y = STAGE.y - maxi(rows - 2, 0) * 42.0
 	_ids.append(id)
 
 
@@ -144,6 +178,8 @@ func select(id: String) -> void:
 	for key in _buttons:
 		_buttons[key].set_pressed_no_signal(key == id)
 	_blurb.text = Characters.info(id).blurb
+	if _name_button:
+		_name_button.text = Characters.name_of(id)
 	_show_robot()
 
 

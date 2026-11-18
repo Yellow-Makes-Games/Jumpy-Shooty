@@ -34,6 +34,7 @@ func run() -> void:
 	await _loadout_menu()
 	await _mobility()
 	await _ready_and_size()
+	await _floating_windows()
 	Net.leave()
 	if _fails.is_empty():
 		print("PASS: every check passed")
@@ -184,7 +185,7 @@ func _lobby_menu() -> void:
 	control._set_single(true)
 	await get_tree().process_frame
 	_expect(Net.match_settings.weapons == ["sniper"], "the host's control changes the lobby setting (one gun: its own sniper)")
-	_expect(not picker.is_visible_in_tree(), "one gun: the weapon cards give way to a note")
+	_expect(lobby._weapon_card.disabled and lobby._no_weapon_note.visible, "one gun: the weapon card cannot be pressed and a note says why")
 	_settings([], "dm")
 	await get_tree().process_frame
 	_expect(not control.is_visible_in_tree(), "a Deathmatch does not show the setting")
@@ -366,4 +367,57 @@ func _ready_and_size() -> void:
 	_expect(not Net.all_ready(), "a player can take back their ready")
 	lobby.queue_free()
 	Net.is_online = false
+	await get_tree().process_frame
+
+
+## The lobby shows only what is picked; a button opens a floating window with every
+## choice (mode for the host; robot, mobility and weapon for everyone).
+func _floating_windows() -> void:
+	print("  floating windows")
+	Net.start_offline("Host", "needle", "rifle", "grapple")
+	var s := Net.match_settings.duplicate()
+	s["game"] = "ffa"
+	s["map"] = Maps.default_id("ffa")
+	s["mode"] = "kills"
+	s["weapons"] = []
+	s["mobility"] = []
+	Net.set_match_settings(s)
+	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
+	get_tree().root.add_child(lobby)
+	await get_tree().process_frame
+	var panels := [lobby._mode_panel, lobby._robot_panel, lobby._mobility_panel, lobby._weapon_panel]
+	_expect(panels.all(func(p): return not p.is_open()), "every window starts closed")
+	_expect(lobby._mode_button.text == "Shoot-out" and lobby._mobility_button.text == "Grapple" and lobby._weapon_card.id == "rifle"
+		and lobby._character._name_button.text == Characters.name_of("needle"), "the page shows what is picked")
+	lobby._mode_button.pressed.emit()
+	await get_tree().process_frame
+	_expect(lobby._mode_panel.is_open() and lobby._mode_blurb.text.begins_with("Shoot-out:"), "the host's mode button opens the mode window, about the mode picked")
+	(lobby._game_row.get_child(GunGame.MODES.find("gungame")) as Button).mouse_entered.emit()
+	_expect(lobby._mode_blurb.text.begins_with("Gun Game:"), "hovering a mode shows what it is")
+	(lobby._game_row.get_child(GunGame.MODES.find("gungame")) as Button).pressed.emit()
+	await get_tree().process_frame
+	_expect(not lobby._mode_panel.is_open() and GunGame.active() and lobby._mode_button.text == "Gun Game", "picking a mode closes the window and the button shows it")
+	s = Net.match_settings.duplicate()
+	s["mode"] = "kills"
+	Net.set_match_settings(s)
+	lobby._mobility_button.pressed.emit()
+	await get_tree().process_frame
+	_expect(lobby._mobility_panel.is_open(), "the mobility button opens the mobility window")
+	lobby._mobility._on_pressed("blink")
+	await get_tree().process_frame
+	_expect(not lobby._mobility_panel.is_open() and lobby._mobility_button.text == "Blink" and Net.player_loadout_mobility(1) == "blink",
+		"picking a tool closes the window, and the button and the lobby have it")
+	lobby._weapon_card.pressed.emit()
+	await get_tree().process_frame
+	_expect(lobby._weapon_panel.is_open(), "the weapon card opens the weapon window")
+	lobby._weapon._on_pressed("shotgun")
+	await get_tree().process_frame
+	_expect(not lobby._weapon_panel.is_open() and lobby._weapon_card.id == "shotgun" and Net.player_loadout_weapon(1) == "shotgun",
+		"picking a weapon closes the window, and the card and the lobby have it")
+	lobby._character._name_button.pressed.emit()
+	await get_tree().process_frame
+	_expect(lobby._robot_panel.is_open() and lobby._character.list.is_visible_in_tree(), "the robot's name opens the robot window")
+	lobby._robot_panel.close()
+	_expect(not lobby._robot_panel.is_open(), "a window closes without a pick (click outside or Esc)")
+	lobby.queue_free()
 	await get_tree().process_frame
