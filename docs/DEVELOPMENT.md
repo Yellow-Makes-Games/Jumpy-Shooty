@@ -114,6 +114,11 @@ Quick checks:
 - spectating (`tests/spectator_test.gd`): in a Vs Bots match you switch to spectating and
   back; a spectator has no robot, score or scoreboard row, the bots play on, and the free
   camera flies through the floor, faster with Sprint, the way it looks;
+- respawn visibility (`tests/respawn_visible_test.gd`): another player who dies and comes
+  back is shown again (drawn and solid) whether their first snapshot from the new life
+  or the news of the respawn gets here first, when killed again before any snapshot
+  from the new life, after a new robot or gun while waiting to see them back, and
+  through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the game boots into practice mode on every map without script errors.
 
 Networked and bot runs (real time):
@@ -137,6 +142,9 @@ Networked and bot runs (real time):
 - ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
   the target dummy, and online a client's slam is ruled on by the host, hits the host's
   player and is heard by both;
+- respawn visibility online (`tests/run_respawn_visible_test.sh`): a host and two clients
+  shoot it out; one client gets every respawn 300 ms late (`--delay-respawn`), behind the
+  player's first snapshot from the new life, and both must show every respawned player;
 - Halcyon online and with bots (`tests/run_gravity_test.sh`): a client fires the
   terminal on the host, a client across the room cannot, a late joiner is told how far
   along the event is, and bots use the terminal and keep moving in low gravity;
@@ -250,6 +258,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
 | `--net-sim=L,J,P` | Pretend the connection is bad: L ms latency, J ms jitter, P% loss |
+| `--delay-respawn=MS` | Client: apply other players' respawns MS ms late, as if the message were held up on the way, so their first snapshot from the new life arrives first (`tests/run_respawn_visible_test.sh`) |
 | `--third-person` | Start in third person |
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
