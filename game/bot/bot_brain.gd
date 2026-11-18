@@ -704,7 +704,7 @@ func _terminal_spot(delta: float, visible: bool) -> Vector3:
 			if not visible and _in_view.is_empty() and Match.running and (DevArgs.eager_terminal or _rng.randf() < TERMINAL_CHANCE[d.level]):
 				for t in me.get_tree().get_nodes_in_group(MapTerminal.GROUP):
 					var terminal := t as MapTerminal
-					if terminal.ready_to_use() and me.global_position.distance_to(terminal.global_position) < TERMINAL_RANGE \
+					if terminal.bots and terminal.ready_to_use() and me.global_position.distance_to(terminal.global_position) < TERMINAL_RANGE \
 							and (_terminal == null or me.global_position.distance_to(terminal.global_position) < me.global_position.distance_to(_terminal.global_position)):
 						_terminal = terminal
 				_terminal_time = 0.0
@@ -917,7 +917,10 @@ func _open() -> bool:
 		_open_map = 0
 		if map != null and is_instance_valid(map):
 			for m in map.movers:
-				if m.node is MapIsland or m.moves_node:   # (moves_node: a part that carries crossings, as on Sky Island)
+				# (moves_node: a part that carries crossings, as on Sky Island. An island
+				# marked Over Ground is a machine on solid ground: the Construction Site's crane.)
+				var island := m.node as MapIsland
+				if (island != null and not island.over_ground) or (island == null and m.moves_node):
 					_open_map = 1
 	return _open_map == 1
 

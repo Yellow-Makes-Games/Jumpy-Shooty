@@ -1420,6 +1420,85 @@ def bridge_lock():
 
 
 # ---------------------------------------------------------------------------
+# The Construction Site's tower crane (see CraneEvent and MapLever): heavy electric
+# machinery heard across a building site. Dull steel and motors, nothing that beeps.
+
+def lever_pull():
+    """A big control lever thrown over: the ratchet letting go, the slide, and the clack
+    and thud as it lands against its stop."""
+    rng = np.random.default_rng(7401)
+    clack = click(rng, 0.01, 0.0015, 2600.0)
+    body = modal(rng, 0.35, [420.0, 910.0, 1480.0, 2350.0], [0.05, 0.04, 0.03, 0.02], [0.5, 0.35, 0.2, 0.1], detune=0.01)
+    thud = sine_sweep(0.25, 150.0, 70.0, 0.05) * env(0.25, 0.06, 0.001)
+    slide = bp(noise(rng, 0.16), 1800.0, 1.2) * bell_env(0.16, 0.5, 1.5)
+    dry = mix((clack, 0.0, 0.6), (slide, 0.01, 0.12), (clack * 0.8, 0.09, 0.5), (clack, 0.17, 0.9), (body, 0.172, 0.5), (thud, 0.17, 0.9))
+    wet = fftconv(dry, room_ir(rng, 0.35, bright=3000.0))
+    return finish(mix(dry, (wet, 0.0, 0.18)), fade=0.03)
+
+
+def crane_start():
+    """The crane coming to life: a contactor slamming in, then its motor running up from
+    nothing to its working note in a little over half a second (the loop takes over)."""
+    rng = np.random.default_rng(7402)
+    seconds = 0.75
+    t = tt(seconds)
+    p = np.clip(t / 0.6, 0.0, 1.0)
+    f = 87.0 * (0.25 + 0.75 * p ** 0.7)
+    ph = 2 * math.pi * np.cumsum(f) / SR
+    run = (np.sin(ph) + 0.7 * np.sin(2 * ph + 0.4) + 0.35 * np.sin(3 * ph + 1.0) + 0.3 * np.sin(4 * ph) + 0.16 * np.sin(6 * ph + 0.7))
+    run *= (0.15 + 0.85 * p ** 1.3) * np.clip((seconds - t) / 0.12, 0.0, 1.0)
+    clunk = sine_sweep(0.2, 140.0, 60.0, 0.04) * env(0.2, 0.05, 0.001)
+    snap = click(rng, 0.012, 0.002, 2400.0)
+    ring = modal(rng, 0.5, [236.0, 388.0, 640.0, 1010.0], [0.2, 0.15, 0.1, 0.06], [0.4, 0.3, 0.2, 0.1], detune=0.01)
+    dry = mix((snap, 0.0, 0.8), (clunk, 0.0, 1.0), (ring, 0.002, 0.3), (run / np.max(np.abs(run)), 0.04, 0.7))
+    wet = fftconv(dry, room_ir(rng, 0.8, bright=2800.0))
+    return finish(mix(dry, (wet, 0.0, 0.2)), floor_db=-55.0, fade=0.06)
+
+
+def crane_motor():
+    """The crane working: an electric motor's hum (87 Hz and its harmonics, beating
+    slowly), the whine of the gearbox over it, a low rumble through the steel and the
+    slew ring's rollers ticking round, eight to the loop. Loops (2 s); the game plays it
+    a third higher while the winch runs and fades it in and out."""
+    seconds = 2.0
+    rng = np.random.default_rng(7403)
+    t = tt(seconds)
+    x = np.zeros_like(t)
+    for k, gain in ((1, 1.0), (2, 0.7), (3, 0.35), (4, 0.3), (6, 0.16), (8, 0.08)):
+        for detune, share in ((0.0, 0.65), (0.5, 0.2), (-0.5, 0.15)):   # (every one fits the loop a whole number of times)
+            x += gain * share * np.sin(2 * math.pi * (87.0 * k + detune) * t + rng.uniform(0, 2 * math.pi))
+    x *= 0.85 + 0.15 * np.sin(2 * math.pi * 11.0 * t)          # the gear teeth
+    whine = 0.5 * np.sin(2 * math.pi * 522.0 * t + 0.3) + 0.25 * np.sin(2 * math.pi * 1044.5 * t + 1.1)
+    whine *= 0.7 + 0.3 * np.sin(2 * math.pi * 3.0 * t)
+    rumble = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 140.0)) ** 2) / 1.0))
+    grit = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 2600.0)) ** 2) / 0.8))
+    y = x / np.max(np.abs(x)) + 0.22 * whine + 0.5 * rumble + 0.05 * grit
+    for i in range(8):
+        _lay(y, i * 0.25 + 0.03, click(rng, 0.008, 0.0012, 1800.0), 0.12)
+    return _looped(y)
+
+
+def crane_stop():
+    """The crane arriving: the motor winding down for half a second, the brake going on
+    with a heavy clunk, and the steel settling: a low ring and a short creak."""
+    rng = np.random.default_rng(7404)
+    seconds = 0.55
+    t = tt(seconds)
+    p = t / seconds
+    f = 87.0 * (1.0 - 0.6 * p ** 0.8)
+    ph = 2 * math.pi * np.cumsum(f) / SR
+    wind = (np.sin(ph) + 0.6 * np.sin(2 * ph + 0.4) + 0.3 * np.sin(3 * ph + 1.0) + 0.2 * np.sin(6 * ph)) * (1.0 - p) ** 1.2
+    thud = sine_sweep(0.4, 110.0, 48.0, 0.07) * env(0.4, 0.09, 0.001)
+    latch = click(rng, 0.012, 0.002, 2000.0)
+    ring = modal(rng, 1.3, [173.0, 262.0, 415.0, 688.0, 1040.0], [0.5, 0.42, 0.3, 0.2, 0.12], [0.5, 0.4, 0.3, 0.18, 0.1], detune=0.012)
+    creak = sweep_bp(noise(rng, 0.5), 520.0, 380.0, q=14.0) * bell_env(0.5, 0.3, 1.2)
+    dry = mix((wind / np.max(np.abs(wind)), 0.0, 0.5), (thud, 0.5, 1.0), (latch, 0.5, 0.6), (ring, 0.503, 0.4),
+              (creak / np.max(np.abs(creak)), 0.6, 0.12))
+    wet = fftconv(dry, room_ir(rng, 1.1, bright=2600.0))
+    return finish(mix(dry, (wet, 0.0, 0.25)), fade=0.08)
+
+
+# ---------------------------------------------------------------------------
 # Empyrean Tower: the Portal Surge (see PortalSurgeEvent and MapRingGate). Wondrous,
 # never an alarm: nothing harsh, nothing that pulses fast.
 
@@ -1616,6 +1695,10 @@ def recipes():
     r["layout_rise"] = layout_rise
     r["island_move"] = island_move
     r["bridge_lock"] = bridge_lock
+    r["lever_pull"] = lever_pull
+    r["crane_start"] = crane_start
+    r["crane_motor"] = crane_motor
+    r["crane_stop"] = crane_stop
     for g in GUNS:
         r["fire_" + g] = lambda g=g: gun_fire(g)
         r["fire_%s_fp" % g] = lambda g=g: gun_fire(g, stereo=True, seed=7)

@@ -504,6 +504,8 @@ scene is edited by hand. Try it with `--map=sky_island --practice`.
 - **MapIsland**, **LayoutEvent** and **MapJumpLink** nodes (Cirrus): a group of blocks
   that flies, the clock that rearranges the islands, and a crossing bots are told how
   to make. See "Maps of flying islands" below.
+- **MapLever** and **CraneEvent** nodes (Construction Site): a lever players throw with
+  Interact, and the tower crane it works. See "The crane" below.
 - **MapGravityZone**, **MapHazard**, **MapLiftWell**, **MapRingGate**, **PortalSurgeEvent**,
   **OrbitEvent** and **MapDrone** nodes (Empyrean Tower): a place with its own gravity, a
   block that kills, a tractor-beam lift, a ring gate and the event that opens the gates,
@@ -647,6 +649,12 @@ practice mode on that map. In the game, all blocks of one kind are merged into a
 mesh and the bots' navigation mesh is worked out from the solid blocks, so moving
 things needs no extra step.
 
+The Construction Site's crane, the netting on its scaffold and steel, the cover in its
+yard and most of its dressing were written by `tools/arena/construction_site_revamp.gd`
+(run once; it is kept as a record and refuses to run again, like the Castle's). The
+palette's Surface list gives its kinds their patterns (dirt, gravel, slabs, blockwork,
+planks, grating...).
+
 **Checking it.** After moving things on the Construction Site, run `tests/site_test.gd`:
 it tells you if a route no longer works or a bot can no longer reach a floor. The test
 keeps its own note of where the routes are (at the top of `tests/site_test.gd`), so if
@@ -675,6 +683,7 @@ The scripts behind this:
 | `game/arena/map_mesher.gd`, `map_scenery.gd` | One merged mesh per kind, the materials, the navigation mesh |
 | `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
 | `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
+| `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
 | `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `map_ring_gate.gd`, `portal_surge_event.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, ring gates and the Portal Surge, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
@@ -1126,12 +1135,68 @@ bots find them in the scene. A different kind of event is a script that extends
 changed after it ends (a LayoutEvent's layout) keeps it in `state`, which the host
 sends along with the clock; `_on_match_started()` is where it puts things back.
 
+A terminal's **Bots** box (ticked by default) says whether bots walk up to it and use
+it now and then. Untick it for one they cannot walk to, or they stand about under it.
+
+### The crane
+
+The Construction Site's tower crane works. Its parts are all in the `Crane` group of
+`game/maps/construction_site.tscn`:
+
+- **Mast**: hollow, 2 m square inside, so it is a chimney to wall-jump up like the lift
+  shaft (its walls are hidden boxes; the lattice and the guard mesh are drawn only). A
+  ramp leads onto its base and in at the south door. It is open again 20 m up, where the
+  **Tie** gangway comes across from the corner of the tower's 20 m steel, and at the
+  top, where a collar is level with the deck that turns round it.
+- **Jib** (a MapIsland whose Pivot is the middle of the mast): everything that turns.
+  The deck round the mast head, the cab, the jib and counter-jib with a walkway along
+  their top, the trolley. The cab has a floor, a door at the back and glass that
+  shatters; the cabinet behind it and the box on its roof are the steps up to the jib.
+- **Lever** (a **MapLever**, in the cab): a MapTerminal in everything but its looks. It
+  draws a lever with a red knob that leans back while it is ready and is thrown forward
+  while the crane works, and a lamp beside it that is green when it can be pulled and
+  amber when it cannot. Its Bots box is unticked.
+- **Hook** (a second MapIsland with the same Pivot): the slab on its slings. Solid, so
+  it is a platform, and whoever stands on it rides along.
+- **CraneEvent** (a MapEvent): what the lever's Event points at. It has a few stops
+  (**Turns**: degrees the jib is turned from where the scene has it; **Heights**: metres
+  the load hangs above or below where the scene has it) and a **Route**, the order it
+  visits them in, round and round. One pull of the lever is one move: the load is
+  hoisted to **Carry Height**, the jib turns, the load is lowered, and the lever stays
+  locked for **Cooldown** more seconds. On the Construction Site the stops are the
+  tower's steel bay (where the scene has it), the south-east yard and the north-west
+  yard, and the route is tower, south-east, tower, north-west: about 13 s a move.
+
+The two islands are placed from the event's clock and `state` (how far round the route
+it has got) alone, so the crane is in the same place on every copy of the game, also
+for someone who joins part-way through a move, and a new match puts it back at the
+tower. The hoist rope is drawn by the event between two markers (**Rope Top** in the
+jib, **Rope Bottom** in the load), because its length changes. Its sounds come from the
+top of the mast and carry over the whole site.
+
+If you move a stop, keep the load's way clear: Carry Height must lift it over whatever
+stands under its arc, and a stop in the yard must leave standing room under the load (it
+is not a hazard, and must not squash anyone). `tests/site_test.gd` sweeps the slab along
+every move of the route and looks under every stop, climbs the mast, throws the lever
+with a player in the cab and rides the slab to both yards. The loading zones painted on
+the ground mark where the slab comes down; they are ordinary drawn-only blocks, so move
+them with the stops.
+
+Both islands have **Over Ground** ticked. Bots take a map with MapIslands in it for
+islands over a drop (no free swings on the grapple, no jump or dodge without floor in
+sight); Over Ground says this island is a machine on a map with solid ground, so it
+does not count.
+
+To put a crane (or anything else that swings a load) on another map: two MapIslands
+with one Pivot (Over Ground ticked if the map has ground under it), a CraneEvent
+pointing at them, and a MapLever or a plain MapTerminal pointing at the event.
+
 A **MapSpinner** is a group of MapBlocks that turns round its own y axis (tip the node
 over for another axis): Halcyon's centrifuge ring, outside the hull. It is decoration
 only: drawn, never solid, and each copy of the game turns it by its own clock. That is
 why it is not a MapMover (a mover is solid, carries riders and runs off the race clock,
 so plain movers are for race maps; in an arena the one kind of mover is a MapIsland,
-below, which runs off its LayoutEvent's or OrbitEvent's clock). MapHazard was race-only
+below, which runs off its LayoutEvent's, OrbitEvent's or CraneEvent's clock). MapHazard was race-only
 when Halcyon was built, so its pit uses the Kill Height and its decks are joined by fixed
 ramps (hazards work in arenas now: see "Gravity zones, hazards, lifts and ring gates").
 
@@ -1476,6 +1541,10 @@ Empyrean Tower's Portal Surge has three (`surge_open`, `surge_close`, and `gate_
 which loops and is played by each open MapRingGate). Each of its tiers has a quiet loop
 of its own (`magic_engine`, `magic_library`, `magic_labs`, `magic_menagerie`,
 `magic_summoning`, `magic_observatory`), played in the room by a MapAmbientSound.
+
+The Construction Site's crane has four (`lever_pull`, `crane_start`, `crane_stop`, and
+`crane_motor`, which loops while the crane moves and is pitched up while the hook goes
+up or down), played by its MapLever and CraneEvent.
 
 Two more of the sounds loop (`terminal_hum` and `gravity_pad`, for Halcyon's terminal and low
 gravity): every frequency in them fits a whole number of times into the file, so the end

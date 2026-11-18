@@ -25,6 +25,12 @@ const GROUP := "map_islands"
 ## LayoutEvent puts it.
 @export var orbit := 0.0
 
+## Tick this for a machine on a map with solid ground under it (the Construction
+## Site's crane). Bots take a map with islands in it for islands over a drop: they stop
+## swinging on the grapple and jump and dodge only where they can see floor ahead. An
+## island with this ticked does not count toward that.
+@export var over_ground := false
+
 ## MapRoot moves this node along with the body it builds (see MapRoot.update_movers).
 var carries_nodes := true
 ## Where it comes from and where it goes: (degrees round the pivot, metres up, metres out).

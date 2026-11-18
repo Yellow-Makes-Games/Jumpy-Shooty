@@ -44,6 +44,9 @@ const RING_RADIUS := 1.4
 @export var light := Color(0.2, 0.55, 1.0)
 ## The event it fires: a MapEvent node in this map (a GravityEvent).
 @export_node_path("Node") var event: NodePath
+## Bots walk up to it and use it now and then. Untick it for one they cannot walk to
+## (a lever in a crane's cab), or they would stand about under it.
+@export var bots := true
 
 var phase := Phase.READY
 ## Who is holding it (a peer id), while phase is CHANNEL.
