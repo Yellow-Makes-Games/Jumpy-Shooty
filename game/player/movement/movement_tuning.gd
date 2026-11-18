@@ -48,33 +48,18 @@ static func for_variant(id) -> MovementTuning:
 ##  - Ctrl (or Q) does crouch, slide and dive: forward dives (then a belly slide, then a
 ##    crawl while held), back slides on your back (then a crouch while held), otherwise
 ##    a crouch;
-##  - stick to a wall you push into in mid-air for a second, then slide slowly down it;
-##  - every horizontal speed about 15% slower (jump height and gravity unchanged, so
-##    every map jump and vault still works). See B_SLOWER.
+##  - stick to a wall you push into in mid-air for 2.5 seconds, then slide slowly down it;
+##  - in a jump or fall, pressing WASD against the way you are moving brakes you much
+##    harder (air_brake), so momentum is easy to stop.
+## Speeds are classic's.
 func _apply_b() -> void:
 	flips_on = false
 	glides_on = false
 	space_boost = true
 	always_tuck = true
 	ctrl_moves = true
-	wall_sit_time = 1.0
-	for prop in B_SLOWER:
-		set(prop, get(prop) * B_SPEED)
-	jetpack_steer_scale = B_SPEED
-
-
-## Variant B's speed: horizontal movement this much of classic.
-const B_SPEED := 0.85
-## The horizontal speeds (and the slow-downs of slides, so they run 15% shorter too)
-## that Variant B scales by B_SPEED. Upward speeds, gravity and accelerations (which
-## are rates, scaled already by the top speed) are left alone.
-const B_SLOWER := ["run_speed", "sprint_speed", "air_speed", "crouch_speed", "stop_speed",
-	"grapple_pull_speed", "grapple_yank", "tether_pull_speed", "tug_speed",
-	"boost_speed",
-	"slide_start_speed", "slide_end_speed", "slide_boost", "slide_boost_max_speed", "slide_decel",
-	"wall_run_min_speed", "wall_run_speed", "wall_jump_push", "wall_jump_forward", "wall_jump_forward_max",
-	"ledge_exit_speed",
-	"dive_boost", "dive_max_speed", "belly_boost", "belly_decel", "belly_crawl_speed"]
+	wall_sit_time = 2.5
+	air_brake = 30.0
 
 @export_group("Ground")
 @export var run_speed := 8.0          ## top speed you accelerate to while running
@@ -216,4 +201,4 @@ const B_SLOWER := ["run_speed", "sprint_speed", "air_speed", "crouch_speed", "st
 @export var ctrl_moves := false           ## Ctrl or Q: forward dives, back slides on your back, otherwise crouches (no crouch-slide)
 @export var wall_sit_time := 0.0          ## push into a wall in mid-air: stick to it this long (0 = never)...
 @export var wall_sit_slide_speed := 2.0   ## ...then slide down it this fast while you keep pushing
-@export var jetpack_steer_scale := 1.0    ## the jetpack's sideways speed, times this
+@export var air_brake := 0.0              ## in a jump or fall, pressing against your motion brakes it this much harder (m/s2, 0 = off)
