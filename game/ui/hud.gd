@@ -80,7 +80,7 @@ var _scoreboard: PanelContainer
 var _score_rows: VBoxContainer
 var _score_title: Label
 
-var _feed: Array = []           # {killer, victim, head, age}
+var _feed: Array = []           # {killer, victim, head, age, gun (HudStyle.kill_icon), wall (into a wall), how}
 var _numbers: Array = []        # {value, head, age, x}
 var _arrows: Array = []         # {from: Vector3, age}
 var _hit_time := 0.0
@@ -94,6 +94,7 @@ var _killer := 0
 var _killer_hp := 0.0
 var _killer_dist := -1.0
 var _killed_by_head := false
+var _killed_how := ""            # how they got you, for the death screen (see death_how)
 var _killer_view: RobotPreview   # the robot that got you, on the death screen
 var _respawn_left := 0.0
 var _screen_age := 0.0          # how long the death screen has been up (not the killcam)
@@ -449,8 +450,17 @@ func _on_died(victim: int, killer: int) -> void:
 	var head: bool = killer != 0 and _last_head.get(victim, false)
 	if killer == victim:
 		killer = 0   # crashed into a wall on their own
-	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": Net.player_weapon(killer),
-		"how": {"slam": "crashed", "bomb": "blown up"}.get(Match.death_cause.get(victim, ""), "fell")})
+	# What did it, as the host saw it (an older host doesn't say: the gun they hold).
+	var cause: String = Match.death_cause.get(victim, "")
+	var told := str((Match.death_fx.get(victim, {}) as Dictionary).get("with", ""))
+	var with := told
+	if with == "" and killer != 0:
+		with = Net.player_weapon(killer)
+	var wall := cause == "slam" and killer != 0   # shoved into a wall: what shoved them, then the wall
+	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": with, "wall": wall,
+		"how": {"slam": "crashed", "bomb": "blown up"}.get(cause, "fell")})
+	if DevArgs.sync_log:
+		print("FEED %d %d %d %s%s" % [me, killer, victim, with if killer != 0 else _feed.back().how, " wall" if wall else ""])
 	while _feed.size() > FEED_MAX:
 		_feed.pop_front()
 	if killer == me and victim != me:
@@ -462,6 +472,7 @@ func _on_died(victim: int, killer: int) -> void:
 		_killer = killer if killer != victim else 0
 		_killer_hp = Match.health.get(killer, 0.0)
 		_killed_by_head = _last_head.get(me, false)
+		_killed_how = death_how(told if cause == "slam" else with, cause)   # (not told what threw you: just the wall)
 		_killer_dist = -1.0
 		var mine: Player = Net.arena.get_player(me) if Net.arena else null
 		var theirs: Player = Net.arena.get_player(_killer) if Net.arena and _killer != 0 else null
@@ -818,12 +829,15 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 			parts = [[victim, Net.player_color(e.victim)]]
 			if e.head:
 				parts.append(["HEAD", HudStyle.YELLOW])
+			if e.wall:
+				parts.append(["@wall", Color.WHITE])
 			parts.append(["@gun", Color.WHITE])
 			parts.append([Net.player_name(e.killer), Net.player_color(e.killer)])
 		var widths: Array = []
 		var total := 0.0
 		for part in parts:
-			var w := _gun_width(e.gun) if part[0] == "@gun" else HudStyle.text_width(part[0], 16 if part[0] != "HEAD" else 11)
+			var w := _gun_width(e.gun) if part[0] == "@gun" else HudStyle.WALL_W if part[0] == "@wall" \
+				else HudStyle.text_width(part[0], 16 if part[0] != "HEAD" else 11)
 			widths.append(w)
 			total += w + 8.0
 		var plate := Rect2(right - total - 16.0, y - 14.0, total + 16.0 + 8.0, 28.0)
@@ -836,7 +850,9 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 			var col: Color = part[1]
 			col = Color(col.lightened(0.25), col.a * alpha)
 			if part[0] == "@gun":
-				HudStyle.weapon_icon(ci, e.gun, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
+				HudStyle.kill_icon(ci, e.gun, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
+			elif part[0] == "@wall":
+				HudStyle.wall_impact(ci, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
 			else:
 				HudStyle.text(ci, Vector2(x, y), part[0], 16 if part[0] != "HEAD" else 11, col, HORIZONTAL_ALIGNMENT_RIGHT)
 			x -= widths[i] + 8.0
@@ -844,7 +860,32 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 
 
 func _gun_width(gun: String) -> float:
-	return HudStyle.weapon_width(gun)
+	return HudStyle.kill_icon_width(gun)   # (a weapon, or the kick or rope that did a kill)
+
+
+## How a player got you, for the line under their name on the death screen: `with`
+## and `cause` as in Match.death_fx and Match.death_cause ("Kick", "Kicked into a wall",
+## "Rocket Launcher into a wall", "Shotgun").
+static func death_how(with: String, cause: String) -> String:
+	if cause == "slam":
+		match with:
+			"kick", "flying_kick":
+				return "Kicked into a wall"
+			"rope":
+				return "Reeled into a wall"
+			"", "none":
+				return "Smashed into a wall"
+		return "%s into a wall" % WeaponData.name_of(with)   # shoved by a blast or a shot
+	match with:
+		"kick":
+			return "Kick"
+		"flying_kick":
+			return "Flying kick"
+		"rope":
+			return "Reeled in"
+		"none":
+			return "Bare feet"
+	return WeaponData.name_of(with)
 
 
 ## Where the death screen's left column starts: it and the scoreboard sit side by
@@ -873,13 +914,11 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 		_killer_view.position = card.position + Vector2(18, -26)
 		HudStyle.label(ci, Vector2(x, y + 30), "ELIMINATED BY", 12, HudStyle.RED)
 		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
-		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), (WeaponData.name_of(Net.player_weapon(_killer)) if Net.player_weapon(_killer) != "none" else "Bare feet")]
+		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), _killed_how]
 		HudStyle.text(ci, Vector2(x, y + 92), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
 		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
 		if _killed_by_head:
 			chips.append("HEADSHOT")
-		if Match.death_cause.get(Net.my_id(), "") == "slam":
-			chips.append("SMASHED INTO A WALL")
 		if _killer_dist >= 0.0:
 			chips.append("%d M AWAY" % roundi(_killer_dist))
 		var cx := x

@@ -376,5 +376,108 @@ static func weapon_width(id: String) -> float:
 		"mace": 32.0, "machete": 30.0, "wrench": 31.0, "energy_sword": 42.0, "claws": 28.0}.get(id, 22.0)
 
 
+## Widths at size 1 of the icons below.
+const FLYING_KICK_W := 35.0
+const HOOK_W := 33.0
+const WALL_W := 22.0
+
+
+## What made a kill (Match.death_fx "with": a WeaponData id, "kick", "flying_kick",
+## "rope" or "none"), as a kill feed icon. Returns its width.
+static func kill_icon(ci: CanvasItem, with: String, at: Vector2, color: Color, s: float = 1.0) -> float:
+	match with:
+		"kick":
+			return weapon_icon(ci, "none", at, color, s)   # the boot
+		"flying_kick":
+			return flying_kick(ci, at, color, s)
+		"rope":
+			return grapple_hook(ci, at, color, s)
+	return weapon_icon(ci, with, at, color, s)
+
+
+## How wide kill_icon is at size 1.
+static func kill_icon_width(with: String) -> float:
+	match with:
+		"kick":
+			return weapon_width("none")
+		"flying_kick":
+			return FLYING_KICK_W
+		"rope":
+			return HOOK_W
+	return weapon_width(with)
+
+
+## The kick's boot tipped up into a flying kick, speed lines trailing behind it.
+static func flying_kick(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
+	var boot := []
+	for p in [Vector2(2, -2), Vector2(9, -2), Vector2(9, 5), Vector2(19, 6), Vector2(21, 10), Vector2(2, 10)]:   # (weapon_icon's "none")
+		boot.append((p - Vector2(11.5, 4)).rotated(deg_to_rad(-15.0)) + Vector2(24, 3.5))
+	return _polygons(ci, [boot,
+		[Vector2(0, 0.5), Vector2(8, 0.5), Vector2(9, 2), Vector2(1, 2)],
+		[Vector2(2, 4.2), Vector2(11, 4.2), Vector2(12, 5.7), Vector2(3, 5.7)],
+		[Vector2(1, 7.9), Vector2(9, 7.9), Vector2(10, 9.4), Vector2(2, 9.4)]], at, color, s)
+
+
+## A grappling hook on the end of its rope, points to the right (reeled in by a grapple).
+static func grapple_hook(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
+	var rope := []
+	for i in 7:   # a slack, wavy rope
+		rope.append(Vector2(i * 2.0, 4.0 + (1.2 if i % 2 == 1 else -0.2)))
+	for i in range(6, -1, -1):
+		rope.append(Vector2(i * 2.0, 5.4 + (1.2 if i % 2 == 1 else -0.2)))
+	return _polygons(ci, [rope,
+		[Vector2(12, 2), Vector2(16, 2), Vector2(16, 7), Vector2(12, 7)],   # the eye
+		[Vector2(16, 3.2), Vector2(28, 3.2), Vector2(28, 5.8), Vector2(16, 5.8)],   # the shank
+		[Vector2(26, 3.4), Vector2(29, 1.5), Vector2(29.5, -2), Vector2(27.5, -4.5), Vector2(24, -5), Vector2(26.5, -2.5),
+			Vector2(26.5, 0.5), Vector2(24.5, 3.4)],   # the prongs, bent back
+		[Vector2(26, 5.6), Vector2(29, 7.5), Vector2(29.5, 11), Vector2(27.5, 13.5), Vector2(24, 14), Vector2(26.5, 11.5),
+			Vector2(26.5, 8.5), Vector2(24.5, 5.6)],
+		[Vector2(28, 3), Vector2(33, 4.5), Vector2(28, 6)]], at, color, s)
+
+
+## A slab of wall split by cracks, a burst where something hit it from the left
+## (killed by a crash into a wall).
+static func wall_impact(ci: CanvasItem, at: Vector2, color: Color, s: float = 1.0) -> float:
+	# The slab, cut along cracks that run out from where the blow landed, each
+	# piece pulled in a little so the cracks show as gaps.
+	var hit := Vector2(9, 4)
+	var pieces := [
+		[Vector2(9, -4), Vector2(15, -4), hit],
+		[Vector2(15, -4), Vector2(22, -4), Vector2(22, 1.5), hit],
+		[hit, Vector2(22, 1.5), Vector2(22, 7.5)],
+		[hit, Vector2(22, 7.5), Vector2(22, 12), Vector2(16, 12)],
+		[hit, Vector2(16, 12), Vector2(9, 12)]]
+	var shapes := []
+	for piece in pieces:
+		var mid := Vector2.ZERO
+		for p in piece:
+			mid += p
+		mid /= piece.size()
+		var shrunk := []
+		for p in piece:
+			shrunk.append(p + (mid - p).normalized() * 0.9)
+		shapes.append(shrunk)
+	# The burst: an eight-pointed star against the wall's face.
+	var star := []
+	for i in 16:
+		var a := TAU * i / 16.0
+		star.append(Vector2(4.5, 4) + Vector2(cos(a), sin(a)) * (4.5 if i % 2 == 0 else 1.7))
+	shapes.append(star)
+	return _polygons(ci, shapes, at, color, s)
+
+
+## Fill each shape (a list of points, at size 1) at `at`, scaled by `s`. Returns
+## how far right they reach.
+static func _polygons(ci: CanvasItem, shapes: Array, at: Vector2, color: Color, s: float) -> float:
+	var width := 0.0
+	for shape in shapes:
+		var pts := PackedVector2Array()
+		for p in shape:
+			pts.append(at + p * s)
+			width = maxf(width, p.x * s)
+		ci.draw_colored_polygon(pts, color)
+	return width
+
+
 static func health_color(hp: float) -> Color:
 	return RED if hp <= LOW_HEALTH else WHITE
