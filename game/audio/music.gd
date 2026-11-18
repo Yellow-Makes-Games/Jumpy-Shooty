@@ -15,6 +15,10 @@ extends Node
 ## part of the same song at the same moment. Offline (or before joining), each copy
 ## of the game chooses for itself.
 ##
+## In an online lobby the host can pick the song (LobbySettings "song"): it fades in
+## straight away, for everyone, and plays over and over until the host picks another
+## (or Shuffle). Once a match starts, the songs shuffle again after it ends.
+##
 ## Plays on the Music bus: the Music slider in Settings sets its volume.
 
 const DIR := "res://game/audio/music/"
@@ -26,7 +30,8 @@ var _streams: Array[AudioStream] = []
 var _names: PackedStringArray = []
 var _players: Array[AudioStreamPlayer] = []
 ## What is playing: up to two songs (the newer one last), each {"i": song, "at": start
-## time on the host's clock, "p": the player index playing it, "on": started yet}.
+## time on the host's clock, "p": the player index playing it, "on": started yet, and
+## "end": when it has faded out, if it was cut short (-1 if it plays to its end)}.
 var _songs: Array = []
 var _bag: Array = []          # songs still to come before any repeats
 var _offset := 0.0            # the host's clock minus ours (0 when we choose)
@@ -86,19 +91,42 @@ func current_song() -> String:
 	return _names[_songs[-1].i] if not _songs.is_empty() else ""
 
 
+## Every song's name (its file name without the extension), in the order they are listed.
+func song_names() -> PackedStringArray:
+	return _names.duplicate()
+
+
+## A song's name as players see it ("" is Shuffle).
+static func title_of(song: String) -> String:
+	return "Shuffle" if song == "" else song.capitalize()
+
+
+## The host, in an online lobby (not in a match): the song it picked to play there,
+## as an index, or -1 to shuffle.
+func _lobby_song() -> int:
+	if not _hosting() or Net.in_match:
+		return -1
+	var song := str(Net.match_settings.get("song", ""))
+	return _names.find(song) if song != "" else -1
+
+
 func _process(delta: float) -> void:
 	if _streams.is_empty():
 		return
 	_following = _is_client()
 	var now := host_now()
 	if not _following:
+		var want := _lobby_song()
 		if _songs.is_empty():
-			_start(_pick(), now, true)
+			_start(want if want >= 0 else _pick(), now, true)
 		else:
 			var last: Dictionary = _songs[-1]
-			var ends: float = last.at + _length(last.i)
-			if now >= ends - FADE:
-				_start(_pick(), ends - FADE, true)
+			var ends: float = last.at + _stop_time(last)
+			if want >= 0 and last.i != want:
+				_fade_out_all(now)   # the host picked a song: it fades in now, over the old one
+				_start(want, now, true)
+			elif now >= ends - FADE:
+				_start(want if want >= 0 else _pick(), ends - FADE, true)
 	else:
 		_update_clock(delta)
 	_mix(now, delta)
@@ -113,7 +141,7 @@ func _mix(now: float, delta: float) -> void:
 	for s in _songs.duplicate():
 		var p: AudioStreamPlayer = _players[s.p]
 		var t: float = now - s.at
-		var length := _length(s.i)
+		var length := _stop_time(s)
 		if t >= length:
 			p.stop()
 			_songs.erase(s)
@@ -138,6 +166,21 @@ func _length(i: int) -> float:
 	return _streams[i].get_length()
 
 
+## How long a song plays from its start: to its end, or until it has faded out if it
+## was cut short.
+func _stop_time(s: Dictionary) -> float:
+	var length := _length(s.i)
+	var end: float = s.get("end", -1.0)
+	return minf(length, end - float(s.at)) if end >= 0.0 else length
+
+
+## Everything playing fades out over FADE seconds from host time `now`.
+func _fade_out_all(now: float) -> void:
+	for s in _songs:
+		var end: float = s.get("end", -1.0)
+		s.end = now + FADE if end < 0.0 else minf(end, now + FADE)
+
+
 ## The next song: from a shuffled bag of all of them, never the one just played.
 func _pick() -> int:
 	if _bag.is_empty():
@@ -159,18 +202,19 @@ func _start(i: int, at: float, tell: bool) -> void:
 	if not _songs.is_empty():
 		free = 1 - int(_songs[0].p)
 	_players[free].stop()
-	_songs.append({"i": i, "at": at, "p": free, "on": false})
+	_songs.append({"i": i, "at": at, "p": free, "on": false, "end": -1.0})
 	if DevArgs.sync_log:
 		print("MUSIC %d %s %.3f" % [Net.my_id(), _names[i], at])
 	if tell and _hosting():
 		_play.rpc(_state())
 
 
-## What is playing, to send: [song, start, song, start] (the older one first).
+## What is playing, to send: [[song, start, end], ...] (the older one first; end is -1
+## unless it was cut short).
 func _state() -> Array:
 	var out := []
 	for s in _songs:
-		out.append([s.i, s.at])
+		out.append([s.i, s.at, s.get("end", -1.0)])
 	return out
 
 
@@ -187,11 +231,13 @@ func _play(state: Array) -> void:
 		if i < 0 or i >= _streams.size():
 			continue
 		var key := "%d:%.3f" % [i, float(entry[1])]
+		var end := float(entry[2]) if entry.size() > 2 else -1.0
 		if keep.has(key):
+			keep[key].end = end
 			next.append(keep[key])
 			players_used.append(keep[key].p)
 		else:
-			next.append({"i": i, "at": float(entry[1]), "p": -1, "on": false})
+			next.append({"i": i, "at": float(entry[1]), "p": -1, "on": false, "end": end})
 	for s in _songs:
 		if not next.has(s):
 			_players[s.p].stop()
@@ -234,6 +280,8 @@ func _on_connected() -> void:
 func _on_left() -> void:
 	for s in _songs:
 		s.at -= _offset
+		if s.get("end", -1.0) >= 0.0:
+			s.end -= _offset
 	_offset = 0.0
 	_best_rtt = INF
 

@@ -121,15 +121,33 @@ static func make(id: String) -> MapRoot:
 	return make(default_id())
 
 
+## The "Random" choice in a map drop-down: the host picks one of the maps the lobby's
+## pool allows when the match starts (see LobbySettings.pick_map).
+const RANDOM := "random"
+
+
+## The maps Random may pick from for one kind of game: its real maps (not test maps),
+## in menu order.
+static func random_ids(game: String) -> Array:
+	return LIST.filter(func(m): return not m.dev and valid_game(game) in _games(m)).map(func(m): return m.id)
+
+
 ## Fills a drop-down with the maps for one kind of game and selects `current` (or
 ## the first one, if `current` is not one of them). Each item's metadata is its map id.
-static func fill(pick: OptionButton, current: String, game: String = "ffa") -> void:
+## random: a "Random map" choice at the end too (its metadata is RANDOM).
+static func fill(pick: OptionButton, current: String, game: String = "ffa", random: bool = false) -> void:
 	pick.clear()
 	var list := ids_for(game)
 	for i in list.size():
 		pick.add_item(label(list[i]), i)
 		pick.set_item_metadata(i, list[i])
+	if random:
+		pick.add_separator()
+		pick.add_item("Random map", list.size() + 1)
+		pick.set_item_metadata(pick.item_count - 1, RANDOM)
 	var at := list.find(current)
+	if random and current == RANDOM:
+		at = pick.item_count - 1
 	pick.select(at if at >= 0 else 0)
 
 

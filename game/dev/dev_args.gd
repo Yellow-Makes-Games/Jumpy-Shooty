@@ -27,6 +27,10 @@ extends Node
 ## --practice           Skip the menus and drop into the arena alone.
 ## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
+##                      --map=random: a random map, picked as the match starts (from --map-pool, if given).
+## --map-pool=ID,ID     The maps a random map may pick from (host, practice and bot; see LobbySettings).
+## --song=NAME          Host: the lobby plays this song (a file name in game/audio/music/, without .mp3).
+## --song-at=SEC:NAME   Host: pick NAME as the lobby song SEC seconds after the lobby opens (tests).
 ## --race               With --practice, --bot or --host and no --map: race on the first race map.
 ## --game=GAME          ffa or dm (Deathmatch: start unarmed, pick weapons up off the map), with --practice, --bot or --host.
 ## --autopilot          Your own racer runs the course like a bot would (race tests and screenshots).
@@ -94,6 +98,10 @@ var bot_mobility := ""
 var switch_weapon := false
 var swap_on_death := false
 var map := ""
+var map_pool: Array = []   ## --map-pool (see LobbySettings.pool_for)
+var song := ""             ## --song
+var song_at := -1.0        ## --song-at (when)
+var song_later := ""       ## --song-at (which)
 var race := false
 var game := ""   ## --game=dm: a Deathmatch (on an arena map)
 var autopilot := false
@@ -197,10 +205,20 @@ func _ready() -> void:
 			"--switch-weapon": switch_weapon = true
 			"--swap-on-death": swap_on_death = true
 			"--map":
-				if Maps.has(value):
+				if Maps.has(value) or value == Maps.RANDOM:
 					map = value
 				else:
 					push_warning("Unknown map: %s (maps: %s)" % [value, ", ".join(Maps.ids())])
+			"--map-pool":
+				for m in value.split(",", false):
+					if Maps.has(m):
+						map_pool.append(m)
+					else:
+						push_warning("Unknown map: %s (maps: %s)" % [m, ", ".join(Maps.ids())])
+			"--song": song = value
+			"--song-at":
+				song_at = float(value.get_slice(":", 0))
+				song_later = value.substr(value.find(":") + 1)
 			"--race": race = true
 			"--game":
 				if value in Maps.GAMES:
