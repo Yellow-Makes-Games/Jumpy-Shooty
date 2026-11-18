@@ -1,7 +1,7 @@
 @tool
 class_name MapBlock
 extends Node3D
-## One piece of a map: a box, a cylinder or a tube, painted with a "kind" from the
+## One piece of a map: a box, a cylinder, a tube or a cone, painted with a "kind" from the
 ## map's palette. Move and turn it like any node; resize it with the inspector's
 ## Size or by dragging the orange handles on its faces (see addons/map_tools).
 ##
@@ -9,7 +9,7 @@ extends Node3D
 ## collision body, so a map of thousands of blocks still draws in a few calls. A
 ## block (or a group of them) hidden with the eye icon is left out of the game.
 
-enum Shape { BOX, CYLINDER, TUBE }
+enum Shape { BOX, CYLINDER, TUBE, CONE }
 
 @export var shape := Shape.BOX:
 	set(v):
@@ -18,7 +18,8 @@ enum Shape { BOX, CYLINDER, TUBE }
 		_changed()
 
 ## Box: width (x), height (y), depth (z). Cylinder and tube: diameter (x) and
-## height (y), standing along the block's own y axis; z is not used.
+## height (y), standing along the block's own y axis; z is not used. Cone: the
+## diameter at its foot (x) and its height (y), narrowing to Top at the top.
 @export var size := Vector3.ONE:
 	set(v):
 		size = v.max(Vector3(0.01, 0.01, 0.01))
@@ -72,7 +73,7 @@ enum Breakable { DEFAULT, YES, NO }
 		tint = v
 		_changed()
 
-## Cylinders and tubes: how many flat sides.
+## Cylinders, tubes and cones: how many flat sides.
 @export_range(3, 48) var sides := 12:
 	set(v):
 		sides = v
@@ -84,7 +85,13 @@ enum Breakable { DEFAULT, YES, NO }
 		inner = v
 		_changed()
 
-const SHAPE_NAMES := ["box", "cyl", "tube"]
+## Cones: the diameter at the top. 0 comes to a point; more cuts the tip off flat.
+@export var top := 0.0:
+	set(v):
+		top = maxf(v, 0.0)
+		_changed()
+
+const SHAPE_NAMES := ["box", "cyl", "tube", "cone"]
 
 var _preview: MeshInstance3D
 var _triangles: TriangleMesh
@@ -114,12 +121,15 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["sides"] = sides
 	if shape == Shape.TUBE:
 		piece["inner"] = inner * scale.x
+	if shape == Shape.CONE:
+		piece["top"] = top * scale.x
 	return piece
 
 
 ## Moves one face (0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z) to `reach` from the block's
-## centre (in its own units), keeping the opposite face where it is. On a cylinder
-## or tube, faces 0 to 1 and 4 to 5 set the diameter instead. Sizes snap to `step`.
+## centre (in its own units), keeping the opposite face where it is. On a cylinder,
+## tube or cone, faces 0 to 1 and 4 to 5 set the diameter (a cone's foot) instead.
+## Sizes snap to `step`.
 ## Used by the resize handles (addons/map_tools/block_gizmo.gd).
 func move_face(face: int, reach: float, step: float) -> void:
 	var axis := face / 2
@@ -216,6 +226,9 @@ func _validate_property(property: Dictionary) -> void:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"inner":
 			if shape != Shape.TUBE:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"top":
+			if shape != Shape.CONE:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 
 

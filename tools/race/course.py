@@ -152,7 +152,7 @@ class Course:
         cols = cols or self.basis()
         props = [("transform", self.xform(cols, center))]
         if shape != "box":
-            props.append(("shape", {"cyl": "1", "tube": "2"}[shape]))
+            props.append(("shape", {"cyl": "1", "tube": "2", "cone": "3"}[shape]))
         props.append(("size", vec(size)))
         props.append(("kind", '"%s"' % kind))
         if not solid:
