@@ -239,8 +239,10 @@ func _melee_in_the_air() -> void:
 					worst = maxf(worst, _left_hand_gap(rig, anim.sample(dt), anim.two_handed))
 					turned += absf(angle_difference(before, anim.spin()))
 				_check(anim.air() > 0.95 and anim.winding(), "%s: wound up off the ground, it takes its mid-air form" % what)
-				if moves.air.has("spin"):
-					_check(turned > TAU, "%s: and spins as it winds up (%.1f turns)" % [what, turned / TAU])
+				var turns: float = moves.air.get("turns", 0.0)
+				if turns != 0.0:
+					_check(turned > TAU * absf(turns) * 0.6 and turned < TAU * absf(turns) * 0.95,
+						"%s: and it turns most of the way round as it winds up (%.2f turns)" % [what, turned / TAU])
 				anim.swing(1.0, 0, true)
 				var cut := false
 				var t := 0.0
@@ -248,8 +250,13 @@ func _melee_in_the_air() -> void:
 				while t < anim.length() + 0.8:
 					t += dt
 					cut = cut or anim.cutting()
+					var was := anim.spin()
 					last = anim.sample(dt)
+					if t <= MeleeSwing.impact_time(id) + dt:
+						turned += absf(angle_difference(was, anim.spin()))
 					worst = maxf(worst, _left_hand_gap(rig, last, anim.two_handed))
+				if turns != 0.0:
+					_check(absf(turned - TAU * absf(turns)) < 0.15, "%s: the blow lands as the spin comes right round (%.2f turns in all)" % [what, turned / TAU])
 				_check(cut and not anim.active() and is_zero_approx(anim.spin()) and is_zero_approx(anim.air()) \
 					and (last[MeleeSwing.GRIP] as Vector3).distance_to(ready[MeleeSwing.GRIP]) < 0.02,
 					"%s: the mid-air blow cuts, and ends back at ready with the spin played out" % what)

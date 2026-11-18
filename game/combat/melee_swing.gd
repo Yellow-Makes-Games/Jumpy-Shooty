@@ -53,9 +53,9 @@ enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT, HANDS }
 ## barely drawn back comes round from its own side) and "way" (which way it crosses the
 ## view, where the blade's turning does not say). "air", if there is one, is the weapon's
 ## own wind-up and blow off the ground: "wound", "hit" and "end" again, with "axis" and
-## "spin" (the body spins about that axis while it winds up, at spin.x radians a second
-## rising to spin.y fully wound; + is to the left about UP) and "after" (turns the body
-## carries on round after the blow lands). A key named "fp_" and one of those
+## "turns" (the body goes round that axis this many times in all, one long spin from the
+## start of the wind-up to the moment the blow lands; + is to the left about UP) and
+## "after" (turns the body carries on round after the blow lands). A key named "fp_" and one of those
 ## ("fp_ready", "fp_wound", "fp_hit"...) is used instead in first person, where the weapon
 ## has to stay in view and clear of the middle of it, and a thrust has to go where you look.
 const MOVES := {
@@ -116,15 +116,15 @@ const MOVES := {
 			"hit": [Vector3(0.0, -0.18, -0.44), Vector3(0.2, 0.0, -0.98), Vector3(-1.0, 0.0, 0.0), 0.3, 0.3, -0.2],
 			"end": [Vector3(-0.12, -0.14, -0.24), Vector3(-0.75, 0.05, 0.65), Vector3(0.65, 0.0, 0.75), 1.25, 0.25, -0.2],
 		},
-		# In mid-air: spinning like a top, the hammer out at arm's length, faster as it winds up; let go and one
-		# huge swing comes out of the spin.
+		# In mid-air: one long turn right round, the hammer out at arm's length, from the start of the wind-up
+		# to the moment the huge swing at the end of it lands.
 		"air": {
 			"wound": [Vector3(0.3, -0.06, -0.42), Vector3(0.75, 0.05, -0.65), Vector3(-0.65, 0.0, -0.75), -0.3, 0.0, -0.2],
 			"fp_wound": [Vector3(0.2, -0.08, -0.44), Vector3(0.8, 0.3, -0.5), Vector3(-0.65, 0.0, -0.75), -0.3, 0.0, -0.2],
 			"hit": [Vector3(0.0, -0.18, -0.44), Vector3(0.2, 0.0, -0.98), Vector3(-1.0, 0.0, 0.0), 0.3, 0.3, -0.2],
 			"end": [Vector3(-0.12, -0.14, -0.24), Vector3(-0.75, 0.05, 0.65), Vector3(0.65, 0.0, 0.75), 1.25, 0.25, -0.2],
 			"axis": Vector3(0.0, 1.0, 0.0),
-			"spin": Vector2(5.0, 17.0),
+			"turns": 1.0,
 			"after": 0.0,
 		},
 	},
@@ -290,6 +290,10 @@ const SLAM_STRIKE := 0.05   ## seconds from touching down to the weapon hitting 
 const SLAM_HOLD := 0.28     ## ...it stays there this long...
 const SLAM_RISE := 0.45     ## ...and this long getting back up
 const AIR_BLEND := 6.0      ## how quickly a wind-up changes between its ground and mid-air forms (per second)
+const SPIN_WIND := 0.8      ## how much of a mid-air spin a full wind-up takes you round: the blow brings the rest
+const SPIN_MAX := 12.0      ## the fastest a wind-up turns you (radians a second), however late in the charge it began
+const SPIN_LATE := 0.6      ## a wind-up that leaves the ground wound up further than this still spins as if from here
+const SPIN_COMMIT := 0.25   ## let go with less of the turn than this done, the body comes back the short way instead
 const SPIN_SETTLE := 14.0   ## how quickly a mid-air spin that is over comes back round to facing forward (radians a second)
 
 enum { REST, WIND, SWING, SLAM }
@@ -321,7 +325,8 @@ var _stop := 0.0           # hit-stop left: the swing is frozen
 var _clock := 0.0
 var _in_air := false       # the wind-up (or the blow) is a mid-air one
 var _air := 0.0            # how far the pose has gone over to its mid-air form, 0..1
-var _spin := 0.0           # radians the body has spun round in a mid-air wind-up (kept within one turn)
+var _spin := 0.0           # radians the body has spun round in a mid-air wind-up
+var _spin_base := -1.0     # how wound up the swing was when it left the ground (the spin starts from there); -1: not spinning
 var _spinning := false     # a blow is bringing the spin round
 var _spin_from := 0.0      # ...from here...
 var _spin_first := 0.0     # ...to here as it lands (the end of the turn)...
@@ -348,7 +353,7 @@ func set_weapon(weapon_id: String) -> void:
 	if m.has("air"):
 		_air_move = _blow(m.air)
 		_air_move["axis"] = m.air.get("axis", Vector3.UP)
-		_air_move["spin"] = m.air.get("spin", Vector2.ZERO)
+		_air_move["turns"] = m.air.get("turns", 0.0)
 		_air_move["after"] = m.air.get("after", 0.0)
 	_pace = PACE.get(weapon_id, 1.0)
 	two_handed = WeaponData.by_id(weapon_id).two_handed
@@ -381,6 +386,10 @@ func wind(charge: float, side: int = 0, in_air: bool = false) -> void:
 	_charge = clampf(charge, 0.0, 1.0)
 	_wound = true
 	_in_air = in_air and not _air_move.is_empty()
+	if not _in_air:
+		_spin_base = -1.0
+	elif _spin_base < 0.0:
+		_spin_base = minf(_charge, SPIN_LATE)
 	if _phase == REST or (_phase == SWING and _t >= (STRIKE + FOLLOW) * _pace):
 		_phase = WIND
 		_side = side & 1
@@ -407,13 +416,14 @@ func swing(power: float, side: int = 0, in_air: bool = false) -> void:
 	var through := lerpf(0.8, 1.0, (_power - HEAVY_AT) / (1.0 - HEAVY_AT)) if _is_heavy else lerpf(0.55, 1.0, _power / HEAVY_AT)
 	var strike := STRIKE * _pace
 	_length = length()
-	# A spin under way finishes its turn the way it was going as the blow lands (and a
-	# mid-air blow may carry on round again after it).
+	# A spin under way finishes its turn as the blow lands (and a mid-air blow may carry
+	# on round again after it); one barely begun comes back the short way.
+	var full: float = TAU * float(_air_move.get("turns", 0.0))
+	_spin_base = -1.0
 	_spin_from = _spin
-	_spin_first = TAU * signf(_spin) if absf(_spin) > 0.05 else 0.0
-	var way: float = signf(_spin) if _spin != 0.0 else signf((_air_move.get("spin", Vector2.ONE) as Vector2).y)
-	_spin_to = _spin_first + (TAU * way * float(_air_move.get("after", 0.0)) if _in_air else 0.0)
-	_spinning = _spin_first != 0.0 or _spin_to != 0.0
+	_spin_first = full if full != 0.0 and absf(_spin) >= absf(full) * SPIN_COMMIT else roundf(_spin / TAU) * TAU
+	_spin_to = _spin_first + (TAU * signf(full) * float(_air_move.get("after", 0.0)) if _in_air else 0.0)
+	_spinning = _spin != 0.0 or _spin_to != 0.0
 	_path = [_cur.duplicate(), blow.hit, _mix(blow.hit, blow.end, through), _ready]
 	_times = PackedFloat32Array([0.0, strike * HIT_AT, strike + FOLLOW * _pace, _length])
 	_sweep = [blow.wound, blow.end, blow.way, blow.left]
@@ -464,7 +474,7 @@ func hit_stop(seconds: float = 0.07) -> void:
 ## In the blow or the start of its follow-through: the blade is cutting (draw its trail).
 func cutting() -> bool:
 	if _phase == WIND:   # spinning in mid-air, the weapon is already carving the air
-		return _air > 0.6 and _charge > 0.25 and (_air_move.get("spin", Vector2.ZERO) as Vector2).y > 0.0
+		return _air > 0.6 and _charge > 0.25 and float(_air_move.get("turns", 0.0)) != 0.0
 	if _phase == SLAM:
 		return false
 	if _landed > 0.0:
@@ -491,7 +501,8 @@ func slam_land(power: float) -> void:
 	_is_heavy = true
 	_landed = 1.0
 	_spin_from = _spin
-	_spin_first = 0.0 if absf(_spin) < PI else TAU * signf(_spin)
+	_spin_base = -1.0
+	_spin_first = roundf(_spin / TAU) * TAU
 	_spin_to = _spin_first
 	_spinning = _spin != 0.0
 	_length = SLAM_STRIKE + SLAM_HOLD + SLAM_RISE
@@ -596,10 +607,15 @@ func sample(delta: float) -> Array:
 				_air = move_toward(_air, 1.0 if _in_air else 0.0, delta * AIR_BLEND)
 				_use_fist(_heavy.left if _charge >= TAP_SPAN else _taps[_side].left)
 				var target := _wind_target()
-				if _air > 0.0:   # in mid-air the weapon winds up its own way, and the body spins, faster with the charge
+				if _air > 0.0:   # in mid-air the weapon winds up its own way
 					target = _mix(target, _air_move.wound, smoothstep(0.0, 1.0, _air))
-					var rate: Vector2 = _air_move.spin
-					_spin = fposmod(absf(_spin) + lerpf(absf(rate.x), absf(rate.y), _charge) * _air * delta, TAU) * signf(rate.y if rate.y != 0.0 else 1.0)
+				if _spin_base >= 0.0:
+					# ...and the body goes round with the charge: one long spin, most of the
+					# way by the time it is fully wound, the rest left for the blow.
+					var done := clampf((_charge - _spin_base) / (1.0 - _spin_base), 0.0, 1.0)
+					_spin = move_toward(_spin, TAU * float(_air_move.turns) * SPIN_WIND * done, delta * SPIN_MAX)
+				elif _spin != 0.0:   # back on the ground part way round: face front again the short way
+					_spin = move_toward(_spin, roundf(_spin / TAU) * TAU, delta * SPIN_SETTLE)
 				_cur = _mix(_cur, target, follow)
 				_drawn = lerpf(_drawn, _wind_depth(), follow)
 		SWING:
@@ -609,7 +625,7 @@ func sample(delta: float) -> Array:
 				var lands: float = _times[_times.size() - 3]
 				var ends: float = _times[_times.size() - 2]
 				if _t < lands:
-					_spin = lerpf(_spin_from, _spin_first, smoothstep(0.0, 1.0, _t / maxf(lands, 0.001)))
+					_spin = lerpf(_spin_from, _spin_first, _t / maxf(lands, 0.001))
 				elif _spin_to != _spin_first and _t < ends:
 					_spin = lerpf(_spin_first, _spin_to, _ease_out((_t - lands) / maxf(ends - lands, 0.001)))
 				else:
@@ -630,7 +646,7 @@ func sample(delta: float) -> Array:
 	if _phase != WIND:
 		_air = move_toward(_air, 0.0, delta * AIR_BLEND)
 	if _phase != WIND and _phase != SWING and _spin != 0.0:   # a spin left over (landed, let go): back to the front the short way
-		var to := 0.0 if absf(_spin) < PI else TAU * signf(_spin)
+		var to := roundf(_spin / TAU) * TAU
 		_spin = move_toward(_spin, to, delta * SPIN_SETTLE)
 		if is_equal_approx(_spin, to):
 			_spin = 0.0
