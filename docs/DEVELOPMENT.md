@@ -196,6 +196,9 @@ The sync, match and bot tests take a map and a player count, for example
   kept down does not fire it again; and for a terminal set to need a hold: a 2 s hold
   fires it, letting go, leaving the range and dying cancel and taking damage does not,
   one player at a time;
+- your colour (`tests/player_color_test.gd`): the colour you picked is yours when you
+  host, a joiner gets theirs unless another player has it, a bot hands its colour over,
+  nobody changes mid-match, and the swatch on the robot stage offers the free ones;
 - low gravity (`tests/gravity_test.gd`): the multiplier reaches 0.3 and returns to 1.0
   on schedule, a jump reaches about 4 m against about 1.2 m, rockets and grenades fly
   the same path, the centrifuge slows to half speed, and gravity is back at 1.0 when a
@@ -280,6 +283,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar`, or as a Character Creator id (`'--character=custom:n=Greg|l=frog|t=human|h=goblin|hat=crown'`), without changing your saved choice |
+| `--color=N` | Your colour in a free-for-all: a number in `Net.PLAYER_COLORS` (0 red, 1 blue, 2 green... 15 brown) |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
 | `--switch-weapon` | With `--auto-return`: pick the next gun in the lobby between matches (for the match test) |
@@ -1078,18 +1082,26 @@ animations of its own: a character with a creature's torso uses the first robot'
 skeleton, clips and guns, and its first-person arms are cut from the creature's own arm
 triangles (`RobotModel._kit_arms_mesh`; bulky arms get an entry in
 `Characters.KIT_FP_SLIM`). What a material is called decides how the game treats it, by
-the part of its name before the first `_`: `armor_*` takes the paint and the team colour,
-`extra_*` takes them too but is left out when accessories are fitted (ears, fins),
-`skin_*` and `flesh_*` take the skin tone (same split), `hair_*` and `shell_*` count as
-the head's surface for fitting hats, `eye_*` is where glasses sit, and `accent` is the
-player's colour. Anything else is drawn as built.
+the part of its name before the first `_`: `armor_*` takes the main colour and the team
+colour, `extra_*` takes them too but is left out when accessories are fitted (ears,
+fins), `trim_*` takes the second colour, `mark_*` and `hair_*` the detail colour,
+`skin_*` and `flesh_*` the skin tone (same split as armor and extra), `hair_*` and
+`shell_*` count as the head's surface for fitting hats, `eye_*` is where glasses sit, and
+`accent` is the player's colour. Anything else is drawn as built. (`RobotModel.CHANNELS`
+is the list.) A creature's shape functions use plain names ("belly", "leather"); `ROLES`
+in `creatures.py` says which of them are its second and detail colours, and the build
+writes them as `trim_belly`, `mark_spot`. The robots' files keep their own names:
+`Characters.material_role` maps them as the model is put together (every robot's `joint`
+is its second colour and `detail` its detail colour; the Templar's `steel`, `cloth` and
+`cross` are its main, second and detail colours).
 
 **Adding an accessory:** add it to `CustomCharacter.ACCESSORIES` under its slot and write
 a function of the same name with a leading underscore in
 `game/player/robot/accessories.gd` (`"fox_tail"` is built by `_fox_tail()`), from the
 helpers there (`_ball`, `_tube`, `_cone`, `_plate`...), placed with the measurements in
 `f` (the head, chest and waist of the body it is on). The creator, the id check and the
-test pick it up from the table.
+test pick it up from the table. Its colour button repaints the material that
+covers most of it; if that is the wrong one, name the right one in `Accessories.MAIN`.
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted

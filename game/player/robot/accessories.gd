@@ -49,11 +49,14 @@ const MATERIALS := {
 ## Which bone each slot's pieces follow.
 const SLOT_BONE := {"hat": "head", "face": "head", "neck": "chest", "shoulder": "chest", "back": "chest", "waist": "hips", "tail": "hips"}
 
+## The material an accessory's colour paints, where it is not simply the one most of
+## it is made of.
+const MAIN := {"jester": "purple", "shield": "accent", "drone": "steel"}
+
 static var _materials := {}
 
 var _tris := {}            # material -> PackedVector3Array, three points a triangle
 var _bone := "head"
-var _out := {}             # bone -> {material -> PackedVector3Array}
 var f := {}                # the body's measurements (see fit)
 
 
@@ -86,33 +89,67 @@ static func fit(head_shell: AABB, visor: AABB, chest: AABB, collar_front: float,
 
 
 ## Every piece for these accessories ({slot: id}), on a body measured by fit().
-## Returns [{bone, material (name), points (PackedVector3Array, three a triangle)}].
-static func build(picked: Dictionary, measurements: Dictionary) -> Array:
+## tints: {slot: Color} paints that slot's accessory: its main material (the one most
+## of it is made of, or MAIN's) comes out in that colour.
+## Returns [{bone, material (name), points (PackedVector3Array, three a triangle),
+## tint (a Color, on the painted pieces only)}].
+static func build(picked: Dictionary, measurements: Dictionary, tints: Dictionary = {}) -> Array:
 	var a := Accessories.new()
 	a.f = measurements
+	var merged := {}   # [bone, material, tint] -> PackedVector3Array
 	for slot in CustomCharacter.SLOTS:
 		var id: String = picked.get(slot, "")
 		if id == "":
 			continue
 		a._bone = SLOT_BONE[slot]
-		a._tris = a._out.get_or_add(a._bone, {})
+		a._tris = {}
 		var method := "_" + id
 		if a.has_method(method):
 			a.call(method)
+		var main := main_material(id, a._tris) if tints.has(slot) else ""
+		for m in a._tris:
+			var key := [a._bone, m, tints[slot] if m == main else Color(0, 0, 0, 0)]
+			if merged.has(key):
+				(merged[key] as PackedVector3Array).append_array(a._tris[m])
+			else:
+				merged[key] = a._tris[m]
 	var out: Array = []
-	for bone in a._out:
-		for m in a._out[bone]:
-			out.append({"bone": bone, "material": m, "points": a._out[bone][m]})
+	for key in merged:
+		var piece := {"bone": key[0], "material": key[1], "points": merged[key]}
+		if key[2].a > 0.0:
+			piece["tint"] = key[2]
+		out.append(piece)
 	return out
 
 
-## The shared material for a kind of surface (see MATERIALS).
-static func material(kind: String) -> StandardMaterial3D:
-	if not _materials.has(kind):
+## The part of an accessory its colour paints: MAIN's, or else the material that
+## covers the most of it (by area: a small round bobble is many triangles).
+static func main_material(id: String, tris: Dictionary) -> String:
+	if MAIN.has(id) and tris.has(MAIN[id]):
+		return MAIN[id]
+	var best := ""
+	var most := -1.0
+	for m in tris:
+		var points: PackedVector3Array = tris[m]
+		var area := 0.0
+		for i in range(0, points.size() - 2, 3):
+			area += (points[i + 1] - points[i]).cross(points[i + 2] - points[i]).length()
+		if area > most:
+			most = area
+			best = m
+	return best
+
+
+## The shared material for a kind of surface (see MATERIALS); tint: painted that
+## colour (an accessory in a colour of its own). A painted material is named "tint",
+## so nothing else recolours it.
+static func material(kind: String, tint: Color = Color(0, 0, 0, 0)) -> StandardMaterial3D:
+	var key: Variant = kind if tint.a <= 0.0 else [kind, tint]
+	if not _materials.has(key):
 		var d: Dictionary = MATERIALS.get(kind, MATERIALS.armor)
 		var m := StandardMaterial3D.new()
-		m.resource_name = kind
-		m.albedo_color = d.color
+		m.resource_name = kind if tint.a <= 0.0 else "tint"
+		m.albedo_color = d.color if tint.a <= 0.0 else Color(tint, d.color.a)
 		m.metallic = d.metallic
 		m.roughness = d.roughness
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED   # capes and brims are seen from both sides
@@ -120,10 +157,10 @@ static func material(kind: String) -> StandardMaterial3D:
 			m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		if d.has("emission"):
 			m.emission_enabled = true
-			m.emission = d.emission
+			m.emission = d.emission if tint.a <= 0.0 else Color(tint.r, tint.g, tint.b) * (d.emission.get_luminance() / maxf(tint.get_luminance(), 0.2))
 			m.emission_energy_multiplier = d.get("energy", 1.4)
-		_materials[kind] = m
-	return _materials[kind]
+		_materials[key] = m
+	return _materials[key]
 
 
 # ---------------------------------------------------------------------------
