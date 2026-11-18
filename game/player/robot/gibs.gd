@@ -10,6 +10,10 @@ extends Node3D
 ## Every triangle of a robot follows one bone, so each body part is a clean cut: its
 ## bones' triangles, moved off the skeleton into the bone's own space (see cut). Each
 ## piece then starts where that bone stood in the robot's last pose, in its own paint.
+##
+## A killcam replays the pieces' flight from Killcam's recording of it (capture()): a
+## puppet() is the same pieces, held still by physics and placed from the recording
+## (pose()) on the replay's own clock.
 
 ## Which piece a bone's triangles go in; a bone not listed goes with its parent's (a
 ## hand's grip bones with the forearm).
@@ -43,9 +47,16 @@ const DARK := Color(0.17, 0.18, 0.21)        ## and its gunmetal
 
 static var _cuts := {}          # body mesh -> its pieces (see cut)
 
+## Who fell, as what, and how the blow fell (Match.death_fx): kept with the recording.
+var who := 0
+var character := ""
+var weapon := ""
+var body_color := Color.WHITE
+var blow: Dictionary = {}
 var _age := 0.0
 var _edge := Color(1.0, 0.55, 0.2)
 var _dissolve: Dissolve
+var _first: Array = []   # each body in the world at the death (see capture)
 
 
 ## `p`'s body in pieces, flung by the killing blow (Match.death_fx), added to the world.
@@ -64,16 +75,102 @@ static func spawn(p: Player, fx: Dictionary) -> Node3D:
 	g.name = "Gibs%d" % p.peer_id
 	g.top_level = true   # its pieces are placed in world space
 	g._edge = RobotModel.trim_color(Net.player_color(p.peer_id))
+	g.who = p.peer_id
+	g.character = p.character
+	g.weapon = p.robot.weapon
+	g.body_color = Net.player_color(p.peer_id)
+	g.blow = fx.duplicate()
 	var bodies := g._build(p.robot, pieces)
 	if bodies.is_empty():
 		g.free()
 		return null
+	g._first = g.capture()
 	parent.add_child(g)
 	g._throw(bodies, p, fx)
-	g._effects(p, fx)
+	g.effects(p.global_position + Vector3(0, 1.0, 0), fx)
 	if DevArgs.sync_log:
 		print("GIBS %d %d %d" % [Net.my_id(), p.peer_id, bodies.size()])
 	return g
+
+
+## A replay's giblets (see KillcamView): `model`'s body cut as for spawn(), with `scrap`
+## bits of scrap (as many as the recording has), every body held still (kinematic, and
+## in no physics layer) until pose() places it. `model` must be in the world, posed as
+## at the death. Not yet in the world itself; the replay frees it. Null if it can't be cut.
+static func puppet(model: RobotModel, scrap: int, edge: Color) -> Gibs:
+	if model == null or model.mesh == null or model.skeleton == null or not model.is_inside_tree():
+		return null
+	var pieces := cut(model)
+	if pieces.is_empty():
+		return null
+	var g := Gibs.new()
+	g.name = "ReplayGibs"
+	g.top_level = true
+	g._edge = edge
+	var bodies := g._build(model, pieces, scrap)
+	if bodies.is_empty():
+		g.free()
+		return null
+	for body in bodies:
+		var b := body as RigidBody3D
+		b.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+		b.freeze = true
+		b.collision_layer = 0
+		b.collision_mask = 0
+	g.set_process(false)   # the replay decides when it goes
+	return g
+
+
+## Where each body is in the world now, in order: what Killcam records.
+func capture() -> Array:
+	var out := []
+	for c in get_children():
+		var b := c as RigidBody3D
+		if b:
+			out.append(b.global_transform if b.is_inside_tree() else b.transform)
+	return out
+
+
+## capture() at the moment of the death, before the blow moved anything.
+func start_pose() -> Array:
+	return _first
+
+
+## How many of the bodies are scrap.
+func scrap_count() -> int:
+	return get_children().filter(func(c): return String((c as Node).name).begins_with("scrap")).size()
+
+
+## A puppet: puts each body where `bodies` (from capture()) says.
+func pose(bodies: Array) -> void:
+	var i := 0
+	for c in get_children():
+		var b := c as RigidBody3D
+		if b == null:
+			continue
+		b.visible = i < bodies.size()   # (a piece the recording lacks stays out of sight)
+		if b.visible:
+			b.global_transform = bodies[i]
+		i += 1
+
+
+## Where the body was: its chest, or the middle of the pieces.
+func focus() -> Vector3:
+	var chest := get_node_or_null("chest") as Node3D
+	if chest:
+		return chest.global_position
+	var mid := Vector3.ZERO
+	var n := 0
+	for c in get_children():
+		if c is Node3D:
+			mid += (c as Node3D).global_position
+			n += 1
+	return mid / maxi(n, 1)
+
+
+## How long since the death (s).
+func age() -> float:
+	return _age
 
 
 ## A robot's body cut into its pieces, by the bone each triangle follows (made once per
@@ -195,8 +292,8 @@ static func _bake(all_arrays: Array, surfaces: Dictionary, bind_pose: Transform3
 
 
 ## The pieces as bodies, each where its bone stands now, then the scrap. Not yet in
-## the world (see _throw).
-func _build(model: RobotModel, pieces: Array) -> Array:
+## the world (see _throw). `scrap`: how many bits of scrap (-1: a few, at random).
+func _build(model: RobotModel, pieces: Array, scrap: int = -1) -> Array:
 	var skeleton := model.skeleton
 	var frame := skeleton.global_transform
 	var bodies := []
@@ -244,7 +341,7 @@ func _build(model: RobotModel, pieces: Array) -> Array:
 	# Scrap from round the middle of the body.
 	var trim := _edge
 	var mid := frame * skeleton.get_bone_global_pose(maxi(skeleton.find_bone("chest"), 0)).origin
-	var count := mini(randi_range(SCRAP[0], SCRAP[1]), MAX_PIECES - bodies.size())
+	var count := scrap if scrap >= 0 else mini(randi_range(SCRAP[0], SCRAP[1]), MAX_PIECES - bodies.size())
 	for i in maxi(count, 0):
 		var body := _scrap(i, trim)
 		body.name = "scrap%d" % i
@@ -384,18 +481,19 @@ func _throw(bodies: Array, p: Player, fx: Dictionary) -> void:
 
 
 ## A burst of sparks and smoke where the body was, smoke trailing from a few pieces, and
-## a crunch of metal. (A blast already made its own fireball.)
-func _effects(p: Player, fx: Dictionary) -> void:
-	var mid := p.global_position + Vector3(0, 1.0, 0)
+## a crunch of metal (unless `loud` is off: a replay plays its own). `mid`: the middle
+## of the body. (A blast already made its own fireball.)
+func effects(mid: Vector3, fx: Dictionary, loud: bool = true) -> void:
 	var way: Vector3 = fx.get("dir", Vector3.ZERO)
 	if fx.has("at"):
 		way = mid - (fx.at as Vector3)
 	way.y = 0.0
 	way = way.normalized() if way.length_squared() > 0.0001 else Vector3.FORWARD
-	Sound.play_at("heavy_hit", mid, "body", 0.0, 0.05)
-	var rattle := Sound.play_at("break_concrete", mid, "body", -3.0, 0.05)
-	if rattle:
-		rattle.pitch_scale *= 1.35   # chunks of metal, not stone
+	if loud:
+		Sound.play_at("heavy_hit", mid, "body", 0.0, 0.05)
+		var rattle := Sound.play_at("break_concrete", mid, "body", -3.0, 0.05)
+		if rattle:
+			rattle.pitch_scale *= 1.35   # chunks of metal, not stone
 	if DisplayServer.get_name() == "headless":
 		return
 	var parent := get_parent()
