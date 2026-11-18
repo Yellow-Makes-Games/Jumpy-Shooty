@@ -10,6 +10,13 @@ extends Node3D
 ## A blow (a kick, a crash into a wall, a blade; see KillScore.is_blow) plays in third
 ## person instead: the killer is a body like everyone else and the camera follows close
 ## behind them, turned towards the victim, so you see the swing or the kick land.
+##
+## A body knocked out falls the way it fell in the match: when the clip has its remains
+## (KillClip.Wreck), the body gives way to the replay's own ragdoll or giblets, posed
+## from that recording on the replay's clock (so slow motion slows the fall too, and a
+## video saved frame by frame has it frame by frame). They are this replay's, freed
+## with it or when it starts over. With gore off (Settings.gore), or with no recording,
+## the body stays and plays its death instead.
 
 signal finished
 signal kill_moment   ## the killing blow lands
@@ -55,6 +62,7 @@ var _akimbo_shots := 0
 var _was_reloading := false
 var _chase_ready := false    # third person: the camera has been placed once (then it eases)
 var _chase_look := Vector3.ZERO
+var _wrecks: Dictionary = {}  # KillClip.Wreck -> the replay's own Ragdoll or Gibs for it (null: none could be made)
 
 
 ## One other player: a body that moves and animates the way the clip says.
@@ -124,6 +132,7 @@ func restart() -> void:
 	_next = 0
 	for child in _fx.get_children():
 		child.queue_free()
+	_wrecks.clear()   # (they were in _fx)
 	for g in _ghosts.values():
 		(g as Ghost).seen.clear()
 		(g as Ghost).animator.respawn()
@@ -166,6 +175,7 @@ func _frame(delta: float) -> void:
 	for id in clip.tracks:
 		if id != clip.killer:
 			_play_ghost(id, delta)
+	_play_wrecks()
 	if third_person:
 		_chase(delta)
 	while _next < _events.size() and _events[_next][0] <= time:
@@ -259,10 +269,15 @@ func _chase(delta: float) -> void:
 	var right := Vector3.RIGHT.rotated(Vector3.UP, yaw)
 	var look := head + forward * 6.0
 	var victim: Ghost = _ghosts.get(clip.victim)
+	var chest := Vector3.INF
 	if victim and victim.root.visible:
-		var chest := victim.root.global_position + Vector3(0, 1.1, 0)
-		if chest.distance_to(head) < CHASE_VICTIM:
-			look = head.lerp(chest, 0.6)
+		chest = victim.root.global_position + Vector3(0, 1.1, 0)
+	else:   # fallen: where their remains are
+		for w: KillClip.Wreck in _wrecks:
+			if w.who == clip.victim and _wrecks[w] != null:
+				chest = _wrecks[w].focus()
+	if chest != Vector3.INF and chest.distance_to(head) < CHASE_VICTIM:
+		look = head.lerp(chest, 0.6)
 	var want := head - forward * CHASE_BACK + Vector3.UP * CHASE_UP + right * CHASE_SIDE
 	if is_inside_tree():   # stay on this side of a wall
 		var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(head, want))
@@ -329,6 +344,72 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 	g.hook = rope[1]
 	_ghosts[id] = g
 	return g
+
+
+## Remains: from the moment of each death in the clip, the replay's own ragdoll or
+## giblets where the recording says, the body they replaced out of sight until it is
+## back (respawned).
+func _play_wrecks() -> void:
+	for w: KillClip.Wreck in clip.wrecks:
+		var t := clip.time_for(w.who, time)
+		var shown := t >= w.first_time() and t < w.first_time() + Remains.LIFETIME and _gore_shows(w) \
+			and (third_person or w.who != clip.killer)   # (no body of the killer's own in front of their eyes)
+		var body: Node3D = _wrecks.get(w)
+		if not shown:
+			if body:
+				body.queue_free()
+			_wrecks.erase(w)
+			continue
+		if not _wrecks.has(w):
+			body = _make_wreck(w)
+			_wrecks[w] = body
+		if body == null:
+			continue   # (none could be made: the body stays, playing its death)
+		body.call("pose", w.pose_at(t))
+		var g: Ghost = _ghosts.get(w.who)
+		# Hidden while dead (and just at the death, when its frames may still say alive).
+		if g and (not g.anim.alive or t - w.first_time() < 0.2):
+			g.root.visible = false
+
+
+## Remains show as the game would show them now: none with gore off, and giblets only
+## with full gore (Settings.gore). Without them the body plays its death instead.
+func _gore_shows(w: KillClip.Wreck) -> bool:
+	return Settings.gore != "off" and (w.kind != "gibs" or Settings.gore == "full")
+
+
+## The replay's own ragdoll or giblets for `w`, made from the body it replaces (posed as
+## it was at the death), in _fx. Null if none can be made.
+func _make_wreck(w: KillClip.Wreck) -> Node3D:
+	var g: Ghost = _ghosts.get(w.who)
+	var source: RobotModel = g.robot if g and g.weapon == w.weapon else null
+	var spare: RobotModel = null   # no body to make them from (not in the clip): a fresh one
+	if source == null:
+		spare = RobotModel.new().build(w.character, w.color, false, w.weapon if w.weapon != "" else "pistol")
+		_fx.add_child(spare)
+		source = spare
+	var made: Node3D = null
+	if w.kind == "gibs":
+		made = Gibs.puppet(source, w.scrap, RobotModel.trim_color(w.color))
+	else:
+		made = Ragdoll.puppet(w.character, w.color, w.weapon if w.weapon != "" else "pistol", source.skeleton)
+	if made:
+		_fx.add_child(made)
+		if made is Ragdoll:
+			(made as Ragdoll).model.global_transform = source.global_transform   # (where the body was, so it is not culled)
+		var t := clip.time_for(w.who, time)
+		made.call("pose", w.pose_at(t))
+		if made is Gibs and t - w.first_time() < 0.3:   # (not for pieces already lying there when the clip starts)
+			var mid := (made as Gibs).focus()
+			(made as Gibs).effects(mid, w.fx, false)
+			_sound("heavy_hit", mid, false)
+		if DevArgs.sync_log:
+			print("KILLCAM WRECK %d %d %s %.2f %.2f" % [Net.my_id(), w.who, w.kind, time - clip.kill_time, w.last_time() - w.first_time()])   # (when, and how much of the fall was recorded)
+	if spare:
+		for i in spare.mesh.get_surface_override_material_count() if spare.mesh else 0:   # headless Godot grumbles otherwise
+			spare.mesh.set_surface_override_material(i, null)
+		spare.free()
+	return made
 
 
 ## New swings, kicks and wind-ups from the animation flags (see Player._watch_swings).

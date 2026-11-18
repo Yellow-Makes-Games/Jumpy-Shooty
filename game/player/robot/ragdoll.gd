@@ -9,6 +9,10 @@ extends Node3D
 ##
 ## Every character shares one skeleton (see Characters), so the bodies below fit them
 ## all; each skeleton's measurements are worked out once (see _plan).
+##
+## A killcam replays the fall from Killcam's recording of it (capture()): a puppet()
+## is the same robot with no physics, posed from the recording (pose()) on the replay's
+## own clock, so it falls the same way in slow motion and in a saved video.
 
 ## The bones that get a body (the hands and feet, the gun and the markers ride on
 ## theirs): "to" is the bone at its far end ("tip": a set length up the bone instead,
@@ -43,11 +47,18 @@ const GRAVITY := 22.0      ## falls the way players do (MovementTuning.gravity, 
 static var _plans := {}    # RobotRig -> its bodies (see _plan); [] when it lacks a bone
 
 var model: RobotModel
+## Who fell, as what, and how the blow fell (Match.death_fx): kept with the recording.
+var who := 0
+var character := ""
+var weapon := ""
+var body_color := Color.WHITE
+var blow: Dictionary = {}
 var _bones: Array[PhysicalBone3D] = []
 var _age := 0.0
 var _dissolve: Dissolve
 var _edge := Color.WHITE
 var _gravity := 1.0        # gravity_scale for GRAVITY (the physics' own default is weaker)
+var _first: Array = []     # each part's bone in the world at the death (see capture)
 
 
 ## A ragdoll in place of `p`'s body, thrown by the killing blow (Match.death_fx), added
@@ -64,6 +75,11 @@ static func spawn(p: Player, fx: Dictionary) -> Node3D:
 	var r := Ragdoll.new()
 	r.name = "Ragdoll"
 	r._edge = RobotModel.trim_color(color)
+	r.who = p.peer_id
+	r.character = p.character
+	r.weapon = p.robot.weapon
+	r.body_color = color
+	r.blow = fx.duplicate()
 	r.model = RobotModel.new().build(p.character, color, false, p.robot.weapon, false, Teams.paint_for(p.peer_id))
 	if r.model.skeleton == null or r.model.rig != p.robot.rig:
 		r.model.free()
@@ -75,10 +91,66 @@ static func spawn(p: Player, fx: Dictionary) -> Node3D:
 	r.model.set_power(0.0)   # powered down, like the body it replaces
 	r._build(plan)
 	r._pose_from(p.robot.skeleton)
+	r._first = r.capture()
 	r._throw(p, fx)
 	if DevArgs.sync_log:
 		print("RAGDOLL %d %d at %s" % [Net.my_id(), p.peer_id, p.global_position])
 	return r
+
+
+## A replay's ragdoll (see KillcamView): the same robot, powered down, with no physics
+## of its own, standing in `source`'s pose until pose() moves it. Not yet in the world;
+## the replay frees it. Null for a model without the bones.
+static func puppet(as_character: String, paint: Color, gun: String, source: Skeleton3D) -> Ragdoll:
+	var r := Ragdoll.new()
+	r.name = "ReplayRagdoll"
+	r.top_level = true
+	r.character = as_character
+	r.weapon = gun
+	r.body_color = paint
+	r.model = RobotModel.new().build(as_character, paint, false, gun)
+	if r.model.skeleton == null or r.model.rig == null or _plan(r.model.rig).is_empty():
+		r.model.free()
+		r.free()
+		return null
+	r.add_child(r.model)
+	r.model.set_power(0.0)
+	if source:
+		r._copy_pose(source)
+	r.set_process(false)           # the replay decides when it goes
+	r.set_physics_process(false)
+	return r
+
+
+## Each part's bone, in PARTS order, where it is in the world now: what Killcam records.
+func capture() -> Array:
+	var out := []
+	for b in _bones:
+		out.append(b.global_transform * b.body_offset.affine_inverse())
+	return out
+
+
+## capture() at the moment of the death, before the blow moved anything.
+func start_pose() -> Array:
+	return _first
+
+
+## A puppet: puts each part's bone where `bones` (from capture()) says, the hands, feet
+## and gun riding along on theirs.
+func pose(bones: Array) -> void:
+	var skeleton := model.skeleton
+	var inside := skeleton.global_transform.affine_inverse()
+	for i in mini(PARTS.size(), bones.size()):
+		var bone := skeleton.find_bone(PARTS[i].bone)
+		var at: Transform3D = inside * (bones[i] as Transform3D)
+		at.basis = at.basis.orthonormalized()   # (the bones are not scaled; the model may be)
+		skeleton.set_bone_global_pose(bone, at)
+
+
+## Where the body is: its hips, in the world.
+func focus() -> Vector3:
+	var skeleton := model.skeleton
+	return skeleton.global_transform * skeleton.get_bone_global_pose(maxi(skeleton.find_bone("hips"), 0)).origin
 
 
 ## How long since the death (s).
@@ -161,15 +233,20 @@ func _build(plan: Array) -> void:
 
 ## Starts from the dead body's pose, bone by bone.
 func _pose_from(source: Skeleton3D) -> void:
+	_copy_pose(source)
+	var skeleton := model.skeleton
+	var at := skeleton.global_transform
+	for b in _bones:
+		b.global_transform = (at * skeleton.get_bone_global_pose(b.get_bone_id()) * b.body_offset).orthonormalized()
+		PhysicsServer3D.body_set_enable_continuous_collision_detection(b.get_rid(), true)   # thin limbs, thrown fast
+
+
+func _copy_pose(source: Skeleton3D) -> void:
 	var skeleton := model.skeleton
 	for i in mini(skeleton.get_bone_count(), source.get_bone_count()):
 		skeleton.set_bone_pose_position(i, source.get_bone_pose_position(i))
 		skeleton.set_bone_pose_rotation(i, source.get_bone_pose_rotation(i))
 		skeleton.set_bone_pose_scale(i, source.get_bone_pose_scale(i))
-	var at := skeleton.global_transform
-	for b in _bones:
-		b.global_transform = (at * skeleton.get_bone_global_pose(b.get_bone_id()) * b.body_offset).orthonormalized()
-		PhysicsServer3D.body_set_enable_continuous_collision_detection(b.get_rid(), true)   # thin limbs, thrown fast
 
 
 ## Each part's starting speed: the way the player was going, the knockback of the
