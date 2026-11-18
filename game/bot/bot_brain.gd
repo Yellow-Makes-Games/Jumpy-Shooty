@@ -85,6 +85,8 @@ const TERMINAL_RANGE := 40.0     ## it only bothers with a terminal this close
 const TERMINAL_THINK := 5.0      ## seconds between thinking about going for one...
 const TERMINAL_CHANCE := [0.04, 0.06, 0.08, 0.1]   ## ...and the chance it does each time (Easy to Expert)
 const TERMINAL_GIVE_UP := 14.0   ## seconds it spends getting there before it drops the idea
+const NAV_SEARCH_POLYGONS := 32768  ## how much of the navigation mesh one path search may look through (see _nav_path)
+const NO_LINK_WAIT := 1.5           ## seconds before a bot that found no crossing looks for one again
 const LINK_SHORT := 3.0          ## a path that ends this far (metres) from where it is going does not get there...
 const LIFT_WORTH := 12.0         ## a goal this far above it (metres) is worth a tractor-beam lift, if one is near
 const GATE_WORTH := 25.0         ## an open ring gate is worth stepping through if it brings the goal this much nearer (metres)
@@ -157,6 +159,9 @@ var _link_boosted := false       # boost crossing: the boots have fired
 var _link_gliding := false       # boost crossing: it has started its glide
 var _flee := false               # it stands on an island that is about to go down: off, by the nearest crossing
 var _link_wait := 0.0            # seconds before it thinks of a crossing again (after one failed)
+var _no_link := 0.0              # seconds before it looks for a crossing again (after finding none)
+var _query: NavigationPathQueryParameters3D   # one path search's question and answer, used again each time
+var _answer: NavigationPathQueryResult3D
 var _open_map := -1              # 1: a map of islands over a drop (see _open()), 0: not, -1: not looked yet
 var _ground_map := -1            # 1: many moving parts, routes worked out part by part (see _by_ground()), 0: not, -1: not looked yet
 var _link_places := {}           # a crossing's instance id -> [the part it sets off from, the part it comes down on]
@@ -240,6 +245,7 @@ func update(delta: float) -> void:
 	var perceived := _perceived() if visible else []
 
 	_link_wait = maxf(_link_wait - delta, 0.0)
+	_no_link = maxf(_no_link - delta, 0.0)
 	if _link_flying:
 		_fly_link(delta)   # crossing a gap: nothing else until it is down
 		return
@@ -252,6 +258,7 @@ func update(delta: float) -> void:
 		_flee = flee
 		_repath = 0.0
 		_link_wait = 0.0
+		_no_link = 0.0
 		if not flee and not _link_flying:
 			_link = null
 	if _flee:
@@ -772,7 +779,20 @@ func _follow_path(goal_at: Vector3, delta: float) -> Vector3:
 
 ## A path from `a` to `b`, both in the navigation mesh's frame (and so is the path).
 func _nav_path(a: Vector3, b: Vector3) -> PackedVector3Array:
-	var found := NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, a, b, true)
+	# (Asked this way, not with map_get_path, to lift the server's limit on how much of
+	# the mesh one search may look through: 4096 polygons by default, and Empyrean
+	# Tower's mesh is twice that. Past the limit a search gives up and hands back a
+	# path that stops short, which a bot takes for "walking does not get there" and
+	# then tries every crossing on the map, at many searches each.)
+	if _query == null:
+		_query = NavigationPathQueryParameters3D.new()
+		_query.path_search_max_polygons = NAV_SEARCH_POLYGONS
+		_answer = NavigationPathQueryResult3D.new()
+	_query.map = me.get_world_3d().navigation_map
+	_query.start_position = a
+	_query.target_position = b
+	NavigationServer3D.query_path(_query, _answer)
+	var found := _answer.path
 	var path := PackedVector3Array()
 	for point in found:   # the server repeats points where the path changes height
 		if path.is_empty() or path[path.size() - 1].distance_to(point) > 0.05:
@@ -1016,6 +1036,11 @@ func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
 	var links := _links()
 	if _by_ground():
 		return _route_link(pos, goal, links)
+	if _no_link > 0.0:
+		return null   # (it looked a moment ago and there was none: every look costs path searches)
+	# Lifts and ring gates are short cuts, never the only way: _pick_lift and _pick_gate
+	# choose those, cheaply. Here they would only be more searches.
+	links = links.filter(func(l): return l.how != MapJumpLink.How.LIFT and l.how != MapJumpLink.How.GATE)
 	for l in links:
 		var link := l as MapJumpLink
 		var cost: float = pos.distance_to(link.takeoff()) + link.landing_point().distance_to(goal)
@@ -1039,6 +1064,8 @@ func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
 		if cost < best_cost:
 			best = link
 			best_cost = cost
+	if best == null:
+		_no_link = NO_LINK_WAIT
 	return best
 
 
