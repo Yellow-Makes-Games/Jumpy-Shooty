@@ -559,7 +559,10 @@ It has **two layouts**, and a player flips between them by pressing Interact at 
 
 The move takes 4 s, the bell then stays locked for 60 s, and nothing brings a layout
 back but ringing again. The second layout has its own look (sunset, windows and lamps
-lit). How it works is under "Maps with two layouts" below.
+lit). How it works is under "Maps with two layouts" below. In the team modes (Search
+and Destroy, Capture the Flag) the bell is locked for the whole match and the map stays
+in Hub, because their bomb sites and flag stands are fixed spots that would be left in
+mid-air.
 
 It was laid out by `python3 tools/arena/build_arena_maps.py cirrus` (the layout is
 `tools/arena/cirrus.py`; one island function, five building functions). Like the other

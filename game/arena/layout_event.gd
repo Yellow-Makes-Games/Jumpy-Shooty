@@ -93,6 +93,18 @@ func _ready() -> void:
 	_place.call_deferred()   # spans drawn in, islands home, once the map is built
 
 
+## Locked for the whole match in a team mode (Search and Destroy, Capture the Flag):
+## their bomb sites and flag stands are fixed spots worked out when the map loads, and
+## would be left in mid-air when the islands move. So the map stays in its first layout.
+func busy() -> bool:
+	return running or team_mode()
+
+
+func team_mode() -> bool:
+	var teams := autoload("Teams")
+	return teams != null and teams.active()
+
+
 func length() -> float:
 	return move_time + cooldown
 
@@ -231,7 +243,7 @@ func _process(delta: float) -> void:
 		if int(before / 0.06) != int(_rumble / 0.06):
 			_shake(0.55 * _rumble / RUMBLE_TIME)
 	if not _ready_mats.is_empty():
-		var can := not running
+		var can := not busy()
 		var want := ready_glow * (0.72 + 0.28 * sin(_time * 2.2)) if can else ready_glow * 0.07
 		for m in _ready_mats:
 			var mat: StandardMaterial3D = m
