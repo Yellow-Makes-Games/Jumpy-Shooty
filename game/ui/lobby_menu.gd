@@ -160,8 +160,10 @@ func _refresh() -> void:
 	_fit_list.call_deferred()
 	var watchers := Net.spectator_ids().map(func(id): return Net.spectator_name(id) + (" (you)" if id == Net.my_id() else ""))
 	_watching.text = "Spectating: %s" % ", ".join(watchers) if not watchers.is_empty() else "Nobody is spectating."
-	_spectate.text = "Play" if Net.spectating() else "Spectate"
-	_spectate.disabled = Net.spectating() and Net.players.size() >= LobbySettings.max_players()
+	if not Net.spectating():
+		Net.moved_by_host = false   # playing again
+	_spectate.text = ("Play" if Net.player_slot_free() else "Play (lobby full)") if Net.spectating() else "Spectate"
+	_spectate.disabled = Net.spectating() and not Net.player_slot_free()
 	_start.visible = Net.is_host()
 	_ready_button.visible = not Net.is_host()
 	_waiting.visible = not Net.is_host()
@@ -194,6 +196,8 @@ func _refresh() -> void:
 	_info.text = "%d of %d players.  %s" % [Net.players.size(), LobbySettings.max_players(), where]
 	if Net.spectating():
 		_info.text = "You are spectating: you will watch the match with a free camera.  " + _info.text
+		if Net.moved_by_host:
+			_info.text = "The host moved you to the spectators. Press Play to join back in when there is room.  " + _info.text
 	_refresh_rules()
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
@@ -241,6 +245,11 @@ func _player_row(id: int) -> PanelContainer:
 		kick.custom_minimum_size = Vector2(0, 28)
 		kick.add_theme_font_size_override("font_size", 13)
 		kick.tooltip_text = "Remove %s from the lobby" % Net.player_name(id)
+		var watch := UiKit.button(row, "Spectate", func(): Net.host_move_to_spectators(id))
+		watch.theme_type_variation = "Chip"
+		watch.custom_minimum_size = Vector2(0, 28)
+		watch.add_theme_font_size_override("font_size", 13)
+		watch.tooltip_text = "Move %s to the spectators (they can come back when there is room)" % Net.player_name(id)
 	return card
 
 
@@ -604,6 +613,17 @@ func _dev_lobby_steps() -> void:
 				if is_inside_tree() and Net.player_name(id) == DevArgs.kick_name:
 					Net.host_kick(id)
 					return)
+	if DevArgs.move_at >= 0.0 and Net.is_host():
+		get_tree().create_timer(DevArgs.move_at).timeout.connect(func():
+			for id in Net.players:
+				if is_inside_tree() and Net.player_name(id) == DevArgs.move_name:
+					Net.host_move_to_spectators(id)
+					return)
+	for t in DevArgs.play_at:
+		get_tree().create_timer(float(t)).timeout.connect(func():
+			if is_inside_tree() and Net.spectating():
+				print("PLAY_PRESSED")
+				Net.set_spectating(false))
 	if DevArgs.start_when_ready and Net.is_host():
 		Net.players_changed.connect(func():
 			if is_inside_tree() and not Net.in_match and Net.players.size() >= 2 and Net.all_ready():

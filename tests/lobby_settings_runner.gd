@@ -340,6 +340,17 @@ func _ready_and_size() -> void:
 	_expect(start.disabled and "1" in start.text, "Start waits for the one player not ready yet (%s)" % start.text)
 	var kicks := lobby.find_children("*", "Button", true, false).filter(func(b): return (b as Button).text == "Kick")
 	_expect(kicks.size() == 2, "the host has a Kick button on each other player's row (%d)" % kicks.size())
+	var moves := lobby.find_children("*", "Button", true, false).filter(func(b): return (b as Button).text == "Spectate" and b.get_parent() != lobby._spectate.get_parent())
+	_expect(moves.size() == 2, "the host has a Spectate button on each other player's row (%d)" % moves.size())
+	_expect(Net.player_slot_free(), "a player slot is free in a lobby of 4 with 3 players")
+	Net.spectators[5] = {"name": "Watcher"}
+	_expect(not Net.host_move_to_spectators(1) and Net.players.has(1), "the host cannot move itself to the spectators this way")
+	Net.players[4] = {"name": "Fourth", "color": 3, "character": "orbit", "weapon": "rifle", "mobility": "grapple"}
+	_expect(not Net.player_slot_free() and not Net.host_set_spectating(5, false), "with the lobby full, a spectator cannot come back to play")
+	Net.players.erase(4)
+	_expect(Net.host_set_spectating(5, false) and Net.players.has(5) and not Net.spectators.has(5), "with a slot free, a spectator comes back to play")
+	Net.players.erase(5)
+	Net.players_changed.emit()   # the lobby redraws without the test player
 	var tags := []
 	for l in lobby.find_children("*", "Label", true, false):
 		if (l as Label).text in ["READY", "NOT READY"]:

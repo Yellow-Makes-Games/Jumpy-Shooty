@@ -170,6 +170,7 @@ func leave() -> void:
 	players.clear()
 	spectators.clear()
 	pings.clear()
+	moved_by_host = false
 	if multiplayer.multiplayer_peer and not multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
@@ -431,12 +432,16 @@ func host_set_spectating(id: int, on: bool, character: String = "", weapon: Stri
 		spectators[id] = {"name": name}
 		print("[net] %d (%s) is spectating" % [id, name])
 	else:
-		if not spectators.has(id) or players.size() >= LobbySettings.max_players():   # no room in the lobby size
+		if not spectators.has(id) or not player_slot_free():   # no room in the lobby size
+			if DevArgs.sync_log and spectators.has(id):
+				print("SPECTATE_FULL %d" % id)
 			return false
 		var name := str(spectators[id].name)
 		spectators.erase(id)
 		host_add_player(id, name, character, weapon, mobility)
 		print("[net] %d (%s) stopped spectating" % [id, name])
+	if DevArgs.sync_log:
+		print("SPECTATE %d %s" % [id, "on" if on else "off"])
 	if is_online:
 		_sync_spectators.rpc(spectators)
 	_players_updated()
@@ -681,6 +686,36 @@ func _drop_peer_later(id: int) -> void:
 
 ## Host: remove a player from the lobby (not mid-match). They are told and sent back to
 ## the main menu.
+## Host: move another player to the spectators (in the lobby, not mid-match). They are
+## told, and come back with Play (set_spectating) when the lobby has room for them.
+func host_move_to_spectators(id: int) -> bool:
+	if not is_host() or not is_online or in_match or id == host_id() or is_bot(id) or not players.has(id):
+		return false
+	if not host_set_spectating(id, true):
+		return false
+	if DevArgs.sync_log:
+		print("MOVED_TO_SPECTATORS %d" % id)
+	_moved_by_host.rpc_id(id)
+	return true
+
+
+## This copy was moved to the spectators by the host (the lobby says so until you play again).
+var moved_by_host := false
+
+
+@rpc("authority", "call_remote", "reliable")
+func _moved_by_host() -> void:
+	moved_by_host = true
+	if DevArgs.sync_log:
+		print("MOVED_BY_HOST")
+	players_changed.emit()
+
+
+## Room for one more player in the lobby (a spectator can come back to play).
+func player_slot_free() -> bool:
+	return players.size() < LobbySettings.max_players()
+
+
 func host_kick(id: int) -> void:
 	if not is_host() or not is_online or in_match or id == host_id() or not players.has(id) or is_bot(id):
 		return

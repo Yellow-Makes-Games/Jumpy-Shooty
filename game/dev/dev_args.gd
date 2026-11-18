@@ -19,6 +19,8 @@ extends Node
 ## --ready-at=SEC       Lobby: say you are ready SEC seconds after the lobby opens (tests).
 ## --kick-at=SEC:NAME   Host: kick the player called NAME SEC seconds after the lobby opens (tests).
 ## --start-when-ready   Host: start the match as soon as everyone (at least 2) is ready (tests).
+## --move-at=SEC:NAME   Host: move the player called NAME to the spectators SEC seconds after the lobby opens (tests).
+## --play-at=SEC,SEC    Spectator: press Play at these seconds after the lobby opens (tests).
 ## --mobility=ID        Take this mobility tool (grapple, portal, blink) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
@@ -93,6 +95,9 @@ var ready_at := -1.0              ## --ready-at
 var kick_at := -1.0               ## --kick-at (when)
 var kick_name := ""               ## --kick-at (who)
 var start_when_ready := false     ## --start-when-ready
+var move_at := -1.0               ## --move-at (when)
+var move_name := ""               ## --move-at (who)
+var play_at: Array = []           ## --play-at
 var mobility := ""
 var bot_mobility := ""
 var switch_weapon := false
@@ -196,6 +201,12 @@ func _ready() -> void:
 				kick_at = float(value.get_slice(":", 0))
 				kick_name = value.substr(value.find(":") + 1)
 			"--start-when-ready": start_when_ready = true
+			"--move-at":
+				move_at = float(value.get_slice(":", 0))
+				move_name = value.substr(value.find(":") + 1)
+			"--play-at":
+				for t in value.split(",", false):
+					play_at.append(float(t))
 			"--allowed-mobility":
 				for m in value.split(",", false):
 					if Mobility.has(m):
