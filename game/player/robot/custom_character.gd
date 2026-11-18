@@ -1,41 +1,72 @@
 class_name CustomCharacter
 extends RefCounted
-## A character made in the Character Creator: the legs of one robot, the torso (and
-## arms) of another and the head of a third, a coat of paint, and up to one
-## accessory in each slot (hat, glasses, neck, back).
+## A character made in the Character Creator: the legs of one body, the torso (and
+## arms) of another and the head of a third (robots, or the other bodies: a person,
+## a goblin, a frog... see Characters.KITS), a coat of paint, a skin tone, and up to
+## one accessory in each slot (hat, face, neck, shoulder, back, waist, tail).
 ##
 ## It travels as a character id like any robot's ("needle", "templar"), so the lobby,
 ## the save file and every match pass it around unchanged:
 ##
-##   custom:n=Sir Bolt|l=kestrel|t=templar|h=rivet|p=gold|hat=top_hat|face=shades|neck=gold_chain|back=cape
+##   custom:n=Sir Bolt|l=frog|t=templar|h=goblin|p=gold|s=tan|hat=top_hat|face=shades|neck=gold_chain|back=cape
 ##
 ## normalize() rebuilds the id from what it can read, so an id from another player
 ## only ever names parts that exist, and a name that is short and plain.
 
 const PREFIX := "custom:"
 const MAX_NAME := 16
-## Body regions, and the bones whose triangles each one takes from its robot. The
-## torso takes everything else (spine, chest, arms, hands, guns).
+## Body regions, and the bones whose triangles each one takes from its body. The
+## torso takes everything else (spine, chest, arms, hands).
 const HEAD_BONES := ["head"]
 const LEG_BONES := ["hips", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r"]
 
-## Body paint: the colour of the main shell ("armor"). "" = as the robot was built.
+## Body paint: the colour of a robot's main shell and of the other bodies' clothes,
+## fur or hide ("armor": see RobotModel.material_kind). "" = as it was built.
 const PAINTS := [
-	{"id": "", "name": "Factory", "color": Color(0.90, 0.91, 0.93)},
+	{"id": "", "name": "Original", "color": Color(0.90, 0.91, 0.93)},
+	{"id": "white", "name": "Snow", "color": Color(0.97, 0.97, 0.97)},
 	{"id": "gunmetal", "name": "Gunmetal", "color": Color(0.30, 0.32, 0.35)},
 	{"id": "black", "name": "Midnight", "color": Color(0.07, 0.075, 0.09)},
 	{"id": "gold", "name": "Gold", "color": Color(0.95, 0.72, 0.24)},
+	{"id": "yellow", "name": "Lemon", "color": Color(0.97, 0.87, 0.22)},
+	{"id": "orange", "name": "Tangerine", "color": Color(0.95, 0.50, 0.10)},
 	{"id": "red", "name": "Crimson", "color": Color(0.72, 0.10, 0.10)},
-	{"id": "blue", "name": "Cobalt", "color": Color(0.14, 0.30, 0.78)},
-	{"id": "green", "name": "Moss", "color": Color(0.28, 0.45, 0.22)},
 	{"id": "pink", "name": "Bubblegum", "color": Color(0.95, 0.50, 0.72)},
 	{"id": "purple", "name": "Royal", "color": Color(0.40, 0.18, 0.62)},
+	{"id": "blue", "name": "Cobalt", "color": Color(0.14, 0.30, 0.78)},
+	{"id": "sky", "name": "Sky", "color": Color(0.42, 0.72, 0.95)},
+	{"id": "teal", "name": "Lagoon", "color": Color(0.08, 0.58, 0.58)},
+	{"id": "green", "name": "Moss", "color": Color(0.28, 0.45, 0.22)},
+	{"id": "lime", "name": "Lime", "color": Color(0.58, 0.85, 0.20)},
+	{"id": "brown", "name": "Chestnut", "color": Color(0.42, 0.27, 0.15)},
 	{"id": "sand", "name": "Desert", "color": Color(0.80, 0.68, 0.48)},
 ]
 
+## Skin tone: the colour of bare skin on the bodies that have some (a person's, a
+## goblin's, an imp's, a zombie's, the yeti's face: "skin"). "" = as it was built.
+const SKINS := [
+	{"id": "", "name": "Natural", "color": Color(0.87, 0.66, 0.52)},
+	{"id": "porcelain", "name": "Porcelain", "color": Color(0.97, 0.86, 0.78)},
+	{"id": "fair", "name": "Fair", "color": Color(0.94, 0.77, 0.64)},
+	{"id": "tan", "name": "Tan", "color": Color(0.82, 0.61, 0.44)},
+	{"id": "olive", "name": "Olive", "color": Color(0.70, 0.53, 0.36)},
+	{"id": "brown", "name": "Brown", "color": Color(0.52, 0.35, 0.23)},
+	{"id": "deep", "name": "Deep", "color": Color(0.32, 0.21, 0.15)},
+	{"id": "green", "name": "Goblin Green", "color": Color(0.45, 0.62, 0.24)},
+	{"id": "swamp", "name": "Swamp", "color": Color(0.52, 0.63, 0.50)},
+	{"id": "teal", "name": "Merfolk", "color": Color(0.20, 0.62, 0.62)},
+	{"id": "blue", "name": "Frost", "color": Color(0.42, 0.55, 0.82)},
+	{"id": "purple", "name": "Orchid", "color": Color(0.60, 0.42, 0.78)},
+	{"id": "pink", "name": "Candy", "color": Color(0.96, 0.62, 0.72)},
+	{"id": "red", "name": "Brimstone", "color": Color(0.78, 0.16, 0.13)},
+	{"id": "yellow", "name": "Sunny", "color": Color(0.96, 0.84, 0.30)},
+	{"id": "grey", "name": "Stone", "color": Color(0.60, 0.62, 0.63)},
+	{"id": "chalk", "name": "Chalk", "color": Color(0.93, 0.93, 0.91)},
+]
+
 ## The accessory slots, in the order the creator lists them. "" = none.
-const SLOTS := ["hat", "face", "neck", "back"]
-const SLOT_NAMES := {"hat": "Hat", "face": "Face", "neck": "Neck", "back": "Back"}
+const SLOTS := ["hat", "face", "neck", "shoulder", "back", "waist", "tail"]
+const SLOT_NAMES := {"hat": "Hat", "face": "Face", "neck": "Neck", "shoulder": "Shoulder", "back": "Back", "waist": "Waist", "tail": "Tail"}
 const ACCESSORIES := {
 	"hat": [
 		{"id": "", "name": "None"},
@@ -49,6 +80,26 @@ const ACCESSORIES := {
 		{"id": "halo", "name": "Halo"},
 		{"id": "headphones", "name": "Headphones"},
 		{"id": "beanie", "name": "Beanie"},
+		{"id": "pirate", "name": "Pirate Hat"},
+		{"id": "chef", "name": "Chef's Hat"},
+		{"id": "propeller", "name": "Propeller Cap"},
+		{"id": "santa", "name": "Santa Hat"},
+		{"id": "sombrero", "name": "Sombrero"},
+		{"id": "fez", "name": "Fez"},
+		{"id": "hard_hat", "name": "Hard Hat"},
+		{"id": "mortarboard", "name": "Mortarboard"},
+		{"id": "jester", "name": "Jester Hat"},
+		{"id": "bucket", "name": "Bucket"},
+		{"id": "traffic_cone", "name": "Traffic Cone"},
+		{"id": "bandana", "name": "Bandana"},
+		{"id": "flower_crown", "name": "Flower Crown"},
+		{"id": "mohawk", "name": "Mohawk"},
+		{"id": "afro", "name": "Afro"},
+		{"id": "devil_horns", "name": "Devil Horns"},
+		{"id": "antlers", "name": "Antlers"},
+		{"id": "bunny_ears", "name": "Bunny Ears"},
+		{"id": "cat_ears", "name": "Cat Ears"},
+		{"id": "unicorn", "name": "Unicorn Horn"},
 	],
 	"face": [
 		{"id": "", "name": "None"},
@@ -58,6 +109,17 @@ const ACCESSORIES := {
 		{"id": "goggles", "name": "Goggles"},
 		{"id": "mustache", "name": "Mustache"},
 		{"id": "eye_patch", "name": "Eye Patch"},
+		{"id": "aviators", "name": "Aviators"},
+		{"id": "three_d", "name": "3D Glasses"},
+		{"id": "heart_shades", "name": "Heart Shades"},
+		{"id": "laser_visor", "name": "Laser Visor"},
+		{"id": "bandit_mask", "name": "Bandit Mask"},
+		{"id": "bandana_mask", "name": "Bandana Mask"},
+		{"id": "snorkel", "name": "Snorkel"},
+		{"id": "clown_nose", "name": "Clown Nose"},
+		{"id": "beard", "name": "Beard"},
+		{"id": "handlebar", "name": "Handlebar"},
+		{"id": "lollipop", "name": "Lollipop"},
 	],
 	"neck": [
 		{"id": "", "name": "None"},
@@ -66,6 +128,24 @@ const ACCESSORIES := {
 		{"id": "scarf", "name": "Scarf"},
 		{"id": "medal", "name": "Medal"},
 		{"id": "tie", "name": "Necktie"},
+		{"id": "neckerchief", "name": "Neckerchief"},
+		{"id": "lei", "name": "Flower Lei"},
+		{"id": "bell_collar", "name": "Bell Collar"},
+		{"id": "spiked_collar", "name": "Spiked Collar"},
+		{"id": "pearls", "name": "Pearls"},
+		{"id": "ruff", "name": "Ruff"},
+		{"id": "dog_tags", "name": "Dog Tags"},
+		{"id": "stethoscope", "name": "Stethoscope"},
+	],
+	"shoulder": [
+		{"id": "", "name": "None"},
+		{"id": "parrot", "name": "Parrot"},
+		{"id": "epaulettes", "name": "Epaulettes"},
+		{"id": "pauldrons", "name": "Pauldrons"},
+		{"id": "shoulder_spikes", "name": "Spikes"},
+		{"id": "drone", "name": "Drone Buddy"},
+		{"id": "boombox", "name": "Boombox"},
+		{"id": "bandolier", "name": "Bandolier"},
 	],
 	"back": [
 		{"id": "", "name": "None"},
@@ -74,6 +154,38 @@ const ACCESSORIES := {
 		{"id": "backpack", "name": "Backpack"},
 		{"id": "rocket_pack", "name": "Rocket Pack"},
 		{"id": "sword", "name": "Sword on Back"},
+		{"id": "bat_wings", "name": "Bat Wings"},
+		{"id": "butterfly_wings", "name": "Butterfly Wings"},
+		{"id": "turtle_shell", "name": "Turtle Shell"},
+		{"id": "guitar", "name": "Guitar"},
+		{"id": "quiver", "name": "Quiver"},
+		{"id": "shield", "name": "Shield"},
+		{"id": "surfboard", "name": "Surfboard"},
+		{"id": "banner", "name": "Banner"},
+		{"id": "balloons", "name": "Balloons"},
+		{"id": "windup_key", "name": "Wind-up Key"},
+	],
+	"waist": [
+		{"id": "", "name": "None"},
+		{"id": "buckle_belt", "name": "Big Buckle"},
+		{"id": "utility_belt", "name": "Utility Belt"},
+		{"id": "champion_belt", "name": "Champion's Belt"},
+		{"id": "fanny_pack", "name": "Bum Bag"},
+		{"id": "tutu", "name": "Tutu"},
+		{"id": "grass_skirt", "name": "Grass Skirt"},
+		{"id": "pool_float", "name": "Pool Float"},
+		{"id": "hula_hoop", "name": "Hula Hoop"},
+	],
+	"tail": [
+		{"id": "", "name": "None"},
+		{"id": "fox_tail", "name": "Fox Tail"},
+		{"id": "monkey_tail", "name": "Monkey Tail"},
+		{"id": "bunny_tail", "name": "Bunny Tail"},
+		{"id": "dino_tail", "name": "Dino Tail"},
+		{"id": "devil_tail", "name": "Devil Tail"},
+		{"id": "scorpion_tail", "name": "Scorpion Tail"},
+		{"id": "peacock", "name": "Peacock Fan"},
+		{"id": "power_cord", "name": "Power Cord"},
 	],
 }
 
@@ -84,7 +196,8 @@ var legs := "vanguard"
 var torso := "vanguard"
 var head := "vanguard"
 var paint := ""
-var accessories := {"hat": "", "face": "", "neck": "", "back": ""}
+var skin := ""
+var accessories := {"hat": "", "face": "", "neck": "", "shoulder": "", "back": "", "waist": "", "tail": ""}
 
 
 static func is_custom(id: String) -> bool:
@@ -111,10 +224,11 @@ static func parse(id: String) -> CustomCharacter:
 		var v := field.substr(k.length() + 1) if "=" in field else ""
 		match k:
 			"n": c.name = clean_name(v)
-			"l": c.legs = _robot(v)
-			"t": c.torso = _robot(v)
-			"h": c.head = _robot(v)
+			"l": c.legs = _part(v)
+			"t": c.torso = _part(v)
+			"h": c.head = _part(v)
 			"p": c.paint = v if has_paint(v) else ""
+			"s": c.skin = v if has_skin(v) else ""
 			_:
 				if k in SLOTS and has_accessory(k, v):
 					c.accessories[k] = v
@@ -125,8 +239,10 @@ func to_id() -> String:
 	var out := PREFIX + "n=%s|l=%s|t=%s|h=%s" % [clean_name(name), legs, torso, head]
 	if paint != "":
 		out += "|p=" + paint
+	if skin != "":
+		out += "|s=" + skin
 	for slot in SLOTS:
-		if accessories[slot] != "":
+		if accessories.get(slot, "") != "":
 			out += "|%s=%s" % [slot, accessories[slot]]
 	return out
 
@@ -146,11 +262,9 @@ static func clean_name(text: String) -> String:
 	return out if out != "" else "Custom"
 
 
-static func _robot(id: String) -> String:
-	for c in Characters.LIST:
-		if c.id == id:
-			return id
-	return Characters.default_id()
+## A body a part can come from (a robot or a kit), or the default robot.
+static func _part(id: String) -> String:
+	return id if Characters.has_part(id) else Characters.default_id()
 
 
 static func has_paint(id: String) -> bool:
@@ -164,7 +278,28 @@ static func paint_color(id: String) -> Color:
 	for p in PAINTS:
 		if p.id == id and id != "":
 			return p.color
-	return Color(0, 0, 0, 0)   # no paint: the robot's own
+	return Color(0, 0, 0, 0)   # no paint: as it was built
+
+
+static func has_skin(id: String) -> bool:
+	for k in SKINS:
+		if k.id == id:
+			return true
+	return false
+
+
+static func skin_color(id: String) -> Color:
+	for k in SKINS:
+		if k.id == id and id != "":
+			return k.color
+	return Color(0, 0, 0, 0)   # as it was built
+
+
+static func skin_name(id: String) -> String:
+	for k in SKINS:
+		if k.id == id:
+			return k.name
+	return SKINS[0].name
 
 
 static func has_accessory(slot: String, id: String) -> bool:
@@ -190,7 +325,7 @@ static func paint_name(id: String) -> String:
 	return PAINTS[0].name
 
 
-## Which robot each bone's triangles come from ("head", "legs" or "torso").
+## Which body each bone's triangles come from ("head", "legs" or "torso").
 static func region_of(bone: String) -> String:
 	if bone in HEAD_BONES:
 		return "head"
@@ -208,10 +343,12 @@ func part(region: String) -> String:
 
 ## A line about it, for the picker.
 func blurb() -> String:
-	var parts := "%s head, %s torso, %s legs" % [Characters.name_of(head), Characters.name_of(torso), Characters.name_of(legs)]
+	var parts := "%s head, %s torso, %s legs" % [Characters.part_name(head), Characters.part_name(torso), Characters.part_name(legs)]
+	if head == torso and torso == legs:
+		parts = Characters.part_name(head)
 	var extras: Array = []
 	for slot in SLOTS:
-		if accessories[slot] != "":
+		if accessories.get(slot, "") != "":
 			extras.append(accessory_name(slot, accessories[slot]))
 	if paint != "":
 		parts += ", %s paint" % paint_name(paint)
@@ -219,18 +356,20 @@ func blurb() -> String:
 
 
 ## A random character (the creator's Randomize button). Accessories: each slot
-## filled about half the time.
+## filled a little under half the time.
 static func random(rng: RandomNumberGenerator = null) -> CustomCharacter:
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 		rng.randomize()
 	var c := CustomCharacter.new()
-	var ids := Characters.ids()
+	var ids := Characters.part_ids()
 	c.legs = ids[rng.randi() % ids.size()]
 	c.torso = ids[rng.randi() % ids.size()]
 	c.head = ids[rng.randi() % ids.size()]
-	c.paint = PAINTS[rng.randi() % PAINTS.size()].id
+	# Paint and skin: as built about half the time, so a frog is often green.
+	c.paint = PAINTS[rng.randi() % PAINTS.size()].id if rng.randf() < 0.5 else ""
+	c.skin = SKINS[rng.randi() % SKINS.size()].id if rng.randf() < 0.5 else ""
 	for slot in SLOTS:
 		var list: Array = ACCESSORIES[slot]
-		c.accessories[slot] = list[rng.randi_range(1, list.size() - 1)].id if rng.randf() < 0.55 else ""
+		c.accessories[slot] = list[rng.randi_range(1, list.size() - 1)].id if rng.randf() < 0.45 else ""
 	return c

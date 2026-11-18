@@ -260,7 +260,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--manual-respawn` | Respawn only on a Jump or Fire press, as in a real game, even headless or with `--scripted-input` (which otherwise ask to respawn as soon as the wait is over) |
 | `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
-| `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar` without changing your saved choice |
+| `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar`, or as a Character Creator id (`'--character=custom:n=Greg|l=frog|t=human|h=goblin|hat=crown'`), without changing your saved choice |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
 | `--switch-weapon` | With `--auto-return`: pick the next gun in the lobby between matches (for the match test) |
@@ -782,11 +782,12 @@ python3 with numpy):
 | File | What it holds |
 | --- | --- |
 | `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit, Templar); the unused draft, Brick, is kept |
+| `creatures.py` | The Character Creator's creatures (a person, a goblin, a frog...): each one's shape, modelled round the same skeleton, and their materials. `KITS` lists them |
 | `rig.py` | The skeleton (bone names and positions) and the pose solver |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
 | `weapons.py` | The four guns' shapes and materials (pistol, shotgun, rifle, sniper), and where the left hand holds each long gun |
 | `weapon_anims.py` | The long guns' own clips: how each is held, carried when sprinting, fired (pump, bolt), reloaded, and the first-person arm poses for each |
-| `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and guns) |
+| `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and guns), and for each creature `game/player/robot/kits/NAME.glb` (its mesh only: no guns, no animations). `--kits` writes only the creatures (a few seconds) |
 
 After changing any of them:
 
@@ -859,6 +860,28 @@ rebuild, then list it in `game/player/robot/characters.gd` with a display name a
 one-line description. The menus, the lobby, the network and the tests pick it up from
 that list. If its forearms are bulky, give it an entry in `FP_SLIM` so the
 first-person arms do not fill the view.
+
+**Adding a creature** (a body for the Character Creator that is not a full robot): write
+its shape as a function in `creatures.py` and add it to `KITS`, run
+`python3 tools/robot/build.py --kits` and import, set `meshes/ensure_tangents=false` and
+`meshes/generate_lods=false` in its new `.glb.import` (as the others have; import again),
+then list it in `KITS` in `game/player/robot/characters.gd`. A creature has no guns or
+animations of its own: a character with a creature's torso uses the first robot's
+skeleton, clips and guns, and its first-person arms are cut from the creature's own arm
+triangles (`RobotModel._kit_arms_mesh`; bulky arms get an entry in
+`Characters.KIT_FP_SLIM`). What a material is called decides how the game treats it, by
+the part of its name before the first `_`: `armor_*` takes the paint and the team colour,
+`extra_*` takes them too but is left out when accessories are fitted (ears, fins),
+`skin_*` and `flesh_*` take the skin tone (same split), `hair_*` and `shell_*` count as
+the head's surface for fitting hats, `eye_*` is where glasses sit, and `accent` is the
+player's colour. Anything else is drawn as built.
+
+**Adding an accessory:** add it to `CustomCharacter.ACCESSORIES` under its slot and write
+a function of the same name with a leading underscore in
+`game/player/robot/accessories.gd` (`"fox_tail"` is built by `_fox_tail()`), from the
+helpers there (`_ball`, `_tube`, `_cone`, `_plate`...), placed with the measurements in
+`f` (the head, chest and waist of the body it is on). The creator, the id check and the
+test pick it up from the table.
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted
