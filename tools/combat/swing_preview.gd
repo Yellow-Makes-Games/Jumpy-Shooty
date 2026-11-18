@@ -10,7 +10,7 @@ extends SceneTree
 ## Writes DIR/f_0001.png and so on, and DIR/marks.txt (which frame each blow was let go on).
 
 const YAWS := [25.0, -70.0, 180.0]
-const UP := 1.3          ## how high the robots are lifted for a mid-air blow
+const UP := 0.8          ## how high the robots are lifted for a mid-air blow
 const FALL_TIME := 0.22  ## a slam's fall, slowed so it can be seen
 
 var _weapon := "sword"
@@ -85,8 +85,10 @@ func _initialize() -> void:
 	var camera := Camera3D.new()
 	root.add_child(camera)
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 1.5 if _close else 3.0
-	camera.look_at_from_position(Vector3(0, 1.3 if _close else 1.25, -12), Vector3(0, 1.3 if _close else 1.25, 0))
+	var lifted: bool = "air" in _blows or "slam" in _blows   # (room above for a weapon held overhead off the ground)
+	camera.size = 1.5 if _close else (3.7 if lifted else 3.0)
+	var eye := 1.3 if _close else (1.6 if lifted else 1.25)
+	camera.look_at_from_position(Vector3(0, eye, -12), Vector3(0, eye, 0))
 	camera.make_current()
 	var gap := 1.6 if _close else 3.0
 	for i in YAWS.size():

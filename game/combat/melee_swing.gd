@@ -55,7 +55,9 @@ enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT, HANDS }
 ## own wind-up and blow off the ground: "wound", "hit" and "end" again, with "axis" and
 ## "turns" (the body goes round that axis this many times in all, one long spin from the
 ## start of the wind-up to the moment the blow lands; + is to the left about UP) and
-## "after" (turns the body carries on round after the blow lands). A key named "fp_" and one of those
+## "wind" (how much of that a full wind-up covers, the blow bringing the rest: SPIN_WIND unless
+## given) and "after" (turns the body carries on round after the blow lands, the
+## same way, or to the left if it did not spin before). A key named "fp_" and one of those
 ## ("fp_ready", "fp_wound", "fp_hit"...) is used instead in first person, where the weapon
 ## has to stay in view and clear of the middle of it, and a thrust has to go where you look.
 const MOVES := {
@@ -64,7 +66,7 @@ const MOVES := {
 		# lifted into view, the blade lying across below the crosshair). Flat cuts from each side; the heavy blow
 		# is a diagonal cut from high by the right shoulder down to the left hip, the whole body behind it.
 		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.13],
-		"fp_ready": [Vector3(0.24, -0.32, -0.3), Vector3(0.3, 0.55, -0.78), Vector3(-0.25, -0.75, -0.6), -0.25, 0.04, -0.13, 0.0],
+		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.13],
 		"taps": [
 			{
 				"wound": [Vector3(0.12, -0.08, -0.24), Vector3(0.75, 0.4, 0.55), Vector3(0.35, 0.0, -0.94), -0.8, -0.08, -0.15],
@@ -87,12 +89,24 @@ const MOVES := {
 			"hit": [Vector3(0.0, -0.2, -0.42), Vector3(0.2, 0.25, -0.95), Vector3(-0.7, -0.7, 0.0), 0.25, 0.38, -0.15],
 			"end": [Vector3(-0.16, -0.36, -0.22), Vector3(-0.75, -0.6, -0.2), Vector3(-0.3, -0.4, 0.86), 1.05, 0.4, -0.15],
 		},
+		# In mid-air: one forward somersault, the blade trailing back over the shoulder, into a vertical slash
+		# straight down in front as it comes round.
+		"air": {
+			"wound": [Vector3(0.1, 0.1, -0.08), Vector3(0.1, 0.45, 0.89), Vector3(0.0, 0.89, -0.45), -0.35, -0.35, -0.15],
+			"fp_wound": [Vector3(0.16, -0.02, -0.36), Vector3(0.25, 0.9, 0.35), Vector3(0.0, 0.35, -0.94), -0.3, -0.1, -0.15],
+			"lead": [Vector3(0.06, 0.16, -0.28), Vector3(0.05, 0.95, -0.3), Vector3(0.0, -0.3, -0.95), -0.1, 0.0, -0.15],
+			"hit": [Vector3(0.02, -0.12, -0.44), Vector3(0.03, -0.25, -0.97), Vector3(0.0, -0.97, 0.25), 0.1, 0.45, -0.15],
+			"end": [Vector3(0.0, -0.34, -0.28), Vector3(0.05, -0.9, 0.42), Vector3(0.0, 0.42, 0.9), 0.15, 0.5, -0.15],
+			"axis": Vector3(-1.0, 0.0, 0.0),
+			"turns": 1.0,
+			"wind": 0.9,
+		},
 	},
 	"hammer": {
 		# The hands apart on the haft, the head carried low. Flat swings from each side; the heavy blow is one
 		# huge swing round from far behind the right shoulder, the body turning hard through it.
 		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.2],
-		"fp_ready": [Vector3(0.24, -0.32, -0.3), Vector3(0.3, 0.55, -0.78), Vector3(-0.25, -0.75, -0.6), -0.25, 0.04, -0.2, 0.0],
+		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.2],
 		"taps": [
 			{
 				"wound": [Vector3(0.12, -0.08, -0.24), Vector3(0.75, 0.4, 0.55), Vector3(0.35, 0.0, -0.94), -0.864, -0.08, -0.2],
@@ -125,14 +139,13 @@ const MOVES := {
 			"end": [Vector3(-0.12, -0.14, -0.24), Vector3(-0.75, 0.05, 0.65), Vector3(0.65, 0.0, 0.75), 1.25, 0.25, -0.2],
 			"axis": Vector3(0.0, 1.0, 0.0),
 			"turns": 1.0,
-			"after": 0.0,
 		},
 	},
 	"axe": {
 		# Diagonal chops, down from the right shoulder and then down from the left; the heavy blow comes from
 		# high behind the head and is driven down past the hip.
 		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.17],
-		"fp_ready": [Vector3(0.24, -0.32, -0.3), Vector3(0.3, 0.55, -0.78), Vector3(-0.25, -0.75, -0.6), -0.25, 0.04, -0.17, 0.0],
+		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.17],
 		"taps": [
 			{
 				"wound": [Vector3(0.13, 0.04, -0.18), Vector3(0.55, 0.55, 0.63), Vector3(-0.3, -0.5, -0.8), -0.8, -0.1, -0.17],
@@ -153,12 +166,23 @@ const MOVES := {
 			"hit": [Vector3(0.0, -0.22, -0.42), Vector3(0.15, 0.15, -0.98), Vector3(-0.55, -0.83, 0.0), 0.25, 0.42, -0.17],
 			"end": [Vector3(-0.1, -0.38, -0.22), Vector3(-0.6, -0.75, -0.28), Vector3(-0.3, -0.3, 0.9), 1.05, 0.5, -0.17],
 		},
+		# In mid-air: one cartwheel with the axe held high over the head, into a big chop straight down in front.
+		"air": {
+			"wound": [Vector3(0.04, 0.16, -0.08), Vector3(0.05, 0.6, 0.8), Vector3(0.0, 0.8, -0.6), -0.2, -0.35, -0.17],
+			"fp_wound": [Vector3(0.12, 0.0, -0.34), Vector3(0.15, 0.95, 0.25), Vector3(0.0, 0.25, -0.97), -0.2, -0.1, -0.17],
+			"lead": [Vector3(0.04, 0.16, -0.28), Vector3(0.05, 0.95, -0.3), Vector3(0.0, -0.3, -0.95), -0.05, 0.0, -0.17],
+			"hit": [Vector3(0.0, -0.2, -0.44), Vector3(0.05, -0.15, -0.99), Vector3(0.0, -0.99, 0.15), 0.1, 0.5, -0.17],
+			"end": [Vector3(0.0, -0.38, -0.26), Vector3(0.0, -0.8, -0.6), Vector3(0.0, -0.6, 0.8), 0.15, 0.55, -0.17],
+			"axis": Vector3(0.0, 0.0, 1.0),
+			"turns": 1.0,
+			"wind": 0.9,
+		},
 	},
 	"bat": {
 		# Hands together at the knob. A flat swing and a backhand; the heavy blow is a home run, cocked high
 		# behind the right shoulder and finished all the way round over the left.
 		"ready": [Vector3(0.08, -0.42, -0.2), Vector3(-0.4, -0.38, -0.83), Vector3(0.0, -0.9, 0.42), -0.25, 0.04, -0.11],
-		"fp_ready": [Vector3(0.24, -0.32, -0.3), Vector3(0.3, 0.55, -0.78), Vector3(-0.25, -0.75, -0.6), -0.25, 0.04, -0.11, 0.0],
+		"fp_ready": [Vector3(0.06, -0.3, -0.38), Vector3(-0.55, -0.1, -0.83), Vector3(0.0, -1.0, 0.1), -0.25, 0.04, -0.11],
 		"taps": [
 			{
 				"wound": [Vector3(0.12, -0.08, -0.24), Vector3(0.75, 0.4, 0.55), Vector3(0.35, 0.0, -0.94), -0.8, -0.08, -0.11],
@@ -182,12 +206,23 @@ const MOVES := {
 			"hit": [Vector3(0.0, -0.16, -0.44), Vector3(0.2, 0.08, -0.98), Vector3(-1.0, 0.0, 0.0), 0.3, 0.22, -0.11],
 			"end": [Vector3(-0.12, 0.02, -0.2), Vector3(-0.45, 0.55, 0.7), Vector3(0.7, 0.1, 0.7), 1.25, 0.05, -0.11],
 		},
+		# In mid-air: coiled right back like a batter, knees up, and the home run carries the body on round a
+		# whole turn after it lands.
+		"air": {
+			"wound": [Vector3(0.18, 0.04, -0.04), Vector3(0.15, 0.85, 0.5), Vector3(0.6, 0.0, -0.8), -1.5, -0.25, -0.11],
+			"fp_wound": [Vector3(0.06, -0.02, -0.4), Vector3(0.42, 0.88, 0.22), Vector3(-0.3, -0.3, -0.9), -0.85, -0.12, -0.11],
+			"lead": [Vector3(0.14, -0.12, -0.3), Vector3(0.92, 0.0, -0.38), Vector3(-0.38, 0.0, -0.92), -0.4, 0.1, -0.11],
+			"hit": [Vector3(0.0, -0.16, -0.44), Vector3(0.2, 0.08, -0.98), Vector3(-1.0, 0.0, 0.0), 0.3, 0.22, -0.11],
+			"end": [Vector3(-0.12, 0.02, -0.2), Vector3(-0.45, 0.55, 0.7), Vector3(0.7, 0.1, 0.7), 1.25, 0.05, -0.11],
+			"axis": Vector3(0.0, 1.0, 0.0),
+			"after": 1.0,
+		},
 	},
 	"spear": {
 		# Carried level at the hip, the left hand forward on the shaft. Every blow is a thrust: quick jabs, high
 		# then low; the heavy blow is drawn far back and driven right out, the shaft turning as it goes.
 		"ready": [Vector3(0.14, -0.3, -0.02), Vector3(-0.3, -0.12, -0.95), Vector3(0.0, -1.0, 0.0), -0.3, 0.0, 0.27],
-		"fp_ready": [Vector3(0.26, -0.3, -0.04), Vector3(0.12, 0.2, -0.97), Vector3(0.0, -1.0, 0.0), -0.24, 0.0, 0.27, 0.0],
+		"fp_ready": [Vector3(0.12, -0.2, -0.1), Vector3(-0.34, 0.06, -0.94), Vector3(0.0, -1.0, 0.0), -0.24, 0.0, 0.27],
 		"taps": [
 			{
 				"wound": [Vector3(0.22, -0.16, 0.06), Vector3(-0.6, 0.12, -0.79), Vector3(0.0, -1.0, 0.0), -0.55, -0.08, 0.27],
@@ -211,12 +246,21 @@ const MOVES := {
 			"end": [Vector3(0.0, -0.13, -0.45), Vector3(0.66, 0.0, -0.75), Vector3(0.75, 0.0, 0.66), 0.46, 0.44, 0.04],
 			"fp_end": [Vector3(0.05, -0.13, -0.35), Vector3(-0.12, -0.02, -0.99), Vector3(0.99, 0.0, -0.12), 0.46, 0.44, 0.04],
 		},
+		# In mid-air: arched back like a javelin thrower, the spear raised over the shoulder, into a thrust driven down
+		# ahead as the body dives after it.
+		"air": {
+			"wound": [Vector3(0.24, 0.28, -0.02), Vector3(-0.67, -0.3, -0.67), Vector3(0.0, -1.0, 0.0), -0.4, -0.45, 0.2],
+			"hit": [Vector3(0.0, -0.16, -0.44), Vector3(0.62, -0.15, -0.77), Vector3(0.78, 0.0, 0.63), 0.42, 0.5, 0.04],
+			"fp_hit": [Vector3(0.05, -0.16, -0.34), Vector3(-0.12, -0.3, -0.95), Vector3(0.99, 0.0, -0.12), 0.42, 0.6, 0.04],
+			"end": [Vector3(0.0, -0.17, -0.46), Vector3(0.63, -0.17, -0.76), Vector3(0.77, 0.0, 0.64), 0.46, 0.52, 0.04],
+			"fp_end": [Vector3(0.05, -0.17, -0.35), Vector3(-0.12, -0.32, -0.94), Vector3(0.99, 0.0, -0.12), 0.46, 0.65, 0.04],
+		},
 	},
 	"dagger": {
 		# One hand, the other fist up in a guard. A forehand slash and a backhand; the heavy blow is a stab,
 		# drawn back to the ribs and lunged straight out.
 		"ready": [Vector3(0.2, -0.3, -0.2), Vector3(-0.2, 0.45, -0.87), Vector3(-0.5, -0.5, -0.7), -0.2, 0.0, 0.0],
-		"fp_ready": [Vector3(0.26, -0.24, -0.3), Vector3(0.2, 0.6, -0.78), Vector3(-0.6, -0.2, -0.6), -0.08, 0.0, 0.0],
+		"fp_ready": [Vector3(0.2, -0.2, -0.3), Vector3(-0.1, 0.62, -0.78), Vector3(-0.6, -0.2, -0.6), -0.08, 0.0, 0.0],
 		"taps": [
 			{
 				"wound": [Vector3(0.34, -0.08, -0.1), Vector3(0.62, 0.3, -0.72), Vector3(0.75, 0.0, 0.66), -0.75, -0.05, 0.0],
@@ -235,6 +279,16 @@ const MOVES := {
 			"fp_hit": [Vector3(0.1, -0.14, -0.46), Vector3(-0.2, 0.0, -0.98), Vector3(0.0, -1.0, 0.0), 0.4, 0.4, 0.0],
 			"end": [Vector3(0.0, -0.12, -0.52), Vector3(0.64, 0.0, -0.77), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
 			"fp_end": [Vector3(0.1, -0.14, -0.48), Vector3(-0.2, -0.02, -0.98), Vector3(0.0, -1.0, 0.0), 0.45, 0.44, 0.0],
+		},
+		# In mid-air: a tight corkscrew, two quick turns with the dagger tucked in to the chest, into a fast
+		# slash as the second turn comes round.
+		"air": {
+			"wound": [Vector3(0.12, -0.08, -0.14), Vector3(-0.2, 0.8, -0.56), Vector3(-0.5, -0.5, -0.7), -0.4, -0.1, 0.0],
+			"fp_wound": [Vector3(0.22, -0.14, -0.32), Vector3(0.0, 0.8, -0.6), Vector3(-0.6, -0.45, -0.66), -0.3, -0.05, 0.0],
+			"hit": [Vector3(0.04, -0.14, -0.44), Vector3(-0.5, 0.1, -0.86), Vector3(-0.86, 0.0, 0.5), 0.25, 0.2, 0.0],
+			"end": [Vector3(-0.12, -0.15, -0.3), Vector3(-0.95, 0.0, -0.3), Vector3(-0.3, 0.0, 0.95), 0.7, 0.15, 0.0],
+			"axis": Vector3(0.0, 1.0, 0.0),
+			"turns": 2.0,
 		},
 	},
 	"brass_knuckles": {
@@ -264,6 +318,14 @@ const MOVES := {
 			"end": [Vector3(0.02, 0.2, -0.28), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.95, 0.3), 0.7, -0.22, 0.0],
 			"way": Vector2(0.0, 1.0),
 		},
+		# In mid-air: curled up, the right fist drawn right back past the ribs, into a superman punch thrown
+		# straight out ahead.
+		"air": {
+			"wound": [Vector3(0.26, -0.12, 0.14), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), -0.85, -0.3, 0.0],
+			"fp_wound": [Vector3(0.26, -0.24, -0.16), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), -0.6, -0.1, 0.0],
+			"hit": [Vector3(0.04, -0.02, -0.5), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.45, 0.35, 0.0],
+			"end": [Vector3(0.03, -0.03, -0.52), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.5, 0.4, 0.0],
+		},
 	},
 }
 ## How long the blow, follow-through and recovery take, against the sword's.
@@ -290,8 +352,8 @@ const SLAM_STRIKE := 0.05   ## seconds from touching down to the weapon hitting 
 const SLAM_HOLD := 0.28     ## ...it stays there this long...
 const SLAM_RISE := 0.45     ## ...and this long getting back up
 const AIR_BLEND := 6.0      ## how quickly a wind-up changes between its ground and mid-air forms (per second)
-const SPIN_WIND := 0.8      ## how much of a mid-air spin a full wind-up takes you round: the blow brings the rest
-const SPIN_MAX := 12.0      ## the fastest a wind-up turns you (radians a second), however late in the charge it began
+const SPIN_WIND := 0.8      ## how much of a mid-air spin a full wind-up takes you round, unless the move says: the blow brings the rest
+const SPIN_MAX := 12.0      ## the fastest a wind-up turns you (radians a second, for each turn the move makes)
 const SPIN_LATE := 0.6      ## a wind-up that leaves the ground wound up further than this still spins as if from here
 const SPIN_COMMIT := 0.25   ## let go with less of the turn than this done, the body comes back the short way instead
 const SPIN_SETTLE := 14.0   ## how quickly a mid-air spin that is over comes back round to facing forward (radians a second)
@@ -354,6 +416,7 @@ func set_weapon(weapon_id: String) -> void:
 		_air_move = _blow(m.air)
 		_air_move["axis"] = m.air.get("axis", Vector3.UP)
 		_air_move["turns"] = m.air.get("turns", 0.0)
+		_air_move["wind"] = m.air.get("wind", SPIN_WIND)
 		_air_move["after"] = m.air.get("after", 0.0)
 	_pace = PACE.get(weapon_id, 1.0)
 	two_handed = WeaponData.by_id(weapon_id).two_handed
@@ -422,7 +485,7 @@ func swing(power: float, side: int = 0, in_air: bool = false) -> void:
 	_spin_base = -1.0
 	_spin_from = _spin
 	_spin_first = full if full != 0.0 and absf(_spin) >= absf(full) * SPIN_COMMIT else roundf(_spin / TAU) * TAU
-	_spin_to = _spin_first + (TAU * signf(full) * float(_air_move.get("after", 0.0)) if _in_air else 0.0)
+	_spin_to = _spin_first + (TAU * float(_air_move.get("after", 0.0)) * (signf(full) if full != 0.0 else 1.0) if _in_air else 0.0)
 	_spinning = _spin != 0.0 or _spin_to != 0.0
 	_path = [_cur.duplicate(), blow.hit, _mix(blow.hit, blow.end, through), _ready]
 	_times = PackedFloat32Array([0.0, strike * HIT_AT, strike + FOLLOW * _pace, _length])
@@ -613,7 +676,7 @@ func sample(delta: float) -> Array:
 					# ...and the body goes round with the charge: one long spin, most of the
 					# way by the time it is fully wound, the rest left for the blow.
 					var done := clampf((_charge - _spin_base) / (1.0 - _spin_base), 0.0, 1.0)
-					_spin = move_toward(_spin, TAU * float(_air_move.turns) * SPIN_WIND * done, delta * SPIN_MAX)
+					_spin = move_toward(_spin, TAU * float(_air_move.turns) * float(_air_move.wind) * done, delta * SPIN_MAX * absf(float(_air_move.turns)))
 				elif _spin != 0.0:   # back on the ground part way round: face front again the short way
 					_spin = move_toward(_spin, roundf(_spin / TAU) * TAU, delta * SPIN_SETTLE)
 				_cur = _mix(_cur, target, follow)

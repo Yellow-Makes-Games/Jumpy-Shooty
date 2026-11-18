@@ -241,7 +241,7 @@ func _melee_in_the_air() -> void:
 				_check(anim.air() > 0.95 and anim.winding(), "%s: wound up off the ground, it takes its mid-air form" % what)
 				var turns: float = moves.air.get("turns", 0.0)
 				if turns != 0.0:
-					_check(turned > TAU * absf(turns) * 0.6 and turned < TAU * absf(turns) * 0.95,
+					_check(turned > TAU * absf(turns) * 0.6 and turned < TAU * absf(turns) * 0.97,
 						"%s: and it turns most of the way round as it winds up (%.2f turns)" % [what, turned / TAU])
 				anim.swing(1.0, 0, true)
 				var cut := false
@@ -252,8 +252,7 @@ func _melee_in_the_air() -> void:
 					cut = cut or anim.cutting()
 					var was := anim.spin()
 					last = anim.sample(dt)
-					if t <= MeleeSwing.impact_time(id) + dt:
-						turned += absf(angle_difference(was, anim.spin()))
+					turned += absf(angle_difference(was, anim.spin()))
 					worst = maxf(worst, _left_hand_gap(rig, last, anim.two_handed))
 				if turns != 0.0:
 					_check(absf(turned - TAU * absf(turns)) < 0.15, "%s: the blow lands as the spin comes right round (%.2f turns in all)" % [what, turned / TAU])

@@ -619,11 +619,16 @@ on, then close up). How far each rests lower in first person is `MELEE_REST_VIEW
 bends the arms to hold it. Each weapon's blows are keys in its `MOVES` table: a ready
 stance, two taps that take turns and a heavy blow, each with where it winds up to,
 where it lands and where it ends; a key named `fp_...` is used instead in first person.
+A weapon's `"air"` entry is its move off the ground: the same three keys, with `axis` and
+`turns` (the body goes round that axis that many times, from the start of the wind-up to
+the hit), `wind` (how much of that a full wind-up covers) and `after` (turns it carries
+on round after the hit). The ground slam's pose is `SLAM_FALL` and `SLAM_HIT` in the same file.
 Change a number and film it:
 
 ```
 tools/combat/swing_preview.sh hammer OUT_DIR            # front, side and behind, quarter speed, OUT_DIR/swing.mp4
 tools/combat/swing_preview.sh hammer OUT_DIR --step=0.0166667 --blows=heavy   # full speed, the heavy blow only
+tools/combat/swing_preview.sh hammer OUT_DIR --step=0.0083333 --blows=air,slam   # half speed: the mid-air move, then a ground slam
 ```
 
 For first person, film the real game: `godot --fixed-fps 60 --write-movie OUT/m.png --path .
@@ -631,7 +636,8 @@ For first person, film the real game: `godot --fixed-fps 60 --write-movie OUT/m.
 --hold=1.0:fire:0.13 --hold=2.5:fire:1.3 --quit-after=4.5` stands you in front of a target
 dummy, taps once and then lets go a full wind-up (add `--speed=0.25` for slow motion).
 `tests/weapon_test.gd` checks every blow: the left hand stays on the handle, the blow
-ends back at ready, the taps take turns.
+ends back at ready, the taps take turns, a mid-air move's turn ends as it lands, and what a
+ground slam does at each distance. `tests/movement_test.gd` checks the hang and the slam's fall.
 
 ## Sound effects
 
