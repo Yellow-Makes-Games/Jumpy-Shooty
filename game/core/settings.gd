@@ -34,6 +34,9 @@ var vsync: bool = true
 var resolution: Vector2i = Vector2i.ZERO
 ## Frame rate cap. 0 = no cap, -1 = match the monitor's refresh rate.
 var frame_rate: int = 0
+## What is left of a robot that is knocked out (see Remains).
+const GORE := {"full": "Ragdolls and giblets", "ragdolls": "Ragdolls only", "off": "Off"}
+var gore: String = "full"
 
 ## Resolutions offered in the menu (only those that fit the screen are shown).
 const RESOLUTIONS: Array[Vector2i] = [
@@ -84,6 +87,8 @@ func load_settings() -> void:
 	var res = cfg.get_value("graphics", "resolution", resolution)
 	resolution = res if res is Vector2i else Vector2i.ZERO
 	frame_rate = int(cfg.get_value("graphics", "frame_rate", frame_rate))
+	var g := str(cfg.get_value("graphics", "gore", gore))
+	gore = g if GORE.has(g) else "full"
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
 	custom_characters.clear()
@@ -114,6 +119,7 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "vsync", vsync)
 	cfg.set_value("graphics", "resolution", resolution)
 	cfg.set_value("graphics", "frame_rate", frame_rate)
+	cfg.set_value("graphics", "gore", gore)
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
 	cfg.set_value("creator", "characters", custom_characters)

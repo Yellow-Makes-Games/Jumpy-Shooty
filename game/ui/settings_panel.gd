@@ -95,6 +95,9 @@ func _show_tab(i: int) -> void:
 			_slider("Effects", 0.0, 1.0, 0.05, Settings.sfx_volume, func(v): Settings.sfx_volume = v, true)
 		3:
 			_build_display()
+			UiKit.section(_page, "Effects")
+			_option("Knocked-out robots", Settings.GORE, Settings.gore, func(v): Settings.gore = v)
+			UiKit.label(_page, "A knocked-out robot falls as a ragdoll, and one that is blown up or hit far harder than it needed bursts into pieces. Either burns away after a few seconds.", true, 15)
 
 
 func _on_back() -> void:

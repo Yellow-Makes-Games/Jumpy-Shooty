@@ -194,7 +194,10 @@ func _on_player_died(victim: int, _killer: int) -> void:
 	portals.clear(victim)   # your portals go when you die
 	var p := get_player(victim)
 	if p:
+		var shown := p.visual.visible
 		p.set_dead()
+		if shown and Remains.spawn(p, Match.death_fx.get(victim, {})):
+			p.visual.visible = false   # a ragdoll or giblets in its place (back when they respawn)
 		if DevArgs.swap_on_death and p == local_player and not p.racing:
 			p.dev_swap_after_death()
 
