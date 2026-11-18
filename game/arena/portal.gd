@@ -16,6 +16,10 @@ var normal := Vector3.UP
 ## Where it sits and which way it faces (x right, y up, z out), unscaled: the same as
 ## its transform, kept apart so the maths works before it is in the tree.
 var frame := Transform3D.IDENTITY
+## Half its width and height (metres): the oval a body must touch to go through. A
+## portal gun's are HALF_WIDTH x HALF_HEIGHT; a map's ring gate sets its own.
+var half_width := HALF_WIDTH
+var half_height := HALF_HEIGHT
 var _look: Node3D   # everything drawn: scaled as it opens (the portal's own frame stays unscaled)
 var _disc: MeshInstance3D
 var _disc_mat: StandardMaterial3D
@@ -29,6 +33,18 @@ static func make(owner: int, which: int, at: Vector3, n: Vector3, up: Vector3, r
 	p.slot = which
 	p.place(at, n, up)
 	p._build(rim)
+	return p
+
+
+## A portal that belongs to the map, not to a player (a PortalSurgeEvent's ring gate):
+## only where it is and how big. Whatever is drawn there is the gate's own business.
+static func make_frame(at: Vector3, n: Vector3, up: Vector3, half_w: float, half_h: float) -> Portal:
+	var p := Portal.new()
+	p.owner_id = 0
+	p.half_width = half_w
+	p.half_height = half_h
+	p.place(at, n, up)
+	p.set_process(false)
 	return p
 
 
@@ -106,8 +122,8 @@ func to_local_frame(p: Vector3) -> Vector3:
 ## Is a point inside the oval when seen straight on?
 func covers(p: Vector3, margin: float = 1.0) -> bool:
 	var l := to_local_frame(p)
-	var ex := l.x / (HALF_WIDTH * margin)
-	var ey := l.y / (HALF_HEIGHT * margin)
+	var ex := l.x / (half_width * margin)
+	var ey := l.y / (half_height * margin)
 	return ex * ex + ey * ey <= 1.0
 
 

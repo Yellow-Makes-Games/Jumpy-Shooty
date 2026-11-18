@@ -87,6 +87,8 @@ const TERMINAL_CHANCE := [0.04, 0.06, 0.08, 0.1]   ## ...and the chance it does 
 const TERMINAL_GIVE_UP := 14.0   ## seconds it spends getting there before it drops the idea
 const LINK_SHORT := 3.0          ## a path that ends this far (metres) from where it is going does not get there...
 const LIFT_WORTH := 12.0         ## a goal this far above it (metres) is worth a tractor-beam lift, if one is near
+const GATE_WORTH := 25.0         ## an open ring gate is worth stepping through if it brings the goal this much nearer (metres)
+const GATE_NEAR := 30.0          ## ...and stands no further off than this, on its own floor
 const LIFT_NEAR := 45.0          ## ...whose foot is no further off than this, on its own floor
 const LINK_SHORT_UP := 4.0       ## ...nor one that ends this far above or below it: time to look for a MapJumpLink
 const LINK_GIVE_UP := 6.0        ## seconds a crossing may take before it stops trying
@@ -738,6 +740,8 @@ func _follow_path(goal: Vector3, delta: float) -> Vector3:
 			_link = _pick_link(pos, goal) if _stops_short(goal) else null
 			if _link == null:
 				_link = _pick_lift(pos, goal)   # well above it: a tractor beam is quicker than the stairs
+			if _link == null:
+				_link = _pick_gate(pos, goal)   # an open ring gate close by that saves a long walk
 		if _link != null:
 			# Walking does not get there: walk to the crossing instead.
 			found = NavigationServer3D.map_get_path(me.get_world_3d().navigation_map, pos, _link.takeoff(), true)
@@ -1034,6 +1038,33 @@ func _pick_lift(pos: Vector3, goal: Vector3) -> MapJumpLink:
 	return best if _walkable(pos, best.takeoff()) else null
 
 
+## The open ring gate (a MapJumpLink set to Gate) worth stepping through on the way to
+## `goal`, or null: one close by, on its own floor, whose far side is much nearer the
+## goal than it is now and from where walking gets there.
+func _pick_gate(pos: Vector3, goal: Vector3) -> MapJumpLink:
+	if _link_wait > 0.0:
+		return null
+	var best: MapJumpLink = null
+	var best_saved := GATE_WORTH
+	for l in _links():
+		var link := l as MapJumpLink
+		if link.how != MapJumpLink.How.GATE:
+			continue
+		var front := link.takeoff()
+		if absf(front.y - pos.y) > 3.0 or _flat(pos, front) > GATE_NEAR:
+			continue
+		var saved := pos.distance_to(goal) - link.landing_point().distance_to(goal) - pos.distance_to(front)
+		if saved > best_saved:
+			best = link
+			best_saved = saved
+	var nav := me.get_world_3d().navigation_map
+	if best == null or NavigationServer3D.map_get_iteration_id(nav) == 0:
+		return null
+	if not _walkable(pos, best.takeoff()) or not _gets_to(NavigationServer3D.map_get_closest_point(nav, best.landing_point()), goal):
+		return null
+	return best
+
+
 ## The crossings it could take right now.
 func _links() -> Array:
 	var out := []
@@ -1078,6 +1109,9 @@ func _start_link() -> void:
 		# A tractor beam: it has it as soon as it walks in (and lifts it off the floor).
 		if _flat(me.global_position, _link.takeoff()) > 1.2 or absf(me.global_position.y - _link.takeoff().y) > 2.5:
 			return
+	elif _link.how == MapJumpLink.How.GATE:
+		if _flat(me.global_position, _link.takeoff()) > 1.5 or absf(me.global_position.y - _link.takeoff().y) > 2.0:
+			return
 	elif not me.is_on_floor() or _flat(me.global_position, _link.takeoff()) > 0.9 or absf(me.global_position.y - _link.takeoff().y) > 1.5:
 		return
 	if _link.how == MapJumpLink.How.GRAPPLE and not me.motor.grapple.ready_to_fire():
@@ -1088,7 +1122,7 @@ func _start_link() -> void:
 	_link_hooked = false
 	_link_left = false
 	if DevArgs.sync_log:
-		print("BOT_LINK %d %s start" % [me.peer_id, ["grapple", "leap", "lift"][_link.how]])
+		print("BOT_LINK %d %s start" % [me.peer_id, ["grapple", "leap", "lift", "gate"][_link.how]])
 
 
 ## One frame of a crossing: aim and hold the rope, or run off the edge, then steer
@@ -1097,6 +1131,9 @@ func _fly_link(delta: float) -> void:
 	_link_time += delta
 	if is_instance_valid(_link) and _link.how == MapJumpLink.How.LIFT:
 		_ride_lift()
+		return
+	if is_instance_valid(_link) and _link.how == MapJumpLink.How.GATE:
+		_walk_through_gate()
 		return
 	if not is_instance_valid(_link) or _link_time > LINK_GIVE_UP:
 		_end_link(false)
@@ -1184,6 +1221,26 @@ func _ride_lift() -> void:
 		input.yaw = atan2(-to.x, -to.z)
 		input.pitch = 0.0
 	_set_move(dir)
+
+
+## One frame of stepping through an open ring gate: walk straight at the middle of
+## the ring until it is suddenly somewhere else (the far gate), then carry on.
+func _walk_through_gate() -> void:
+	var pos := me.global_position
+	if pos.distance_to(_link.landing_point()) < 6.0:
+		_end_link(true)   # through
+		return
+	if _link_time > 4.0 or not _link.usable():
+		_end_link(false)  # it closed, or something is in the way
+		return
+	var to := _link.hook_point() - pos
+	to.y = 0.0
+	input.grapple = false
+	input.sprint = false
+	if to.length() > 0.2:
+		input.yaw = atan2(-to.x, -to.z)
+		input.pitch = 0.0
+	_set_move(to.normalized() if to.length() > 0.05 else Vector3.FORWARD.rotated(Vector3.UP, input.yaw))
 
 
 func _end_link(made_it: bool) -> void:

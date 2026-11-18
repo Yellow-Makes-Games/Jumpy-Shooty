@@ -26,6 +26,16 @@ const MAX_SPAN := 45.0
 
 ## owner id -> [Portal or null, Portal or null]
 var _pairs := {}
+## The map's own pairs (a PortalSurgeEvent's ring gates, while they are open): [[Portal,
+## Portal], ...]. They belong to no player, so nothing above applies to them: no
+## MAX_SPAN, and they do not close when anyone dies, changes tools or breaks a wall.
+## A player's own pair is not touched by them either. Only the event that owns them
+## puts them up and takes them down.
+var _map_pairs: Array = []
+## A map portal is gone through from its front only (its normal's side), with the
+## body's skin no deeper than this behind its face: a ring gate you can walk at from
+## both sides has a portal facing each way, and this keeps them apart.
+const MAP_BACK := 0.3
 
 
 func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3) -> void:
@@ -53,6 +63,16 @@ func clear(owner: int) -> void:
 		if p and is_instance_valid(p):
 			p.queue_free()
 	_pairs.erase(owner)
+
+
+## A PortalSurgeEvent: these pairs of map portals are open (an empty list: none are).
+## The Portal nodes are the event's own; this only moves bodies through them.
+func set_map_pairs(pairs: Array) -> void:
+	_map_pairs = pairs
+
+
+func map_pairs() -> Array:
+	return _map_pairs
 
 
 ## The portal in `owner`'s `slot`, or null.
@@ -127,6 +147,21 @@ func check(body: Player) -> bool:
 				continue
 			if body.velocity.dot(from.normal) > 2.0:
 				continue   # moving away from it (just walked off it)
+			_send_through(body, from, to)
+			return true
+	for pair in _map_pairs:
+		var a: Portal = pair[0]
+		var b: Portal = pair[1]
+		if a == null or b == null or not is_instance_valid(a) or not is_instance_valid(b):
+			continue
+		for k in 2:
+			var from: Portal = a if k == 0 else b
+			var to: Portal = b if k == 0 else a
+			var near := _nearest(body, from)
+			if near[1] > TOUCH or near[1] < -MAP_BACK or not from.covers(near[0]):
+				continue
+			if body.velocity.dot(from.normal) > 2.0:
+				continue
 			_send_through(body, from, to)
 			return true
 	return false

@@ -81,6 +81,10 @@ const VOLUME := {
 	# tick is the quietest thing in the game: there all match, never in the way. The bell
 	# is meant to be heard over a fight; the build-up and the move sit under it.
 	"clock_tick": -27.0, "clock_tock": -27.0, "bell_toll": -4.0, "layout_rise": -11.0, "island_move": -13.0, "bridge_lock": -7.0,
+	# Empyrean Tower's Portal Surge (PortalSurgeEvent plays the swell as the ring gates
+	# open and the whoosh as they collapse, all over the map but under the fighting;
+	# each open MapRingGate hums by itself, placed in the world, and that one loops).
+	"surge_open": -9.0, "surge_close": -11.0, "gate_hum": -14.0,
 }
 
 ## Gun handling, in seconds from the start of the clip, matched to the animations
