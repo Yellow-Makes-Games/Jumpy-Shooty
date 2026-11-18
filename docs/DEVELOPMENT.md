@@ -66,6 +66,10 @@ Quick checks:
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- ragdolls (`tests/ragdoll_test.gd`, with `--fixed-fps 60`), for every robot and two
+  custom characters: thrown over a floor they settle above it, at rest, with elbows and
+  knees bent the right way; each lasts 10 s and dissolves, a respawn or the player
+  leaving changes nothing, at most 8 at once, none with the setting off;
 - weapons (`tests/weapon_test.gd`): damage and falloff, magazine and shell-by-shell
   reloads, melee wind-ups and shoves;
 - sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
