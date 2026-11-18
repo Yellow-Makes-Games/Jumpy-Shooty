@@ -910,7 +910,9 @@ def quad(m):
         flower_bed(m, gd, x, z, 0, 1.8, seed=i + 2)
         x, _y, z = polar(12.6, deg + 9.0)
         shrub(m, gd, x, z, 0, 1.2)
-        x, _y, z = polar(12.0, deg + 44.0)
+        # (well away from the masts, deg - 18: a post beside one knocks people landing
+        # off the grapple off their line)
+        x, _y, z = polar(12.9, deg + 15.0)
         lamp_post(m, gd, x, z, 0, 3.4)
     O = TOWER_OUT
     for sx in (-1, 1):

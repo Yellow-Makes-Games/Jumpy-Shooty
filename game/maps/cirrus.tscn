@@ -1447,7 +1447,7 @@ tint = Color(1.08, 1.08, 1, 1)
 sides = 8
 
 [node name="LampPost" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3359, 1.7, -8.6321)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.3388, 1.7, -12.4604)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.16, 3.4, 0.16)
@@ -1455,7 +1455,7 @@ kind = "metal"
 sides = 8
 
 [node name="Lamp" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3359, 3.77, -8.6321)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.3388, 3.77, -12.4604)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.26, 0.52)
@@ -1464,7 +1464,7 @@ solid = false
 sides = 8
 
 [node name="Lamp2" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, -8.3359, 3.52, -8.6321)
+transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, -3.3388, 3.52, -12.4604)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.24, 0.52)
@@ -1473,7 +1473,7 @@ solid = false
 sides = 8
 
 [node name="LampCap" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.3359, 3.91, -8.6321)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.3388, 3.91, -12.4604)
 script = ExtResource("2_block")
 shape = 3
 size = Vector3(0.66, 0.22, 0.66)
@@ -1683,7 +1683,7 @@ tint = Color(1.08, 1.08, 1, 1)
 sides = 8
 
 [node name="LampPost2" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.6337, 1.7, -10.5954)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.8189, 1.7, -7.0258)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.16, 3.4, 0.16)
@@ -1691,7 +1691,7 @@ kind = "metal"
 sides = 8
 
 [node name="Lamp3" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.6337, 3.77, -10.5954)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.8189, 3.77, -7.0258)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.26, 0.52)
@@ -1700,7 +1700,7 @@ solid = false
 sides = 8
 
 [node name="Lamp4" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 5.6337, 3.52, -10.5954)
+transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 10.8189, 3.52, -7.0258)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.24, 0.52)
@@ -1709,7 +1709,7 @@ solid = false
 sides = 8
 
 [node name="LampCap2" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.6337, 3.91, -10.5954)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.8189, 3.91, -7.0258)
 script = ExtResource("2_block")
 shape = 3
 size = Vector3(0.66, 0.22, 0.66)
@@ -1919,7 +1919,7 @@ tint = Color(1.08, 1.08, 1, 1)
 sides = 8
 
 [node name="LampPost3" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.8177, 1.7, 2.0838)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.0252, 1.7, 8.1182)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.16, 3.4, 0.16)
@@ -1927,7 +1927,7 @@ kind = "metal"
 sides = 8
 
 [node name="Lamp5" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.8177, 3.77, 2.0838)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.0252, 3.77, 8.1182)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.26, 0.52)
@@ -1936,7 +1936,7 @@ solid = false
 sides = 8
 
 [node name="Lamp6" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 11.8177, 3.52, 2.0838)
+transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 10.0252, 3.52, 8.1182)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.24, 0.52)
@@ -1945,7 +1945,7 @@ solid = false
 sides = 8
 
 [node name="LampCap3" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.8177, 3.91, 2.0838)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.0252, 3.91, 8.1182)
 script = ExtResource("2_block")
 shape = 3
 size = Vector3(0.66, 0.22, 0.66)
@@ -2155,7 +2155,7 @@ tint = Color(1.08, 1.08, 1, 1)
 sides = 8
 
 [node name="LampPost4" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6701, 1.7, 11.8832)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6229, 1.7, 12.0432)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.16, 3.4, 0.16)
@@ -2163,7 +2163,7 @@ kind = "metal"
 sides = 8
 
 [node name="Lamp7" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6701, 3.77, 11.8832)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6229, 3.77, 12.0432)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.26, 0.52)
@@ -2172,7 +2172,7 @@ solid = false
 sides = 8
 
 [node name="Lamp8" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, 1.6701, 3.52, 11.8832)
+transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, -4.6229, 3.52, 12.0432)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.24, 0.52)
@@ -2181,7 +2181,7 @@ solid = false
 sides = 8
 
 [node name="LampCap4" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.6701, 3.91, 11.8832)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6229, 3.91, 12.0432)
 script = ExtResource("2_block")
 shape = 3
 size = Vector3(0.66, 0.22, 0.66)
@@ -2391,7 +2391,7 @@ tint = Color(1.08, 1.08, 1, 1)
 sides = 8
 
 [node name="LampPost5" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.7855, 1.7, 5.2605)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.8823, 1.7, -0.6751)
 script = ExtResource("2_block")
 shape = 1
 size = Vector3(0.16, 3.4, 0.16)
@@ -2399,7 +2399,7 @@ kind = "metal"
 sides = 8
 
 [node name="Lamp9" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.7855, 3.77, 5.2605)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.8823, 3.77, -0.6751)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.26, 0.52)
@@ -2408,7 +2408,7 @@ solid = false
 sides = 8
 
 [node name="Lamp10" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, -10.7855, 3.52, 5.2605)
+transform = Transform3D(1, 0, 0, 0, -1, 0, 0, 0, -1, -12.8823, 3.52, -0.6751)
 script = ExtResource("2_block")
 shape = 6
 size = Vector3(0.52, 0.24, 0.52)
@@ -2417,7 +2417,7 @@ solid = false
 sides = 8
 
 [node name="LampCap5" type="Node3D" parent="Quad/Garden"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.7855, 3.91, 5.2605)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.8823, 3.91, -0.6751)
 script = ExtResource("2_block")
 shape = 3
 size = Vector3(0.66, 0.22, 0.66)
