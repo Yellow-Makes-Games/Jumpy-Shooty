@@ -354,6 +354,36 @@ func _playback() -> void:
 	var expect := 2.5 + (KillcamView.SLOW_FROM + KillcamView.SLOW_UNTIL) * (1.0 / KillcamView.SLOW - 1.0)
 	_expect(absf(slow_steps * step - expect) < 0.1, "slow motion round the kill makes it last longer (%.2f s, about %.2f)" % [slow_steps * step, expect])
 	slow.queue_free()
+	print("  a blow plays in third person")
+	var kick_clip := _test_clip()
+	kick_clip.info.tags = KillScore.T_KICK
+	kick_clip.info.weapon = "kick"
+	var near := KillClip.Track.new()   # the victim, kicked from close by
+	near.name = "Gizmo"
+	for i in 91:
+		near.push(i / 30.0, _frame(Vector3(0, 0, -3), PI, 0.0, i / 30.0 < 2.05))
+	kick_clip.tracks[9001] = near
+	kick_clip.events = []
+	var third := KillcamView.new().setup(kick_clip, false)
+	third.world_sound = false
+	world.add_child(third)
+	third.set_process(false)
+	_expect(third.third_person, "a kick kill is watched in third person")
+	_expect(not KillcamView.new().setup(_test_clip(), false).third_person, "...a shot through the killer's eyes")
+	var t_steps := 0
+	while third.time < 1.95 and t_steps < 10000:
+		third._process(step)
+		t_steps += 1
+	var killer_body := third.get_node_or_null("Ghost_1") as Node3D
+	_expect(killer_body != null and killer_body.visible, "the killer is a body, in view")
+	_expect(third.camera.get_child_count() == 0, "...with no first-person arms")
+	var eye := third.camera.global_position
+	var head := Vector3(0, 1.6, 0)
+	_expect(eye.z > head.z + 2.0 and eye.y > head.y and eye.distance_to(head) < 5.0,
+		"the camera follows close behind and above the killer (%s)" % [eye])
+	var to_victim := (Vector3(0, 1.1, -3) - eye).normalized()
+	_expect((-third.camera.global_transform.basis.z).dot(to_victim) > 0.9, "...turned towards the victim")
+	third.queue_free()
 	world.queue_free()
 	await get_tree().process_frame
 

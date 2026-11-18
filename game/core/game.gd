@@ -260,10 +260,20 @@ func _on_match_started() -> void:
 	get_tree().change_scene_to_file.call_deferred(ARENA)
 
 
-func _on_match_over(_results: Array) -> void:
-	Net.in_match = false
+## The match is over: slow motion and a fade to "MATCH OVER" (MatchEndFade), then the
+## results (which play the best kills).
+func _on_match_over(results: Array) -> void:
 	_release_mouse()
-	get_tree().change_scene_to_file.call_deferred(RESULTS)
+	if Net.arena == null or not is_instance_valid(Net.arena):
+		Net.in_match = false
+		get_tree().change_scene_to_file.call_deferred(RESULTS)
+		return
+	var fade := MatchEndFade.new()
+	Net.arena.add_child(fade)   # (goes with the arena when the results come up)
+	fade.done.connect(func():
+		Net.in_match = false   # (only now: until then nobody swaps loadouts in front of the fade)
+		get_tree().change_scene_to_file.call_deferred(RESULTS))
+	fade.play(results)
 
 
 func _on_players_changed() -> void:

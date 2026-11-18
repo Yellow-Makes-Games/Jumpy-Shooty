@@ -98,7 +98,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(_delta: float) -> void:
 	var allowed := Cheats.allowed()
-	Engine.time_scale = Cheats.time_scale if allowed else 1.0
+	if not MatchEndFade.running:   # (the end of a match runs its own slow motion)
+		Engine.time_scale = Cheats.time_scale if allowed else 1.0
 	if _menu.visible and not allowed:
 		set_open(false)
 	_stats.visible = Cheats.show_stats and allowed
