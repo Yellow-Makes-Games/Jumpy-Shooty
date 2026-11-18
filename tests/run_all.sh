@@ -33,6 +33,7 @@ CHECKS=(
   "flicker|--script tests/map_flicker_test.gd"
   "halcyon|--script tests/halcyon_test.gd"
   "terminal|--script tests/terminal_test.gd"
+  "cirrus|--fixed-fps 60 --script tests/cirrus_test.gd"
   "gravity|--fixed-fps 60 --script tests/gravity_test.gd"
   "testing_grounds|--fixed-fps 60 --script tests/course_test.gd"
   "construction_site|--fixed-fps 60 --script tests/site_test.gd"
@@ -46,7 +47,7 @@ CHECKS=(
   "spectator|--script tests/spectator_test.gd"
 )
 # Practice mode boots without errors on every map.
-for map in construction_site office kilnworks castle halcyon testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
+for map in construction_site office kilnworks castle halcyon cirrus testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
   CHECKS+=("boot_$map|-- --practice --map=$map --quit-after=3")
 done
 
