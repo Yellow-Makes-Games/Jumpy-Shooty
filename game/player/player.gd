@@ -94,6 +94,8 @@ var _burst_wait := 0.0            # local: seconds until the next round of the b
 var mobility := Mobility.GRAPPLE
 var blink: Blink                  # local, with blink
 var portal_gun: PortalGun         # local, with the portal gun
+var jetpack: Jetpack              # local, with the jetpack
+var _seen_jet := false            # the jetpack was firing last frame (its sound and flame)
 ## Local: the portal you just came out of. It does nothing until you step clear of it (see Portals).
 var portal_skip: Portal
 
@@ -204,6 +206,7 @@ func _physics_process(delta: float) -> void:
 		var hooking := input.grapple_pressed and motor.grapple.ready_to_fire() and mobility == Mobility.GRAPPLE
 		# Portal gun and blink take the mobility button: the grapple never sees it.
 		var mobility_pressed := input.grapple_pressed and mobility != Mobility.GRAPPLE
+		var mobility_held := input.grapple and mobility != Mobility.GRAPPLE
 		if mobility != Mobility.GRAPPLE:
 			input.grapple = false
 			input.grapple_pressed = false
@@ -221,6 +224,13 @@ func _physics_process(delta: float) -> void:
 				input.glide = false   # mid flying kick: you are already going somewhere
 				input.glide_pressed = false
 			var boosts := motor.boosts
+			if jetpack:
+				var jet_was_on := jetpack.on
+				velocity = jetpack.step(velocity, mobility_held and not racing, is_on_floor(), motor._wish_dir(input), delta)
+				if jetpack.on and is_on_floor():
+					motor.warped = true   # lift off: no floor snap or ground friction this step
+				if jetpack.on and not jet_was_on and DevArgs.sync_log:
+					print("JETPACK %d" % peer_id)
 			motor.step(self, input, delta)
 			if hooking and not motor.grapple.attached:
 				sounds.grapple_missed()   # nothing in range to hook
@@ -1084,6 +1094,8 @@ func respawn_at(pos: Vector3, yaw: float) -> void:
 		blink.reset()
 	if portal_gun:
 		portal_gun.reset()
+	if jetpack:
+		jetpack.reset()
 	_send_timer = 0.0  # tell everyone at once
 
 
@@ -1310,7 +1322,7 @@ func _my_anim_flags() -> int:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
-		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive)
+		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive)
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -1430,6 +1442,7 @@ func set_mobility(id: String) -> void:
 		return
 	blink = Blink.new() if mobility == Mobility.BLINK else null
 	portal_gun = PortalGun.new() if mobility == Mobility.PORTAL else null
+	jetpack = Jetpack.new() if mobility == Mobility.JETPACK else null
 	if motor and mobility != Mobility.GRAPPLE:
 		motor.grapple.reset()
 
@@ -1441,6 +1454,8 @@ func mobility_readiness() -> float:
 			return blink.readiness() if blink else 1.0
 		Mobility.PORTAL:
 			return portal_gun.readiness() if portal_gun else 1.0
+		Mobility.JETPACK:
+			return jetpack.readiness() if jetpack else 1.0
 	var g := motor.grapple if motor else null
 	if g and g.cooldown_left > 0.0:
 		return 1.0 - g.cooldown_left / motor.tuning.grapple_cooldown
@@ -1759,6 +1774,15 @@ func _update_flame(delta: float) -> void:
 	if _flame == null:
 		return
 	_flame_t = maxf(_flame_t - delta, 0.0)
+	var jet := RobotAnimInput.jetpack_of(_anim.flags) and alive
+	if jet:
+		_flame_t = maxf(_flame_t, 0.3)   # the jetpack: the boot flames burn for as long as it fires
+		if not _seen_jet and visual.visible:
+			if sounds.own:
+				Sound.play("rocket_boost", -4.0, 0.08)
+			else:
+				Sound.play_at("rocket_boost", global_position + Vector3(0, 0.3, 0), "move", -4.0, 0.08)
+	_seen_jet = jet
 	_flame.visible = _flame_t > 0.0 and alive and visual.visible
 	if not _flame.visible:
 		return

@@ -69,6 +69,7 @@ var blink_charges := 0
 var blink_refill := 1.0
 var portals_up := [false, false]
 var portal_next := 0
+var jet_fuel := 1.0
 
 var _root: Control
 var _flash: ColorRect
@@ -216,6 +217,8 @@ func update_local(p: Player) -> void:
 	if p.portal_gun and Net.arena and Net.arena.portals:
 		portal_next = p.portal_gun.next_slot
 		portals_up = [Net.arena.portals.get_portal(p.peer_id, 0) != null, Net.arena.portals.get_portal(p.peer_id, 1) != null]
+	if p.jetpack:
+		jet_fuel = p.jetpack.fuel
 	if mobility != Mobility.GRAPPLE:
 		grapple = GRAPPLE_NO_TARGET
 	elif g.attached:
@@ -522,6 +525,13 @@ func _draw_mobility_marks(ci: CanvasItem, c: Vector2, ring: float) -> void:
 				if fill > 0.0:
 					var col := Color(Portal.COLORS[0], 0.95) if fill >= 1.0 else Color(1, 1, 1, 0.45)
 					HudStyle.arc(ci, c, ring + 6.0, from, from + each * fill, col, 3.0)
+		Mobility.JETPACK:   # fuel: an arc under the ring, orange when low
+			var span := 110.0
+			var from := 90.0 - span * 0.5
+			HudStyle.arc(ci, c, ring + 6.0, from, from + span, Color(1, 1, 1, 0.15), 3.0)
+			if jet_fuel > 0.01:
+				var col := Color(HudStyle.ORANGE, 0.95) if jet_fuel < Jetpack.RESTART else Color(Portal.COLORS[0], 0.95)
+				HudStyle.arc(ci, c, ring + 6.0, from, from + span * jet_fuel, col, 3.0)
 		Mobility.PORTAL:
 			for i in 2:
 				var at := c + Vector2((i * 2 - 1) * 9.0, ring + 12.0)
