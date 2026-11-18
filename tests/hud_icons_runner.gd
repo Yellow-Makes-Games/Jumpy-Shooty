@@ -27,7 +27,7 @@ func _check_icon() -> void:
 	c.draw.connect(func():
 		var x := 4.0
 		for s in SCALES:
-			var w := HudStyle.headshot_icon(c, Vector2(x, 4), HudStyle.YELLOW, s)
+			var w := HudStyle.headshot_icon(c, Vector2(x, 4), Color(1, 1, 1, 0.9), s)
 			if not is_equal_approx(w, HudStyle.headshot_width() * s):
 				_fails.append("headshot_icon at size %s says it is %s wide, headshot_width() says %s" % [s, w, HudStyle.headshot_width() * s])
 			x += w + 4.0
