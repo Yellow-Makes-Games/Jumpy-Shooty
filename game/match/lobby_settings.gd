@@ -5,8 +5,9 @@ extends RefCounted
 ## They live in Net.match_settings with the others, so they reach every copy (players
 ## who join later too) the same way; the host enforces them.
 ##
-## Today: which weapons are allowed in a shoot-out ("weapons") and which mobility tools
-## are allowed in any fight ("mobility").
+## Today: which weapons are allowed in a shoot-out ("weapons"), which mobility tools
+## are allowed in any fight ("mobility") and how many players the lobby takes
+## ("max_players").
 ##
 ## To add a setting: give it a key and a default in DEFAULTS, make clean() keep only
 ## sensible values for it, put its rules here, and add a control for the host in the
@@ -17,7 +18,10 @@ extends RefCounted
 ##   id is a single gun for everyone.
 ## mobility: the ids (from Mobility) a player may pick; [] means every tool. One id is
 ##   the same tool for everyone.
-const DEFAULTS := {"weapons": [], "mobility": []}
+## max_players: how many players the online lobby takes, MIN_PLAYERS to MAX_PLAYERS.
+const DEFAULTS := {"weapons": [], "mobility": [], "max_players": 16}
+const MIN_PLAYERS := 2
+const MAX_PLAYERS := 16   ## the same as Net.MAX_PLAYERS (Net builds its settings with clean(), before it is there to ask)
 
 
 ## `settings` with every lobby setting present and valid (unknown weapons dropped,
@@ -28,6 +32,7 @@ static func clean(settings: Dictionary) -> Dictionary:
 		if not s.has(key):
 			s[key] = DEFAULTS[key].duplicate() if DEFAULTS[key] is Array else DEFAULTS[key]
 	s["weapons"] = normalized_weapons(s.get("weapons", []))
+	s["max_players"] = clampi(int(s.get("max_players", MAX_PLAYERS)), MIN_PLAYERS, MAX_PLAYERS)
 	s["mobility"] = normalized_mobility(s.get("mobility", []))
 	return s
 
@@ -180,3 +185,12 @@ static func mobility_summary(ids) -> String:
 	if allowed.size() == 1:
 		return "Everyone has the %s" % Mobility.name_of(allowed[0])
 	return ", ".join(allowed.map(func(m): return Mobility.short_name(m)))
+
+
+# ---------------------------------------------------------------------------
+# Lobby size: the host refuses anyone who would make the lobby bigger than this.
+# Lowering it never removes anyone already in (the host can kick them).
+
+## How many players the lobby takes.
+static func max_players() -> int:
+	return clampi(int(Net.match_settings.get("max_players", MAX_PLAYERS)), MIN_PLAYERS, MAX_PLAYERS)

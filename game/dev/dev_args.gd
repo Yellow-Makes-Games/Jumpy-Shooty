@@ -15,6 +15,10 @@ extends Node
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
 ## --allowed-weapons=A,B  Host / Vs Bots: only these weapons may be picked (one id: a single gun for everyone).
 ## --allowed-mobility=A,B Host / Vs Bots: only these mobility tools may be picked (one id: the same for everyone).
+## --lobby-size=N       Host: the lobby takes at most N players (2 to 16).
+## --ready-at=SEC       Lobby: say you are ready SEC seconds after the lobby opens (tests).
+## --kick-at=SEC:NAME   Host: kick the player called NAME SEC seconds after the lobby opens (tests).
+## --start-when-ready   Host: start the match as soon as everyone (at least 2) is ready (tests).
 ## --mobility=ID        Take this mobility tool (grapple, portal, blink) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
@@ -78,6 +82,11 @@ var weapon := ""
 var bot_weapon := ""
 var allowed_weapons: Array = []   ## --allowed-weapons (see LobbySettings)
 var allowed_mobility: Array = []  ## --allowed-mobility (see LobbySettings)
+var lobby_size := 0               ## --lobby-size
+var ready_at := -1.0              ## --ready-at
+var kick_at := -1.0               ## --kick-at (when)
+var kick_name := ""               ## --kick-at (who)
+var start_when_ready := false     ## --start-when-ready
 var mobility := ""
 var bot_mobility := ""
 var switch_weapon := false
@@ -170,6 +179,12 @@ func _ready() -> void:
 						allowed_weapons.append(w)
 					else:
 						push_warning("Unknown weapon: %s (weapons: %s)" % [w, ", ".join(WeaponData.IDS)])
+			"--lobby-size": lobby_size = int(value)
+			"--ready-at": ready_at = float(value)
+			"--kick-at":
+				kick_at = float(value.get_slice(":", 0))
+				kick_name = value.substr(value.find(":") + 1)
+			"--start-when-ready": start_when_ready = true
 			"--allowed-mobility":
 				for m in value.split(",", false):
 					if Mobility.has(m):

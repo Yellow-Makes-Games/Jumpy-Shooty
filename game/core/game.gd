@@ -167,8 +167,10 @@ func host_online() -> Error:
 		elif not kind in GunGame.RULES:
 			s.kills = int(amount)
 		Net.set_match_settings(s)
-	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty()):
+	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty() and DevArgs.lobby_size == 0):
 		var s := Net.match_settings.duplicate()   # tests: lobby settings, in one go
+		if DevArgs.lobby_size > 0:
+			s["max_players"] = DevArgs.lobby_size
 		if not DevArgs.allowed_weapons.is_empty():
 			s["weapons"] = DevArgs.allowed_weapons.duplicate()
 		if not DevArgs.allowed_mobility.is_empty():
@@ -209,6 +211,8 @@ func _on_join_failed(reason: String) -> void:
 
 
 func _on_session_ended(reason: String) -> void:
+	if DevArgs.sync_log:
+		print("SESSION_ENDED %s" % reason)
 	goto_main_menu(reason)
 
 
@@ -228,7 +232,7 @@ func _on_players_changed() -> void:
 	if DevArgs.autostart > 0 and Net.is_host() and not Net.in_match and Net.players.size() >= DevArgs.autostart \
 			and Match.last_results.is_empty():
 		print("[dev] autostart with %d players" % Net.players.size())
-		Net.host_start_match()
+		Net.host_start_match(true)
 
 
 func _run_dev_args() -> void:
