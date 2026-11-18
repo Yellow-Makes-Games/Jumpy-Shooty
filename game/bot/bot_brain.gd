@@ -955,7 +955,7 @@ func _portal(delta: float, visible: bool) -> void:
 	if not visible or _target == null or not gun.ready() or not me.is_on_floor():
 		return
 	var dist := me.global_position.distance_to(_target.global_position)
-	if dist < maxf(FAR - 4.0, 14.0) or dist > PortalGun.RANGE - 5.0:
+	if dist < maxf(FAR - 4.0, 14.0) or dist > Portals.MAX_SPAN - 8.0:   # both its portals must be in reach of each other
 		return
 	if _rng.randf() > delta * [0.1, 0.35, 0.7, 1.0][d.level]:
 		return
