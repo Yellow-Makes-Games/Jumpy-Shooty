@@ -354,7 +354,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
-| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `creator`, `card`, `achievements` |
+| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `profile`, `creator`, `card`, `achievements` |
 | `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |

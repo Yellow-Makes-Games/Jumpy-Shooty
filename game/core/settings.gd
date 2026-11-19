@@ -64,6 +64,8 @@ var icon: String = CallingCard.DEFAULT_ICON           # the badge beside it
 ## Characters made in the Character Creator, as ids (see CustomCharacter), newest last.
 var custom_characters: Array = []
 const MAX_CUSTOM := 12
+## Achievements you track (up to Achievements.MAX_TRACKED ids): the Profile page shows them first.
+var tracked_achievements: Array = []
 var last_address: String = ""   # the lobby code (or address) you last joined (filled in on the Join box next time)
 
 
@@ -109,6 +111,12 @@ func load_settings() -> void:
 	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
 	mobility = Mobility.valid(str(cfg.get_value("profile", "mobility", mobility)))
 	last_address = str(cfg.get_value("network", "last_address", last_address))
+	tracked_achievements.clear()
+	var tracked = cfg.get_value("profile", "tracked", [])
+	if tracked is Array:
+		for id in tracked:
+			if not str(id) in tracked_achievements:
+				tracked_achievements.append(str(id))
 	_load_bindings(cfg)
 
 
@@ -139,6 +147,7 @@ func save_settings() -> void:
 	cfg.set_value("profile", "weapon", weapon)
 	cfg.set_value("profile", "mobility", mobility)
 	cfg.set_value("network", "last_address", last_address)
+	cfg.set_value("profile", "tracked", tracked_achievements)
 	_save_bindings(cfg)
 	cfg.save(SAVE_PATH)
 

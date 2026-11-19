@@ -6,6 +6,9 @@ extends GridContainer
 ## The page (MenuFrame) scrolls. Over the cards the page puts medals(): your best
 ## time on every race course, and the times to beat; and tabs(): the kind of
 ## achievement shown (All, Combat, Movement, Matches, Races, Misc).
+##
+## Click a card, or point at it and press T, to track it (up to
+## Achievements.MAX_TRACKED): the Profile page shows the ones you track first.
 
 const COLUMNS := 3
 const DONE := Color(0.45, 0.95, 0.5)
@@ -13,6 +16,11 @@ const MEDAL_COLORS := [Color(0.80, 0.52, 0.30), Color(0.80, 0.84, 0.90), Color(1
 
 ## The kind picked ("all", or an id from Achievements.GROUPS): kept while the game is open.
 static var category := "all"
+
+const TRACK_KEY := KEY_T
+const TRACK_TIP := "Click, or point and press T, to track this on your Profile (up to %d)."
+
+var _hover := ""   # the achievement under the mouse
 
 
 ## A calling card or an icon an achievement unlocks, small, on its card.
@@ -25,6 +33,7 @@ class Thumb extends Control:
 		size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		modulate.a = 1.0 if done else 0.55
 		tooltip_text = Achievements.item_name(key)
+		mouse_filter = Control.MOUSE_FILTER_PASS   # (a click on it is a click on its card)
 
 	func _draw() -> void:
 		var r := Rect2(Vector2.ZERO, size)
@@ -50,8 +59,9 @@ func set_category(kind: String) -> void:
 
 func _fill() -> void:
 	UiKit.clear(self)
+	_hover = ""
 	for a in shown(category):
-		add_child(_card(a))
+		add_child(_trackable(make_card(a)))
 
 
 ## The achievements of a kind, in the list's order; "all": every one, kind by kind.
@@ -87,39 +97,97 @@ static func tabs(panel: AchievementsPanel) -> Container:
 	return row
 
 
-func _card(a: Dictionary) -> PanelContainer:
+## Clicking the card, or T while the mouse is on it, tracks it (or stops tracking it).
+func _trackable(c: PanelContainer) -> PanelContainer:
+	var id := str(c.name)
+	if Achievements.done(id):
+		return c
+	c.mouse_filter = Control.MOUSE_FILTER_STOP
+	c.tooltip_text = TRACK_TIP % Achievements.MAX_TRACKED
+	c.mouse_entered.connect(func(): _hover = id)
+	c.mouse_exited.connect(func():
+		if _hover == id:
+			_hover = "")
+	c.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseMotion:
+			_hover = id
+		elif e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			toggle_track(id))
+	return c
+
+
+func _input(e: InputEvent) -> void:
+	if _hover != "" and is_visible_in_tree() and e is InputEventKey and e.pressed and not e.echo 			and (e as InputEventKey).keycode == TRACK_KEY:
+		toggle_track(_hover)
+		get_viewport().set_input_as_handled()
+
+
+## Track an achievement or stop tracking it, and redraw the cards (tracking a fourth
+## lets the oldest go, so another card may change too).
+func toggle_track(id: String) -> void:
+	Achievements.toggle_tracked(id)
+	if Sound.has_sound("ui_select"):
+		Sound.play("ui_select")
+	for c in get_children():
+		if Achievements.by_id(str(c.name)).is_empty():
+			continue
+		var marked: bool = c.has_meta("tracked")
+		if marked != Achievements.is_tracked(str(c.name)):
+			var at := c.get_index()
+			var fresh := _trackable(make_card(Achievements.by_id(str(c.name))))
+			remove_child(c)
+			c.queue_free()
+			add_child(fresh)
+			move_child(fresh, at)
+	_hover = id   # (the new card is under the mouse)
+
+
+## An achievement's card: its name, how far along it is, what to do and what it
+## unlocks. small: the Profile page's smaller card.
+static func make_card(a: Dictionary, small: bool = false) -> PanelContainer:
 	var done := Achievements.done(a.id)
+	var tracked := not done and Achievements.is_tracked(a.id)
+	var k := 0.8 if small else 1.0   # text size
 	var card := PanelContainer.new()
 	card.name = a.id
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var box := UiKit.cut_box(Color(DONE, 0.07) if done else Color(1, 1, 1, 0.04), 8, 14, 9)
+	var box := UiKit.cut_box(Color(DONE, 0.07) if done else (Color(UiKit.ACCENT, 0.07) if tracked else Color(1, 1, 1, 0.04)), 8, 14, 9)
 	box.border_width_left = 3
-	box.border_color = DONE if done else Color(UiKit.LINE, 0.5)
+	box.border_color = DONE if done else (UiKit.ACCENT if tracked else Color(UiKit.LINE, 0.5))
 	card.add_theme_stylebox_override("panel", box)
+	if tracked:
+		card.set_meta("tracked", true)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 3)
+	col.mouse_filter = Control.MOUSE_FILTER_PASS
 	card.add_child(col)
 	var top := HBoxContainer.new()
+	top.mouse_filter = Control.MOUSE_FILTER_PASS
 	col.add_child(top)
-	var title := _line(top, str(a.name), 17, Color.WHITE if done else UiKit.TEXT)
+	var title := _line(top, str(a.name), roundi(17 * k), Color.WHITE if done else UiKit.TEXT)
 	title.add_theme_font_override("font", HudStyle.font(true))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_line(top, "DONE" if done else Achievements.progress_text(a), 13, DONE if done else UiKit.TEXT_DIM, false).name = "progress"
-	_line(col, str(a.what), 14, UiKit.TEXT_DIM)
+	if tracked:
+		UiKit.tag(top, "TRACKED", UiKit.ACCENT).mouse_filter = Control.MOUSE_FILTER_PASS
+	_line(top, "DONE" if done else Achievements.progress_text(a), roundi(13 * k), DONE if done else UiKit.TEXT_DIM, false).name = "progress"
+	_line(col, str(a.what), roundi(14 * k), UiKit.TEXT_DIM)
 	# How far along: a thin bar.
 	var bar := ColorRect.new()
 	bar.color = Color(1, 1, 1, 0.08)
 	bar.custom_minimum_size = Vector2(0, 4)
+	bar.mouse_filter = Control.MOUSE_FILTER_PASS
 	col.add_child(bar)
 	var fill := ColorRect.new()
 	fill.color = DONE if done else UiKit.ACCENT
-	fill.anchor_right = clampf(float(Achievements.stat(a.stat)) / float(a.goal), 0.0, 1.0)
+	fill.mouse_filter = Control.MOUSE_FILTER_PASS
+	fill.anchor_right = Achievements.fraction(a)
 	fill.anchor_bottom = 1.0
 	bar.add_child(fill)
 	var bottom := HBoxContainer.new()
 	bottom.add_theme_constant_override("separation", 6)
+	bottom.mouse_filter = Control.MOUSE_FILTER_PASS
 	col.add_child(bottom)
-	var rewards := _line(bottom, "%s %s" % ["Unlocked:" if done else "Unlocks:", ", ".join(a.rewards.map(Achievements.item_name))], 14,
+	var rewards := _line(bottom, "%s %s" % ["Unlocked:" if done else "Unlocks:", ", ".join(a.rewards.map(Achievements.item_name))], roundi(14 * k),
 		UiKit.CYAN if done else Color(UiKit.CYAN, 0.6))
 	rewards.name = "rewards"
 	rewards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -173,7 +241,7 @@ static func medals() -> HBoxContainer:
 
 
 ## One line of text that is cut short, not wrapped, if the card is narrow.
-func _line(parent: Node, text: String, size: int, color: Color, clip: bool = true) -> Label:
+static func _line(parent: Node, text: String, size: int, color: Color, clip: bool = true) -> Label:
 	var l := UiKit.label(parent, text, false, size)
 	l.add_theme_color_override("font_color", color)
 	l.autowrap_mode = TextServer.AUTOWRAP_OFF

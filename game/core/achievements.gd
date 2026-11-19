@@ -19,6 +19,11 @@ extends Node
 ##   Achievements.requirement("hat:crown")       "Warlord: 500 kills (37 / 500)"
 ##   Achievements.locked_in(character)           the locked items a character uses
 ##   Achievements.add("headshots")               count one (the game does this itself)
+##
+## It also keeps the numbers the Profile page shows: experience ("xp": every kill adds
+## its killcam score, see KillScore and PlayerLevel), time played ("seconds_played"),
+## your top speed (a best, not a count: see best()) and when each achievement was
+## completed (most_recent()).
 
 signal unlocked(id: String)   ## an achievement was just completed
 signal progressed             ## a count changed
@@ -137,6 +142,8 @@ const VERY_FAR := 100.0
 const SONIC := 25.0           ## m/s
 const FLAWLESS_KILLS := 5     ## a win with no deaths counts from this many kills
 const HOSTED_PEOPLE := 4
+const MAX_TRACKED := 3        ## achievements you can track for the Profile page
+const SPEED_SANE := 80.0      ## m/s: a top speed faster than this is a glitch, not a run
 
 ## --unlock-all: nothing is locked (testing, or just dressing up).
 var unlock_all := false
@@ -146,6 +153,9 @@ var _done := {}         # achievement id -> true: the ones already announced
 var _owned := {}        # item key -> true: yours whatever the counts say (worn by a character you saved)
 var _sets := {}         # set name (see SET_STATS) -> {thing: true}: courses finished, weapons with a kill, medals
 var _times := {}        # race course id -> your best time (seconds)
+var _best := {}         # name -> the highest it has been ("top_speed": m/s)
+var _when := {}         # achievement id -> when it was completed (unix seconds; only those done since this was kept)
+var _play_time := 0.0   # seconds played not yet counted in "seconds_played"
 var _life_kills := 0    # kills since you last died
 var _nemesis := 0       # who last killed you (this match)
 var _base := {}         # stat -> its count when the file was last read or written (see save)
@@ -189,6 +199,7 @@ func add(name: String, n: int = 1) -> void:
 	for a in LIST:
 		if a.stat == name and not _done.has(a.id) and stat(name) >= int(a.goal):
 			_done[a.id] = true
+			_when[a.id] = Time.get_unix_time_from_system()
 			print("[achievements] %s" % a.name)
 			_toasts.append(a)
 			unlocked.emit(a.id)
@@ -209,6 +220,79 @@ func done(id: String) -> bool:
 
 func done_count() -> int:
 	return LIST.filter(func(a): return stat(a.stat) >= int(a.goal)).size()
+
+
+## How far along an achievement is, 0 to 1.
+func fraction(a: Dictionary) -> float:
+	return clampf(float(stat(a.stat)) / maxf(float(a.goal), 1.0), 0.0, 1.0)
+
+
+## The highest a "best" has been (see _best): "top_speed".
+func best(name: String) -> float:
+	return float(_best.get(name, 0.0))
+
+
+## Keep `value` if it beats the best so far.
+func set_best(name: String, value: float) -> void:
+	if value > best(name):
+		_best[name] = value
+		_dirty = true
+
+
+## The achievement you completed last ({} if none). Ones done before the game kept
+## the time count as older than any that has one; among those, the last in the list.
+func most_recent() -> Dictionary:
+	var out := {}
+	var at := -1.0
+	for a in LIST:
+		if done(a.id) and float(_when.get(a.id, 0.0)) >= at:
+			at = float(_when.get(a.id, 0.0))
+			out = a
+	return out
+
+
+## The achievements you track that are still to do (see Settings.tracked_achievements).
+func tracked() -> Array:
+	var out := []
+	for id in Settings.tracked_achievements:
+		var a := by_id(str(id))
+		if not a.is_empty() and not done(a.id):
+			out.append(a)
+	return out
+
+
+func is_tracked(id: String) -> bool:
+	return id in Settings.tracked_achievements
+
+
+## Track an achievement, or stop tracking it. Tracking a fourth lets the oldest go.
+## Done ones can't be tracked. Returns whether it is tracked now.
+func toggle_tracked(id: String) -> bool:
+	var list: Array = Settings.tracked_achievements.filter(func(t): return not by_id(str(t)).is_empty() and not done(str(t)))
+	var on := false
+	if id in list:
+		list.erase(id)
+	elif not by_id(id).is_empty() and not done(id):
+		list.append(id)
+		while list.size() > MAX_TRACKED:
+			list.pop_front()
+		on = true
+	Settings.tracked_achievements = list
+	Settings.save_settings()
+	progressed.emit()
+	return on
+
+
+## The Profile page's list: the ones you track, then the closest to done, `count` in all.
+func closest(count: int = MAX_TRACKED) -> Array:
+	var out := tracked().slice(0, count)
+	var rest := LIST.filter(func(a): return not done(a.id) and a not in out)
+	rest.sort_custom(func(x, y): return fraction(x) > fraction(y))
+	for a in rest:
+		if out.size() >= count:
+			break
+		out.append(a)
+	return out
 
 
 ## "37 / 200" (never past the goal).
@@ -303,6 +387,7 @@ func _on_kill(info: Dictionary) -> void:
 		return
 	var tags := int(info.tags)
 	add("kills")
+	add("xp", int(info.get("score", 0)))   # experience: the kill's killcam score
 	if first:
 		add("first_kills")
 	_life_kills += 1
@@ -454,6 +539,8 @@ func _load() -> void:
 	_owned.clear()
 	_sets.clear()
 	_times.clear()
+	_best.clear()
+	_when.clear()
 	_read()
 	_base = _stats.duplicate()
 	for a in LIST:   # nothing already earned is announced again
@@ -476,6 +563,10 @@ func _read() -> void:
 	for set_name in SET_STATS:
 		for thing in cfg.get_value("sets", set_name, []):
 			_sets.get_or_add(set_name, {})[str(thing)] = true
+	for name in cfg.get_section_keys("best") if cfg.has_section("best") else PackedStringArray():
+		_best[name] = maxf(best(name), float(cfg.get_value("best", name, 0.0)))
+	for id in cfg.get_section_keys("completed") if cfg.has_section("completed") else PackedStringArray():
+		_when[id] = maxf(float(_when.get(id, 0.0)), float(cfg.get_value("completed", id, 0.0)))
 	for course in cfg.get_section_keys("times") if cfg.has_section("times") else PackedStringArray():
 		var time := float(cfg.get_value("times", course, 0.0))
 		if time > 0.0 and (not _times.has(course) or time < float(_times[course])):
@@ -519,6 +610,10 @@ func save() -> void:
 		cfg.set_value("sets", set_name, _sets[set_name].keys())
 	for course in _times:
 		cfg.set_value("times", course, _times[course])
+	for name in _best:
+		cfg.set_value("best", name, _best[name])
+	for id in _when:
+		cfg.set_value("completed", id, _when[id])
 	cfg.save(_file)
 
 
@@ -531,6 +626,9 @@ func reset_for_test() -> void:
 	_owned.clear()
 	_sets.clear()
 	_times.clear()
+	_best.clear()
+	_when.clear()
+	_play_time = 0.0
 	_life_kills = 0
 	_nemesis = 0
 	_base.clear()
@@ -546,6 +644,7 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	_since_save += delta
+	_watch_me(delta)
 	if _dirty and _since_save >= SAVE_EVERY:
 		save()
 	if _toast_left > 0.0:
@@ -557,6 +656,24 @@ func _process(delta: float) -> void:
 			_toast = null
 	elif not _toasts.is_empty():
 		_show_toast(_toasts.pop_front())
+
+
+## In a match: count the time you play, and keep your top speed (across the ground:
+## a long fall is not a run).
+func _watch_me(delta: float) -> void:
+	if not Match.running or Net.arena == null or get_tree().paused:
+		return
+	var me: Player = Net.arena.get_player(Net.my_id())
+	if me == null or not _mine(Net.my_id()) or not Match.is_alive(Net.my_id()):
+		return
+	_play_time += delta
+	if _play_time >= 1.0:
+		var whole := int(_play_time)
+		_play_time -= whole
+		add("seconds_played", whole)
+	var speed := Vector2(me.velocity.x, me.velocity.z).length()
+	if speed <= SPEED_SANE:
+		set_best("top_speed", speed)
 
 
 # ---------------------------------------------------------------------------
