@@ -103,16 +103,19 @@ func run() -> void:
 	_record(me, g)
 	_check(not g.attached and g.cooldown_left > 0.0, "letting go lets go, and the cooldown starts")
 	var back := g.line.look(g.clock, me.rope_origin(), g.rope_origin(me))
-	_check(back.size() == 5 and int(back[0]) == HookLine.RETRACT, "the hook whips back")
-	for i in int(HookLine.RETRACT_TIME / STEP) + 3:
+	_check(back.size() == 5 and int(back[0]) == HookLine.RETRACT and g.returning, "the hook comes back")
+	_check(g.rope_out() and bool(me.shown_state()[6]), "...with the rope still on your arm, which stays out for it")
+	_check(g.line.back_time >= HookLine.BACK_MIN and g.line.back_time <= HookLine.BACK_MAX, "...in a time that fits how far it has to come (%.2f s)" % g.line.back_time)
+	for i in int(g.line.back_time / STEP) + 3:
 		await _physics(1)
 		_record(me, g)
-	_check(g.line.look(g.clock, me.rope_origin(), g.rope_origin(me)).is_empty(), "...and is gone in %.1f s" % HookLine.RETRACT_TIME)
+	_check(g.line.look(g.clock, me.rope_origin(), g.rope_origin(me)).is_empty() and not g.returning and not g.rope_out(),
+		"...and is back at the wrist %.2f s later" % g.line.back_time)
 	await _frames(3)
 	_check(me.shown_state()[12] == null and not bool(me.shown_state()[6]), "the killcam's frame has no rope once it is gone")
 
 	_shot = g.line
-	_check_network()
+	_check_network([g.line], "")
 	_check_replay()
 
 	# --- A miss: at the sky.
@@ -151,6 +154,115 @@ func run() -> void:
 	_check(not g.flying and not g.biting and not g.attached, "letting go while it flies calls the hook back")
 	await _physics(int(dist / HookLine.SPEED / STEP) + 30)
 	_check(not g.attached and me.global_position.distance_to(spot[0]) < 0.5, "...and it never catches")
+
+	# --- The way back: the hook catches the first surface in its way, while you hold on.
+	await get_tree().create_timer(me.motor.tuning.grapple_cooldown + 0.1).timeout
+	var sky := _sky_spot(me, range_m + 8.0)
+	_check(sky != Vector3.INF, "found a floor with open sky over it")
+	if sky != Vector3.INF:
+		var up := Vector3(0.02, 1.0, 0.02).normalized()
+		var slab_at := sky + Vector3(0, 15.0, 0)
+		# Let go of the button: the hook comes back through whatever has got in its way.
+		me.teleport(sky, 0.0)
+		await _physics(20)
+		_aim(me, up)
+		_hold(true)
+		for i in 100:
+			await _physics(1)
+			if g.flying and g.line.travel(g.clock) > 30.0:
+				break
+		_hold(false)
+		await _physics(2)
+		_check(g.returning and not g.flying, "let go of in flight, the hook comes back")
+		var slab := _slab(slab_at)
+		var caught_any := false
+		for i in 80:
+			await _physics(1)
+			caught_any = caught_any or g.biting or g.attached
+			if not g.returning:
+				break
+		_check(not caught_any and not g.returning, "with the button up it catches nothing on its way back")
+		slab.free()
+		await _physics(2)
+		# Press again as it comes back, and hold: it catches.
+		await get_tree().create_timer(me.motor.tuning.grapple_cooldown + 0.1).timeout
+		me.teleport(sky, 0.0)
+		await _physics(20)
+		_aim(me, up)
+		_hold(true)
+		for i in 100:
+			await _physics(1)
+			if g.flying and g.line.travel(g.clock) > 30.0:
+				break
+		_hold(false)
+		await _physics(2)
+		slab = _slab(slab_at)
+		_hold(true)
+		caught_any = false
+		for i in 80:
+			await _physics(1)
+			caught_any = caught_any or g.biting or g.attached
+			if g.attached or not (g.returning or g.biting):
+				break
+		_check(caught_any and g.attached and absf(g.anchor.y - (slab_at.y + 0.25)) < 0.05,
+			"pressed again and held as it comes back, it catches the surface in its way")
+		g.held = true
+		g.release()   # (as a jump off the rope does: the button is still down)
+		_check(g.returning and not g._snag, "a jump off the rope is not holding on: the hook just comes back")
+		_hold(false)
+		await _physics(int(HookLine.BACK_MAX / STEP) + 4)
+		slab.free()
+		await _physics(2)
+		# A miss with the button held: the same, and every copy sees it the same.
+		await get_tree().create_timer(me.motor.tuning.grapple_cooldown + 0.1).timeout
+		me.teleport(sky, 0.0)
+		await _physics(20)
+		_aim(me, up)
+		_log.clear()
+		_hold(true)
+		for i in 200:
+			await _physics(1)
+			_record(me, g)
+			if g.returning:
+				break
+		var missed := g.line
+		_check(g.returning and not g.attached and not g.biting, "a miss: the hook starts back")
+		slab = _slab(slab_at)
+		var bit := false
+		for i in 120:
+			await _physics(1)
+			_record(me, g)
+			bit = bit or g.biting
+			if g.attached or not (g.returning or g.biting):
+				break
+		_check(bit and g.attached, "held after a miss, the hook catches the first surface on its way back, slack first")
+		_check(absf(g.anchor.y - (slab_at.y + 0.25)) < 0.05 and Vector2(g.anchor.x - sky.x, g.anchor.z - sky.z).length() < 1.5,
+			"...where its way back met it (%.2f m over you)" % (g.anchor.y - sky.y))
+		_check(g.line != missed and g.line.back and g.line.seq != missed.seq and is_equal_approx(g.line.t_launch, missed.t_release),
+			"...and that is a new shot on the record, begun as the hook set off back")
+		await _physics(1)
+		_record(me, g)
+		_check(me.velocity.y > me.motor.tuning.grapple_yank * 0.8, "then the rope pulls tight and yanks you up to it (%.1f m/s)" % me.velocity.y)
+		# In first person the rope leaves the arm where the arm is drawn this frame, moving
+		# and turning: not where it was a frame ago. (The camera has not moved since the
+		# frame was drawn, so the arm's wrist now is the wrist that was drawn.)
+		me.input.yaw += 0.4
+		await _frames(2)
+		var drawn: Vector3 = me._hook_rope._points[0]
+		_check(me._first_person() and me.velocity.length() > 5.0 and drawn.distance_to(me.view.marker("grapple")) < 0.002,
+			"at %.0f m/s and turning, the rope starts on your first-person arm's wrist as drawn (%.1f cm off)"
+			% [me.velocity.length(), drawn.distance_to(me.view.marker("grapple")) * 100.0])
+		for i in 12:
+			await _physics(1)
+			_record(me, g)
+		_hold(false)
+		for i in int(HookLine.BACK_MAX / STEP) + 6:
+			await _physics(1)
+			_record(me, g)
+		_check(not g.returning and not g.rope_out(), "let go, it comes back and is gone")
+		_check_network([missed, g.line], "a catch on the way back, ")
+		slab.free()
+		await _physics(2)
 
 	# --- Hooking a player: the hook flies to them, bites, pulls tight, and they are reeled in.
 	await get_tree().create_timer(me.motor.tuning.grapple_cooldown + 0.1).timeout
@@ -200,13 +312,16 @@ func run() -> void:
 ## The shot recorded above, rebuilt the way another copy of the game does it: from the
 ## snapshots' records, a little late, with packets lost. At every moment of the shot
 ## it must put the hook and the rope where the player's own game had them.
-func _check_network() -> void:
+## shots: the player's own records of what the log holds, in order (one, or a miss
+## and the catch on its way back).
+func _check_network(shots: Array, what: String) -> void:
 	var shift := 1234.5   # the two clocks are not the same clock
 	for plan in [["every snapshot (40 a second), 70 ms late", 3, 0.07, 0.0], ["a third of the packets lost, 110 ms late", 3, 0.11, 0.34],
 			["two thirds lost, 200 ms late", 3, 0.2, 0.67]]:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = 7
-		var theirs := HookLine.new()
+		var theirs: HookLine = null   # (as Player keeps them: the latest shot, and the one before)
+		var before: HookLine = null
 		var next := 0
 		var worst := 0.0
 		var worst_slack := 0.0
@@ -225,10 +340,18 @@ func _check_network() -> void:
 				if next % int(plan[1]) == 0 and rng.randf() >= float(plan[3]):
 					var packed: PackedFloat32Array = _log[next][2]
 					if not packed.is_empty():
-						theirs.absorb(float(_log[next][0]) + shift, packed, 0)
+						if theirs == null or HookLine.packed_seq(packed, 0) != theirs.seq:
+							before = theirs
+							theirs = HookLine.new()
+						theirs.absorb(float(_log[next][0]) + shift, packed, 0, before)
 				next += 1
-			var mine: Array = _shot.look(now, _log[k][4], _log[k][3])   # (the player's own record of the shot)
-			var seen := theirs.look(now + shift, _log[k][4], _log[k][3])
+			var own: HookLine = shots[0]   # (the player's own record of the shot on at that moment)
+			for one in shots:
+				if now >= (one as HookLine).t_launch:
+					own = one
+			var mine: Array = own.look(now, _log[k][4], _log[k][3])
+			var showing := theirs if theirs != null and now + shift >= theirs.t_launch else before
+			var seen: Array = showing.look(now + shift, _log[k][4], _log[k][3]) if showing != null else []
 			if mine.is_empty() and seen.is_empty():
 				continue
 			compared += 1
@@ -242,8 +365,8 @@ func _check_network() -> void:
 			for i in pts_a.size():
 				worst_rope = maxf(worst_rope, pts_a[i].distance_to(pts_b[i]))
 		_check(compared > 60 and stages_off == 0 and worst < 0.02 and worst_slack < 0.02 and worst_rope < 0.03,
-			"another copy, %s: the hook is never more than %.1f cm off, the slack %.1f cm, any point of the rope %.1f cm (%d moments, %d in another stage)"
-			% [plan[0], worst * 100.0, worst_slack * 100.0, worst_rope * 100.0, compared, stages_off])
+			"%sanother copy, %s: the hook is never more than %.1f cm off, the slack %.1f cm, any point of the rope %.1f cm (%d moments, %d in another stage)"
+			% [what, plan[0], worst * 100.0, worst_slack * 100.0, worst_rope * 100.0, compared, stages_off])
 
 
 ## The killcam: frames of the rope as drawn, 30 a second, blended back to any moment
@@ -279,7 +402,7 @@ func _check_replay() -> void:
 	_check(compared > 40 and worst < 0.05 and worst_slack < 0.05 and worst_twang < 0.002,
 		"a replay puts the hook within %.1f cm, the slack within %.1f cm and the twang within %.1f ms of what was drawn (%d moments)"
 		% [worst * 100.0, worst_slack * 100.0, worst_twang * 1000.0, compared])
-	_check(worst_back < 0.3, "...and within %.0f cm as it whips back at 100 m/s" % (worst_back * 100.0))
+	_check(worst_back < 0.3, "...and within %.0f cm as it whips back" % (worst_back * 100.0))
 
 
 ## A killcam frame with only what the blend looks at filled in.
@@ -331,6 +454,41 @@ func _wall_spot(me: Player, from: float, to: float) -> Array:
 				continue
 			return [feet, dir, eye.distance_to(hit.position)]
 	return []
+
+
+## A spot on the floor with nothing over it for `height` metres, nor round it (INF: none).
+func _sky_spot(me: Player, height: float) -> Vector3:
+	var space := me.get_world_3d().direct_space_state
+	for s in Net.arena.layout.spawns:
+		var base: Vector3 = s[0]
+		var floor_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(base + Vector3(0, 1, 0), base + Vector3(0, -5, 0), 1))
+		if floor_hit.is_empty():
+			continue
+		var feet: Vector3 = floor_hit.position
+		var clear := true
+		for off in [Vector3.ZERO, Vector3(3, 0, 0), Vector3(-3, 0, 0), Vector3(0, 0, 3), Vector3(0, 0, -3)]:
+			var from: Vector3 = feet + off + Vector3(0, 0.5, 0)
+			if not space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + Vector3(0, height, 0), 1)).is_empty():
+				clear = false
+		if clear:
+			return feet
+	return Vector3.INF
+
+
+## A slab of level, 6 m square and half a metre thick, in mid-air (the test puts it in
+## the way of a hook coming back).
+func _slab(at: Vector3) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(6.0, 0.5, 6.0)
+	shape.shape = box
+	body.add_child(shape)
+	body.collision_layer = 1
+	body.collision_mask = 0
+	Net.arena.add_child(body)
+	body.global_position = at
+	return body
 
 
 ## A spot on the floor with `length` metres of clear, flat floor ahead: [feet, yaw, direction].

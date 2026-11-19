@@ -93,6 +93,33 @@ jobs:
           sed -i "/^\[application\]/a config/version=\"$VERSION\"" project.godot
           grep -n '^config/version=' project.godot
 
+      # Online accounts (docs/ACCOUNTS.md): game/online/supabase.cfg is kept out of git,
+      # so it is written here from the repository's Actions variables SUPABASE_URL,
+      # SUPABASE_KEY (the public anon / publishable key, never service_role) and
+      # SUPABASE_PROVIDERS (e.g. "google, discord"). Without them the build simply has
+      # no sign-in.
+      - name: Write the Supabase config
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+          SUPABASE_PROVIDERS: ${{ vars.SUPABASE_PROVIDERS }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "::warning::SUPABASE_URL / SUPABASE_KEY are not set: this build has no online accounts"
+            exit 0
+          fi
+          # "google, discord" -> "google", "discord"
+          providers=$(echo "${SUPABASE_PROVIDERS:-google}" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -v '^$' | sed 's/.*/"&"/' | paste -sd, - | sed 's/,/, /g')
+          {
+            echo '[supabase]'
+            echo
+            echo "url=\"$SUPABASE_URL\""
+            echo "anon_key=\"$SUPABASE_KEY\""
+            echo "providers=[$providers]"
+          } > game/online/supabase.cfg
+          grep -v anon_key game/online/supabase.cfg
+
       - name: Export Windows build
         run: |
           set -euo pipefail

@@ -326,6 +326,7 @@ func _process(delta: float) -> void:
 			_coil_roll = lerpf(_coil_roll, coil * COIL_ROLL, 1.0 - exp(-delta * 16.0))
 			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
 				motor.eye_height, _roll + _punch_roll + _coil_roll)
+			rig.place()   # (now, not after this: the arms, and the ropes that start at them, go where this frame is drawn)
 		var g := motor.grapple
 		_anim.state = motor.state
 		_anim.crouched = motor.crouched
@@ -378,9 +379,12 @@ func _process(delta: float) -> void:
 	if hook2:
 		var st := shot.stage(rt) if shot else HookLine.OFF
 		_guard_hook(shot, rt)
-		_anim.grapple_on = st in [HookLine.FLYING, HookLine.BITING, HookLine.TAUT]
+		_anim.grapple_on = st != HookLine.OFF   # (the arm stays out until the hook is back)
 		if st == HookLine.FLYING:
 			_anim.grapple_anchor = shot.flight_pos(rt)
+		elif st == HookLine.RETRACT:
+			if not _hook_look.is_empty():
+				_anim.grapple_anchor = _hook_look[1]   # (where it was a frame ago: it is coming to the wrist)
 		elif _anim.grapple_on:
 			_anim.grapple_anchor = hook_anchor if hook_anchor != Vector3.INF else shot.anchor_at(rt)
 	else:
@@ -398,10 +402,14 @@ func _process(delta: float) -> void:
 			print("ROPE SEEN %d %d %s" % [Net.my_id(), peer_id, "on" if _rope_on else "off"])
 	var drawn := alive and not _awaiting_respawn and visual.visible
 	_draw_rope(_rope_on and alive and not _awaiting_respawn and not hook2, _rope_anchor)
-	_draw_hook(shot.look(rt, rope_origin(), global_position + Vector3(0, HookLine.ATTACH_HEIGHT, 0), hook_anchor) if shot and drawn else [])
+	var chest := global_position + Vector3(0, HookLine.ATTACH_HEIGHT, 0)
+	_draw_hook(shot.look(rt, rope_origin(), chest, hook_anchor) if shot and drawn else [])
 	if DevArgs.sync_log and not _hook_look.is_empty():
-		var hp: Vector3 = _hook_look[1]
-		print("HOOK SEEN %d %d %d %.4f %d %.3f %.3f %.3f %.3f %.4f" % [Net.my_id(), peer_id, shot.seq, rt, _hook_look[0], hp.x, hp.y, hp.z, _hook_look[2], delta])
+		# (For the log the rope's near end is the chest, as in _log_own_hook: each copy
+		# draws it at the wrist of the body as it poses it, which is not the shot's to say.)
+		var logged := shot.look(rt, chest, chest, hook_anchor)
+		var hp: Vector3 = logged[1]
+		print("HOOK SEEN %d %d %d %.4f %d %.3f %.3f %.3f %.3f %.4f" % [Net.my_id(), peer_id, shot.seq, rt, logged[0], hp.x, hp.y, hp.z, logged[2], delta])
 	_update_trail(delta)
 	_update_flame(delta)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
@@ -1524,7 +1532,7 @@ func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 			_hook_old = _hook_line   # (the shot before may still be whipping back on our screen)
 			_hook_line = HookLine.new()
 		var known := _hook_line.moments()
-		_hook_line.absorb(remote_time, data, SNAPSHOT_SIZE)
+		_hook_line.absorb(remote_time, data, SNAPSHOT_SIZE, _hook_old)
 		if DevArgs.sync_log and _hook_line.moments() != known:
 			_log_hook("SEEN %d %d" % [Net.my_id(), peer_id], _hook_line, known, 0.0)
 	elif _hook_line and _hook_line.t_release == INF:
@@ -2111,8 +2119,11 @@ func _log_own_hook(hook: HookShot) -> void:
 		_log_hook("SELF %d" % peer_id, line, known, Net.now() - hook.clock)
 		_hook_logged = [line.seq, line.moments()]
 	# (As everyone else sees it leave you, not from your first-person arm: that one is
-	# only on your own screen.)
-	var look := line.look(hook.clock, robot.marker("grapple"), hook.rope_origin(self)) if alive else []
+	# only on your own screen. And with the rope's near end at the chest: every copy
+	# draws it at the wrist of the body as it poses it, so the hook coming back is
+	# compared by where it is on its way to the body.)
+	var chest := hook.rope_origin(self)
+	var look := line.look(hook.clock, chest, chest) if alive else []
 	if not look.is_empty():
 		var hp: Vector3 = look[1]
 		print("HOOK SELF %d %d %.4f %d %.3f %.3f %.3f %.3f" % [peer_id, line.seq, Net.now(), look[0], hp.x, hp.y, hp.z, look[2]])
@@ -2127,6 +2138,8 @@ func _log_hook(who: String, line: HookLine, known: int, shift: float) -> void:
 	for i in 4:
 		if line.moments() & (1 << i) != 0 and known & (1 << i) == 0:
 			var extra := (" caught %d" % line.target_id if line.caught else " missed") if i == 1 else ""
+			if i == 0 and line.back:
+				extra = " back"   # (a hook that caught on its way back: its record begins as it set off)
 			print("HOOKEV %s %d %s %.4f%s" % [who, line.seq, names[i], float(times[i]) + shift, extra])
 
 
