@@ -10,6 +10,11 @@ extends Node
 ## piped to it as it is drawn. Where that can't run (not Windows, or it fails to start),
 ## the video is an AVI instead (AviWriter: Motion JPEG), at the same size and rate.
 ##
+## Sound: while the clip plays, its sounds (guns, hits, kicks...) are noted rather than
+## played (Sound.capture_begin), each with where it was and where the camera was; at the
+## end they are mixed into a stereo track (mix_sound: quieter far away, panned to their
+## side) that goes into the MP4 as AAC. (The AVI has no sound.)
+##
 ##   var save := KillcamExport.new()
 ##   add_child(save)
 ##   save.finished.connect(func(path, error): ...)
@@ -24,7 +29,8 @@ const BITRATE := 16_000_000   ## bits a second: sharp 1080p60 for fast motion
 const ENCODER := "res://game/encoder/Mp4Encoder.exe"
 const ENCODER_COPY := "user://encoder/Mp4Encoder.exe"   ## (an .exe can't run from inside the game's pack)
 const ENCODE_TIMEOUT := 120.0   ## seconds to wait for the encoder to finish the file
-const OVERLAY_SCALE := 1.5   ## the killcam's words: the size they have on a 720p video
+const OVERLAY_SCALE := 1.5   ## the killcam's words: drawn this much bigger than on a 720p screen
+const RATE := 44100          ## the sound track's samples a second
 const HOLD := 1.0   ## seconds the last frame stays at the end
 
 var _view: SubViewport
@@ -90,15 +96,14 @@ func start(clip: KillClip, title: String = "KILLCAM") -> void:
 	_player = KillcamView.new().setup(clip, true)
 	_player.map = map
 	_player.manual = true
-	_player.world_sound = false
+	_player.world_sound = true   # (noted for the sound track, not played: see _record)
 	_view.add_child(_player)
-	# The words are laid out for a 720p picture and scaled up to fill this one.
-	var words := Vector2(SIZE) / OVERLAY_SCALE
+	# The words, drawn at the picture's own resolution (sharp), as big as on a 720p one.
 	_overlay = Control.new()
-	_overlay.size = words
-	_overlay.scale = Vector2(OVERLAY_SCALE, OVERLAY_SCALE)
+	_overlay.size = Vector2(SIZE)
 	_overlay.draw.connect(func():
-		KillcamOverlay.draw(_overlay, Rect2(Vector2.ZERO, words), _player, title, "JUMPY SHOOTY  ·  %s" % _map_name.to_upper()))
+		KillcamOverlay.draw(_overlay, Rect2(Vector2.ZERO, Vector2(SIZE)), _player, title, "JUMPY SHOOTY  ·  %s" % _map_name.to_upper(),
+			false, OVERLAY_SCALE))
 	_view.add_child(_overlay)
 	_record.call_deferred(clip)
 
@@ -118,6 +123,7 @@ func _record(clip: KillClip) -> void:
 	var step := 1.0 / FPS
 	var blank: Image = null
 	var headless := DisplayServer.get_name() == "headless"
+	var sounds: Array = []
 	while held < int(HOLD * FPS):
 		_overlay.queue_redraw()
 		if headless:
@@ -139,11 +145,16 @@ func _record(clip: KillClip) -> void:
 				img.resize(SIZE.x, SIZE.y, Image.INTERPOLATE_BILINEAR)
 			if img.get_format() != Image.FORMAT_RGBA8:
 				img.convert(Image.FORMAT_RGBA8)
+			(pipe.stdio as FileAccess).store_8(86)   # "V": a frame
 			(pipe.stdio as FileAccess).store_buffer(img.get_data())
 		frames += 1
 		if _player.done:
 			held += 1
+		Sound.captured = sounds
+		Sound.capture_begin(frames * step, _player.camera.global_transform if _player.camera else Transform3D())
 		_player.step(step)
+		Sound.capture_end()
+		Sound.captured = []
 		progress.emit(clampf((_player.time - clip.start) / maxf(clip.end - clip.start, 0.01), 0.0, 1.0))
 	var path := mp4_path
 	var error := ""
@@ -152,7 +163,7 @@ func _record(clip: KillClip) -> void:
 		var err := avi.save(path)
 		error = "" if err == OK else error_string(err)
 	else:
-		error = await _finish_mp4(pipe)
+		error = await _finish_mp4(pipe, mix_sound(sounds, frames / float(FPS)))
 	if DevArgs.sync_log:
 		print("KILLCAM_SAVED %d %d %d %.1f %s %s" % [Net.my_id(), int(clip.info.get("seq", 0)), frames, frames / float(FPS),
 			"ok" if error == "" else error.replace(" ", "_"), path])
@@ -160,11 +171,18 @@ func _record(clip: KillClip) -> void:
 	queue_free()
 
 
-## Close the encoder's input (the end of the video) and wait for it to write the file.
-## "" when it did; what went wrong if not.
-func _finish_mp4(pipe: Dictionary) -> String:
+## Hand the encoder the sound track (16-bit stereo samples, see mix_sound), close its
+## input (the end of the video) and wait for it to write the file. "" when it did; what
+## went wrong if not.
+func _finish_mp4(pipe: Dictionary, sound: PackedByteArray) -> String:
 	var pid := int(pipe.pid)
-	(pipe.stdio as FileAccess).close()
+	var stdio := pipe.stdio as FileAccess
+	# After the frames: "A", the sample rate and the byte count, then the samples.
+	stdio.store_8(65)
+	stdio.store_32(RATE)
+	stdio.store_32(sound.size())
+	stdio.store_buffer(sound)
+	stdio.close()
 	var waited := 0.0
 	while OS.is_process_running(pid) and waited < ENCODE_TIMEOUT:
 		await get_tree().create_timer(0.1, true, false, true).timeout
@@ -177,3 +195,56 @@ func _finish_mp4(pipe: Dictionary) -> String:
 		var why := (pipe.stderr as FileAccess).get_as_text().strip_edges() if pipe.has("stderr") and pipe.stderr else ""
 		return "the video encoder failed (%d)%s" % [code, (": " + why) if why != "" else ""]
 	return ""
+
+
+## The sounds noted while the clip played (see Sound.capture_begin), mixed into
+## `seconds` of 16-bit stereo at RATE: each at its own volume and pitch; one in the
+## world quieter with distance (as Sound's RANGE says) and panned to the side it was
+## on, from where the camera was. A soft limit keeps gunfire from clipping.
+static func mix_sound(sounds: Array, seconds: float) -> PackedByteArray:
+	var n := int(seconds * RATE)
+	var left := PackedFloat32Array()
+	var right := PackedFloat32Array()
+	left.resize(n)
+	right.resize(n)
+	for s in sounds:
+		var stream: AudioStream = s.stream
+		var start := int(float(s.t) * RATE)
+		if stream == null or start >= n:
+			continue
+		var gain := db_to_linear(float(s.db))
+		var pan := 0.0
+		if s.has("at"):
+			var ears: Transform3D = s.ears
+			var local: Vector3 = ears.affine_inverse() * (s.at as Vector3)
+			var d := local.length()
+			var near: float = s.range[0]
+			var far: float = s.range[1]
+			if d >= far:
+				continue
+			gain *= minf(near / maxf(d, near), db_to_linear(3.0)) * sqrt(clampf((far - d) / maxf(far - near, 0.01), 0.0, 1.0))
+			pan = clampf(local.x / maxf(d, 0.001), -1.0, 1.0) * 0.7
+		var angle := (pan + 1.0) * PI * 0.25   # equal power, 1:1 in the middle
+		var gl := cos(angle) * sqrt(2.0) * gain
+		var gr := sin(angle) * sqrt(2.0) * gain
+		var pitch := maxf(float(s.pitch), 0.1)
+		var length := mini(int(stream.get_length() * RATE / pitch) + 1, n - start)
+		if length <= 0:
+			continue
+		var playback := stream.instantiate_playback()
+		playback.start(0.0)
+		var samples: PackedVector2Array = playback.mix_audio(pitch, length)
+		for i in samples.size():
+			left[start + i] += samples[i].x * gl
+			right[start + i] += samples[i].y * gr
+	var out := PackedByteArray()
+	out.resize(n * 4)
+	for i in n:
+		out.encode_s16(i * 4, int(_limit(left[i]) * 32767.0))
+		out.encode_s16(i * 4 + 2, int(_limit(right[i]) * 32767.0))
+	return out
+
+
+## Loud peaks rounded off instead of clipped.
+static func _limit(x: float) -> float:
+	return x if absf(x) < 0.8 else signf(x) * (0.8 + 0.2 * tanh((absf(x) - 0.8) / 0.2))
