@@ -63,6 +63,7 @@ extends Node
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
 ## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, profile, creator, achievements, card.
+## --showcase=N         Start the main menu's character showcase on its Nth character (from 1; screenshots).
 ## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
 ## --manual-respawn     Wait for a Jump or Fire press to respawn, as in a real game, even in a
@@ -143,6 +144,7 @@ var time_limit := 0.0
 var quit_after := 0.0
 var save_killcam := 0
 var menu := ""
+var showcase := 0
 var pause_page := ""
 var fall_at := -1.0          # --fall: seconds after start (-1 = never)
 var window_rect := Rect2i()
@@ -272,6 +274,7 @@ func _ready() -> void:
 			"--scripted-kicks": scripted_kicks = true
 			"--auto-return": auto_return = true
 			"--menu": menu = value
+			"--showcase": showcase = int(value)
 			"--settings-tab": SettingsPanel.open_on_tab(int(value))
 			"--pause-page": pause_page = value
 			"--fall": fall_at = float(value)
