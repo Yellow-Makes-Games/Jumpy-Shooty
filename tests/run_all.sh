@@ -63,6 +63,7 @@ CHECKS=(
   "player_color|--script tests/player_color_test.gd"
   "achievements|--script tests/achievements_test.gd"
   "calling_card|--script tests/calling_card_test.gd"
+  "cloud_save|--script tests/cloud_save_test.gd"
   "respawn_visible|--script tests/respawn_visible_test.gd"
 )
 # Practice mode boots without errors on every map.

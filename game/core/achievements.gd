@@ -618,6 +618,56 @@ func save() -> void:
 
 
 # ---------------------------------------------------------------------------
+# An account's cloud save (see CloudSave and Account)
+
+## Everything this keeps, as plain data (JSON-safe).
+func snapshot() -> Dictionary:
+	var sets := {}
+	for set_name in _sets:
+		sets[set_name] = (_sets[set_name] as Dictionary).keys()
+	return {"stats": _stats.duplicate(), "owned": _owned.keys(), "sets": sets,
+		"times": _times.duplicate(), "best": _best.duplicate(), "completed": _when.duplicate()}
+
+
+## Take in progress from the cloud: each count goes up to the bigger of the two, sets
+## and unlocks are joined, best times and speeds keep the best. Achievements this
+## completes are not announced (they were earned on another computer). Saved at once.
+func absorb(p: Dictionary) -> void:
+	var stats: Dictionary = p.get("stats", {}) if p.get("stats") is Dictionary else {}
+	for name in stats:
+		var n := maxi(int(stats[name]), 0)
+		if not str(name) in SET_STATS.values() and n > stat(str(name)):
+			_stats[str(name)] = n
+	for key in p.get("owned", []) if p.get("owned") is Array else []:
+		_owned[str(key)] = true
+	var sets: Dictionary = p.get("sets", {}) if p.get("sets") is Dictionary else {}
+	for set_name in sets:
+		if SET_STATS.has(str(set_name)) and sets[set_name] is Array:
+			for thing in sets[set_name]:
+				_sets.get_or_add(str(set_name), {})[str(thing)] = true
+	var times: Dictionary = p.get("times", {}) if p.get("times") is Dictionary else {}
+	for course in times:
+		var time := float(times[course])
+		if time > 0.0 and (not _times.has(str(course)) or time < float(_times[str(course)])):
+			_times[str(course)] = time
+	var bests: Dictionary = p.get("best", {}) if p.get("best") is Dictionary else {}
+	for name in bests:
+		_best[str(name)] = maxf(best(str(name)), float(bests[name]))
+	var when: Dictionary = p.get("completed", {}) if p.get("completed") is Dictionary else {}
+	for id in when:
+		var at := float(when[id])
+		if at > 0.0 and (not _when.has(str(id)) or at < float(_when[str(id)])):
+			_when[str(id)] = at
+	for set_name in SET_STATS:
+		_stats[SET_STATS[set_name]] = (_sets.get(set_name, {}) as Dictionary).size()
+	for a in LIST:
+		if not _done.has(a.id) and stat(a.stat) >= int(a.goal):
+			_done[a.id] = true
+	save()
+	progressed.emit()
+
+
+# ---------------------------------------------------------------------------
 # The debug menu (see DebugMenu): earn things without playing for them
 
 ## Complete an achievement as if you had just earned it: the count reaches its goal,

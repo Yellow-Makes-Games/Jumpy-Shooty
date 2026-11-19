@@ -3,7 +3,8 @@ extends VBoxContainer
 ## The Profile page's body (main menu > Profile): your name, your stats (six to a
 ## page, paged with arrows), your calling card with your name on it, your level (see
 ## PlayerLevel), the achievements you track or are closest to finishing, and the one
-## you finished last.
+## you finished last. And, when this build has one (see Account), your online account:
+## sign in to keep all of this in the cloud.
 
 const PER_PAGE := 6
 const STAT_HEIGHT := 64.0
@@ -15,6 +16,8 @@ static var page := 0
 var _grid: GridContainer
 var _pager: Label
 var _card: CallingCardView
+var _name_edit: LineEdit
+var _account: VBoxContainer
 
 
 func _init() -> void:
@@ -37,6 +40,7 @@ func _init() -> void:
 	var name_edit := UiKit.line_edit(left, "Player", Settings.player_name)
 	name_edit.name = "name"
 	name_edit.text_changed.connect(_on_name)
+	_name_edit = name_edit
 	_card = CallingCardView.new(Settings.calling_card, Settings.icon, Vector2(SIDE, 78), Game.local_name())
 	_card.name = "card"
 	right.add_child(_card)
@@ -66,6 +70,16 @@ func _init() -> void:
 	# Level.
 	UiKit.section(right, "Level")
 	_level(right)
+
+	# Your online account (optional).
+	if Account.available():
+		UiKit.section(right, "Account")
+		_account = VBoxContainer.new()
+		_account.name = "account"
+		_account.add_theme_constant_override("separation", 6)
+		right.add_child(_account)
+		_show_account()
+		Account.changed.connect(_on_account_changed)
 
 	var rule := ColorRect.new()
 	rule.color = Color(UiKit.LINE, 0.12)
@@ -269,3 +283,53 @@ func _on_name(text: String) -> void:
 	Settings.player_name = text.strip_edges()
 	Settings.save_settings()
 	_card.show_card(Settings.calling_card, Settings.icon, Game.local_name())
+
+
+func _on_account_changed() -> void:
+	if not is_inside_tree():
+		return
+	_show_account()
+	# A sync may have brought a profile from another computer.
+	if _name_edit and not _name_edit.has_focus() and _name_edit.text != Settings.player_name:
+		_name_edit.text = Settings.player_name
+	_card.show_card(Settings.calling_card, Settings.icon, Game.local_name())
+
+
+## Signed out: a button for each sign-in provider. Signed in: who as, the sync's
+## state, and Sign out.
+func _show_account() -> void:
+	UiKit.clear(_account)
+	var line := ""
+	if Account.busy == "signing_in":
+		line = Account.status
+		UiKit.label(_account, line, true, 14).name = "status"
+		UiKit.button(_account, "Cancel", Account.cancel_sign_in).name = "cancel"
+		return
+	if Account.signed_in():
+		var who := Account.email if Account.email != "" else "your %s account" % str(Account.PROVIDER_NAMES.get(Account.provider, Account.provider))
+		var l := UiKit.label(_account, "Signed in as " + who, false, 15)
+		l.name = "who"
+		l.autowrap_mode = TextServer.AUTOWRAP_OFF
+		l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		l.clip_text = true
+		var state := "Syncing..." if Account.busy == "syncing" else Account.status
+		if state != "":
+			UiKit.label(_account, state, true, 13).name = "status"
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		_account.add_child(row)
+		var sync := UiKit.button(row, "Sync now", Account.sync_now)
+		sync.name = "sync"
+		sync.disabled = Account.busy != ""
+		UiKit.button(row, "Sign out", Account.sign_out).name = "sign_out"
+		return
+	UiKit.label(_account, "Optional: sign in to keep your profile and progress in the cloud.", true, 13)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 8)
+	_account.add_child(buttons)
+	for p in Account.providers():
+		var b := UiKit.button(buttons, str(p[1]), Account.sign_in.bind(str(p[0])))
+		b.name = "sign_in_" + str(p[0])
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if Account.status != "":
+		UiKit.label(_account, Account.status, true, 13).name = "status"
