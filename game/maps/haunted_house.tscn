@@ -40763,6 +40763,7 @@ phase = 0
 size = 1
 tint = Color(0.72, 0.92, 1, 1)
 moan_every = 14
+look = 3
 
 [node name="WestGhost" type="Node3D" parent="Ghosts"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
@@ -40773,6 +40774,7 @@ phase = 0.3
 size = 0.95
 tint = Color(0.7, 1, 0.85, 1)
 moan_every = 15.2
+look = 3
 
 [node name="EastGhost" type="Node3D" parent="Ghosts"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
@@ -40783,6 +40785,7 @@ phase = 0.6
 size = 1.05
 tint = Color(0.75, 0.88, 1, 1)
 moan_every = 16.4
+look = 3
 
 [node name="BedroomGhost" type="Node3D" parent="Ghosts"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 5.7, 0)
@@ -40793,6 +40796,7 @@ phase = 0.1
 size = 0.9
 tint = Color(0.9, 0.85, 1, 1)
 moan_every = 14.4
+look = 3
 
 [node name="NurseryGhost" type="Node3D" parent="Ghosts"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 5.5, 0)
@@ -40803,6 +40807,7 @@ phase = 0.5
 size = 0.6
 tint = Color(0.8, 1, 0.9, 1)
 moan_every = 16
+look = 3
 
 [node name="RisingGhost" type="Node3D" parent="Ghosts"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -6)
@@ -40813,6 +40818,7 @@ phase = 0.2
 size = 1
 tint = Color(0.68, 0.95, 1, 1)
 moan_every = 14.8
+look = 3
 
 [node name="HallGhost" type="Node3D" parent="Ghosts"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.8, 0)
@@ -40823,6 +40829,7 @@ phase = 0.75
 size = 1.1
 tint = Color(0.72, 0.9, 1, 1)
 moan_every = 17
+look = 3
 
 [node name="Lights" type="Node3D" parent="."]
 

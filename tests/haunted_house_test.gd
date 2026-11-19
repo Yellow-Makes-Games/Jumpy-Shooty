@@ -3,7 +3,7 @@ extends SceneTree
 ## HauntEvent, HauntProp and MapGhost.
 ##  - listed for free-for-all (and so Gun Game) and Deathmatch; very small (inside a
 ##    30 x 22 m house, two floors); a Haunting event with four layouts; 60 or more
-##    floating props, ten or more doorways that come and go, five or more ghosts, the
+##    floating props, ten or more doorways that come and go, five or more ghosts (all Shades), the
 ##    lights it flickers;
 ##  - the clock: what layout comes next is worked out from the event's state alone
 ##    (the same on every copy of the game), starts at layout 0, never repeats a layout
@@ -90,6 +90,14 @@ func _rules() -> void:
 	var floaters := haunted.filter(func(n): return (n as HauntProp).bob != 0.0 or (n as HauntProp).twirl != 0.0).size()
 	_expect(movers >= 15 and floaters >= 30, "furniture on the move: %d pieces go somewhere new when the house shifts, %d float" % [movers, floaters])
 	_expect(ghosts.size() >= 5, "five or more ghosts (%d)" % ghosts.size())
+	_expect(ghosts.all(func(n): return (n as MapGhost).look == 3), "every ghost is a Shade (the faceless silhouette)")
+	for look in 5:
+		var g := MapGhost.new()
+		g.look = look
+		root.add_child(g)
+		g._build()  # headless skips the body in _ready
+		_expect(not g.find_children("*", "MeshInstance3D", true, false).is_empty(), "ghost look %d builds a body" % look)
+		g.free()
 	var lights := event.get_node_or_null(event.lights)
 	_expect(lights != null and not lights.find_children("*", "OmniLight3D", true, false).is_empty(), "lights for the haunting to flicker")
 	var lo := Vector3(INF, INF, INF)
