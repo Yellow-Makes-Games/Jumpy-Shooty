@@ -164,6 +164,13 @@ Quick checks:
   through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the game boots into practice mode on every map without script errors.
 
+- see-through portals (`tests/portal_view_test.gd`): looking at a point on one portal shows
+  what lies straight on through the other (wall to wall, wall to floor, from the side and
+  above), a portal behind you, seen from behind its wall or without its partner opens no
+  view, at most four at once (the nearest), sized to the portal on screen, and the portal
+  cameras see plain faces and your whole body, never a window (headless: the maths only;
+  `tools/screenshot.sh` with the portal gun to see it);
+
 - Grappling Hook 2 (`tests/hook_shot_test.gd`), in a real Practice match: nothing pulls
   while the hook flies, it takes the distance at its speed to arrive, bites with slack,
   the winch takes it in, the rope pulls tight with a harder yank than the first hook's and

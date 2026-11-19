@@ -37,6 +37,89 @@ var _map_pairs: Array = []
 ## both sides has a portal facing each way, and this keeps them apart.
 const MAP_BACK := 0.3
 
+## Seeing through portals (see Portal.update_view): every copy draws its own view, so
+## nothing goes over the network. Only a linked pair's portals open a view, and only
+## those in front of the camera, in its field of view and within VIEW_RANGE: the
+## nearest MAX_VIEWS of them. Each renders the arena again, at about the size it
+## takes on screen (VIEW_MIN_PX to VIEW_MAX_PX tall, in VIEW_STEP_PX steps so it is
+## not resized every frame). Any other portal shows its plain glowing face.
+const VIEW_RANGE := 90.0
+const MAX_VIEWS := 4
+const VIEW_MIN_PX := 96
+const VIEW_MAX_PX := 720
+const VIEW_STEP_PX := 48
+## Tests: off where nothing is drawn (a headless run).
+var views_enabled := DisplayServer.get_name() != "headless"
+
+
+func _init() -> void:
+	process_priority = 100   # after every camera has moved this frame
+
+
+func _process(_delta: float) -> void:
+	update_views(get_viewport().get_camera_3d() if is_inside_tree() else null)
+
+
+## Turns each portal's view on or off for what `cam` (the main view's camera) sees.
+func update_views(cam: Camera3D) -> void:
+	var wanted := []   # [distance, portal, its partner]
+	if views_enabled and cam and is_instance_valid(cam):
+		cam.set_cull_mask_value(Portal.FLAT_LAYER, false)   # the main view sees the windows
+		var eye := cam.global_position
+		var planes := cam.get_frustum()
+		for owner in _pairs:
+			var pair: Array = _pairs[owner]
+			var a: Portal = pair[0]
+			var b: Portal = pair[1]
+			if a == null or b == null or not is_instance_valid(a) or not is_instance_valid(b):
+				continue
+			for k in 2:
+				var p: Portal = a if k == 0 else b
+				var d := eye.distance_to(p.frame.origin)
+				if d > VIEW_RANGE or (eye - p.frame.origin).dot(p.normal) < 0.03:
+					continue
+				if not _in_frustum(planes, p.frame.origin, maxf(p.half_width, p.half_height) * 1.1):
+					continue
+				wanted.append([d, p, b if k == 0 else a])
+	wanted.sort_custom(func(x, y): return x[0] < y[0])
+	var on := {}
+	if not wanted.is_empty():
+		var screen_h := float(get_viewport().get_visible_rect().size.y)
+		var tan_half := tan(deg_to_rad(cam.fov) * 0.5)
+		for i in mini(wanted.size(), MAX_VIEWS):
+			var p: Portal = wanted[i][1]
+			if p.update_view(cam, wanted[i][2], view_pixels(wanted[i][0], p.half_height, tan_half, screen_h)):
+				on[p] = true
+	for owner in _pairs:
+		for p in _pairs[owner]:
+			if p and is_instance_valid(p) and not on.has(p):
+				p.set_live(false)
+
+
+## How tall (pixels) a portal's view is rendered: about as tall as it is on screen.
+static func view_pixels(dist: float, half_h: float, tan_half: float, screen_h: float) -> int:
+	var px := screen_h * half_h / (maxf(dist, 0.5) * maxf(tan_half, 0.05))
+	var stepped := int(ceil(px / VIEW_STEP_PX)) * VIEW_STEP_PX
+	return clampi(stepped, VIEW_MIN_PX, mini(VIEW_MAX_PX, int(maxf(screen_h, VIEW_MIN_PX))))
+
+
+## Is a sphere at least partly inside the camera's frustum? (Its planes face out.)
+static func _in_frustum(planes: Array, at: Vector3, radius: float) -> bool:
+	for pl in planes:
+		if (pl as Plane).distance_to(at) > radius:
+			return false
+	return true
+
+
+## The portal views live right now (tests).
+func live_views() -> Array:
+	var out := []
+	for owner in _pairs:
+		for p in _pairs[owner]:
+			if p and is_instance_valid(p) and p.live:
+				out.append(p)
+	return out
+
 
 func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3) -> void:
 	slot = clampi(slot, 0, 1)
