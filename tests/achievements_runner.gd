@@ -349,6 +349,54 @@ func run() -> void:
 	_expect(not Achievements.toast_on_left(), "and top right in a race, where the standings are down the left")
 	Race.active = false
 
+	print("  The debug menu completes, unlocks and resets")
+	Achievements.reset_for_test()
+	Achievements._file = TEST_FILE
+	Achievements.complete("kills_100")
+	_expect(Achievements.done("kills_100") and Achievements.stat("kills") == 100 and not Achievements.done("kills_500"),
+		"completing an achievement brings its count to the goal, and no further")
+	_expect(Achievements._toasts.size() == 1 and Achievements._toasts[0].id == "kills_100", "with its toast")
+	Achievements.complete("medal_gold_4")
+	_expect(Achievements.done("medal_gold_4") and Achievements.done("medal_silver") and Achievements.done("medal_bronze"),
+		"completing the gold medals gives the silver and bronze ones too")
+	_expect(Achievements.MEDALS.keys().all(func(c): return Achievements.medal(c, Achievements.best_time(c)) == 2),
+		"with a best time on each course that earns the medal")
+	Achievements._load()
+	_expect(Achievements.done("kills_100") and Achievements.done("medal_gold_4") and Achievements.stat("gold_medals") == 4,
+		"and they are still done after reading the file back")
+	Achievements.complete_all()
+	var all_items := Achievements.item_counts()
+	_expect(Achievements.done_count() == Achievements.LIST.size() and all_items[0] == all_items[1],
+		"completing everything finishes all %d achievements and unlocks all %d rewards" % [Achievements.LIST.size(), all_items[1]])
+	_expect(Achievements._toasts.is_empty(), "without a queue of toasts")
+	Achievements._load()
+	_expect(Achievements.done_count() == Achievements.LIST.size(), "and all of them are still done after reading the file back (%d)" % Achievements.done_count())
+	var saved_card := Settings.calling_card
+	var saved_icon := Settings.icon
+	Settings.calling_card = "frostbite"
+	Settings.icon = "crown"
+	_expect(not Achievements.wear_unlocked() and Settings.calling_card == "frostbite", "a card and icon you have unlocked stay on")
+	Achievements.reset_progress()
+	_expect(Achievements.done_count() == 0 and Achievements.item_counts()[0] == 0 and Achievements.best_time("rooftop_run") == 0.0,
+		"resetting wipes every count, unlock and best time")
+	_expect(Achievements.wear_unlocked() and Settings.calling_card == CallingCard.DEFAULT_CARD and Settings.icon == CallingCard.DEFAULT_ICON,
+		"and a calling card and icon that are locked again go back to the free ones")
+	Achievements._load()
+	_expect(Achievements.done_count() == 0 and Achievements.item_counts()[0] == 0, "the file is wiped too")
+	Achievements.unlock_items(false)
+	_expect(not Achievements.locked("hat:crown") and not Achievements.locked("paint:gold") and Achievements.locked("card:frostbite")
+		and Achievements.done_count() == 0, "unlocking cosmetics gives the creator's items, with no achievement done and no card")
+	Achievements.unlock_items(true)
+	_expect(not Achievements.locked("card:frostbite") and not Achievements.locked("icon:crown") and Achievements.done_count() == 0,
+		"unlocking cards and icons gives those")
+	Achievements._load()
+	_expect(Achievements.item_counts()[0] == Achievements.item_counts()[1], "and the unlocks are kept in the file")
+	Achievements.reset_progress()
+	_expect(Achievements.item_counts()[0] == 0, "a reset takes those away as well")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_FILE))
+	Settings.calling_card = saved_card
+	Settings.icon = saved_icon
+
 	Achievements.reset_for_test()
 	Settings.custom_characters.assign(saved_characters)
 	Settings.character = saved_pick
