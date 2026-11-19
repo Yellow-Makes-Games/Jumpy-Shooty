@@ -313,6 +313,13 @@ freezing bots, and an FPS readout. It lives in `game/dev/debug_menu.gd`; the swi
 are in `game/dev/cheats.gd`, whose checks all answer "off" in an online match, so a new
 cheat should go through one of them.
 
+Its **Achievements and unlocks** section changes your saved progress
+(`user://achievements.cfg`), through four functions of the Achievements autoload:
+`complete(id)` (as if you had earned it, toast and all), `complete_all()`,
+`unlock_items(cards)` (the creator's items, or the calling cards and icons, with no
+achievement done) and `reset_progress()` (back to nothing; it deletes the file). What
+your saved characters wear stays unlocked after a reset, as it does everywhere else.
+
 ## Measuring performance
 
 Settings → Graphics → **Run benchmark** (or `godot --path . -- --benchmark`, which quits
