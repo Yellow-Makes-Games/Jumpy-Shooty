@@ -191,7 +191,9 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 				if _state in grounded_states and a.velocity.y > 2.5:
 					_play("jump")
 				elif _state == S.GLIDE and _glide_t >= RobotAnimator.GLIDE_FLIP_AFTER:
-					_play("flip", "move", -2.0)   # let go of a glide: the backflip out of it (see RobotAnimator)
+					var whoosh := _play("flip", "move", -2.0, 0.0)   # let go of a glide: the backflip out of it (see RobotAnimator)
+					if whoosh:
+						whoosh.set("pitch_scale", 0.62)   # (a longer, lower whoosh: it is one long flip)
 		# Landing (a slide, roll or belly slide out of the air brings its own sound).
 		if was_air and state in [S.GROUND, S.CROUCH]:
 			_land()

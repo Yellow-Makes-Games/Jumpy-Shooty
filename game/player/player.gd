@@ -1686,6 +1686,8 @@ func _animate(delta: float) -> void:
 	animator.first_person = first_person > 0.0
 	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
 	_anim.feet = _feet_ground()
+	if animator.glide_flipping():
+		animator.glide_flip_floor_in(_floor_in())   # (the backflip out of a glide is round before the landing)
 	animator.update(delta, _anim, visual.global_transform)
 	if rig:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)
@@ -1714,6 +1716,22 @@ func _feet_ground() -> Vector2:
 		if not hit.is_empty():
 			out[i] = (hit.position as Vector3).y - floor_y
 	return out
+
+
+## Seconds until this body, falling as it is, reaches the floor below it (a long time
+## when there is none within 60 m). For anyone's body: it goes by where it is and how
+## it is moving, as this copy of the game shows it.
+func _floor_in() -> float:
+	if not is_inside_tree():
+		return 99.0
+	var from := global_position + Vector3(0, 0.5, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 60, 0), 1, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		return 99.0
+	var drop := maxf(from.y - (hit.position as Vector3).y - 0.5, 0.0)
+	var g := 22.0 * (motor.gravity_scale if motor else 1.0)
+	return (velocity.y + sqrt(velocity.y * velocity.y + 2.0 * g * drop)) / g
 
 
 ## For tests/check_anim.py: prints the animation this body shows whenever it changes.

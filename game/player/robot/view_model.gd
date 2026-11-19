@@ -427,7 +427,7 @@ func update(delta: float) -> void:
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:
 	if motor.state == S.AIR and rope().flip() >= 0.0 and not rope().flip_hurried():
 		return "fp_tuck"   # rolling off the rope: the arms are tucked in
-	if motor.state == S.AIR and _player.animator != null and _player.animator.source == "glide_flip":
+	if motor.state == S.AIR and _player.animator != null and _player.animator.glide_flipping() and not _player.animator.glide_flip_hurried():
 		return "fp_tuck"   # backflipping out of a glide: the arms swing in with it (the view stays level)
 	match motor.state:
 		S.GROUND:
