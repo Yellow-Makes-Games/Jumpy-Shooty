@@ -17,6 +17,9 @@ signal player_respawned(id: int, spawn_index: int)   ## spawn_index: a new numbe
 ## A target dummy was hit (it also sends player_hit, with the dummy's id as the target).
 signal dummy_hit(shooter: int, dummy: int, damage: float, headshot: bool, killed: bool)
 signal shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array)  ## one end per pellet
+## Just before shot_fired: where the shooter was aiming (from `eye`, before any spread),
+## so a killcam can point the killer's crosshair exactly where it was (see Killcam).
+signal shot_aimed(shooter: int, eye: Vector3, aim: Vector3)
 signal match_over(results: Array)
 ## A melee swing landed: who swung, with what, and where each blow struck (for sounds and sparks).
 signal melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array)
@@ -414,21 +417,24 @@ func damage_multiplier(shooter: int) -> float:
 ## Called by the local player when it fires. `directions` holds one direction per
 ## pellet (one for most guns, ten for the shotgun). view_times maps each opponent's
 ## peer id to the moment (on that opponent's clock) this player was seeing them.
-## Bots (simulated on the host) pass their own id as `shooter`.
-func request_shot(origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String, shooter: int = 0) -> void:
+## Bots (simulated on the host) pass their own id as `shooter`. `aim`: where the
+## crosshair was (before the spread; ZERO: the first direction), for killcams.
+func request_shot(origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String, shooter: int = 0,
+		aim: Vector3 = Vector3.ZERO) -> void:
 	if Net.is_host():
-		_host_shot(shooter if shooter != 0 else Net.my_id(), origin, directions, view_times, weapon_id)
+		_host_shot(shooter if shooter != 0 else Net.my_id(), origin, directions, view_times, weapon_id, aim)
 	else:
-		_shot_request.rpc_id(1, origin, directions, view_times, weapon_id)
+		_shot_request.rpc_id(1, origin, directions, view_times, weapon_id, aim)
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _shot_request(origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String) -> void:
+func _shot_request(origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String, aim: Vector3) -> void:
 	if Net.is_host():
-		_host_shot(multiplayer.get_remote_sender_id(), origin, directions, view_times, weapon_id)
+		_host_shot(multiplayer.get_remote_sender_id(), origin, directions, view_times, weapon_id, aim)
 
 
-func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String) -> void:
+func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, view_times: Dictionary, weapon_id: String,
+		aim: Vector3 = Vector3.ZERO) -> void:
 	if not running or not is_alive(shooter) or not Net.arena:
 		return
 	# The gun is the one the shooter took into the match, whatever the message says.
@@ -529,7 +535,9 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		ends.append(end)
 		if DevArgs.sync_log:
 			log.append(("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss")
-	_shot_effect.rpc(shooter, origin, ends, hit_mask)
+	if aim.length_squared() < 0.0001:
+		aim = directions[0]
+	_shot_effect.rpc(shooter, origin, ends, hit_mask, aim.normalized())
 	_flush_breaks()
 	for id in damage:
 		if is_dummy(id):
@@ -1181,7 +1189,8 @@ func _clamped_view_time(target: Player, t: float) -> float:
 
 
 @rpc("authority", "call_local", "unreliable")
-func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_mask: int) -> void:
+func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_mask: int, aim: Vector3) -> void:
+	shot_aimed.emit(shooter, muzzle, aim)
 	var hits := []
 	for i in ends.size():
 		hits.append(hit_mask & (1 << i) != 0)

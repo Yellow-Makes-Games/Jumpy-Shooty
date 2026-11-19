@@ -29,6 +29,12 @@ extends Node
 ## video saved frame by frame does not keep to, so replays play the recording back
 ## rather than simulate the fall again. After the match ends the fall of the last kill
 ## is still recorded while the arena is there (it is often one of the best kills).
+##
+## The map's moving parts (a crane and its load, flying islands, walls shot through:
+## see MapReplay) are recorded too, at the time they are drawn (every copy draws the
+## map in the present), so a replay puts them back where they were. And every shot
+## says exactly where it was aimed (Match.shot_aimed): the replay holds the killer's
+## crosshair to that, and moves whoever they hit to where the hit says (see KillClip).
 
 signal started   ## the death killcam began
 signal ended     ## ...and finished, was skipped, or you respawned
@@ -64,12 +70,15 @@ var _kill_times: Dictionary = {}   # seq -> when it happened (for multikills)
 var _rocket_owner: Dictionary = {} # projectile id -> who fired it
 var _wrecks: Array = []         # KillClip.Wreck, oldest first
 var _wreck_of: Dictionary = {}  # remains (instance id) -> [its Wreck, how late its player is drawn]
+var _props: Dictionary = {}     # the map's moving parts: key -> KillClip.PropTrack (see MapReplay)
 var _over := false               # the match has ended (see _settling)
 
 
 func _ready() -> void:
 	Net.match_started.connect(_on_match_started)
 	Match.kill_scored.connect(_on_kill_scored)
+	Match.shot_aimed.connect(func(shooter: int, eye: Vector3, aim: Vector3):
+		_event({"kind": "aim", "who": shooter, "eye": eye, "aim": aim}))
 	Match.shot_fired.connect(func(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array):
 		_event({"kind": "shot", "who": shooter, "muzzle": muzzle, "ends": ends, "hits": hits, "weapon": Net.player_weapon(shooter)}))
 	Match.projectile_fired.connect(func(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3):
@@ -94,6 +103,7 @@ func _on_match_started() -> void:
 	clips.clear()
 	_wrecks.clear()
 	_wreck_of.clear()
+	_props.clear()
 	_over = false
 	_timer = 0.0
 
@@ -146,6 +156,19 @@ func _record() -> void:
 	while not _events.is_empty() and float(_events[0].t) < now - HISTORY:
 		_events.pop_front()   # (in place: a death killcam playing holds this same array)
 	_record_wrecks(now)
+	_record_props(now)
+
+
+## The map's moving parts, as they are drawn now (see MapReplay).
+func _record_props(now: float) -> void:
+	var map: Node = Net.arena.get("layout")
+	for part in MapReplay.parts(map):
+		var track: KillClip.PropTrack = _props.get(part[0])
+		if track == null:
+			track = KillClip.PropTrack.new()
+			_props[part[0]] = track
+		track.look(now, part[1].call("replay_capture"))
+		track.trim(now - HISTORY)
 
 
 ## The remains in the arena: a new recording for each new one, and where every one
@@ -266,6 +289,7 @@ func _live_clip(info: Dictionary, kill_time: float, start: float, end: float) ->
 	clip.tracks = _tracks.duplicate()   # the same Track objects, still being added to
 	clip.events = _events
 	clip.wrecks = _wrecks
+	clip.props = _props.duplicate()   # the same PropTracks, still being added to
 	for id in Net.players:
 		clip.offsets[id] = -_seen_late(clip.killer, id)
 		clip.event_offsets[id] = _seen_late(clip.killer, id)
@@ -278,6 +302,7 @@ func _capture(entry: Dictionary) -> void:
 	if not live.has_killer():   # (a best kill keeps what there is, even right after the start)
 		return
 	var clip := live.cut()
+	clip.align_to_hits()
 	clips[int(clip.info.seq)] = clip
 	while clips.size() > KEEP:
 		var worst = null
@@ -328,9 +353,12 @@ func _start_death_cam(clip: KillClip) -> void:
 		if DevArgs.sync_log:
 			print("KILLCAM NONE %d %d" % [Net.my_id(), clip.killer])
 		return
+	var guessed := float(clip.offsets.get(clip.victim, 0.0))
+	clip.align_to_hits()
 	var playing := KillcamView.new()
 	view = playing
 	watched = 0.0
+	view.map = arena.get("layout")
 	view.setup(clip, false)
 	arena.add_child(view)
 	arena.players_root.visible = false   # the replay's bodies stand in for the live ones
@@ -338,11 +366,15 @@ func _start_death_cam(clip: KillClip) -> void:
 	if DevArgs.sync_log:
 		var kt: KillClip.Track = clip.tracks[clip.killer]
 		print("KILLCAM PLAY %d %d %d %d %.2f %.2f" % [Net.my_id(), clip.killer, int(clip.info.seq), kt.frames.size(), kt.first_time() - clip.kill_time, kt.last_time() - clip.kill_time])
+		# KILLCAM SYNC <me> <killer> <shots aimed> <map parts> <victim moved to meet the hits (ms)>
+		print("KILLCAM SYNC %d %d %d %s %.0f" % [Net.my_id(), clip.killer, clip.aim_keys().size(), ",".join(clip.props.keys()),
+			(float(clip.offsets.get(clip.victim, 0.0)) - guessed) * 1000.0])
 	view.finished.connect(func():
 		if view != playing:
 			return   # (one that was just stopped)
 		if DevArgs.sync_log:
 			print("KILLCAM DONE %d" % Net.my_id())
+			print("KILLCAM AIM %d %s" % [Net.my_id(), playing.aim_report()])
 		stop())   # on to the death screen, to pick a loadout and respawn
 	started.emit()
 

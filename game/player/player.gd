@@ -82,6 +82,10 @@ var _roll := 0.0                  # local: camera tilt while wall-running
 var _shape: CollisionShape3D
 var _height := CAPSULE_HEIGHT     # remote: collision shape height for the pose we draw
 var _visual_yaw := 0.0
+# Another player: where they were at the moment we draw them at, before MapRoot.carried
+# moved them along with an island under way (the killcam records this, beside where
+# the island was at that same moment; INF until the first snapshot).
+var _uncarried := Vector3.INF
 var _flying := false              # local: the debug menu's noclip is on
 var _swings := 0                  # local: melee swings so far (travels in snapshots, wrapping at 4)
 var _seen_swings := -1            # the swing count last shown (starts the swing animation and sound)
@@ -351,6 +355,7 @@ func _process(delta: float) -> void:
 	last_render_time = rt
 	var s := buffer.sample(rt)
 	var shown: Vector3 = s[0]
+	_uncarried = shown + Vector3(0, tuck_offset(s[4]), 0)
 	if MapRoot.current != null and is_instance_valid(MapRoot.current):
 		# We see them a moment late: on an island under way, put them where it is now.
 		shown = MapRoot.current.carried(shown, buffer.delay())
@@ -578,7 +583,8 @@ func _fire_round() -> void:
 	if weapon.data.is_projectile():
 		Match.request_projectile(eye, _aim_direction(eye), peer_id)
 		return
-	var dirs := shot_directions(_aim_direction(eye), weapon.data, spread_scale())
+	var aim := _aim_direction(eye)
+	var dirs := shot_directions(aim, weapon.data, spread_scale())
 	# Show the shot straight away; the host decides whether it hit.
 	var ends := PackedVector3Array()
 	var hits := []
@@ -597,7 +603,7 @@ func _fire_round() -> void:
 	for p in get_parent().get_children():
 		if p != self and p is Player and p.last_render_time >= 0.0:
 			view_times[p.peer_id] = p.last_render_time
-	Match.request_shot(eye, dirs, view_times, weapon.data.id, peer_id)
+	Match.request_shot(eye, dirs, view_times, weapon.data.id, peer_id, aim)
 
 
 # ---------------------------------------------------------------------------
@@ -1683,7 +1689,10 @@ func shown_state() -> Array:
 		# body from outside, so it gets the hook as everyone else saw it.)
 		var mine := motor.grapple as HookShot
 		hook = mine.line.look(mine.clock, robot.marker("grapple"), mine.rope_origin(self)) if mine else []
-	return [global_position, velocity, _visual_yaw, _anim.pitch, pose, _anim.flags, _anim.grapple_on and alive,
+	var at := global_position
+	if not is_local and _uncarried != Vector3.INF and _uncarried.distance_to(at) < 4.0:   # (a stale one, after a respawn: no)
+		at = _uncarried
+	return [at, velocity, _visual_yaw, _anim.pitch, pose, _anim.flags, _anim.grapple_on and alive,
 		_anim.grapple_anchor, alive, (visual.visible or (_in_remains and not alive)) and not _awaiting_respawn, eye, robot.weapon if robot else "none",
 		hook.slice(1) if not hook.is_empty() else null]
 

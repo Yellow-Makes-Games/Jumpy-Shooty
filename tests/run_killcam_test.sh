@@ -7,6 +7,9 @@
 #  - online, a host and a client (the client on a laggy network): each copy that is
 #    knocked out watches its killcam; both copies score every kill the same, pick the
 #    same best kills, have a clip of each, and play them on the results screen
+#  - every killcam knows where the killer's shots were aimed (the replay holds the
+#    crosshair to them) and records the map's moving parts (the crane, its rope and
+#    the breakable walls)
 #  - there are no script errors
 # Usage: tests/run_killcam_test.sh
 set -euo pipefail
@@ -65,6 +68,28 @@ def plays(log):
     # KILLCAM PLAY <me> <killer> <seq> <killer frames> <first> <last> (seconds from the kill)
     return [tuple(float(x) for x in m) for m in re.findall(r"^KILLCAM PLAY (\d+) (\d+) (\d+) (\d+) (-?[\d.]+) (-?[\d.]+)$", log, re.M)]
 
+def syncs(log):
+    # KILLCAM SYNC <me> <killer> <shots aimed> <map parts> <victim moved (ms)>
+    return re.findall(r"^KILLCAM SYNC (\d+) (\d+) (\d+) (\S*) (-?\d+)$", log, re.M)
+
+def aims(log):
+    # KILLCAM AIM <me> <shots worked out> <the most the recording was off at one (degrees)>
+    return [(int(n), float(d)) for n, d in re.findall(r"^KILLCAM AIM \d+ (\d+) ([\d.]+)$", log, re.M)]
+
+def check_sync(name, log, gun_kills):
+    sy, am = syncs(log), aims(log)
+    print(f"{name}: killcam sync {[(int(k), int(ms)) for _, _, k, _, ms in sy]} (shots aimed, victim moved ms); "
+          f"aim worked out {am} (shots, worst degrees off before the fix)")
+    for _, _, keys, parts, ms in sy:
+        if gun_kills and int(keys) < 1:
+            bad(f"{name}: a killcam of a gun kill has none of the killer's aims")
+        if not {".", "Breakables", "Crane/CraneEvent"} <= set(parts.split(",")):
+            bad(f"{name}: a killcam did not record the map's moving parts ({parts})")
+        if abs(int(ms)) > 300:
+            bad(f"{name}: the victim was moved further than allowed ({ms} ms)")
+    if gun_kills and am and max(n for n, _ in am) < 1:
+        bad(f"{name}: no killcam worked out the killer's aim at their shots")
+
 def scores(log):
     return re.findall(r"^KILL_SCORE (\d+) (\d+) (\d+) (\d+)", log, re.M)
 
@@ -110,6 +135,7 @@ if p and max(f for _, _, _, f, _, _ in p) < 60:
 if log.count("KILLCAM END 1") + log.count("KILLCAM DONE 1") < len(p) - 1:   # (the last may be cut short by the end of the match)
     bad("killcams should run until you respawn")
 check_results("Vs Bots", log)
+check_sync("Vs Bots", log, True)
 saved = re.findall(r"^KILLCAM_SAVED \d+ (\d+) (\d+) ([\d.]+) (\S+) (.*)$", log, re.M)
 print(f"Vs Bots: saved as a video {saved[:1]}")
 if not saved or saved[0][3] != "ok" or int(saved[0][1]) < 60 or not saved[0][4].endswith(".avi"):
@@ -197,6 +223,8 @@ if not hb or hb != cb:
     bad(f"the copies picked different best kills: host {hb}, client {cb}")
 check_results("  host", host)
 check_results("  client", client)
+check_sync("  host", host, True)
+check_sync("  client", client, True)
 
 print("KILLCAM TEST", "FAILED" if fail else "PASSED")
 sys.exit(1 if fail else 0)

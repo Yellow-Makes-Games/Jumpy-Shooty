@@ -64,6 +64,7 @@ func play(list: Array, which: Array = []) -> void:
 	if _map == null:
 		_map = Maps.make(Net.map_id())
 		_map.name = "Level"
+		_map.destructible = MapReplay.wants_destruction(highlights.map(func(h): return Killcam.clip_for(h)))   # (to show the walls as they were)
 		_view.add_child(_map)
 		_map.build()
 	show_clip(order.pop_front())
@@ -83,6 +84,7 @@ func show_clip(i: int) -> void:
 		_wait = PAUSE * 2.0
 	else:
 		_player = KillcamView.new().setup(clip, true)
+		_player.map = _map
 		_player.world_sound = false
 		_view.add_child(_player)
 		_player.finished.connect(func(): _wait = PAUSE)
