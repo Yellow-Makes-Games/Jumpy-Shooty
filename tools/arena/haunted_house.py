@@ -22,7 +22,7 @@ What moves (game/arena/haunt_event.gd, haunt_prop.gd, map_ghost.gd): the furnitu
 and bobs; every 27.5 s the house shifts (a 3 s warning, then 2.5 s in which the shifting
 furniture glides to where the next of four layouts has it); nine doorways come and go
 (each pair of them keeps its rooms joined: every room can be reached in every layout);
-seven ghosts fly their rounds through the walls; the candles flicker.
+seven ghosts (faceless shades) fly their rounds through the walls; the candles flicker.
 
 Built by `python3 tools/arena/build_arena_maps.py haunted_house` (then
 tools/arena/migrate_breakable.gd ticks the boarded-up doorway). The scene is an ordinary
@@ -1871,7 +1871,7 @@ def ghosts(m):
     for name, centre, route, speed, phase, size, tint in GHOSTS:
         m.node(name, f, "ghost", [("transform", xform(IDENTITY, centre)), ("route", tarr("Vector3", route)),
                                   ("speed", fmt(speed)), ("phase", fmt(phase)), ("size", fmt(size)), ("tint", color(tint)),
-                                  ("moan_every", fmt(14.0 + 4.0 * phase))])
+                                  ("moan_every", fmt(14.0 + 4.0 * phase)), ("look", "3")])
 
 
 def lights(m):
