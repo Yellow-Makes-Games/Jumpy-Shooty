@@ -12,7 +12,7 @@ extends Marker3D
 	"lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel", "harpoon_gun",
 	"rocket_launcher", "grenade_launcher", "mortar", "plasma_cannon",
 	"sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-	"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws") var weapon := "pistol":   ## (WeaponData.IDS)
+	"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate") var weapon := "pistol":   ## (WeaponData.IDS)
 	set(v):
 		weapon = v
 		if _label:

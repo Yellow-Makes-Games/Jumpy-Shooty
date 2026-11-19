@@ -500,14 +500,21 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			rig.sample(_tmp, "crouch_idle", 0.0)
 			_pose.blend_bones(_tmp, maxf(_sink, _tuck), _legs_core)
 		# A mid-air move with legs of its own (the superman punch: knee up, then kicked back).
+		# A kick (a blow with legs of its own, on the ground) shows in first person too: your own leg comes up into view.
 		var legs := _swing.legs()
-		if not legs.is_empty() and not first_person and inp.alive:
+		if not legs.is_empty() and (not first_person or _swing.legs_kick()) and inp.alive:
 			var w: float = legs[4]
-			for leg in [["thigh_r", "shin_r", 0], ["thigh_l", "shin_l", 2]]:
+			for leg in [["thigh_r", "shin_r", 0, 5, 1.0], ["thigh_l", "shin_l", 2, 6, -1.0]]:
 				var thigh: int = _b[leg[0]]
 				var shin: int = _b[leg[1]]
-				_pose.rot[thigh] = _pose.rot[thigh].slerp(Quaternion(Vector3.RIGHT, legs[leg[2]]), w)
+				var out := Quaternion(Vector3.BACK, float(legs[leg[3]]) * float(leg[4]))   # lifted out to its own side
+				_pose.rot[thigh] = _pose.rot[thigh].slerp(Quaternion(Vector3.RIGHT, legs[leg[2]]) * out, w)
 				_pose.rot[shin] = _pose.rot[shin].slerp(Quaternion(Vector3.RIGHT, -legs[leg[2] + 1]), w)
+			# A leg lifted out to the side tips the hips up after it (the body leans away), so a kick goes high.
+			var tilt := (float(legs[5]) - float(legs[6])) * 0.4 * w
+			if tilt != 0.0:
+				_pose.rot[_b["hips"]] = Quaternion(Vector3.BACK, tilt) * _pose.rot[_b["hips"]]
+				_pose.rot[_b["spine"]] = Quaternion(Vector3.BACK, -tilt * 0.6) * _pose.rot[_b["spine"]]
 		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
 		# A mid-air wind-up spins the whole body about its middle (not the body you see from
 		# inside it: your own view stays level, and the arms go round it instead).

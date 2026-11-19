@@ -17,7 +17,7 @@ func _init() -> void:
 	var at := gg_src.find("const LADDER := [")
 	var ladder: Array = JSON.parse_string(gg_src.substr(at + 16, gg_src.find("]", at) - at - 15).replace("\n", " ").replace("\t", ""))
 	_check(batch.size() == 22, "22 new weapons (%d)" % batch.size())
-	_check(WeaponData.IDS.size() == 45, "45 weapons in all (%d)" % WeaponData.IDS.size())
+	_check(WeaponData.IDS.size() == 46, "46 weapons in all, Karate the last (%d)" % WeaponData.IDS.size())
 	var names := {}
 	var looks := {}
 	for id in WeaponData.IDS:
