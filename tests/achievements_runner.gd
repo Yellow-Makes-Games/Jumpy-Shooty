@@ -220,6 +220,47 @@ func run() -> void:
 	_expect(page.find_child("streak_10", false, false).find_children("", "Control", true, false).any(func(c): return c is AchievementsPanel.Thumb),
 		"an achievement's card shows the calling card or icon it unlocks")
 	AchievementsPanel.category = "all"
+
+	print("  tracking, level and the Profile page")
+	var saved_tracked: Array = Settings.tracked_achievements.duplicate()
+	Settings.tracked_achievements = []
+	var xp := Achievements.stat("xp")
+	Match.kill_scored.emit(_kill(1, bot, 0))
+	_expect(Achievements.stat("xp") == xp + 100, "a kill adds its killcam score as experience (%d -> %d)" % [xp, Achievements.stat("xp")])
+	_expect(PlayerLevel.of(0) == {"level": 1, "into": 0, "need": PlayerLevel.FIRST} and PlayerLevel.of(PlayerLevel.FIRST).level == 2
+		and PlayerLevel.of(PlayerLevel.FIRST + PlayerLevel.need(2) + 5) == {"level": 3, "into": 5, "need": PlayerLevel.need(3)},
+		"levels: each takes a little more experience than the last")
+	var near := Achievements.closest()
+	_expect(near.size() == Achievements.MAX_TRACKED and near.all(func(a): return not Achievements.done(a.id))
+		and Achievements.fraction(near[0]) >= Achievements.fraction(near[1]) and Achievements.fraction(near[1]) >= Achievements.fraction(near[2]),
+		"the Profile shows the three nearest to done, nearest first")
+	_expect(not Achievements.toggle_tracked("first_blood") and Achievements.tracked().is_empty(), "a done achievement can't be tracked")
+	page.toggle_track("kills_1000")
+	_expect(Achievements.closest()[0].id == "kills_1000" and page.find_child("kills_1000", false, false).has_meta("tracked"),
+		"a tracked one comes first on the Profile, and its card says TRACKED")
+	for id in ["deaths_200", "race_10", "rope_100"]:
+		Achievements.toggle_tracked(id)
+	_expect(Achievements.tracked().map(func(a): return a.id) == ["deaths_200", "race_10", "rope_100"],
+		"tracking a fourth lets the oldest go (%s)" % [Settings.tracked_achievements])
+	Achievements.toggle_tracked("race_10")
+	_expect(not Achievements.is_tracked("race_10") and Achievements.tracked().size() == 2, "tracking one again stops tracking it")
+	var latest := Achievements.most_recent()
+	_expect(not latest.is_empty() and Achievements.done(latest.id), "the most recent achievement is a done one (%s)" % latest.get("name", ""))
+	var profile := ProfilePage.new()
+	add_child(profile)
+	var stats := profile.find_child("stats", true, false)
+	_expect(stats.get_child_count() == ProfilePage.PER_PAGE and str(stats.get_child(0).name) == "Kills"
+		and (stats.get_child(0).find_child("value", true, false) as Label).text == str(Achievements.stat("kills")),
+		"the Profile's first stat is your kills")
+	profile.turn(-1)
+	_expect(ProfilePage.page == ProfilePage.pages() - 1 and (profile.find_child("page", true, false) as Label).text == "%d/%d" % [ProfilePage.pages(), ProfilePage.pages()],
+		"the stats pages wrap round")
+	profile.turn(1)
+	_expect(profile.find_child("closest", true, false).get_child(0).name == StringName("deaths_200"), "the Profile lists the tracked ones first")
+	_expect(ProfilePage.time_text(3 * 3600 + 21 * 60) == "3 hours 21 minutes" and ProfilePage.time_text(60) == "1 minute", "time played reads in hours and minutes")
+	profile.queue_free()
+	Settings.tracked_achievements = saved_tracked
+	Settings.save_settings()
 	page.queue_free()
 	bar.queue_free()
 
