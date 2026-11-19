@@ -55,6 +55,9 @@ static var _arm_meshes := {}      # kit + gun -> a kit's first-person arms (see 
 ## The gun this robot holds (an id from WeaponData). Every model file holds every
 ## gun; their surfaces' materials are named "<gun>.<kind>", and the others are left out.
 var weapon := ""
+## The clip this character stands still in: its torso's own idle ("idle_<torso>", with
+## that robot's habit in it: see animations.py), or the plain "idle" if it has none.
+var idle := "idle"
 var rig: RobotRig
 var skeleton: Skeleton3D
 var mesh: MeshInstance3D
@@ -85,7 +88,10 @@ func build(character: String, player_color: Color, viewmodel: bool = false, gun:
 	var colors: Array[Color] = custom.channel_colors() if custom else NO_COLORS.duplicate()
 	if team_paint.a > 0.0:
 		colors[0] = team_paint
-	return _setup(path, player_color, viewmodel, gun, custom, colors, arms)
+	_setup(path, player_color, viewmodel, gun, custom, colors, arms)
+	var habit := "idle_" + (custom.torso if custom else Characters.valid(character))
+	idle = habit if rig.has_clip(habit) else "idle"
+	return self
 
 
 ## viewmodel: draw with the first-person shader (own field of view, never clips into walls).
