@@ -1,10 +1,13 @@
 // Jumpy Shooty's killcam encoder: raw frames in, an H.264 MP4 out, using the video
-// encoder every Windows 10/11 PC has (Media Foundation's Sink Writer). No sound.
+// encoder every Windows 10/11 PC has (Media Foundation's Sink Writer), with an AAC
+// sound track.
 //
 //   Mp4Encoder.exe <out.mp4> <width> <height> <fps> <bitrate bits/s>
 //
-// Reads frames from stdin: width * height * 4 bytes each, RGBA, top row first (what
-// Godot's Image.get_data() gives), until stdin closes. Exits 0 when the file is written
+// Reads from stdin, until it closes: each frame as "V" then width * height * 4 bytes,
+// RGBA, top row first (what Godot's Image.get_data() gives); then the sound as "A",
+// the sample rate (44100) and byte count as little-endian int32s, and 16-bit stereo
+// samples. No sound: a silent track. Exits 0 when the file is written
 // (printing "OK <frames>" if anyone still listens); prints "ERROR <why>" to stderr and
 // exits 1 if not.
 //
@@ -44,6 +47,9 @@ static class Mp4Encoder
         try { to.WriteLine(line); to.Flush(); } catch (Exception) { }
     }
 
+    const int RATE = 44100;        // the sound track: 16-bit stereo at this rate...
+    const int AAC_BYTES = 24000;   // ...encoded as AAC at 192 kbit/s
+
     static int Run(string outPath, int width, int height, int fps, int bitrate)
     {
         int frameBytes = width * height * 4;
@@ -63,7 +69,7 @@ static class Mp4Encoder
             IMFSinkWriter writer;
             Check(MF.MFCreateSinkWriterFromURL(path, IntPtr.Zero, attrs, out writer), "sink writer");
 
-            // What goes into the file: H.264, High profile.
+            // The picture: H.264, High profile, from 32-bit BGRX frames, top row first.
             IMFMediaType outType;
             Check(MF.MFCreateMediaType(out outType), "media type");
             outType.SetGUID(MF.MF_MT_MAJOR_TYPE, MF.MFMediaType_Video);
@@ -74,10 +80,8 @@ static class Mp4Encoder
             outType.SetUINT64(MF.MF_MT_FRAME_SIZE, Pack(width, height));
             outType.SetUINT64(MF.MF_MT_FRAME_RATE, Pack(fps, 1));
             outType.SetUINT64(MF.MF_MT_PIXEL_ASPECT_RATIO, Pack(1, 1));
-            int stream;
-            Check(writer.AddStream(outType, out stream), "add stream");
-
-            // What we hand it: 32-bit BGRX frames, top row first.
+            int video;
+            Check(writer.AddStream(outType, out video), "add video");
             IMFMediaType inType;
             Check(MF.MFCreateMediaType(out inType), "media type");
             inType.SetGUID(MF.MF_MT_MAJOR_TYPE, MF.MFMediaType_Video);
@@ -87,34 +91,85 @@ static class Mp4Encoder
             inType.SetUINT64(MF.MF_MT_FRAME_SIZE, Pack(width, height));
             inType.SetUINT64(MF.MF_MT_FRAME_RATE, Pack(fps, 1));
             inType.SetUINT64(MF.MF_MT_PIXEL_ASPECT_RATIO, Pack(1, 1));
-            Check(writer.SetInputMediaType(stream, inType, IntPtr.Zero), "input type");
+            Check(writer.SetInputMediaType(video, inType, IntPtr.Zero), "video input");
+
+            // The sound: AAC, from 16-bit stereo PCM.
+            IMFMediaType aacType;
+            Check(MF.MFCreateMediaType(out aacType), "media type");
+            aacType.SetGUID(MF.MF_MT_MAJOR_TYPE, MF.MFMediaType_Audio);
+            aacType.SetGUID(MF.MF_MT_SUBTYPE, MF.MFAudioFormat_AAC);
+            aacType.SetUINT32(MF.MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+            aacType.SetUINT32(MF.MF_MT_AUDIO_SAMPLES_PER_SECOND, RATE);
+            aacType.SetUINT32(MF.MF_MT_AUDIO_NUM_CHANNELS, 2);
+            aacType.SetUINT32(MF.MF_MT_AUDIO_AVG_BYTES_PER_SECOND, AAC_BYTES);
+            int audio;
+            Check(writer.AddStream(aacType, out audio), "add audio");
+            IMFMediaType pcmType;
+            Check(MF.MFCreateMediaType(out pcmType), "media type");
+            pcmType.SetGUID(MF.MF_MT_MAJOR_TYPE, MF.MFMediaType_Audio);
+            pcmType.SetGUID(MF.MF_MT_SUBTYPE, MF.MFAudioFormat_PCM);
+            pcmType.SetUINT32(MF.MF_MT_AUDIO_BITS_PER_SAMPLE, 16);
+            pcmType.SetUINT32(MF.MF_MT_AUDIO_SAMPLES_PER_SECOND, RATE);
+            pcmType.SetUINT32(MF.MF_MT_AUDIO_NUM_CHANNELS, 2);
+            pcmType.SetUINT32(MF.MF_MT_AUDIO_BLOCK_ALIGNMENT, 4);
+            pcmType.SetUINT32(MF.MF_MT_AUDIO_AVG_BYTES_PER_SECOND, RATE * 4);
+            Check(writer.SetInputMediaType(audio, pcmType, IntPtr.Zero), "audio input");
             Check(writer.BeginWriting(), "begin");
 
+            // stdin: "V" + a frame, any number of times; then (maybe) "A" + rate + byte
+            // count (two little-endian int32) + that many bytes of sound.
             Stream input = Console.OpenStandardInput();
             byte[] frame = new byte[frameBytes];
-            while (ReadFully(input, frame))
+            byte[] sound = null;
+            while (true)
             {
-                RgbaToBgra(frame);
-                IMFMediaBuffer buffer;
-                Check(MF.MFCreateMemoryBuffer(frameBytes, out buffer), "buffer");
-                IntPtr data;
-                int max, cur;
-                Check(buffer.Lock(out data, out max, out cur), "lock");
-                Marshal.Copy(frame, 0, data, frameBytes);
-                buffer.Unlock();
-                buffer.SetCurrentLength(frameBytes);
-                IMFSample sample;
-                Check(MF.MFCreateSample(out sample), "sample");
-                sample.AddBuffer(buffer);
-                sample.SetSampleTime(step * count);
-                sample.SetSampleDuration(step);
-                Check(writer.WriteSample(stream, sample), "write");
-                Marshal.ReleaseComObject(sample);
-                Marshal.ReleaseComObject(buffer);
-                count++;
+                int tag = input.ReadByte();
+                if (tag == 'V')
+                {
+                    if (!ReadFully(input, frame))
+                        break;
+                    RgbaToBgra(frame);
+                    Write(writer, video, frame, frameBytes, step * count, step);
+                    count++;
+                }
+                else if (tag == 'A')
+                {
+                    byte[] head = new byte[8];
+                    if (!ReadFully(input, head))
+                        break;
+                    int rate = BitConverter.ToInt32(head, 0);
+                    int bytes = BitConverter.ToInt32(head, 4);
+                    if (rate != RATE || bytes < 0)
+                        throw new Exception("sound at " + rate + " Hz: expected " + RATE);
+                    sound = new byte[bytes];
+                    if (!ReadFully(input, sound))
+                        sound = null;
+                }
+                else
+                    break;   // the end (or something we don't know)
             }
             if (count == 0)
                 throw new Exception("no frames");
+
+            // The sound track, as long as the picture (silence if none came).
+            int length = (int)((long)count * RATE / fps) * 4;
+            if (sound == null || sound.Length < length)
+            {
+                byte[] full = new byte[length];
+                if (sound != null)
+                    Buffer.BlockCopy(sound, 0, full, 0, sound.Length);
+                sound = full;
+            }
+            const int CHUNK = 1024 * 4;   // 1024 sample frames at a time
+            for (int at = 0; at < length; at += CHUNK)
+            {
+                int n = Math.Min(CHUNK, length - at);
+                byte[] part = new byte[n];
+                Buffer.BlockCopy(sound, at, part, 0, n);
+                long t = (long)(at / 4) * 10000000L / RATE;
+                long d = (long)(n / 4) * 10000000L / RATE;
+                Write(writer, audio, part, n, t, d);
+            }
             Check(writer.DoFinalize(), "finalize");
             Marshal.ReleaseComObject(writer);
         }
@@ -123,6 +178,26 @@ static class Mp4Encoder
             MF.MFShutdown();
         }
         return count;
+    }
+
+    static void Write(IMFSinkWriter writer, int stream, byte[] bytes, int length, long time, long duration)
+    {
+        IMFMediaBuffer buffer;
+        Check(MF.MFCreateMemoryBuffer(length, out buffer), "buffer");
+        IntPtr data;
+        int max, cur;
+        Check(buffer.Lock(out data, out max, out cur), "lock");
+        Marshal.Copy(bytes, 0, data, length);
+        buffer.Unlock();
+        buffer.SetCurrentLength(length);
+        IMFSample sample;
+        Check(MF.MFCreateSample(out sample), "sample");
+        sample.AddBuffer(buffer);
+        sample.SetSampleTime(time);
+        sample.SetSampleDuration(duration);
+        Check(writer.WriteSample(stream, sample), "write");
+        Marshal.ReleaseComObject(sample);
+        Marshal.ReleaseComObject(buffer);
     }
 
     static long Pack(int hi, int lo)
@@ -175,6 +250,14 @@ static class MF
     public static readonly Guid MFMediaType_Video = new Guid("73646976-0000-0010-8000-00AA00389B71");
     public static readonly Guid MFVideoFormat_H264 = new Guid("34363248-0000-0010-8000-00AA00389B71");
     public static readonly Guid MFVideoFormat_RGB32 = new Guid("00000016-0000-0010-8000-00AA00389B71");
+    public static readonly Guid MF_MT_AUDIO_NUM_CHANNELS = new Guid("37e48bf5-645e-4c5b-89de-ada9e29b696a");
+    public static readonly Guid MF_MT_AUDIO_SAMPLES_PER_SECOND = new Guid("5faeeae7-0290-4c31-9e8a-c534f68d9dba");
+    public static readonly Guid MF_MT_AUDIO_AVG_BYTES_PER_SECOND = new Guid("1aab75c8-cfef-451c-ab95-ac034b8e1731");
+    public static readonly Guid MF_MT_AUDIO_BLOCK_ALIGNMENT = new Guid("322de230-9eeb-43bd-ab7a-ff412251541d");
+    public static readonly Guid MF_MT_AUDIO_BITS_PER_SAMPLE = new Guid("f2deb57f-40fa-4764-aa33-ed4f2d1ff669");
+    public static readonly Guid MFMediaType_Audio = new Guid("73647561-0000-0010-8000-00AA00389B71");
+    public static readonly Guid MFAudioFormat_AAC = new Guid("00001610-0000-0010-8000-00AA00389B71");
+    public static readonly Guid MFAudioFormat_PCM = new Guid("00000001-0000-0010-8000-00AA00389B71");
     public static readonly Guid MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS = new Guid("a634a91c-822b-41b9-a494-4de4643612b0");
     public static readonly Guid MF_SINK_WRITER_DISABLE_THROTTLING = new Guid("08b845d8-2b74-4afe-9d53-be16d2d5ae4f");
 

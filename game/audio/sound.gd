@@ -15,6 +15,10 @@ extends Node
 ##
 ## It also hooks every menu button by itself (hover and click sounds) and plays the
 ## combat feedback that comes from the host's match events (hit markers, kills, hurt).
+##
+## Capturing (a killcam saved as a video, see KillcamExport): between capture_begin()
+## and capture_end() nothing plays; each sound is noted instead (when, what, how loud,
+## where, and where the ears were), for the video's sound track.
 
 const SFX_DIR := "res://game/audio/sfx/"
 const BUS_SFX := "Effects"
@@ -43,6 +47,11 @@ var _last_played := {}   # name -> time, to stop a flood of the same sound in on
 var _head_kill := {}     # victim id -> my last hit on them was a headshot
 ## No sound card (headless test runs and servers): everything runs and logs, nothing plays.
 var silent := DisplayServer.get_name() == "headless"
+## While capturing: the sounds noted so far (see capture_begin).
+var captured: Array = []
+var _capturing := false
+var _capture_time := 0.0
+var _capture_ears := Transform3D()
 
 
 func _ready() -> void:
@@ -163,7 +172,7 @@ func _volume_of(sound: String) -> float:
 ## True if this sound already started in the last `gap` seconds (stops pile-ups,
 ## for example ten shotgun pellets hitting one wall).
 func _too_soon(key: String, gap: float) -> bool:
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := _capture_time if _capturing else Time.get_ticks_msec() / 1000.0
 	if now - _last_played.get(key, -10.0) < gap:
 		return true
 	_last_played[key] = now
@@ -174,6 +183,10 @@ func _too_soon(key: String, gap: float) -> bool:
 func play(sound: String, volume_db: float = 0.0, pitch_jitter: float = 0.0) -> AudioStreamPlayer:
 	var s := stream(sound)
 	if s == null:
+		return null
+	if _capturing:
+		captured.append({"t": _capture_time, "stream": s, "db": _volume_of(sound) + volume_db,
+			"pitch": 1.0 + randf_range(-pitch_jitter, pitch_jitter)})
 		return null
 	if DevArgs.sound_log:
 		print("SFX %s" % sound)
@@ -192,6 +205,11 @@ func play(sound: String, volume_db: float = 0.0, pitch_jitter: float = 0.0) -> A
 func play_at(sound: String, pos: Vector3, kind: String = "move", volume_db: float = 0.0, pitch_jitter: float = 0.0) -> AudioStreamPlayer3D:
 	var s := stream(sound)
 	if s == null:
+		return null
+	if _capturing:
+		captured.append({"t": _capture_time, "stream": s, "db": _volume_of(sound) + volume_db,
+			"pitch": 1.0 + randf_range(-pitch_jitter, pitch_jitter), "at": pos, "range": RANGE.get(kind, RANGE.move),
+			"ears": _capture_ears})
 		return null
 	if DevArgs.sound_log:
 		print("SFX3D %s %.1f" % [sound, pos.distance_to(listener_position())])
@@ -212,8 +230,22 @@ func play_at(sound: String, pos: Vector3, kind: String = "move", volume_db: floa
 	return p
 
 
+## Note sounds instead of playing them, as if they happened `time` seconds into a video
+## heard from `ears` (see `captured`). Until capture_end().
+func capture_begin(time: float, ears: Transform3D) -> void:
+	_capturing = true
+	_capture_time = time
+	_capture_ears = ears
+
+
+func capture_end() -> void:
+	_capturing = false
+
+
 ## Where the ears are: the camera in a match, or nowhere (menus).
 func listener_position() -> Vector3:
+	if _capturing:
+		return _capture_ears.origin
 	var cam := get_viewport().get_camera_3d()
 	return cam.global_position if cam else Vector3(INF, INF, INF)
 
