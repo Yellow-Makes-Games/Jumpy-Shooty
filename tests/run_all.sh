@@ -34,6 +34,7 @@ CHECKS=(
   "kill_feed|--script tests/kill_feed_test.gd"
   "character_showcase|--script tests/character_showcase_test.gd"
   "hud_settings|--script tests/hud_settings_test.gd"
+  "graphics_settings|--script tests/graphics_settings_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--script tests/destruction_test.gd"
   "block_settings|--script tests/block_settings_test.gd"
