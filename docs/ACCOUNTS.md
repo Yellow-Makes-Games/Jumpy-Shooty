@@ -43,6 +43,18 @@ What's kept (see `game/online/cloud_save.gd`):
 
 With no `supabase.cfg`, the Account section doesn't appear on the Profile page.
 
+6. **Release builds** (the Playtest build workflow) are made from a fresh checkout,
+   which has no `supabase.cfg`. The workflow writes it from three repository Actions
+   **variables** (Settings > Secrets and variables > Actions > Variables):
+   `SUPABASE_URL`, `SUPABASE_KEY` (the anon or publishable key) and
+   `SUPABASE_PROVIDERS` (e.g. `google, discord`). Or from the command line:
+
+       gh variable set SUPABASE_URL --body "https://<ref>.supabase.co"
+       gh variable set SUPABASE_KEY --body "sb_publishable_..."
+       gh variable set SUPABASE_PROVIDERS --body "google, discord"
+
+   Without them the build works, with no sign-in.
+
 ## How it works
 
 - **Signing in** (`game/online/account.gd`) is OAuth with PKCE, the flow for apps that
