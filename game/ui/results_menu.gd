@@ -93,6 +93,8 @@ func _ready() -> void:
 	frame.back_button("Main menu", Game.leave_to_menu)
 	var next: Button = null
 	if Game.mode == Game.Mode.BOT:
+		var lobby := UiKit.button(buttons, "Back to lobby", Game.open_bot_lobby)   # (change the bots or the rules)
+		lobby.custom_minimum_size = Vector2(220, 0)
 		next = UiKit.primary_button(buttons, "Race again" if race else "Rematch", Game.rematch_bot)
 	elif Game.mode == Game.Mode.PRACTICE:
 		next = UiKit.primary_button(buttons, "Run it again", func(): Game.start_practice(Net.map_id()))

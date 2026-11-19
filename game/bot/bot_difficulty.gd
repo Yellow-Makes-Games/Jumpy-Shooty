@@ -4,6 +4,19 @@ extends RefCounted
 
 enum { EASY, NORMAL, HARD, EXPERT }
 const NAMES := ["Easy", "Normal", "Hard", "Expert"]
+## What each level plays like, in a fight and in a race (for the menus).
+const BLURBS := [
+	"Slow to react, wobbly aim, mostly just runs and shoots.",
+	"Reacts in about a third of a second, slides while chasing you.",
+	"Quick and accurate, strafes hard, grapples, dives and flips.",
+	"Near-instant reactions, leads its shots, goes for your head.",
+]
+const RACE_BLURBS := [
+	"Takes its time, hesitates at the tricky bits and fumbles a jump now and then.",
+	"A steady runner: few mistakes, but no hurry on the straights.",
+	"Quick on the straights and clean over the obstacles.",
+	"Flat out everywhere, takes every line first time.",
+]
 
 var reaction_time: float     ## seconds before the bot reacts to where you are now
 var aim_error: float         ## degrees of wobble in its aim

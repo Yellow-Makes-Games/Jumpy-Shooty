@@ -51,7 +51,7 @@ func _ready() -> void:
 	if Race.active:
 		layout.clock_source = func(): return Race.time + Race.COUNTDOWN   # moving parts in step on every copy
 		_build_gates()
-	elif Net.has_bots():
+	elif Net.has_bots() and Net.is_host():   # (the host runs the bots)
 		ensure_navigation()   # only when bots play: it takes a moment (racing bots follow the map's route instead)
 	_spawn_dummies()
 	if Teams.active():

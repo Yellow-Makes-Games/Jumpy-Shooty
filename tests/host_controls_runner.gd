@@ -209,7 +209,7 @@ func _menus() -> void:
 	var menu: Control = load("res://game/ui/main_menu.tscn").instantiate()
 	get_tree().root.add_child(menu)
 	await get_tree().process_frame
-	for page in ["_show_practice", "_show_bot"]:
+	for page in ["_show_practice"]:   # (Vs Bots is the lobby now)
 		menu.call(page)
 		await get_tree().process_frame
 		var picks := menu.find_children("*", "OptionButton", true, false).filter(func(o): return o.has_meta("pool") and o.is_visible_in_tree())

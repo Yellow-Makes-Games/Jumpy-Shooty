@@ -10,7 +10,7 @@ func _initialize() -> void:
 	var menu: Node = load("res://game/ui/main_menu.tscn").instantiate()
 	root.add_child(menu)
 	await process_frame
-	for page in ["_show_practice", "_show_bot"]:
+	for page in ["_show_practice"]:   # (Vs Bots is the lobby now: see lobby_bots_test)
 		menu.call(page)
 		await process_frame
 		for step in [["Race", "race"], ["Shoot-out", "ffa"], ["Race", "race"]]:

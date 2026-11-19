@@ -1045,12 +1045,16 @@ func _free_color() -> int:
 const BOT_NAMES := ["Gizmo", "Sprocket", "Bolt", "Piston", "Widget", "Ratchet", "Dynamo"]   # never the name of a robot you can play
 
 
-## Adds a computer player (offline matches only for now). Returns its id.
+## Adds a computer player. Returns its id (0 if there is no room). The host runs every
+## bot (offline, or in an online lobby: everyone else sees them like any player, their
+## movement relayed by the host: see send_bot_snapshot).
 ## Bots take turns through the robots, starting with the one after yours, so in a
 ## 1v1 the bot never plays the robot you picked; colours always differ. Each bot
 ## takes a gun and a mobility tool at random from those the lobby allows (or `weapon`
 ## and `mobility`, if given and allowed).
 func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int:
+	if not is_host():
+		return 0
 	var id := BOT_ID_BASE
 	while players.has(id):
 		id += 1
@@ -1070,15 +1074,34 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 	}
 	if in_match and Teams.active():
 		players[id]["team"] = Teams.smaller_team()   # the debug menu adding one mid-match
-	players_changed.emit()
+	_players_updated()
 	return id
 
 
-## Takes a computer player out (debug menu, offline only).
+## Takes a computer player out (the host).
 func remove_bot(id: int) -> void:
-	if is_bot(id) and not is_online:
+	if is_bot(id) and is_host():
 		players.erase(id)
-		players_changed.emit()
+		_players_updated()
+
+
+## Host: how hard a bot plays (a number in BotDifficulty.NAMES), in the lobby. Its name
+## says so: "Gizmo (Hard)".
+func set_bot_difficulty(id: int, difficulty: int) -> void:
+	if not is_bot(id) or not is_host() or in_match:
+		return
+	difficulty = clampi(difficulty, 0, BotDifficulty.NAMES.size() - 1)
+	var base := str(players[id].name).get_slice(" (", 0)
+	players[id]["difficulty"] = difficulty
+	players[id]["name"] = "%s (%s)" % [base, BotDifficulty.NAMES[difficulty]]
+	_players_updated()
+
+
+## The bots in this session, in the order they were added.
+func bot_ids() -> Array:
+	var ids := players.keys().filter(func(i): return is_bot(i))
+	ids.sort()
+	return ids
 
 
 func is_bot(id: int) -> bool:
@@ -1456,6 +1479,23 @@ func send_snapshot(time: float, data: PackedFloat32Array) -> void:
 	if not is_online or multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
 		return
 	_snapshot.rpc(time, data)
+
+
+## Host, online: a bot's movement, sent for it (a bot has no connection of its own).
+func send_bot_snapshot(id: int, time: float, data: PackedFloat32Array) -> void:
+	if not is_online or not is_host() or multiplayer.multiplayer_peer.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED:
+		return
+	_bot_snapshot.rpc(id, time, data)
+
+
+@rpc("authority", "call_remote", "unreliable", 1)
+func _bot_snapshot(id: int, time: float, data: PackedFloat32Array) -> void:
+	if not is_bot(id):
+		return
+	if DevArgs.net_sim_enabled():
+		_sim_receive(id, time, data)
+	else:
+		_deliver_snapshot(id, time, data)
 
 
 @rpc("any_peer", "call_remote", "unreliable", 1)

@@ -50,7 +50,7 @@ func run() -> void:
 func _check_main_menu(window: Vector2i) -> void:
 	var menu: Control = load("res://game/ui/main_menu.tscn").instantiate()
 	_view.add_child(menu)
-	for page in ["_show_main", "_show_play", "_show_practice", "_show_bot", "_show_multiplayer", "_show_profile", "_show_creator", "_show_calling_card", "_show_achievements"]:
+	for page in ["_show_main", "_show_play", "_show_practice", "_show_multiplayer", "_show_profile", "_show_creator", "_show_calling_card", "_show_achievements"]:
 		menu.call(page)
 		await _settle()
 		_check(menu, "main menu %s" % page.trim_prefix("_show_"), window, page != "_show_achievements")   # (a long list: it scrolls)
@@ -72,6 +72,17 @@ func _check_lobby_and_results(window: Vector2i) -> void:
 		_check(page, scene.replace("_", " "), window, true)
 		page.queue_free()
 		await get_tree().process_frame
+	# Vs Bots: the lobby offline, with a full list of bots and their buttons.
+	Net.start_offline("Tester", Characters.default_id())
+	for i in Game.MAX_BOTS:
+		Net.add_bot(i % BotDifficulty.NAMES.size())
+	var bots: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
+	_view.add_child(bots)
+	await _settle()
+	_check(bots, "vs bots lobby", window, true)
+	bots.queue_free()
+	await get_tree().process_frame
+	Net.leave()
 
 
 func _check_pause_menu(window: Vector2i) -> void:

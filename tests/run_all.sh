@@ -66,6 +66,7 @@ CHECKS=(
   "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
   "lobby_player_card|--script tests/lobby_player_card_test.gd"
+  "lobby_bots|--script tests/lobby_bots_test.gd"
   "host_controls|--script tests/host_controls_test.gd"
   "spectator|--script tests/spectator_test.gd"
   "team_modes|--script tests/team_modes_test.gd"
@@ -111,6 +112,8 @@ echo "== Match: 3 players, laggy network, two matches back to back, sounds (Cons
 MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
 echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword bot, sounds (Construction Site)"
 MAP=construction_site tests/run_bot_test.sh
+echo "== Bots in an online lobby: run by the host, seen moving by a client, kills and results agree"
+tests/run_online_bots_test.sh
 echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by the host"
 tests/run_slam_test.sh
 echo "== Respawn visibility: players dying and coming back online, a client's respawn news held up behind their snapshots; nobody stays invisible"

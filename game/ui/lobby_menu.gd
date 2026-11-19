@@ -1,6 +1,8 @@
 extends Control
-## Multiplayer lobby: shows who is connected and who is hosting, and lets each
-## player pick their robot and their gun. Everyone else readies up (Ready); the host
+## Multiplayer lobby (and Vs Bots, the same page offline: see Game.open_bot_lobby):
+## shows who is connected and who is hosting, and lets each player pick their robot
+## and their gun. The host can add bots (each at its own difficulty, which a click on
+## it changes) and take them out again. Everyone else readies up (Ready); the host
 ## starts the match once they all have, can kick a player, and sets the lobby size.
 ## Anyone can leave.
 ## Three columns in a MenuFrame: the players; the match (mode, loadout rules, map,
@@ -75,13 +77,20 @@ var _player_panel: FloatingPanel  # a player kept open (clicked)
 var _pinned_id := 0
 var _hover_sig := ""
 var _pinned_sig := ""
+var _bot_row: HBoxContainer   # the host: Add bot, at this difficulty
+var _add_bot: Button
+var _bot_level: OptionButton
+var _bot_note: Label
 
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_frame = MenuFrame.new(1460)
 	add_child(_frame)
-	_frame.title("Lobby", "Multiplayer")
+	if Net.is_online:
+		_frame.title("Lobby", "Multiplayer")
+	else:
+		_frame.title("Vs Bots", "Play")
 	var info_row := HBoxContainer.new()
 	info_row.add_theme_constant_override("separation", 12)
 	_frame.header.add_child(info_row)
@@ -141,6 +150,28 @@ func _ready() -> void:
 	_spectate = UiKit.button(watch_row, "Spectate", func(): Net.set_spectating(not Net.spectating()))
 	_spectate.custom_minimum_size = Vector2(0, 38)
 	_spectate.theme_type_variation = "Chip"
+	watch_row.visible = Net.is_online   # (Vs Bots: nobody to watch)
+	# The host: add a bot, at the difficulty picked beside it.
+	_bot_row = HBoxContainer.new()
+	_bot_row.name = "bots"
+	_bot_row.add_theme_constant_override("separation", 10)
+	players_col.add_child(_bot_row)
+	_add_bot = UiKit.button(_bot_row, "+  Add bot", _on_add_bot)
+	_add_bot.name = "add_bot"
+	_add_bot.theme_type_variation = "Chip"
+	_add_bot.custom_minimum_size = Vector2(140, 38)
+	_bot_level = OptionButton.new()
+	_bot_level.name = "bot_level"
+	for i in BotDifficulty.NAMES.size():
+		_bot_level.add_item(BotDifficulty.NAMES[i], i)
+		_bot_level.set_item_tooltip(i, BotDifficulty.BLURBS[i])
+	_bot_level.select(clampi(int(Game.last_bot.get("difficulty", 1)), 0, BotDifficulty.NAMES.size() - 1))
+	_bot_level.custom_minimum_size = Vector2(130, 38)
+	_bot_level.tooltip_text = "How well the next bot plays"
+	_bot_row.add_child(_bot_level)
+	_bot_note = UiKit.label(_bot_row, "", true, 13)
+	_bot_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_bot_note.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_divider(columns)
 	_col = VBoxContainer.new()
 	_col.add_theme_constant_override("separation", 10)
@@ -153,14 +184,18 @@ func _ready() -> void:
 	_build_rules()
 	_divider(columns)
 	_build_character(columns)
-	_frame.back_button("Leave lobby", Game.leave_to_menu)
+	_frame.back_button("Leave lobby" if Net.is_online else "Back", Game.leave_to_menu)
 	_build_song()
 	_waiting = UiKit.label(_frame.footer, "Waiting for the host to start...", true, 17)
 	_waiting.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_waiting.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_ready_button = _frame.main_button("Ready", func(): Net.set_my_ready(not Net.is_ready(Net.my_id())))
-	_start = _frame.main_button("Start match", func(): Net.host_start_match())
+	_start = _frame.main_button("Start match", func():
+		if Net.is_online:
+			Net.host_start_match()
+		else:
+			Game.start_bot_lobby())
 	Net.players_changed.connect(_refresh)
 	Net.internet_changed.connect(_refresh)
 	_hover_card = PanelContainer.new()
@@ -225,8 +260,14 @@ func _refresh() -> void:
 	_ready_button.visible = not Net.is_host()
 	_waiting.visible = not Net.is_host()
 	var waiting_for := Net.not_ready().size()
-	_start.disabled = Net.players.size() < 1 or waiting_for > 0
+	_start.disabled = Net.players.size() < 1 or waiting_for > 0 or (not Net.is_online and Net.bot_ids().is_empty())
 	_start.text = "START MATCH" if waiting_for == 0 else ("WAITING FOR %d TO READY UP" % waiting_for)
+	if not Net.is_online and Net.bot_ids().is_empty():
+		_start.text = "ADD A BOT TO PLAY"
+	_bot_row.visible = Net.is_host() and not Net.spectating()
+	var room := _bot_room()
+	_add_bot.disabled = room <= 0
+	_bot_note.text = ("Full" if Net.is_online else "Up to %d bots in this mode" % _most_bots()) if room <= 0 else ""
 	var me_ready := Net.is_ready(Net.my_id())
 	_ready_button.text = "READY  ·  PRESS TO UNDO" if me_ready else "READY UP"
 	_waiting.text = "Waiting for the host to start..." if me_ready else "Ready up when you have picked your loadout."
@@ -240,7 +281,10 @@ func _refresh() -> void:
 	_code.text = code
 	_code.visible = code != ""
 	_copy.visible = code != ""
-	if Net.is_host():
+	if not Net.is_online:
+		var n := Net.bot_ids().size()
+		where = "You and %d bot%s. Add bots on the left (click one's difficulty to change it), set up the match, then Start." % [n, "" if n == 1 else "s"]
+	elif Net.is_host():
 		match Net.internet_state:
 			"open":
 				where = "Friends anywhere join with the lobby code (or at %s)." % _address(Net.join_ip())
@@ -250,7 +294,7 @@ func _refresh() -> void:
 				where = "Your router would not open port %d, so only friends on your network can join, with the lobby code (or at %s)." % [Net.port, _address(Net.join_ip())]
 	else:
 		where = "The host picks the map and rules and starts the match."
-	_info.text = "%d of %d players.  %s" % [Net.players.size(), LobbySettings.max_players(), where]
+	_info.text = ("%d of %d players.  %s" % [Net.players.size(), LobbySettings.max_players(), where]) if Net.is_online else where
 	if Net.spectating():
 		_info.text = "You are spectating: you will watch the match with a free camera.  " + _info.text
 		if Net.moved_by_host:
@@ -292,7 +336,23 @@ func _player_row(id: int) -> PanelContainer:
 		UiKit.tag(row, "HOST", UiKit.ACCENT)
 	if id == Net.my_id():
 		UiKit.tag(row, "YOU", Color(1, 1, 1, 0.85))
-	if Net.is_bot(id):
+	if Net.is_bot(id) and Net.is_host():
+		# The host's bot: its difficulty (a click goes to the next) and a way out.
+		var d := int(Net.players[id].get("difficulty", 1))
+		var level := UiKit.button(row, BotDifficulty.NAMES[d].to_upper(), func():
+			Net.set_bot_difficulty(id, (d + 1) % BotDifficulty.NAMES.size()))
+		level.name = "level_button"
+		level.theme_type_variation = "Chip"
+		level.custom_minimum_size = Vector2(0, 28)
+		level.add_theme_font_size_override("font_size", 13)
+		level.tooltip_text = "%s: %s\nClick for the next difficulty" % [BotDifficulty.NAMES[d], BotDifficulty.BLURBS[d]]
+		var out := UiKit.button(row, "Remove", func(): Net.remove_bot(id))
+		out.name = "remove"
+		out.theme_type_variation = "Chip"
+		out.custom_minimum_size = Vector2(0, 28)
+		out.add_theme_font_size_override("font_size", 13)
+		out.tooltip_text = "Take %s out" % Net.player_name(id)
+	elif Net.is_bot(id):
 		UiKit.tag(row, "BOT", Color(1, 1, 1, 0.6))
 	elif id != Net.host_id():   # the host is ready when it presses Start
 		var ready := Net.is_ready(id)
@@ -989,3 +1049,26 @@ func _any_window_open() -> bool:
 		if p and is_instance_valid(p) and p.is_open():
 			return true
 	return false
+
+
+# ---------------------------------------------------------------------------
+# Bots (the host)
+
+func _on_add_bot() -> void:
+	if _bot_room() <= 0:
+		return
+	var d := _bot_level.get_selected_id()
+	Game.last_bot["difficulty"] = d
+	Net.add_bot(d, DevArgs.bot_weapon, DevArgs.bot_mobility)
+
+
+## How many more bots fit: online, the lobby's free places; Vs Bots, as many as the
+## mode takes (more in the team modes).
+func _bot_room() -> int:
+	if Net.is_online:
+		return LobbySettings.max_players() - Net.players.size()
+	return _most_bots() - Net.bot_ids().size()
+
+
+func _most_bots() -> int:
+	return Game.max_bots(GunGame.mode_of(Net.match_settings))
