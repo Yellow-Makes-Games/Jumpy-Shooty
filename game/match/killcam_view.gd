@@ -47,7 +47,9 @@ var manual := false
 var time := 0.0              ## where we are, on the killer's clock (see KillClip)
 var done := false
 var camera: Camera3D
-## Sounds: the killer's gun as your own (2D); others in the world (3D) when `world_sound`.
+## Sounds: the killer's gun and movement as your own (2D); everyone else's guns and
+## movement (footsteps, jumps, landings, slides, the grapple: PlayerSounds) in the world
+## (3D) when `world_sound`.
 var world_sound := true
 ## Watched from behind the killer (a blow), not through their eyes.
 var third_person := false
@@ -69,6 +71,9 @@ var _hook_rope: HookRope     # the killer's Grappling Hook 2 rope (made when the
 var _seen := {}              # killer: swing/kick counters last seen (see _watch)
 var _akimbo_shots := 0
 var _was_reloading := false
+var _killer_body := Node3D.new()   # where the killer's feet are (their movement sounds come from here)
+var _killer_anim := RobotAnimInput.new()
+var _killer_sounds: PlayerSounds
 var _chase_ready := false    # third person: the camera has been placed once (then it eases)
 var _chase_look := Vector3.ZERO
 var _wrecks: Dictionary = {}  # KillClip.Wreck -> the replay's own Ragdoll or Gibs for it (null: none could be made)
@@ -87,6 +92,7 @@ class Ghost:
 	var rope: MeshInstance3D
 	var hook: MeshInstance3D
 	var hook_rope: HookRope   # Grappling Hook 2's rope (made when the clip first has one)
+	var sounds: PlayerSounds  # their footsteps, jumps, landings... (in the world)
 	var seen := {}
 	var akimbo_shots := 0
 
@@ -108,6 +114,8 @@ func _ready() -> void:
 	_fx = Node3D.new()
 	_fx.name = "KillcamFx"
 	add_child(_fx)
+	_killer_body.name = "KillerBody"
+	add_child(_killer_body)
 	camera = Camera3D.new()
 	camera.near = 0.05
 	camera.far = 800.0
@@ -249,6 +257,22 @@ func _play_killer(delta: float) -> void:
 		p.weapon.update(delta)
 	_was_reloading = reloading
 	_watch(int(f[5]), weapon, _seen, null)
+	# Their footsteps, jumps and landings, as your own.
+	_killer_body.global_position = feet
+	var a := _killer_anim
+	a.state = p.motor.state
+	a.crouched = p.motor.crouched
+	a.velocity = f[1]
+	a.yaw = yaw
+	a.pitch = pitch
+	a.flags = int(f[5])
+	a.grapple_on = bool(f[6])
+	a.grapple_anchor = f[7]
+	a.alive = p.alive
+	if _killer_sounds == null or _killer_sounds.weapon_id != weapon:
+		_killer_sounds = PlayerSounds.new(_killer_body, true, weapon)
+		_killer_sounds.map = map as MapRoot
+	_killer_sounds.update(delta, a, true)
 	if _view:
 		_view.update(delta)
 	var hand := _view.marker("grapple") if _view else camera.global_position
@@ -360,6 +384,15 @@ func _chase(delta: float) -> void:
 		camera.look_at(_chase_look, Vector3.UP)
 
 
+## Someone fired: their gun's handling sounds (working a pump or bolt) follow.
+func _fired(who: int) -> void:
+	if who == clip.killer and not third_person:
+		if _killer_sounds:
+			_killer_sounds.fired()
+	elif _ghosts.has(who) and (_ghosts[who] as Ghost).sounds:
+		(_ghosts[who] as Ghost).sounds.fired()
+
+
 # ---------------------------------------------------------------------------
 # Everyone else
 
@@ -388,6 +421,11 @@ func _play_ghost(id: int, delta: float) -> void:
 	a.alive = bool(f[8])
 	_watch(a.flags, g.weapon, g.seen, g)
 	g.animator.update(delta, a, g.visual.global_transform)
+	if world_sound:
+		if g.sounds == null:
+			g.sounds = PlayerSounds.new(g.root, false, g.weapon)
+		g.sounds.map = map as MapRoot
+		g.sounds.update(delta, a, g.root.visible)
 	var hook2 = _hook2(f) if a.alive and g.root.visible else null
 	_draw_rope(g.rope, g.hook, a.grapple_on and a.alive and g.root.visible and hook2 == null, g.robot.marker("grapple"), a.grapple_anchor)
 	g.hook_rope = _draw_hook2(g.hook_rope, g.root, g.robot.marker("grapple"), hook2)
@@ -405,6 +443,7 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 	g.robot = RobotModel.new().build(track.character, track.color, false, weapon, false, track.paint)
 	g.visual.add_child(g.robot)
 	g.animator = RobotAnimator.new(g.robot)
+	g.sounds = PlayerSounds.new(g.root, false, weapon)
 	var rope := _make_rope()
 	g.rope = rope[0]
 	g.hook = rope[1]
@@ -494,18 +533,20 @@ func _watch(flags: int, weapon: String, seen: Dictionary, g: Ghost) -> void:
 	if melee and RobotAnimInput.winding_of(flags):
 		seen.wind = maxf(float(seen.wind), 0.0) + get_process_delta_time()
 		var held := WeaponData.by_id(weapon).charge_of(seen.wind)
+		var coming := RobotAnimInput.step_of(flags)   # (which blow of the combo is coming)
 		if g:
-			g.animator.wind(held)
+			g.animator.wind(held, coming)
 		elif _view:
-			_view.wind(held)
+			_view.wind(held, coming)
 	if swings != int(seen.swings):
 		seen.swings = swings
 		if melee:
 			var power := WeaponData.by_id(weapon).charge_of(maxf(float(seen.wind), 0.0))
+			var step := RobotAnimInput.step_of(flags)   # (which blow of the combo it is: a jab, a spinning kick...)
 			if g:
-				g.animator.swing(power)
+				g.animator.swing(power, step)
 			elif _view:
-				_view.swing(power)
+				_view.swing(power, step)
 		seen.wind = -1.0
 	if g and flying != bool(seen.flying):
 		g.animator.set_flying_kick(flying)
@@ -542,6 +583,7 @@ func _play_event(e: Dictionary) -> void:
 				g.animator.fire(left)
 				muzzle = g.robot.marker(data.muzzle_bone_left if left else data.muzzle_bone)
 			ShotFx.spawn(_fx, muzzle, e.ends, e.hits, weapon)
+			_fired(who)
 			if mine:
 				Sound.gun_fire(weapon, muzzle, true)
 			elif world_sound:

@@ -1,7 +1,7 @@
 extends Control
 ## Main menu. The front page has the title and big buttons on the left (Play, with a
 ## globe button beside it that goes straight to Multiplayer; Profile; Settings; Exit)
-## and every robot lined up on the right; every other page (Play, Practice, Vs Bots,
+## and a cinematic showcase of the characters on the right (CharacterShowcase); every other page (Play, Practice, Vs Bots,
 ## Multiplayer, Settings, and Profile with its tabs: Character, Calling Card,
 ## Achievements) is built in one MenuFrame, which keeps its buttons on screen whatever
 ## the window size. Built in code.
@@ -19,8 +19,14 @@ const NO_WEAPON_NOTES := {
 	"killcam": "Killcam is snipers only: every kill scores its killcam points.",
 }
 
+## The character showcase on the front page runs top to bottom from SHOWCASE_LEFT
+## (clear of the buttons) to the right edge, at most SHOWCASE_MAX_W wide (a wide
+## screen keeps the character near the middle of the empty space, not at the edge).
+const SHOWCASE_LEFT := 600.0
+const SHOWCASE_MAX_W := 1400.0
+
 var _front: Control             # the front page
-var _robot: RobotPreview
+var _showcase: CharacterShowcase
 var _frame: MenuFrame           # every other page
 var _code_edit: LineEdit
 var _status: Label
@@ -52,11 +58,14 @@ func _build_front() -> void:
 	_front.draw.connect(_draw_front)
 	_front.resized.connect(_front.queue_redraw)
 	add_child(_front)
-	_robot = RobotPreview.new(Vector2(820, 720), 0.92)
-	_robot.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, 60)
-	_robot.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_robot.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_front.add_child(_robot)
+	_showcase = CharacterShowcase.new()
+	_showcase.name = "Showcase"
+	_showcase.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	_showcase.offset_right = 0.0
+	_showcase.caption = caption()
+	_front.add_child(_showcase)
+	_front.resized.connect(_fit_showcase)
+	_fit_showcase()
 	var left := VBoxContainer.new()
 	left.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT, Control.PRESET_MODE_MINSIZE, 120)
 	left.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -74,7 +83,11 @@ func _build_front() -> void:
 	_front.add_child(notice)
 
 
-## A ruled line down the left of the front page's column, and a caption under the robots.
+func _fit_showcase() -> void:
+	_showcase.offset_left = -minf(maxf(_front.size.x - SHOWCASE_LEFT, 600.0), SHOWCASE_MAX_W)
+
+
+## A ruled line down the left of the front page's column.
 func _draw_front() -> void:
 	var s := _front.size
 	var x := 92.0
@@ -82,11 +95,9 @@ func _draw_front() -> void:
 	_front.draw_rect(Rect2(x - 2.0, s.y * 0.5 - 250.0, 5.0, 34.0), UiKit.ACCENT)
 	for i in 9:
 		_front.draw_line(Vector2(x, s.y * 0.5 - 180.0 + i * 52.0), Vector2(x + 8.0, s.y * 0.5 - 180.0 + i * 52.0), Color(UiKit.LINE, 0.4), 1.0)
-	var cap := Vector2(s.x - 60.0 - 410.0, s.y * 0.5 + 200.0)
-	HudStyle.label(_front, cap, caption(), 12, Color(UiKit.CYAN, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 
 
-## The line under the robots: "14 MAPS  ·  45 WEAPONS  ·  8 GAMEMODES" (the maps you
+## The line under the showcase: "14 MAPS  ·  45 WEAPONS  ·  8 GAMEMODES" (the maps you
 ## can pick, not the ones still in the works).
 static func caption() -> String:
 	var maps := Maps.LIST.filter(func(m): return not m.dev).size()
@@ -106,8 +117,8 @@ func _show_main() -> void:
 	_front.visible = true
 	_frame.visible = false
 	_frame.clear()
-	# Every robot, newest on the left, then your three newest custom characters.
-	_robot.show_lineup(Characters.ids() + Settings.custom_characters.slice(-3), Net.PLAYER_COLORS)
+	# The characters one at a time, your three newest custom ones among them.
+	_showcase.start(Settings.custom_characters.slice(-3))
 	var left: VBoxContainer = _front.get_node("Column")
 	UiKit.clear(left)
 	var logo := VBoxContainer.new()

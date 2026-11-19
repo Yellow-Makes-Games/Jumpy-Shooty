@@ -38,7 +38,7 @@ const PLAYER_COLOR_NAMES := ["Red", "Blue", "Green", "Yellow", "Purple", "Cyan",
 
 ## peer id -> { "name": String, "color": int, "character": String (see Characters),
 ##   "weapon": String (see WeaponData), "mobility": String (see Mobility),
-##   "card" and "icon": String (see CallingCard) },
+##   "card" and "icon": String (see CallingCard), "level": int (see PlayerLevel) },
 ## plus "bot": true and "difficulty" for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
 ## Spectators: connected peers who watch with a free-flying camera instead of playing.
@@ -90,6 +90,7 @@ func _ready() -> void:
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
 	_setup_version_check()
 	(func(): Match.player_died.connect(_on_player_died)).call_deferred()   # Match is the next autoload
+	(func(): Achievements.progressed.connect(_on_progress)).call_deferred()
 
 
 static func now() -> float:
@@ -121,6 +122,7 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 	_local_mobility = Mobility.valid(mobility)
 	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	_wear(1, Settings.calling_card, Settings.icon)
+	players[1]["level"] = my_level()
 	is_online = false
 	players_changed.emit()
 
@@ -138,6 +140,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_mobility = Mobility.valid(mobility)
 	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	_wear(1, Settings.calling_card, Settings.icon)
+	players[1]["level"] = my_level()
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -285,6 +288,7 @@ func _on_connected_to_server() -> void:
 	_tune_link(1)
 	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility, _join_spectating, Settings.player_color)
 	_choose_card.rpc_id(1, Settings.calling_card, Settings.icon)   # (after _register: they arrive in order)
+	_choose_level.rpc_id(1, my_level())
 
 
 func _on_connection_failed() -> void:
@@ -650,6 +654,49 @@ func _wear(id: int, card: String, icon: String) -> bool:
 	players[id]["card"] = card
 	players[id]["icon"] = icon
 	return true
+
+
+## Your level (from your experience: see PlayerLevel).
+static func my_level() -> int:
+	return PlayerLevel.of(Achievements.stat("xp")).level
+
+
+## A player's level, or 0 if they have none to show (a bot, or an older copy).
+func player_level(id: int) -> int:
+	return int(players[id].get("level", 0)) if players.has(id) else 0
+
+
+## Experience came in (a kill, a match's end, a sync from your account): tell the
+## lobby if it took you up a level. Not mid-match (the lobby asks again when it opens).
+func send_my_level() -> void:
+	_on_progress()
+
+
+func _on_progress() -> void:
+	var id := my_id()
+	if in_match or not players.has(id) or player_level(id) == my_level():
+		return
+	if is_host():
+		_apply_level(id, my_level())
+	else:
+		_choose_level.rpc_id(1, my_level())
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_level(level: int) -> void:
+	if is_host():
+		_apply_level(multiplayer.get_remote_sender_id(), level)
+
+
+func _apply_level(id: int, level: int) -> void:
+	level = clampi(level, 1, 9999)
+	if not players.has(id) or player_level(id) == level:
+		return
+	players[id]["level"] = level
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
 
 
 ## A player's calling card and icon (the defaults for anyone who has not said).
@@ -1362,7 +1409,8 @@ func _map_state_request() -> void:
 			for slot in 2:
 				var p: Portal = arena.portals.get_portal(owner, slot)
 				if p:
-					_portal_from_host.rpc_id(to, owner, slot, p.frame.origin, p.normal, p.frame.basis.y)
+					var on: Array = arena.portals.carrier_of(p, arena)
+					_portal_from_host.rpc_id(to, owner, slot, p.frame.origin, p.normal, p.frame.basis.y, on[0], on[1])
 
 
 # ---------------------------------------------------------------------------
@@ -1370,28 +1418,33 @@ func _map_state_request() -> void:
 # host for a bot) places their portals and tells everyone; each copy moves its own
 # players through them. They go on every copy by itself when their owner dies.
 
-## The local player `owner` (you, or one of the host's bots) put a portal up.
+## The local player `owner` (you, or one of the host's bots) put a portal up. One on a
+## moving part of the map rides it (see Portal.follow): the message says which part and
+## where on it, so it lands on the same spot of it on every copy, wherever the part has
+## got to by the time the message arrives.
 func place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+	var on: Array = ["", Transform3D.IDENTITY]
 	if arena and is_instance_valid(arena) and arena.portals:
 		arena.portals.place(owner, slot, at, normal, up)
+		on = arena.portals.carrier_of(arena.portals.get_portal(owner, slot), arena)
 	if is_online:
-		_place_portal.rpc(owner, slot, at, normal, up)
+		_place_portal.rpc(owner, slot, at, normal, up, on[0], on[1])
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3, on_path: String, on_frame: Transform3D) -> void:
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != owner and not (sender == host_id() and is_bot(owner)):
 		return   # only a player's own copy places their portals
 	if arena and is_instance_valid(arena) and arena.portals and Match.is_alive(owner):
-		arena.portals.place(owner, slot, at, normal, up)
+		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame)
 
 
 ## Host to a copy that has just joined: a portal that is already up.
 @rpc("authority", "call_remote", "reliable")
-func _portal_from_host(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+func _portal_from_host(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3, on_path: String, on_frame: Transform3D) -> void:
 	if arena and is_instance_valid(arena) and arena.portals:
-		arena.portals.place(owner, slot, at, normal, up)
+		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame)
 
 
 # ---------------------------------------------------------------------------

@@ -17,7 +17,7 @@ const SLAM_SPEED := 17.5
 const SLAM_DAMAGE := 4.0
 const SLAM_MAX := 80.0
 ## The blades held in one hand (the rest take both).
-const ONE_HANDED := ["dagger", "brass_knuckles", "mace", "machete", "wrench", "energy_sword", "claws"]
+const ONE_HANDED := ["dagger", "brass_knuckles", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
 
 var _ok := true
 
@@ -131,6 +131,7 @@ func _init() -> void:
 	s.start_reload()
 	_check(not s.is_reloading(), "sword: nothing to reload")
 	_melee_animation()
+	_karate()
 	_melee_in_the_air()
 
 	print("WEAPON TEST PASSED" if _ok else "WEAPON TEST FAILED")
@@ -147,7 +148,7 @@ func _melee_animation() -> void:
 	for id in WeaponData.MELEE:
 		var w := WeaponData.by_id(id)
 		var moves := MeleeSwing.moves(id)
-		_check((moves.taps as Array).size() == 2 and moves.has("heavy") and MeleeSwing.PACE.has(id), "%s: has its own taps and heavy blow" % id)
+		_check((moves.taps as Array).size() == (6 if id == "karate" else 2) and moves.has("heavy") and MeleeSwing.PACE.has(id), "%s: has its own taps and heavy blow" % id)
 		_check(MeleeSwing.impact_time(id) < 0.2, "%s: the blow lands straight after letting go" % id)
 		for first_person in [false, true]:
 			for blow in [[0.0, 0], [0.0, 1], [1.0, 0], [1.0, 1]]:
@@ -266,7 +267,8 @@ func _melee_in_the_air() -> void:
 				while t < anim.length() + 0.8:
 					t += dt
 					cut = cut or anim.cutting()
-					kicked_back = kicked_back or (not anim.legs().is_empty() and float(anim.legs()[0]) < -0.5 and float(anim.legs()[4]) > 0.9)
+					kicked_back = kicked_back or (not anim.legs().is_empty() and float(anim.legs()[4]) > 0.9 \
+						and (float(anim.legs()[0]) < -0.5 or (float(anim.legs()[1]) < 0.3 and float(anim.legs()[5]) > 1.0)))   # (back, or straight out to the side)
 					var was := anim.spin()
 					last = anim.sample(dt)
 					turned += absf(angle_difference(was, anim.spin()))
@@ -278,7 +280,7 @@ func _melee_in_the_air() -> void:
 					"%s: the mid-air blow cuts, and ends back at ready with the spin played out" % what)
 				_check(worst < 0.05, "%s: both hands stay on it in mid-air (%.3f m)" % [what, worst])
 				if has_legs:
-					_check(knee_up and kicked_back and anim.legs().is_empty(), "%s: the knee comes up with the wind-up, the leg kicks back with the blow, then the legs are let go" % what)
+					_check(knee_up and kicked_back and anim.legs().is_empty(), "%s: the knee comes up with the wind-up, the leg kicks out with the blow, then the legs are let go" % what)
 			# The ground slam: weapon overhead on the way down, driven into the floor, then back to ready.
 			var slam := MeleeSwing.new(id, first_person)
 			var gap := 0.0
@@ -350,6 +352,51 @@ func _step(s: WeaponState, seconds: float) -> void:
 	while t < seconds:
 		s.update(1.0 / 60.0)
 		t += 1.0 / 60.0
+
+
+## Karate: a combo of six blows that runs on, kicks that pose the legs (in first person
+## too), spinning blows that come right round as they land and take longer to, and the
+## blow's place in the combo travels in the animation flags (online, spectators, killcams).
+func _karate() -> void:
+	var dt := 1.0 / 60.0
+	_check(MeleeSwing.combo_length("karate") == 6 and MeleeSwing.combo_length("sword") == 2, "karate: a combo of six (the others: two)")
+	_check(MeleeSwing.impact_time("karate", 5) > MeleeSwing.impact_time("karate", 0) * 2.5, "karate: the spinning kick takes longer to land than the jab")
+	_check(MeleeSwing.impact_time("karate", 5) < 0.3 and MeleeSwing.impact_time("karate", 0, 1.0) < 0.3, "karate: still lands soon after letting go")
+	_check(MeleeSwing.impact_time("sword", 1) == MeleeSwing.impact_time("sword", 0), "sword: every blow takes the same time")
+	_check(MeleeSwing.hop_of("karate", 0, 1.0) > 0.0 and MeleeSwing.hop_of("karate", 0, 1.0, true) == 0.0, "karate: the tornado kick hops (not in mid-air)")
+	for step in 6:
+		var f := RobotAnimInput.make_flags(false, false, false, 0, 0, 3, 0, false, 0, true, true, step)
+		_check(RobotAnimInput.step_of(f) == step and RobotAnimInput.swings_of(f) == 3 and RobotAnimInput.winding_of(f) and RobotAnimInput.jetpack_of(f),
+			"karate: blow %d travels in the flags" % step)
+		_check(float(f) == float(int(float(f))) and int(float(f)) == f, "karate: the flags survive a snapshot's float (%d)" % step)
+	for first_person in [false, true]:
+		for step in 6:
+			var anim := MeleeSwing.new("karate", first_person)
+			anim.wind(0.0, step)
+			anim.sample(dt)
+			anim.swing(0.0, step)
+			var blow := MeleeSwing.blow_of("karate", step)
+			var kick := not (blow.get("legs", []) as Array).is_empty()
+			var legs_out := 0.0
+			var turned := 0.0
+			var t := 0.0
+			var spin_at_hit := 99.0
+			while t < anim.length() + 0.3:
+				var before := anim.spin()
+				anim.sample(dt)
+				t += dt
+				turned += absf(angle_difference(before, anim.spin()))
+				if not anim.legs().is_empty():
+					legs_out = maxf(legs_out, float(anim.legs()[0]) * float(anim.legs()[4]))
+				if absf(t - dt - MeleeSwing.impact_time("karate", step)) < dt * 0.6:   # (sample() poses where the clock was, then moves it on)
+					spin_at_hit = absf(angle_difference(0.0, anim.spin()))
+			var what := "karate%s blow %d" % [" (first person)" if first_person else "", step]
+			_check(not anim.active() and anim.legs().is_empty() and is_zero_approx(anim.spin()), "%s: ends back at ready, legs let go" % what)
+			_check((legs_out > 1.5) == kick, "%s: %s" % [what, "the leg comes up high" if kick else "the legs are left alone"])
+			if float(blow.get("turns", 0.0)) != 0.0 and not first_person:
+				_check(absf(turned - TAU) < 0.3 and spin_at_hit < 0.35, "%s: one whole turn, facing front as it lands (%.2f turns, %.2f off)" % [what, turned / TAU, spin_at_hit])
+			elif first_person:
+				_check(turned < 0.01, "%s: your own view does not spin" % what)
 
 
 func _check(cond: bool, what: String) -> void:

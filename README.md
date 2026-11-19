@@ -32,7 +32,7 @@ More detail, including how to play with a friend and run several copies on one P
 | Sprint | Shift |
 | Glide (hold in mid-air: you carry on the way you were going, slowing and sinking gently, free to look and aim, and guns scatter less; let go to stop) | Shift |
 | Jump | Space |
-| Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit) | Left mouse |
+| Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit; Karate: each swing is the next move of a six-hit combo) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
 | Deathmatch: take out the weapon in slot 1 or 2 (you carry two) | 1 / 2 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |
@@ -51,7 +51,7 @@ by pressing right mouse while you wait to respawn: the **grappling hook**, **Gra
 the rope snaps tight with a harder yank; lead a moving target, and let go to call it back; while you hold the
 button, a hook on its way back catches the first surface in its way), the **portal gun**
 (each press puts up your next portal, blue then orange, up to 45 m apart; walk into one and come out of the other
-with your speed carried through; anyone can use anyone's portals, and yours go when you die) or
+with your speed carried through, and see and shoot through each to the other side (bullets, rockets and grenades go through too); portals on moving parts of a map ride them; anyone can use anyone's portals, and yours go when you die) or
 **blink** (a short teleport where you look, one charge that recharges, with a trail of sparks to where you land) or the **jetpack** (hold to fly and steer with WASD, on fuel that refills when you let go, fastest on the ground). A race always has the grapple.
 Grapple is right mouse, crouch / slide is Ctrl or C, dive is Q or Alt. Every key except Esc can be
 rebound under **Settings > Controls** (two bindings per action, keys or mouse buttons); a key

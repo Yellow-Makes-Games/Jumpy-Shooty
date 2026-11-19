@@ -66,6 +66,11 @@ func cooldown() -> float:
 	return _cooldown
 
 
+## Holds the next shot or swing off for at least `seconds` from now (a slow blow).
+func hold_off(seconds: float) -> void:
+	_cooldown = maxf(_cooldown, seconds)
+
+
 func can_fire() -> bool:
 	if data.is_melee():
 		return _cooldown <= 0.0   # a blade never runs dry

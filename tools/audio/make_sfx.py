@@ -1062,12 +1062,15 @@ def match_end():
 # Melee: swings, blows, crashing into walls
 
 MELEE = ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-         "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]
+         "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
 
 
 def swing(name):
     """A blade or hammer cutting the air: a fast whoosh (deeper and longer for the hammer) and a servo."""
     rng = np.random.default_rng(9100 + MELEE.index(name))
+    if name == "karate":   # a limb snapping through the air: a short sharp whoosh with a crack of cloth at its end
+        snap = (hp(noise(rng, 0.03), 1800) * env(0.03, 0.004, 0.0005) * 0.5, 0.11)
+        return finish(mix(whoosh(rng, 0.16, 700, 3600, 2.0, 0.55), snap, servo(rng, 0.08, 700, 1300, 0.12)))
     if name in ("brass_knuckles", "claws"):
         if name == "claws":
             return finish(mix(whoosh(rng, 0.15, 900, 4600, 2.0, 0.42), servo(rng, 0.09, 600, 1100, 0.16)))
@@ -1223,6 +1226,10 @@ def punch_hit(seed):
 def equip_melee(name):
     """Drawing a blade or hefting the hammer: a whoosh and a ring of steel (a clunk for the hammer)."""
     rng = np.random.default_rng(9500 + MELEE.index(name))
+    if name == "karate":   # knuckles cracking, a fist smacked into a palm
+        smack = mix(click(rng, 0.012, 0.001, 2200), lp(noise(rng, 0.08), 1400) * env(0.08, 0.012, 0.001) * 0.8)
+        return finish(mix((click(rng, 0.006, 0.0004, 4200) * 0.5, 0.0), (click(rng, 0.006, 0.0004, 3800) * 0.45, 0.05),
+                          (click(rng, 0.006, 0.0004, 4600) * 0.4, 0.09), (smack, 0.22), (servo(rng, 0.15, 500, 900, 0.12), 0.18)))
     if name == "energy_sword":   # the blade lighting up
         return finish(mix(metal_clack(rng, 1.1, 0.6, 0.4) * 0.6, (glide(0.5, 200, 1100) * bell_env(0.5, 0.3) * 0.3, 0.03),
                           (sat(glide(0.5, 90, 140, "saw") * bell_env(0.5, 0.6) * 0.25, 2.0), 0.05)))

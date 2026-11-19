@@ -44,6 +44,7 @@ const MELEE_REST_VIEW := {
 	"wrench": Vector3(0.1, -0.06, 0.0),
 	"energy_sword": Vector3(0.12, -0.06, 0.0),
 	"claws": Vector3(0.0, -0.04, 0.0),
+	"karate": Vector3(0.0, -0.04, 0.0),
 }
 ## A blow is tipped up this much (radians), so it sweeps across the crosshair and not under it.
 const MELEE_CUT_TILT := 0.22

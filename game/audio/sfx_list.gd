@@ -75,6 +75,7 @@ const VOLUME := {
 	"swing_wrench": -8.5, "equip_wrench": -10.0,
 	"swing_energy_sword": -8.5, "equip_energy_sword": -10.0,
 	"swing_claws": -8.5, "equip_claws": -10.0,
+	"swing_karate": -9.0, "equip_karate": -10.0,
 	# Map events (both loop; MapTerminal and GravityEvent play and fade them). The chord
 	# is heard all over the map and is kept well under the fighting.
 	"terminal_hum": -9.0, "gravity_pad": -15.0,

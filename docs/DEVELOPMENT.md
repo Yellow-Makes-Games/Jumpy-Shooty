@@ -164,6 +164,18 @@ Quick checks:
   through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the game boots into practice mode on every map without script errors.
 
+- shooting through portals and portals on moving parts (`tests/portal_shot_test.gd`), in a
+  real Practice match: a pistol shot into blue hits a dummy out of orange with the damage
+  for the whole way and a tracer through both, a rocket (host and look) does too, a lone
+  portal or one from behind lets shots on, and a portal on a moving part rides it, lands on
+  the same spot from a message, and closes when the part goes;
+- see-through portals (`tests/portal_view_test.gd`): looking at a point on one portal shows
+  what lies straight on through the other (wall to wall, wall to floor, from the side and
+  above), a portal behind you, seen from behind its wall or without its partner opens no
+  view, at most four at once (the nearest), sized to the portal on screen, and the portal
+  cameras see plain faces and your whole body, never a window (headless: the maths only;
+  `tools/screenshot.sh` with the portal gun to see it);
+
 - Grappling Hook 2 (`tests/hook_shot_test.gd`), in a real Practice match: nothing pulls
   while the hook flies, it takes the distance at its speed to arrive, bites with slack,
   the winch takes it in, the rope pulls tight with a harder yank than the first hook's and
@@ -382,6 +394,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
 | `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `profile`, `creator`, `card`, `achievements` |
+| `--showcase=N` | Start the main menu's character showcase on its Nth character (from 1), for screenshots |
 | `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |

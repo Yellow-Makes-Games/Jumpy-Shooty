@@ -596,16 +596,26 @@ func _fire_round() -> void:
 	# Show the shot straight away; the host decides whether it hit.
 	var ends := PackedVector3Array()
 	var hits := []
+	var vias := []   # through portals: where each pellet goes in and comes out
 	var space := get_world_3d().direct_space_state
+	var portals: Portals = Net.arena.get("portals") if Net.arena else null
 	for dir in dirs:
 		var end := eye + dir * weapon.data.max_range
-		var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
-		var hit := space.intersect_ray(ray)
-		if hit:
-			end = hit.position
+		var hit := {}
+		if portals:
+			var legs: Array = portals.shot_path(space, eye, dir, weapon.data.max_range, 1 | (1 << 1), [get_rid()])
+			end = legs[legs.size() - 1].b
+			hit = legs[legs.size() - 1].hit
+			vias.append(Portals.path_bends(legs))
+		else:
+			var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
+			hit = space.intersect_ray(ray)
+			if hit:
+				end = hit.position
+			vias.append(PackedVector3Array())
 		ends.append(end)
 		hits.append(hit and (hit.collider is Player or hit.collider is TargetDummy))
-	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id)  # into the arena, not among the players
+	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id, vias)  # into the arena, not among the players
 	Sound.shot_landed(muzzle_position(), ends, hits, sounds.own)
 	var view_times := {}
 	for p in get_parent().get_children():
@@ -651,9 +661,11 @@ func _update_melee(delta: float) -> void:
 		print("ANIM WIND %d" % peer_id)
 
 
-## Which tap comes next: taps take turns, starting from the right again after a pause.
+## Which tap comes next: taps take turns (the right, then the left; Karate goes on
+## through its combo), starting from the first again after a pause.
 func _next_side() -> int:
-	return 0 if _since_swing > MeleeSwing.COMBO_RESET else 1 - _seen_side
+	var n := MeleeSwing.combo_length(robot.weapon) if robot and WeaponData.melee(robot.weapon) else 2
+	return 0 if _since_swing > MeleeSwing.COMBO_RESET else (_seen_side + 1) % n
 
 
 ## Let go: the swing starts from however far it was wound up.
@@ -662,10 +674,15 @@ func _swing() -> void:
 	weapon.fire()
 	_swing_power = data.charge_of(_charge)
 	_charge = -1.0
-	_swings += 1
-	if 1 - (_swings & 1) != _swing_side:
-		_swings += 1   # the count's last bit tells everyone the side: odd from the right, even from the left
-	_strike_left = MeleeSwing.impact_time(data.id)   # when the blade is mid-blow on screen
+	_swings += 1   # (which blow it is travels with it: see RobotAnimInput.step_of)
+	var airborne := motor.state in [MovementController.State.AIR, MovementController.State.FLIP, MovementController.State.GLIDE]
+	_strike_left = MeleeSwing.impact_time(data.id, _swing_side, _swing_power, airborne)   # when the blade is mid-blow on screen
+	# A slow blow (a spinning kick) holds the next one off until it is nearly done.
+	weapon.hold_off(MeleeSwing.blow_length(data.id, _swing_side, _swing_power, airborne) * 0.7)
+	# A jumping kick lifts you off your feet.
+	var hop := MeleeSwing.hop_of(data.id, _swing_side, _swing_power, airborne) if not airborne else 0.0
+	if hop > 0.0 and velocity.y < hop:
+		motor.knock(Vector3.UP * (hop - maxf(velocity.y, 0.0)))
 	# Lunge toward where you look (never past a sprinting dive's speed).
 	var ahead := Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
 	var along := velocity.dot(ahead)
@@ -673,7 +690,7 @@ func _swing() -> void:
 	if lunge > 0.0 and along < 14.0:
 		motor.knock(ahead * minf(lunge, 14.0 - along))
 	if DevArgs.sync_log:
-		print("ANIM SWING %d %.2f" % [peer_id, _swing_power])
+		print("ANIM SWING %d %.2f %d" % [peer_id, _swing_power, _swing_side])
 
 
 # Ground slam (see GroundSlam): let go of a swing wound up in mid-air with crouch held.
@@ -775,8 +792,8 @@ func _watch_swings(delta: float) -> void:
 	var winding := melee and (_charge >= 0.0 if is_local else RobotAnimInput.winding_of(_anim.flags))
 	_since_swing += delta
 	if winding:
-		if not is_local and _seen_wind < 0.0:
-			_swing_side = _next_side()   # (a guess, for the wind-up only: the swing itself says its side)
+		if not is_local:
+			_swing_side = RobotAnimInput.step_of(_anim.flags)   # (the wind-up says which blow is coming)
 		_seen_wind = _charge if is_local else maxf(_seen_wind, 0.0) + delta
 		var held := WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
 		animator.wind(held, _swing_side)
@@ -792,8 +809,8 @@ func _watch_swings(delta: float) -> void:
 		if melee:
 			var power := _swing_power if is_local else WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
 			if DevArgs.sync_log and not is_local:
-				print("ANIM SWUNG %d %d %.2f" % [Net.my_id(), peer_id, power])
-			_seen_side = 1 - (count & 1)
+				print("ANIM SWUNG %d %d %.2f %d" % [Net.my_id(), peer_id, power, RobotAnimInput.step_of(_anim.flags)])
+			_seen_side = _swing_side if is_local else RobotAnimInput.step_of(_anim.flags)
 			_since_swing = 0.0
 			_shown_power = power
 			animator.swing(power, _seen_side)
@@ -802,7 +819,7 @@ func _watch_swings(delta: float) -> void:
 			if _trail:
 				_trail.power = power
 			var loud := lerpf(-5.0, 2.0, power)   # a wound-up swing whooshes louder, and the heavy blow deeper
-			var pitch := 0.84 if power >= MeleeSwing.HEAVY_AT else (1.05 if _seen_side == 0 else 1.12)
+			var pitch := 0.84 if power >= MeleeSwing.HEAVY_AT else (1.05 if _seen_side % 2 == 0 else 1.12)
 			if sounds.own:
 				var whoosh := Sound.play("swing_" + robot.weapon, loud, 0.05)
 				if whoosh:
@@ -1042,7 +1059,11 @@ func _update_trail(delta: float) -> void:
 	if _trail == null:
 		return
 	var own_view := view != null and rig != null and not rig.is_third_person()
-	if own_view and view.visible and view.cutting():
+	var limb := animator.melee_swing().kicking() if alive and animator.cutting() else ""
+	if limb != "" and visual.visible:   # a kick: the shin and foot leave the trail (your own leg, in first person too)
+		var e := MeleeModel.kick_edge(robot, limb)
+		_trail.add(e[0], e[1])
+	elif own_view and view.visible and view.cutting():
 		var e := view.edge()
 		_trail.add(e[0], e[1])
 	elif not own_view and alive and visual.visible and animator.cutting() and robot.melee:
@@ -1624,7 +1645,7 @@ func _my_anim_flags() -> int:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
-		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive)
+		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive, _swing_side)
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -1951,6 +1972,8 @@ func _scripted_input(delta: float) -> void:
 			input.fire = true
 			if weapon and weapon.data.is_melee():
 				input.fire = fmod(t, 1.6) < 1.1   # wind a swing up for a second, then let go
+				if MeleeSwing.combo_length(weapon.data.id) > 2:   # a combo (Karate): a run of quick taps, then a full wind-up
+					input.fire = fmod(t, 0.42) < 0.1 if fmod(t, 4.0) < 3.0 else fmod(t, 4.0) < 3.8
 			if fmod(t, 0.2) < delta and input.fire:
 				input.fire_pressed = true  # click about 5 times a second
 		if fmod(t, 6.0) < delta and weapon:
