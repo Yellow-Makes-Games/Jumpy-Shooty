@@ -115,6 +115,40 @@ def face(ring, toward):
     return Part([_tri_out(ring[0], ring[j], ring[j + 1], away) for j in range(1, len(ring) - 1)])
 
 
+def orb(rx, ry=None, rz=None, n=8, rows=5):
+    """A rounded lump of stacked rings (half-sizes rx, ry, rz), a flat side to the front."""
+    ry = rx if ry is None else ry
+    rz = rx if rz is None else rz
+    rings = []
+    for i in range(rows + 1):
+        a = 0.2 + (math.pi - 0.4) * i / rows
+        rings.append(ngon(n, rx * math.sin(a), -ry * math.cos(a), rz * math.sin(a), phase=math.pi / n))
+    return loft(rings)
+
+
+def plug(mesh, bone, at, low, high, ry, scale=0.94):
+    """Fills the seam between two parts of a body that turn on each other (waist, belly):
+    adds a rounded core on `bone`, centred on the joint's point `at`, as wide as that
+    bone's own parts are between the heights `low` and `high`, and in their material.
+    Each part's end then rests on something round, whatever is on the other side of the
+    joint: the Character Creator puts any torso on any legs. Returns whether it added one."""
+    near = [t for t in mesh.tris if t.bone == bone and any(low <= q[1] <= high for q in t.points)]
+    pts = np.array([q for t in near for q in t.points if low <= q[1] <= high])
+    if len(pts) < 3:
+        return False
+    area = {}
+    for t in near:
+        area[t.material] = area.get(t.material, 0.0) + np.linalg.norm(np.cross(t.points[1] - t.points[0], t.points[2] - t.points[0]))
+    material = max(area, key=area.get)
+    cz = (pts[:, 2].min() + pts[:, 2].max()) / 2.0
+    rx = np.abs(pts[:, 0] - at[0]).max() * scale
+    rz = (pts[:, 2].max() - pts[:, 2].min()) / 2.0 * scale
+    if min(rx, rz) < 0.01:
+        return False
+    mesh.add(orb(rx, ry, rz).move(at[0], at[1], cz), material, bone)
+    return True
+
+
 class Tri:
     __slots__ = ("points", "normal", "material", "bone")
 

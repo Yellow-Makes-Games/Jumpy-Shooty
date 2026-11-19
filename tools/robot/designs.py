@@ -10,7 +10,7 @@ The guns are in weapons.py: every robot holds all of them, and the game shows on
 """
 import math
 import numpy as np
-from kit import Mesh, Part, loft, rect, ngon, box, prism, ball, bead, face
+from kit import Mesh, Part, loft, rect, ngon, box, prism, ball, bead, face, plug
 import hands
 import weapons
 
@@ -697,8 +697,22 @@ ARM_BONES = ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "
              "index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2",
              "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent")  # what the first-person view shows (every gun rides on the gun bones)
 
+WAIST = (0.0, 1.06, 0.0)   # the spine's own point (rig.BODY): where a torso turns on its legs
+
+
+def waist(mesh):
+    """The waist's core (see kit.plug): every torso has one, so it closes on any legs."""
+    plug(mesh, "spine", WAIST, 0.97, 1.105, 0.075)
+    return mesh
+
+
+def _closed(build):
+    return lambda: waist(build())
+
+
 DESIGNS = {"vanguard": vanguard, "brick": brick, "needle": needle, "kestrel": kestrel, "bulwark": bulwark,
            "rivet": rivet, "specter": specter, "orbit": orbit, "templar": templar}
+DESIGNS = {k: (f if k == "brick" else _closed(f)) for k, f in DESIGNS.items()}   # (Brick: the unused draft, left as it was)
 PLAYABLE = ("needle", "vanguard", "kestrel", "bulwark", "rivet", "specter", "orbit", "templar")
 # First-person arms only: thin a design's forearms and hands by this factor, so bulky
 # gauntlets held up to the camera do not fill the view or push through each other.
