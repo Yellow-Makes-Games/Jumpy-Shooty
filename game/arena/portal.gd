@@ -20,6 +20,12 @@ var frame := Transform3D.IDENTITY
 ## portal gun's are HALF_WIDTH x HALF_HEIGHT; a map's ring gate sets its own.
 var half_width := HALF_WIDTH
 var half_height := HALF_HEIGHT
+## What it sits on, if that can move (a moving part of the map: an island, the crane's
+## load, a walkway): the portal rides it, kept at the same spot on it (see follow).
+var carrier: Node3D = null
+## Its frame in the carrier's (while it has one).
+var carrier_frame := Transform3D.IDENTITY
+var _rides := false   # (a carrier that has been freed reads as null: this remembers there was one)
 var _look: Node3D   # everything drawn: scaled as it opens (the portal's own frame stays unscaled)
 var _disc: MeshInstance3D
 var _disc_mat: StandardMaterial3D
@@ -274,6 +280,29 @@ func _match_environment(cam: Camera3D) -> void:
 	_view_env.fog_light_energy = src.fog_light_energy
 
 
+## Rides what it sits on: `carrier` (see Portals.place) and where on it.
+func ride(on: Node3D) -> void:
+	carrier = on
+	_rides = on != null
+	if on:
+		carrier_frame = on.global_transform.affine_inverse() * frame
+
+
+## Keeps it where it is on its carrier, if it has one. False when the carrier has gone
+## (a walkway drawn in, a part taken away): the portal should close.
+func follow() -> bool:
+	if not _rides:
+		return true
+	if not is_instance_valid(carrier) or not carrier.is_inside_tree() or carrier.get_meta("unhookable", false):
+		return false
+	var now := (carrier.global_transform * carrier_frame).orthonormalized()
+	if not now.is_equal_approx(frame):
+		frame = now
+		normal = frame.basis.z
+		transform = frame
+	return true
+
+
 ## In the portal's own frame (x right, y up, z out): where `p` is.
 func to_local_frame(p: Vector3) -> Vector3:
 	return frame.basis.transposed() * (p - frame.origin)
@@ -285,6 +314,13 @@ func covers(p: Vector3, margin: float = 1.0) -> bool:
 	var ex := l.x / (half_width * margin)
 	var ey := l.y / (half_height * margin)
 	return ex * ex + ey * ey <= 1.0
+
+
+## A point at (or in front of) this portal, as it is at `other`: the same spot on its
+## face, turned round to match (see carry).
+func carry_point(other: Portal, p: Vector3) -> Vector3:
+	var l := to_local_frame(p)
+	return other.frame * Vector3(-l.x, l.y, -l.z)
 
 
 ## A direction going in through this portal, as it comes out of `other`.

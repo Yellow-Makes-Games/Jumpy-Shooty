@@ -402,7 +402,7 @@ func _hear(id: int, where: Vector3, force: bool) -> void:
 	_known[id] = [_time, where + miss * off]
 
 
-func _on_shot(shooter: int, muzzle: Vector3, ends: PackedVector3Array, _hits: Array) -> void:
+func _on_shot(shooter: int, muzzle: Vector3, ends: PackedVector3Array, _hits: Array, _vias: Array) -> void:
 	if shooter == me.peer_id or not me.alive:
 		return
 	var close := me.eye_position().distance_to(muzzle) <= d.hear_range

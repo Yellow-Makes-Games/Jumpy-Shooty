@@ -121,7 +121,9 @@ func live_views() -> Array:
 	return out
 
 
-func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3) -> void:
+## `on`: the moving part of the map it sits on, if any (the portal rides it); null: found
+## here (see carrier_at), so a copy told only where it is still has it ride.
+func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3, on: Node3D = null) -> void:
 	slot = clampi(slot, 0, 1)
 	var pair: Array = _pairs.get(owner, [null, null])
 	var old: Portal = pair[slot]
@@ -130,6 +132,7 @@ func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3) -> void:
 	var p := Portal.make(owner, slot, at, n, up, Net.player_color(owner))
 	p.name = "Portal_%d_%d" % [owner, slot]
 	add_child(p)
+	p.ride(on if on else carrier_at(at, n))
 	pair[slot] = p
 	var other: Portal = pair[1 - slot]
 	if other and is_instance_valid(other) and other.frame.origin.distance_to(at) > MAX_SPAN:
@@ -139,6 +142,54 @@ func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3) -> void:
 	Sound.play_at("portal_open", at + n * 0.3, "move", 0.0, 0.05)
 	if DevArgs.sync_log:
 		print("PORTAL %d %d %d %.2f %.2f %.2f" % [Net.my_id(), owner, slot, at.x, at.y, at.z])
+
+
+## A portal at `at` facing `n` on a moving part of the map (anything that moves and can
+## be stood on or hooked: an AnimatableBody3D): that part, else null.
+func carrier_at(at: Vector3, n: Vector3) -> Node3D:
+	if not is_inside_tree():
+		return null
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(at + n * 0.15, at - n * 0.3, 1)
+	var hit := space.intersect_ray(q)
+	if not hit.is_empty() and hit.collider is AnimatableBody3D:
+		return hit.collider
+	return null
+
+
+## A portal that sits on a moving part, as a message can carry it: [path to the part
+## from the arena (or ""), the portal's frame on it]. See place_on.
+func carrier_of(p: Portal, arena: Node) -> Array:
+	if p == null or p.carrier == null or not is_instance_valid(p.carrier) or arena == null:
+		return ["", Transform3D.IDENTITY]
+	return [str(arena.get_path_to(p.carrier)), p.carrier_frame]
+
+
+## A portal put up on a moving part elsewhere: `path` (from the arena) and its frame on
+## it, so it lands on the same spot of the part wherever the part has got to here.
+## Falls back to where it was (at, n, up) if this copy has no such part.
+func place_on(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3, arena: Node, path: String, local: Transform3D) -> void:
+	var on: Node3D = arena.get_node_or_null(NodePath(path)) as Node3D if path != "" and arena else null
+	if on:
+		var xf := (on.global_transform * local).orthonormalized()
+		place(owner, slot, xf.origin, xf.basis.z, xf.basis.y, on)
+	else:
+		place(owner, slot, at, n, up)
+
+
+## Portals on moving parts go where their part has gone; ones whose part has gone close.
+func follow_carriers() -> void:
+	for owner in _pairs:
+		var pair: Array = _pairs[owner]
+		for i in 2:
+			var p: Portal = pair[i]
+			if p and is_instance_valid(p) and not p.follow():
+				p.queue_free()
+				pair[i] = null
+
+
+func _physics_process(_delta: float) -> void:
+	follow_carriers()
 
 
 func clear(owner: int) -> void:
@@ -210,6 +261,7 @@ static func _nearest(body: Player, p: Portal) -> Array:
 
 ## Moves a body through a portal if it is touching one. Returns true if it went.
 func check(body: Player) -> bool:
+	follow_carriers()   # (the map's parts have moved this step: be where they are)
 	if body.portal_skip and is_instance_valid(body.portal_skip):
 		# Just came out of this one: it does nothing until you have stepped clear of it.
 		var near := _nearest(body, body.portal_skip)
@@ -248,6 +300,83 @@ func check(body: Player) -> bool:
 			_send_through(body, from, to)
 			return true
 	return false
+
+
+# ---------------------------------------------------------------------------
+# Shots through portals. Bullets, pellets, rockets and grenades go in one portal
+# of a linked pair and come out of the other, turned to match, like players do (the
+# map's ring gates still let them fly on: see PortalSurgeEvent).
+
+## A shot can go through at most this many portals.
+const MAX_HOPS := 4
+## It comes out this far in front of the other portal.
+const SHOT_EXIT := 0.03
+
+
+## Where a straight move from `a` to `b` goes into a linked portal from its front, the
+## nearest along it: {} if none, else {"t" (0..1 along it), "at", "from", "to" (its partner)}.
+func crossing(a: Vector3, b: Vector3) -> Dictionary:
+	var best := {}
+	var best_t := INF
+	for owner in _pairs:
+		var pair: Array = _pairs[owner]
+		var p0: Portal = pair[0]
+		var p1: Portal = pair[1]
+		if p0 == null or p1 == null or not is_instance_valid(p0) or not is_instance_valid(p1):
+			continue
+		for k in 2:
+			var from: Portal = p0 if k == 0 else p1
+			var da := (a - from.frame.origin).dot(from.normal)
+			var db := (b - from.frame.origin).dot(from.normal)
+			if da < 0.0 or db > 0.0 or da == db:
+				continue
+			var t := da / (da - db)
+			if t >= best_t:
+				continue
+			var at := a + (b - a) * t
+			if not from.covers(at):
+				continue
+			best_t = t
+			best = {"t": t, "at": at, "from": from, "to": p1 if k == 0 else p0}
+	return best
+
+
+## A shot's path from `from` along `dir` for `reach` metres, through any portals in
+## its way: legs [{a, b, dir, hit}], each but the last ending going into a portal and
+## the next starting out of its partner. The last ends where the ray (`mask`, leaving
+## out `exclude`) hits something (its result in `hit`) or runs out of reach.
+func shot_path(space: PhysicsDirectSpaceState3D, from: Vector3, dir: Vector3, reach: float, mask: int, exclude: Array[RID] = []) -> Array:
+	var legs := []
+	dir = dir.normalized()
+	var left := reach
+	for hop in MAX_HOPS + 1:
+		var end := from + dir * left
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, end, mask, exclude))
+		var stop: Vector3 = end if hit.is_empty() else hit.position
+		var x := crossing(from, stop + dir * 0.05) if hop < MAX_HOPS else {}
+		if x.is_empty() or from.distance_to(x.at) > from.distance_to(stop) + 0.05:
+			legs.append({"a": from, "b": stop, "dir": dir, "hit": hit})
+			break
+		legs.append({"a": from, "b": x.at, "dir": dir, "hit": {}})
+		left -= from.distance_to(x.at)
+		var into: Portal = x.from
+		var out: Portal = x.to
+		from = into.carry_point(out, x.at) + out.normal * SHOT_EXIT
+		dir = into.carry(out, dir).normalized()
+		if left <= 0.0:
+			legs.append({"a": from, "b": from, "dir": dir, "hit": {}})
+			break
+	return legs
+
+
+## The points where a path (shot_path) goes in and comes out of portals: [in, out, in,
+## out...], empty for a straight shot. What the shot effect draws its tracer through.
+static func path_bends(legs: Array) -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for i in range(1, legs.size()):
+		out.append(legs[i - 1].b)
+		out.append(legs[i].a)
+	return out
 
 
 func _send_through(body: Player, from: Portal, to: Portal) -> void:
