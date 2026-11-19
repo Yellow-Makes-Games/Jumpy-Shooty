@@ -148,6 +148,7 @@ func start_practice(map: String = "", game: String = "") -> void:
 	Net.match_settings = with_map(Net.match_settings, _map_choice(last_practice_map), DevArgs.game if DevArgs.game != "" else last_practice_game)
 	Net.match_settings["weapons"] = DevArgs.allowed_weapons.duplicate()   # practice: every weapon (unless a test says)
 	Net.match_settings["mobility"] = DevArgs.allowed_mobility.duplicate()   # ...and every mobility tool
+	Net.match_settings["mobility_on"] = not DevArgs.no_mobility
 	Net.match_settings["movement"] = movement_choice()
 	Net.host_start_match()
 
@@ -211,12 +212,13 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	var same_bots := levels_before.size() == bots and difficulty == int(last_bot.get("difficulty", -1))
 	last_bot = {"difficulty": difficulty, "levels": levels_before if same_bots else [], "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
 		"rules": rules, "weapons": LobbySettings.normalized_weapons(weapons), "mobility": LobbySettings.normalized_mobility(mobility),
+		"mobility_on": bool(last_bot.get("mobility_on", true)) and not DevArgs.no_mobility,
 		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes}
 	if picked != Maps.RANDOM:
 		last_map[last_bot.game] = picked
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	Net.match_settings = with_map({"mode": rules, "kills": kills_to_win, "minutes": 8, "race_minutes": 10,
-		"weapons": last_bot.weapons, "mobility": last_bot.mobility,
+		"weapons": last_bot.weapons, "mobility": last_bot.mobility, "mobility_on": last_bot.mobility_on,
 		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes, "movement": movement_choice()},
 		_map_choice(last_bot.map), DevArgs.game if DevArgs.game != "" else last_bot.game)
 	var levels := bot_levels()
@@ -243,6 +245,7 @@ func open_bot_lobby() -> void:
 	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
 	Net.match_settings = with_map({"mode": str(last_bot.get("rules", "kills")), "kills": int(last_bot.get("kills", 10)),
 		"minutes": 8, "race_minutes": 10, "weapons": last_bot.get("weapons", []), "mobility": last_bot.get("mobility", []),
+		"mobility_on": bool(last_bot.get("mobility_on", true)),
 		"killcam_points": KillcamMode.clean_points(last_bot.get("killcam_points")),
 		"killcam_minutes": KillcamMode.clean_minutes(last_bot.get("killcam_minutes")), "movement": movement_choice()},
 		_map_choice(str(last_bot.get("map", Maps.default_id()))), str(last_bot.get("game", "ffa")))
@@ -266,7 +269,7 @@ func remember_bot_lobby() -> void:
 		"levels": levels, "bots": maxi(levels.size(), 1), "kills": int(s.get("kills", 10)),
 		"map": Maps.RANDOM if random else str(s.get("map", Maps.default_id())), "game": str(s.get("game", "ffa")),
 		"rules": str(s.get("mode", "kills")), "weapons": LobbySettings.normalized_weapons(s.get("weapons", [])),
-		"mobility": LobbySettings.normalized_mobility(s.get("mobility", [])),
+		"mobility": LobbySettings.normalized_mobility(s.get("mobility", [])), "mobility_on": bool(s.get("mobility_on", true)),
 		"killcam_points": KillcamMode.clean_points(s.get("killcam_points")), "killcam_minutes": KillcamMode.clean_minutes(s.get("killcam_minutes"))}
 	if random:
 		last_map_pool = s.get("map_pool", [])
@@ -319,7 +322,7 @@ func host_online() -> Error:
 		elif not kind in GunGame.RULES:
 			s.kills = int(amount)
 		Net.set_match_settings(s)
-	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty() and DevArgs.lobby_size == 0 \
+	if err == OK and not (DevArgs.allowed_weapons.is_empty() and DevArgs.allowed_mobility.is_empty() and not DevArgs.no_mobility and DevArgs.lobby_size == 0 \
 			and DevArgs.points_target == 0 and DevArgs.song == ""):
 		var s := Net.match_settings.duplicate()   # tests: lobby settings, in one go
 		if DevArgs.lobby_size > 0:
@@ -328,6 +331,8 @@ func host_online() -> Error:
 			s["weapons"] = DevArgs.allowed_weapons.duplicate()
 		if not DevArgs.allowed_mobility.is_empty():
 			s["mobility"] = DevArgs.allowed_mobility.duplicate()
+		if DevArgs.no_mobility:
+			s["mobility_on"] = false
 		if DevArgs.points_target > 0:
 			s["killcam_points"] = DevArgs.points_target
 		if DevArgs.song != "":

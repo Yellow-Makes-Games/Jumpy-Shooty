@@ -166,6 +166,63 @@ func run() -> void:
 	await get_tree().create_timer(1.5).timeout
 	_check(me.jetpack.fuel > low, "the fuel refills when you let go (%.2f)" % me.jetpack.fuel)
 
+	# --- Mobility off (the host's lobby setting, LobbySettings.mobility_on): the button does
+	# nothing for any tool, the HUD stops showing it, and back on it all works again.
+	var rules: Dictionary = net.match_settings.duplicate()
+	rules["mobility_on"] = false
+	net.set_match_settings(rules)
+	await _frames(3)
+	_check(not LobbySettings.mobility_on(), "the host turns the mobility tools off")
+	me.set_mobility(Mobility.JETPACK)   # (the settings going out put the tool on record back in your hands)
+	_check(not arena.hud.view.moves.any(func(m): return m[1] == "RMB"), "off: the HUD shows no mobility cooldown")
+	me.teleport(j[0], j[1])
+	await _physics(20)
+	ground_y = me.global_position.y
+	DevArgs.drives_keys = true
+	Input.action_press("grapple")
+	await _physics(60)
+	Input.action_release("grapple")
+	await _physics(2)
+	DevArgs.drives_keys = false
+	_check(me.global_position.y < ground_y + 0.2 and not me.jetpack.on, "off: holding the button does not fly the jetpack (%.2f m up)" % (me.global_position.y - ground_y))
+	me.set_mobility(Mobility.BLINK)
+	var stay := me.global_position
+	me.input.mobility_dir = j[2]
+	me.input.grapple_pressed = true
+	await _physics(2)
+	_check(me.global_position.distance_to(stay) < 0.5 and me.blink.charges == Blink.CHARGES, "off: no blink")
+	me.set_mobility(Mobility.PORTAL)
+	arena.portals.clear(me.peer_id)
+	me.input.mobility_dir = Vector3.ZERO
+	me.input.pitch = deg_to_rad(-80.0)
+	me.input.grapple_pressed = true
+	await _physics(2)
+	_check(arena.portals.get_portal(me.peer_id, 0) == null and arena.portals.get_portal(me.peer_id, 1) == null, "off: no portal")
+	me.set_mobility(Mobility.GRAPPLE)
+	var hooked := false
+	DevArgs.drives_keys = true
+	Input.action_press("grapple")   # held, aimed at the floor
+	for i in 30:
+		await _physics(1)
+		hooked = hooked or me.motor.grapple.rope_out()
+	Input.action_release("grapple")
+	await _physics(2)
+	_check(not hooked, "off: the grappling hook does not fire")
+	rules["mobility_on"] = true
+	net.set_match_settings(rules)
+	await _frames(3)
+	_check(arena.hud.view.moves.any(func(m): return m[1] == "RMB"), "back on: the HUD shows the tool again")
+	me.set_mobility(Mobility.GRAPPLE)
+	Input.action_press("grapple")
+	for i in 30:
+		await _physics(1)
+		hooked = hooked or me.motor.grapple.rope_out()
+	Input.action_release("grapple")
+	DevArgs.drives_keys = false
+	_check(hooked, "back on: the same press fires the hook")
+	me.input.pitch = 0.0
+	await _physics(5)
+
 	# --- Bots take a tool, and a race always has the grapple.
 	var id: int = net.add_bot(BotDifficulty.EXPERT, "", Mobility.PORTAL)
 	await _frames(10)

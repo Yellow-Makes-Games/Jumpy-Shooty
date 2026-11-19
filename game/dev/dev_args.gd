@@ -16,6 +16,7 @@ extends Node
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
 ## --allowed-weapons=A,B  Host / Vs Bots: only these weapons may be picked (one id: a single gun for everyone).
 ## --allowed-mobility=A,B Host / Vs Bots: only these mobility tools may be picked (one id: the same for everyone).
+## --no-mobility        Host / Vs Bots / practice: the mobility tools (right mouse) are off for the match.
 ## --lobby-size=N       Host: the lobby takes at most N players (2 to 16).
 ## --fake-version=vX.Y.Z Pretend this copy is that release (the version check when joining; tests).
 ## --ready-at=SEC       Lobby: say you are ready SEC seconds after the lobby opens (tests).
@@ -102,6 +103,7 @@ var weapon := ""
 var bot_weapon := ""
 var allowed_weapons: Array = []   ## --allowed-weapons (see LobbySettings)
 var allowed_mobility: Array = []  ## --allowed-mobility (see LobbySettings)
+var no_mobility := false          ## --no-mobility (see LobbySettings.mobility_on)
 var lobby_size := 0               ## --lobby-size
 var fake_version := ""            ## --fake-version
 var ready_at := -1.0              ## --ready-at
@@ -229,6 +231,7 @@ func _ready() -> void:
 			"--play-at":
 				for t in value.split(",", false):
 					play_at.append(float(t))
+			"--no-mobility": no_mobility = true
 			"--allowed-mobility":
 				for m in value.split(",", false):
 					m = Mobility.canonical(m)

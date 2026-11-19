@@ -71,6 +71,7 @@ var tether := 0.0
 ## The mobility tool (see Mobility), and for blink its charges (and how far the next
 ## has come back), for the portal gun which of your portals are up and which is next.
 var mobility := Mobility.GRAPPLE
+var tools_on := true   ## false: the host turned the mobility tools off (see LobbySettings.mobility_on)
 var blink_charges := 0
 var blink_refill := 1.0
 var portals_up := [false, false]
@@ -258,7 +259,8 @@ func update_local(p: Player) -> void:
 		portals_up = [Net.arena.portals.get_portal(p.peer_id, 0) != null, Net.arena.portals.get_portal(p.peer_id, 1) != null]
 	if p.jetpack:
 		jet_fuel = p.jetpack.fuel
-	if not Mobility.is_grapple(mobility):
+	tools_on = LobbySettings.mobility_on()
+	if not Mobility.is_grapple(mobility) or not tools_on:
 		grapple = GRAPPLE_NO_TARGET
 	elif g.attached:
 		grapple = GRAPPLE_ON
@@ -272,7 +274,9 @@ func update_local(p: Player) -> void:
 	else:
 		grapple = GRAPPLE_NO_TARGET
 	var mt := p.motor.tuning
-	v.moves = [[Mobility.hud_label(mobility), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON or grapple == GRAPPLE_FLYING]]
+	v.moves = []
+	if tools_on:   # (off for the match: no cooldown to show for it)
+		v.moves.append([Mobility.hud_label(mobility), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON or grapple == GRAPPLE_FLYING])
 	if mt.ctrl_moves:   # Variant B: Ctrl dives forward and slides backward
 		v.moves.append(["DIVE", "CTRL", p.motor.dive_readiness(), false])
 	else:
@@ -717,6 +721,8 @@ static func _points_color(part: Array, i: int) -> Color:
 ## Under the crosshair ring: blink's charges (three short arcs, the next one filling
 ## up), or the portal gun's two portals (filled when up, the next one to shoot ringed).
 func _draw_mobility_marks(ci: CanvasItem, c: Vector2, ring: float) -> void:
+	if not tools_on:
+		return
 	match mobility:
 		Mobility.BLINK:
 			var each := 36.0
@@ -1045,12 +1051,14 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	if Match.respawn_needs_press(Net.my_id()) and not _asked and not Teams.no_respawn():
 		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0), "ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
 	var mid := card.position.x + w * 0.5
-	_draw_mobility_swap(ci, Vector2(mid, bar.end.y + 56.0))
+	var mobility_row := MOBILITY_ROW if LobbySettings.mobility_on() else 0.0   # (no tool to swap with mobility off)
+	if mobility_row > 0.0:
+		_draw_mobility_swap(ci, Vector2(mid, bar.end.y + 56.0))
 	if Net.is_deathmatch():
-		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
+		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0 + mobility_row), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
 			Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 	else:
-		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW))
+		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0 + mobility_row))
 
 
 ## Height of the death screen's mobility row (the weapons come below it).
