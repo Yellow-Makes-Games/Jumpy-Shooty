@@ -194,6 +194,11 @@ static func of(node: Node) -> MapRoot:
 ## Makes the playable level: collision for every solid block and (unless
 ## `with_meshes` is false, as in the movement tests) one mesh per kind.
 func build(with_meshes: bool = true) -> void:
+	# The player's ambient occlusion and glow picks (Settings is missing in tools and tests).
+	var tree := Engine.get_main_loop() as SceneTree
+	var settings := tree.root.get_node_or_null("Settings") if tree else null
+	if settings:
+		GraphicsQuality.apply_environments(self, settings.graphics())
 	var pieces := []
 	spawns = []
 	checkpoints = []
@@ -280,6 +285,10 @@ func build(with_meshes: bool = true) -> void:
 				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mesh.mesh = meshes[kind]
 			mesh.material_override = material_for(kind)
+			# Glass lets the sun through: a see-through kind casts no shadow.
+			var base := mesh.material_override as BaseMaterial3D
+			if base and base.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(mesh)
 
 

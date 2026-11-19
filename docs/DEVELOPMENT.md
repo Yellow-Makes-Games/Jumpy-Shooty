@@ -753,6 +753,17 @@ which islands are up; KIND 0 Swap, 1 Drift, 2 Close, 3 Far, 4 Split; LOOK 1 = su
 `--layout=A:B:0.5` half way through the move from arrangement A to B, and
 `--layout=A:B:warn` the end of the warning before it.
 
+`map_preview.sh` draws with the simple OpenGL renderer. To see a map the way the game
+draws it (Forward+, with its anti-aliasing, shadows and ambient occlusion), at eye height
+from its spawn points with a robot in view, use:
+
+```
+tools/graphics_preview.sh cirrus OUT_DIR --quality=high --spawns=0,2 --tag=after
+```
+
+`--quality` is a graphics preset (low, medium, high); left out, the project's own settings
+are used. It runs in software when there is no graphics card, about a minute a map.
+
 ### Rail Yard, Lost Temple and Neon Arcade
 
 These three arenas were laid out by `tools/arena/build_arena_maps.py` (one file per map

@@ -43,7 +43,7 @@ func _init() -> void:
 	add_child(_box)
 	_view = SubViewport.new()
 	_view.own_world_3d = true
-	_view.msaa_3d = Viewport.MSAA_4X
+	GraphicsQuality.apply_viewport(_view, Settings.graphics(), -1.0)   # your anti-aliasing picks
 	_view.audio_listener_enable_3d = false   # its sounds play as your own (see KillcamView.world_sound)
 	_box.add_child(_view)
 	_overlay = Control.new()

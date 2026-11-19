@@ -278,7 +278,9 @@ static func report_text(results: Array, started: String, csv_name: String) -> St
 		RenderingServer.get_video_adapter_api_version()])
 	out.append("Renderer:   %s" % str(ProjectSettings.get_setting("rendering/renderer/rendering_method", "forward_plus")))
 	out.append("Window:     %d x %d, %s, 3D drawn at %d%%" % [size.x, size.y, "fullscreen" if Settings.fullscreen else "windowed", roundi(scale * 100.0)])
-	out.append("MSAA 3D:    %s" % ["off", "2x", "4x", "8x"][clampi(int(ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_3d", 0)), 0, 3)])
+	out.append("Quality:    %s (MSAA %s, %s, render scale %d%%, shadows %s, AO %s, glow %s)" % [GraphicsQuality.QUALITY_NAMES.get(Settings.quality, Settings.quality),
+		GraphicsQuality.MSAA_NAMES.get(Settings.msaa, str(Settings.msaa)), Settings.screen_aa.to_upper(), roundi(Settings.render_scale * 100.0),
+		Settings.shadows, Settings.ao, "on" if Settings.glow else "off"])
 	out.append("During the run vsync and the frame-rate cap were off (your settings: vsync %s)." % ("on" if Settings.vsync else "off"))
 	out.append("")
 	out.append("Each map: a %s s circle high over it (Overview), then %s s at eye height on each of up to %d spawn points," % [str(ORBIT_TIME), str(STOP_TIME), STOPS])
