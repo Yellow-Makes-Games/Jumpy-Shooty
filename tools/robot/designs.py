@@ -203,6 +203,8 @@ def needle():
     elbow, wrist = (ax, 1.13, 0), (ax, 0.88, 0)
     m.add_pair(ball(0.058).move(ax, 1.40, 0), "accent", "upper_arm_l")
     m.add_pair(loft([ngon(6, 0.027, 1.16, cx=ax), ngon(6, 0.031, 1.38, cx=ax)]), "joint", "upper_arm_l")
+    _sleeve(m, [_oct(0.041, 0.044, 1.352, cx=ax), _oct(0.040, 0.043, 1.31, cx=ax), _oct(0.029, 0.029, 1.268, cx=ax)],
+            "upper_arm_l", {0: (ax, 1.40, 0)})   # the arm's own sleeve, cupping the underside of the shoulder
     _sleeve(m, [_oct(0.029, 0.029, 1.225, cx=ax), _oct(0.041, 0.044, 1.185, cx=ax), _oct(0.043, 0.046, 1.13 + SEAM, cx=ax)],
             "upper_arm_l", {-1: elbow})
     _hinge(m, 0.038, elbow, "forearm_l")
