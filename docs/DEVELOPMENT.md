@@ -164,6 +164,11 @@ Quick checks:
   through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the game boots into practice mode on every map without script errors.
 
+- shooting through portals and portals on moving parts (`tests/portal_shot_test.gd`), in a
+  real Practice match: a pistol shot into blue hits a dummy out of orange with the damage
+  for the whole way and a tracer through both, a rocket (host and look) does too, a lone
+  portal or one from behind lets shots on, and a portal on a moving part rides it, lands on
+  the same spot from a message, and closes when the part goes;
 - see-through portals (`tests/portal_view_test.gd`): looking at a point on one portal shows
   what lies straight on through the other (wall to wall, wall to floor, from the side and
   above), a portal behind you, seen from behind its wall or without its partner opens no

@@ -250,13 +250,13 @@ func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
 		local_player.shake(clampf(1.0 - d / (w.splash_radius * 5.0), 0.0, 1.0))
 
 
-func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array) -> void:
+func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hits: Array, vias: Array) -> void:
 	var p := get_player(shooter)
 	if shooter == Net.my_id() or (p and p.is_local):
 		return  # we (or our bot) already drew this shot the moment it was fired
 	if p:
 		p.show_shot()
-	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter))
+	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
 	Sound.shot_landed(p.muzzle_position() if p else muzzle, ends, hits, false)
 
 
