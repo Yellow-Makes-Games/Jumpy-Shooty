@@ -170,6 +170,35 @@ static func cone_points(piece: Dictionary) -> PackedVector3Array:
 	return pts
 
 
+## What a tube is to bump into: its wall, one convex lump per flat side (the four
+## corners of that side's stretch of ring, at the top and at the foot), in its own
+## frame. The corners are where _prism draws them: corner i at TAU * i / sides round
+## from +x toward +z, outside at the diameter (x) and inside at Inner. A tube with no
+## hole (Inner 0 or less) has no wall to give: it is drawn as a cylinder and is bumped
+## into as one, so this gives nothing for it. A hole as wide as the tube or wider
+## leaves the thinnest wall a hollow dome is allowed (1 cm), at the outside diameter,
+## so what you see from outside is never something you walk through.
+static func tube_hulls(piece: Dictionary) -> Array:
+	var inner: float = piece.get("inner", 0.0)
+	if inner <= 0.0:
+		return []
+	var sides: int = piece.get("sides", 12)
+	var r: float = piece.size.x * 0.5
+	var ri: float = maxf(minf(inner * 0.5, r - 0.01), 0.0)
+	var hy: float = piece.size.y * 0.5
+	var hulls := []
+	for i in sides:
+		var d0 := Vector3(cos(TAU * i / sides), 0, sin(TAU * i / sides))
+		var d1 := Vector3(cos(TAU * (i + 1) / sides), 0, sin(TAU * (i + 1) / sides))
+		var lump := PackedVector3Array()
+		for reach in [ri, r]:
+			for y in [-hy, hy]:
+				lump.append(d0 * reach + Vector3(0, y, 0))
+				lump.append(d1 * reach + Vector3(0, y, 0))
+		hulls.append(lump)
+	return hulls
+
+
 # ---------------------------------------------------------------------------
 # Wedges, bevelled boxes, domes and arches. Each is one or more convex lumps, given
 # by their corners (hull_points); what you see and what you bump into are both made

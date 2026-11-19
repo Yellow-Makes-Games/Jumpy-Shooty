@@ -1,15 +1,21 @@
 extends SceneTree
 ## Builds game/maps/sky_island.tscn: seven floating islands at mixed heights, three of
-## them carrying the ruins of a stone castle, over a sea of cloud. Each island is grass
-## on top, a band of earth, and rock hanging underneath, with green round its rim
-## (bushes, a few trees, moss hanging over the edge). game/maps/sky_island_layout.tscn
-## keeps the grey block-out this started from.
+## them carrying the ruins of a castle of warm sandstone, over a sea of cloud, in bright
+## colours under a deep blue sky. Each island is vivid grass on top (the turf overhangs
+## a band of earth) and rock hanging underneath in jagged cones, with bits of it
+## floating beside. On it grow pines in clumps and trees in pink blossom, over patches
+## of darker and sunnier meadow, with boulders near the edge. The grass is kept clean:
+## no small flowers, no blades of grass, and nothing hangs from the rims.
+## game/maps/sky_island_layout.tscn keeps the grey block-out this started from.
+##
+## Colour: things take their colour from the palette's kind; a block's tint shades one
+## thing off the next (each clump of pines, each ball of blossom, each boulder).
 ##
 ## Grouped the way the castle maps are: by object, each holding its own dressing (a
-## wall piece's coping and ivy are in its Wall group, a tree's trunk and leaves in its
-## Tree group), and the small things you would move as one are selection groups, so a
-## click in the viewport picks the whole thing (a pad, a bush, a tree, a lobe of an
-## island with its rocks).
+## wall piece's footing, loose stones and ivy are in its Wall group, a banner's pole
+## and cloth in its Banner group), and the small things you would move as one are
+## selection groups, so a click in the viewport picks the whole thing (a pad, a wall
+## piece, a column, a tree, a patch of meadow, a lobe of an island with its rocks).
 ##
 ##   godot --headless --path . --script tools/arena/sky_island_blockout.gd
 ##
@@ -19,14 +25,20 @@ extends SceneTree
 ##
 ## The seven islands. The Hearth, in the middle, is the lowest; the six stand round it
 ## about a sixth of a turn apart, at mixed heights (going round from the east):
-##   Shelf     3 m   open: cover blocks and a wall to run along
-##   Bluff     8 m   open: cover and a wall to run along
-##   Spire     4 m   open and small
-##   Citadel   7 m   the Gate and its curtain wall (a wall walk, a gate arch, a drum)
-##   Garden    2 m   open: a ring of standing stones and low walls
-##   Terrace   6 m   the Broken Tower (an eight-sided shell with a floor inside)
+##   Shelf     3 m   a formal garden: clipped hedges with stone gate posts, a fountain
+##                   of two bowls in the middle
+##   Bluff     8 m   a big round hole right through its middle (falling in is death)
+##                   and a tall wooden crane whose rope and hook hang down into it;
+##                   crates and barrels; a low dry-stone fence round the edge
+##   Spire     4 m   open and small: two blocks of cover
+##   Citadel   7 m   the Gate and its curtain wall (a wall walk, a gate arch, a drum
+##                   flying a blue pennant), blue banners
+##   Garden    2 m   open: a ring of grey standing stones, nothing in the middle
+##   Terrace   6 m   the Broken Tower (an eight-sided shell, a lookout 6 m up inside),
+##                   purple banners
 ##   Hearth   -3 m   the biggest, with the ruined Keep (broken walls, a piece of its
-##                   upper floor, two corner drums)
+##                   upper floor on timber joists, two corner drums, one flying a red
+##                   pennant), red banners
 ## No island is round: each is a handful of overlapping many-sided slabs ("lobes") of
 ## different sizes, so its edge runs in and out, with a cone of rock hung under each.
 ##
@@ -51,6 +63,8 @@ const SKY := "res://game/maps/sky/sky_island_sky.gdshader"
 
 const DECK := 1.4          ## how thick an island's deck is
 const TURF := 0.3          ## the grass on top of it (the rest is earth)
+const LOBE_SIDES := 16     ## the sides of every slab of island ground (the rock under it keeps its own few, blocky)
+const PAD_SIDES := 9       ## the least sides a pad's top has (the rock under it keeps its own, blocky)
 
 const THICK := 0.8         ## the ruins' walls
 const CLEAR := 0.8         ## the least open sky between a pad and an island, or the next pad
@@ -98,15 +112,15 @@ const BOOST_FLIGHT := 1.6  ## about how long a boost crossing takes (seconds)
 ## Weapon pickups for Deathmatch: island -> [[weapon, x, y, z], ...] in the island's
 ## frame (y = 0 is its deck). The big guns sit up high: the rocket launcher on the
 ## Keep's upper floor, the sniper rifle on the Citadel's wall walk, the railgun on the
-## Broken Tower's floor.
+## Broken Tower's lookout.
 const PICKUPS := {
 	"Hearth": [["rocket_launcher", -8.0, 3.0, -4.0], ["shotgun", -1.5, 0.0, 0.5], ["smg", 15.0, 0.0, 12.0], ["dagger", -14.0, 0.0, -12.0]],
-	"Shelf": [["rifle", 0.0, 0.0, 3.0], ["sword", -12.0, 0.0, 3.0]],
-	"Bluff": [["burst_rifle", 1.0, 0.0, 0.0], ["grenade_launcher", -4.0, 0.0, 10.0]],
+	"Shelf": [["rifle", 4.0, 0.0, 4.0], ["sword", -12.0, 0.0, 3.0]],
+	"Bluff": [["burst_rifle", 0.0, 0.0, -6.6],["grenade_launcher", -4.0, 0.0, 10.0]],
 	"Spire": [["akimbo", 3.0, 0.0, -3.0]],
 	"Citadel": [["sniper", -15.3, 5.0, -2.9], ["machine_pistol", 0.0, 0.0, 3.0]],
 	"Garden": [["spear", 0.0, 0.0, -3.5], ["lever_action", 4.0, 0.0, 12.0]],
-	"Terrace": [["railgun", 1.0, 3.0, -2.5], ["axe", -6.0, 0.0, 12.0]],
+	"Terrace": [["railgun", 4.5, 6.0, -1.4], ["axe", -6.0, 0.0, 12.0]],
 }
 
 var scn: Node3D
@@ -131,7 +145,7 @@ var mid_of := {}
 var keep_clear := []
 ## [a group directly inside an island (or the island), Rect2 (x, z)]: paved floors, which grow no grass.
 var paved := []
-var drips := 0   # (see drip())
+var pads_drawn := []   # [middle of its top (half way up), diameter, sides, turn]: every pad, for pad_clearance()
 
 
 func _init() -> void:
@@ -166,16 +180,24 @@ func _init() -> void:
 	for name in ISLANDS:
 		island_nodes[name] = islands.get_node(name)
 		obstacles[name] = what_stands_on(island_nodes[name])
+		if HOLES.has(name):
+			obstacles[name].append([0.0, 0.0, float(HOLES[name]) * 0.5 + 1.0])   # (nothing stands, lands or runs up within a metre of the hole)
 	for name in PICKUPS:
 		for p in PICKUPS[name]:
 			pickup(island_nodes[name], p[0], V(p[1], p[2], p[3]))
 	for pair in STONES:
 		stepping_stones(crossings, pair[0], pair[1])
 	hearth_gaps()
-	# Last, so it keeps off everything above: the green round each island.
+	pad_clearance()
+	fences("Bluff")
+	for name in ISLANDS:
+		trees(name)
+	for name in ISLANDS:
+		boulders(name)
+	# Last, so it keeps off everything above: the green on and round each island.
 	for name in ISLANDS:
 		foliage(name)
-	clouds()
+		fragments(name)
 	var ps := PackedScene.new()
 	var err := ps.pack(scn)
 	if err == OK:
@@ -214,7 +236,7 @@ func on_island(name: String, p: Vector2) -> bool:
 ## everything placed since goes by this.)
 func on_deck(name: String, p: Vector2) -> bool:
 	for l in ISLANDS[name][1]:
-		var sides: int = l[3]
+		var sides := LOBE_SIDES
 		var local := (p - Vector2(l[0], l[1])).rotated(deg_to_rad(l[4]))
 		var half := PI / sides
 		var a := fposmod(local.angle() - half, 2.0 * half) - half   # (a corner at angle 0, as MapMesher draws it)
@@ -326,28 +348,36 @@ func clear_of(mover_node: Node3D, at: Vector3, radius: float) -> void:
 	keep_clear.append([p.x, p.z, radius])
 
 
-## Midday over a sea of cloud (the sky is a shader: game/maps/sky/sky_island_sky.gdshader),
-## a light haze that pales the far islands, and a warm sun from the south-east.
+## A bright late morning over a sea of cloud (the sky is a shader:
+## game/maps/sky/sky_island_sky.gdshader): a warm, strong sun from the south-east and
+## cool blue light in the shade, so every colour stays deep and every shape has a
+## bright side and a dark one. Only a breath of haze, for the far islands.
 func sky() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = load(SKY)
-	var sun_dir := Basis.from_euler(Vector3(deg_to_rad(-52), deg_to_rad(35), 0)) * Vector3.BACK   # (toward the sun: the light shines down -z of the Sun node)
-	mat.set_shader_parameter("sun_dir", sun_dir)
+	var sun_turn := Basis.from_euler(Vector3(deg_to_rad(-44), deg_to_rad(38), 0))
+	mat.set_shader_parameter("sun_dir", sun_turn * Vector3.BACK)   # (toward the sun: the light shines down -z of the Sun node)
 	mat.set_shader_parameter("cloud_height", -30.0)   # above the kill height (-36), below the deepest rock (about -26)
 	var s := Sky.new()
 	s.sky_material = mat
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = s
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.7
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# The shade is lit by one colour, not by the sky: the sky's light comes mostly off
+	# the white cloud below, which washed every colour out.
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.64, 0.74, 1.0)
+	env.ambient_light_energy = 0.62
+	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	env.tonemap_white = 2.6
+	env.background_energy_multiplier = 1.1
 	env.ssao_enabled = true
+	env.adjustment_enabled = true
+	env.adjustment_saturation = 1.1
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.78, 0.86, 0.95)
-	env.fog_density = 0.0007
+	env.fog_light_color = Color(0.6, 0.78, 1.0)
+	env.fog_density = 0.0005
 	env.fog_sky_affect = 0.0
-	env.fog_aerial_perspective = 0.15
 	var we := WorldEnvironment.new()
 	we.name = "Environment"
 	we.environment = env
@@ -355,44 +385,170 @@ func sky() -> void:
 	we.owner = scn
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.light_energy = 1.15
-	sun.light_color = Color(1.0, 0.96, 0.88)
+	sun.light_energy = 1.5
+	sun.light_color = Color(1.0, 0.94, 0.8)
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 200.0
 	scn.add_child(sun)
 	sun.owner = scn
-	sun.transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(-52), deg_to_rad(35), 0)), Vector3.ZERO)
+	sun.transform = Transform3D(sun_turn, Vector3.ZERO)
 
 
 # -- islands ---------------------------------------------------------------------------
+const LIP := 0.5   ## how much narrower the earth is than the grass on it: the turf overhangs
+
+## island -> the diameter of a round hole right through it, at its centre (the middle
+## of its first lobe): you see the cloud through it, and falling in is death. See
+## island() for how the ground is built round it.
+const HOLES := {"Bluff": 7.6}
+const HOLE_BACK := 1.2     ## the other lobes are cut back this far from a hole's edge
+const SHAFT := 6.5         ## how far a hole's rock lining hangs below the deck
+
 ## An island: a group standing at its centre (so y = 0 inside it is the deck's top),
-## holding a deck slab and a cone of rock for each of its lobes.
+## holding, for each of its lobes, a slab of turf, a narrower band of earth under it
+## (the turf overhangs it) and rock hung underneath: one big cone and a cluster of
+## crags round it, some darker, each its own shade.
+##
+## An island with a hole (HOLES): a slab cannot have a hole cut in it anywhere but its
+## own middle (and a ring-shaped block cannot be cut back along a straight line), so
+## the turf and earth of the first lobe are rings of flat slabs round the hole, and any
+## other lobe that reaches the hole is built as a flat many-sided slab cut back from it
+## along a straight line (see slab(): its outline outside the first lobe is unchanged,
+## and the cut is hidden inside the first lobe's ring). Under the first lobe, in place
+## of one big cone, panels of rock line the hole and a ring of cones hangs round it;
+## the other lobes' rock is kept narrow enough to stay out of the hole, as are the crags.
 func island(parent: Node, name: String) -> void:
 	var g := mover(parent, name, centre(name), BOB[name][0], BOB[name][1])
 	var ground := group(g, "Ground")
+	var hole: float = float(HOLES.get(name, 0.0)) * 0.5   # its radius (0 = none)
 	var i := 0
 	for l in ISLANDS[name][1]:
 		i += 1
 		var d: float = l[2]
 		var turn := deg_to_rad(l[4])
+		var off := Vector2(l[0], l[1])
 		# Each lobe is one selection group: its grass, its earth and the rock under it.
 		var lobe := group(ground, "Lobe%d" % i, Transform3D(Basis.IDENTITY, V(l[0], 0, l[1])))
 		lobe.set_meta("_edit_group_", true)
-		cyl(lobe, "Turf", "grass", V(0, -TURF, 0), d, TURF, l[3], turn)
-		cyl(lobe, "Earth", "earth", V(0, -DECK, 0), d, DECK - TURF, l[3], turn)
-		# The rock: a cone hung point down (turned over about x), a little narrower than its deck.
 		var depth := d * 0.45
-		var rock := hung_cone(lobe, "Rock", "rock", V(0, -DECK, 0), d * 0.94, depth, d * 0.12, l[3], turn)
-		rock.solid = true
+		var rock_wide := (d - LIP) * 0.96
+		if hole > 0.0 and i == 1:
+			# Rings of turf and earth round the hole, rock lining it, cones round that.
+			# (Each ring is sixteen four-cornered slabs, and the lining sixteen flat panels
+			# of rock. Not tube blocks: when this was built a tube collided as a solid box,
+			# a lid on the hole. It collides as its ring now (MapMesher.tube_hulls), but the
+			# lobes that overlap the hole are cut back along straight lines, which a tube
+			# cannot be, so they need slabs either way.)
+			for layer in [["Turf", "grass", d, hole * 2.0, -TURF, 0.0], ["Earth", "earth", d - LIP, hole * 2.0 + LIP, -DECK, -TURF]]:
+				var outer_r := float(layer[2]) * 0.5
+				var inner_r := float(layer[3]) * 0.5
+				for k in LOBE_SIDES:
+					var a0 := Vector2.from_angle(TAU * k / LOBE_SIDES - turn)
+					var a1 := Vector2.from_angle(TAU * (k + 1) / LOBE_SIDES - turn)
+					slab(lobe, layer[0], layer[1], [a0 * outer_r, a1 * outer_r, a1 * inner_r, a0 * inner_r], layer[4], layer[5])
+			var face := hole + LIP * 0.5 + 0.15   # (how far the panels' inner faces are from the middle: the earth overhangs them)
+			var thick := 1.0
+			for k in LOBE_SIDES:
+				var a := TAU * (k + 0.5) / LOBE_SIDES - turn
+				put(lobe, "Shaft", "rock_dark", Vector3(2.0 * (face + thick) * tan(PI / LOBE_SIDES), SHAFT, thick),
+					V(cos(a), 0, sin(a)) * (face + thick * 0.5) + V(0, -DECK - SHAFT * 0.5, 0), Basis(Vector3.UP, -a + PI * 0.5))
+			var inner := hole + 1.0
+			var outer := rock_wide * 0.5
+			for k in 7:
+				var a := TAU * k / 7.0 + deco.randf_range(-0.15, 0.15)
+				var at := V(cos(a), 0, sin(a)) * (inner + outer) * 0.5 + V(0, -DECK, 0)
+				var cone := hung_cone(lobe, "Rock", "rock", at, outer - inner, depth * deco.randf_range(0.65, 1.0), (outer - inner) * 0.1, int(l[3]), deco.randf_range(0.0, TAU))
+				cone.solid = true
+				cone.tint = grey(deco.randf_range(0.85, 1.0))
+		else:
+			var reach := off.length() - d * 0.5   # how near this lobe comes to the island's centre
+			if hole > 0.0 and reach < hole + 0.3:
+				# Cut back from the hole: the same outline, less the part toward the hole.
+				var toward := off.normalized()   # (from the hole to this lobe's middle)
+				for layer in [["Turf", "grass", d, -TURF, 0.0], ["Earth", "earth", d - LIP, -DECK, -TURF]]:
+					var points := []
+					for k in LOBE_SIDES:
+						points.append(Vector2.from_angle(TAU * k / LOBE_SIDES - turn) * float(layer[2]) * 0.5)
+					slab(lobe, layer[0], layer[1], cut_off(points, toward, hole + HOLE_BACK - off.length()), layer[3], layer[4])
+			else:
+				cyl(lobe, "Turf", "grass", V(0, -TURF, 0), d, TURF, LOBE_SIDES, turn)
+				cyl(lobe, "Earth", "earth", V(0, -DECK, 0), d - LIP, DECK - TURF, LOBE_SIDES, turn)
+			# The rock: a cone hung point down (turned over about x), a little narrower than its deck.
+			if hole > 0.0:
+				rock_wide = minf(rock_wide, 2.0 * (off.length() - hole - 1.6))
+			var rock := hung_cone(lobe, "Rock", "rock", V(0, -DECK, 0), rock_wide, depth, d * 0.12, l[3], turn)
+			rock.solid = true
 		# Crags: smaller cones hung round it, so the underside is jagged, not one smooth point.
-		for k in deco.randi_range(3, 5):
+		for k in deco.randi_range(5, 7):
 			var a := deco.randf_range(0.0, TAU)
-			var out := deco.randf_range(0.15, 0.32) * d
-			var w := deco.randf_range(0.22, 0.4) * d
+			var w := deco.randf_range(0.18, 0.36) * d
+			var out := minf(deco.randf_range(0.12, 0.34) * d, 0.45 * d - w * 0.5)   # (wholly under the main rock, so its flat top never shows)
 			var at := V(cos(a) * out, -DECK - deco.randf_range(0.3, 1.2), sin(a) * out)
-			var crag := hung_cone(lobe, "Crag", "rock_dark" if k % 2 == 0 else "rock", at, w, w * deco.randf_range(0.9, 1.6), w * 0.1,
-				deco.randi_range(5, 7), deco.randf_range(0.0, TAU))
-			crag.solid = false
+			var long := minf(w * deco.randf_range(1.0, 1.9), d * 0.44)
+			var shade := grey(deco.randf_range(0.72, 1.0))
+			var crag_sides := deco.randi_range(5, 7)
+			var crag_turn := deco.randf_range(0.0, TAU)
+			if hole > 0.0 and (off + Vector2(at.x, at.z)).length() < hole + 1.6 + w * 0.5:
+				continue   # (it would hang in the hole)
+			var crag := hung_cone(lobe, "Crag", "rock_dark" if k % 2 == 0 else "rock", at, w, long, w * 0.08, crag_sides, crag_turn)
+			crag.tint = shade
+
+
+## A many-sided outline (`points`, in order round it) less everything on the near side
+## of a straight line: what is left has `along` . p >= `at`.
+func cut_off(points: Array, along: Vector2, at: float) -> Array:
+	var out := []
+	for k in points.size():
+		var a: Vector2 = points[k]
+		var b: Vector2 = points[(k + 1) % points.size()]
+		var da := along.dot(a) - at
+		var db := along.dot(b) - at
+		if da >= 0.0:
+			out.append(a)
+		if (da >= 0.0) != (db >= 0.0):
+			out.append(a.lerp(b, da / (da - db)))
+	return out
+
+
+## A flat slab in the shape of `points` (x and z in the parent's frame, in order round
+## it, no dents) from `y0` up to `y1`. There is no block of that shape, so it is made
+## of wedges lying on their sides: a wedge is a right-angled triangle drawn out, and any
+## triangle is two of those side by side.
+func slab(parent: Node, name: String, kind: String, points: Array, y0: float, y1: float) -> void:
+	for k in range(1, points.size() - 1):
+		var tri := [points[0], points[k], points[k + 1]]
+		# The longest side, and the foot of the height dropped on it from the third corner.
+		var longest := 0
+		for s in 3:
+			if (tri[(s + 1) % 3] - tri[s]).length() > (tri[(longest + 1) % 3] - tri[longest]).length():
+				longest = s
+		var p: Vector2 = tri[longest]
+		var q: Vector2 = tri[(longest + 1) % 3]
+		var r: Vector2 = tri[(longest + 2) % 3]
+		var foot := p + (q - p) * ((r - p).dot(q - p) / (q - p).length_squared())
+		for end in [p, q]:
+			# A right-angled triangle: the right angle at `foot`, legs to `end` and to `r`.
+			var u: Vector2 = end - foot
+			var v := r - foot
+			if u.length() < 0.01 or v.length() < 0.01:
+				continue
+			# A wedge's legs run along its own y and z, and z is y turned a quarter turn one way only.
+			var e1 := u.normalized()
+			var leg1 := u.length()
+			var leg2 := v.length()
+			if Vector2(e1.y, -e1.x).dot(v) < 0.0:
+				e1 = v.normalized()
+				leg1 = v.length()
+				leg2 = u.length()
+			var e2 := Vector2(e1.y, -e1.x)
+			var mid := foot + e1 * leg1 * 0.5 + e2 * leg2 * 0.5
+			put(parent, name, kind, Vector3(y1 - y0, leg1, leg2), V(mid.x, (y0 + y1) * 0.5, mid.y),
+				Basis(Vector3.UP, Vector3(e1.x, 0, e1.y), Vector3(e2.x, 0, e2.y)), MapBlock.Shape.WEDGE)
+
+
+## A tint that darkens a block: 1 = the kind's own colour.
+func grey(v: float) -> Color:
+	return Color(v, v, v)
 
 
 ## A cone of rock hung point down from `top` (the middle of its wide end).
@@ -405,113 +561,445 @@ func hung_cone(parent: Node, name: String, kind: String, top: Vector3, width: fl
 	return b
 
 
+## A ball of leaves (or blossom) `d` across with its middle at `at`: two domes, one
+## turned over under the other. `squash` under 1 flattens it.
+func ball(parent: Node, name: String, kind: String, at: Vector3, d: float, squash := 1.0, sides := 8) -> void:
+	var h := d * 0.5 * squash
+	var turn := Basis(Vector3.UP, deco.randf_range(0.0, TAU))
+	var up := put(parent, name, kind, Vector3(d, h, d), at + V(0, h * 0.5, 0), turn, MapBlock.Shape.DOME)
+	var down := put(parent, name, kind, Vector3(d, h, d), at - V(0, h * 0.5, 0), turn * Basis(Vector3(1, 0, 0), Vector3(0, -1, 0), Vector3(0, 0, -1)), MapBlock.Shape.DOME)
+	var shade := grey(deco.randf_range(0.8, 1.0))
+	for b in [up, down]:
+		b.sides = sides
+		b.solid = false
+		b.tint = shade
+
+
+# -- the Shelf's garden ------------------------------------------------------------------
+## The Shelf: a formal garden. Clipped hedges round a square GARDEN * 2 m across, a
+## way in through the middle of each side between stone gate posts, flagged paths
+## crossing to a fountain in the middle and a clipped cone at each corner.
+const GARDEN := 6.0
+
+
 func shelf(g: Node3D) -> void:
-	var cover := group(g, "Cover")
-	masonry(cover, "Block", V(-6, 0, -3), V(-4, 1.2, 1))
-	masonry(cover, "Block", V(4, 0, 4), V(7, 1.2, 5.2))
-	masonry(cover, "Block", V(-1, 0, -10), V(1, 2.2, -8))
-	masonry(cover, "Block", V(-11, 0, 9), V(-9.5, 2.2, 10.5))
-	masonry(cover, "Block", V(11, 0, -8), V(13.5, 1.2, -6.8))
-	wall_run(g, V(-3, 0, 9.6), V(7, 4.5, 10.4))
-	for at in [V(-10, 0, -3), V(3, 0, -5), V(4, 0, 14), V(13, 0, -3)]:
+	var garden := group(g, "Garden")
+	paved.append([garden, Rect2(-GARDEN - 1.0, -GARDEN - 1.0, GARDEN * 2.0 + 2.0, GARDEN * 2.0 + 2.0)])   # (no trees or meadow in it)
+	var hedges := group(garden, "Hedges")
+	var t := 0.9   # thick
+	var h := 1.0   # high
+	for s in [-1.0, 1.0]:
+		# North and south sides run the whole width, corners and all; east and west fit between.
+		hedge(hedges, V(-GARDEN - t * 0.5, 0, s * GARDEN - t * 0.5), V(-1.5, h, s * GARDEN + t * 0.5))
+		hedge(hedges, V(1.5, 0, s * GARDEN - t * 0.5), V(GARDEN + t * 0.5, h, s * GARDEN + t * 0.5))
+		hedge(hedges, V(s * GARDEN - t * 0.5, 0, -GARDEN + t * 0.5), V(s * GARDEN + t * 0.5, h, -1.5))
+		hedge(hedges, V(s * GARDEN - t * 0.5, 0, 1.5), V(s * GARDEN + t * 0.5, h, GARDEN - t * 0.5))
+	var cones := group(garden, "Topiary")
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			var cone := put(cones, "Cone", "leaf", Vector3(1.5, 2.3, 1.5), V(sx * GARDEN, 0.7 + 1.15, sz * GARDEN), Basis(Vector3.UP, 0.4), MapBlock.Shape.CONE)
+			cone.sides = 8
+			cone.top = 0.0
+			cone.tint = grey(0.86)
+	var posts := group(garden, "GatePosts")
+	for s in [-1.0, 1.0]:
+		for e in [-1.0, 1.0]:
+			gate_post(posts, V(e * 1.75, 0, s * GARDEN), false)
+			gate_post(posts, V(s * GARDEN, 0, e * 1.75), true)
+	paving(garden, "PathEastWest", Vector2(-GARDEN - 0.8, -1.2), Vector2(GARDEN + 0.8, 1.2))
+	paving(garden, "PathNorthSouth", Vector2(-1.2, -GARDEN - 0.8), Vector2(1.2, GARDEN + 0.8))
+	var round := cyl(garden, "PathRound", "paving", V(0, 0, 0), 8.4, 0.03, 16)
+	round.solid = false
+	fountain(garden)
+	for at in [V(-10, 0, -3), V(3.5, 0, -3.5), V(4, 0, 14), V(13, 0, -3)]:
 		spawn(g, "Shelf", at, Vector3.ZERO)
 
 
-## The Garden: a ring of standing stones, mossy at the foot, round a cross of low walls.
+## A clipped hedge from `lo` to `hi`: the hedge itself and a rounded top, a shade lighter.
+func hedge(parent: Node, lo: Vector3, hi: Vector3) -> void:
+	var mid := (lo + hi) * 0.5
+	var size := (hi - lo).abs()
+	var g := group(parent, "Hedge", Transform3D(Basis.IDENTITY, V(mid.x, lo.y, mid.z)))
+	g.set_meta("_edit_group_", true)
+	var body := box(g, "Leaves", "leaf", V(-size.x * 0.5, 0, -size.z * 0.5), V(size.x * 0.5, size.y, size.z * 0.5))
+	body.tint = grey(0.8)
+	var top := put(g, "Top", "leaf", Vector3(size.x + 0.14, 0.4, size.z + 0.14), V(0, size.y - 0.04, 0), Basis.IDENTITY, MapBlock.Shape.BEVEL)
+	top.bevel = 0.17
+	top.solid = false
+
+
+## A stone post at the end of a hedge, with a cap and a stone ball on it. `turned`: the
+## hedge it ends runs north-south.
+func gate_post(parent: Node, at: Vector3, turned: bool) -> void:
+	var g := group(parent, "GatePost", Transform3D(Basis(Vector3.UP, PI * 0.5 if turned else 0.0), at))
+	g.set_meta("_edit_group_", true)
+	box(g, "Post", "trim", V(-0.35, 0, -0.56), V(0.35, 1.5, 0.56))
+	var cap := box(g, "Cap", "stone_dark", V(-0.43, 1.5, -0.64), V(0.43, 1.64, 0.64))
+	cap.solid = false
+	ball(g, "Ball", "trim", V(0, 1.64 + 0.27, 0), 0.6, 1.0, 8)
+
+
+## A fountain of two bowls: a broad stone step, a basin of water waist high, and out
+## of it a pedestal carrying a wide bowl and, on a slimmer stem, a small one, each
+## spilling a ring of water into the one below, with a jet on top.
+func fountain(parent: Node) -> void:
+	var f := group(parent, "Fountain")
+	f.set_meta("_edit_group_", true)
+	cyl(f, "Step", "trim", V(0, 0, 0), 6.0, 0.16, 16)
+	tube(f, "Basin", "stone", V(0, 0.16, 0), 5.0, 4.2, 0.6, true)
+	tube(f, "Rim", "trim", V(0, 0.76, 0), 5.24, 3.96, 0.14, false)
+	var pool := cyl(f, "Pool", "water", V(0, 0.16, 0), 4.22, 0.5, 16)   # (its side just inside the basin's wall)
+	pool.solid = false
+	cyl(f, "Pedestal", "stone_dark", V(0, 0.16, 0), 0.9, 1.6, 10)
+	var collar := cyl(f, "Collar", "trim", V(0, 0.66, 0), 1.3, 0.2, 10)
+	collar.solid = false
+	var bowl := hung_cone(f, "Bowl", "trim", V(0, 2.3, 0), 2.7, 0.55, 0.9, 16, 0.0)
+	bowl.solid = true
+	var water := cyl(f, "BowlWater", "water", V(0, 2.3, 0), 2.3, 0.02, 16)
+	water.solid = false
+	for k in 8:
+		var a := TAU * k / 8.0
+		var stream := cyl(f, "Spill", "water", V(cos(a) * 1.33, 0.64, sin(a) * 1.33), 0.11, 1.69, 5)   # (water running off the lip of the bowl)
+		stream.solid = false
+	cyl(f, "Stem", "stone_dark", V(0, 2.3, 0), 0.46, 0.95, 8)
+	var small := hung_cone(f, "SmallBowl", "trim", V(0, 3.4, 0), 1.4, 0.4, 0.46, 12, 0.0)
+	small.solid = true
+	var small_water := cyl(f, "SmallBowlWater", "water", V(0, 3.4, 0), 1.1, 0.02, 12)
+	small_water.solid = false
+	for k in 4:
+		var a := TAU * (k + 0.5) / 4.0
+		var stream := cyl(f, "SmallSpill", "water", V(cos(a) * 0.68, 2.31, sin(a) * 0.68), 0.09, 1.12, 5)
+		stream.solid = false
+	var jet := put(f, "Jet", "water", Vector3(0.3, 0.8, 0.3), V(0, 3.4 + 0.4, 0), Basis.IDENTITY, MapBlock.Shape.CONE)
+	jet.sides = 8
+	jet.top = 0.0
+	jet.solid = false
+
+
+## A round tube standing on `base`, `outer` and `inner` across, `height` high.
+func tube(parent: Node, name: String, kind: String, base: Vector3, outer: float, inner: float, height: float, solid: bool) -> MapBlock:
+	var b := put(parent, name, kind, Vector3(outer, height, outer), base + V(0, height * 0.5, 0), Basis.IDENTITY, MapBlock.Shape.TUBE)
+	b.sides = 16
+	b.inner = inner
+	b.solid = solid
+	return b
+
+
+# -- the Bluff's hole and crane -----------------------------------------------------------
+## The Bluff: a big round hole right through the middle of the island (see HOLES and
+## island()), a timber kerb round its edge on a ring of worn earth, and beside it a
+## tall wooden crane whose jib reaches out over the hole, a rope from its winch running
+## up over the jib's end and down through the hole, an iron hook on the end of it
+## hanging below the island. Crates and barrels stand by the winch. A low dry-stone
+## fence runs round the island's edge (see fences()).
+const CRANE_AT := Vector3(7.6, 0, 0)   ## the foot of the mast of the crane (the hole is at 0, 0)
+const APRON := 2.2                     ## how wide the ring of worn earth round the hole is
+
+
+func bluff(g: Node3D) -> void:
+	var hole: float = HOLES["Bluff"]
+	var pit := group(g, "Hole")
+	pit.set_meta("_edit_group_", true)
+	var worn := tube(pit, "WornGround", "earth", V(0, 0, 0), hole + APRON * 2.0, hole + 0.5, 0.026, false)   # (a hair above any patch of meadow, which keeps off it anyway)
+	worn.tint = grey(0.8)
+	var kerb := tube(pit, "Kerb", "wood", V(0, 0, 0), hole + 1.1, hole + 0.04, 0.14, false)
+	kerb.tint = grey(0.9)
+	for ring in [worn, kerb]:
+		ring.transform.basis = Basis(Vector3.UP, deg_to_rad(ISLANDS["Bluff"][1][0][4]))   # (turned as the hole is)
+	crane(g, CRANE_AT, Vector3.ZERO, 3.2)
+	var things := group(g, "Stores")
+	crate(things, V(10.2, 0, 3.4), 1.1, 0.2)
+	crate(things, V(8.9, 0, 3.9), 1.0, -0.15)
+	crate(things, V(10.1, 1.1, 3.5), 0.8, 0.6)
+	barrel(things, V(10.6, 0, -2.6))
+	barrel(things, V(9.5, 0, -3.1))
+	for at in [V(-9, 0, -3), V(6, 0, -5), V(3, 0, 11), V(-10, 0, 4)]:
+		spawn(g, "Bluff", at, Vector3.ZERO)
+
+
+## A beam (or a rope) `thick` square from `a` to `b`.
+func beam(parent: Node, name: String, kind: String, a: Vector3, b: Vector3, thick: float, solid := true) -> MapBlock:
+	var along := (b - a).normalized()
+	var side := Vector3.UP.cross(along)
+	side = Vector3.RIGHT if side.length() < 0.01 else side.normalized()
+	var block := put(parent, name, kind, Vector3(thick, thick, (b - a).length()), (a + b) * 0.5, Basis(side, along.cross(side), along))
+	block.solid = solid
+	return block
+
+
+## A wooden crane, its mast standing on `at`, its jib reaching out over `over` (both in
+## the parent's frame), the hook hanging `drop` metres below the ground. A mast on
+## crossed sills with braces to it; the jib, held up by two stay ropes from the top of
+## the mast; behind the mast a winch (a drum between two posts, a crank at each end);
+## the hoist rope from the drum up to a pulley on the jib's end, and down to the hook.
+func crane(parent: Node, at: Vector3, over: Vector3, drop: float) -> void:
+	var flat := Vector3(over.x - at.x, 0, over.z - at.z)
+	var reach := flat.length()
+	# In the crane's own frame z runs from the mast toward the hole and x across.
+	var g := group(parent, "Crane", Transform3D(Basis(Vector3.UP, atan2(flat.x, flat.z)), at))
+	var frame := group(g, "Frame")
+	frame.set_meta("_edit_group_", true)
+	box(frame, "Sill", "wood_dark", V(-1.9, 0, -0.22), V(1.9, 0.3, 0.22))
+	box(frame, "Sill", "wood_dark", V(-0.22, 0, -3.4), V(0.22, 0.3, 1.3))
+	var mast_top := 10.0
+	box(frame, "Mast", "wood", V(-0.26, 0, -0.26), V(0.26, mast_top, 0.26))
+	var head := box(frame, "MastCap", "wood_dark", V(-0.34, mast_top, -0.34), V(0.34, mast_top + 0.16, 0.34))
+	head.solid = false
+	for s in [-1.0, 1.0]:
+		beam(frame, "Brace", "wood_dark", V(s * 1.75, 0.3, 0), V(s * 0.1, 3.4, 0), 0.22)
+	beam(frame, "BackBrace", "wood_dark", V(0, 0.3, -3.2), V(0, 5.2, -0.1), 0.26)
+	var tip := V(0, 8.8, reach)
+	beam(frame, "Jib", "wood", V(0, 4.6, 0.1), tip, 0.4)
+	beam(frame, "JibStrut", "wood_dark", V(0, 2.4, 0.2), V(0, 4.6 + (tip.y - 4.6) * 0.42, reach * 0.42), 0.24)
+	for s in [-1.0, 1.0]:
+		beam(frame, "Stay", "rope", V(s * 0.14, mast_top - 0.2, 0.2), tip + V(s * 0.14, 0.15, -0.3), 0.08, false)
+	# The winch, behind the mast.
+	var winch := group(g, "Winch")
+	winch.set_meta("_edit_group_", true)
+	var across := Basis(Vector3.BACK, PI * 0.5)   # (a cylinder lying along x)
+	for s in [-1.0, 1.0]:
+		box(winch, "Post", "wood", V(s * 0.95 - 0.14, 0, -1.84), V(s * 0.95 + 0.14, 1.8, -1.56))
+		var arm := box(winch, "Crank", "wood_dark", V(s * 1.24 - 0.06, 0.85, -1.76), V(s * 1.24 + 0.06, 1.4, -1.64))
+		arm.solid = false
+		var grip := put(winch, "Grip", "wood", Vector3(0.1, 0.45, 0.1), V(s * 1.5, 0.9, -1.7), across, MapBlock.Shape.CYLINDER)
+		grip.solid = false
+	var drum := put(winch, "Drum", "wood_dark", Vector3(0.6, 2.52, 0.6), V(0, 1.3, -1.7), across, MapBlock.Shape.CYLINDER)
+	drum.sides = 10
+	var coil := put(winch, "Coil", "rope", Vector3(0.74, 0.7, 0.74), V(0.42, 1.3, -1.7), across, MapBlock.Shape.CYLINDER)
+	coil.sides = 10
+	coil.solid = false
+	# The hoist rope: up beside the mast and the jib to the pulley, then straight down.
+	var hoist := group(g, "Hoist")
+	hoist.set_meta("_edit_group_", true)
+	var side := 0.42
+	var pulley_at := tip + V(side, -0.35, 0)
+	var pulley := put(hoist, "Pulley", "wood_dark", Vector3(0.6, 0.2, 0.6), pulley_at, across, MapBlock.Shape.CYLINDER)
+	pulley.sides = 10
+	pulley.solid = false
+	var axle := put(hoist, "PulleyPin", "iron", Vector3(0.12, 0.7, 0.12), tip + V(side * 0.5, -0.35, 0), across, MapBlock.Shape.CYLINDER)
+	axle.sides = 6
+	axle.solid = false
+	beam(hoist, "Rope", "rope", V(side, 1.62, -1.7), pulley_at + V(0, 0.28, 0), 0.09, false)
+	var hang := tip.y - 0.35 + drop   # how long the hanging rope is
+	var rope := cyl(hoist, "Rope", "rope", pulley_at + V(0, -hang, 0.3), 0.1, hang, 6)
+	rope.solid = false
+	# The hook: an iron weight on the rope, and under it a shank, a bend and a point.
+	var foot := pulley_at + V(0, -hang, 0.3)
+	var weight := cyl(hoist, "Weight", "iron", foot + V(0, -0.5, 0), 0.5, 0.56, 8)
+	weight.solid = false
+	for part in [[V(0, -1.05, 0), Vector3(0.14, 1.1, 0.14)], [V(0, -1.67, 0.3), Vector3(0.14, 0.14, 0.74)], [V(0, -1.37, 0.6), Vector3(0.14, 0.46, 0.14)]]:
+		var iron := put(hoist, "Hook", "iron", part[1], foot + part[0])
+		iron.solid = false
+
+
+## A wooden crate `size` across standing on `base`, turned `turn` radians: pale planks
+## with a dark frame round its top and its foot.
+func crate(parent: Node, base: Vector3, size: float, turn: float) -> void:
+	var g := group(parent, "Crate", Transform3D(Basis(Vector3.UP, turn), base))
+	g.set_meta("_edit_group_", true)
+	box(g, "Box", "wood", V(-size * 0.5, 0, -size * 0.5), V(size * 0.5, size, size * 0.5))
+	for y in [0.03, size - 0.15]:
+		var band := box(g, "Band", "wood_dark", V(-size * 0.5 - 0.03, y, -size * 0.5 - 0.03), V(size * 0.5 + 0.03, y + 0.12, size * 0.5 + 0.03))
+		band.solid = false
+
+
+## A barrel standing on `base`: staves with two dark hoops.
+func barrel(parent: Node, base: Vector3) -> void:
+	var g := group(parent, "Barrel", Transform3D(Basis.IDENTITY, base))
+	g.set_meta("_edit_group_", true)
+	cyl(g, "Staves", "wood", V(0, 0, 0), 0.9, 1.1, 10)
+	for y in [0.18, 0.8]:
+		var hoop := cyl(g, "Hoop", "wood_dark", V(0, y, 0), 0.98, 0.1, 10)
+		hoop.solid = false
+
+
+## A low dry-stone fence round an island's edge, FENCE_IN metres in from it: short runs
+## (waist high, a capped post at each end) with a gap after each, and none near a spawn
+## point, a pickup or anywhere bots set off or land, so it never shuts a way onto the
+## island.
+const FENCE_IN := 1.7
+const FENCE_RUN := 3.6     ## each run's length
+const FENCE_GAP := 1.6     ## the gap after it
+
+
+func fences(name: String) -> void:
+	var island: Node3D = island_nodes[name]
+	var c := centre(name)
+	var g := group(island, "Fence")
+	var a := 0.0
+	var made := 0
+	while a < TAU:
+		var r0 := deck_reach(name, Vector3(cos(a), 0, sin(a))) - FENCE_IN
+		var step := FENCE_RUN / maxf(r0, 4.0)
+		var a1 := a + step
+		var p0 := Vector2(cos(a), sin(a)) * r0
+		var p1 := Vector2(cos(a1), sin(a1)) * (deck_reach(name, Vector3(cos(a1), 0, sin(a1))) - FENCE_IN)
+		var ok := p0.distance_to(p1) < FENCE_RUN * 1.4
+		for k in 5:
+			var p := p0.lerp(p1, k / 4.0)
+			if not ok or not clear_spot(name, p, 0.6):
+				ok = false
+				break
+			var m := Vector2(c.x + p.x, c.z + p.y)
+			for kc in keep_clear:
+				if m.distance_to(Vector2(kc[0], kc[1])) < float(kc[2]) + 1.0:
+					ok = false
+					break
+		if ok:
+			var dir := (p1 - p0).normalized()
+			var mid := (p0 + p1) * 0.5
+			var length := p0.distance_to(p1)
+			var run := group(g, "Run", Transform3D(Basis(Vector3.UP, atan2(-dir.y, dir.x)), V(mid.x, 0, mid.y)))
+			run.set_meta("_edit_group_", true)
+			box(run, "Stones", "drystone", V(-length * 0.5, 0, -0.25), V(length * 0.5, 0.7, 0.25))
+			var cap := put(run, "Cap", "stone_dark", Vector3(length - 0.5, 0.18, 0.62), V(0, 0.7 + 0.07, 0), Basis.IDENTITY, MapBlock.Shape.BEVEL)
+			cap.bevel = 0.07
+			cap.solid = false
+			for s in [-0.5, 0.5]:
+				box(run, "Post", "stone", V(s * length - 0.36, 0, -0.36), V(s * length + 0.36, 1.0, 0.36))
+				var top := put(run, "PostCap", "trim", Vector3(1.16, 0.34, 1.16), V(s * length, 1.0 + 0.17, 0), Basis(Vector3.UP, PI * 0.25), MapBlock.Shape.CONE)
+				top.sides = 4
+				top.top = 0.0
+				top.solid = false
+			obstacles[name].append([mid.x, mid.y, length * 0.5 + 0.4])
+			made += 1
+		a = a1 + FENCE_GAP / maxf(r0, 4.0)
+	print("  %s: %d runs of fence" % [name, made])
+
+
+# -- the Garden's stones and the Spire ---------------------------------------------------
+## The Garden: a ring of standing stones (rough, tapering, none quite upright), open in
+## the middle, and a block of fallen masonry off to one side.
 func garden(g: Node3D) -> void:
 	var ring := group(g, "StandingStones")
 	var heights := [4.2, 3.0, 4.2, 1.4, 4.2, 2.2, 3.6]
 	for i in heights.size():
 		var a := TAU * i / heights.size() + 0.3
-		var stone := group(ring, "Stone", Transform3D(Basis.IDENTITY, V(cos(a) * 7.0, 0, sin(a) * 7.0)))
+		var h: float = heights[i]
+		var stone := group(ring, "Stone", Transform3D(Basis(Vector3.UP, deco.randf_range(0.0, TAU)), V(cos(a) * 7.0, 0, sin(a) * 7.0)))
 		stone.set_meta("_edit_group_", true)
-		cyl(stone, "Block", "stone_dark", V(0, 0, 0), 1.4, heights[i], 10)
-		var moss := cyl(stone, "Moss", "moss", V(0, 0, 0), 1.56, minf(0.5, heights[i] * 0.3), 10)
+		var block := put(stone, "Block", "menhir", Vector3(1.6, h + 0.3, 1.6), V(0, (h + 0.3) * 0.5 - 0.3, 0), Basis(Vector3.RIGHT, deco.randf_range(-0.07, 0.07)), MapBlock.Shape.CONE)
+		block.sides = 5
+		block.top = 0.95
+		block.tint = grey(deco.randf_range(0.8, 1.0))
+		var moss := put(stone, "Moss", "leaf", Vector3(0.9, 0.16, 0.9), V(0.08, h - 0.02, 0.05), Basis(Vector3.UP, 0.5), MapBlock.Shape.BEVEL)
+		moss.bevel = 0.07
 		moss.solid = false
+		moss.tint = grey(0.75)
 	var cover := group(g, "Cover")
-	wall_piece(cover, "masonry", Vector3(5, 1.2, 0.8), V(0, 0.6, 0), Basis.IDENTITY, 0.5)
-	wall_piece(cover, "masonry", Vector3(0.8, 1.2, 2.8), V(0, 0.6, 3.6), Basis.IDENTITY, 0.5)
 	masonry(cover, "Block", V(-12, 0, 6), V(-10, 1.2, 8.5))
 	for at in [V(-2, 0, -10.5), V(10, 0, 4), V(-11, 0, 3)]:
 		spawn(g, "Garden", at, Vector3.ZERO)
 
 
-## The Spire: a lone obelisk with a pointed cap, and two blocks of fallen masonry.
+## The Spire: small, with two blocks of fallen masonry.
 func spire(g: Node3D) -> void:
-	var obelisk := group(g, "Pillar", Transform3D(Basis.IDENTITY, V(-2, 0, -2)))
-	obelisk.set_meta("_edit_group_", true)
-	cyl(obelisk, "Shaft", "stone", V(0, 0, 0), 1.8, 5.0, 12)
-	var plinth := cyl(obelisk, "Plinth", "stone_dark", V(0, 0, 0), 2.4, 0.5, 12)
-	plinth.solid = false
-	var cap := put(obelisk, "Cap", "coping", Vector3(2.0, 1.2, 2.0), V(0, 5.6, 0), Basis.IDENTITY, MapBlock.Shape.CONE)
-	cap.sides = 12
-	cap.top = 0.0
-	cap.solid = false
 	masonry(g, "Cover", V(2, 0, 3), V(5, 1.2, 4))
 	masonry(g, "Cover", V(7, 0, 5), V(8.2, 1.2, 7.5))
 	spawn(g, "Spire", V(-4, 0, 4.5), Vector3.ZERO)
 	spawn(g, "Spire", V(8, 0, 2), Vector3.ZERO)
 
 
-func bluff(g: Node3D) -> void:
-	var cover := group(g, "Cover")
-	masonry(cover, "Block", V(-5, 0, -4), V(-3, 1.2, -1))
-	masonry(cover, "Block", V(5, 0, 2), V(8, 1.2, 3.2))
-	masonry(cover, "Block", V(-10, 0, 8), V(-8.5, 2.2, 9.5))
-	masonry(cover, "Block", V(9, 0, -10), V(11, 2.2, -8.5))
-	wall_piece(cover, "masonry", Vector3(5, 1.2, 0.8), V(1, 0.6, 6.4), Basis.IDENTITY, 0.5)
-	wall_run(g, V(-0.4, 0, -11), V(0.4, 4.5, -3))
-	for at in [V(-9, 0, -3), V(6, 0, -5), V(3, 0, 11), V(-10, 0, 4)]:
-		spawn(g, "Bluff", at, Vector3.ZERO)
-
-
 # -- stonework -------------------------------------------------------------------------
-## A block of fallen masonry from `lo` to `hi` (cover), with moss on part of its top.
+## A block of fallen masonry from `lo` to `hi` (cover): weathered stone with a cushion
+## of moss on part of its top and a chip of stone lying by it.
 func masonry(parent: Node, name: String, lo: Vector3, hi: Vector3) -> Node3D:
 	var mid := (lo + hi) * 0.5
 	var size := (hi - lo).abs()
 	var g := group(parent, name, Transform3D(Basis.IDENTITY, V(mid.x, lo.y, mid.z)))
 	g.set_meta("_edit_group_", true)
-	box(g, "Stone", "masonry", V(-size.x * 0.5, 0, -size.z * 0.5), V(size.x * 0.5, size.y, size.z * 0.5))
+	box(g, "Stone", "stone", V(-size.x * 0.5, 0, -size.z * 0.5), V(size.x * 0.5, size.y, size.z * 0.5))
 	var mx := size.x * deco.randf_range(0.4, 0.75)
 	var mz := size.z * deco.randf_range(0.4, 0.75)
 	var ox := (size.x - mx) * 0.5 * (1.0 if deco.randf() < 0.5 else -1.0)
 	var oz := (size.z - mz) * 0.5 * (1.0 if deco.randf() < 0.5 else -1.0)
-	var moss := box(g, "Moss", "moss", V(ox - mx * 0.5, size.y, oz - mz * 0.5), V(ox + mx * 0.5, size.y + 0.04, oz + mz * 0.5))
+	var moss := put(g, "Moss", "leaf", Vector3(mx + 0.1, 0.2, mz + 0.1), V(ox, size.y + 0.04, oz), Basis.IDENTITY, MapBlock.Shape.BEVEL)
+	moss.bevel = 0.08
 	moss.solid = false
+	moss.tint = grey(0.78)
+	var chip := put(g, "Chip", "stone", Vector3(0.6, 0.4, 0.5), V(size.x * 0.5 + 0.45, 0.14, deco.randf_range(-0.3, 0.3) * size.z), Basis(Vector3.UP, deco.randf_range(0.0, TAU)), MapBlock.Shape.BEVEL)
+	chip.bevel = 0.1
+	chip.solid = false
 	return g
 
 
-## A wall to run along (`lo` to `hi`): bricks of its own colour, so it reads as one,
-## under a coping.
-func wall_run(parent: Node, lo: Vector3, hi: Vector3) -> void:
-	var g := group(parent, "WallRun")
-	g.set_meta("_edit_group_", true)
-	box(g, "Wall", "wallrun", lo, hi)
-	var c := box(g, "Coping", "coping", V(lo.x - 0.08, hi.y, lo.z - 0.08), V(hi.x + 0.08, hi.y + 0.16, hi.z + 0.08))
-	c.solid = false
-
-
-## One piece of a stone wall: a group holding the block itself, a coping along its top
-## (on pieces more than 0.6 m tall) and, now and then (`ivy_chance`), ivy climbing one
-## face. `size` and `at` (its middle) and `rot` as for put(): the block's x runs along
-## the wall, z through it.
-func wall_piece(parent: Node, kind: String, size: Vector3, at: Vector3, rot: Basis, ivy_chance := 0.3) -> Node3D:
+## One piece of a stone wall: a group holding the block itself, a darker course at its
+## foot (on pieces 2 m tall or more), a dark arrow slit through the tall ones now and
+## then, something along its top (`cap`) and, now and then (`ivy_chance`), ivy climbing
+## one face. `size`, `at` (its middle) and `rot` as for put(): the block's x runs along
+## the wall, z through it. `cap`: "broken" (loose stones standing on a broken top, moss
+## on a low one), "coping" (a dressed course, on a wall that was built that high),
+## "moss" (a cushion of moss) or "" (bare).
+func wall_piece(parent: Node, kind: String, size: Vector3, at: Vector3, rot: Basis, ivy_chance := 0.3, cap := "broken") -> Node3D:
 	var g := group(parent, "Wall", Transform3D(rot, at))
 	g.set_meta("_edit_group_", true)
 	put(g, "Stone", kind, size, Vector3.ZERO)
-	if size.y > 0.6:
-		var c := put(g, "Coping", "coping", Vector3(size.x + 0.04, 0.16, size.z + 0.16), V(0, size.y * 0.5 + 0.08, 0))
-		c.solid = false
-	if size.y > 1.0 and deco.randf() < ivy_chance:
-		# Ivy: a sheet a hand's breadth proud of one face, from the foot up part of the way.
-		var face := 1.0 if deco.randf() < 0.5 else -1.0
-		var w := size.x * deco.randf_range(0.35, 0.8)
-		var h := size.y * deco.randf_range(0.4, 0.85)
-		var along := (size.x - w) * 0.5 * deco.randf_range(-1.0, 1.0)
-		var ivy := put(g, "Ivy", "ivy", Vector3(w, h, 0.06), V(along, -size.y * 0.5 + h * 0.5, face * (size.z * 0.5 + 0.04)))
-		ivy.solid = false
+	var top := size.y * 0.5
+	if size.y >= 2.0:
+		var foot := put(g, "Footing", "stone_dark", Vector3(size.x + 0.16, 0.55, size.z + 0.16), V(0, -top + 0.275, 0))
+		foot.solid = false
+	var slitted := size.y >= 4.8 and size.x >= 1.5 and deco.randf() < 0.5
+	if slitted:
+		var slit := put(g, "Slit", "shadow", Vector3(0.18, 1.1, size.z + 0.03), V(0, top - 1.9, 0))
+		slit.solid = false
+	if cap == "broken" and size.y <= 1.4:
+		cap = "moss" if deco.randf() < 0.6 else ""
+	match cap:
+		"coping":
+			var c := put(g, "Coping", "trim", Vector3(size.x + 0.04, 0.16, size.z + 0.16), V(0, top + 0.08, 0))
+			c.solid = false
+		"moss":
+			var mx := size.x * deco.randf_range(0.45, 0.8)
+			var moss := put(g, "Moss", "leaf", Vector3(mx, 0.2, size.z - 0.12), V((size.x - mx) * 0.5 * deco.randf_range(-1.0, 1.0), top + 0.04, 0), Basis.IDENTITY, MapBlock.Shape.BEVEL)
+			moss.bevel = 0.08
+			moss.solid = false
+			moss.tint = grey(0.78)
+		"broken":
+			# Loose stones left standing along the break, of odd widths and heights.
+			var x := -size.x * 0.5
+			while x < size.x * 0.5 - 0.3:
+				var w := minf(deco.randf_range(0.5, 1.1), size.x * 0.5 - x)
+				if deco.randf() < 0.6:
+					var th := snappedf(deco.randf_range(0.2, 0.6), 0.05)
+					var tooth := put(g, "Stones", kind, Vector3(w, th, size.z), V(x + w * 0.5, top + th * 0.5, 0))
+					tooth.solid = false
+				x += w
+	if size.y > 1.0 and not slitted and deco.randf() < ivy_chance:
+		ivy(g, size, 1.0 if deco.randf() < 0.5 else -1.0)
 	return g
+
+
+## Ivy climbing the `face` side (1 or -1: +z or -z) of a wall `size` big whose middle is
+## the middle of `g`: small pads of dark leaves from the foot up, three abreast low
+## down and one at the top, wandering to one side as it climbs. The shade of green is
+## the same all over one plant (`shade`), so pads that share a plane never differ; and
+## every pad's top and foot is 1.7 cm off the 5 cm steps that wall tops and loose
+## stones keep to, so a pad is never level with stonework beside it.
+func ivy(g: Node3D, size: Vector3, face: float, shade := -1.0) -> void:
+	if shade < 0.0:
+		shade = deco.randf_range(0.3, 0.6)
+	var foot := -size.y * 0.5
+	var limit := size.y - 0.033   # (as high as a pad may reach above the foot)
+	var reach := size.y * deco.randf_range(0.55, 0.95)
+	var x := size.x * deco.randf_range(-0.3, 0.3)
+	var y := 0.0   # (above the foot)
+	var k := deco.randi_range(0, 4)
+	while y < reach:
+		var climb := y / size.y
+		for j in (3 if climb < 0.3 else (2 if climb < 0.65 else 1)):
+			var w := minf(deco.randf_range(0.4, 0.7), size.x - 0.06)
+			var low := snappedf(y + deco.randf_range(0.0, 0.2), 0.05) + 0.017
+			var h := minf(snappedf(deco.randf_range(0.45, 0.75), 0.05), limit - low)
+			if h < 0.2:
+				break
+			var px := clampf(x + deco.randf_range(-0.6, 0.6) * (1.0 - climb * 0.5), -size.x * 0.5 + w * 0.5 + 0.03, size.x * 0.5 - w * 0.5 - 0.03)
+			var thick := 0.13 + (k % 5) * 0.016
+			var pad := put(g, "Ivy", "leaf", Vector3(w, h, thick), V(px, foot + low + h * 0.5, face * (size.z * 0.5 + thick * 0.5 - 0.02)))
+			pad.solid = false
+			pad.tint = grey(shade)
+			k += 1
+		x = clampf(x + deco.randf_range(-0.3, 0.3), -size.x * 0.4, size.x * 0.4)
+		y += deco.randf_range(0.35, 0.55)
 
 
 # -- castle ruins ----------------------------------------------------------------------
@@ -530,72 +1018,133 @@ func broken_wall(parent: Node, a: Vector2, b: Vector2, heights: Array, thick := 
 		wall_piece(parent, "stone", Vector3(piece, h, thick), V(mid.x, h * 0.5, mid.y), rot)
 
 
-## Fallen stones: [x, z, length, height, depth, turn in degrees] each.
+## Fallen stones: [x, z, length, height, depth, turn in degrees] each, a smaller one
+## lying by each.
 func rubble(parent: Node, stones: Array) -> void:
 	var g := group(parent, "Rubble")
 	for s in stones:
-		var stone := put(g, "Stone", "masonry", Vector3(s[2], s[3], s[4]), V(s[0], s[3] * 0.5, s[1]), Basis(Vector3.UP, deg_to_rad(s[5])))
+		var stone := put(g, "Stone", "stone", Vector3(s[2], s[3], s[4]), V(s[0], s[3] * 0.5, s[1]), Basis(Vector3.UP, deg_to_rad(s[5])))
 		stone.shape = MapBlock.Shape.BEVEL
-		stone.bevel = 0.15
+		stone.bevel = 0.18
+		stone.tint = grey(deco.randf_range(0.82, 0.95))
+		var a := deco.randf_range(0.0, TAU)
+		var far := maxf(float(s[2]), float(s[4])) * 0.5 + 0.55
+		var chip := put(g, "Chip", "stone", Vector3(0.65, 0.42, 0.5), V(s[0] + cos(a) * far, 0.15, s[1] + sin(a) * far), Basis(Vector3.UP, deco.randf_range(0.0, TAU)), MapBlock.Shape.BEVEL)
+		chip.bevel = 0.1
+		chip.solid = false
+		chip.tint = grey(deco.randf_range(0.82, 0.95))
 
 
-## A round tower (a drum) standing on `base`: courses of darker stone at its foot, and
-## round its top a ring of merlons (on a whole one) or nothing (on a broken stump).
+## A round tower (a drum) standing on `base`: a darker plinth at its foot, arrow slits
+## half way up, and round its top either a ring of capped merlons on a corbelled course
+## (a whole one) or grass, where a broken stump has grown over.
 func drum(parent: Node, name: String, base: Vector3, diameter: float, height: float, sides: int, merlons: bool) -> Node3D:
 	var g := group(parent, name, Transform3D(Basis.IDENTITY, base))
 	g.set_meta("_edit_group_", true)
 	cyl(g, "Stone", "stone", V(0, 0, 0), diameter, height, sides)
-	var plinth := cyl(g, "Plinth", "stone_dark", V(0, 0, 0), diameter + 0.3, 0.8, sides)
+	var plinth := cyl(g, "Plinth", "stone_dark", V(0, 0, 0), diameter + 0.36, 0.9, sides)
 	plinth.solid = false
+	var face := diameter * 0.5 * cos(PI / sides)   # (how far a flat side is from the middle)
+	if height >= 5.0:
+		for k in range(1, sides, 3):
+			var a := TAU * (k + 0.5) / sides
+			var slit := put(g, "Slit", "shadow", Vector3(0.2, 1.3, 0.06), V(cos(a) * face, height * 0.55, sin(a) * face), Basis(Vector3.UP, -a + PI * 0.5))
+			slit.solid = false
 	if merlons:
-		var string := cyl(g, "Course", "coping", V(0, height - 0.32, 0), diameter + 0.2, 0.24, sides)   # (its top below the drum's, not in the same plane)
-		string.solid = false
+		var corbel := cyl(g, "Corbel", "stone_dark", V(0, height - 0.98, 0), diameter + 0.3, 0.3, sides)
+		corbel.solid = false
+		var course := cyl(g, "Course", "trim", V(0, height - 0.7, 0), diameter + 0.6, 0.34, sides)   # (its top below the drum's, not in the same plane)
+		course.solid = false
 		for k in sides:
 			if k % 2 == 1:
 				continue
 			var a := TAU * (k + 0.5) / sides
-			var r := diameter * 0.5 * cos(PI / sides) - 0.25
-			put(g, "Merlon", "stone", Vector3(0.9, 0.9, 0.5), V(cos(a) * r, height + 0.45, sin(a) * r), Basis(Vector3.UP, -a + PI * 0.5))
+			var r := face - 0.25
+			var turn := Basis(Vector3.UP, -a + PI * 0.5)
+			put(g, "Merlon", "stone", Vector3(0.9, 0.9, 0.5), V(cos(a) * r, height + 0.45, sin(a) * r), turn)
+			var cap := put(g, "MerlonCap", "trim", Vector3(1.02, 0.12, 0.62), V(cos(a) * r, height + 0.96, sin(a) * r), turn)
+			cap.solid = false
+	else:
+		var turf := cyl(g, "Overgrown", "grass", V(0, height, 0), diameter - 1.0, 0.05, sides)
+		turf.solid = false
+		turf.tint = GRASS_DARK
 	return g
 
 
+## A pennant on a tall pole standing on `foot` (the top of a tower).
+func flag(parent: Node, foot: Vector3, kind: String) -> void:
+	var g := group(parent, "Flag", Transform3D(Basis(Vector3.UP, -0.5), foot))
+	g.set_meta("_edit_group_", true)
+	var pole := cyl(g, "Pole", "wood", V(0, 0, 0), 0.14, 4.6, 8)
+	pole.solid = false
+	var knob := cyl(g, "Knob", "banner_gold", V(0, 4.6, 0), 0.26, 0.22, 8)
+	knob.solid = false
+	# A wedge on its side: tall at the pole, running out to a point.
+	var cloth := put(g, "Cloth", kind, Vector3(0.05, 1.2, 2.4), V(1.27, 3.85, 0), Basis(Vector3.UP, PI * 0.5), MapBlock.Shape.WEDGE)
+	cloth.solid = false
+
+
 ## A banner hanging on a pole set out from a wall: `at` is the top of the pole (in the
-## parent's frame) and `out` the way the wall faces.
+## parent's frame) and `out` the way the wall faces. A rod, the cloth with a gold band
+## near its top and a gold lozenge on it, and two tails cut into its foot.
 func banner(parent: Node, at: Vector3, out: Vector3, kind: String, drop := 3.2) -> void:
 	var g := group(parent, "Banner", Transform3D(Basis(Vector3.UP, atan2(out.x, out.z)), at))
 	g.set_meta("_edit_group_", true)
 	var pole := put(g, "Pole", "wood", Vector3(0.12, 0.12, 0.9), V(0, 0, 0.45))
 	pole.solid = false
-	var cloth := put(g, "Cloth", kind, Vector3(1.3, drop, 0.05), V(0, -drop * 0.5, 0.8))
+	var rod := put(g, "Rod", "wood_dark", Vector3(1.8, 0.1, 0.1), V(0, -0.1, 0.8))
+	rod.solid = false
+	var cloth := put(g, "Cloth", kind, Vector3(1.5, drop, 0.05), V(0, -0.14 - drop * 0.5, 0.8))
 	cloth.solid = false
-	var trim := put(g, "Trim", "banner_gold", Vector3(1.34, 0.2, 0.07), V(0, -drop + 0.07, 0.8))   # (hangs 3 cm below the cloth: their feet are not in one plane)
-	trim.solid = false
+	var flip := Basis(Vector3.BACK, PI)   # (a wedge turned over: its flat side up)
+	for s in [-1.0, 1.0]:
+		var tail := put(g, "Tail", kind, Vector3(0.05, 0.7, 0.75), V(s * 0.375, -0.14 - drop - 0.35, 0.8), Basis(Vector3.UP, -s * PI * 0.5) * flip, MapBlock.Shape.WEDGE)
+		tail.solid = false
+	var band := put(g, "Band", "banner_gold", Vector3(1.54, 0.18, 0.09), V(0, -0.14 - 0.35, 0.8))
+	band.solid = false
+	var mark := put(g, "Mark", "banner_gold", Vector3(0.6, 0.6, 0.09), V(0, -0.14 - drop * 0.52, 0.8), Basis(Vector3.BACK, PI * 0.25))
+	mark.solid = false
 
 
-## A paved floor (paint on the ground, 3 cm thick) from `lo` to `hi` (x and z).
-func paving(parent: Node, name: String, lo: Vector2, hi: Vector2, y := 0.0) -> void:
+## A paved floor (paint on the ground, 3 cm thick) from `lo` to `hi` (x and z), with
+## `weeds` patches of grass grown over it.
+func paving(parent: Node, name: String, lo: Vector2, hi: Vector2, y := 0.0, weeds := 0) -> void:
 	var p := box(parent, name, "paving", V(lo.x, y, lo.y), V(hi.x, y + 0.03, hi.y))
 	p.solid = false
 	paved.append([parent, Rect2(lo, hi - lo)])
+	for k in weeds:
+		var d := deco.randf_range(1.0, 2.6)
+		var at := V(deco.randf_range(lo.x + d * 0.5, hi.x - d * 0.5), y, deco.randf_range(lo.y + d * 0.5, hi.y - d * 0.5))
+		var patch := cyl(parent, "Weeds", "grass", at, d, 0.05, deco.randi_range(5, 7), deco.randf_range(0.0, TAU))
+		patch.solid = false
+		patch.tint = GRASS_DARK
 
 
-## A column standing on `base`: shaft, with a base under it and (if it still stands
-## to full height, 3.5 m or more) a capital on top.
+## A column standing on `base`: a pale shaft on a stepped base, with (if it still
+## stands to full height, 3.5 m or more) a capital on top, or a broken end.
 func column(parent: Node, base: Vector3, diameter: float, height: float) -> void:
 	var g := group(parent, "Column", Transform3D(Basis.IDENTITY, base))
 	g.set_meta("_edit_group_", true)
-	cyl(g, "Shaft", "marble", V(0, 0, 0), diameter, height, 10)
-	var foot := cyl(g, "Base", "stone_dark", V(0, 0, 0), diameter + 0.35, 0.35, 10)
+	cyl(g, "Shaft", "trim", V(0, 0, 0), diameter, height, 10)
+	var foot := cyl(g, "Base", "stone_dark", V(0, 0, 0), diameter + 0.5, 0.25, 10)
 	foot.solid = false
+	var torus := cyl(g, "BaseRing", "stone", V(0, 0.25, 0), diameter + 0.24, 0.18, 10)
+	torus.solid = false
 	if height >= 3.5:
-		var cap := put(g, "Capital", "coping", Vector3(diameter + 0.5, 0.35, diameter + 0.5), V(0, height + 0.175, 0))
+		var neck := cyl(g, "Neck", "stone", V(0, height - 0.2, 0), diameter + 0.2, 0.2, 10)
+		neck.solid = false
+		var cap := put(g, "Capital", "stone_dark", Vector3(diameter + 0.5, 0.35, diameter + 0.5), V(0, height + 0.175, 0))
 		cap.solid = false
+	else:
+		var stub := cyl(g, "Break", "trim", V(diameter * 0.14, height, diameter * 0.08), diameter * 0.62, 0.22, 6, 0.4)
+		stub.solid = false
 
 
 ## The Hearth: the ruined Keep, 22 by 16 m. Its walls stand between nothing and 7.2 m;
 ## the gate in the south wall still has its lintel; a corner of the upper floor is left
-## (3 m up, on two piers, a fallen slab for a ramp); a tall drum stands at the north-east
-## corner and the stump of another at the south-west.
+## (3 m up, on timber joists and two piers, a fallen slab for a ramp); a tall drum flying
+## a red pennant stands at the north-east corner and the grown-over stump of another at
+## the south-west. Red banners hang on the tall walls.
 func hearth(g: Node3D) -> void:
 	var k := group(g, "Keep")
 	var walls := group(k, "Walls")
@@ -604,14 +1153,22 @@ func hearth(g: Node3D) -> void:
 	broken_wall(walls, Vector2(-11, -8), Vector2(11, -8), [7.2, 7.2, 6.0, 4.8, 2.4, 1.2, 0, 1.2, 3.6, 6.0, 6.0])
 	broken_wall(walls, Vector2(-11, -8), Vector2(-11, 8), [7.2, 6.0, 4.8, 0, 0, 2.4, 4.8, 6.0])
 	broken_wall(walls, Vector2(11, -8), Vector2(11, 8), [6.0, 3.6, 1.2, 1.2, 2.4, 0, 3.6, 4.8])
+	banner(walls, V(8, 6.6, 8 + THICK * 0.5 - 0.02), Vector3(0, 0, 1), "banner_red", 3.4)
+	banner(walls, V(-8, 6.6, -8 - THICK * 0.5 + 0.02), Vector3(0, 0, -1), "banner_red", 3.4)
 	var tall := drum(k, "TallDrum", V(11, 0, -8), 6.0, 9.0, 12, true)
-	banner(tall, V(2.85, 8.2, 0), Vector3(1, 0, 0), "banner_red", 3.6)
+	banner(tall, V(2.85, 8.0, 0), Vector3(1, 0, 0), "banner_red", 3.6)
+	flag(tall, V(0, 9.0, 0), "banner_red")
 	drum(k, "DrumStump", V(-11, 0, 8), 6.0, 2.4, 12, false)
-	paving(k, "Paving", Vector2(-10.6, -7.6), Vector2(10.6, 7.6))
+	paving(k, "Paving", Vector2(-10.6, -7.6), Vector2(10.6, 7.6), 0.0, 9)
 	var upper := group(k, "UpperFloor")
 	box(upper, "Slab", "paving", V(-10.6, 2.7, -7.6), V(-1, 3.0, -1.5))
 	for x in [-2.0, -6.5]:
-		cyl(upper, "Pier", "marble", V(x, 0, -2.2), 0.9, 2.7, 10)
+		cyl(upper, "Pier", "trim", V(x, 0, -2.2), 0.9, 2.7, 10)
+	for x in [-9.0, -7.5, -5.0, -3.5]:
+		var joist := box(upper, "Joist", "wood", V(x - 0.13, 2.42, -7.6), V(x + 0.13, 2.7, -1.2))
+		joist.solid = false
+	var beam := box(upper, "Beam", "wood_dark", V(-10.6, 2.14, -2.38), V(-0.7, 2.42, -2.02))
+	beam.solid = false
 	ramp(upper, "FallenSlab", "slab", V(5.5, 0, -4.5), V(-1, 3.0, -4.5), 2.6, 0.35)
 	rubble(k, [[3, 2, 2.2, 1.0, 1.4, 20], [-5, 4, 1.6, 1.2, 1.6, 50], [6.5, -1, 2.6, 0.8, 1.2, -15],
 		[-1, 11.5, 2.0, 1.2, 1.2, 35], [14.5, 3, 2.4, 1.2, 1.4, 70], [-14.5, -1, 1.8, 1.0, 1.8, 10], [1, -11, 2.8, 1.2, 1.2, -25]])
@@ -621,9 +1178,11 @@ func hearth(g: Node3D) -> void:
 
 
 ## The Terrace: the Broken Tower. Eight wall panels in a ring (14 m across), from
-## nothing (the way in, on the south-west) up to 10.8 m; inside, half a floor 3 m up
-## and a fallen slab up to it. A stub of curtain wall runs off east, and two fallen
-## columns lie outside.
+## nothing (the way in, on the south-west) up to 10.8 m. Inside, a lookout 6 m up
+## against the tall north-east walls, on two columns, and a ramp straight up to it from
+## the doorway: from it you see and shoot over the low west and north-west walls (and
+## over the south one, chest high), with the tall walls at your back. Purple banners
+## hang outside on the tall walls. A stub of curtain wall runs off east.
 func terrace(g: Node3D) -> void:
 	var t := group(g, "BrokenTower")
 	var shell := group(t, "Shell")
@@ -634,61 +1193,96 @@ func terrace(g: Node3D) -> void:
 		var h: float = heights[i]
 		if h <= 0.0:
 			continue
-		var a := TAU * i / 8.0
+		var a: float = TAU * i / 8.0
 		# The panel's x runs along the ring (the tangent).
 		wall_piece(shell, "stone", Vector3(panel, h, THICK), V(cos(a) * apothem, h * 0.5, sin(a) * apothem), Basis(Vector3.UP, atan2(-cos(a), -sin(a))), 0.5)
 	var inside := group(t, "Inside")
 	var floor := cyl(inside, "Paving", "paving", V(0, 0, 0), 13.0, 0.03, 16)   # (round, to stay inside the eight walls)
 	floor.solid = false
 	paved.append([inside, Rect2(-6.5, -6.5, 13.0, 13.0)])
-	box(inside, "Slab", "paving", V(-4.4, 2.7, -4.4), V(4.4, 3.0, 0))
-	ramp(inside, "FallenSlab", "slab", V(2.5, 0, 5.4), V(2.5, 3.0, 0), 2.4, 0.35)
-	banner(shell, V(cos(PI * 0.25) * (apothem + THICK * 0.5 - 0.05), 8.6, sin(PI * 0.25) * (apothem + THICK * 0.5 - 0.05)),
-		Vector3(cos(PI * 0.25), 0, sin(PI * 0.25)), "banner_blue", 4.0)
+	lookout(inside)
+	for i in [1, 2, 6, 7]:
+		var a: float = TAU * i / 8.0
+		banner(shell, V(cos(a) * (apothem + THICK * 0.5 - 0.05), minf(float(heights[i]) - 1.0, 8.2), sin(a) * (apothem + THICK * 0.5 - 0.05)), Vector3(cos(a), 0, sin(a)), "banner_purple", 4.0)
 	broken_wall(t, Vector2(7.6, -0.5), Vector2(15.6, -3.5), [6.0, 4.8, 2.4, 1.2])
-	var columns := group(t, "FallenColumns")
-	put(columns, "Column", "marble", Vector3(1.2, 5.0, 1.2), V(-11, 0.6, 7), Basis(Vector3.UP, 0.5) * Basis(Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)), MapBlock.Shape.CYLINDER)
-	put(columns, "Column", "marble", Vector3(1.2, 3.0, 1.2), V(-9, 0.6, 11.5), Basis(Vector3.UP, -0.4) * Basis(Vector3(0, -1, 0), Vector3(1, 0, 0), Vector3(0, 0, 1)), MapBlock.Shape.CYLINDER)
 	rubble(t, [[-8.5, 8.5, 2.0, 1.2, 1.4, 40], [10, 8, 2.4, 1.0, 1.4, -20], [-5, -12.5, 2.2, 1.2, 1.2, 15], [9, -10, 1.6, 1.2, 1.6, 60]])
 	for at in [V(12, 0, 4), V(0, 0, 12.5), V(-13, 0, -3), V(6, 0, -11)]:
 		spawn(g, "Terrace", at, Vector3.ZERO)
-	spawn(g, "TowerFloor", V(0, 3.0, -2.5), V(0, 3.0, 5))
+	spawn(g, "Lookout", ne(5.0, 0.0, LOOKOUT), ne(-6.0, 0.0, LOOKOUT))
+
+
+## The Broken Tower's lookout is laid out along the line from its doorway (south-west)
+## to its tallest corner (north-east): `u` metres along that line from the tower's
+## middle (toward the north-east), `v` across it (toward the south-east), `y` up.
+const LOOKOUT := 6.0       ## how high its top is
+const LOOKOUT_FROM := 3.0  ## its front edge, `u` metres from the middle (it runs back to the wall, 6.6)
+const LOOKOUT_WIDE := 7.2  ## across
+
+
+func ne(u: float, v: float, y: float) -> Vector3:
+	return V((u + v) * 0.7071, y, (v - u) * 0.7071)
+
+
+## The lookout: a stone floor on two columns, and a ramp up to its front edge from
+## inside the doorway (34 degrees: a run you can sprint up).
+func lookout(inside: Node3D) -> void:
+	var g := group(inside, "Lookout")
+	var turn := Basis(Vector3.UP, deg_to_rad(-45.0))   # (the block's x across the line, its z along it)
+	var deep := 6.6 - LOOKOUT_FROM
+	var floor := put(g, "Floor", "paving", Vector3(LOOKOUT_WIDE, 0.4, deep), ne(LOOKOUT_FROM + deep * 0.5, 0, LOOKOUT - 0.2), turn)
+	var lip := put(g, "Edge", "trim", Vector3(LOOKOUT_WIDE + 0.06, 0.16, 0.5), ne(LOOKOUT_FROM + 0.22, 0, LOOKOUT - 0.47), turn)   # (a band under its front edge)
+	lip.solid = false
+	for v in [-2.6, 2.6]:
+		column(g, ne(LOOKOUT_FROM + 0.5, v, 0), 0.7, LOOKOUT - 0.75)   # (its capital just under the floor)
+	ramp(g, "Ramp", "slab", ne(-5.8, 0, 0), ne(LOOKOUT_FROM, 0, LOOKOUT), 2.6, 0.4)
 
 
 ## The Citadel: the Gate and its curtain wall, 2 m thick and 5 m high with a wall walk
 ## on top. West to east: a long run with a stair up its inner face, a breach, the gate
 ## (a 4 m arch, the walk carried over it), a second run with a low breach in it, and a
-## drum at the east end. A row of column stumps stands in front.
+## drum flying a blue pennant at the east end. The wall has a darker footing, a pale
+## course under its merlons, arrow slits, ivy and blue banners on its outer face. A row
+## of column stumps stands in front.
 func citadel(g: Node3D) -> void:
 	var w := group(g, "CurtainWall")
 	var z0 := -4.0   # the outer face
 	var z1 := -2.0   # the inner face
 	var top := 5.0
 	# The wall itself, stone all through (no copings: the walk runs along its top).
-	box(w, "Wall", "stone", V(-17, 0, z0), V(-6, top, z1))
-	box(w, "Wall", "stone", V(-3.5, 0, z0), V(-2, top, z1))
+	for run in [[-17.0, -6.0], [-3.5, -2.0], [2.0, 7.0], [9.0, 12.0]]:
+		box(w, "Wall", "stone", V(run[0], 0, z0), V(run[1], top, z1))
+		var foot := box(w, "Footing", "stone_dark", V(run[0] - 0.08, 0, z0 - 0.1), V(run[1] + 0.08, 0.7, z1 + 0.1))
+		foot.solid = false
+		var course := box(w, "Course", "trim", V(run[0] - 0.06, top - 0.62, z0 - 0.12), V(run[1] + 0.06, top - 0.36, z0 + 0.1))
+		course.solid = false
 	box(w, "GateLintel", "stone_dark", V(-2, 3.6, z0), V(2, top, z1))
-	box(w, "Wall", "stone", V(2, 0, z0), V(7, top, z1))
-	wall_piece(w, "stone", Vector3(2, 2.4, z1 - z0), V(8, 1.2, (z0 + z1) * 0.5), Basis.IDENTITY, 0.0)   # the low breach: it has a coping
-	box(w, "Wall", "stone", V(9, 0, z0), V(12, top, z1))
+	put(w, "GateArch", "trim", Vector3(4.0, 1.3, z1 - z0 + 0.16), V(0, 3.6 - 0.65, (z0 + z1) * 0.5), Basis.IDENTITY, MapBlock.Shape.ARCH).top = 0.12
+	wall_piece(w, "stone", Vector3(2, 2.4, z1 - z0), V(8, 1.2, (z0 + z1) * 0.5), Basis.IDENTITY, 0.0, "coping")   # the low breach: it has a coping
+	for x in [-12.5, -9.5, -7.2, 3.0, 6.2]:
+		var slit := box(w, "Slit", "shadow", V(x - 0.09, 2.0, z0 - 0.02), V(x + 0.09, 3.2, z0 + 0.02))
+		slit.solid = false
 	# Banners down its outer face either side of the gate, and the ivy on it.
 	for x in [-2.75, 4.5]:
-		banner(w, V(x, top - 0.4, z0 + 0.05), Vector3(0, 0, -1), "banner_blue", 3.0)
-	for ivy in [[-14.0, 3.6, 3.2], [10.4, 2.0, 3.8]]:
-		var sheet := box(w, "Ivy", "ivy", V(ivy[0] - ivy[1] * 0.5, 0, z0 - 0.07), V(ivy[0] + ivy[1] * 0.5, ivy[2], z0 - 0.01))
-		sheet.solid = false
+		banner(w, V(x, top - 0.7, z0 + 0.05), Vector3(0, 0, -1), "banner_blue", 3.0)
+	for patch in [[-14.5, 4.0], [10.5, 2.6]]:
+		var holder := group(w, "Ivy", Transform3D(Basis.IDENTITY, V(patch[0], (top - 0.7) * 0.5, (z0 + z1) * 0.5)))
+		holder.set_meta("_edit_group_", true)
+		var shade := deco.randf_range(0.3, 0.6)
+		for strand in 3:
+			ivy(holder, Vector3(patch[1], top - 0.7, z1 - z0), -1.0, shade)
 	var merlons := group(w, "Merlons")
 	for x in [-16.3, -14.3, -12.3, -10.3, -8.3, -2.9, -0.7, 1.3, 3.3, 5.3, 9.7, 11.3]:
 		var m := group(merlons, "Merlon", Transform3D(Basis.IDENTITY, V(x, top, z0 + 0.25)))
 		m.set_meta("_edit_group_", true)
 		box(m, "Stone", "stone", V(-0.5, 0, -0.25), V(0.5, 0.9, 0.25))
-		var cap := box(m, "Coping", "coping", V(-0.56, 0.9, -0.31), V(0.56, 1.02, 0.31))
+		var cap := box(m, "Coping", "trim", V(-0.56, 0.9, -0.31), V(0.56, 1.02, 0.31))
 		cap.solid = false
 	ramp(w, "Stair", "slab", V(-6.5, 0, z1 + 1.0), V(-16, top, z1 + 1.0), 2.0, 0.4)
 	box(w, "StairLanding", "paving", V(-18.5, top - 0.4, z1), V(-16, top, z1 + 2.03))   # level with the wall walk, to step across from
 	var tower := drum(w, "Drum", V(14, 0, -3), 6.0, 7.2, 12, true)
-	banner(tower, V(0, 6.4, -2.85), Vector3(0, 0, -1), "banner_blue", 3.4)
-	paving(g, "Courtyard", Vector2(-12, -2), Vector2(12, 9))
+	banner(tower, V(0, 6.2, -2.85), Vector3(0, 0, -1), "banner_blue", 3.4)
+	flag(tower, V(0, 7.2, 0), "banner_blue")
+	paving(g, "Courtyard", Vector2(-12, -2), Vector2(12, 9), 0.0, 7)
 	var columns := group(g, "Colonnade")
 	var heights := [4.0, 1.2, 3.0, 4.0, 0.8]
 	for i in heights.size():
@@ -848,18 +1442,15 @@ func pad(parent: Node, at: Vector3, d: float, bob: Array) -> Node3D:
 	var m := mover(parent, "Pad", at, bob[0], bob[1])
 	m.set_meta("_edit_group_", true)   # (one click in the viewport picks the whole pad)
 	# A little island of its own: grass on top, earth, a cone of rock under it.
-	cyl(m, "Turf", "grass", V(0, -0.25, 0), d, 0.25, sides, turn)
-	cyl(m, "Earth", "earth", V(0, -1.0, 0), d, 0.75, sides, turn)
+	var top_sides := maxi(sides, PAD_SIDES)
+	pads_drawn.append([at, d, top_sides, turn])
+	cyl(m, "Turf", "grass", V(0, -0.25, 0), d, 0.25, top_sides, turn)
+	cyl(m, "Earth", "earth", V(0, -1.0, 0), d - 0.4, 0.75, top_sides, turn)
 	var rock := hung_cone(m, "Rock", "rock", V(0, -1.0, 0), d * 0.9, d * 0.55, d * 0.2, sides, turn)
 	rock.solid = true
 	var crag := hung_cone(m, "Crag", "rock", V(deco.randf_range(-0.15, 0.15) * d, -1.3, deco.randf_range(-0.15, 0.15) * d),
 		d * 0.45, d * 0.7, d * 0.05, 5, deco.randf_range(0.0, TAU))
-	crag.solid = false
-	# Moss hanging over its edge (one colour: every colour on a moving part is one more
-	# thing to draw, 25 pads over).
-	for k in deco.randi_range(1, 3):
-		var a := deco.randf_range(0.0, TAU)
-		drip(m, V(cos(a), 0, sin(a)) * (d * 0.5 * cos(PI / sides) - 0.05), deco.randf_range(0.9, 2.2), "moss")
+	crag.tint = grey(deco.randf_range(0.72, 0.95))
 	return m
 
 
@@ -917,7 +1508,22 @@ func what_stands_on(island: Node3D) -> Array:
 	for b in island.find_children("*", "MapBlock", true, false):
 		if ground.is_ancestor_of(b) or not (b as MapBlock).solid:
 			continue   # (drawn-only dressing is in nobody's way)
-		var box := frame_in(b, island) * AABB(-(b as MapBlock).size * 0.5, (b as MapBlock).size)
+		var xf := frame_in(b, island)
+		var size := (b as MapBlock).size
+		if (b as MapBlock).shape == MapBlock.Shape.BOX and absf(xf.basis.y.y) > 0.99:
+			# An upright box: a row of circles down its length (one round a long hedge
+			# or wall would keep everything metres off its sides).
+			var along := Vector2(xf.basis.x.x, xf.basis.x.z).normalized() * size.x
+			var across := size.z
+			if size.z > size.x:
+				along = Vector2(xf.basis.z.x, xf.basis.z.z).normalized() * size.z
+				across = size.x
+			var n := maxi(1, ceili(along.length() / maxf(across, 1.0)))
+			for k in n:
+				var p := Vector2(xf.origin.x, xf.origin.z) + along * ((k + 0.5) / n - 0.5)
+				out.append([p.x, p.y, Vector2(along.length() / n, across).length() * 0.5])
+			continue
+		var box := xf * AABB(-size * 0.5, size)
 		out.append([box.get_center().x, box.get_center().z, Vector2(box.size.x, box.size.z).length() * 0.5])
 	return out
 
@@ -989,6 +1595,9 @@ func add_link(from_node: Node3D, from_at: Vector3, to_node: Node3D, land_at: Vec
 	var run := Vector3(to_map.x - from_map.x, 0, to_map.z - from_map.z)
 	for s in range(0, int(minf(run.length(), 8.0)) + 1):
 		var p := from_map + run.normalized() * s
+		keep_clear.append([p.x, p.z, 2.0])
+	for s in range(1, int(minf(run.length(), 8.0)) + 1):
+		var p := to_map - run.normalized() * s   # (and the last stretch before it comes down)
 		keep_clear.append([p.x, p.z, 2.0])
 	keep_clear.append([to_map.x, to_map.z, 2.5])
 	links += 1
@@ -1079,68 +1688,234 @@ func boost_links() -> void:
 			print("  WARNING: no clear way for bots between the Hearth and %s" % name)
 
 
-# -- the green and the clouds -----------------------------------------------------------
-## How many trees each island grows (round its rim, clear of everything that matters).
-const TREES := {"Hearth": 3, "Shelf": 2, "Bluff": 2, "Spire": 1, "Citadel": 2, "Garden": 3, "Terrace": 2}
+# -- the green ----------------------------------------------------------------------------
+## The tint of the darker grass: patches of meadow, weeds in the paving.
+const GRASS_DARK := Color(0.5, 0.72, 0.62)
+
+## Pines on every island, in threes kinds mixed (thick-trunked; thick trunk and thick
+## leaves; full, the trunk hidden), many with a young one or two beside them, and a few
+## trees in pink blossom: wherever there is room, clear of the ruins, the garden and
+## other trees, and off spawn points, pickups and the bots' crossings.
+const PINES := {"Hearth": 7, "Shelf": 5, "Bluff": 4, "Spire": 3, "Citadel": 5, "Garden": 4, "Terrace": 5}
+const BLOSSOMS := {"Hearth": 2, "Shelf": 3, "Bluff": 1, "Spire": 1, "Citadel": 2, "Garden": 3, "Terrace": 1}
 
 
-## An island's green: moss hanging over its rim all the way round, bushes along the
-## rim, a few trees, and tufts of long grass. All drawn only but the tree trunks, and
-## none of it near a spawn point, a pickup, or where bots set off and land.
-func foliage(name: String) -> void:
-	var island: Node3D = island_nodes[name]
-	var c := centre(name)
-	# Moss over the rim (in the ground it hangs from).
-	var moss := group(island.get_node("Ground"), "Moss")
-	var a := 0.0
-	while a < TAU:
-		var dir := Vector3(cos(a), 0, sin(a))
-		var rim := deck_reach(name, dir)
-		drip(moss, dir * (rim - 0.1), deco.randf_range(1.8, 4.8))
-		a += deco.randf_range(0.8, 1.8) / maxf(rim, 6.0)
-	var g := group(island, "Foliage")
-	var trees := group(g, "Trees")
+func trees(name: String) -> void:
+	var g := group(island_nodes[name], "Trees")
+	var reach_all := island_reach(name)
 	var planted := 0
-	for attempt in 80:
-		if planted >= int(TREES[name]):
-			break
-		var p := rim_spot(name, 2.8, 5.0)
-		if spot_ok(name, p, 2.2, 4.0):
-			tree(trees, V(p.x, 0, p.y), deco.randf_range(4.2, 6.0))
-			obstacles[name].append([p.x, p.y, 2.4])   # (no bush in its trunk)
-			planted += 1
-	var bushes := group(g, "Bushes")
-	var want: int = (ISLANDS[name][1] as Array).size() * 7
-	var grown := 0
-	for attempt in want * 12:
-		if grown >= want:
-			break
-		var size := deco.randf_range(1.3, 2.4)
-		var p := rim_spot(name, 0.3, 2.0)
-		if spot_ok(name, p, size * 0.55, 1.2):
-			bush(bushes, V(p.x, 0, p.y), size)
-			grown += 1
-	var grass := group(g, "Grass")
-	var reach_all := 0.0
-	for l in ISLANDS[name][1]:
-		reach_all = maxf(reach_all, Vector2(l[0], l[1]).length() + float(l[2]) * 0.5)
-	var tufts := 0
-	for attempt in 400:
-		if tufts >= want * 2:
+	for attempt in 800:
+		if planted >= int(BLOSSOMS[name]):
 			break
 		var p := Vector2(deco.randf_range(-1.0, 1.0), deco.randf_range(-1.0, 1.0)) * reach_all
-		if spot_ok(name, p, 1.0, 0.0):
-			tuft(grass, V(p.x, 0, p.y))
-			tufts += 1
+		if not spot_ok(name, p, 2.3, 2.0):
+			continue
+		blossom_tree(g, V(p.x, 0, p.y), deco.randf_range(4.8, 6.2))
+		obstacles[name].append([p.x, p.y, 3.2])
+		planted += 1
+	var pink := planted
+	planted = 0
+	for attempt in 800:
+		if planted >= int(PINES[name]):
+			break
+		var p := Vector2(deco.randf_range(-1.0, 1.0), deco.randf_range(-1.0, 1.0)) * reach_all
+		if not spot_ok(name, p, 1.5, 1.6):
+			continue
+		var at := V(p.x, 0, p.y)
+		# One green to a clump: the tree and the young ones by it (whose branches cross).
+		var shade := deco.randf_range(0.7, 1.0)
+		var green := Color(shade * deco.randf_range(0.8, 1.0), shade, shade * deco.randf_range(0.75, 1.0))
+		match planted % 3:
+			0: pine(g, at, deco.randf_range(6.0, 7.5), 0.75, 4, 3.8, 1.4, 0.3, 0.25, green)    # thick trunk
+			1: pine(g, at, deco.randf_range(6.5, 8.0), 0.75, 5, 4.4, 1.6, 0.36, 0.2, green)    # thick trunk, thick leaves
+			2: pine(g, at, deco.randf_range(6.5, 8.5), 0.55, 6, 4.8, 1.5, 0.34, 0.1, green)    # full, the trunk hidden
+		# A young one or two beside it, so they stand in clumps.
+		var young := []
+		for k in deco.randi_range(0, 2):
+			for attempt2 in 8:
+				var q := p + Vector2.from_angle(deco.randf_range(0.0, TAU)) * deco.randf_range(2.6, 3.8)
+				var crowded := false
+				for y in young:
+					if q.distance_to(y) < 2.2:
+						crowded = true
+				if crowded or not spot_ok(name, q, 1.3, 2.0):
+					continue
+				pine(g, V(q.x, 0, q.y), deco.randf_range(3.4, 4.8), 0.45, 4, 2.7, 1.0, 0.32, 0.18, green)
+				young.append(q)
+				break
+		obstacles[name].append([p.x, p.y, 2.6])   # (room round it: the next tree, a flower)
+		for q in young:
+			obstacles[name].append([q.x, q.y, 1.7])
+		planted += 1
+	print("  %s: %d pines, %d trees in blossom" % [name, planted, pink])
 
 
-## A spot `inset_min` to `inset_max` metres in from the island's rim, in a random way
-## out from its middle (its frame).
-func rim_spot(name: String, inset_min: float, inset_max: float) -> Vector2:
-	var a := deco.randf_range(0.0, TAU)
-	var dir := Vector3(cos(a), 0, sin(a))
-	var r := deck_reach(name, dir) - deco.randf_range(inset_min, inset_max)
-	return Vector2(dir.x, dir.z) * maxf(r, 0.0)
+## The furthest any of an island's lobes reaches from its centre.
+func island_reach(name: String) -> float:
+	var far := 0.0
+	for l in ISLANDS[name][1]:
+		far = maxf(far, Vector2(l[0], l[1]).length() + float(l[2]) * 0.5)
+	return far
+
+
+## A pine `h` tall: a trunk `trunk_d` across (solid: you can hide behind it) and `tiers`
+## cones of needles from `wide` at the foot to `narrow` at the top, each `tier_h` of the
+## height deep, the lowest `start` of the height up, tinted `green`.
+func pine(parent: Node, at: Vector3, h: float, trunk_d: float, tiers: int, wide: float, narrow: float, tier_h: float, start: float, green: Color) -> void:
+	var g := group(parent, "Pine", Transform3D(Basis(Vector3.UP, deco.randf_range(0.0, TAU)), at))
+	g.set_meta("_edit_group_", true)
+	cyl(g, "Trunk", "trunk", V(0, 0, 0), trunk_d, h * 0.45, 7)
+	for i in tiers:
+		var f := float(i) / tiers
+		var w := lerpf(wide, narrow, f)
+		var y := h * start + f * h * (1.0 - start - tier_h * 0.55)
+		var tier := put(g, "Needles", "pine", Vector3(w, h * tier_h, w), V(0, y + h * tier_h * 0.5, 0), Basis(Vector3.UP, i * 0.4), MapBlock.Shape.CONE)
+		tier.sides = 8
+		tier.top = 0.0
+		tier.solid = false
+		tier.tint = green
+
+
+## A tree in blossom, `h` tall: a short leaning trunk (solid), two boughs, a crown of
+## pink balls of blossom, each its own shade.
+func blossom_tree(parent: Node, at: Vector3, h: float) -> void:
+	var g := group(parent, "BlossomTree", Transform3D(Basis(Vector3.UP, deco.randf_range(0.0, TAU)), at))
+	g.set_meta("_edit_group_", true)
+	var trunk := put(g, "Trunk", "trunk", Vector3(0.9, h * 0.6, 0.9), V(0, h * 0.3 - 0.06, 0), Basis(Vector3.RIGHT, 0.05), MapBlock.Shape.CONE)
+	trunk.sides = 7
+	trunk.top = 0.45
+	for s in [-1.0, 1.0]:
+		var lean := Basis(Vector3.BACK, s * 0.75)
+		var length := h * 0.36
+		var bough := put(g, "Bough", "trunk", Vector3(0.42, length, 0.42), V(0, h * 0.42, 0) + lean * Vector3.UP * length * 0.5, lean, MapBlock.Shape.CONE)
+		bough.sides = 6
+		bough.top = 0.2
+		bough.solid = false
+	var k := h / 5.4
+	var c := h * 0.74
+	for b in [[0.0, 0.0, 0.0, 3.7], [1.4, -0.5, 0.4, 2.7], [-1.35, -0.3, -0.5, 2.9], [0.2, 0.95, -0.3, 2.5], [-0.3, -0.55, 1.4, 2.4], [0.5, -0.4, -1.45, 2.3]]:
+		ball(g, "Blossom", "blossom", V(b[0] * k, c + b[1] * k, b[2] * k), b[3] * k, 0.82, 7)
+
+
+## Boulders near an island's rim, in twos and threes: rough rock half sunk in the grass
+## (the big one solid), off spawn points, pickups and the bots' crossings.
+func boulders(name: String) -> void:
+	var g := group(island_nodes[name], "Boulders")
+	var want: int = (ISLANDS[name][1] as Array).size()
+	var made := 0
+	for attempt in 200:
+		if made >= want:
+			break
+		var a := deco.randf_range(0.0, TAU)
+		var p := Vector2.from_angle(a) * deck_reach(name, Vector3(cos(a), 0, sin(a))) * deco.randf_range(0.7, 0.9)
+		if not spot_ok(name, p, 1.6, 1.5):
+			continue
+		var heap := group(g, "Boulders", Transform3D(Basis(Vector3.UP, deco.randf_range(0.0, TAU)), V(p.x, 0, p.y)))
+		heap.set_meta("_edit_group_", true)
+		var shade := deco.randf_range(0.8, 1.0)
+		for k in deco.randi_range(2, 3):
+			var big := k == 0
+			var size := Vector3(deco.randf_range(1.2, 1.9), deco.randf_range(0.9, 1.4), deco.randf_range(1.0, 1.6)) if big else Vector3.ONE * deco.randf_range(0.45, 0.8)
+			var at := V(0, size.y * 0.5 - size.y * 0.22, 0) if big else V((1.25 if k == 1 else -0.9), size.y * 0.3, (0.5 if k == 1 else -1.1))
+			var tilt := Basis(Vector3.UP, deco.randf_range(0.0, TAU)) * Basis(Vector3.RIGHT, deco.randf_range(-0.2, 0.2))
+			var stone := put(heap, "Boulder", "rock", size, at, tilt, MapBlock.Shape.BEVEL)
+			stone.bevel = minf(size.x, size.y) * 0.28
+			stone.solid = big
+			stone.tint = grey(shade * deco.randf_range(0.85, 1.0))
+		obstacles[name].append([p.x, p.y, 1.9])
+		made += 1
+
+
+## Bits of rock floating beside and below an island, broken off it: they ride its bob.
+## Clear of the pads. Drawn only.
+func fragments(name: String) -> void:
+	var c := centre(name)
+	var g := group(island_nodes[name].get_node("Ground"), "Fragments")
+	var made := 0
+	for attempt in 80:
+		if made >= 4:
+			break
+		var a := deco.randf_range(0.0, TAU)
+		var w := deco.randf_range(0.6, 1.5)
+		var r := deck_reach(name, Vector3(cos(a), 0, sin(a))) + deco.randf_range(0.8, 3.0)
+		var at := V(cos(a) * r, deco.randf_range(-8.0, -3.0), sin(a) * r)
+		var m := Vector2(c.x + at.x, c.z + at.z)
+		var free := true
+		for p in pads_drawn:
+			if m.distance_to(Vector2(p[0].x, p[0].z)) < float(p[1]) * 0.5 + w * 0.5 + 2.5:
+				free = false
+				break
+		if not free:
+			continue
+		var f := group(g, "Fragment", Transform3D(Basis(Vector3.UP, deco.randf_range(0.0, TAU)) * Basis(Vector3.RIGHT, deco.randf_range(-0.25, 0.25)), at))
+		f.set_meta("_edit_group_", true)
+		var sides := deco.randi_range(5, 6)
+		var shade := grey(deco.randf_range(0.75, 1.0))
+		var top := put(f, "Top", "rock", Vector3(w, w * 0.4, w), V(0, w * 0.2, 0), Basis.IDENTITY, MapBlock.Shape.CONE)
+		top.sides = sides
+		top.top = w * 0.45
+		top.solid = false
+		top.tint = shade
+		var under := hung_cone(f, "Under", "rock", V(0, 0, 0), w, w * deco.randf_range(0.9, 1.5), w * 0.08, sides, 0.0)
+		under.tint = shade
+		made += 1
+
+
+## An island's meadow, painted last so it keeps off everything else (see meadow()).
+func foliage(name: String) -> void:
+	meadow(name)
+
+
+## Patches of meadow painted on an island's grass: darker ones and sunnier ones, each
+## a few overlapping rounds (an odd, soft shape) wholly on the deck and off the paved
+## floors. (The two sorts stand a different hair's breadth off the grass, so where
+## they overlap neither flickers.)
+func meadow(name: String) -> void:
+	var g := group(island_nodes[name], "Meadow")
+	var reach_all := island_reach(name)
+	var want: int = (ISLANDS[name][1] as Array).size() * 3
+	var made := 0
+	for attempt in 600:
+		if made >= want:
+			break
+		var p := Vector2(deco.randf_range(-1.0, 1.0), deco.randf_range(-1.0, 1.0)) * reach_all
+		var r := deco.randf_range(1.8, 3.6)
+		if not patch_fits(name, p, r):
+			continue
+		var sunny := made % 3 == 2
+		var patch := group(g, "Patch", Transform3D(Basis.IDENTITY, V(p.x, 0, p.y)))
+		patch.set_meta("_edit_group_", true)
+		var rounds := [[Vector2.ZERO, r]]
+		for k in 3:
+			var off := Vector2.from_angle(deco.randf_range(0.0, TAU)) * r * deco.randf_range(0.55, 0.95)
+			var r2 := r * deco.randf_range(0.5, 0.8)
+			if patch_fits(name, p + off, r2):
+				rounds.append([off, r2])
+		for round in rounds:
+			var off: Vector2 = round[0]
+			var disc := cyl(patch, "Round", "grass_light" if sunny else "grass", V(off.x, 0, off.y), float(round[1]) * 2.0, 0.034 if sunny else 0.02, 12, deco.randf_range(0.0, TAU))
+			disc.solid = false
+			if not sunny:
+				disc.tint = GRASS_DARK
+		made += 1
+
+
+## Is a round of meadow `r` across its middle at `p` (an island's frame) wholly on the
+## deck and off the paved floors?
+func patch_fits(name: String, p: Vector2, r: float) -> bool:
+	if HOLES.has(name) and p.length() < float(HOLES[name]) * 0.5 + APRON + r + 0.2:
+		return false   # (on the worn ground round the hole, or over the hole)
+	if not on_deck(name, p):
+		return false
+	for k in 10:
+		if not on_deck(name, p + Vector2.from_angle(TAU * k / 10.0) * (r + 0.4)):
+			return false
+	var island: Node3D = island_nodes[name]
+	for pv in paved:
+		var holder: Node = pv[0]
+		if (holder == island or island.is_ancestor_of(holder)) and (pv[1] as Rect2).grow(r + 0.1).has_point(p):
+			return false
+	return true
 
 
 ## Room to grow something `r` across at `p` (an island's frame): on the deck, clear of
@@ -1163,100 +1938,40 @@ func spot_ok(name: String, p: Vector2, r: float, keep: float) -> bool:
 	return true
 
 
-## Moss hanging over a rim: a cone point down from just under the grass at `at`, `length` long.
-func drip(parent: Node, at: Vector3, length: float, kind := "") -> void:
-	var w := deco.randf_range(0.6, 1.4)
-	# Each one's top a little lower than the last one's (four steps, then round again), its
-	# colour going with its step: two side by side never meet in one plane in two colours.
-	drips += 1
-	var d := hung_cone(parent, "Drip", kind if kind != "" else ("moss" if drips % 2 == 0 else "ivy"), at + V(0, -0.05 - (drips % 4) * 0.012, 0), w, length, 0.0, 5, deco.randf_range(0.0, TAU))
-	d.solid = false
 
 
-## A tuft of long grass: two or three blades (thin cones).
-func tuft(parent: Node, at: Vector3) -> void:
-	for k in deco.randi_range(2, 3):
-		var off := V(deco.randf_range(-0.2, 0.2), 0, deco.randf_range(-0.2, 0.2))
-		var h := deco.randf_range(0.35, 0.65)
-		var blade := put(parent, "Blade", "leaves_light" if k % 2 == 0 else "grass", Vector3(0.22, h, 0.22), at + off + V(0, h * 0.5 - 0.02, 0),
-			Basis(Vector3.UP, deco.randf_range(0.0, TAU)), MapBlock.Shape.CONE)
-		blade.sides = 4
-		blade.top = 0.0
-		blade.solid = false
-
-
-## A bush `size` across standing at `at`: a few mounds of leaves, now and then in flower.
-func bush(parent: Node, at: Vector3, size: float) -> void:
-	var g := group(parent, "Bush", Transform3D(Basis.IDENTITY, at))
-	g.set_meta("_edit_group_", true)
-	var flowers := "" if deco.randf() < 0.5 else ("flowers" if deco.randf() < 0.6 else "flowers_pink")
-	for k in deco.randi_range(2, 4):
-		var w := size * deco.randf_range(0.55, 1.0)
-		var off := V(deco.randf_range(-0.3, 0.3), 0, deco.randf_range(-0.3, 0.3)) * size
-		var h := minf(w * deco.randf_range(0.5, 0.7), 1.1)
-		var mound := put(g, "Leaves", "leaves" if k % 2 == 0 else "leaves_light", Vector3(w, h, w * deco.randf_range(0.8, 1.0)),
-			off + V(0, h * 0.5 - k * 0.01, 0), Basis(Vector3.UP, deco.randf_range(0.0, TAU)), MapBlock.Shape.DOME)
-		mound.sides = 8
-		mound.solid = false
-		if flowers != "":
-			for f in 2:
-				var fa := deco.randf_range(0.0, TAU)
-				var bloom := put(g, "Flower", flowers, Vector3(0.14, 0.14, 0.14),
-					off + V(cos(fa) * w * 0.3, h * 0.8, sin(fa) * w * 0.3), Basis(Vector3.UP, fa))
-				bloom.solid = false
-
-
-## A tree `height` tall at `at`: a trunk (solid: you can hide behind it) and a crown of
-## leaves, each mound starting at its own height.
-func tree(parent: Node, at: Vector3, height: float) -> void:
-	var g := group(parent, "Tree", Transform3D(Basis.IDENTITY, at))
-	g.set_meta("_edit_group_", true)
-	cyl(g, "Trunk", "trunk", V(0, 0, 0), 0.55, height - 0.8, 7, deco.randf_range(0.0, TAU))
-	var crown := [[0.0, 0.0, height - 1.6, 4.6, 2.8, "leaves"], [1.2, 0.7, height - 2.2, 3.0, 2.0, "leaves_light"],
-		[-1.0, -0.9, height - 2.5, 3.2, 1.9, "leaves"], [-0.3, 1.1, height - 1.0, 2.6, 1.6, "leaves_light"]]
-	var turn := deco.randf_range(0.0, TAU)
-	for m in crown:
-		var off := Vector3(m[0], 0, m[1]).rotated(Vector3.UP, turn)
-		var leaves := put(g, "Leaves", m[5], Vector3(m[3], m[4], m[3]) * deco.randf_range(0.9, 1.1), off + V(0, float(m[2]) + float(m[4]) * 0.5, 0),
-			Basis(Vector3.UP, deco.randf_range(0.0, TAU)), MapBlock.Shape.DOME)
-		leaves.sides = 10
-		leaves.solid = false
-
-
-## Clouds: a slow-turning ring of them down among the islands' rocks (just above the
-## sea of cloud the sky draws), and big ones far off beyond the edge of the map.
-func clouds() -> void:
-	var sky_group := group(scn, "Clouds")
-	var spinner_script: Script = load("res://game/arena/map_spinner.gd")
-	var low: Node3D = spinner_script.new()
-	low.name = "Low"
-	low.set("speed", 0.8)
-	sky_group.add_child(low)
-	low.owner = scn
-	low.position = V(0, -27, 0)
-	for k in 34:
-		var a := TAU * k / 34.0 + deco.randf_range(-0.08, 0.08)
-		var r := deco.randf_range(18.0, 135.0)
-		puff(low, V(cos(a) * r, deco.randf_range(-2.0, 3.0), sin(a) * r), deco.randf_range(10.0, 22.0))
-	var far: Node3D = spinner_script.new()
-	far.name = "Far"
-	far.set("speed", -0.35)
-	sky_group.add_child(far)
-	far.owner = scn
-	for k in 16:
-		var a := TAU * k / 16.0 + deco.randf_range(-0.12, 0.12)
-		var r := deco.randf_range(180.0, 250.0)
-		puff(far, V(cos(a) * r, deco.randf_range(-12.0, 28.0), sin(a) * r), deco.randf_range(26.0, 46.0))
-
-
-## One cloud `size` across: a few flattened mounds of white.
-func puff(parent: Node, at: Vector3, size: float) -> void:
-	var g := group(parent, "Cloud", Transform3D(Basis.IDENTITY, at))
-	g.set_meta("_edit_group_", true)
-	for k in deco.randi_range(3, 5):
-		var w := size * deco.randf_range(0.45, 0.85)
-		var off := V(deco.randf_range(-0.35, 0.35) * size, deco.randf_range(-0.04, 0.12) * size, deco.randf_range(-0.25, 0.25) * size)
-		var mound := put(g, "Puff", "cloud", Vector3(w, w * deco.randf_range(0.3, 0.45), w * deco.randf_range(0.6, 0.9)), off,
-			Basis(Vector3.UP, deco.randf_range(0.0, TAU)), MapBlock.Shape.DOME)
-		mound.sides = 10
-		mound.solid = false
+## Prints the least open sky between a pad's top, as drawn, and any island's deck, as
+## drawn (the pads were laid out against on_island, before the decks had 16 sides: see
+## on_deck), and warns of any pad closer than 0.4 m. (The closest, by the Garden, is
+## 0.45 m: the parts only move up and down, so they never touch.)
+func pad_clearance() -> void:
+	var least := INF
+	for p in pads_drawn:
+		var at: Vector3 = p[0]
+		var d: float = p[1]
+		var sides: int = p[2]
+		var turn: float = p[3]
+		var half := PI / sides
+		var mine := INF
+		for k in 72:
+			var theta := TAU * k / 72.0
+			var a := fposmod(theta + turn - half, 2.0 * half) - half
+			var r := d * 0.5 * cos(half) / cos(a)
+			var dir := Vector2.from_angle(theta)
+			var g := 0.0
+			while g < 3.0:
+				var q := Vector2(at.x, at.z) + dir * (r + g)
+				var hit := false
+				for name in ISLANDS:
+					var c := centre(name)
+					if on_deck(name, q - Vector2(c.x, c.z)):
+						hit = true
+						break
+				if hit:
+					break
+				g += 0.05
+			mine = minf(mine, g)
+		least = minf(least, mine)
+		if mine < 0.4:
+			print("  WARNING: a pad at %s is only %.2f m from an island" % [at.snapped(Vector3.ONE * 0.1), mine])
+	print("  pads: the least open sky between a pad and an island is %.2f m" % least)

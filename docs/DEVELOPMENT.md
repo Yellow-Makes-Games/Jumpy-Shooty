@@ -89,6 +89,10 @@ Quick checks:
   for exists;
 - map scenes (`tests/map_scene_test.gd`): every map loads and builds, blocks, resize
   handles, race gates, bot routes, hazards, and the map lists keep race and arena maps apart;
+- tube collision (`tests/tube_collision_test.gd`): a tube block collides as the ring you
+  see, flat side for flat side, not as the box round it: nothing to hit in its hole or
+  past its flat sides where the box's corners were, its ring all round, a tube with no
+  hole as a cylinder, and no ground in the hole of one that moves;
 - the Testing Grounds courses and the Construction Site and Office routes: a scripted
   player runs each one (`tests/course_test.gd`, `tests/site_test.gd`,
   `tests/office_test.gd`), plus spawn points and bot navigation; the other arenas'
@@ -497,24 +501,51 @@ block-out script starts over from the old Castle. The scene is edited by hand no
 `--map=castle_v2 --practice`.
 
 `game/maps/sky_island.tscn` (test map `sky_island`, "Sky Island") is a stone castle in
-the clouds: seven floating islands, grass on top over a band of earth, rock hanging
-underneath in jagged cones, moss hanging over every rim, bushes (some in flower) and a
-few trees round the edges, and castle ruins in pale stone with copings, ivy, banners,
-columns and paved floors. Below is a sea of cloud (the sky is a shader,
-`game/maps/sky/sky_island_sky.gdshader`, at -30 m) with a slow ring of cloud turning among
-the islands' rocks and big clouds far out (MapSpinners, drawn only). The grey block-out
-it started from is kept as `game/maps/sky_island_layout.tscn` (test map
+the clouds, in bright colours: seven floating islands of vivid grass (the turf
+overhangs a band of earth) with rock hanging underneath in jagged cones (the ground
+slabs have 16 sides, the rock under them a few, blocky; pad tops 9 or more) and bits
+of rock floating beside them. On top grow pines in clumps (solid trunks) and trees in
+pink blossom, over patches of darker and sunnier meadow, with boulders near the
+edges; the grass is kept clean (no small flowers, no blades of grass, and nothing
+hangs from the rims). The castle
+ruins are warm sandstone on darker footings, with loose stones along the broken wall
+tops, arrow slits, ivy, banners with gold marks (red on the Keep, blue on the
+Citadel, purple on the Broken Tower), pennants on the two whole towers, pale columns
+and paved floors with weeds in them. The light is a strong warm sun with cool blue
+shade (one ambient colour, not the sky's light, which the white cloud below washed
+out) under a deep blue sky; below is a sea of cloud (the sky is a shader,
+`game/maps/sky/sky_island_sky.gdshader`, at -30 m). Most colours come from the
+palette; a block's tint shades one thing off the next (each clump of pines, each
+ball of blossom). The grey
+block-out it started from is kept as `game/maps/sky_island_layout.tscn` (test map
 `sky_island_layout`, "Sky Island (layout)", its own copy of the old palette). The
 scene is grouped like the castle maps: by object, each holding its own dressing, and
-whatever you would move as one (a pad, a wall piece with its coping, a bush, a tree, a
-lobe of an island with its rocks) is a selection group. The Hearth, in the middle, is the lowest (-3 m,
-the ruined Keep: broken walls, a corner of its upper floor, two corner drums); the six
-stand round it about a sixth of a turn apart, at mixed heights: the Shelf (3 m, open), the Bluff
-(8 m, open), the Spire (4 m, open), the Citadel (7 m, the Gate
-and its curtain wall with a wall walk, a gate arch and a drum), the Garden (2 m,
-standing stones) and the Terrace (6 m, the Broken Tower: an eight-sided shell with half
-a floor inside). No island is round: each is a handful of overlapping many-sided slabs
+whatever you would move as one (a pad, a wall piece with its footing and ivy, a
+column, a tree, a patch of meadow, a lobe of an island with its rocks) is a
+selection group. The Hearth, in the middle, is the lowest (-3 m, the ruined Keep:
+broken walls, a corner of its upper floor on timber joists, two corner drums); the six
+stand round it about a sixth of a turn apart, at mixed heights: the Shelf (3 m, a
+formal garden: clipped hedges with stone gate posts round a fountain of two bowls),
+the Bluff (8 m, a round hole 7.6 m across right through its middle, where
+falling in is death, with a tall wooden crane beside it whose rope and iron hook hang
+down into the hole, crates and barrels by its winch, and a low dry-stone fence round
+the edge with gaps wherever the crossings come in), the Spire (4 m, open), the Citadel (7 m, the Gate and its
+curtain wall with a wall walk, a gate arch and a drum), the Garden (2 m, a ring of
+grey standing stones, open in the middle) and the Terrace (6 m, the Broken Tower: an eight-sided shell
+with a lookout 6 m up inside, reached by a ramp from the doorway, that looks out over
+the low west walls). No island is round: each is a handful of overlapping many-sided slabs
 of different sizes (36 to 56 m across in all), with a cone of rock hung under each.
+The Bluff's hole (`HOLES` in the script) is cut without changing the island's outline:
+a slab can only have a hole in its own middle, so the middle slab's turf and earth are
+rings of flat three-cornered pieces (wedges lying on their sides: `slab()`), the three
+slabs that overlap the middle are built the same way, cut back from the hole along a
+straight line hidden inside the ring (which no tube block could do), and the rock under
+the middle is panels lining the shaft with a ring of cones round them. (A tube block
+does collide as the ring you see, one convex lump per flat side, `MapMesher.tube_hulls`;
+the ground was built from flat pieces when a tube still collided as a solid box, and
+the lobes that overlap the hole need the flat pieces either way.)
+`MapRoot.standing_on()` knows a wedge on its side as ground, and the flicker test
+counts a wedge as hiding what is inside it.
 There is no path you can walk from one island to another. Stepping pads join the six
 outer islands into a ring, each to the next (three or four big pads a gap, 4.5 to 9 m across, scattered:
 each row swings side to side and every pad is thrown off it, with its own size and
@@ -539,7 +570,7 @@ will be 6 m up or less (the Citadel and Terrace never come that low: bots go rou
 the pads). Each link rides the part it sets off from. Falling is death (Kill Height
 -36). It has 30 spawn points and 15 weapon pickups (the rocket launcher on the Keep's
 upper floor, the sniper rifle on the Citadel's wall walk, the railgun on the Broken
-Tower's floor), all inside islands so they ride the bob, so it is listed for
+Tower's lookout), all inside islands so they ride the bob, so it is listed for
 free-for-all and Deathmatch. It is written from scratch by `godot --headless --path .
 --script tools/arena/sky_island_blockout.gd` (the islands and their sizes are at the
 top; pads, crossings and pickups after them; the dressing has its own random numbers,
