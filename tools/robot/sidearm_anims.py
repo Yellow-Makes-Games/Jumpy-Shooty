@@ -1,0 +1,487 @@
+"""The sidearms' reloads (the pistol's own is in animations.py: these are built the same
+way, from the same rest poses). Each is a function of time giving the pose: the arms
+and fingers, the gun's moving parts, and whatever the left hand brings to the gun.
+
+    Machine Pistol   the cell drops out, a new one is driven up into the grip on the palm,
+                     a quick spin backwards round the trigger finger
+    Revolver         the cylinder flicked out, the empties dumped, a speed loader pushed
+                     in, the cylinder flicked shut and one big slow spin forward
+    Derringer        the barrels tip open and throw their empties, two rounds flipped in
+                     off the thumb, snapped shut with a flick of the wrist
+    Flare Gun        broken open, the spent flare springs out, a new one pushed in, the
+                     wrist snaps it shut
+    Plasma Pistol    (overheated) the vent flap flies up, the gun is twirled twice to cool
+                     it, the left hand slaps the flap shut
+    Akimbo           both cells flicked out sideways, the arms cross to push the guns down
+                     on new cells, then uncross with both guns spinning together
+
+The game's side of each (what flies out, the glow, steam and smoke) is timed to these
+keys in game/combat/reload_fx.gd, and the sounds in game/audio/sfx_list.gd.
+"""
+import numpy as np
+from m3 import norm, rx, rz, v
+from rig import FIST, GUN_REST, ZERO, _slerp_m, ease, keyed, merged
+import animations as A
+from weapons import DERRINGER_HINGE, FLARE_HINGE, PLASMA_VENT_PIVOT
+
+at, hand_at, moved, euler_of = A._at, A._hand_at, A._moved, A._euler_of
+PALM_L = A.PALM_L
+SPIN_PIVOT = v(*A.PISTOL_SPIN_PIVOT)   # the trigger finger in the guard: a spun gun turns about it
+
+
+class View:
+    """One view's (first or third person's) rest poses, and the places the left hand goes."""
+
+    def __init__(self, fp):
+        self.fp = fp
+        self.rest_r = moved(A.FP_R if fp else A.AIM_R, ZERO)
+        self.rest_l = moved(A.FP_L if fp else A.AIM_L, ZERO)
+        self.cant = self.rest_r["cant"]
+        self.space = self.rest_r["space"]
+        self.body = A.FP_BODY if fp else {}
+        # Where the gun is worked on: up and in toward the middle of the view, or up in front of the chest.
+        self.work = v(-0.05, 0.09, 0.01) if fp else v(0.02, 0.05, 0.04)
+        if fp:
+            left = {"hip": A.fp_arm_l(-0.02, -0.52, -0.16, hand=(40.0, 0.0, 0.0)),
+                    "lift": A.fp_arm_l(-0.03, -0.37, -0.33, hand=(64.0, -30.0, 0.0)),
+                    "clear": A.fp_arm_l(-0.07, -0.32, -0.29, hand=(80.0, -30.0, 0.0)),
+                    "out": A.fp_arm_l(-0.15, -0.27, -0.36, hand=(96.0, -8.0, 0.0))}
+            left = {k: A.in_view(a) for k, a in left.items()}
+        else:
+            left = {"hip": A._arm("l", (-0.21, -0.30, -0.05), (30.0, 0.0, 0.0)),
+                    "lift": A._arm("l", (-0.11, -0.08, -0.26), (64.0, -30.0, 0.0)),
+                    "clear": A._arm("l", (-0.14, -0.04, -0.23), (80.0, -30.0, 0.0)),
+                    "out": A._arm("l", (-0.24, 0.02, -0.26), (96.0, -8.0, 0.0))}
+        self.hip, self.lift, self.clear, self.out = [moved(left[k], ZERO) for k in ("hip", "lift", "clear", "out")]
+
+    def right(self, by=ZERO, hand=None, cant=None, work=1.0):
+        """The right arm, the gun moved `by` from where it is worked on (work=0: from rest)."""
+        return moved(self.rest_r, tuple(self.work * work + v(*by)), hand, cant)
+
+    def spec(self, arm_r, arm_l, **more):
+        out = dict(self.body, arm_r=arm_r, arm_l=arm_l)
+        out.update(more)
+        return out
+
+    def frames(self, arm_r, arm_l=None, **more):
+        return A._frames(self.spec(arm_r, arm_l or self.rest_l, **more), self.space)
+
+    def gun(self, arm_r, **more):
+        """The gun for that right arm: (gun space -> the arms' space, where its grip is)."""
+        turn, place = self.frames(arm_r, **more)["gun"]
+        return turn @ GUN_REST, place
+
+    def _arm(self, wrist, turn, pole=None):
+        return {"ik": tuple(float(x) for x in wrist), "space": self.space, "pole": pole or self.rest_l["pole"],
+                "hand": euler_of(turn), "cant": 0.0}
+
+    def fist_on(self, arm_r, point, palm=(1.0, 0.0, 0.0), wrist=(0.0, 0.0, 1.0), **more):
+        """The left arm with its fist at `point` on the gun (gun space: x right, y up, z back).
+        palm: the way the palm faces; wrist: the way from the fist back to the wrist (both
+        gun-space directions; the fingers point the other way from the wrist)."""
+        aim, grip = self.gun(arm_r, **more)
+        y = norm(v(*wrist))
+        x = v(*palm)
+        x = norm(x - y * float(np.dot(x, y)))
+        turn = aim @ np.column_stack([x, y, np.cross(x, y)])
+        return self._arm(grip + aim @ v(*point) + turn @ v(0.0, FIST, 0.0), turn)
+
+    def palm_on(self, arm_r, point, into, along=(0.0, 0.25, -1.0), off=0.0, **more):
+        """The left arm with the flat of its palm on `point` of the gun, facing `into`, the
+        fingers lying `along` the gun (gun-space directions), held `off` metres back from it."""
+        aim, grip = self.gun(arm_r, **more)
+        x = aim @ norm(v(*into))
+        f = aim @ v(*along)
+        f = norm(f - x * float(np.dot(f, x)))
+        turn = np.column_stack([x, -f, np.cross(x, -f)])
+        return self._arm(grip + aim @ v(*point) - x * off - turn @ PALM_L, turn)
+
+
+def _spin(spec, turn, key="pistol", pivot=SPIN_PIVOT):
+    """Turns the gun in the hand by `turn` degrees about the trigger finger."""
+    if turn % 360.0 != 0.0:
+        spec[key] = {"pos": tuple(pivot - rx(turn) @ pivot), "rot": (turn, 0.0, 0.0)}
+
+
+def _hinged(turn, pivot):
+    """The magazine-bone part turned `turn` degrees (pitch) about the sideways line through
+    `pivot` ((up, forward) of the grip): {"mag_rot", "mag"}."""
+    p = v(0.0, pivot[0], -pivot[1])
+    return {"mag_rot": (turn, 0.0, 0.0), "mag": tuple(p - rx(turn) @ p)}
+
+
+def _put(spec, aim, grip, middle, turn, own):
+    """Sets the magazine-bone part (whose own middle, seated, is `own` in gun space) with its
+    middle at `middle` (the arms' space), turned `turn` (in gun space)."""
+    spec["mag_rot"] = euler_of(turn)
+    spec["mag"] = tuple(aim.T @ (middle - grip) - turn @ own)
+
+
+def _on_palm(frames, aim, out, half):
+    """A cell standing in the left palm, its base on the palm: (its middle, its turn in gun
+    space). out: the way out of the gun for it, seated (gun space); half: half its length."""
+    turn_h, wrist = frames["hand_l"]
+    n = turn_h @ v(1.0, 0.0, 0.0)
+    side = turn_h @ v(0.0, 0.0, 1.0)
+    world = np.column_stack([side, n, np.cross(side, n)])
+    up = -norm(out)
+    x = v(1.0, 0.0, 0.0)
+    own = np.column_stack([x, up, np.cross(x, up)])
+    return wrist + turn_h @ PALM_L + n * (half + 0.004), aim.T @ world @ own.T
+
+
+def _flight(u, from_middle, from_turn, to_middle, to_turn, rise, flips):
+    """Something tossed from the hand to its place: (middle, turn) `u` of the way there,
+    rising `rise` metres on the way and turning over `flips` times."""
+    middle = from_middle + (to_middle - from_middle) * ease(u, "in") + v(0.0, rise, 0.0) * 6.4 * u * (1.0 - u) * (1.0 - u)
+    turn = _slerp_m(from_turn, to_turn, ease(min(u / 0.7, 1.0))) @ rx(-360.0 * flips * min(u / 0.85, 1.0))
+    return middle, turn
+
+
+def _body(spec, t, keys_yaw, keys_pitch=None, keys_roll=None, part=0.45):
+    """Third person: the chest (and a part of it in the spine) goes with the reload."""
+    yaw = at(t, keys_yaw)
+    pitch = at(t, keys_pitch) if keys_pitch else 0.0
+    roll = at(t, keys_roll) if keys_roll else 0.0
+    spec["chest"] = (pitch, yaw, roll)
+    spec["spine"] = (0.0, yaw * part, 0.0)
+
+
+# ---------------------------------------------------------------------------
+# Machine pistol (1.4 s)
+
+MP_CELL = v(0.0, -0.08, 0.012)            # the middle of the cell seated in the grip (gun space)
+MP_OUT = norm(v(0.0, -0.978, 0.208))      # the way out of the grip
+MP_HALF = 0.107
+
+
+def machine_pistol(fp):
+    V = View(fp)
+    rest = V.rest_r
+    dip = V.right((0.004, -0.012, 0.0), cant=V.cant + 6.0, work=0.0)
+    drop = V.right((0.0, 0.02, 0.0), (126.0, 8.0, 0.0), -14.0)      # muzzle up with a jerk: the cell falls out of the grip
+    hold = V.right((0.0, -0.01, 0.01), (116.0, 10.0, 0.0), -24.0)   # tipped a little outward, waiting
+    ready = V.right((0.0, 0.0, 0.01), (119.0, 11.0, 0.0), -27.0)
+    knock = V.right((0.0, 0.045, 0.005), (110.0, 8.0, 0.0), -16.0)  # the new cell driven home knocks the gun up
+    spin = V.right((0.0, 0.03, -0.02), (93.0, 5.0, 0.0), 2.0)
+    top = V.right((0.0, 0.045, -0.02), (97.0, 5.0, 0.0), 2.0)
+    catch = V.right((0.0, -0.022, 0.0), (85.0, 4.0, 0.0), V.cant, work=0.0)
+    over = V.right((0.0, 0.007, 0.0), work=0.0)
+    keys_r = [(0.0, rest), (0.04, dip), (0.11, drop, "out"), (0.24, hold), (0.56, ready), (0.655, ready), (0.70, knock, "out"),
+              (0.79, spin), (0.91, top), (1.03, spin), (1.10, catch, "in"), (1.18, over, "out"), (1.26, rest), (1.40, rest)]
+    base = MP_CELL + MP_OUT * (MP_HALF + 0.004)   # the base of the seated cell
+
+    def under(off):
+        return V.palm_on(ready, base, -MP_OUT, off=off)
+    keys_l = [(0.0, V.rest_l), (0.06, V.rest_l), (0.28, V.hip, "in"), (0.42, V.lift), (0.55, under(0.19)), (0.655, under(0.0), "in"),
+              (0.72, under(0.05), "out"), (0.86, V.clear), (1.0, moved(V.clear, (-0.02, -0.03, 0.02))), (1.12, V.clear),
+              (1.30, V.rest_l), (1.40, V.rest_l)]
+
+    def pose(t):
+        arm_r = keyed(t, keys_r)
+        spec = V.spec(arm_r, keyed(t, keys_l))
+        spec["fingers_r"] = hand_at(t, [(0.0, "gun"), (0.72, "gun"), (0.80, "trigger", "out"), (1.0, "trigger"), (1.09, "gun", "in")])
+        spec["fingers_l"] = hand_at(t, [(0.0, "wrap"), (0.06, "wrap"), (0.2, "relaxed"), (0.3, "support"), (0.6, "support"),
+                                        (0.655, "flat"), (0.72, "flat"), (0.84, "relaxed"), (1.14, "relaxed"), (1.30, "wrap")])
+        open_ = at(t, [(0.0, 0.0), (0.07, 0.0), (0.11, 1.2, "out"), (0.17, 1.0), (0.69, 1.0), (0.74, 0.0, "in")])
+        spec["vent_pos"] = (0.0, -0.007 * open_, 0.009 * open_)
+        spec["slide"] = at(t, [(0.0, 0.0), (0.07, 0.0), (0.10, 0.04, "out"), (1.10, 0.04), (1.15, 0.0, "in")])
+        _spin(spec, at(t, [(0.0, 0.0), (0.77, 0.0), (0.83, 60.0, "in"), (0.99, 300.0, "linear"), (1.07, 360.0, "out"), (1.4, 360.0)]))
+        if not fp:
+            _body(spec, t, [(0.0, 0.0), (0.12, 5.0, "out"), (0.5, 2.0), (0.67, -9.0, "in"), (0.9, -3.0), (1.2, 0.0)],
+                  [(0.0, 0.0), (0.12, -4.0, "out"), (0.6, -2.0), (0.9, -4.0), (1.2, 0.0)])
+        if 0.07 <= t < 0.14:     # out, straight down the grip (the game's own falling cell takes over from here)
+            spec["mag"] = tuple(MP_OUT * at(t, [(0.07, 0.0), (0.14, 0.22, "linear")]))
+        elif 0.14 <= t < 0.655:  # the new one, standing in the left palm
+            frames = A._frames(spec, V.space)
+            aim = frames["gun"][0] @ GUN_REST
+            middle, turn = _on_palm(frames, aim, MP_OUT, MP_HALF)
+            _put(spec, aim, frames["gun"][1], middle, turn, MP_CELL)
+        return spec
+    return pose
+
+
+# ---------------------------------------------------------------------------
+# Revolver (2.0 s; the Golden Gun's too)
+
+CYLINDER_HINGE = (-0.02, 0.02)        # the crane: the cylinder swings out to the left about it (x, up)
+CYLINDER_OPEN = v(-0.042, 0.044, 0.0)  # the middle of the open cylinder, across the gun
+
+
+def _swung(roll):
+    p = v(CYLINDER_HINGE[0], CYLINDER_HINGE[1], 0.0)
+    return {"mag_rot": (0.0, 0.0, roll), "mag": tuple(p - rz(roll) @ p)}
+
+
+def revolver(fp):
+    V = View(fp)
+    rest = V.rest_r
+    dip = V.right((-0.006, -0.008, 0.0), cant=V.cant + 14.0, work=0.0)
+    flick = V.right((0.03, 0.0, 0.0), (98.0, 4.0, 0.0), -44.0)       # snapped over to the right: the cylinder swings out
+    settle = V.right((0.02, 0.0, 0.0), (104.0, 6.0, 0.0), -30.0)
+    up = V.right((0.0, -0.035 if fp else 0.06, 0.04), (150.0, 8.0, 0.0), -16.0)   # muzzle up: the empties fall out
+    load = V.right((-0.01, -0.01, 0.02), (64.0, 14.0, 0.0), -36.0)   # muzzle down, the open cylinder turned up to the left hand
+    push = V.right((-0.01, -0.024, 0.016), (61.0, 14.0, 0.0), -36.0)
+    wind = V.right((0.0, -0.01, 0.01), (84.0, 8.0, 0.0), -50.0)      # wound up the other way...
+    shut = V.right((-0.03, 0.03, 0.0), (96.0, 2.0, 0.0), 36.0)       # ...and flicked over to the left: the cylinder slams shut
+    out = V.right((0.06, 0.03, -0.04), (92.0, -2.0, 0.0), 0.0)       # the spin: the arm sweeps out to the right...
+    top = V.right((0.04, 0.085, -0.03), (98.0, 0.0, 0.0), 0.0)       # ...up...
+    back = V.right((0.0, 0.05, -0.01), (92.0, 3.0, 0.0), 2.0)        # ...and back in
+    catch = V.right((0.0, -0.028, 0.0), (84.0, 4.0, 0.0), V.cant, work=0.0)
+    over = V.right((0.0, 0.008, 0.0), work=0.0)
+    keys_r = [(0.0, rest), (0.05, dip), (0.13, flick, "out"), (0.22, settle), (0.36, up, "out"), (0.47, moved(up, (0.0, -0.012, 0.0))),
+              (0.72, load), (0.90, load), (0.95, push, "out"), (1.03, load), (1.10, wind), (1.18, shut, "out"), (1.27, back),
+              (1.38, out), (1.52, top), (1.64, back), (1.71, catch, "in"), (1.79, over, "out"), (1.87, rest), (2.0, rest)]
+    # The left hand brings a speed loader to the back of the open cylinder and pushes it in.
+    # It comes in from the left, the loader in its fingertips, so the cylinder stays in view.
+    behind = CYLINDER_OPEN + v(-0.06, -0.012, 0.0)
+
+    def loader(back_off):
+        return V.fist_on(load, behind + v(0.0, 0.0, back_off), palm=(0.0, -0.35, -1.0), wrist=(-1.0, -0.45, 0.3), **_swung(80.0))
+    keys_l = [(0.0, V.rest_l), (0.06, V.rest_l), (0.34, V.hip, "in"), (0.60, V.lift), (0.84, loader(0.07)), (0.94, loader(0.025), "in"),
+              (1.02, loader(0.09), "out"), (1.16, V.out), (1.30, V.clear), (1.50, moved(V.clear, (-0.02, -0.03, 0.02))),
+              (1.68, V.clear), (1.88, V.rest_l), (2.0, V.rest_l)]
+
+    def pose(t):
+        spec = V.spec(keyed(t, keys_r), keyed(t, keys_l))
+        spec["fingers_r"] = hand_at(t, [(0.0, "gun"), (1.22, "gun"), (1.30, "trigger", "out"), (1.60, "trigger"), (1.70, "gun", "in")])
+        spec["fingers_l"] = hand_at(t, [(0.0, "wrap"), (0.06, "wrap"), (0.22, "relaxed"), (0.5, "pinch"), (0.95, "pinch"),
+                                        (1.03, "open", "out"), (1.2, "relaxed"), (1.7, "relaxed"), (1.88, "wrap")])
+        spec.update(_swung(at(t, [(0.0, 0.0), (0.09, 0.0), (0.16, 96.0, "out"), (0.24, 80.0), (1.13, 80.0), (1.18, 0.0, "in")])))
+        spec["vent_pos"] = (0.0, at(t, [(0.0, 0.0), (0.12, 0.0), (0.17, 0.009, "out"), (1.16, 0.007), (1.20, 0.0, "in")]), 0.0)
+        spec["slide"] = 0.0
+        _spin(spec, at(t, [(0.0, 0.0), (1.27, 0.0), (1.36, -60.0, "in"), (1.58, -300.0, "linear"), (1.68, -360.0, "out"), (2.0, -360.0)]))
+        if not fp:
+            _body(spec, t, [(0.0, 0.0), (0.14, 8.0, "out"), (0.4, 3.0), (0.72, -6.0), (0.95, -10.0), (1.18, -12.0, "out"), (1.4, 6.0),
+                            (1.7, 2.0), (1.9, 0.0)],
+                  [(0.0, 0.0), (0.36, -5.0, "out"), (0.72, 4.0), (1.0, 5.0), (1.2, 0.0), (1.5, -5.0), (1.8, 0.0)])
+        return spec
+    return pose
+
+
+# ---------------------------------------------------------------------------
+# Derringer (1.4 s)
+
+DERRINGER_ROUNDS = v(0.0, 0.063, -0.038)   # the middle of the pair of rounds, seated (gun space)
+
+
+def derringer(fp):
+    V = View(fp)
+    rest = V.rest_r
+    lift = V.right((0.0, 0.012, 0.0), (100.0, 4.0, 0.0), work=0.0)
+    snap = V.right((0.0, -0.01, 0.0), (68.0, 6.0, 0.0), -8.0)          # the wrist snapped down: the barrels fall open
+    show = V.right((-0.01, 0.01, 0.03), (106.0, 18.0, 0.0), 30.0)      # the breech up, turned to the left hand
+    took = V.right((-0.004, 0.0, 0.03), (101.0, 17.0, 0.0), 26.0)      # the rounds landing knock it down a touch
+    wind = V.right((0.0, -0.02, 0.01), (78.0, 8.0, 0.0), 6.0)
+    flick = V.right((0.0, 0.05, 0.0), (132.0, 6.0, 0.0), 4.0)          # flicked up: shut
+    over = V.right((0.0, -0.01, 0.0), (84.0, 4.0, 0.0), work=0.0)
+    keys_r = [(0.0, rest), (0.05, lift), (0.13, snap, "out"), (0.22, moved(snap, (0.0, 0.008, 0.0), (74.0, 8.0, 0.0))), (0.38, show),
+              (0.76, show), (0.81, took, "out"), (0.88, show), (0.95, wind), (1.03, flick, "out"), (1.13, over), (1.22, rest), (1.4, rest)]
+    opened = -56.0
+    hinge = v(0.0, DERRINGER_HINGE[0], -DERRINGER_HINGE[1])
+    breech = hinge + rx(opened) @ (DERRINGER_ROUNDS - hinge)   # where the rounds sit with the barrels open
+    # The left hand comes up beside the breech with the two rounds between finger and thumb.
+    beside = breech + v(-0.075, 0.035, 0.05)
+    near = V.fist_on(show, beside, palm=(1.0, 0.3, -0.2), wrist=(-0.5, -0.5, 0.7))
+    flip = V.fist_on(show, beside + v(0.012, 0.022, -0.012), palm=(1.0, 0.3, -0.2), wrist=(-0.5, -0.62, 0.6))
+    keys_l = [(0.0, V.rest_l), (0.06, V.rest_l), (0.30, V.hip, "in"), (0.50, V.lift), (0.60, near), (0.66, flip, "out"),
+              (0.80, near), (0.94, V.clear), (1.08, V.clear), (1.28, V.rest_l), (1.4, V.rest_l)]
+
+    def pose(t):
+        spec = V.spec(keyed(t, keys_r), keyed(t, keys_l))
+        spec["fingers_r"] = "gun"
+        spec["fingers_l"] = hand_at(t, [(0.0, "wrap"), (0.06, "wrap"), (0.2, "relaxed"), (0.36, "pinch"), (0.61, "pinch"),
+                                        (0.67, "open", "out"), (0.84, "relaxed"), (1.1, "relaxed"), (1.28, "wrap")])
+        turn = at(t, [(0.0, 0.0), (0.08, 0.0), (0.15, opened - 8.0, "out"), (0.22, opened), (0.98, opened), (1.03, 0.0, "in")])
+        spec["vent"] = turn
+        spec["vent_pivot"] = DERRINGER_HINGE
+        spec.update(_hinged(turn, DERRINGER_HINGE))
+        spec["slide"] = 0.0
+        if not fp:
+            _body(spec, t, [(0.0, 0.0), (0.14, 4.0, "out"), (0.4, -4.0), (0.8, -6.0), (1.03, 3.0, "out"), (1.25, 0.0)],
+                  [(0.0, 0.0), (0.14, 4.0, "out"), (0.4, 0.0), (1.03, -4.0, "out"), (1.25, 0.0)])
+        if 0.2 <= t < 0.80:   # the new pair: in the left hand, then flipped off the thumb into the breech
+            frames = A._frames(spec, V.space)
+            aim, grip = frames["gun"][0] @ GUN_REST, frames["gun"][1]
+
+            def held(fr):
+                turn_h = fr["hand_l"][0]
+                # Between finger and thumb: their noses toward the fingertips, one above the other.
+                return fr["fist_l"] + turn_h @ v(0.016, -0.03, -0.012), aim.T @ turn_h @ GUN_REST
+            if t < 0.62:
+                middle, turn_m = held(frames)
+            else:
+                start = held(A._frames(merged(spec, arm_l=near), V.space))
+                middle, turn_m = _flight((t - 0.62) / 0.18, start[0], start[1], grip + aim @ breech, rx(opened), 0.07, 1.0)
+            _put(spec, aim, grip, middle, turn_m, DERRINGER_ROUNDS)
+        return spec
+    return pose
+
+
+# ---------------------------------------------------------------------------
+# Flare gun (1.1 s)
+
+FLARE = v(0.0, 0.062, -0.082)   # the middle of the flare, seated (gun space)
+
+
+def flare_gun(fp):
+    V = View(fp)
+    rest = V.rest_r
+    lift = V.right((0.0, 0.012, 0.0), (100.0, 4.0, 0.0), work=0.0)
+    snap = V.right((0.0, -0.01, 0.0), (68.0, 6.0, 0.0), -10.0)        # broken open with a snap of the wrist
+    show = V.right((-0.01, 0.0, 0.03), (98.0, 16.0, 0.0), 26.0)       # the breech turned up to the left hand
+    took = V.right((-0.006, -0.016, 0.026), (92.0, 15.0, 0.0), 24.0)  # the new flare pushed home
+    wind = V.right((0.0, -0.02, 0.01), (76.0, 8.0, 0.0), 6.0)
+    shut = V.right((0.0, 0.05, 0.0), (130.0, 6.0, 0.0), 4.0)          # the wrist snaps it shut
+    over = V.right((0.0, -0.01, 0.0), (84.0, 4.0, 0.0), work=0.0)
+    keys_r = [(0.0, rest), (0.04, lift), (0.11, snap, "out"), (0.18, moved(snap, (0.0, 0.008, 0.0), (74.0, 8.0, 0.0))), (0.30, show),
+              (0.54, show), (0.60, took, "out"), (0.67, show), (0.72, wind), (0.79, shut, "out"), (0.89, over), (0.98, rest), (1.1, rest)]
+    opened = -58.0
+    hinge = v(0.0, FLARE_HINGE[0], -FLARE_HINGE[1])
+    seat = hinge + rx(opened) @ (FLARE - hinge)   # where the flare sits with the barrel open
+    axis = rx(opened) @ v(0.0, 0.0, -1.0)         # the way into the open barrel
+
+    # The left hand holds the flare in its fist, nose down out of the bottom of it, and pushes it in from above.
+    def over_breech(back):
+        return V.fist_on(show, seat - axis * back, palm=(0.0, -0.53, 0.85), wrist=(-1.0, 0.15, 0.1))
+    keys_l = [(0.0, V.rest_l), (0.05, V.rest_l), (0.24, V.hip, "in"), (0.38, V.lift), (0.50, over_breech(0.15)), (0.60, over_breech(0.085), "in"),
+              (0.67, over_breech(0.14), "out"), (0.80, V.clear), (0.90, V.clear), (1.04, V.rest_l), (1.1, V.rest_l)]
+
+    def pose(t):
+        spec = V.spec(keyed(t, keys_r), keyed(t, keys_l))
+        spec["fingers_r"] = "gun"
+        spec["fingers_l"] = hand_at(t, [(0.0, "wrap"), (0.05, "wrap"), (0.16, "relaxed"), (0.28, "fist"), (0.58, "fist"),
+                                        (0.66, "relaxed", "out"), (0.9, "relaxed"), (1.04, "wrap")])
+        turn = at(t, [(0.0, 0.0), (0.06, 0.0), (0.12, opened - 8.0, "out"), (0.18, opened), (0.74, opened), (0.785, 0.0, "in")])
+        spec["vent"] = turn
+        spec["vent_pivot"] = FLARE_HINGE
+        spec.update(_hinged(turn, FLARE_HINGE))
+        spec["slide"] = 0.0
+        if not fp:
+            _body(spec, t, [(0.0, 0.0), (0.12, 4.0, "out"), (0.3, -4.0), (0.6, -7.0), (0.79, 3.0, "out"), (1.0, 0.0)],
+                  [(0.0, 0.0), (0.12, 4.0, "out"), (0.3, 0.0), (0.79, -4.0, "out"), (1.0, 0.0)])
+        if 0.12 <= t < 0.16:   # the spent one springs out of the breech (the game's own flying one takes over)
+            spec["mag"] = tuple(v(*spec["mag"]) - rx(turn) @ v(0.0, 0.0, -1.0) * at(t, [(0.12, 0.0), (0.16, 0.12, "linear")]))
+        elif 0.16 <= t < 0.60:   # the new one: in the left fist, then pushed down into the barrel
+            frames = A._frames(spec, V.space)
+            aim, grip = frames["gun"][0] @ GUN_REST, frames["gun"][1]
+            turn_h = frames["hand_l"][0]
+            # In the fist its nose points out of the bottom of the hand; on the way in it lines up with the barrel.
+            nose = turn_h @ v(0.0, 0.0, 1.0)
+            side = turn_h @ v(1.0, 0.0, 0.0)
+            in_fist = aim.T @ np.column_stack([np.cross(side, -nose), side, -nose])
+            u = at(t, [(0.16, 0.0), (0.47, 0.0), (0.60, 1.0, "in")])
+            middle = frames["fist_l"] + nose * 0.012
+            middle = middle + (grip + aim @ seat - middle) * u
+            _put(spec, aim, grip, middle, _slerp_m(in_fist, rx(opened), min(u * 2.5, 1.0)), FLARE)
+        return spec
+    return pose
+
+
+# ---------------------------------------------------------------------------
+# Plasma pistol, overheated (2.0 s): nothing goes in or out. The vent flap flies up, the
+# gun is twirled twice forward to cool it, and the left hand slaps the flap shut.
+
+FLAP = v(0.0, 0.099, 0.03)   # the top of the vent flap (gun space)
+
+
+def plasma_pistol(fp):
+    V = View(fp)
+    rest = V.rest_r
+    jolt = V.right((0.0, 0.03, 0.02), (112.0, 6.0, 0.0), -4.0, work=0.0)   # it kicks as it boils over
+    away = V.right((0.01, 0.0, -0.01), (100.0, 2.0, 0.0), -16.0)           # held out away from the body
+    low = V.right((0.01, -0.01, -0.02), (90.0, 2.0, 0.0), -4.0)
+    high = V.right((0.01, 0.025, -0.03), (96.0, 2.0, 0.0), -4.0)
+    catch = V.right((0.0, -0.022, 0.0), (85.0, 4.0, 0.0), V.cant, work=0.0)
+    level = V.right((0.0, 0.01, 0.0), (90.0, 6.0, 0.0), 4.0, work=0.6)     # offered to the left hand
+    slapped = moved(level, (0.0, -0.022, 0.0), (84.0, 6.0, 0.0))
+    keys_r = [(0.0, rest), (0.09, jolt, "out"), (0.26, away), (0.36, low), (0.56, high), (0.78, low), (1.0, high), (1.18, low),
+              (1.28, level), (1.44, level), (1.49, slapped, "out"), (1.60, level), (1.80, rest), (2.0, rest)]
+
+    def on_flap(off):
+        return V.palm_on(level, FLAP, (0.0, -1.0, 0.0), along=(1.0, 0.0, -0.3), off=off)   # from the left, across the top of the gun
+    shake = moved(V.out, (-0.02, 0.03, 0.0), (104.0, -20.0, 20.0))
+    keys_l = [(0.0, V.rest_l), (0.05, V.rest_l), (0.20, V.out, "out"), (0.30, shake), (0.40, V.out), (0.50, shake), (0.62, V.out),
+              (1.10, moved(V.out, (0.0, -0.03, 0.02))), (1.34, on_flap(0.12)), (1.45, on_flap(0.0), "in"), (1.52, on_flap(0.05), "out"),
+              (1.64, V.clear), (1.84, V.rest_l), (2.0, V.rest_l)]
+
+    def pose(t):
+        spec = V.spec(keyed(t, keys_r), keyed(t, keys_l))
+        spec["fingers_r"] = hand_at(t, [(0.0, "gun"), (0.26, "gun"), (0.34, "trigger", "out"), (1.16, "trigger"), (1.26, "gun", "in")])
+        spec["fingers_l"] = hand_at(t, [(0.0, "wrap"), (0.05, "wrap"), (0.16, "open", "out"), (0.62, "open"), (0.9, "relaxed"),
+                                        (1.3, "relaxed"), (1.42, "flat"), (1.52, "flat"), (1.66, "relaxed"), (1.84, "wrap")])
+        spec["vent"] = at(t, [(0.0, 0.0), (0.04, 0.0), (0.10, -68.0, "out"), (0.18, -54.0), (1.42, -54.0), (1.455, 0.0, "in")])
+        spec["vent_pivot"] = PLASMA_VENT_PIVOT
+        spec["slide"] = 0.0
+        _spin(spec, at(t, [(0.0, 0.0), (0.30, 0.0), (0.40, -70.0, "in"), (1.12, -650.0, "linear"), (1.24, -720.0, "out"), (2.0, -720.0)]))
+        if not fp:
+            _body(spec, t, [(0.0, 0.0), (0.1, 4.0, "out"), (0.3, 10.0), (1.1, 8.0), (1.45, -8.0, "in"), (1.7, -2.0), (1.9, 0.0)],
+                  [(0.0, 0.0), (0.1, -6.0, "out"), (0.3, -2.0), (1.2, -2.0), (1.45, 3.0), (1.8, 0.0)])
+        return spec
+    return pose
+
+
+# ---------------------------------------------------------------------------
+# Akimbo (2.0 s): a pistol in each fist. Both wrists flick outward and throw the cells out
+# to the sides, the arms cross low so each gun is pushed down on a new cell at the far
+# hip, and they uncross with both guns spinning forward together.
+
+AK_OUT = norm(v(0.0, -0.978, 0.208))   # the way out of a grip
+
+
+def akimbo(fp):
+    import weapon_anims as W
+    pos0, hand0, cant0 = W.AK_AIM[fp]
+
+    def arm(by, hand=hand0, cant=cant0):
+        return W._ak_arm(fp, W._add(pos0, by), hand, cant)
+
+    def left(a, by=ZERO):
+        m = W._mirror_arm(a)
+        m["ik"] = W._add(m["ik"], by)
+        return m
+    rest = arm(ZERO)
+    dip = arm((0.0, -0.012, 0.0), cant=cant0 - 8.0)
+    flick = arm((0.035, 0.04, 0.03), (106.0, -12.0, 0.0), 82.0)     # rolled over outward: the cell flies out to the side
+    hold = arm((0.02, 0.02, 0.04), (100.0, -6.0, 0.0), 58.0)
+    if fp:
+        cross = arm((-0.25, -0.075, 0.05), (58.0, 40.0, 0.0), -22.0)   # across to the far hip, muzzle down (kept in view)
+    else:
+        cross = arm((-0.245, -0.27, 0.175), (52.0, 40.0, 0.0), -22.0)
+    push = moved(cross, (0.0, -0.045, 0.0), (50.0, 40.0, 0.0))        # down on the new cell
+    lifted = moved(cross, (0.0, 0.012, 0.0))
+    wide = arm((0.07, 0.05, 0.02), (94.0, -8.0, 0.0), 0.0)          # uncrossed and out wide: the spin
+    top = arm((0.07, 0.085, 0.02), (99.0, -8.0, 0.0), 0.0)
+    catch = arm((0.0, -0.025, 0.0), (85.0, hand0[1], 0.0), cant0)
+    over = arm((0.0, 0.008, 0.0))
+    keys_r = [(0.0, rest), (0.06, dip), (0.14, flick, "out"), (0.28, hold), (0.58, cross), (0.66, cross), (0.71, push, "out"),
+              (0.80, lifted), (1.0, wide, "out"), (1.2, top), (1.40, wide), (1.49, catch, "in"), (1.58, over, "out"), (1.68, rest), (2.0, rest)]
+    behind = (0.0, -0.03, 0.06)   # the left arm crosses under and behind the right
+    keys_l = [(k[0], left(k[1], behind if k[1] in (cross, push, lifted) else ZERO)) + tuple(k[2:]) for k in keys_r]
+
+    def pose(t):
+        spec = {"arm_r": keyed(t, keys_r), "arm_l": keyed(t, keys_l)}
+        fingers = hand_at(t, [(0.0, "gun"), (0.96, "gun"), (1.04, "trigger", "out"), (1.36, "trigger"), (1.46, "gun", "in")])
+        slide = at(t, [(0.0, 0.0), (0.10, 0.0), (0.14, 0.04, "out"), (1.50, 0.04), (1.56, 0.0, "in")])
+        if t < 0.12 or t >= 0.71:
+            mag = ZERO
+        elif t < 0.2:    # out of the grip (the game's own flying cell takes over)
+            mag = tuple(AK_OUT * at(t, [(0.12, 0.0), (0.2, 0.22, "linear")]))
+        else:            # the new one, waiting at the hip: the gun comes down on it
+            mag = tuple(AK_OUT * at(t, [(0.2, 0.2), (0.6, 0.2), (0.71, 0.0, "in")]))
+        open_ = at(t, [(0.0, 0.0), (0.10, 0.0), (0.15, 1.2, "out"), (0.22, 1.0), (0.73, 1.0), (0.78, 0.0, "in")])
+        vent = (0.0, -0.006 * open_, 0.008 * open_)
+        spec.update({"fingers_r": fingers, "fingers_l": fingers, "slide": slide, "slide_l": slide, "mag": mag, "mag_l": mag,
+                     "vent_pos": vent, "vent_pos_l": vent})
+        turn = at(t, [(0.0, 0.0), (0.98, 0.0), (1.06, -60.0, "in"), (1.33, -300.0, "linear"), (1.44, -360.0, "out"), (2.0, -360.0)])
+        _spin(spec, turn)
+        _spin(spec, turn, "pistol_l")
+        if not fp:
+            _body(spec, t, [(0.0, 0.0), (2.0, 0.0)], [(0.0, 0.0), (0.14, -4.0, "out"), (0.4, 0.0), (0.7, 10.0, "out"), (1.0, -4.0),
+                                                      (1.5, -3.0), (1.8, 0.0)])
+        return spec
+    return pose
+
+
+RELOADS = {"machine_pistol": machine_pistol, "revolver": revolver, "derringer": derringer, "flare_gun": flare_gun,
+           "plasma_pistol": plasma_pistol}

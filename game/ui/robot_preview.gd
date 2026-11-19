@@ -109,7 +109,7 @@ func _pose(r: Dictionary, t: float) -> void:
 		var hold: RobotPose = r.hold
 		var rig := robot.rig
 		var arms := PackedInt32Array()
-		for n in ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag",
+		for n in ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent",
 				"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2", "index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]:
 			arms.append(rig.bones[n])
 		pose.blend_bones(hold, 1.0, arms)

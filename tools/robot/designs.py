@@ -584,7 +584,7 @@ def templar():
 ARM_BONES = ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
              "index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
              "index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2",
-             "pistol", "pistol_slide", "pistol_mag", "pistol_l", "pistol_l_slide", "pistol_l_mag")  # what the first-person view shows (every gun rides on the last three)
+             "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent")  # what the first-person view shows (every gun rides on the gun bones)
 
 DESIGNS = {"vanguard": vanguard, "brick": brick, "needle": needle, "kestrel": kestrel, "bulwark": bulwark,
            "rivet": rivet, "specter": specter, "orbit": orbit, "templar": templar}

@@ -9,9 +9,9 @@ How the game uses them (game/player/robot/robot_animator.gd):
 Looping clips must return the same pose at t = 0 and t = duration.
 """
 import math
-from m3 import euler
+from m3 import euler, norm, rx, ry, rz, v
 import numpy as np
-from rig import HANDS, Clip, keyed, mix, mirror, merged, ease
+from rig import BODY, FIST, GUN_REST, HANDS, ZERO, Clip, _slerp_m, keyed, mix, mirror, merged, ease, solve
 
 TAU = math.tau
 
@@ -19,10 +19,64 @@ TAU = math.tau
 # Building blocks
 
 # Gun up in both hands, relative to the chest. The game pitches this with the aim.
-AIM_R = {"ik": (0.045, 0.25, -0.44), "space": "chest", "pole": (0.7, -1.0, 0.3), "hand": (90.0, 0.0, 0.0)}
-AIM_L = {"ik": (-0.02, 0.232, -0.425), "space": "chest", "pole": (-0.7, -1.0, 0.3), "hand": (90.0, -25.0, 0.0)}
+# Relaxed: elbows bent, the gun at the right of the chest and a little below the chin,
+# tipped a touch inward (cant: + rolls a gun's top to the left), the left hand cupped under it. (The first-person arms hold it
+# the same way: FP_R, below.)
+AIM_R = {"ik": (0.09, 0.12, -0.32), "space": "chest", "pole": (0.7, -1.0, 0.3), "hand": (90.0, 3.0, 0.0), "cant": 6.0}
+def _euler_of(m):
+    """The (pitch, yaw, roll) that m3.euler turns back into the rotation m."""
+    return (-math.degrees(math.asin(max(-1.0, min(1.0, m[1][2])))), math.degrees(math.atan2(m[0][2], m[2][2])),
+            math.degrees(math.atan2(m[1][0], m[1][1])))
+
+
+CHEST0 = (0.0, 1.22, 0.0)   # where the chest is in the model with the body standing at rest
+
+
+def _frames(spec, space="chest"):
+    """Where a pose puts the gun and the left hand, in the chest's own space or the model's
+    (whichever the arms' "ik" is in): {"gun": (turn, place), "hand_l": (turn, wrist), "fist_l": place}."""
+    L, T = solve(BODY, spec)
+    G, P = {}, {}
+    for b in BODY.bones:
+        if b.parent < 0:
+            G[b.name], P[b.name] = L[b.name], T[b.name]
+        else:
+            pn = BODY.bones[b.parent].name
+            G[b.name] = G[pn] @ L[b.name]
+            P[b.name] = P[pn] + G[pn] @ T[b.name]
+    back = G["chest"].T if space == "chest" else np.eye(3)
+    origin = P["chest"] if space == "chest" else np.zeros(3)
+
+    def seen(bone):
+        return back @ G[bone], back @ (P[bone] - origin)
+    hand = seen("hand_l")
+    return {"gun": seen("pistol"), "hand_l": hand, "fist_l": hand[1] + hand[0] @ v(0.0, -FIST, 0.0)}
+
+
+# The left hand on a pistol: wrapped round the right hand from the left and below. Its palm
+# is against the left of the grip, over the right hand's fingertips, its fingers lie
+# across the front of the right hand's under the trigger guard, and its wrist is lower
+# and further out than the right one, so the hand cups the grip from underneath.
+WRAP_AT = (-0.002, -0.048, -0.016)   # where the left hand's own grip is, in gun space (x right, y up, z back)
+WRAP_TURN = (26.0, 0.0, 12.0)        # the hand's turn from the right hand's: the wrist dropped, rolled, swung out to the left
+
+
+def wrap_l(arm_r, pole=(-0.5, -1.0, 0.3), body=None):
+    """The left arm with its hand wrapped round the right hand on a pistol's grip, for the
+    right arm `arm_r` (an "ik" arm) and the rest of the pose `body` (where the shoulders
+    are). In the same space as the right arm, so the two blend with other arm poses number
+    by number. The arm has to reach: see FP_BODY."""
+    space = arm_r.get("space", "chest")
+    gun_turn, gun_at = _frames(dict(body or {}, arm_r=arm_r), space)["gun"]
+    turn = gun_turn @ rz(WRAP_TURN[2]) @ rx(WRAP_TURN[0]) @ ry(WRAP_TURN[1])
+    wrist = gun_at + gun_turn @ GUN_REST @ v(*WRAP_AT) + turn @ v(0.0, FIST, 0.0)
+    return {"ik": tuple(float(x) for x in wrist), "space": space, "pole": pole, "hand": _euler_of(turn), "cant": 0.0,
+            "fingers": "wrap"}
+
+
+AIM_L = wrap_l(AIM_R)
 # Gun in one hand (the left arm is busy: wall, rope, ground)
-AIM_R_ONE = {"ik": (0.14, 0.24, -0.46), "space": "chest", "pole": (0.7, -1.0, 0.3), "hand": (90.0, 0.0, 0.0)}
+AIM_R_ONE = {"ik": (0.19, 0.10, -0.40), "space": "chest", "pole": (0.7, -1.0, 0.3), "hand": (90.0, 2.0, 0.0), "cant": 10.0}
 
 # Crouched torso: hunched forward so the head sits at crouch height (1.1 m body).
 LOW_SPINE = (-12.0, 0.0, 0.0)
@@ -407,13 +461,9 @@ def _arm(side, pos, hand, cant=0.0, space="chest"):
 
 
 def reload(t):
-    """Arms and gun only; the game lays this over whatever the body is doing."""
-    return _reload(t,
-                   _arm("r", AIM_R["ik"], AIM_R["hand"]), _arm("l", AIM_L["ik"], AIM_L["hand"]),
-                   _arm("r", (0.07, 0.21, -0.37), (118.0, 14.0, 0.0), 38.0),
-                   _arm("l", (0.015, 0.105, -0.34), (100.0, -20.0, 0.0)),
-                   _arm("l", (-0.19, -0.22, -0.10), (40.0, 0.0, 0.0)),
-                   _arm("l", (0.035, 0.275, -0.405), (90.0, -50.0, 0.0), -60.0))
+    """Arms and gun (the game lays this over whatever the body is doing), and a turn of
+    the chest and spine that the game adds to the body's own."""
+    return _pistol_reload(t, _arm("r", AIM_R["ik"], AIM_R["hand"], AIM_R["cant"]), AIM_L, False)
 
 
 def death(t):
@@ -603,18 +653,32 @@ def fp_arm_l(x, y, z, hand=(90.0, -28.0, 0.0), cant=0.0):
     return {"ik": cam(x, y, z), "space": "chest", "pole": (-0.8, -1.0, 0.3), "hand": hand, "cant": cant}
 
 
-FP_R = fp_arm_r(0.185, -0.165, -0.43)
-FP_L = fp_arm_l(0.12, -0.182, -0.415)
+# The same relaxed hold as the body's (AIM_R): low and off to the right of the view,
+# pointing in toward the crosshair, not held up in front of your face.
+# Only the arms are drawn, so the shoulders go where both hands can reach a gun held that
+# far out to the right: the chest turned to the right and brought forward (the right
+# shoulder stays about where it was, the left comes round to the front). Arms held this
+# way are given in the model's space (in_view), which the turned chest does not move.
+FP_BODY = {"hips": {"pos": (0.04, 0.96, -0.09), "rot": (0.0, 0.0, 0.0)}, "chest": (0.0, -30.0, 0.0)}
+
+
+def in_view(arm):
+    """An arm given relative to the camera (fp_arm_r, fp_arm_l), in the model's space."""
+    return dict(arm, ik=tuple(a + b for a, b in zip(arm["ik"], CHEST0)), space="model")
+
+
+FP_R = in_view(fp_arm_r(0.262, -0.222, -0.40, hand=(90.0, 4.0, 0.0), cant=6.0))
+FP_L = wrap_l(FP_R, pole=(-0.8, -1.0, 0.3), body=FP_BODY)
 FP_L_AWAY = fp_arm_l(-0.30, -0.48, -0.12, hand=(60.0, 0.0, 0.0))
 
 
 def fp_idle(t):
-    return {"arm_r": FP_R, "arm_l": FP_L}
+    return dict(FP_BODY, arm_r=FP_R, arm_l=FP_L)
 
 
 def fp_one_hand(t):
     """Gun in the right hand only (the left arm is on the rope)."""
-    return {"arm_r": fp_arm_r(0.20, -0.165, -0.43), "arm_l": FP_L_AWAY}
+    return {"arm_r": fp_arm_r(0.27, -0.222, -0.40, hand=(90.0, 4.0, 0.0), cant=10.0), "arm_l": FP_L_AWAY}
 
 
 def fp_sprint(t):
@@ -679,11 +743,167 @@ def _reload(t, rest_r, rest_l, tilt_r, at_mag, away, at_slide):
 
 
 def fp_reload(t):
-    return _reload(t, FP_R, FP_L,
-                   fp_arm_r(0.17, -0.145, -0.39, hand=(114.0, 14.0, 0.0), cant=38.0),
-                   fp_arm_l(0.125, -0.235, -0.365, hand=(100.0, -20.0, 0.0)),
-                   fp_arm_l(-0.04, -0.50, -0.20, hand=(80.0, 0.0, 0.0)),
-                   fp_arm_l(0.155, -0.115, -0.405, hand=(90.0, -50.0, 0.0), cant=-60.0))
+    return _pistol_reload(t, FP_R, FP_L, True)
+
+
+# ---------------------------------------------------------------------------
+# The pistol's reload (1.3 s): a flick of the wrist throws the spent cell out sideways
+# and drops the vent open, the left hand brings a new cell up from the hip, tosses it
+# and slaps it home with the flat of the palm, the vent snaps shut, and the right hand
+# opens to let the gun spin once forward round the trigger finger, closing on the grip
+# as it comes round, its slide snapping shut as it lands. The game's side of it (the
+# spent cell that flies off, the glow, hiding the cell between the throw and the new one)
+# is timed to these keys in game/combat/reload_fx.gd.
+
+PISTOL_VENT_PIVOT = (0.027, 0.086)          # the vent's hinge: (up, forward) of the grip
+PISTOL_SPIN_PIVOT = (0.0, 0.006, -0.024)    # the trigger finger in the guard, in gun space: the gun spins round it
+CELL_MIDDLE = v(0.0, -0.045, 0.02)          # the middle of the cell seated in the grip (gun space)
+CELL_OUT = norm(v(0.0, -0.97, 0.24))        # the way out of the grip (gun space)
+CELL_HALF = 0.055                           # from the cell's middle to its base
+PALM_L = v(-0.020, -0.031, 0.029)           # the middle of the left palm's face, from its wrist (hands.py)
+
+
+def _at(t, keys):
+    """A number keyed over time: keys [(time, value), ...] or [(time, value, ease), ...]."""
+    if t <= keys[0][0]:
+        return keys[0][1]
+    for i in range(1, len(keys)):
+        if t <= keys[i][0]:
+            u = ease((t - keys[i - 1][0]) / (keys[i][0] - keys[i - 1][0]), keys[i][2] if len(keys[i]) > 2 else "smooth")
+            return keys[i - 1][1] + (keys[i][1] - keys[i - 1][1]) * u
+    return keys[-1][1]
+
+
+def _hand_at(t, keys):
+    """A hand's pose keyed over time: keys [(time, name in rig.HANDS), ...] (or with an ease)."""
+    return tuple(_at(t, [(k[0], HANDS[k[1]][i]) + tuple(k[2:]) for k in keys]) for i in range(8))
+
+
+def _moved(arm, by, hand=None, cant=None):
+    """An arm's pose with its wrist moved `by` (and the hand turned)."""
+    return {"ik": tuple(a + b for a, b in zip(arm["ik"], by)), "space": arm.get("space", "chest"), "pole": arm["pole"],
+            "hand": hand if hand is not None else arm["hand"], "cant": cant if cant is not None else arm.get("cant", 0.0)}
+
+
+def _pistol_reload(t, rest_r, rest_l, fp):
+    rest_r = _moved(rest_r, ZERO)
+    rest_l = _moved(rest_l, ZERO)
+    rest_cant = rest_r["cant"]
+    space = rest_r["space"]
+    body = FP_BODY if fp else {}
+    # --- The right arm. In first person the gun comes up and in toward the middle of the view.
+    # Each move starts a touch the other way and runs a little past where it settles, and the
+    # gun never sits dead still: it rocks back from the flick, then rises to meet the tossed cell.
+    if fp:
+        dip = _moved(rest_r, (0.006, -0.012, 0.0), cant=rest_cant + 8.0)
+        flick = _moved(rest_r, (-0.04, 0.09, 0.0), (110.0, 14.0, 0.0), -94.0)
+        settle = _moved(rest_r, (-0.05, 0.072, 0.015), (99.0, 10.0, 0.0), -70.0)
+        offer = _moved(rest_r, (-0.07, 0.11, 0.03), (106.0, 14.0, 0.0), -84.0)
+        ready = _moved(rest_r, (-0.076, 0.12, 0.03), (109.0, 15.0, 0.0), -89.0)
+        wait = _moved(rest_r, (-0.07, 0.102, 0.03), (104.0, 14.0, 0.0), -82.0)
+        knock = _moved(rest_r, (-0.03, 0.112, 0.03), (103.0, 9.0, 0.0), -74.0)
+        spin = _moved(rest_r, (-0.06, 0.12, 0.0), (90.0, 5.0, 0.0), 4.0)
+        top = _moved(rest_r, (-0.06, 0.134, 0.0), (86.0, 5.0, 0.0), 4.0)
+        catch = _moved(rest_r, (-0.02, -0.018, 0.0), (94.0, 4.0, 0.0), rest_cant)
+        over = _moved(rest_r, (0.0, 0.008, 0.0))
+    else:
+        dip = _moved(rest_r, (0.006, -0.012, 0.0), cant=rest_cant + 8.0)
+        flick = _moved(rest_r, (0.05, 0.06, 0.03), (110.0, 12.0, 0.0), -94.0)
+        settle = _moved(rest_r, (0.035, 0.04, 0.04), (99.0, 8.0, 0.0), -70.0)
+        offer = _moved(rest_r, (0.0, 0.05, 0.05), (106.0, 12.0, 0.0), -84.0)
+        ready = _moved(rest_r, (-0.006, 0.06, 0.05), (109.0, 13.0, 0.0), -89.0)
+        wait = _moved(rest_r, (0.0, 0.042, 0.05), (104.0, 12.0, 0.0), -82.0)
+        knock = _moved(rest_r, (0.04, 0.052, 0.05), (103.0, 7.0, 0.0), -74.0)
+        spin = _moved(rest_r, (0.01, 0.08, 0.02), (90.0, 3.0, 0.0), 4.0)
+        top = _moved(rest_r, (0.01, 0.094, 0.02), (86.0, 3.0, 0.0), 4.0)
+        catch = _moved(rest_r, (0.0, -0.028, 0.0), (94.0, 3.0, 0.0), rest_cant)
+        over = _moved(rest_r, (0.0, 0.008, 0.0))
+    arm_r = keyed(t, [(0.0, rest_r), (0.04, dip), (0.11, flick, "out"), (0.20, settle), (0.32, offer), (0.47, ready),
+                      (0.585, wait), (0.63, knock, "out"),
+                      (0.72, offer), (0.82, spin), (0.94, top), (1.06, spin), (1.13, catch, "in"), (1.21, over, "out"),
+                      (1.28, rest_r), (1.30, rest_r)])
+    # --- The left arm: to the hip for a new cell, up with it, the toss (the hand follows it up,
+    # opening), back for the slap, the slap, off the gun with the knock, clear of the spin, back under.
+    if fp:
+        hip = fp_arm_l(-0.02, -0.52, -0.16, hand=(40.0, 0.0, 0.0))
+        lift = fp_arm_l(-0.03, -0.37, -0.33, hand=(64.0, -30.0, 0.0))
+        toss = fp_arm_l(0.0, -0.255, -0.36, hand=(104.0, -40.0, 0.0))
+        clear = fp_arm_l(-0.07, -0.32, -0.29, hand=(80.0, -30.0, 0.0))
+    else:
+        hip = _arm("l", (-0.21, -0.30, -0.05), (30.0, 0.0, 0.0))
+        lift = _arm("l", (-0.11, -0.08, -0.26), (64.0, -30.0, 0.0))
+        toss = _arm("l", (-0.08, 0.035, -0.30), (104.0, -40.0, 0.0))
+        clear = _arm("l", (-0.14, -0.04, -0.23), (80.0, -30.0, 0.0))
+    hip, lift, toss, clear = [_moved(in_view(a) if fp else a, ZERO) for a in (hip, lift, toss, clear)]
+    # The slap is worked out from where the gun is waiting: the flat of the palm on the
+    # cell's base, facing up the grip, the fingers along the gun.
+    gun_turn, gun_at = _frames(dict(body, arm_r=wait, arm_l=toss), space)["gun"]
+    aim = gun_turn @ GUN_REST
+    into = -(aim @ CELL_OUT)
+    base = gun_at + aim @ (CELL_MIDDLE + CELL_OUT * (CELL_HALF + 0.004))
+    along = aim @ v(0.0, 0.25, -1.0)
+    along = norm(along - into * float(np.dot(along, into)))
+    palm = np.column_stack([into, -along, np.cross(into, -along)])
+
+    def struck(back_off, pole=(-0.5, -1.0, 0.3)):
+        wrist = base - into * back_off - palm @ PALM_L
+        return {"ik": tuple(float(x) for x in wrist), "space": space, "pole": pole, "hand": _euler_of(palm), "cant": 0.0}
+    arm_l = keyed(t, [(0.0, rest_l), (0.10, rest_l), (0.27, hip, "in"), (0.38, lift, "in"), (0.44, toss, "out"),
+                      (0.50, _moved(toss, (0.0, 0.03, -0.01))), (0.565, struck(0.11)), (0.62, struck(0.0), "in"),
+                      (0.68, struck(0.05), "out"), (0.80, clear), (0.96, _moved(clear, (-0.025, -0.035, 0.03))),
+                      (1.10, _moved(clear, (-0.01, -0.01, 0.0))), (1.26, rest_l), (1.30, rest_l)])
+    spec = dict(body)
+    spec.update({"arm_r": arm_r, "arm_l": arm_l,
+            # The right hand lets go for the spin, all but the trigger finger, and closes as the grip comes round.
+            "fingers_r": _hand_at(t, [(0.0, "gun"), (0.70, "gun"), (0.79, "trigger", "out"), (1.02, "trigger"), (1.11, "gun", "in")]),
+            "fingers_l": _hand_at(t, [(0.0, "wrap"), (0.08, "wrap"), (0.2, "relaxed"), (0.27, "open"), (0.31, "pinch", "in"),
+                                      (0.43, "pinch"), (0.49, "open", "out"), (0.56, "flat"), (0.64, "flat"), (0.76, "relaxed"),
+                                      (1.10, "relaxed"), (1.26, "wrap")]),
+            "vent": _at(t, [(0.0, 0.0), (0.05, 0.0), (0.10, -38.0, "out"), (0.16, -32.0), (0.66, -32.0), (0.71, 0.0, "in")]),
+            "vent_pivot": PISTOL_VENT_PIVOT,
+            "slide": _at(t, [(0.0, 0.0), (0.07, 0.0), (0.10, 0.04, "out"), (1.10, 0.04), (1.16, 0.0, "in")])})
+    if not fp:
+        # The body goes with it: the right shoulder goes into the flick, the left comes
+        # round behind the slap, and the chest leans back a touch through the spin.
+        spec["chest"] = (_at(t, [(0.0, 0.0), (0.12, 3.0, "out"), (0.62, 2.0), (0.84, -4.0), (1.10, -3.0), (1.3, 0.0)]),
+                         _at(t, [(0.0, 0.0), (0.12, 9.0, "out"), (0.44, 5.0), (0.63, -11.0, "in"), (0.84, -2.0), (1.3, 0.0)]),
+                         _at(t, [(0.0, 0.0), (0.12, -7.0, "out"), (0.5, -4.0), (0.66, 3.0), (0.9, 0.0), (1.3, 0.0)]))
+        spec["spine"] = (0.0, _at(t, [(0.0, 0.0), (0.12, 4.0, "out"), (0.44, 2.0), (0.63, -5.0, "in"), (0.84, 0.0), (1.3, 0.0)]), 0.0)
+    # --- The gun in the hand: once round the trigger finger, muzzle going down and forward first,
+    # slowing as it comes back up into the palm.
+    turn = _at(t, [(0.0, 0.0), (0.77, 0.0), (0.84, -70.0, "in"), (1.0, -300.0, "linear"), (1.09, -360.0, "out"), (1.3, -360.0)])
+    if turn != 0.0 and turn != -360.0:
+        pivot = v(*PISTOL_SPIN_PIVOT)
+        spec["pistol"] = {"pos": tuple(pivot - rx(turn) @ pivot), "rot": (turn, 0.0, 0.0)}
+    # --- The cell: thrown out of the grip, then the new one in the left hand, tossed, and home.
+    if t < 0.07 or t >= 0.62:
+        return spec
+    if t < 0.14:   # out, the way the grip points (the game's own flying cell takes over from here)
+        spec["mag"] = tuple(CELL_OUT * _at(t, [(0.07, 0.0), (0.14, 0.2, "linear")]))
+        return spec
+    now = _frames(spec, space)
+    gun_turn, gun_at = now["gun"]
+    aim = gun_turn @ GUN_REST
+    seated = gun_at + aim @ CELL_MIDDLE
+
+    def in_hand(frames):
+        """The cell held across the fingers, its top toward the thumb: (its middle, its turn in gun space)."""
+        hand_turn = frames["hand_l"][0]
+        top = hand_turn @ v(0.0, 0.0, -1.0)
+        flat = hand_turn @ v(1.0, 0.0, 0.0)
+        world = np.column_stack([flat, top, np.cross(flat, top)])
+        own = np.column_stack([v(1.0, 0.0, 0.0), -CELL_OUT, np.cross(v(1.0, 0.0, 0.0), -CELL_OUT)])
+        return frames["fist_l"] + hand_turn @ v(0.012, 0.0, 0.0), aim.T @ world @ own.T
+    if t < 0.44:   # in the hand (hidden by the game until the hand is on its way up)
+        middle, turn_m = in_hand(now)
+    else:          # tossed: up in an arc from where the hand let go, turning over once, into the grip
+        u = (t - 0.44) / (0.62 - 0.44)
+        let_go, held = in_hand(_frames(merged(spec, arm_l=toss), space))
+        middle = let_go + (seated - let_go) * ease(u, "in") + v(0.0, 0.085, 0.0) * 4.0 * u * (1.0 - u) * (1.0 - u) * 1.6
+        turn_m = rx(-360.0 * min(u / 0.85, 1.0)) @ _slerp_m(held, np.eye(3), ease(min(u / 0.7, 1.0)))
+    spec["mag_rot"] = _euler_of(turn_m)
+    spec["mag"] = tuple(aim.T @ (middle - gun_at) - turn_m @ CELL_MIDDLE)
+    return spec
 
 
 def arms_clips():

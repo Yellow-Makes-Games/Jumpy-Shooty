@@ -16,7 +16,7 @@ frame, armour-plate panels on its flanks, steel barrels, a near-black grip, and 
 parts in the player's trim colour ("glow": a channel along the gun and a window in
 its power cell). Each keeps the outline of the real gun it is named after, a little
 chunkier. What a reload moves is on the slide and magazine bones; each gun's vents
-(the part a reload will snap open) are added with _vent().
+(the part a reload snaps open, on a bone of their own) are added with _vent().
 
 The barrel line, the muzzle and where the hands go (SUPPORT, and the bolts, handles
 and magazines in weapon_anims.py) are fixed points: a new shape has to be built
@@ -44,7 +44,7 @@ SUPPORT = {
     "shotgun": {"grip": (0.0, 0.027, -0.30), "on": "pistol_slide"},
     "rifle": {"grip": (0.0, 0.047, -0.235)},
     "sniper": {"grip": (0.0, 0.030, -0.30)},
-    "break_action": {"grip": (0.0, 0.025, -0.30), "on": "pistol_mag"},   # the fore-end swings down with the barrels
+    "break_action": {"grip": (0.0, 0.025, -0.30), "on": "pistol_vent"},  # the fore-end swings down with the barrels
     "smg": {"grip": (0.0, -0.045, -0.215), "upright": True},            # the vertical foregrip
     "burst_rifle": {"grip": (0.0, 0.044, -0.25)},
     "lmg": {"grip": (0.0, 0.025, -0.27)},
@@ -88,9 +88,9 @@ KINDS = {
     "lens": {"color": (0.05, 0.10, 0.14), "metallic": 0.2, "roughness": 0.15, "emission": (0.10, 0.45, 0.60)},
 }
 
-# The bone each gun's vents ride on. They do not move yet: the reloads will give them
-# a bone of their own to snap open on.
-VENT_BONE = "pistol"
+# The bone each gun's vents ride on (the akimbo pair's left gun: "pistol_l_vent"): a
+# reload snaps them open (the "vent" key of a pose, see rig.solve).
+VENT_BONE = "pistol_vent"
 
 
 def materials():
@@ -233,7 +233,7 @@ def _add(mesh, gun, kind, bone, part):
 
 
 def _vent(mesh, gun, kind, part, bone=VENT_BONE):
-    """The gun's vents: the part a reload will snap open."""
+    """The gun's vents: the part a reload snaps open."""
     _add(mesh, gun, kind, bone, part)
 
 
@@ -305,14 +305,16 @@ def _scope(f0, f1, y, r=0.019, bell=0.028):
 
 def pistol(mesh):
     """A chunky sidearm, about 26 cm: armour plates on the slide with a lit channel under
-    their step, a cooling grille on the dust cover, and a power cell in the grip whose
-    lit base shows under it."""
+    their step, and a power cell in the grip whose lit base shows under it. Its vent is
+    the chin under the barrel: a reload drops it open on its hinge, off a lit core."""
     g = "pistol"
     _add(mesh, g, "grip", "pistol", _grip(-14, 0.038, 0.112, 0.05, -0.036, 0.018))
-    frame = _core([(-0.068, 0.05), (0.178, 0.05), (0.178, 0.03), (0.163, 0.004), (0.092, 0.004), (0.078, 0.024),
-                   (-0.03, 0.024), (-0.068, 0.036)], 0.038, 0.004)
+    frame = _core([(-0.068, 0.05), (0.178, 0.05), (0.178, 0.032), (0.172, 0.026), (-0.03, 0.024), (-0.068, 0.036)], 0.038, 0.004)
     _add(mesh, g, "dark", "pistol", frame + _guard(0.076))
-    _vent(mesh, g, "detail", _slats(0.098, 4, 0.015, 0.009, 0.027, 0.019, t=0.007, lean=0.005, thick=0.003))
+    _add(mesh, g, "glow", "pistol", box(0.024, 0.012, 0.066).move(0, 0.021, -0.13))   # the core the vent covers
+    # The vent: hinged at its back top corner (PISTOL_VENT_PIVOT in animations.py).
+    _vent(mesh, g, "dark", _core([(0.086, 0.027), (0.172, 0.027), (0.163, 0.004), (0.096, 0.004)], 0.04, 0.004))
+    _vent(mesh, g, "detail", _slats(0.1, 4, 0.015, 0.008, 0.023, 0.02, t=0.007, lean=0.004, thick=0.003))
     slide = _core([(-0.068, 0.052), (0.176, 0.052), (0.176, 0.082), (0.16, 0.092), (-0.05, 0.092), (-0.068, 0.08)], 0.04, 0.006)
     _add(mesh, g, "dark", "pistol_slide", slide)
     _add(mesh, g, "plate", "pistol_slide", _panels([(-0.03, 0.056), (0.088, 0.056), (0.106, 0.071), (0.168, 0.071), (0.168, 0.084),
@@ -388,7 +390,7 @@ def _akimbo_one(mesh, g, side):
     frame = _core([(-0.058, 0.048), (0.16, 0.048), (0.16, 0.03), (0.146, 0.008), (0.088, 0.008), (0.074, 0.024),
                    (-0.028, 0.024), (-0.058, 0.034)], 0.034, 0.004)
     _add(mesh, g, "dark", frame_b, frame + _guard(0.072))
-    _vent(mesh, g, "detail", _slats(0.094, 3, 0.015, 0.012, 0.027, 0.017, t=0.007, lean=0.004, thick=0.003), frame_b)
+    _vent(mesh, g, "detail", _slats(0.094, 3, 0.015, 0.012, 0.027, 0.017, t=0.007, lean=0.004, thick=0.003), frame_b + "_vent")
     slide = _core([(-0.058, 0.05), (0.158, 0.05), (0.158, 0.076), (0.146, 0.086), (-0.044, 0.086), (-0.058, 0.076)], 0.036, 0.005)
     _add(mesh, g, "dark", slide_b, slide)
     # A low armour band along the slide, lit ports above it.
@@ -413,44 +415,66 @@ def akimbo(mesh):
         _akimbo_one(mesh, "akimbo", side)
 
 
+DERRINGER_HINGE = (0.034, 0.042)   # (up, forward) of the grip: the barrels tip down about it
+
+
 def derringer(mesh):
     """A pocket pistol, about 14 cm: two short barrels one over the other inside an armour
-    shroud with a lit slit between them, and a bird's-head grip."""
+    shroud with a lit slit between them, and a bird's-head grip. The barrels are its
+    vent: a reload tips them open on the hinge under the breech (DERRINGER_HINGE), and
+    its two rounds, on the magazine bone, show in the open breech."""
     g = "derringer"
     _add(mesh, g, "grip", "pistol", box(0.032, 0.09, 0.042, 0.011).rot(pitch=-24).move(0, -0.03, 0.022))
     _add(mesh, g, "plate", "pistol", box(0.037, 0.05, 0.022, 0.006).rot(pitch=-24).move(0, -0.034, 0.024))
-    frame = _core([(-0.024, 0.014), (0.042, 0.014), (0.042, 0.066), (-0.008, 0.066), (-0.024, 0.05)], 0.032, 0.004)
+    frame = _core([(-0.024, 0.014), (0.042, 0.014), (0.042, 0.034), (0.03, 0.034), (0.03, 0.092), (0.014, 0.092), (0.004, 0.066),
+                   (-0.008, 0.066), (-0.024, 0.05)], 0.032, 0.004)
+    _add(mesh, g, "dark", "pistol", frame + box(0.012, 0.01, 0.04).move(0, -0.012, -0.03))
     block = _core([(0.03, 0.034), (0.128, 0.034), (0.135, 0.041), (0.135, 0.085), (0.128, 0.092), (0.03, 0.092)], 0.026, 0.004)
-    _add(mesh, g, "dark", "pistol", frame + block + box(0.012, 0.01, 0.04).move(0, -0.012, -0.03))
-    _add(mesh, g, "plate", "pistol", _panels([(0.04, 0.067), (0.128, 0.067), (0.128, 0.088), (0.04, 0.088)], 0.0125, 0.004)
-         + _panels([(0.04, 0.038), (0.128, 0.038), (0.128, 0.059), (0.04, 0.059)], 0.0125, 0.004))
-    _add(mesh, g, "glow", "pistol", _panels([(0.04, 0.06), (0.13, 0.06), (0.13, 0.066), (0.04, 0.066)], 0.0128, 0.002, 0.0))
-    _add(mesh, g, "steel", "pistol", _tube(0.0105, 0.126, 0.138, 0.076, 8) + _tube(0.0105, 0.126, 0.138, 0.05, 8))
+    _vent(mesh, g, "dark", block)
+    _vent(mesh, g, "plate", _panels([(0.04, 0.067), (0.128, 0.067), (0.128, 0.088), (0.04, 0.088)], 0.0125, 0.004)
+          + _panels([(0.04, 0.038), (0.128, 0.038), (0.128, 0.059), (0.04, 0.059)], 0.0125, 0.004))
+    _vent(mesh, g, "glow", _panels([(0.04, 0.06), (0.13, 0.06), (0.13, 0.066), (0.04, 0.066)], 0.0128, 0.002, 0.0))
+    _vent(mesh, g, "steel", _tube(0.0105, 0.126, 0.138, 0.076, 8) + _tube(0.0105, 0.126, 0.138, 0.05, 8))
     _vent(mesh, g, "detail", box(0.012, 0.005, 0.016).move(0, 0.0945, -0.06) + box(0.012, 0.005, 0.016).move(0, 0.0945, -0.084)
           + box(0.012, 0.005, 0.016).move(0, 0.0945, -0.108))
     _add(mesh, g, "detail", "pistol_slide", box(0.01, 0.026, 0.014, 0.003).rot(pitch=24).move(0, 0.07, 0.01))   # the hammer
-    _add(mesh, g, "glow", "pistol_mag", box(0.02, 0.04, 0.024).rot(pitch=-24).move(0, -0.034, 0.023))
+    # The two rounds: their bases stand a little proud of the breech (hidden by the frame until the barrels tip open).
+    for y in (0.077, 0.049):
+        _add(mesh, g, "steel", "pistol_mag", _tube(0.0085, 0.0255, 0.05, y, 8))
+        _add(mesh, g, "glow", "pistol_mag", _tube(0.0055, 0.0245, 0.0258, y, 8))
+
+
+FLARE_HINGE = (0.031, 0.066)   # (up, forward) of the grip: the barrel breaks open about it
 
 
 def flare_gun(mesh):
     """A flare pistol, about 25 cm: a fat, short armour barrel with two bright bands, a ring
-    of cooling fins behind them and a lit bore."""
+    of cooling fins behind them and a lit bore. The barrel is its vent: a reload breaks it
+    open on the hinge under it (FLARE_HINGE), and the flare in the breech is on the
+    magazine bone."""
     g = "flare_gun"
     _add(mesh, g, "grip", "pistol", box(0.04, 0.11, 0.05, 0.012).rot(pitch=-16).move(0, -0.036, 0.02))
-    frame = _core([(-0.036, 0.012), (0.066, 0.012), (0.066, 0.064), (-0.012, 0.064), (-0.036, 0.044)], 0.042, 0.005)
-    _add(mesh, g, "dark", "pistol", frame + _guard(0.074))
-    _add(mesh, g, "plate", "pistol", _tube(0.029, 0.045, 0.2, 0.062, 10))
-    _add(mesh, g, "accent", "pistol", _rings(0.0305, (0.066, 0.156), 0.024, 0.062, 10))
-    _add(mesh, g, "dark", "pistol", _tube(0.032, 0.198, 0.235, 0.062, 10) + _tube(0.031, 0.02, 0.047, 0.062, 10))
-    _add(mesh, g, "glow", "pistol", _tube(0.022, 0.2335, 0.2375, 0.062, 10))
+    frame = _core([(-0.036, 0.012), (0.066, 0.012), (0.066, 0.034), (0.046, 0.034), (0.046, 0.064), (-0.012, 0.064), (-0.036, 0.044)], 0.042, 0.005)
+    _add(mesh, g, "dark", "pistol", frame + _guard(0.074) + _tube(0.031, 0.02, 0.046, 0.062, 10))
+    _vent(mesh, g, "plate", _tube(0.029, 0.047, 0.2, 0.062, 10))
+    _vent(mesh, g, "accent", _rings(0.0305, (0.066, 0.156), 0.024, 0.062, 10))
+    _vent(mesh, g, "dark", _tube(0.032, 0.198, 0.235, 0.062, 10))
+    _vent(mesh, g, "glow", _tube(0.022, 0.2335, 0.2375, 0.062, 10))
     _vent(mesh, g, "detail", _rings(0.0335, (0.1, 0.113, 0.126, 0.139), 0.006, 0.062, 10))
     _add(mesh, g, "detail", "pistol_slide", box(0.012, 0.03, 0.016, 0.003).rot(pitch=20).move(0, 0.078, 0.028))   # the hammer
-    _add(mesh, g, "detail", "pistol_mag", box(0.028, 0.1, 0.034, 0.006).rot(pitch=-16).move(0, -0.045, 0.02))
+    # The flare: its rim stands proud of the barrel's breech end (hidden by the frame until the barrel breaks open).
+    _add(mesh, g, "detail", "pistol_mag", _tube(0.02, 0.046, 0.118, 0.062, 8))
+    _add(mesh, g, "accent", "pistol_mag", _tube(0.0235, 0.04, 0.047, 0.062, 8) + _tube(0.0205, 0.09, 0.1, 0.062, 8))
+    _add(mesh, g, "glow", "pistol_mag", _tube(0.012, 0.0388, 0.0402, 0.062, 8))
+
+
+PLASMA_VENT_PIVOT = (0.087, -0.01)   # (up, forward) of the grip: the front edge of the flap on top
 
 
 def plasma_pistol(mesh):
     """An energy pistol, about 24 cm: an armour shell in two halves over lit coils, an
-    emitter at the front, a vent flap on top and a battery in the grip."""
+    emitter at the front, a vent flap on top (it flips up when the gun overheats) and a
+    battery in the grip."""
     g = "plasma_pistol"
     _add(mesh, g, "grip", "pistol", _grip(-14, 0.036, 0.11, 0.05, -0.035, 0.018))
     core = _run([_sec(0.038, 0.046, -0.05, 0.06, ch=0.012), _sec(0.042, 0.052, 0.04, 0.06, ch=0.014),
@@ -461,9 +485,11 @@ def plasma_pistol(mesh):
     _add(mesh, g, "glow", "pistol", _rings(0.027, (0.06, 0.096, 0.132), 0.02, 0.062, 8) + _tube(0.008, 0.221, 0.2255, 0.062, 8))
     _add(mesh, g, "steel", "pistol", _tube(0.0125, 0.2, 0.2225, 0.062, 8))
     _add(mesh, g, "detail", "pistol", _rings(0.0145, (0.206,), 0.007, 0.062, 8))
-    _vent(mesh, g, "detail", _slats(-0.034, 4, 0.014, 0.048, 0.08, 0.025, t=0.006, lean=0.005, thick=0.003))
-    _add(mesh, g, "detail", "pistol_slide", box(0.03, 0.012, 0.04, 0.003).move(0, 0.092, 0.03))
-    _add(mesh, g, "accent", "pistol_slide", box(0.032, 0.004, 0.012).move(0, 0.099, 0.03))
+    _add(mesh, g, "detail", "pistol", _slats(-0.034, 4, 0.014, 0.048, 0.08, 0.025, t=0.006, lean=0.005, thick=0.003))
+    # The vent: the flap on top, hinged at its front edge (PLASMA_VENT_PIVOT) over a lit heat sink.
+    _add(mesh, g, "glow", "pistol", box(0.022, 0.008, 0.034).move(0, 0.085, 0.03))
+    _vent(mesh, g, "detail", box(0.03, 0.012, 0.04, 0.003).move(0, 0.092, 0.03))
+    _vent(mesh, g, "accent", box(0.032, 0.004, 0.012).move(0, 0.099, 0.03))
     _add(mesh, g, "detail", "pistol_mag", box(0.026, 0.1, 0.034, 0.004).rot(pitch=-14).move(0, -0.045, 0.02))
     _add(mesh, g, "glow", "pistol_mag", box(0.03, 0.012, 0.04, 0.005).rot(pitch=-14).move(0, -0.1, 0.034))
 
@@ -531,24 +557,32 @@ def slug_shotgun(mesh):
         _add(mesh, g, kind, "pistol_slide", part)
 
 
+BREAK_HINGE = (0.045, 0.13)   # (up, forward) of the grip: the barrels tip down about it
+
+
 def break_action(mesh):
     """A side-by-side double barrel, about 85 cm, with an armour stock and fore-end and a
-    lit rib between the barrels. The barrels and fore-end (on the magazine bone) tip down
-    on their hinge to reload."""
+    lit rib between the barrels. The barrels and fore-end are its vent part: they tip down
+    on their hinge (BREAK_HINGE) to reload; the two shells in the breech are on the
+    magazine bone."""
     g = "break_action"
     _add(mesh, g, "grip", "pistol", box(0.038, 0.11, 0.05, 0.011).rot(pitch=-22).move(0, -0.034, 0.024))
     receiver = _core([(-0.046, 0.024), (0.13, 0.02), (0.13, 0.084), (-0.02, 0.088), (-0.046, 0.07)], 0.052, 0.006)
     _add(mesh, g, "dark", "pistol", receiver + _guard(0.08))
     _add(mesh, g, "plate", "pistol", _panels([(-0.03, 0.034), (0.118, 0.03), (0.118, 0.076), (-0.012, 0.08), (-0.03, 0.064)], 0.0255, 0.005))
-    _vent(mesh, g, "detail", _slats(0.0, 4, 0.024, 0.04, 0.066, 0.0305, t=0.008, lean=0.006, thick=0.003))
+    _add(mesh, g, "detail", "pistol", _slats(0.0, 4, 0.024, 0.04, 0.066, 0.0305, t=0.008, lean=0.006, thick=0.003))
     _add(mesh, g, "detail", "pistol", box(0.012, 0.016, 0.03).rot(pitch=-30).move(0, 0.09, 0.0))   # top lever
     _stock(mesh, g, -0.27, 0.07, 0.068, -0.045, 0.046)
-    _add(mesh, g, "steel", "pistol_mag", _tube(0.018, 0.13, 0.66, 0.066, 8, x=-0.018) + _tube(0.018, 0.13, 0.66, 0.066, 8, x=0.018))
-    _add(mesh, g, "dark", "pistol_mag", box(0.074, 0.018, 0.53).move(0, 0.05, -0.395)
-         + _run([_sec(0.08, 0.044, 0.6, 0.066, ch=0.014), _sec(0.08, 0.044, 0.628, 0.066, ch=0.014)]))
-    _add(mesh, g, "glow", "pistol_mag", box(0.007, 0.006, 0.44).move(0, 0.086, -0.37))
-    _add(mesh, g, "plate", "pistol_mag", _run([_sec(0.066, 0.044, 0.14, 0.03, ch=0.014), _sec(0.07, 0.05, 0.36, 0.03, ch=0.016)]))
-    _add(mesh, g, "accent", "pistol_mag", _run([_sec(0.073, 0.022, 0.36, 0.035), _sec(0.073, 0.022, 0.38, 0.035)]))
+    _vent(mesh, g, "steel", _tube(0.018, 0.13, 0.66, 0.066, 8, x=-0.018) + _tube(0.018, 0.13, 0.66, 0.066, 8, x=0.018))
+    _vent(mesh, g, "dark", box(0.074, 0.018, 0.53).move(0, 0.05, -0.395)
+          + _run([_sec(0.08, 0.044, 0.6, 0.066, ch=0.014), _sec(0.08, 0.044, 0.628, 0.066, ch=0.014)]))
+    _vent(mesh, g, "glow", box(0.007, 0.006, 0.44).move(0, 0.086, -0.37))
+    _vent(mesh, g, "plate", _run([_sec(0.066, 0.044, 0.14, 0.03, ch=0.014), _sec(0.07, 0.05, 0.36, 0.03, ch=0.016)]))
+    _vent(mesh, g, "accent", _run([_sec(0.073, 0.022, 0.36, 0.035), _sec(0.073, 0.022, 0.38, 0.035)]))
+    # The two shells: their rims stand a little proud of the breech (hidden by the receiver until the barrels tip open).
+    for x in (-0.018, 0.018):
+        _add(mesh, g, "accent", "pistol_mag", _tube(0.0135, 0.136, 0.19, 0.066, 8, x=x))
+        _add(mesh, g, "steel", "pistol_mag", _tube(0.0155, 0.128, 0.137, 0.066, 8, x=x))
 
 
 def auto_shotgun(mesh):
@@ -689,11 +723,15 @@ def burst_rifle(mesh):
          + _panels([(0.236, 0.063), (0.5, 0.063), (0.54, 0.064), (0.5, 0.086), (0.236, 0.086)], 0.0245, 0.005)
          + _panels([(0.236, 0.027), (0.5, 0.027), (0.54, 0.047), (0.5, 0.05), (0.236, 0.05)], 0.0245, 0.005))
     _add(mesh, g, "glow", "pistol", _panels([(0.236, 0.051), (0.525, 0.051), (0.525, 0.062), (0.236, 0.062)], 0.025, 0.002, 0.0))
-    _vent(mesh, g, "detail", _slats(0.02, 5, 0.03, 0.048, 0.076, 0.0275, t=0.009, lean=0.007, thick=0.003))
+    _add(mesh, g, "detail", "pistol", _slats(0.02, 5, 0.03, 0.048, 0.076, 0.0275, t=0.009, lean=0.007, thick=0.003))
     _add(mesh, g, "steel", "pistol", _tube(0.011, 0.56, 0.622, 0.056, 6))
     _add(mesh, g, "lens", "pistol", box(0.022, 0.022, 0.003).move(0, 0.107, -0.1605))
     _stock(mesh, g, -0.24, 0.084, 0.08, -0.03, 0.044)
     _add_cell(mesh, g, 0.03, 0.14, 0.05, 8.0, -0.045, -0.10)
+    # Its vent part is a second cell, in the same place: the new one a reload knocks the old one out
+    # with (the game draws it only while the left hand has it: ReloadFx "spare").
+    for kind, part in zip(("detail", "glow", "accent"), _cell(0.03, 0.14, 0.05, 8.0, -0.045, -0.10)):
+        _vent(mesh, g, kind, part)
     _add(mesh, g, "detail", "pistol_slide", _handle(-0.036, 0.075, 0.02))
 
 
@@ -753,6 +791,9 @@ def lmg(mesh):
     _ammo_box(mesh, g, 0.072, 0.11, 0.12, -0.04, -0.12)
 
 
+MINIGUN_AXIS = (0.05, 0.0)   # (up, forward) of the grip: the line the barrels turn about
+
+
 def minigun(mesh):
     """A minigun, about 1 m: six barrels round a spindle, an armoured motor housing behind
     them with a lit ring, an ammunition box underneath (its top lid opens to reload), a
@@ -767,13 +808,15 @@ def minigun(mesh):
                                              (-0.062, 0.066)], 0.0395, 0.005))
     _add(mesh, g, "glow", "pistol", _panels([(0.088, 0.026), (0.192, 0.026), (0.192, 0.04), (0.102, 0.04)], 0.04, 0.002, 0.0)
          + _tube(0.0475, 0.3, 0.326, y, 10))
-    _vent(mesh, g, "detail", _slats(-0.04, 4, 0.026, 0.05, 0.074, 0.0445, t=0.009, lean=0.007, thick=0.003))
+    _add(mesh, g, "detail", "pistol", _slats(-0.04, 4, 0.026, 0.05, 0.074, 0.0445, t=0.009, lean=0.007, thick=0.003))
     barrels = Part([])
     for i in range(6):
         a = i * math.pi / 3.0
         barrels = barrels + _tube(0.011, 0.24, 0.86, y + 0.026 * math.sin(a), 6, x=0.026 * math.cos(a))
-    _add(mesh, g, "steel", "pistol", barrels)
-    _add(mesh, g, "dark", "pistol", _tube(0.045, 0.26, 0.3, y, 10) + _tube(0.045, 0.56, 0.59, y, 10) + _tube(0.043, 0.82, 0.85, y, 10))
+    # The barrels and their clamps are its vent part: a reload spins them up (about MINIGUN_AXIS).
+    _vent(mesh, g, "steel", barrels)
+    _vent(mesh, g, "dark", _tube(0.045, 0.56, 0.59, y, 10) + _tube(0.043, 0.82, 0.85, y, 10))
+    _add(mesh, g, "dark", "pistol", _tube(0.045, 0.26, 0.3, y, 10))
     _add(mesh, g, "detail", "pistol", _carry_handle(0.0, 0.18, 0.12))
     _stock(mesh, g, -0.225, 0.088, 0.084, -0.03, 0.05)
     _add(mesh, g, "dark", "pistol_slide", box(0.07, 0.016, 0.14, 0.005).move(0, 0.1, -0.06))    # the top lid
@@ -790,12 +833,14 @@ def laser_rifle(mesh):
                  _sec(0.044, 0.052, 0.5, 0.06, ch=0.016), _sec(0.03, 0.034, 0.6, 0.06, ch=0.012)])
     sight = _core([(-0.02, 0.092), (0.14, 0.092), (0.14, 0.112), (0.0, 0.117), (-0.02, 0.108)], 0.026, 0.004)
     _add(mesh, g, "dark", "pistol", core + sight + _guard(0.078))
-    _add(mesh, g, "plate", "pistol", _panels([(-0.062, 0.067), (0.1, 0.07), (0.5, 0.068), (0.578, 0.064), (0.5, 0.088), (0.1, 0.098),
-                                             (-0.062, 0.088)], 0.0235, 0.005, 0.003)
-         + _panels([(-0.022, 0.026), (0.1, 0.022), (0.5, 0.032), (0.578, 0.054), (0.5, 0.056), (0.1, 0.056), (-0.022, 0.052)], 0.0235, 0.005, 0.003))
+    # The upper armour panels are its vent part: they slide up and back off a lit core when it overheats.
+    _vent(mesh, g, "plate", _panels([(-0.062, 0.067), (0.1, 0.07), (0.5, 0.068), (0.578, 0.064), (0.5, 0.088), (0.1, 0.098),
+                                    (-0.062, 0.088)], 0.0235, 0.005, 0.003))
+    _add(mesh, g, "glow", "pistol", _panels([(0.0, 0.07), (0.48, 0.07), (0.48, 0.085), (0.0, 0.085)], 0.0215, 0.002, 0.0))
+    _add(mesh, g, "plate", "pistol", _panels([(-0.022, 0.026), (0.1, 0.022), (0.5, 0.032), (0.578, 0.054), (0.5, 0.056), (0.1, 0.056), (-0.022, 0.052)], 0.0235, 0.005, 0.003))
     _add(mesh, g, "glow", "pistol", _panels([(-0.022, 0.057), (0.56, 0.057), (0.56, 0.066), (-0.022, 0.066)], 0.024, 0.002, 0.0)
          + _tube(0.016, 0.659, 0.667, 0.06, 8))
-    _vent(mesh, g, "detail", _slats(-0.056, 3, 0.024, 0.07, 0.086, 0.0285, t=0.009, lean=0.006, thick=0.003))
+    _add(mesh, g, "detail", "pistol", _slats(-0.056, 3, 0.024, 0.07, 0.086, 0.0285, t=0.009, lean=0.006, thick=0.003))
     _add(mesh, g, "steel", "pistol", _tube(0.021, 0.6, 0.661, 0.06, 8))
     _add(mesh, g, "detail", "pistol", _rings(0.0245, (0.61, 0.63), 0.009, 0.06, 8))
     _add(mesh, g, "lens", "pistol", box(0.018, 0.012, 0.003).move(0, 0.103, -0.1405))
@@ -877,7 +922,9 @@ def bolt_action(mesh):
                                           _sec(0.032, 0.024, 0.6, 0.052, ch=0.008)]))
     _add(mesh, g, "glow", "pistol", _panels([(0.2, 0.042), (0.5, 0.047), (0.5, 0.054), (0.2, 0.049)], 0.0252, 0.002, 0.0))
     _add(mesh, g, "accent", "pistol", _run([_sec(0.053, 0.034, 0.52, 0.05, ch=0.013), _sec(0.053, 0.034, 0.54, 0.05, ch=0.013)]))
-    _vent(mesh, g, "detail", _slats(0.09, 3, 0.022, 0.062, 0.08, 0.021, t=0.008, lean=0.005, thick=0.003))
+    _add(mesh, g, "detail", "pistol", _slats(0.09, 3, 0.022, 0.062, 0.08, 0.021, t=0.008, lean=0.005, thick=0.003))
+    # Its vent part is one round, hidden in the action: a reload brings it down into the open bolt from above.
+    _vent(mesh, g, "glow", _tube(0.007, 0.03, 0.075, 0.07, 6))
     _add(mesh, g, "steel", "pistol", _tube(0.012, 0.16, 0.80, 0.06, 6))
     _add(mesh, g, "detail", "pistol", _tube(0.0155, 0.772, 0.802, 0.06, 6))
     _stock(mesh, g, -0.275, 0.068, 0.064, -0.058, 0.046)
@@ -931,29 +978,37 @@ def anti_materiel(mesh):
     _bolt(mesh, g, -0.092, 0.065, -0.02, 0.016, 0.08)
 
 
+RAIL_HINGE = (0.098, 0.22)   # (up, forward) of the grip: the top rail's hinge
+
+
 def railgun(mesh):
     """A railgun, about 1 m: two long armoured rails over lit coils, a power cell that
     clips in behind the grip, and a sleeve that snaps back when it fires."""
     g = "railgun"
     _add(mesh, g, "grip", "pistol", _grip(-14, 0.038))
     body = _core([(-0.076, 0.016), (0.22, 0.016), (0.28, 0.03), (0.28, 0.094), (0.22, 0.1), (-0.05, 0.1), (-0.076, 0.076)], 0.06, 0.008)
-    rails = (_core([(0.22, 0.088), (0.8, 0.088), (0.8, 0.1), (0.76, 0.108), (0.22, 0.108)], 0.05, 0.004)
-             + _core([(0.22, 0.016), (0.76, 0.016), (0.79, 0.026), (0.79, 0.036), (0.22, 0.036)], 0.05, 0.004))
+    rails = _core([(0.22, 0.016), (0.76, 0.016), (0.79, 0.026), (0.79, 0.036), (0.22, 0.036)], 0.05, 0.004)
+    # The top rail is its vent part: a reload flares it open on its hinge at the back (RAIL_HINGE).
+    _vent(mesh, g, "dark", _core([(0.22, 0.088), (0.8, 0.088), (0.8, 0.1), (0.76, 0.108), (0.22, 0.108)], 0.05, 0.004))
+    _vent(mesh, g, "plate", _panels([(0.3, 0.091), (0.77, 0.091), (0.742, 0.105), (0.3, 0.105)], 0.0245, 0.004))
     sight = _core([(-0.02, 0.098), (0.14, 0.098), (0.14, 0.126), (0.0, 0.131), (-0.02, 0.12)], 0.028, 0.004)
     _add(mesh, g, "dark", "pistol", body + rails + sight + _guard(0.08))
     _add(mesh, g, "plate", "pistol", _panels([(-0.056, 0.05), (0.098, 0.05), (0.114, 0.064), (0.21, 0.064), (0.21, 0.094), (-0.04, 0.094),
                                              (-0.056, 0.08)], 0.0295, 0.005)
-         + _panels([(0.3, 0.091), (0.77, 0.091), (0.742, 0.105), (0.3, 0.105)], 0.0245, 0.004)
          + _panels([(0.3, 0.019), (0.752, 0.019), (0.774, 0.033), (0.3, 0.033)], 0.0245, 0.004))
     _add(mesh, g, "glow", "pistol", _panels([(0.108, 0.046), (0.214, 0.046), (0.214, 0.06), (0.122, 0.06)], 0.03, 0.002, 0.0)
          + _rings(0.026, [0.32 + i * 0.075 for i in range(6)], 0.025, 0.062, 8))
-    _vent(mesh, g, "detail", _slats(-0.03, 4, 0.024, 0.068, 0.09, 0.0345, t=0.008, lean=0.006, thick=0.003))
+    _add(mesh, g, "detail", "pistol", _slats(-0.03, 4, 0.024, 0.068, 0.09, 0.0345, t=0.008, lean=0.006, thick=0.003))
     _add(mesh, g, "steel", "pistol", _tube(0.012, 0.28, 0.78, 0.062, 6))
     _add(mesh, g, "lens", "pistol", box(0.02, 0.02, 0.003).move(0, 0.113, -0.1405))
     _stock(mesh, g, -0.26, 0.092, 0.086, -0.035, 0.05)
     _add(mesh, g, "detail", "pistol_slide", _tube(0.036, 0.24, 0.30, 0.062, 8))   # the recoil sleeve
     _add(mesh, g, "detail", "pistol_mag", box(0.034, 0.07, 0.07, 0.008).move(0, -0.005, 0.105))
     _add(mesh, g, "glow", "pistol_mag", box(0.037, 0.03, 0.05).move(0, -0.01, 0.105))
+
+
+CRANK_PIVOT = (0.04, 0.03)   # (up, forward) of the grip: the crank's axle (it runs across the gun)
+CRANK_ARM = 0.034            # from the axle to the crank's knob
 
 
 def crossbow(mesh):
@@ -977,7 +1032,11 @@ def crossbow(mesh):
     vents = Part([])
     for f in (0.502, 0.52, 0.538):
         vents = vents + box(0.042, 0.006, 0.01).move(0, 0.08, -f)
-    _vent(mesh, g, "detail", vents)
+    _add(mesh, g, "detail", "pistol", vents)
+    # Its vent part is the cocking crank on the left of the tiller: a reload spins it (about CRANK_PIVOT).
+    up, fwd = CRANK_PIVOT
+    _vent(mesh, g, "detail", prism(8, 0.013, 0.01).rot(roll=90).move(-0.029, up, -fwd) + box(0.008, 0.01, 0.04).move(-0.036, up, -fwd - 0.017))
+    _vent(mesh, g, "accent", box(0.024, 0.014, 0.014, 0.004).move(-0.05, up, -fwd - CRANK_ARM))
     _add_sight(mesh, g, -0.01, 0.066, 0.028, 0.03, 0.05)
     _stock(mesh, g, -0.26, 0.066, 0.076, -0.035, 0.042)
     _add(mesh, g, "steel", "pistol_mag", _tube(0.006, 0.0, 0.5, 0.076, 6))
@@ -1057,7 +1116,10 @@ def grenade_launcher(mesh):
     _add(mesh, g, "plate", "pistol", _panels([(-0.042, 0.028), (0.088, 0.028), (0.088, 0.104), (0.064, 0.136), (0.047, 0.136), (0.008, 0.08), (-0.042, 0.056)], 0.0245, 0.004)
          + _tube(0.036, 0.262, 0.478, 0.07, 10))
     _add(mesh, g, "glow", "pistol", _tube(0.028, 0.5195, 0.5235, 0.07, 10))
-    _vent(mesh, g, "detail", _rings(0.039, (0.3, 0.326, 0.352), 0.011, 0.07, 10))
+    _add(mesh, g, "detail", "pistol", _rings(0.039, (0.3, 0.326, 0.352), 0.011, 0.07, 10))
+    # Its vent part is one grenade, hidden inside the drum: a reload thumbs it into a chamber.
+    _vent(mesh, g, "accent", _tube(0.02, 0.13, 0.19, 0.07, 8))
+    _vent(mesh, g, "glow", _tube(0.021, 0.15, 0.162, 0.07, 8))
     _add(mesh, g, "detail", "pistol", box(0.012, 0.016, 0.01).move(0, 0.158, -0.07) + box(0.012, 0.03, 0.01).move(0, 0.12, -0.46))
     _stock(mesh, g, -0.25, 0.072, 0.076, -0.035, 0.04, open_frame=True)
     _add(mesh, g, "steel", "pistol_mag", _tube(0.069, 0.10, 0.26, 0.07, 6))
