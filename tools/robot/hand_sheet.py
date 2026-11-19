@@ -4,7 +4,8 @@ poses in rig.HANDS) without opening the game: each robot's right hand open (back
 palm), relaxed and as a fist, then holding a pistol (from both sides), a sword, and the
 left hand under a rifle (seen from the front).
 
-    python3 tools/robot/hand_sheet.py OUT.png [robot ...]     (default: every playable robot)
+    python3 tools/robot/hand_sheet.py OUT.png [robot ...]     (default: every playable robot;
+                                                               or a Character Creator body: frog, yeti...)
 """
 import json
 import os
@@ -15,6 +16,7 @@ import tempfile
 from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import creatures  # noqa: E402
 import designs  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,7 +42,9 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         for robot in robots:
             for i, (_, what) in enumerate(COLUMNS):
-                shots.append(dict(what, out=os.path.join(tmp, "%s_%d.png" % (robot, i)), character=robot, size=[CELL * 2, CELL * 2]))
+                # (a Character Creator body, by its kit's name: the whole character from that kit)
+                who = "custom:n=X|l=%s|t=%s|h=%s" % (robot, robot, robot) if robot in creatures.KITS else robot
+                shots.append(dict(what, out=os.path.join(tmp, "%s_%d.png" % (robot, i)), character=who, size=[CELL * 2, CELL * 2]))
         job = os.path.join(tmp, "job.json")
         json.dump({"shots": shots}, open(job, "w"))
         env = dict(os.environ)
