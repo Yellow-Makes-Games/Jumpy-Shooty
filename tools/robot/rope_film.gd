@@ -4,7 +4,10 @@ extends SceneTree
 ## lane, played by a script. Used by tools/robot/rope_film.sh, which records it.
 ##
 ##   godot --fixed-fps 60 --write-movie OUT.avi --path . --script tools/robot/rope_film.gd --
-##       [--scene=swing] (swing: beam to beam, shooting on the way, letting go on the way up;
+##       [--scene=swing] (dive: diving into the rope, the zip up to a beam and the flip over it;
+##                        dive_low: the same to a long, low hook, shooting on the way; dive_go: letting
+##                        go part of the way along; drag: dragged along the floor on your belly;
+##                        swing: beam to beam, shooting on the way, letting go on the way up;
 ##                        pump: hanging under a beam, working the swing; player: hooking a player)
 ##       [--third-person]
 

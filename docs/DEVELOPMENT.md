@@ -80,6 +80,15 @@ Quick checks:
   the swing and the chest the aim; steering works the legs; letting go on the way up
   rolls the body (whichever news arrives first, and a shot hurries it); your own body
   leans less; a blade hangs point down, a cape streams; killcam bodies are told the rope;
+  dived into the rope, the body zips in line with the way it is going, corkscrews as the
+  rope pulls tight (the way it was steered; a small tug only twists it; not your own body
+  in first person), flips over the top on arriving, rolls or dives on when let go, and
+  turns to face the hook when dragged on its belly;
+- diving into the rope (`tests/dive_rope_test.gd`, with `--fixed-fps 60`): in a dive as
+  the rope pulls tight (dived after firing, or fired in the dive) it is the rope's move,
+  with the rope's steering and jump off, until you arrive; let go before that and the dive
+  carries on into its roll or onto your belly; a low hook with the key held drags you on
+  your belly; a near hook, or a rope caught without a dive, is just a swing;
 - ragdolls (`tests/ragdoll_test.gd`, with `--fixed-fps 60`), for every robot and two
   custom characters: thrown over a floor they settle above it, at rest, with elbows and
   knees bent the right way; each lasts 10 s and dissolves, a respawn or the player
@@ -1882,16 +1891,42 @@ person with the same springs (the gun low and canted but still in view: `ROPE_GU
 in `view_model.gd`). It is looks only: nothing in it moves the player, and it is worked
 out from what every copy of the game knows about a player (`RobotAnimInput.hook_taut`,
 `hook_slack`), so other players and killcams hang the same way. The slack before the rope
-is tight is as it was. To film it:
+is tight is as it was.
+
+**Diving into the rope.** If you are in a dive when the rope pulls tight (dived after
+firing, or fired in the dive), the dive gives way to the rope: the state becomes GRAPPLE,
+with the rope's steering and its jump off, and `MovementController.dove_in` remembers it
+until you arrive (within `grapple_pull_stop` of the hook, or no longer closing on it:
+`DIVE_IN_SLOW`). Let go before that and the dive carries on and lands as a dive does;
+come down on the floor still on the rope with the key held and it drags you on your
+belly (only a hook below your chest keeps you down: a higher one lifts you off). A
+hook nearer than `DIVE_IN_MIN` past where the pull fades is just a swing. This is the one
+part of all this that is not looks only (a dive on the rope used to keep the dive's weak
+steering and its stiff pose the whole way in). While `dove_in` lasts the body zips instead
+of hanging (`RopeSwing`, the `ZIP_...` and `SCREW_...` numbers): stretched out in line with
+the way it is really going, the hook arm up the rope, the gun arm and the legs streaming
+straight behind and fluttering with the speed, the whole body facing down the line until
+a shot brings the chest round to the aim. As the rope pulls tight it corkscrews once about
+its own length, the way you were steering (away from the gun hand if you were not); a
+light jolt only twists it out and back; a shot hurries it. On arriving, still holding on,
+it tucks and flips over the top, then hangs. Let go part of the way, rising fast, and it
+rolls as above before the dive carries on. Dragged on your belly, the body turns to face
+the hook (and back to the aim to shoot). In first person your own body does not roll:
+your arms roll out and back instead (`ROPE_SCREW`), and the view stays level. Other
+players see all of it: the dive into the rope and the way it was steered travel in the
+snapshot's animation flags (bits 20-21). To film any of it:
 
 ```
 tools/robot/rope_preview.sh OUT_DIR --scene=swing --step=0.0083333   # a test stage, from the side and behind, half speed: OUT_DIR/rope.mp4
 tools/robot/rope_preview.sh OUT_DIR --scene=player --weapon=sword    # reeled in to a hooked player; also under (round a hook, steering), turn (aiming off to the side)
 tools/robot/rope_film.sh OUT_DIR swing third                         # the real game, played by a script on the Testing Grounds: OUT_DIR/swing_third.mp4
 tools/robot/rope_film.sh OUT_DIR player first --weapon=hammer        # scenes: swing, pump, player; first or third person
+tools/robot/rope_preview.sh OUT_DIR --scene=dive --step=0.0083333    # diving into the rope; also dive_low (a long, low hook, shooting), dive_go (letting go part of the way), dive_side
+tools/robot/rope_film.sh OUT_DIR dive third                          # the same in the real game; also dive_low, dive_go, drag (dragged on your belly)
 ```
 
-`tests/rope_swing_test.gd` checks each of those things on a body driven by made-up movement.
+`tests/rope_swing_test.gd` checks each of those things on a body driven by made-up movement,
+and `tests/dive_rope_test.gd` the handling of a dive into the rope on a real body.
 
 ## Sound effects
 
