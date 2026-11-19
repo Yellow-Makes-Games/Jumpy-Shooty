@@ -26,7 +26,7 @@ Anything else is as built.
 """
 import math
 import numpy as np
-from kit import Mesh, Part, loft, rect, ngon, box, prism, ball
+from kit import Mesh, Part, loft, rect, ngon, box, prism, ball, orb, plug
 import designs
 import hands
 from designs import rect8, _along_z
@@ -102,7 +102,7 @@ _LOOKS = {
     "beak": {"color": (0.96, 0.52, 0.10), "roughness": 0.55},
     "spot": {"color": (0.14, 0.26, 0.12), "roughness": 0.7},
     "stripe": {"color": (0.45, 0.24, 0.08), "roughness": 0.85},
-    "gold": {"color": (1.0, 0.76, 0.28), "metallic": 0.45, "roughness": 0.3},
+    "gold": {"color": (1.0, 0.76, 0.28), "metallic": 0.35, "roughness": 0.5},
     "shell_pumpkin": {"color": (0.93, 0.45, 0.07), "roughness": 0.6},
     "stem": {"color": (0.30, 0.38, 0.14), "roughness": 0.8},
     "straw": {"color": (0.86, 0.72, 0.34), "roughness": 0.95},
@@ -215,23 +215,41 @@ def hand(m, body, back=None, band=None, knuckle=None, bulk=1.0):
     hands.add(m, bulk, body=body, plate=back or body, trim=band or body, pin=knuckle or body)
 
 
+# Joints. As on the robots (designs.py), a limb's two halves are stiff pieces that turn
+# about the joint's own point, so what fills a joint is centred there: a rounded core
+# (knob) in the limb's own colour, a little wider than the limb, with each half ending
+# just short of the point, inside it. A soft body has no dark core and no sleeve to see:
+# the core reads as a rounded elbow or knee. Bent, the halves' ends stay inside it.
+
+SOFT = 0.006   # a soft limb's end, from the joint's point
+ELBOW, WRIST, KNEE, ANKLE = 1.13, 0.88, 0.50, 0.10   # the joints' heights (rig.BODY)
+
+
+def knob(r, n=8):
+    """A joint's core for a limb of radius r at the joint: wide enough that the limb's
+    end, SOFT short of the joint's point, is inside it whichever way it turns."""
+    return blob(r * 1.16, n=n, rows=5)
+
+
 def arm(m, upper, fore, palm, r1=0.046, r2=0.04, r3=0.034, shoulder=0.058, fist=(0.058, 0.10, 0.09), n=8,
         back=None, band=None, knuckle=None):
-    """A plain round arm: shoulder ball, upper arm, elbow, forearm, and the hand (see hand():
-    palm is its body; fist: the old one-piece fist's size, which sets how thick the hand is)."""
+    """A plain round arm: shoulder ball, upper arm, elbow, forearm, wrist, and the hand (see
+    hand(): palm is its body; fist: the old one-piece fist's size, which sets how thick the hand is)."""
     m.add_pair(blob(shoulder, n=n, rows=4).move(AX, 1.40, 0), upper, "upper_arm_l")
-    m.add_pair(lathe([(1.40, r1, r1), (1.27, r1, r1), (1.15, r2, r2)], n, AX), upper, "upper_arm_l")
-    m.add_pair(blob(r2 * 1.08, n=n, rows=4).move(AX, 1.13, 0), fore, "forearm_l")
-    m.add_pair(lathe([(1.12, r2, r2), (1.04, r2 * 1.1, r2 * 1.1), (0.89, r3, r3)], n, AX), fore, "forearm_l")
+    m.add_pair(lathe([(1.40, r1, r1), (1.27, r1, r1), (ELBOW + SOFT, r2, r2)], n, AX), upper, "upper_arm_l")
+    m.add_pair(knob(r2, n).move(AX, ELBOW, 0), fore, "forearm_l")
+    m.add_pair(lathe([(ELBOW - SOFT, r2, r2), (1.04, r2 * 1.1, r2 * 1.1), (WRIST + SOFT, r3, r3)], n, AX), fore, "forearm_l")
+    m.add_pair(knob(r3 * 0.97, n).move(AX, WRIST, 0), fore, "hand_l")
     hand(m, palm, back, band, knuckle, fist[0] / 0.058)
 
 
-def leg(m, thigh, shin, r1=0.072, r2=0.052, r3=0.04, n=8, knee=None, calf=1.12):
-    """A plain round leg, hip to ankle."""
-    m.add_pair(blob(r1 * 1.02, n=n, rows=4).move(LX, 0.90, 0), thigh, "thigh_l")
-    m.add_pair(lathe([(0.90, r1, r1), (0.72, r1 * 0.96, r1 * 0.96), (0.52, r2, r2)], n, LX), thigh, "thigh_l")
-    m.add_pair(blob(r2 * 1.06, n=n, rows=4).move(LX, 0.50, 0), knee or shin, "shin_l")
-    m.add_pair(lathe([(0.49, r2, r2), (0.36, r2 * calf, r2 * calf, 0.008), (0.12, r3, r3)], n, LX), shin, "shin_l")
+def leg(m, thigh, shin, r1=0.072, r2=0.052, r3=0.04, n=8, knee=None, calf=1.12, ankle=None):
+    """A plain round leg, hip to ankle (the ankle's core is the shin's colour, or `ankle`)."""
+    m.add_pair(blob(r1 * 1.08, n=n, rows=4).move(LX, 0.90, 0), thigh, "thigh_l")
+    m.add_pair(lathe([(0.90, r1, r1), (0.72, r1 * 0.96, r1 * 0.96), (KNEE + SOFT, r2, r2)], n, LX), thigh, "thigh_l")
+    m.add_pair(knob(r2, n).move(LX, KNEE, 0), knee or shin, "shin_l")
+    m.add_pair(lathe([(KNEE - SOFT, r2, r2), (0.36, r2 * calf, r2 * calf, 0.008), (ANKLE + SOFT + 0.004, r3, r3)], n, LX), shin, "shin_l")
+    m.add_pair(knob(r3, n).move(LX, ANKLE, 0), ankle or shin, "foot_l")
 
 
 def shoe(m, upper, sole="white", w=0.105, toe="", lift=0.0):
@@ -340,12 +358,13 @@ def goblin():
     # Legs: ragged trousers to the knee, bare shins, clawed feet
     m.add_pair(blob(0.07, rows=4).move(LX, 0.90, 0), "armor_tunic", "thigh_l")
     m.add_pair(lathe([(0.90, 0.07, 0.07), (0.72, 0.068, 0.068), (0.56, 0.062, 0.062)], 8, LX), "leather", "thigh_l")
-    m.add_pair(blob(0.05, rows=4).move(LX, 0.50, 0), s, "shin_l")
-    m.add_pair(lathe([(0.56, 0.045, 0.045), (0.36, 0.05, 0.052, 0.008), (0.12, 0.036, 0.036)], 8, LX), s, "shin_l")
+    m.add_pair(lathe([(KNEE + SOFT, 0.045, 0.045), (0.58, 0.045, 0.045)], 8, LX), s, "thigh_l")   # the bare leg under them
+    m.add_pair(knob(0.045).move(LX, KNEE, 0), s, "shin_l")
+    m.add_pair(lathe([(KNEE - SOFT, 0.045, 0.045), (0.36, 0.05, 0.052, 0.008), (ANKLE + SOFT + 0.004, 0.036, 0.036)], 8, LX), s, "shin_l")
     foot = _along_z(loft([rect8(0.085, 0.07, -0.07, 0.02, cz=0.035), rect8(0.12, 0.06, 0.09, 0.02, cz=0.03),
                           rect8(0.13, 0.03, 0.17, 0.01, cz=0.015)]))
     m.add_pair(foot.move(LX, 0.008, 0), s, "foot_l")
-    m.add_pair(blob(0.042, rows=4).move(LX, 0.10, 0), s, "foot_l")
+    m.add_pair(knob(0.036).move(LX, ANKLE, 0), s, "foot_l")
     for dx in (-0.045, 0.0, 0.045):
         m.add_pair(spike((LX + dx, 0.022, -0.165), (LX + dx * 1.2, 0.012, -0.215), 0.014, 4), "horn", "foot_l")
     return m
@@ -750,13 +769,14 @@ def astronaut():
         m.add_pair(hoop(rr, rr, y, 0.016, 8, tall=0.03).move(AX, 0, 0), "detail", bone)
     launcher(m, -0.288, "detail")
 
-    leg(m, s, s, 0.086, 0.066, 0.058, calf=1.05)
+    leg(m, s, s, 0.086, 0.066, 0.058, calf=1.05, ankle="detail")
+    m.add_pair(knob(0.066).move(LX, ANKLE, 0), "detail", "foot_l")   # (the boot's ankle, over the suit's)
     for y, rr, bone in ((0.62, 0.078, "thigh_l"), (0.36, 0.072, "shin_l")):
         m.add_pair(hoop(rr, rr, y, 0.016, 8, tall=0.03).move(LX, 0, 0), "detail", bone)
     foot = _along_z(loft([rect8(0.13, 0.11, -0.09, 0.03, cz=0.055), rect8(0.14, 0.11, 0.08, 0.03, cz=0.055),
                           rect8(0.13, 0.07, 0.18, 0.03, cz=0.035)]))
     m.add_pair(foot.move(LX, 0.02, 0), "detail", "foot_l")
-    m.add_pair(lathe([(0.10, 0.066, 0.07), (0.20, 0.064, 0.066)], 8, LX), "detail", "foot_l")
+    m.add_pair(lathe([(ANKLE + SOFT + 0.004, 0.066, 0.07), (0.20, 0.064, 0.066)], 8, LX), "detail", "shin_l")   # the boot's leg (on the shin: on the foot it cut through the shin as the ankle bent)
     m.add_pair(box(0.15, 0.03, 0.29, 0.03).move(LX, 0.015, -0.045), "accent", "foot_l")
     return m
 
@@ -804,12 +824,13 @@ def imp():
     m.add_pair(blob(0.074, rows=4).move(LX, 0.90, 0), r, "thigh_l")
     m.add_pair(lathe([(0.90, 0.074, 0.074), (0.72, 0.07, 0.07), (0.54, 0.062, 0.062)], 8, LX), r, "thigh_l")
     _tufts(m, r, "thigh_l", 0.058, 0.058, 0.56, 6, 0.07, 0.006, 0.045, LX, 0.0, True)
-    m.add_pair(blob(0.048, rows=4).move(LX, 0.50, 0), s, "shin_l")
-    m.add_pair(lathe([(0.52, 0.044, 0.044), (0.36, 0.05, 0.052, 0.01), (0.14, 0.032, 0.032)], 8, LX), s, "shin_l")
+    m.add_pair(lathe([(KNEE + SOFT, 0.044, 0.044), (0.57, 0.044, 0.044)], 8, LX), s, "thigh_l")   # the bare leg under the fur
+    m.add_pair(knob(0.044).move(LX, KNEE, 0), s, "shin_l")
+    m.add_pair(lathe([(KNEE - SOFT, 0.044, 0.044), (0.36, 0.05, 0.052, 0.01), (ANKLE + SOFT + 0.004, 0.032, 0.032)], 8, LX), s, "shin_l")
     hoof = _along_z(loft([rect8(0.08, 0.10, -0.05, 0.02, cz=0.05), rect8(0.09, 0.09, 0.05, 0.02, cz=0.045),
                           rect8(0.075, 0.05, 0.11, 0.015, cz=0.025)]))
     m.add_pair(hoof.move(LX, 0.0, 0), "dark", "foot_l")
-    m.add_pair(blob(0.04, rows=3).move(LX, 0.12, 0), s, "foot_l")
+    m.add_pair(knob(0.034).move(LX, ANKLE, 0), s, "foot_l")
     return m
 
 
@@ -843,9 +864,10 @@ def snowman():
     m.add_pair(hoop(0.036, 0.04, 0.892, 0.014, 8, tall=0.03).move(AX, 0, 0), "white", "forearm_l")
     launcher(m, -0.26, "dark")
 
-    m.add_pair(lathe([(0.92, 0.078, 0.078), (0.72, 0.076, 0.076), (0.52, 0.07, 0.07)], 10, LX), w, "thigh_l")
-    m.add_pair(blob(0.072, rows=4).move(LX, 0.50, 0), w, "shin_l")
-    m.add_pair(lathe([(0.50, 0.07, 0.07), (0.30, 0.068, 0.068), (0.14, 0.06, 0.06)], 10, LX), w, "shin_l")
+    m.add_pair(lathe([(0.92, 0.078, 0.078), (0.72, 0.076, 0.076), (KNEE + SOFT, 0.07, 0.07)], 10, LX), w, "thigh_l")
+    m.add_pair(knob(0.07, 10).move(LX, KNEE, 0), w, "shin_l")
+    m.add_pair(lathe([(KNEE - SOFT, 0.07, 0.07), (0.30, 0.068, 0.068), (ANKLE + SOFT + 0.004, 0.06, 0.06)], 10, LX), w, "shin_l")
+    m.add_pair(knob(0.06, 10).move(LX, ANKLE, 0), w, "foot_l")
     shoe(m, "black", "dark", 0.12)
     return m
 
@@ -965,11 +987,12 @@ def zombie():
     launcher(m, -0.268, "dark")
 
     m.add_pair(blob(0.074, rows=4).move(LX, 0.90, 0), "burlap", "thigh_l")
-    m.add_pair(lathe([(0.90, 0.074, 0.074), (0.72, 0.07, 0.07), (0.52, 0.056, 0.056)], 8, LX), "burlap", "thigh_l")
-    m.add(blob(0.058, rows=4).move(LX, 0.50, 0), "burlap", "shin_l")
-    m.add(lathe([(0.49, 0.056, 0.056), (0.36, 0.06, 0.06, 0.008), (0.12, 0.047, 0.047)], 8, LX), "burlap", "shin_l")
-    m.add(blob(0.05, rows=4).move(-LX, 0.50, 0), s, "shin_r")
-    m.add(lathe([(0.47, 0.042, 0.042), (0.36, 0.048, 0.05, 0.008), (0.12, 0.036, 0.036)], 8, -LX), s, "shin_r")
+    m.add_pair(lathe([(0.90, 0.074, 0.074), (0.72, 0.07, 0.07), (KNEE + SOFT, 0.056, 0.056)], 8, LX), "burlap", "thigh_l")
+    m.add(knob(0.056).move(LX, KNEE, 0), "burlap", "shin_l")
+    m.add(lathe([(KNEE - SOFT, 0.056, 0.056), (0.36, 0.06, 0.06, 0.008), (ANKLE + SOFT + 0.004, 0.047, 0.047)], 8, LX), "burlap", "shin_l")
+    m.add(knob(0.047).move(LX, ANKLE, 0), "burlap", "foot_l")
+    m.add(knob(0.056).move(-LX, KNEE, 0), "burlap", "thigh_r")   # (the torn leg: the trousers end at the knee, the bare shin comes out of it)
+    m.add(lathe([(KNEE - SOFT, 0.042, 0.042), (0.36, 0.048, 0.05, 0.008), (ANKLE + SOFT + 0.004, 0.036, 0.036)], 8, -LX), s, "shin_r")
     _tufts(m, "burlap", "shin_r", 0.05, 0.05, 0.50, 6, 0.07, 0.0, 0.04, -LX)
     # One shoe, one bare foot
     part = _along_z(loft([rect8(0.105, 0.085, -0.085, 0.02, cz=0.0425), rect8(0.117, 0.09, 0.07, 0.02, cz=0.045),
@@ -980,7 +1003,7 @@ def zombie():
     bare = _along_z(loft([rect8(0.08, 0.07, -0.07, 0.02, cz=0.035), rect8(0.105, 0.055, 0.09, 0.02, cz=0.0275),
                           rect8(0.11, 0.03, 0.18, 0.012, cz=0.015)]))
     m.add(bare.move(-LX, 0.006, 0), s, "foot_r")
-    m.add(blob(0.04, rows=4).move(-LX, 0.10, 0), s, "foot_r")
+    m.add(knob(0.036).move(-LX, ANKLE, 0), s, "foot_r")
     return m
 
 
@@ -1015,15 +1038,18 @@ def wizard():
 
     # Wide sleeves, flaring to the wrist
     m.add_pair(blob(0.062, rows=4).move(AX, 1.40, 0), r, "upper_arm_l")
-    m.add_pair(lathe([(1.40, 0.05, 0.05), (1.15, 0.052, 0.056)], 8, AX), r, "upper_arm_l")
-    m.add_pair(blob(0.056, rows=4).move(AX, 1.13, 0), r, "forearm_l")
-    m.add_pair(lathe([(1.12, 0.052, 0.056), (0.93, 0.064, 0.085, 0.012)], 8, AX), r, "forearm_l")
+    m.add_pair(lathe([(1.40, 0.05, 0.05), (ELBOW + SOFT, 0.052, 0.056)], 8, AX), r, "upper_arm_l")
+    m.add_pair(knob(0.056).move(AX, ELBOW, 0), r, "forearm_l")
+    m.add_pair(lathe([(ELBOW - SOFT, 0.052, 0.056), (0.93, 0.064, 0.085, 0.012)], 8, AX), r, "forearm_l")
+    m.add_pair(lathe([(0.95, 0.03, 0.03), (WRIST + SOFT, 0.028, 0.028)], 8, AX), "skin_human", "forearm_l")   # the arm inside the sleeve
+    m.add_pair(knob(0.028).move(AX, WRIST, 0), "skin_human", "hand_l")
     m.add_pair(lathe([(0.945, 0.066, 0.087, 0.012), (0.925, 0.066, 0.087, 0.012)], 8, AX), "accent", "forearm_l")
     hand(m, "skin_human")
     launcher(m, -0.285)
 
     # The robe's skirt: a split panel down each leg
     m.add_pair(lathe([(0.86, 0.095, 0.105), (0.50, 0.102, 0.115)], 8, LX - 0.005, caps=(False, True)), r, "thigh_l")
+    m.add_pair(blob(0.104, 0.10, 0.117, 8, 5).move(LX - 0.005, KNEE, 0), r, "shin_l")   # the robe's own knee
     m.add_pair(lathe([(0.52, 0.098, 0.11), (0.15, 0.112, 0.125)], 8, LX - 0.005, caps=(True, True)), r, "shin_l")
     m.add_pair(lathe([(0.17, 0.114, 0.127), (0.14, 0.114, 0.127)], 8, LX - 0.005), "accent", "shin_l")
     toe = _along_z(loft([rect8(0.09, 0.07, -0.07, 0.02, cz=0.035), rect8(0.10, 0.065, 0.07, 0.02, cz=0.0325),
@@ -1167,9 +1193,26 @@ for _roles in ROLES.values():
         MATERIALS["%s_%s" % (_role.rstrip("!"), _name)] = MATERIALS[_name]
 
 
+BELLY = (0.0, 1.22, 0.0)   # the chest's own point (rig.BODY): where it turns on the spine
+NECK = (0.0, 1.50, 0.0)    # the head's
+
+
+def _close(mesh):
+    """The cores of a body's own seams (see kit.plug), so that any head goes on any
+    torso on any legs and nothing opens between them when the body bends: the waist
+    (as on the robots), the belly, and the neck (round the stub every head has)."""
+    designs.waist(mesh)
+    plug(mesh, "chest", BELLY, 1.12, 1.26, 0.06)
+    stubs = [t for t in mesh.tris if t.bone == "head" and all(abs(q[0]) < 0.062 and abs(q[2]) < 0.062 and q[1] < 1.53 for q in t.points)]
+    if stubs:
+        skin = min(stubs, key=lambda t: sum(q[1] for q in t.points)).material
+        mesh.add(orb(0.062, 0.05, 0.066).move(*NECK), skin, "head")
+    return mesh
+
+
 def _with_roles(name, build):
     def made():
-        mesh = build()
+        mesh = _close(build())
         roles = ROLES.get(name, {})
         for t in mesh.tris:
             role = roles.get(t.material)

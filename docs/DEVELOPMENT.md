@@ -1538,6 +1538,43 @@ graphics card, so I can check poses myself):
   described in a job file; the format is at the top of `tools/robot/preview.gd`. It can
   also drive a robot with the game's real animator from made-up movement.
 
+**Joints.** A body is stiff pieces, each riding on one bone, so a joint only stays
+closed if what fills it is centred on the joint's own point (the bone's place in
+`rig.py`). The pattern, in `designs.py` above `needle()`: a dark core (`kit.bead`) at
+that point; each half of the limb ending in a sleeve a little wider than the core, its
+rim `SEAM` short of the point and its open end faced dark (`_sleeve`); elbows and knees
+get the core lying across the limb with a pin through it (`_hinge`). Straight, a slim
+dark band shows between the sleeves; bent, they slide over the core and nothing opens.
+Keep a core no smaller than the sleeves' inside, and do not go back to `ball()` for a
+joint: its flat faces sit well inside its radius, which is where the old gaps came from
+(it is still fine for a shoulder or hip ball sunk into the torso, and for ornaments).
+All eight robots are built this way (`_wrist` and `_ankle` are the cores every design
+shares; a thin strut under a shoulder gets one sleek taper where it leaves the ball, no
+bulge). The Templar's elbow cop is its elbow's core, and Orbit's knee keeps the player's
+colour as its core.
+
+The Character Creator's creatures (`creatures.py`) are built the same way, dressed to
+match: a soft body's core is a rounded `knob` in the limb's own colour, a little wider
+than the limb, with each half ending `SOFT` short of the joint's point, inside it, so it
+reads as a rounded elbow or knee and not as a part. `arm()` and `leg()` do this (wrists
+and ankles included) for every body that uses them; the few with limbs of their own
+(the goblin's and imp's bare knees, the snowman, the wizard's robe, the zombie's torn
+leg) do the same by hand. The stick-limbed ones (Bones, Quackers' legs, Peel) already
+had joints wider than their sticks.
+
+**Any torso on any legs.** `kit.plug` gives a part a rounded core at the point it turns
+on, as wide as the part itself there and in its material: every torso gets one at the
+waist (`designs.waist`, robots and creatures alike), and every creature one at the belly
+and one round the neck's stub (`creatures._close`). A mixed character's torso then rests
+on something round whatever legs are under it, and nothing opens at the belt when it
+leans back to aim.
+
+**Colours and finish.** `designs.py` writes colours the way the game's code does (sRGB)
+and turns them into what a model file holds, as `weapons.py` and `creatures.py` do, so
+the robots' armour is the same white as the guns' plates instead of a brighter one that
+lost its shading in sunlight. Surfaces are satin (roughness about 0.7, hardly any
+metal); only the glowing parts are shiny.
+
 In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides what the
 body shows from the movement state (the same way for you, other players and the bot),
 and `view_model.gd` does the first-person arms.

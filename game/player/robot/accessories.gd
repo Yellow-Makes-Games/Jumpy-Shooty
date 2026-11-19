@@ -17,19 +17,19 @@ extends RefCounted
 ## takes the player's colour, "armor" the body paint; the rest stay as they are.
 const MATERIALS := {
 	"accent": {"color": Color(0.95, 0.35, 0.25), "metallic": 0.05, "roughness": 0.7},
-	"armor": {"color": Color(0.90, 0.91, 0.93), "metallic": 0.1, "roughness": 0.55},
+	"armor": {"color": Color(0.90, 0.91, 0.93), "metallic": 0.05, "roughness": 0.72},
 	# Gold and steel are only part metal: a full metal goes black where there is no sky
 	# to reflect (the menus' robot stages), so a little glow keeps the gold golden.
-	"gold": {"color": Color(1.0, 0.76, 0.28), "metallic": 0.45, "roughness": 0.3, "emission": Color(0.45, 0.3, 0.06), "energy": 0.35},
-	"steel": {"color": Color(0.70, 0.72, 0.75), "metallic": 0.5, "roughness": 0.3},
+	"gold": {"color": Color(1.0, 0.76, 0.28), "metallic": 0.35, "roughness": 0.5, "emission": Color(0.45, 0.3, 0.06), "energy": 0.35},
+	"steel": {"color": Color(0.70, 0.72, 0.75), "metallic": 0.35, "roughness": 0.55},
 	"silk": {"color": Color(0.07, 0.07, 0.08), "metallic": 0.0, "roughness": 0.6},
 	"leather": {"color": Color(0.42, 0.25, 0.12), "metallic": 0.0, "roughness": 0.8},
-	"lens": {"color": Color(0.03, 0.03, 0.05), "metallic": 0.6, "roughness": 0.08},
-	"glass": {"color": Color(0.70, 0.88, 1.0, 0.35), "metallic": 0.2, "roughness": 0.05, "alpha": true},
+	"lens": {"color": Color(0.03, 0.03, 0.05), "metallic": 0.3, "roughness": 0.3},
+	"glass": {"color": Color(0.70, 0.88, 1.0, 0.35), "metallic": 0.1, "roughness": 0.25, "alpha": true},
 	"horn": {"color": Color(0.93, 0.89, 0.76), "metallic": 0.0, "roughness": 0.6},
 	"hair": {"color": Color(0.17, 0.10, 0.06), "metallic": 0.0, "roughness": 0.9},
 	"feather": {"color": Color(0.97, 0.97, 0.95), "metallic": 0.0, "roughness": 0.85},
-	"joint": {"color": Color(0.12, 0.13, 0.15), "metallic": 0.3, "roughness": 0.6},
+	"joint": {"color": Color(0.12, 0.13, 0.15), "metallic": 0.15, "roughness": 0.72},
 	"glow": {"color": Color(1.0, 0.85, 0.4), "metallic": 0.0, "roughness": 0.5, "emission": Color(1.0, 0.78, 0.3)},
 	"flame": {"color": Color(0.3, 0.6, 1.0), "metallic": 0.0, "roughness": 0.5, "emission": Color(0.35, 0.7, 1.0)},
 	"red": {"color": Color(0.80, 0.10, 0.10), "metallic": 0.0, "roughness": 0.6},
@@ -41,17 +41,17 @@ const MATERIALS := {
 	"moss": {"color": Color(0.22, 0.40, 0.18), "metallic": 0.0, "roughness": 0.7},
 	"straw": {"color": Color(0.87, 0.73, 0.36), "metallic": 0.0, "roughness": 0.95},
 	"wood": {"color": Color(0.50, 0.32, 0.16), "metallic": 0.0, "roughness": 0.8},
-	"pearl": {"color": Color(0.97, 0.95, 0.92), "metallic": 0.3, "roughness": 0.2},
-	"redlens": {"color": Color(0.90, 0.12, 0.12), "metallic": 0.2, "roughness": 0.1},
-	"bluelens": {"color": Color(0.10, 0.62, 0.92), "metallic": 0.2, "roughness": 0.1},
+	"pearl": {"color": Color(0.97, 0.95, 0.92), "metallic": 0.15, "roughness": 0.45},
+	"redlens": {"color": Color(0.90, 0.12, 0.12), "metallic": 0.1, "roughness": 0.3},
+	"bluelens": {"color": Color(0.10, 0.62, 0.92), "metallic": 0.1, "roughness": 0.3},
 	# The sci-fi pieces' own: bright and dark metal, bone, a hooded robe's cloth, a
 	# tinted lens, and their lights (LIGHTS: the player's trim colour on the body;
 	# "hardlight" is see-through, for shields, blades and wings of light).
-	"chrome": {"color": Color(0.80, 0.82, 0.86), "metallic": 0.45, "roughness": 0.18, "emission": Color(0.12, 0.13, 0.15), "energy": 0.3},
-	"carbon": {"color": Color(0.13, 0.14, 0.16), "metallic": 0.25, "roughness": 0.45},
+	"chrome": {"color": Color(0.80, 0.82, 0.86), "metallic": 0.35, "roughness": 0.5, "emission": Color(0.12, 0.13, 0.15), "energy": 0.3},
+	"carbon": {"color": Color(0.13, 0.14, 0.16), "metallic": 0.2, "roughness": 0.6},
 	"bone": {"color": Color(0.88, 0.84, 0.72), "metallic": 0.0, "roughness": 0.65},
 	"robe": {"color": Color(0.34, 0.07, 0.07), "metallic": 0.0, "roughness": 0.85},
-	"smoke": {"color": Color(0.08, 0.10, 0.14, 0.62), "metallic": 0.4, "roughness": 0.08, "alpha": true},
+	"smoke": {"color": Color(0.08, 0.10, 0.14, 0.62), "metallic": 0.2, "roughness": 0.25, "alpha": true},
 	"energy": {"color": Color(0.4, 0.85, 1.0), "metallic": 0.0, "roughness": 0.4, "emission": Color(0.4, 0.85, 1.0)},
 	"hardlight": {"color": Color(0.4, 0.85, 1.0, 0.42), "metallic": 0.0, "roughness": 0.3, "emission": Color(0.4, 0.85, 1.0), "energy": 0.8, "alpha": true},
 }
