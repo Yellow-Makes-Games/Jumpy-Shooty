@@ -269,11 +269,13 @@ func _play_killer(delta: float) -> void:
 	a.grapple_on = bool(f[6])
 	a.grapple_anchor = f[7]
 	a.alive = p.alive
+	a.set_hook_replayed(_hook2(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
 	if _killer_sounds == null or _killer_sounds.weapon_id != weapon:
 		_killer_sounds = PlayerSounds.new(_killer_body, true, weapon)
 		_killer_sounds.map = map as MapRoot
 	_killer_sounds.update(delta, a, true)
 	if _view:
+		_view.hang(delta, a, feet)
 		_view.update(delta)
 	var hand := _view.marker("grapple") if _view else camera.global_position
 	var hook2 = _hook2(f) if p.alive else null
@@ -419,6 +421,7 @@ func _play_ghost(id: int, delta: float) -> void:
 	a.grapple_on = bool(f[6])
 	a.grapple_anchor = f[7]
 	a.alive = bool(f[8])
+	a.set_hook_replayed(_hook2(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
 	_watch(a.flags, g.weapon, g.seen, g)
 	g.animator.update(delta, a, g.visual.global_transform)
 	if world_sound:

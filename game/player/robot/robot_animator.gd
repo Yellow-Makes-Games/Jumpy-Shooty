@@ -11,6 +11,9 @@ extends RefCounted
 ##  5. Legs turn at the waist to face the way the robot is moving (it can strafe
 ##     and back-pedal while the upper body keeps aiming).
 ##  6. Recoil, and the left arm reaching for the grapple anchor.
+## On Grappling Hook 2's rope, once it has pulled tight, the body hangs from that arm
+## instead of holding a pose (RopeSwing): tipped along the rope, the legs trailing a beat
+## behind, the gun loose at the side until you shoot. It is laid over the steps above.
 ## Gliding has no clip either: the legs are set trailing behind the way you are
 ## going (see _glide_legs, and the waist turn in update), while everything above
 ## the waist keeps aiming wherever you look.
@@ -50,6 +53,12 @@ const GLIDE_TRAIL := 42.0       ## degrees the legs trail back at GLIDE_TRAIL_SP
 const GLIDE_HANG := 8.0         ## ...and when you are hardly moving (hanging in the air)
 const GLIDE_TRAIL_SPEED := 14.0 ## m/s
 const GLIDE_LEAN := 14.0        ## degrees the hips tip forward at that speed
+## On Grappling Hook 2's rope (RopeSwing) the gun hangs at your side. A shot brings it
+## up at once; it stays up this long after the last one (seconds), then drops this fast.
+const ROPE_AIM_HOLD := 0.6
+const ROPE_AIM_DROP := 4.0
+const ROPE_CHEST := 0.45        ## how much of the hips' lean the chest gives back while the gun is down (aiming: all of it)
+const ROPE_VIEW := 0.55         ## your own body in first person leans this much of what everyone else sees
 ## [right arm, left arm, torso]: how much each follows the aim in each source.
 const AIM_WEIGHTS := {
 	"loco": [1.0, 1.0, 1.0], "crouch": [1.0, 1.0, 1.0], "slide": [1.0, 0.0, 1.0],
@@ -136,6 +145,10 @@ var _tuck := 0.0             # how far the legs are drawn up by a mid-air wind-u
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
+## How the body hangs on Grappling Hook 2's rope (ViewModel reads it too, so your arms
+## in first person move with the body everyone else sees).
+var rope := RopeSwing.new()
+var _rope_low := 0.0         # on the rope with the gun (or blade) down at your side, 0..1
 
 var _b := {}                      # bone name -> index
 var _arm_r: PackedInt32Array
@@ -222,6 +235,9 @@ func fire(left: bool = false) -> void:
 	else:
 		_recoil = _kick
 	_since_fire = 0.0
+	rope.hurry_flip()
+	if rope.w > 0.0:
+		_aim_r = 1.0   # on the rope the gun was down at your side: it is up for this shot, not on its way
 	if _end_t >= 0.0:   # a shot cuts the last flourish short: it eases back to the hold
 		_reload_from = _end_t
 		_reload_out_clip = clip("reload_end")
@@ -236,6 +252,7 @@ func fire(left: bool = false) -> void:
 func wind(charge: float, side: int = 0) -> void:
 	if _melee:
 		_swing.wind(charge, side, _airborne)
+		rope.hurry_flip()
 
 
 ## The swing was let go, `power` 0..1 wound up.
@@ -243,10 +260,12 @@ func swing(power: float, side: int = 0) -> void:
 	if _melee:
 		_swing.swing(power, side, _airborne)
 		_since_fire = 0.0
+		rope.hurry_flip()
 
 
 ## A kick (see Kick): the right leg snaps out in front.
 func kick(flying: bool = false) -> void:
+	rope.hurry_flip()
 	_leg_t = 0.0 if not flying else -1.0
 	if flying:
 		_flying_kick = true
@@ -332,6 +351,7 @@ func cutting() -> bool:
 func respawn() -> void:
 	_respawn_t = 0.0
 	_swing.stop()
+	rope.stop()
 	_dead_time = -1.0
 	_reload_t = -1.0
 	_land = 0.0
@@ -344,6 +364,7 @@ func respawn() -> void:
 func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void:
 	var local_vel := inp.velocity.rotated(Vector3.UP, -inp.yaw)   # x right, -z forward
 	var speed := Vector2(local_vel.x, local_vel.z).length()
+	rope.update(delta, inp, model_xform.origin)
 
 	# --- 1. Body
 	var key := _pick(inp)
@@ -386,6 +407,16 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_respawn_t += delta
 		else:
 			_respawn_t = -1.0
+	# Let go of the rope on the way up: one roll forward, over whatever the fall is showing.
+	var roll := rope.flip()
+	if roll >= 0.0 and rig.has_clip("flip_front"):
+		var roll_clip := _seen("flip_front")
+		rig.sample(_tmp, roll_clip, roll * rig.length(roll_clip))
+		_pose.blend(_tmp, clampf(minf(roll / 0.12, (1.0 - roll) / 0.18), 0.0, 1.0))
+	# On the rope: the body tips over to hang along it (the chest less, and not at all with the gun up).
+	var hanging := rope.w > 0.0 and key == "grapple"
+	if hanging:
+		rope.lay_body(_pose, _b, inp.yaw, 1.0 if first_person else lerpf(1.0, ROPE_CHEST, _rope_low), ROPE_VIEW if first_person else 1.0)
 
 	# --- First person: stand the torso up over the hips
 	var ease := 1000.0 if _snap_view else delta
@@ -412,7 +443,17 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	if _respawn_t >= 0.0:
 		want_r = 0.0
 		want_l = 0.0
-	_aim_r = move_toward(_aim_r, want_r, delta * 9.0)
+	if roll >= 0.0 and not rope.flip_hurried():
+		want_r = 0.0   # rolling off the rope: the arms are tucked in, until a shot cuts it short
+		want_l = 0.0
+	# On the rope the gun (or the blade) hangs at your side, until you use it.
+	var in_use := _since_fire < ROPE_AIM_HOLD or inp.reloading() or _reload_t >= 0.0 or _end_t >= 0.0 or _fire_t >= 0.0 \
+		or (_melee and _swing.active())
+	_rope_low = move_toward(_rope_low, 1.0 if hanging and not in_use and inp.alive else 0.0, delta * (ROPE_AIM_DROP if hanging else 9.0))
+	if hanging and not in_use:
+		want_r = 0.0
+		rope.lay_arm(_pose, _b, inp.yaw, 1.0, rig, _melee)
+	_aim_r = move_toward(_aim_r, want_r, delta * (ROPE_AIM_DROP if hanging and want_r < _aim_r else 9.0))
 	_aim_l = move_toward(_aim_l, want_l, delta * 9.0)
 	_torso = move_toward(_torso, want[2], delta * 8.0)
 	if _carry > 0.0:
@@ -489,7 +530,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		_was_slam = slam
 		_swing_key = _swing.sample(delta)
 		var busy := _swing.active() and inp.alive
-		_hold = move_toward(_hold, 1.0 if busy or (want[0] > 0.0 and inp.alive and _respawn_t < 0.0) else 0.0, delta * 9.0)
+		var carried: bool = want[0] > 0.0 and inp.alive and _respawn_t < 0.0 and not (hanging and not in_use)   # (on the rope it hangs from the hand)
+		_hold = move_toward(_hold, 1.0 if busy or carried else 0.0, delta * (ROPE_AIM_DROP if hanging and not busy else 9.0))
 		# On its feet the body sinks into its knees as it coils (less on the run), then turns.
 		var low := MeleeSwing.sink(_swing_key) * _hold * (1.0 - 0.6 * clampf(speed / 6.0, 0.0, 1.0)) if key == "loco" else 0.0
 		low = maxf(low, _swing.landed())   # a slam lands in a deep crouch
@@ -581,7 +623,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			var dir := chest_rot.inverse() * to_anchor.normalized()
 			var reach := Quaternion(Vector3.DOWN, dir) if dir.dot(Vector3.DOWN) > -0.999 else Quaternion(Vector3.RIGHT, PI)
 			_pose.rot[up_l] = _pose.rot[up_l].slerp(reach, _grapple_w)
-			_pose.rot[_b["forearm_l"]] = _pose.rot[_b["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.12), _grapple_w)
+			# (The jolt as the rope pulls tight straightens it right out.)
+			_pose.rot[_b["forearm_l"]] = _pose.rot[_b["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.12 * (1.0 - clampf(rope.lunged(), 0.0, 1.0) * rope.w)), _grapple_w)
 			_pose.rot[_b["hand_l"]] = _pose.rot[_b["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
 
 	# --- 5. Legs face the way we are moving
@@ -599,6 +642,9 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		_reverse = false
 		if speed > 1.0:
 			twist_target = -atan2(local_vel.x, -local_vel.z)   # the legs trail behind wherever you are going, however far round that is
+	elif hanging:
+		_reverse = false
+		twist_target = rope.twist(inp.yaw) * rope.w   # the hips face along the swing; the chest stays on your aim
 	else:
 		_reverse = false
 	_twist = lerp_angle(_twist, twist_target, 1.0 - exp(-delta * 12.0))
@@ -607,6 +653,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		var turned := Quaternion(Vector3.UP, _twist) * h
 		_pose.rot[hips] = turned
 		_pose.rot[spine] = turned.inverse() * h * _pose.rot[spine]
+	if hanging:
+		rope.lay_legs(_pose, _b, inp.yaw)
 
 	# --- Power (visor glow): off when dead, back on at respawn
 	var power_target := 1.0
@@ -619,7 +667,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	if _akimbo:
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
 	_pose.apply(model.skeleton)
-	model.settle_sway()   # a custom character's cape and tail
+	model.settle_sway(rope.stream(inp.yaw, inp.velocity) * rope.w if hanging else Vector3.ZERO)   # a custom character's cape and tail
 	# The reload's own effects: the gun's glow, the spent cell thrown clear. (In first
 	# person the arms you see are ViewModel's, and it throws the cell.)
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
