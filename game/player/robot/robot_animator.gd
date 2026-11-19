@@ -31,6 +31,7 @@ const SPRINT_SPEED := 11.5
 const CROUCH_SPEED := 4.0
 const WALL_SPEED := 10.5
 const FADE_DEFAULT := 0.12
+const HABIT_AFTER := 2.5        ## seconds after a shot before a robot goes back to its idle habit
 const RELOAD_CUT_FADE := 0.12   ## seconds a reload that is cut short takes to ease back to the hold
 const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
@@ -92,6 +93,7 @@ var _fade_time := FADE_DEFAULT
 var _time := 0.0          # seconds in the current source
 var _phase := 0.0         # stride phase, 0..1
 var _idle_time := 0.0
+var _habit := 0.0         # how much of the torso's own idle shows (see RobotModel.idle), 0..1
 var _twist := 0.0
 var _reverse := false
 var _air_t := 0.5
@@ -754,8 +756,15 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 			var sprint_len := rig.length("sprint")
 			var rate := clampf(speed / lerpf(RUN_SPEED, SPRINT_SPEED, ws), 0.6, 1.5) / lerpf(run_len, sprint_len, ws)
 			_phase = fposmod(_phase + rate * delta * direction, 1.0)
-			_idle_time = fmod(_idle_time + delta, rig.length("idle"))
-			rig.sample(_pose, "idle", _idle_time)
+			# Standing still: the plain idle, and over it the torso's own (its habit), which is
+			# a whole number of the plain one's breaths long. Not while shooting or reloading.
+			var calm := _since_fire > HABIT_AFTER and _reload_t < 0.0 and _end_t < 0.0 and not (_melee and _swing.active())
+			_habit = move_toward(_habit, 1.0 if calm and model.idle != "idle" else 0.0, delta * 4.0)
+			_idle_time = fmod(_idle_time + delta, rig.length(model.idle))
+			rig.sample(_pose, "idle", fmod(_idle_time, rig.length("idle")))
+			if _habit > 0.0 and wr < 1.0:
+				rig.sample(_tmp, model.idle, _idle_time)
+				_pose.blend(_tmp, smoothstep(0.0, 1.0, _habit))
 			if wr > 0.01:
 				rig.sample(_tmp, "run", _phase * run_len)
 				_pose.blend(_tmp, smoothstep(0.0, 1.0, wr))

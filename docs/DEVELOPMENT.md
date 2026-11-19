@@ -1537,6 +1537,33 @@ graphics card, so I can check poses myself):
   described in a job file; the format is at the top of `tools/robot/preview.gd`. It can
   also drive a robot with the game's real animator from made-up movement.
 
+**Joints.** A body is stiff pieces, each riding on one bone, so a joint only stays
+closed if what fills it is centred on the joint's own point (the bone's place in
+`rig.py`). The pattern, in `designs.py` above `needle()`: a dark core (`kit.bead`) at
+that point; each half of the limb ending in a sleeve a little wider than the core, its
+rim `SEAM` short of the point and its open end faced dark (`_sleeve`); elbows and knees
+get the core lying across the limb with a pin through it (`_hinge`). Straight, a slim
+dark band shows between the sleeves; bent, they slide over the core and nothing opens.
+Keep a core no smaller than the sleeves' inside, and do not go back to `ball()` for a
+joint: its flat faces sit well inside its radius, which is where the old gaps came from
+(it is still fine for a shoulder or hip ball sunk into the torso, and for ornaments).
+Needle is the first robot built this way; the rest still have the old ball joints.
+
+**Colours and finish.** `designs.py` writes colours the way the game's code does (sRGB)
+and turns them into what a model file holds, as `weapons.py` and `creatures.py` do, so
+the robots' armour is the same white as the guns' plates instead of a brighter one that
+lost its shading in sunlight. Surfaces are satin (roughness about 0.7, hardly any
+metal); only the glowing parts are shiny.
+
+**Idle habits.** A robot can have its own way of standing still: a clip named
+`idle_<torso>` (`IDLES` in `animations.py`), a whole number of the plain idle's breaths
+long, with one small thing in it (Needle cocks its head). It goes by the torso
+(`RobotModel.idle`), so a Character Creator body stands the way its torso does, and a
+torso with none uses the plain `idle`. `RobotAnimator` lays it over the plain idle only
+while standing still and not shooting or reloading. A habit must leave the chest where
+the plain idle has it (the gun is held from the chest) and must not look like an action;
+`tests/robot_test.gd` checks the first.
+
 In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides what the
 body shows from the movement state (the same way for you, other players and the bot),
 and `view_model.gd` does the first-person arms.

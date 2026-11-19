@@ -98,6 +98,23 @@ def ball(r, squash=1.0):
     return Part([_tri_out(vs[a], vs[b], vs[c], centre) for a, b, c in faces]).scale(1.0, squash, 1.0)
 
 
+def bead(r, n=8, squash=1.0):
+    """A joint's core: a faceted bead about the Y axis (n sides, four bands, small flat
+    ends). Unlike ball(), a limb's end sunk into it up to its middle is wholly inside."""
+    rings = []
+    for lat in (-70.0, -35.0, 0.0, 35.0, 70.0):
+        a = math.radians(lat)
+        rings.append(ngon(n, r * math.cos(a), r * math.sin(a) * squash, phase=math.pi / n))
+    return loft(rings)
+
+
+def face(ring, toward):
+    """A flat face filling a ring, turned to face the point `toward`."""
+    ring = np.array(ring, dtype=float)
+    away = 2.0 * ring.mean(axis=0) - np.array(toward, dtype=float)
+    return Part([_tri_out(ring[0], ring[j], ring[j + 1], away) for j in range(1, len(ring) - 1)])
+
+
 class Tri:
     __slots__ = ("points", "normal", "material", "bone")
 
