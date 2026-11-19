@@ -65,7 +65,8 @@ const RANGES := {"pistol": [7.0, 18.0, 999.0], "shotgun": [2.5, 7.0, 20.0], "rif
 	"nail_gun": [5.0, 14.0, 45.0], "crossbow": [12.0, 28.0, 120.0], "anti_materiel": [16.0, 38.0, 999.0],
 	"harpoon_gun": [6.0, 16.0, 38.0], "mortar": [10.0, 22.0, 60.0], "plasma_cannon": [7.0, 15.0, 40.0],
 	"katana": [0.0, 1.8, 3.2], "scythe": [0.0, 2.4, 3.9], "mace": [0.0, 1.5, 2.7], "machete": [0.0, 1.4, 2.6],
-	"wrench": [0.0, 1.4, 2.5], "energy_sword": [0.0, 1.7, 3.0], "claws": [0.0, 1.2, 2.3]}
+	"wrench": [0.0, 1.4, 2.5], "energy_sword": [0.0, 1.7, 3.0], "claws": [0.0, 1.2, 2.3],
+	"karate": [0.0, 1.3, 2.4]}
 const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
 const PRONE_AIM := 0.4     ## aim height at someone belly-sliding (they are lying flat)

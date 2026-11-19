@@ -104,7 +104,8 @@ func _initialize() -> void:
 	var rest := MeleeSwing.new(_weapon).length() + 0.25
 	_plan.append([0.3, "idle", 0])
 	for blow in _blows:
-		var side := 1 if blow == "b" else 0
+		var side := 1 if blow == "b" else (int(blow) if blow.is_valid_int() else 0)   # (a number: that step of a combo)
+		rest = MeleeSwing.blow_length(_weapon, side, 1.0 if blow in ["heavy", "air"] else 0.0, blow == "air") + 0.25
 		if blow == "air" or blow == "slam":
 			_plan.append([0.25, "rise", 0])
 			_plan.append([data.charge_time + 0.35, "wind", side])
@@ -144,7 +145,9 @@ func _advance(dt: float, run: bool) -> void:
 	if run:
 		if part[1] == "swing" and _t == 0.0:
 			let_go = true
-			_marks.append("%s %d %d" % [_blow_of(_at), _frame + 1, int(round(MeleeSwing.impact_time(_weapon) / _step))])
+			var b := _blow_of(_at)
+			_marks.append("%s %d %d" % [b, _frame + 1, int(round(MeleeSwing.impact_time(_weapon, int(b) if b.is_valid_int() else (1 if b == "b" else 0),
+				1.0 if b in ["heavy", "air"] else 0.0, b == "air") / _step))])
 		if part[1] == "land" and _t == 0.0:
 			landing = true
 			_marks.append("slam %d %d" % [_frame + 1, int(round(MeleeSwing.impact_time(_weapon) / _step))])
@@ -172,8 +175,12 @@ func _advance(dt: float, run: bool) -> void:
 			animator.swing(power, part[2])
 			trail.power = power
 		animator.update(dt, _inp, robot.global_transform)
-		if animator.cutting() and robot.melee:
-			var e := MeleeModel.edge(robot.melee)
+		var limb := animator.melee_swing().kicking()
+		if animator.cutting() and limb != "":
+			var e := MeleeModel.kick_edge(robot, limb)
+			trail.add(e[0], e[1])
+		elif animator.cutting() and robot.melee:
+			var e := MeleeModel.edge(robot.melee_left if animator.melee_swing().left_fist() and robot.melee_left else robot.melee)
 			trail.add(e[0], e[1])
 		trail.tick(dt)
 	if run and _t >= part[0]:

@@ -402,6 +402,11 @@ static func weapon_icon(ci: CanvasItem, id: String, at: Vector2, color: Color, s
 				[Vector2(6, 3.8), Vector2(24, 3.8), Vector2(28, 4.5), Vector2(24, 5.2), Vector2(6, 5.2)],
 				[Vector2(6, 7.1), Vector2(22, 7.1), Vector2(26, 7.8), Vector2(22, 8.5), Vector2(6, 8.5)]]
 
+		"karate":   # a fist, knuckles up, with its wrap
+			shapes = [[Vector2(2, 0), Vector2(16, 0), Vector2(19, 2), Vector2(19, 9), Vector2(16, 11), Vector2(2, 11)],
+				[Vector2(4, -3.5), Vector2(7, -3.5), Vector2(7, -0.8), Vector2(4, -0.8)], [Vector2(8, -3.5), Vector2(11, -3.5), Vector2(11, -0.8), Vector2(8, -0.8)],
+				[Vector2(12, -3.5), Vector2(15, -3.5), Vector2(15, -0.8), Vector2(12, -0.8)], [Vector2(-3, 2), Vector2(1, 2), Vector2(1, 9), Vector2(-3, 9)],
+				[Vector2(20, 3.5), Vector2(25, 3.5), Vector2(25, 7.5), Vector2(20, 7.5)]]
 		"none":   # a boot (Deathmatch: killed with a kick, or a crash, before finding a weapon)
 			shapes = [[Vector2(2, -2), Vector2(9, -2), Vector2(9, 5), Vector2(19, 6), Vector2(21, 10), Vector2(2, 10)]]
 		_:
@@ -427,7 +432,7 @@ static func weapon_width(id: String) -> float:
 		"derringer": 15.0, "flare_gun": 24.0, "plasma_pistol": 25.0, "auto_shotgun": 38.0, "slug_shotgun": 40.0,
 		"air_cannon": 36.0, "minigun": 48.0, "battle_rifle": 40.0, "laser_rifle": 41.0, "nail_gun": 28.0, "crossbow": 40.0,
 		"anti_materiel": 54.0, "harpoon_gun": 46.0, "mortar": 36.0, "plasma_cannon": 38.0, "katana": 47.0, "scythe": 45.0,
-		"mace": 32.0, "machete": 30.0, "wrench": 31.0, "energy_sword": 42.0, "claws": 28.0}.get(id, 22.0)
+		"mace": 32.0, "machete": 30.0, "wrench": 31.0, "energy_sword": 42.0, "claws": 28.0, "karate": 25.0}.get(id, 22.0)
 
 
 ## Widths at size 1 of the icons below.

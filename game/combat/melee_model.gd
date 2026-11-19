@@ -29,9 +29,9 @@ const SHOW_TURN := {"sword": PI * 0.5}
 const EDGES := {"sword": [0.36, 1.48], "hammer": [0.62, 0.92], "dagger": [0.12, 0.56],
 	"brass_knuckles": [0.0, 0.1], "spear": [1.3, 2.04], "axe": [0.47, 0.93], "bat": [0.4, 1.0],
 	"katana": [0.12, 1.12], "scythe": [0.9, 1.3], "mace": [0.5, 0.74], "machete": [0.12, 0.62],
-	"wrench": [0.44, 0.64], "energy_sword": [0.16, 1.06], "claws": [0.0, 0.12]}
+	"wrench": [0.44, 0.64], "energy_sword": [0.16, 1.06], "claws": [0.0, 0.12], "karate": [-0.05, 0.05]}
 ## Worn on both fists (the left one on the akimbo pistol's grip bone, see attach_left).
-const BOTH_FISTS := ["brass_knuckles", "claws"]
+const BOTH_FISTS := ["brass_knuckles", "claws", "karate"]
 
 
 ## Each material kind: [colour, roughness, metallic]. "edge" is the glow, in the player's trim colour.
@@ -141,6 +141,15 @@ static func edge(melee: Node3D) -> Array:
 	return [(holder.get_node("EdgeBase") as Node3D).global_position, (holder.get_node("EdgeTip") as Node3D).global_position]
 
 
+## A kick's "edge" (see MeleeSwing.kicking): the striking shin and foot of `robot`
+## (a RobotModel), from just below the knee to past the ankle, in the world right now.
+static func kick_edge(robot: Node3D, limb: String) -> Array:
+	var side := "_l" if limb.ends_with("_l") else "_r"
+	var knee: Vector3 = robot.call("marker", "shin" + side)
+	var ankle: Vector3 = robot.call("marker", "foot" + side)
+	return [knee.lerp(ankle, 0.45), ankle + (ankle - knee) * 0.25]
+
+
 ## [mesh, transform, material kind] for each piece of a weapon.
 static func parts(id: String) -> Array:
 	match id:
@@ -170,6 +179,8 @@ static func parts(id: String) -> Array:
 			return _energy_sword()
 		"claws":
 			return _claws()
+		"karate":
+			return _wraps()
 	return _longsword()
 
 
@@ -545,4 +556,15 @@ static func _claws() -> Array:
 		k.bar("steel", [[0.07, 0.012], [0.3, 0.008], [0.36, 0.0]], 4, Vector2(0.35, 1.0), forward)
 		k.bar("edge", [[0.08, 0.004], [0.28, 0.003]], 4, Vector2(1.0, 1.0), Transform3D(MeleeKit.Z_AXIS.basis,
 			Vector3(0, -0.04 + 0.04 * i - 0.009, 0)))
+	return k.parts()
+
+
+## Karate: no weapon, only hand wraps: white tape round the fist and a band of the
+## player's glow across the knuckles (it brightens with the wind-up and flares on a blow).
+static func _wraps() -> Array:
+	var k := MeleeKit.new()
+	k.box("plate", Vector3(0, 0, -0.03), Vector3(0.036, 0.07, 0.046))
+	for y in [-0.05, 0.0, 0.05]:
+		k.box("detail", Vector3(0, y, -0.03), Vector3(0.038, 0.006, 0.048))
+	k.box("edge", Vector3(0, 0, -0.078), Vector3(0.026, 0.066, 0.005))
 	return k.parts()

@@ -34,12 +34,19 @@ const FLIP_RIGHT := 3
 ## bit 11    in a flying kick
 ## bits 12-13 rocket-boot burst counter
 ## bit 14    winding up a melee swing (holding the button)
+## bit 15    the jetpack is firing
+## bits 16-18 which blow of the melee combo the swing (or the wind-up) is (see MeleeSwing.combo_length)
 static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int, swings: int = 0,
-		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false, jetpack: bool = false) -> int:
+		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false, jetpack: bool = false, step: int = 0) -> int:
 	return (1 if wall_right else 0) | (2 if vaulting else 0) | (4 if reloading else 0) \
 		| ((flip & 3) << 3) | ((wall_jumps & 3) << 5) | ((swings & 3) << 7) \
 		| ((kicks & 3) << 9) | ((1 if flying_kick else 0) << 11) | ((boosts & 3) << 12) \
-		| ((1 if winding else 0) << 14) | ((1 if jetpack else 0) << 15)
+		| ((1 if winding else 0) << 14) | ((1 if jetpack else 0) << 15) | ((step & 7) << 16)
+
+
+## Which blow of the melee combo the last swing (or the wind-up under way) is.
+static func step_of(f: int) -> int:
+	return (f >> 16) & 7
 
 
 ## The jetpack is firing.
