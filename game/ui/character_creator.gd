@@ -33,7 +33,7 @@ var current := CustomCharacter.new()   ## what is on the stage now
 var status: Label                      ## a line under the parts ("Saved.")
 
 var _preview: RobotPreview
-var _stage: Control
+var _stage: PortraitFrame
 var _name: LineEdit
 var _rows := {}         # part key -> Button (the part's name between the arrows)
 var _colors := {}       # colour key (a body colour's "p", "p2", "p3", "s", or an accessory slot) -> its Button
@@ -43,7 +43,7 @@ var _palette_grid: GridContainer
 var _list: PopupMenu    # every choice of the row whose name was clicked
 var _list_key := ""
 var _turn := 0.0        # extra turn of the stage: 0 front, PI back
-var _time := 0.0
+var _entrance := false  # the next character put on the stage is another one: it builds in
 
 
 func _init(start: String = "") -> void:
@@ -68,14 +68,10 @@ func _build_stage() -> void:
 	col.add_theme_constant_override("separation", 8)
 	add_child(col)
 	UiKit.section(col, "Preview")
-	_stage = Control.new()
-	_stage.custom_minimum_size = STAGE
-	_stage.clip_contents = true
-	_stage.draw.connect(_draw_stage)
+	_stage = PortraitFrame.new(STAGE, 0.95)
+	_stage.kicker = "CUSTOM UNIT"
 	col.add_child(_stage)
-	_preview = RobotPreview.new(STAGE, 0.95)
-	_preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_stage.add_child(_preview)
+	_preview = _stage.preview
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	col.add_child(row)
@@ -100,6 +96,7 @@ func _build_parts() -> void:
 	_name.max_length = CustomCharacter.MAX_NAME
 	_name.text_changed.connect(func(t: String):
 		current.name = CustomCharacter.clean_name(t)
+		_stage.title = current.name.to_upper()
 		_refresh_saved())
 	# The body and the things it wears side by side, to keep the page short.
 	var halves := HBoxContainer.new()
@@ -328,6 +325,7 @@ func randomize_parts() -> void:
 	var keep := current.name
 	current = CustomCharacter.random(null, func(key: String): return not Achievements.locked(key))   # only what you have
 	current.name = keep
+	_entrance = true
 	_refresh()
 
 
@@ -335,6 +333,7 @@ func randomize_parts() -> void:
 func load_character(id: String) -> void:
 	current = CustomCharacter.parse(Characters.valid(id))
 	_name.text = current.name
+	_entrance = true
 	_refresh()
 
 
@@ -368,7 +367,10 @@ func _refresh() -> void:
 			else:
 				shown.remove_theme_color_override(state)
 		shown.tooltip_text = "Click to see every choice" if not is_locked or key == WHOLE else "Locked. %s" % Achievements.requirement(item)
-	_preview.show_robot(current.to_id(), Net.menu_color(), "none")
+	# In your colour, holding the weapon you take into matches.
+	_stage.title = current.name.to_upper()
+	_preview.show_robot(current.to_id(), Net.menu_color(), Game.local_weapon(), _entrance)
+	_entrance = false
 	if status:
 		status.text = locked_note()
 		status.add_theme_color_override("font_color", LOCKED if status.text != "" else UiKit.TEXT_DIM)
@@ -448,33 +450,6 @@ func delete_saved() -> void:
 	Settings.delete_custom(Settings.custom_characters[at])
 	_refresh_saved()
 	status.text = "Deleted %s." % current.name
-
-
-func _process(delta: float) -> void:
-	_time += delta
-	if is_visible_in_tree():
-		_stage.queue_redraw()
-
-
-func _draw_stage() -> void:
-	var s := _stage.size
-	var r := Rect2(Vector2.ZERO, s)
-	HudStyle.framed_plate(_stage, r.grow(-1.0), 18.0, Color(0.02, 0.03, 0.05, 0.75), Color(UiKit.LINE, 0.22))
-	var glow := Net.menu_color().lerp(Color.WHITE, 0.15)
-	var floor_c := Vector2(s.x * 0.5, s.y * 0.88)
-	_stage.draw_polygon(PackedVector2Array([Vector2(s.x * 0.5 - 30, 0), Vector2(s.x * 0.5 + 30, 0),
-			floor_c + Vector2(130, 0), floor_c - Vector2(130, 0)]),
-		PackedColorArray([Color(glow, 0.0), Color(glow, 0.0), Color(glow, 0.12), Color(glow, 0.12)]))
-	_stage.draw_set_transform(floor_c, 0.0, Vector2(1.0, 0.26))
-	_stage.draw_circle(Vector2.ZERO, 120.0, Color(glow, 0.10))
-	_stage.draw_arc(Vector2.ZERO, 120.0, 0.0, TAU, 64, Color(glow, 0.75), 2.0, true)
-	for i in 6:
-		var a := _time * 0.5 + i * TAU / 6.0
-		_stage.draw_arc(Vector2.ZERO, 140.0, a, a + 0.5, 12, Color(UiKit.CYAN, 0.55), 3.0, true)
-	_stage.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	HudStyle.label(_stage, Vector2(16, 20), "CUSTOM UNIT", 11, Color(UiKit.CYAN, 0.9))
-	HudStyle.text(_stage, Vector2(16, 44), current.name.to_upper(), 28, Color.WHITE)
-	HudStyle.brackets(_stage, r.grow(-8.0), 12.0, Color(1, 1, 1, 0.25), 1.5)
 
 
 static func _palette_color(key: String, id: String) -> Color:

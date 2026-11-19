@@ -1,9 +1,9 @@
 class_name CharacterPicker
 extends VBoxContainer
 ## "Robot" chooser for the menus: the robot you have picked stands on a lit stage
-## (in its idle pose, turning slowly, in your colour, holding your weapon) with its
-## name over it and arrows either side to step through the others; under the stage,
-## a button for every robot and a line about the one picked.
+## (PortraitFrame: in your colour, holding your weapon, yours to turn round by dragging
+## it) with its name over it and arrows either side to step through the others; under
+## the stage, a button for every robot and a line about the one picked.
 ##
 ## Characters made in the Character Creator come after the robots.
 ##
@@ -36,9 +36,8 @@ var _ids: Array = []               # every character offered, in order
 var _grid: GridContainer
 var _group := ButtonGroup.new()
 var _blurb: Label
-var _stage: Control
+var _stage: PortraitFrame
 var _preview: RobotPreview
-var _time := 0.0
 var _compact := false
 var _name_button: Button   ## compact: the robot's name under the stage; opens the list
 var _color_button: Button  ## the swatch in the corner of the stage (see offer_colors)
@@ -59,14 +58,9 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: 
 	custom_minimum_size = Vector2(STAGE.x, 0)
 	if not compact:
 		UiKit.section(self, "Robot")
-	_stage = Control.new()
-	_stage.custom_minimum_size = STAGE
-	_stage.clip_contents = true
-	_stage.draw.connect(_draw_stage)
+	_stage = PortraitFrame.new(STAGE)
 	add_child(_stage)
-	_preview = RobotPreview.new(STAGE)
-	_preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_stage.add_child(_preview)
+	_preview = _stage.preview
 	_arrow("<", Control.PRESET_CENTER_LEFT, -1)
 	_arrow(">", Control.PRESET_CENTER_RIGHT, 1)
 	_color_button = Button.new()
@@ -165,42 +159,18 @@ func _arrow(text: String, side: Control.LayoutPreset, step: int) -> void:
 	b.set_anchors_and_offsets_preset(side, Control.PRESET_MODE_MINSIZE, 8)
 
 
-func _process(delta: float) -> void:
-	_time += delta
-	if is_visible_in_tree():
-		_stage.queue_redraw()
-
-
-## The stage behind the robot: a dark plate, a cone of light in your colour, rings
-## on the floor under its feet, and its name in the corner.
-func _draw_stage() -> void:
-	var s := _stage.size
-	var r := Rect2(Vector2.ZERO, s)
-	HudStyle.framed_plate(_stage, r.grow(-1.0), 18.0, Color(0.02, 0.03, 0.05, 0.75), Color(UiKit.LINE, 0.22))
-	var glow := _color.lerp(Color.WHITE, 0.15)
-	var floor_c := Vector2(s.x * 0.5, s.y * 0.86)
-	# A cone of light down onto the floor.
-	_stage.draw_polygon(PackedVector2Array([Vector2(s.x * 0.5 - 30, 0), Vector2(s.x * 0.5 + 30, 0),
-			floor_c + Vector2(120, 0), floor_c - Vector2(120, 0)]),
-		PackedColorArray([Color(glow, 0.0), Color(glow, 0.0), Color(glow, 0.13), Color(glow, 0.13)]))
-	# Rings on the floor: flat circles, the outer one turning slowly.
-	_stage.draw_set_transform(floor_c, 0.0, Vector2(1.0, 0.26))
-	_stage.draw_circle(Vector2.ZERO, 112.0, Color(glow, 0.10))
-	_stage.draw_arc(Vector2.ZERO, 112.0, 0.0, TAU, 64, Color(glow, 0.75), 2.0, true)
-	_stage.draw_arc(Vector2.ZERO, 84.0, 0.0, TAU, 48, Color(glow, 0.3), 1.5, true)
-	for i in 6:
-		var a := _time * 0.5 + i * TAU / 6.0
-		_stage.draw_arc(Vector2.ZERO, 132.0, a, a + 0.5, 12, Color(UiKit.CYAN, 0.55), 3.0, true)
-	_stage.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# Its name and where it is in the list (or whose it is, while peeking).
+## The name over the robot and where it is in the list (or whose it is, while peeking).
+func _label() -> void:
 	if not _peek.is_empty():
-		HudStyle.label(_stage, Vector2(16, 20), str(_peek.who).to_upper(), 11, Color(UiKit.ACCENT, 0.95))
-		HudStyle.text(_stage, Vector2(16, 44), Characters.name_of(_peek.id).to_upper(), 28, Color.WHITE)
-		HudStyle.brackets(_stage, r.grow(-8.0), 12.0, Color(UiKit.ACCENT, 0.5), 1.5)
+		_stage.kicker = str(_peek.who).to_upper()
+		_stage.kicker_color = Color(UiKit.ACCENT, 0.95)
+		_stage.title = Characters.name_of(_peek.id).to_upper()
+		_stage.bracket_color = Color(UiKit.ACCENT, 0.5)
 		return
-	HudStyle.label(_stage, Vector2(16, 20), ("CUSTOM %d / %d" if Characters.is_custom(current) else "UNIT %d / %d") % [_ids.find(current) + 1, _ids.size()], 11, Color(UiKit.CYAN, 0.9))
-	HudStyle.text(_stage, Vector2(16, 44), Characters.name_of(current).to_upper(), 28, Color.WHITE)
-	HudStyle.brackets(_stage, r.grow(-8.0), 12.0, Color(1, 1, 1, 0.25), 1.5)
+	_stage.kicker = ("CUSTOM %d / %d" if Characters.is_custom(current) else "UNIT %d / %d") % [_ids.find(current) + 1, _ids.size()]
+	_stage.kicker_color = Color(UiKit.CYAN, 0.9)
+	_stage.title = Characters.name_of(current).to_upper()
+	_stage.bracket_color = Color(1, 1, 1, 0.25)
 
 
 ## Show `id` as the picked character without reporting it (for example when the
@@ -216,7 +186,8 @@ func select(id: String) -> void:
 	_blurb.text = Characters.info(id).blurb
 	if _name_button:
 		_name_button.text = Characters.name_of(id)
-	_show_robot()
+	_label()
+	_show_robot(true)
 
 
 ## Use this colour for the preview's trim and visor.
@@ -260,9 +231,10 @@ func set_weapon(id: String) -> void:
 		_show_robot()
 
 
-func _show_robot() -> void:
+## entrance: another robot takes the stage (it builds in), not a change of colour or gun.
+func _show_robot(entrance: bool = false) -> void:
 	if _peek.is_empty():
-		_preview.show_robot(current, _color, _weapon)
+		_preview.show_robot(current, _color, _weapon, entrance)
 
 
 ## Show someone else's robot on the stage for a while (the lobby, while you look at
@@ -271,8 +243,10 @@ func peek(id: String, player_color: Color, gun: String, who: String) -> void:
 	var p := {"id": Characters.valid(id), "color": player_color, "weapon": WeaponData.valid(gun), "who": who}
 	if p == _peek:
 		return
+	var other: bool = p.id != _preview.character
 	_peek = p
-	_preview.show_robot(p.id, p.color, p.weapon)
+	_label()
+	_preview.show_robot(p.id, p.color, p.weapon, other)
 	_color_button.visible = false
 
 
@@ -280,7 +254,8 @@ func unpeek() -> void:
 	if _peek.is_empty():
 		return
 	_peek = {}
-	_preview.show_robot(current, _color, _weapon)
+	_label()
+	_preview.show_robot(current, _color, _weapon, current != _preview.character)
 	_color_button.visible = _offer_colors
 
 
@@ -298,3 +273,4 @@ func refresh_custom() -> void:
 			_ids.erase(id)
 	for id in Settings.custom_characters:
 		_add_button(id)
+	_label()

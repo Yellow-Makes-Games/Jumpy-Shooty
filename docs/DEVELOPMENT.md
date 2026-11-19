@@ -88,6 +88,12 @@ Quick checks:
   reloads, melee wind-ups and shoves;
 - sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
   for exists;
+- the portrait banner (`tests/portrait_test.gd`, with `--fixed-fps 60`): the 3D is drawn
+  at the screen's own size (twice that on High) with your anti-aliasing picks, whatever
+  the render scale; every character's head and the ring under it fit the frame at three
+  shapes, and the name ends short of the head; every weapon goes through its three holds
+  and its flourish; a drag turns the character and it turns back the short way; another
+  character builds in, a new gun or colour does not;
 - map scenes (`tests/map_scene_test.gd`): every map loads and builds, blocks, resize
   handles, race gates, bot routes, hazards, and the map lists keep race and arena maps apart;
 - tube collision (`tests/tube_collision_test.gd`): a tube block collides as the ring you
@@ -827,6 +833,19 @@ tools/graphics_preview.sh cirrus OUT_DIR --quality=high --spawns=0,2 --tag=after
 
 `--quality` is a graphics preset (low, medium, high); left out, the project's own settings
 are used. It runs in software when there is no graphics card, about a minute a map.
+
+The portrait banner (the character on its stage in the lobby and the Character Creator)
+has a tool of its own, which draws just the banner the way the game does:
+
+```
+tools/portrait_preview.sh OUT_DIR --character=bulwark --weapon=hammer --hold=side --quality=high
+```
+
+`--shape=creator` is the Character Creator's taller frame, `--hold` is `front`, `low`,
+`side` or `flourish`, `--switch=SEC:ID` puts another character on the stage (it builds
+in), and `--frames=N --fps=30` saves N pictures in a row for a clip (run it with
+`FPS=30` so the game steps at the same rate). The rest are at the top of
+`tools/portrait_preview.gd`.
 
 ### Rail Yard, Lost Temple and Neon Arcade
 
