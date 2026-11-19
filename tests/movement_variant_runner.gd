@@ -11,8 +11,8 @@ func run() -> void:
 	_tuning()
 	_lobby_setting()
 	await _practice()
-	await _bots("b")
-	await _bots("classic")
+	await _bots("classic")   # (an old pick from before Classic was retired)
+	_menus()
 	Net.leave()
 	print("PASS" if _ok else "FAIL")
 	get_tree().quit(0 if _ok else 1)
@@ -20,22 +20,18 @@ func run() -> void:
 
 func _ids() -> void:
 	_check(MovementTuning.valid_variant("b") == "b", "\"b\" is a variant")
-	_check(MovementTuning.valid_variant("nope") == "classic", "an unknown variant is classic")
-	_check(MovementTuning.valid_variant(null) == "classic", "no variant is classic")
-	_check(MovementTuning.variant_name("b") == "Variant B" and MovementTuning.variant_name("x") == "Classic", "variant names")
+	_check(MovementTuning.VARIANTS == ["b"] and MovementTuning.DEFAULT_VARIANT == "b", "Variant B is the only movement, and the default")
+	_check(MovementTuning.valid_variant("classic") == "b", "an old Classic pick is Variant B")
+	_check(MovementTuning.valid_variant("nope") == "b", "an unknown variant is Variant B")
+	_check(MovementTuning.valid_variant(null) == "b", "no variant is Variant B")
+	_check(MovementTuning.variant_name("b") == "Variant B", "variant name")
 
 
 func _tuning() -> void:
-	var plain := MovementTuning.new()
-	var classic := MovementTuning.for_variant("classic")
-	var same := true
-	for prop in plain.get_property_list():
-		if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and plain.get(prop.name) != classic.get(prop.name):
-			print("    differs: %s" % prop.name)
-			same = false
-	_check(same, "classic is the plain MovementTuning numbers")
-	_check(classic.variant == "classic", "classic tuning says it is classic")
+	_check(MovementTuning.for_variant("classic").variant == "b" and MovementTuning.for_variant("classic").ctrl_moves,
+		"asking for Classic gets Variant B")
 	_check(MovementTuning.for_variant("b").variant == "b", "Variant B tuning says it is B")
+	_check(MovementTuning.for_variant("b").glides_on, "Variant B glides (on Alt)")
 	var a := MovementTuning.for_variant("b")
 	var b := MovementTuning.for_variant("b")
 	a.run_speed *= 1.5   # (what a weapon's speed bonus does to a player's own copy)
@@ -43,10 +39,11 @@ func _tuning() -> void:
 
 
 func _lobby_setting() -> void:
-	_check(LobbySettings.clean({}).movement == "classic", "a lobby starts with classic movement")
+	_check(LobbySettings.clean({}).movement == "b", "a lobby starts with Variant B")
 	_check(LobbySettings.clean({"movement": "b"}).movement == "b", "the lobby keeps Variant B")
-	_check(LobbySettings.clean({"movement": "zzz"}).movement == "classic", "the lobby turns an unknown variant into classic")
-	_check(LobbySettings.clean({"movement": 7}).movement == "classic", "...and one that is not text")
+	_check(LobbySettings.clean({"movement": "classic"}).movement == "b", "an older host's Classic is Variant B")
+	_check(LobbySettings.clean({"movement": "zzz"}).movement == "b", "the lobby turns an unknown variant into Variant B")
+	_check(LobbySettings.clean({"movement": 7}).movement == "b", "...and one that is not text")
 
 
 func _practice() -> void:
@@ -59,8 +56,7 @@ func _practice() -> void:
 		return
 	_check(LobbySettings.movement() == "b", "practice is set up with Variant B")
 	_check(me.motor.tuning.variant == "b", "you move with Variant B")
-	var tag := _hud_text("Movement: Variant B")
-	_check(tag, "the HUD says Variant B is on")
+	_check(not _hud_text("Movement:"), "the HUD shows no movement tag (there is nothing else to be on)")
 	Net.leave()
 	await _frames(5)
 
@@ -69,16 +65,21 @@ func _bots(variant: String) -> void:
 	Game.last_movement = variant
 	Game.start_bot(1, 10, "construction_site", 2)
 	await _frames(30)
-	_check(LobbySettings.movement() == variant, "Vs Bots is set up with %s" % variant)
+	_check(LobbySettings.movement() == "b", "Vs Bots is set up with Variant B (picked: %s)" % variant)
 	var players: Array = Net.arena.players_root.get_children().filter(func(n): return n is Player) if Net.arena else []
 	var bots := players.filter(func(p): return p.brain != null)
 	_check(players.size() == 3 and bots.size() == 2, "you and two bots (%d players, %d bots)" % [players.size(), bots.size()])
-	var all := players.all(func(p): return p.motor != null and p.motor.tuning.variant == variant)
-	_check(all, "you and every bot move with %s" % variant)
-	if variant == "classic":
-		_check(not _hud_text("Movement:"), "the HUD says nothing with classic movement")
+	var all := players.all(func(p): return p.motor != null and p.motor.tuning.variant == "b")
+	_check(all, "you and every bot move with Variant B")
 	Net.leave()
 	await _frames(5)
+
+
+## No movement switch left in the menus (one variant: nothing to pick).
+func _menus() -> void:
+	var lobby: String = (load("res://game/ui/lobby_menu.gd") as GDScript).source_code
+	var main: String = (load("res://game/ui/main_menu.gd") as GDScript).source_code
+	_check(not lobby.contains("Movement: Variant B") and not main.contains("_movement_toggle"), "no movement switch in the lobby or on Practice / Vs Bots")
 
 
 ## Is a visible label with this text on screen (the HUD's variant tag)?

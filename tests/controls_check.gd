@@ -21,15 +21,35 @@ func _initialize() -> void:
 	var S = root.get_node("/root/Settings")
 	S.reset_bindings()
 	_ok(InputMap.action_has_event("kick", _key(KEY_F)), "F kicks by default")
-	_ok(S.action_text("dive") == "Q / Alt", "dive shows Q / Alt: " + S.action_text("dive"))
-	_ok(InputMap.action_has_event("glide", _key(KEY_SHIFT)) and InputMap.action_has_event("sprint", _key(KEY_SHIFT)), "sprint and glide share Shift")
+	_ok(S.action_text("dive") == "Q", "dive shows Q: " + S.action_text("dive"))
+	_ok(S.bindings.glide == ["key:%d" % KEY_ALT] and InputMap.action_has_event("glide", _key(KEY_ALT)), "Alt glides")
+	_ok(InputMap.action_has_event("sprint", _key(KEY_SHIFT)) and not InputMap.action_has_event("glide", _key(KEY_SHIFT)), "Shift sprints only")
+	var on_alt := []
+	for a in S.ACTIONS:
+		if a[0] != "glide" and (a[2] as Array).has("key:%d" % KEY_ALT):
+			on_alt.append(a[1])
+	_ok(on_alt.is_empty(), "nothing else is on Alt by default %s" % [on_alt])
+	# Bindings saved before the glide moved to Alt: brought up to date as they load.
+	var old := ConfigFile.new()
+	old.set_value("bindings", "glide", ["key:%d" % KEY_SHIFT])
+	old.set_value("bindings", "dive", ["key:%d" % KEY_Q, "key:%d" % KEY_ALT])
+	old.set_value("bindings", "interact", ["key:%d" % KEY_ALT, "key:%d" % KEY_G])
+	S._load_bindings(old)
+	_ok(S.bindings.glide == ["key:%d" % KEY_ALT], "an old saved glide key goes back to Alt: %s" % [S.bindings.glide])
+	_ok(S.bindings.dive == ["key:%d" % KEY_Q] and S.bindings.interact == ["key:%d" % KEY_G], "...and Alt comes off whatever else had it saved")
+	var newer := ConfigFile.new()
+	S._save_bindings(newer)
+	newer.set_value("bindings", "glide", ["mouse:%d" % MOUSE_BUTTON_XBUTTON2])
+	S._load_bindings(newer)
+	_ok(S.bindings.glide == ["mouse:%d" % MOUSE_BUTTON_XBUTTON2], "a glide key saved since then is kept")
+	S.reset_bindings()
 	_ok(InputMap.action_has_event("interact", _key(KEY_G)), "G is interact by default (press it at a map terminal)")
 	var shared := []
 	for a in S.ACTIONS:
 		if a[0] != "interact" and (a[2] as Array).has("key:%d" % KEY_G):
 			shared.append(a[1])
 	_ok(shared.is_empty(), "no other action uses G by default %s" % [shared])
-	_ok(S.rebind("glide", 1, "key:%d" % KEY_SHIFT).is_empty() and S.bindings.sprint.size() == 1, "sharing Shift is not a conflict")
+	_ok(S.rebind("glide", 1, "key:%d" % KEY_SHIFT).is_empty() and S.bindings.sprint.size() == 1, "glide may share Shift with sprint (not a conflict)")
 	var taken: Array = S.rebind("boost", 0, "key:%d" % KEY_F)
 	_ok(taken == ["Kick"], "F taken from Kick")
 	_ok(InputMap.action_has_event("boost", _key(KEY_F)) and not InputMap.action_has_event("kick", _key(KEY_F)), "F boosts, no longer kicks")

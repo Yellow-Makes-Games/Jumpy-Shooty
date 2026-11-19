@@ -280,7 +280,7 @@ func update_local(p: Player) -> void:
 	if mt.flips_on and not mt.space_boost:
 		v.moves.append(["FLIP", "SPACE", p.motor.flip_readiness(), false])
 	if mt.glides_on:
-		v.moves.append(["GLIDE", "SHIFT", p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE])
+		v.moves.append(["GLIDE", _key_label("glide", "ALT"), p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE])
 	v.moves.append(["SLIDE", "CTRL" if mt.ctrl_moves else "C", p.motor.slide_boost_readiness(), false])
 	v.moves.append(["BOOST", "SPACE" if mt.space_boost else "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3])
 	if not Race.active:
@@ -1365,3 +1365,12 @@ func _ping_ms() -> int:
 func _weapon_label(id: int) -> String:
 	var gun := Net.player_weapon(id)
 	return WeaponData.by_id(gun).short_name if gun != "none" else "Unarmed"
+
+
+## The first key bound to `action`, as the HUD shows it ("ALT"), or `fallback`.
+func _key_label(action: String, fallback: String) -> String:
+	var list: Array = Settings.bindings.get(action, [])
+	if list.is_empty():
+		return fallback
+	var text := Settings.binding_text(str(list[0])).to_upper()
+	return text if text != "" else fallback

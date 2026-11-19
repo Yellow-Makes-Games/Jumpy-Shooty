@@ -285,6 +285,7 @@ func _check_character() -> void:
 	var gliding := _input(S.GLIDE, Vector3(0, 0, -12), 0.0)
 	_run(gliding, 0.5)
 	var held := robot.bone_position("muzzle")
+	var aim := _gun_dir()
 	_expect("gliding: gun still held out in front", held.z < -0.35 and held.y > 1.2, str(held))
 	var seat := robot.bone_position("hips")
 	var leg_l := robot.bone_position("foot_l") - seat
@@ -295,12 +296,60 @@ func _check_character() -> void:
 	_run(_input(S.GLIDE, Vector3(12, 0, 0), 0.0), 0.6)
 	var side_l := robot.bone_position("foot_l") - robot.bone_position("hips")
 	_expect("gliding sideways: the legs trail away from where you are going", side_l.x < -0.3 and absf(side_l.z) < 0.35, str(side_l))
-	_expect("gliding sideways: the gun stays on target", robot.bone_position("muzzle").distance_to(held) < 0.06,
-		"%.3f m" % robot.bone_position("muzzle").distance_to(held))
+	# (The chest leans into the flight only when you aim down the track, so the gun sits a
+	# little higher aiming across it: where it points is what must not change.)
+	_expect("gliding sideways: the gun stays on target", rad_to_deg(_gun_dir().angle_to(aim)) < 6.0,
+		"%.1f degrees" % rad_to_deg(_gun_dir().angle_to(aim)))
 	# Hanging in place: the legs hang nearly straight down.
 	_run(_input(S.GLIDE, Vector3.ZERO, 0.0), 0.6)
 	var hang := robot.bone_position("foot_l") - robot.bone_position("hips")
 	_expect("gliding at a standstill: the legs hang", Vector2(hang.x, hang.z).length() < 0.3 and hang.y < -0.7, str(hang))
+	# Weakened into a fall: nose-down, the legs higher than the hips behind.
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	var fresh_head := robot.bone_position("head").y
+	_run(_input(S.GLIDE, Vector3(0, -20, -14), 0.0), 1.0)
+	var dive_leg := robot.bone_position("foot_l") - robot.bone_position("hips")
+	_expect("a weakened glide tips nose-down", robot.bone_position("head").y < fresh_head - 0.15,
+		"%.2f vs %.2f" % [robot.bone_position("head").y, fresh_head])
+	_expect("...the legs streaming out behind", dive_leg.z > 0.55, str(dive_leg))
+	# Letting go of a real glide in mid-air: a backflip out of it, then the fall.
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	_expect("letting go of a glide backflips out of it", animator.source == "glide_flip", "got \"%s\"" % animator.source)
+	# One long flip: open over the top (upside down, arms flung wide), all the way round by the end.
+	_run(_input(S.AIR, Vector3(0, -4, -14), 0.0), RobotAnimator.GLIDE_FLIP_TIME * 0.5 - 0.1)
+	var hips_up := robot.skeleton.get_bone_global_pose(robot.rig.bones["hips"]).basis.y
+	var hands := absf(robot.bone_position("hand_l").x - robot.bone_position("hand_r").x)
+	_expect("...upside down halfway through", animator.source == "glide_flip" and hips_up.y < -0.7, "%s %s" % [animator.source, hips_up])
+	_expect("...open, the arms flung wide", hands > 0.9, "%.2f m apart" % hands)
+	_run(_input(S.AIR, Vector3(0, -8, -14), 0.0), RobotAnimator.GLIDE_FLIP_TIME * 0.5 - 0.05)
+	_expect("...still going just before its time is up", animator.source == "glide_flip", "got \"%s\"" % animator.source)
+	_run(_input(S.AIR, Vector3(0, -10, -14), 0.0), 0.12)
+	_expect("...then the fall", animator.source == "air", "got \"%s\"" % animator.source)
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.2), 0.2)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	_expect("a tap of the glide does not backflip", animator.source == "air", "got \"%s\"" % animator.source)
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	animator.fire()
+	_expect("a shot hurries the backflip: the arms are free at once", animator.glide_flip_hurried())
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), RobotAnimator.GLIDE_FLIP_HURRY + 0.04)
+	_expect("...and it is round in a moment", animator.source == "air", "got \"%s\"" % animator.source)
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	animator.glide_flip_floor_in(0.4)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.36)
+	_expect("the floor coming up hurries it too: round before the landing", animator.source == "air", "got \"%s\"" % animator.source)
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	_run(_input(S.GRAPPLE, Vector3(0, -2, -14), 0.0), 0.05)
+	_expect("another move cuts it short", animator.source == "grapple", "got \"%s\"" % animator.source)
 
 	_fresh()
 	var before := robot.marker("muzzle")
@@ -568,6 +617,11 @@ func _bone_y(bone: String) -> float:
 
 
 ## The head bone sits at the neck; the top of the head is about 0.26 m above it.
+## Which way the gun in the right hand points (model space).
+func _gun_dir() -> Vector3:
+	return (robot.bone_position("muzzle") - robot.bone_position("pistol")).normalized()
+
+
 func _top() -> float:
 	var pose := robot.skeleton.get_bone_global_pose(robot.rig.bones["head"])
 	return (pose * Vector3(0, 0.26, 0)).y

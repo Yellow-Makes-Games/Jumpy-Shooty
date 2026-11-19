@@ -3,9 +3,10 @@ extends SceneTree
 ## flat floor beside a tall wall, next to a classic body for comparison.
 ## Run: godot --headless --path . --fixed-fps 60 --script tests/movement_b_test.gd
 ##
-## Checks: Classic's running speed and jump height; pressing against your motion in the
-## air brakes it far harder than Classic; legs tucked in the air with no key; no
-## glides; Space in mid-air flips once per jump and E fires the boots; with the jetpack,
+## Checks (against the plain MovementTuning numbers, which were Classic's): the same
+## running speed and jump height; pressing against your motion in the air brakes it far
+## harder; legs tucked in the air with no key; a glide gives way to a flip (the glide
+## itself: tests/glide_test.gd); Space in mid-air flips once per jump and E fires the boots; with the jetpack,
 ## holding Space asks for it; sideways speed capped at 27 m/s; Ctrl forward dives onto your
 ## belly and crawls, Ctrl back slides on your back and ends in a crouch, Ctrl standing
 ## still crouches; pushing into a wall in mid-air sits on it for 2.5 s, then slides
@@ -55,7 +56,7 @@ func _run() -> void:
 	var b_body := _body(0.0)
 	var b := MovementController.new(MovementTuning.for_variant("b"))
 	var c_body := _body(-50.0)
-	var c := MovementController.new(MovementTuning.for_variant("classic"))
+	var c := MovementController.new(MovementTuning.new())   # the plain numbers (what Classic was), to compare against
 	print("Variant B movement checks")
 
 	# --- Slower running, same jump.
@@ -94,7 +95,7 @@ func _run() -> void:
 	await _steps(b_body, b, 1)
 	_check(b.flip_readiness() == 0.0 and b.boosts == boosts, "...once per jump")
 	await _steps(b_body, b, 20)
-	_check(b.state != S.GLIDE, "Shift in mid-air does not glide")
+	_check(b.state != S.GLIDE, "a glide pressed with the flip gives way to it (and needs a fresh press)")
 	input.glide = false
 	input.boost_pressed = true
 	await _steps(b_body, b, 1)
