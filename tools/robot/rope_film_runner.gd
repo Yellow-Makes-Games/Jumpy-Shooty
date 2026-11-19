@@ -1,6 +1,6 @@
 extends Node
 ## The body of tools/robot/rope_film.gd (a separate file: it uses the game's autoloads).
-## Plays Grappling Hook 2 in a real Practice match on the Testing Grounds' grapple lane,
+## Plays the grappling hook in a real Practice match on the Testing Grounds' grapple lane,
 ## with the keys worked by this script, so the game can be filmed doing it.
 
 const S := MovementController.State
@@ -15,7 +15,7 @@ var _down := {}
 
 
 func run(scene: String, third: bool) -> void:
-	Settings.mobility = Mobility.GRAPPLE2   # (not saved: nothing here calls save_settings)
+	Settings.mobility = Mobility.GRAPPLE   # (not saved: nothing here calls save_settings)
 	Settings.third_person = third
 	Game.start_practice("testing_grounds")
 	await _frames(40)
@@ -44,7 +44,7 @@ func _swing() -> void:
 	while _me.global_position.x < 54.2:
 		await _physics(1)
 	await _tap("jump")
-	var hook := _me.motor.grapple as HookShot
+	var hook := _me.motor.grapple
 	var beam := Vector3(BEAMS[2], BEAM_Y, LANE_Z)
 	await _physics(10)
 	_look(beam)
@@ -91,7 +91,7 @@ func _pump() -> void:
 	_look(beam)
 	_key("grapple", true)
 	_key("sprint", false)
-	var hook := _me.motor.grapple as HookShot
+	var hook := _me.motor.grapple
 	var on := 0
 	while on < 720:
 		await _physics(1)
@@ -128,7 +128,7 @@ func _player() -> void:
 	var way := theirs - START
 	bot.teleport(theirs, atan2(way.x, way.z))
 	await _physics(120)
-	var hook := _me.motor.grapple as HookShot
+	var hook := _me.motor.grapple
 	_look(bot.global_position + Vector3(0, 1.2, 0))
 	await _physics(40)
 	_key("grapple", true)

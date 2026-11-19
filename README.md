@@ -46,9 +46,9 @@ More detail, including how to play with a friend and run several copies on one P
 | Spectate (fly a noclip camera nobody can see) | Esc > Spectate, or **Join as spectator**; then W A S D fly, Space up, Ctrl / C down, Shift fast |
 
 Right mouse is your **mobility** tool, picked before a match, in the pause menu's Loadout or
-by pressing right mouse while you wait to respawn: the **grappling hook**, **Grappling Hook 2**
+by pressing right mouse while you wait to respawn: the **grappling hook**
 (the hook is a projectile: it flies out with slack in the rope, bites, the winch takes the slack in and
-the rope snaps tight with a harder yank; lead a moving target, and let go to call it back; while you hold the
+the rope snaps tight with a yank, then it reels you in and you swing; lead a moving target, and let go to call it back; while you hold the
 button, a hook on its way back catches the first surface in its way), the **portal gun**
 (each press puts up your next portal, blue then orange, up to 45 m apart; walk into one and come out of the other
 with your speed carried through, and see and shoot through each to the other side (bullets, rockets and grenades go through too); portals on moving parts of a map ride them; anyone can use anyone's portals, and yours go when you die) or

@@ -1,10 +1,9 @@
 extends SceneTree
-## How the body hangs on Grappling Hook 2's rope (RopeSwing, laid over the body by
+## How the body hangs on the grappling hook's rope (RopeSwing, laid over the body by
 ## RobotAnimator).
 ## Run: godot --headless --fixed-fps 60 --path . --script tests/rope_swing_test.gd
 ##
-## The first grappling hook's body is as it was. With Grappling Hook 2 nothing changes
-## while the hook flies and the slack comes in; once the rope is tight the body leans
+## Nothing changes while the hook flies and the slack comes in; once the rope is tight the body leans
 ## along it with the legs trailing and the gun down at its side, takes a jolt (bigger
 ## for more slack), the legs follow a change of direction after the hips do, a shot
 ## brings the gun up at once and it drops again after, the hips face along the swing
@@ -36,22 +35,14 @@ func _process(_delta: float) -> bool:
 func _checks() -> void:
 	var ahead := Vector3(0, 9.2, -8.0)   # a hook ahead and above: the rope 45 degrees up
 
-	print("The first grappling hook, and Grappling Hook 2 before its rope is tight")
-	_fresh()
-	var one := _on_rope(ahead)
-	one.hook2 = false
-	_run(one, 0.6)
-	_expect("the first hook: the body does not hang (it keeps its own pose)", animator.rope.w == 0.0 and animator.source == "grapple")
-	var gun_up := robot.marker("muzzle")
-	_expect("...and its gun stays up", gun_up.y > 1.2 and gun_up.z < -0.3, str(gun_up))
+	print("Before the rope is tight")
 	_fresh()
 	var flying := _input(S.AIR, Vector3(0, 0, -8), 0.3)
-	flying.hook2 = true
 	flying.grapple_on = true
 	flying.grapple_anchor = ahead
 	flying.hook_slack = 2.0
 	_run(flying, 0.4)
-	_expect("hook 2 flying, slack in the rope: the body is falling as it would be", animator.rope.w == 0.0 and animator.source == "air")
+	_expect("the hook flying, slack in the rope: the body is falling as it would be", animator.rope.w == 0.0 and animator.source == "air")
 
 	print("Tight: the body hangs along the rope")
 	_fresh()
@@ -202,11 +193,11 @@ func _checks() -> void:
 	print("The killcam")
 	var told := RobotAnimInput.new()
 	told.set_hook_replayed([ahead, 0.0, 1.5, 0.4])
-	_expect("a body in a killcam is told its rope is tight", told.hook2 and is_equal_approx(told.hook_taut, 0.4) and told.hook_slack == 0.0)
+	_expect("a body in a killcam is told its rope is tight", is_equal_approx(told.hook_taut, 0.4) and told.hook_slack == 0.0)
 	told.set_hook_replayed([ahead, 2.5, 0.2, -1.0])
-	_expect("...or has slack in it", told.hook2 and told.hook_taut < 0.0 and is_equal_approx(told.hook_slack, 2.5))
+	_expect("...or has slack in it", told.hook_taut < 0.0 and is_equal_approx(told.hook_slack, 2.5))
 	told.set_hook_replayed(null)
-	_expect("...or is not there", not told.hook2 and told.hook_taut < 0.0)
+	_expect("...or is not there", told.hook_taut < 0.0 and told.hook_slack == 0.0)
 	var look := RobotAnimInput.new()
 	look.set_hook([HookLine.TAUT, ahead, 0.0, 1.0, 0.25])
 	_expect("a body in the match is told the same from the rope as drawn", is_equal_approx(look.hook_taut, 0.25))
@@ -228,7 +219,6 @@ func fast_rope(anchor: Vector3) -> void:
 func _jolt(anchor: Vector3, slack: float) -> Array:
 	_fresh()
 	var flying := _input(S.AIR, Vector3(0, 0, -8), 0.3)
-	flying.hook2 = true
 	flying.grapple_on = true
 	flying.grapple_anchor = anchor
 	flying.hook_slack = slack
@@ -257,12 +247,10 @@ func _roll(velocity: Vector3, shoot: bool, late: int) -> Array:
 	on.velocity = velocity
 	_run(on, 0.8)
 	var falling := _input(S.AIR, velocity, 0.0)
-	falling.hook2 = true
 	falling.grapple_on = true   # (the hook is on its way back)
 	falling.grapple_anchor = on.grapple_anchor
 	for i in absi(late):
 		var between := _input(S.AIR if late < 0 else S.GRAPPLE, velocity, 0.0)
-		between.hook2 = true
 		between.grapple_on = true
 		between.grapple_anchor = on.grapple_anchor
 		between.hook_taut = 1.0 if late < 0 else -1.0
@@ -283,10 +271,9 @@ func _roll(velocity: Vector3, shoot: bool, late: int) -> Array:
 	return [upside_down, animator.rope.flip() < 0.0]
 
 
-## A body in the GRAPPLE state on Grappling Hook 2's rope, pulled tight a moment ago.
+## A body in the GRAPPLE state on the grappling hook's rope, pulled tight a moment ago.
 func _on_rope(anchor: Vector3) -> RobotAnimInput:
 	var inp := _input(S.GRAPPLE, Vector3(0, 2, -10), 0.2)
-	inp.hook2 = true
 	inp.grapple_on = true
 	inp.grapple_anchor = anchor
 	inp.hook_taut = 0.01

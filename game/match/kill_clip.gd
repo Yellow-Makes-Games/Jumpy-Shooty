@@ -30,7 +30,7 @@ extends RefCounted
 class Track:
 	var times := PackedFloat64Array()
 	## Each frame: see Player.shown_state() (feet, velocity, yaw, pitch, pose, flags,
-	## rope on, rope anchor, alive, drawn, eye height, weapon, Grappling Hook 2's rope).
+	## rope on, rope anchor, alive, drawn, eye height, weapon, the grappling hook's rope).
 	var frames: Array = []
 	var character := ""
 	var color := Color.WHITE
@@ -110,7 +110,7 @@ class Track:
 			out[12] = _blend_hook(a[12], b[12], u, span)
 		return out
 
-	## Grappling Hook 2's rope between two frames `span` seconds apart (each [hook,
+	## The grappling hook's rope between two frames `span` seconds apart (each [hook,
 	## slack, seconds since the shot, seconds since it pulled tight]). The hook and the
 	## slack blend; the two clocks run on from the earlier frame, so the rope's ripples
 	## and its twang move as smoothly in a replay as they did in the match, and a rope

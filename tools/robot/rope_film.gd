@@ -1,5 +1,5 @@
 extends SceneTree
-## Films Grappling Hook 2 in the real game, to check how the body hangs on its rope
+## Films the grappling hook in the real game, to check how the body hangs on its rope
 ## (RopeSwing) as a player sees it: a Practice match on the Testing Grounds' grapple
 ## lane, played by a script. Used by tools/robot/rope_film.sh, which records it.
 ##

@@ -1,6 +1,6 @@
 class_name HookRope
 extends Node3D
-## Draws Grappling Hook 2's rope and hook (see HookShot and HookLine).
+## Draws the grappling hook's rope and hook (see Grapple and HookLine).
 ##
 ## The rope is a curve, not a straight line: while there is slack in it, it sags
 ## and a corkscrew of ripples runs along it toward the hook (the line uncoiling out
@@ -14,7 +14,7 @@ extends Node3D
 ## the same numbers.
 
 const SEGMENTS := 48
-const RADIUS := 0.018        ## the same cable as the first grappling hook's
+const RADIUS := 0.018        ## the cable's thickness
 const WAVE_LENGTH := 3.2     ## metres from one ripple to the next
 const WAVE_HZ := 5.0         ## ripples passing a point each second
 const MAX_AMP := 0.75        ## the ripples never swing wider than this (metres)
@@ -59,8 +59,8 @@ func _init() -> void:
 	visible = false
 
 
-## The hook: a steel dart with three barbs swept back, on a bright collar (the same
-## yellow as the first grappling hook's, so it reads as a hook at a glance).
+## The hook: a steel dart with three barbs swept back, on a bright yellow collar (so
+## it reads as a hook at a glance).
 func _build_head() -> Node3D:
 	var head := Node3D.new()
 	var steel := StandardMaterial3D.new()

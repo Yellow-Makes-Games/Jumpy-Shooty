@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Films a robot on Grappling Hook 2's rope without a GPU (see rope_preview.gd), and makes
+# Films a robot on the grappling hook's rope without a GPU (see rope_preview.gd), and makes
 # OUT_DIR/rope.mp4 from the frames if ffmpeg is there.
 # Usage: tools/robot/rope_preview.sh OUT_DIR [more options for rope_preview.gd]
 set -euo pipefail

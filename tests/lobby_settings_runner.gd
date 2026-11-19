@@ -219,6 +219,7 @@ func _mobility() -> void:
 	print("  allowed mobility")
 	_expect(LobbySettings.clean({}).get("mobility") == [], "a missing mobility setting means any tool")
 	_expect(LobbySettings.normalized_mobility(["jetpack", "nonsense", "grapple"]) == ["grapple", "jetpack"], "mobility ids are cleaned and ordered")
+	_expect(LobbySettings.normalized_mobility(["blink", "grapple2"]) == ["grapple", "blink"], "a saved list with the old Grappling Hook 2 id keeps it, as the Grappling Hook")
 	Net.start_offline("Host", "needle", "pistol", "portal")
 	var s := Net.match_settings.duplicate()
 	s["game"] = "ffa"

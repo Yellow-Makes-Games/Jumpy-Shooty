@@ -11,7 +11,7 @@ extends RefCounted
 ##  5. Legs turn at the waist to face the way the robot is moving (it can strafe
 ##     and back-pedal while the upper body keeps aiming).
 ##  6. Recoil, and the left arm reaching for the grapple anchor.
-## On Grappling Hook 2's rope, once it has pulled tight, the body hangs from that arm
+## On the grappling hook's rope, once it has pulled tight, the body hangs from that arm
 ## instead of holding a pose (RopeSwing): tipped along the rope, the legs trailing a beat
 ## behind, the gun loose at the side until you shoot. It is laid over the steps above.
 ## Gliding has no clip either: the legs are set trailing behind the way you are
@@ -53,7 +53,7 @@ const GLIDE_TRAIL := 42.0       ## degrees the legs trail back at GLIDE_TRAIL_SP
 const GLIDE_HANG := 8.0         ## ...and when you are hardly moving (hanging in the air)
 const GLIDE_TRAIL_SPEED := 14.0 ## m/s
 const GLIDE_LEAN := 14.0        ## degrees the hips tip forward at that speed
-## On Grappling Hook 2's rope (RopeSwing) the gun hangs at your side. A shot brings it
+## On the rope (RopeSwing) the gun hangs at your side. A shot brings it
 ## up at once; it stays up this long after the last one (seconds), then drops this fast.
 const ROPE_AIM_HOLD := 0.6
 const ROPE_AIM_DROP := 4.0
@@ -145,7 +145,7 @@ var _tuck := 0.0             # how far the legs are drawn up by a mid-air wind-u
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
-## How the body hangs on Grappling Hook 2's rope (ViewModel reads it too, so your arms
+## How the body hangs on the rope (ViewModel reads it too, so your arms
 ## in first person move with the body everyone else sees).
 var rope := RopeSwing.new()
 var _rope_low := 0.0         # on the rope with the gun (or blade) down at your side, 0..1

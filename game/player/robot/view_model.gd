@@ -48,7 +48,7 @@ const MELEE_REST_VIEW := {
 }
 ## A blow is tipped up this much (radians), so it sweeps across the crosshair and not under it.
 const MELEE_CUT_TILT := 0.22
-## On Grappling Hook 2's rope (RopeSwing) your arms go with the body everyone else sees:
+## On the grappling hook's rope (RopeSwing) your arms go with the body everyone else sees:
 ## the gun hangs low and off to the right, still in view, until you shoot (it drops
 ## this far about the shoulder, and tips out this far: radians), a blade is let down
 ## (by this much, and tipped this far forward), and the whole view rocks with the
@@ -203,7 +203,7 @@ func respawn() -> void:
 	_last_pitch = _player.input.pitch
 
 
-## How the body hangs on Grappling Hook 2's rope: the body's own (RobotAnimator), so the
+## How the body hangs on the rope: the body's own (RobotAnimator), so the
 ## arms move with what everyone else sees.
 func rope() -> RopeSwing:
 	return _player.animator.rope if _player.animator != null else _own_rope

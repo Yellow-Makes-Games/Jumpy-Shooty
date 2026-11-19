@@ -23,7 +23,7 @@ extends Node
 ## --start-when-ready   Host: start the match as soon as everyone (at least 2) is ready (tests).
 ## --move-at=SEC:NAME   Host: move the player called NAME to the spectators SEC seconds after the lobby opens (tests).
 ## --play-at=SEC,SEC    Spectator: press Play at these seconds after the lobby opens (tests).
-## --mobility=ID        Take this mobility tool (grapple, grapple2, portal, blink, jetpack) without changing the saved choice.
+## --mobility=ID        Take this mobility tool (grapple, portal, blink, jetpack) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
 ## --movement=ID        Host / Practice / Vs Bots: the movement variant everyone plays with (classic, b; see MovementTuning.VARIANTS).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
@@ -200,6 +200,7 @@ func _ready() -> void:
 				else:
 					push_warning("Unknown weapon: %s (weapons: %s)" % [value, ", ".join(WeaponData.IDS)])
 			"--mobility", "--bot-mobility":
+				value = Mobility.canonical(value)
 				if Mobility.has(value):
 					if key == "--mobility":
 						mobility = value
@@ -228,6 +229,7 @@ func _ready() -> void:
 					play_at.append(float(t))
 			"--allowed-mobility":
 				for m in value.split(",", false):
+					m = Mobility.canonical(m)
 					if Mobility.has(m):
 						allowed_mobility.append(m)
 					else:
