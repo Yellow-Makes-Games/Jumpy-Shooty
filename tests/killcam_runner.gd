@@ -486,6 +486,56 @@ func _find(bytes: PackedByteArray, tag: String) -> int:
 	return -1
 
 
+## What an MP4 says about itself: its codec, size, frame count and frame rate, from the
+## video track's boxes (moov > trak > mdia > minf > stbl).
+func _read_mp4(b: PackedByteArray) -> Dictionary:
+	var out := {"codec": "", "w": 0, "h": 0, "total": 0, "fps": 0, "scale": 0}
+	if b.size() < 12 or b.slice(4, 8).get_string_from_ascii() != "ftyp":
+		return out
+	_mp4_boxes(b, 0, b.size(), out)
+	return out
+
+
+func _mp4_boxes(b: PackedByteArray, from: int, to: int, out: Dictionary) -> void:
+	var at := from
+	while at + 8 <= to:
+		var size := b.decode_u32(at)
+		size = ((size & 0xff) << 24) | ((size & 0xff00) << 8) | ((size >> 8) & 0xff00) | ((size >> 24) & 0xff)   # (big-endian)
+		var kind := b.slice(at + 4, at + 8).get_string_from_ascii()
+		var head := 8
+		if size == 1:   # a 64-bit size follows
+			size = 0
+			for k in 8:
+				size = (size << 8) | b[at + 8 + k]
+			head = 16
+		elif size == 0:
+			size = to - at
+		if size < head or at + size > to:
+			return
+		var body := at + head
+		match kind:
+			"moov", "trak", "mdia", "minf", "stbl":
+				_mp4_boxes(b, body, at + size, out)
+			"mdhd":
+				if b[body] == 0:
+					out.scale = _be32(b, body + 12)
+			"stsd":
+				out.codec = b.slice(body + 12, body + 16).get_string_from_ascii()
+				out.w = (b[body + 40] << 8) | b[body + 41]
+				out.h = (b[body + 42] << 8) | b[body + 43]
+			"stsz":
+				out.total = _be32(b, body + 8)
+			"stts":
+				var delta := _be32(b, body + 12)
+				if int(out.scale) > 0 and delta > 0:
+					out.fps = roundi(int(out.scale) / float(delta))
+		at += size
+
+
+func _be32(b: PackedByteArray, at: int) -> int:
+	return (b[at] << 24) | (b[at + 1] << 16) | (b[at + 2] << 8) | b[at + 3]
+
+
 func _video() -> void:
 	print("  saving a killcam as a video")
 	var avi := AviWriter.new(64, 36, 30)
@@ -512,12 +562,16 @@ func _video() -> void:
 			break
 		await get_tree().process_frame
 	_expect(result.size() == 2 and result[1] == "", "a killcam saves without trouble (%s)" % [result])
+	var mp4 := KillcamExport.encoder_path() != ""   # (Windows: an MP4; elsewhere an AVI)
 	if result.size() == 2 and FileAccess.file_exists(result[0]):
-		var saved := _read_avi(FileAccess.get_file_as_bytes(result[0]))
+		var bytes := FileAccess.get_file_as_bytes(result[0])
+		var saved := _read_mp4(bytes) if mp4 else _read_avi(bytes)
 		var want := roundi((clip.end - clip.start + (KillcamView.SLOW_FROM + KillcamView.SLOW_UNTIL) * (1.0 / KillcamView.SLOW - 1.0) + KillcamExport.HOLD) * KillcamExport.FPS)
-		_expect(absi(int(saved.total) - want) <= 3 and saved.w == 1280 and saved.h == 720,
-			"the video is the clip in slow motion round the kill, then a second's hold: %d frames of 1280x720 (about %d)" % [saved.total, want])
-		_expect(String(result[0]).get_file().begins_with("killcam_Tester_on_Gizmo_") and String(result[0]).ends_with(".avi"),
+		_expect(absi(int(saved.total) - want) <= 3 and saved.w == 1920 and saved.h == 1080,
+			"the video is the clip in slow motion round the kill, then a second's hold: %d frames of %dx%d (about %d of 1920x1080)" % [saved.total, saved.w, saved.h, want])
+		if mp4:
+			_expect(saved.codec == "avc1" and saved.fps == 60, "an H.264 MP4 at 60 frames a second (%s, %s fps)" % [saved.codec, saved.fps])
+		_expect(String(result[0]).get_file().begins_with("killcam_Tester_on_Gizmo_") and String(result[0]).ends_with(".mp4" if mp4 else ".avi"),
 			"named after the killer and victim (%s)" % String(result[0]).get_file())
 		DirAccess.remove_absolute(result[0])
 	DirAccess.remove_absolute(dir)
