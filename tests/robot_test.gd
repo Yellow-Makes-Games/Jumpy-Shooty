@@ -106,67 +106,6 @@ func _checks() -> void:
 		_drop_robot()
 		_check_akimbo()
 		_drop_robot()
-	_check_habits()
-
-
-## A robot's own idle (its habit: "idle_<torso>") goes by the torso, in the Character
-## Creator too, runs in step with the plain idle's breathing, and leaves the chest (so
-## the gun) where the plain idle has it.
-func _check_habits() -> void:
-	print("Idle habits")
-	var plain_len := RobotRig.open(Characters.body(Characters.default_id())).length("idle")
-	var other := ""   # a robot with no habit, to mix parts with
-	for id in Characters.ids():
-		if not RobotRig.open(Characters.body(id)).has_clip("idle_" + id):
-			other = id
-	var found := 0
-	for id in Characters.ids():
-		var rig := RobotRig.open(Characters.body(id))
-		var habit: String = "idle_" + id
-		if not rig.has_clip(habit):
-			continue
-		found += 1
-		robot = RobotModel.new().build(id, Color(1, 0.3, 0.2))
-		_expect("%s stands in its own idle" % id, robot.idle == habit, robot.idle)
-		_drop_robot()
-		var mixed := CustomCharacter.new()
-		mixed.torso = id
-		robot = RobotModel.new().build(mixed.to_id(), Color(1, 0.3, 0.2))
-		_expect("so does a custom character with %s's torso" % id, robot.idle == habit, robot.idle)
-		_drop_robot()
-		if other != "":
-			mixed.torso = other
-			mixed.head = id
-			robot = RobotModel.new().build(mixed.to_id(), Color(1, 0.3, 0.2))
-			_expect("but not one with only its head", robot.idle == "idle", robot.idle)
-			_drop_robot()
-		var breaths := rig.length(habit) / plain_len
-		_expect("%s's idle is a whole number of breaths long" % id, absf(breaths - roundf(breaths)) < 0.001, "%.3f" % breaths)
-		var a := rig.new_pose()
-		var b := rig.new_pose()
-		var turned := 0.0
-		var moved := 0.0
-		var t := 0.0
-		while t < rig.length(habit):
-			rig.sample(a, "idle", fmod(t, plain_len))
-			rig.sample(b, habit, t)
-			var ca := _chest(rig, a)
-			var cb := _chest(rig, b)
-			turned = maxf(turned, ca.basis.get_rotation_quaternion().angle_to(cb.basis.get_rotation_quaternion()))
-			moved = maxf(moved, ca.origin.distance_to(cb.origin))
-			t += 0.05
-		_expect("%s's habit leaves the chest (and the gun) where it was" % id, turned < deg_to_rad(0.5) and moved < 0.005,
-			"%.2f deg, %.3f m" % [rad_to_deg(turned), moved])
-	_expect("at least one robot has a habit", found > 0)
-
-
-## Where a pose puts the chest, in the model's own space.
-func _chest(rig: RobotRig, pose: RobotPose) -> Transform3D:
-	var at := Transform3D.IDENTITY
-	for bone in ["root", "hips", "spine", "chest"]:
-		var i: int = rig.bones[bone]
-		at = at * Transform3D(Basis(pose.rot[i]), pose.pos[i])
-	return at
 
 
 ## Akimbo: a pistol in each fist, both pointing ahead, and each arm kicks only on its own shots.

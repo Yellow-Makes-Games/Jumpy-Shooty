@@ -1575,15 +1575,6 @@ the robots' armour is the same white as the guns' plates instead of a brighter o
 lost its shading in sunlight. Surfaces are satin (roughness about 0.7, hardly any
 metal); only the glowing parts are shiny.
 
-**Idle habits.** A robot can have its own way of standing still: a clip named
-`idle_<torso>` (`IDLES` in `animations.py`), a whole number of the plain idle's breaths
-long, with one small thing in it (Needle cocks its head). It goes by the torso
-(`RobotModel.idle`), so a Character Creator body stands the way its torso does, and a
-torso with none uses the plain `idle`. `RobotAnimator` lays it over the plain idle only
-while standing still and not shooting or reloading. A habit must leave the chest where
-the plain idle has it (the gun is held from the chest) and must not look like an action;
-`tests/robot_test.gd` checks the first.
-
 In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides what the
 body shows from the movement state (the same way for you, other players and the bot),
 and `view_model.gd` does the first-person arms.

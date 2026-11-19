@@ -145,69 +145,16 @@ def idle(t):
     }
 
 
-# Each robot has a habit of its own when it stands still: a version of the idle, three
-# breaths long, with one small thing in it. They go by the torso ("idle_<torso>"), so a
-# character put together in the Character Creator stands the way its torso does; a
-# torso with none stands in the plain idle. A habit leaves the chest where the plain idle
-# has it (the gun is held from the chest, and must not wander off its aim), and never
-# looks like doing something: no reaching, no ducking. tests/robot_test.gd checks both.
-
-QUIRK_PERIOD = 9.0
-
-
-def _snap(t, start, rise, hold, fall):
-    """0, up to 1 and back to 0: there in `rise` seconds with a little overshoot, held,
-    then eased back over `fall`."""
-    u = t - start
-    if u <= 0.0 or u >= rise + hold + fall:
-        return 0.0
-    if u < rise:
-        w = u / rise - 1.0
-        return 1.0 + 2.70158 * w ** 3 + 1.70158 * w ** 2
-    if u < rise + hold:
-        return 1.0
-    return 1.0 - ease((u - rise - hold) / fall)
-
-
-def _turned(spec, bone, pitch=0.0, yaw=0.0, roll=0.0):
-    r = spec[bone]
-    spec[bone] = (r[0] + pitch, r[1] + yaw, r[2] + roll)
-
-
-def idle_needle(t):
-    """Needle is curious: it cocks its head like a bird, and a while later takes a quick
-    second look to the side and tips its head the other way."""
-    spec = idle(t)
-    a = _snap(t, 2.2, 0.16, 1.0, 0.26)
-    b = _snap(t, 6.0, 0.14, 0.4, 0.2)
-    c = _snap(t, 6.7, 0.15, 0.75, 0.28)
-    _turned(spec, "head", pitch=-3.0 * a + 2.0 * b - 2.0 * c, yaw=-5.0 * a + 15.0 * b + 4.0 * c, roll=15.0 * a - 13.0 * c)
-    return spec
-
-
-IDLES = {"needle": idle_needle}   # torso -> its idle
-
-
-def _bounce(p):
-    """How high the hips ride through a running cycle (two steps), -1 to 1 or so: they
-    drop quickly as each foot takes the weight and hang a moment at the top of each stride."""
-    a = 2 * TAU * (p - 0.14)
-    return (math.cos(a) + 0.28 * math.sin(2 * a)) / 1.1
-
-
 def _run(t, period, lean, bob, stance, front, back, lift, sprint):
     p = (t / period) % 1.0
     c = math.cos(TAU * p)
     s = math.sin(TAU * p)
-    nod = _bounce(p - 0.05)   # the head follows the hips a moment late
     spec = {
-        # The hips swing with the legs and the chest swings back against them, so the
-        # shoulders (and the gun) stay square while the body under them works.
-        "hips": {"pos": (0.012 * s, 0.885 - bob * _bounce(p), 0.0), "rot": (lean, -9.0 * c, 3.5 * s)},
-        "spine": (-lean * 0.3, 5.0 * c, -1.75 * s), "chest": (-lean * 0.2, 6.0 * c, -1.75 * s),
-        "head": (-lean * 0.4 + 1.6 * nod, -2.0 * c, 0.0),
-        "leg_l": stride(p, -0.085, stance, front, back, lift, push=-46.0),
-        "leg_r": stride(p + 0.5, 0.085, stance, front, back, lift, push=-46.0),
+        "hips": {"pos": (0.0, 0.885 - bob * math.cos(2 * TAU * (p - 0.14)), 0.0), "rot": (lean, -7.0 * c, 3.0 * s)},
+        "spine": (-lean * 0.35, 4.0 * c, -1.5 * s), "chest": (-lean * 0.25, 5.0 * c, -1.5 * s),
+        "head": (-lean * 0.3, -2.0 * c, 0.0),
+        "leg_l": stride(p, -0.10, stance, front, back, lift),
+        "leg_r": stride(p + 0.5, 0.10, stance, front, back, lift),
     }
     if sprint:
         spec["arm_r"] = fk_arm(-8.0 + 48.0 * c, roll=10.0, bend=95.0 + 10.0 * c, hand=(0.0, 0.0, 0.0))
@@ -223,7 +170,7 @@ SPRINT_PERIOD = 0.40   # matches 11.5 m/s
 
 
 def run(t):
-    return _run(t, RUN_PERIOD, -11.0, 0.032, 0.30, -0.36, 0.42, 0.33, False)
+    return _run(t, RUN_PERIOD, -9.0, 0.028, 0.30, -0.36, 0.42, 0.30, False)
 
 
 def sprint(t):
@@ -579,7 +526,7 @@ def body_clips():
         Clip("reload", 1.3, reload),
         Clip("death", 1.3, death),
         Clip("respawn", 0.6, respawn),
-    ] + [Clip("idle_" + torso, QUIRK_PERIOD, fn, loop=True) for torso, fn in IDLES.items()] + view_clips() + hand_clips()
+    ] + view_clips() + hand_clips()
 
 
 # ---------------------------------------------------------------------------
