@@ -44,6 +44,7 @@ var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
 var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
+var _mobility_on: CheckButton   # every fight: mobility tools (right mouse) in the match or not
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
 var _map_label: Label
 var _map_button: Button   # the host: the map picked (or Random); opens the map window
@@ -308,7 +309,7 @@ func _refresh() -> void:
 		_show_weapon_card(Net.player_weapon(Net.my_id()))
 		_character.set_weapon(Net.player_weapon(Net.my_id()))
 		_mobility.select(Net.player_loadout_mobility(Net.my_id()))
-		_mobility_button.text = Mobility.short_name(Net.player_loadout_mobility(Net.my_id()))
+		_mobility_button.text = Mobility.short_name(Net.player_loadout_mobility(Net.my_id())) if LobbySettings.mobility_on() else "Off"
 
 
 ## One player: colour stripe, name, HOST and YOU tags, robot and gun.
@@ -357,8 +358,9 @@ func _player_row(id: int) -> PanelContainer:
 	elif id != Net.host_id():   # the host is ready when it presses Start
 		var ready := Net.is_ready(id)
 		UiKit.tag(row, "READY" if ready else "NOT READY", Color(0.45, 0.95, 0.5) if ready else Color(1, 1, 1, 0.45))
-	var who := UiKit.label(row, "%s  ·  %s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name,
-		Mobility.short_name(Net.player_loadout_mobility(id))], true, 14)
+	var who := UiKit.label(row, "%s  ·  %s" % [Characters.name_of(Net.player_character(id)), WeaponData.by_id(Net.player_weapon(id)).short_name], true, 14)
+	if LobbySettings.mobility_on():
+		who.text += "  ·  " + Mobility.short_name(Net.player_loadout_mobility(id))
 	who.autowrap_mode = TextServer.AUTOWRAP_OFF
 	who.clip_text = true
 	who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -782,6 +784,17 @@ func _build_rules() -> void:
 # settings get their control here.
 func _build_lobby_settings() -> void:
 	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
+	# Mobility tools (the grapple, portal gun, blink, jetpack: right mouse) in the match or not.
+	_mobility_on = CheckButton.new()
+	_mobility_on.text = "Mobility tools (right mouse)"
+	_mobility_on.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(_mobility_on)
+	_mobility_on.toggled.connect(func(on: bool):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["mobility_on"] = on
+		Net.set_match_settings(s))
 	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
 	var mobility_window := _floating()   # (its chips move to the window before the page has them)
 	mobility_window.panel.custom_minimum_size.x = 460
@@ -854,7 +867,10 @@ func _refresh_rules() -> void:
 			_weapon_panel.close()
 		_mobility_box.visible = not race   # a race always has the grapple
 		_mobility.set_allowed(LobbySettings.allowed_mobility())
-		_mobility_button.disabled = LobbySettings.only_mobility() != ""
+		_mobility_button.disabled = LobbySettings.only_mobility() != "" or not LobbySettings.mobility_on()
+		_mobility_button.tooltip_text = "Pick your mobility tool" if LobbySettings.mobility_on() else "The host turned mobility tools off for this match"
+		if _mobility_button.disabled:
+			_mobility_panel.close()
 		_no_weapon_note.text = "A race has no weapons: it is you, the course and the clock." if race \
 			else ("Killcam is snipers only: every kill scores its killcam points." if killcam \
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
@@ -897,8 +913,11 @@ func _refresh_rules() -> void:
 	if _allowed:
 		_allowed.set_value(s.get("weapons", []))
 	if _allowed_mobility:
-		_allowed_mobility.visible = LobbySettings.mobility_apply()   # a race always has the grapple
-		_rules_head.visible = _allowed_mobility.visible   # a race has no loadout rules
+		_rules_head.visible = LobbySettings.mobility_apply()   # a race always has the grapple: it has no loadout rules
+		_mobility_on.visible = _rules_head.visible
+		_mobility_on.disabled = not Net.is_host()   # everyone else just sees the host's choice
+		_mobility_on.set_pressed_no_signal(LobbySettings.mobility_on())
+		_allowed_mobility.visible = _rules_head.visible and LobbySettings.mobility_on()   # (off: there is nothing to allow)
 		_allowed_mobility.set_editable(Net.is_host())
 		_allowed_mobility.set_value(s.get("mobility", []))
 	if race:

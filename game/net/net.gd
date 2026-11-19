@@ -868,7 +868,7 @@ func _sync_settings(settings: Dictionary) -> void:
 	match_settings = LobbySettings.clean(match_settings)
 	if DevArgs.sync_log:
 		print("LOBBY_SETTINGS %d weapons=%s" % [my_id(), ",".join(LobbySettings.allowed_weapons())])
-		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility())])
+		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility()) if LobbySettings.mobility_on() else "off"])
 		print("LOBBY_MAP %d map=%s random=%s pool=%s song=%s" % [my_id(), map_id(), match_settings.random_map,
 			",".join(LobbySettings.map_pool()), match_settings.song])
 		print("LOBBY_MOVEMENT %d movement=%s" % [my_id(), LobbySettings.movement()])
@@ -1459,7 +1459,7 @@ func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vect
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != owner and not (sender == host_id() and is_bot(owner)):
 		return   # only a player's own copy places their portals
-	if arena and is_instance_valid(arena) and arena.portals and Match.is_alive(owner):
+	if arena and is_instance_valid(arena) and arena.portals and Match.is_alive(owner) and LobbySettings.mobility_on():
 		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame)
 
 

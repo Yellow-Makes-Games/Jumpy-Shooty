@@ -321,6 +321,8 @@ func update(delta: float) -> void:
 		input.grapple = false   # no swinging off while it is at (or on its way to) a terminal or a crossing
 	if _open() and not hold:
 		world_dir = _mind_the_edge(world_dir)
+	elif not LobbySettings.mobility_on():
+		input.grapple = false   # the host turned the mobility tools off (see LobbySettings)
 	elif me.mobility == Mobility.BLINK:
 		_blink(delta, visible)
 	elif me.mobility == Mobility.JETPACK:
@@ -1217,7 +1219,7 @@ func _links() -> Array:
 		var link := n as MapJumpLink
 		if link == null or not link.usable():
 			continue
-		if link.how == MapJumpLink.How.GRAPPLE and (me.mobility != Mobility.GRAPPLE or link.hook_point() == Vector3.INF):
+		if link.how == MapJumpLink.How.GRAPPLE and (me.mobility != Mobility.GRAPPLE or not LobbySettings.mobility_on() or link.hook_point() == Vector3.INF):
 			continue
 		out.append(link)
 	return out

@@ -13,6 +13,9 @@ extends Node
 ##  - allowed mobility tools: the host enforces them for itself, remote players and
 ##    bots; the death screen's mobility button and every mobility picker go through the
 ##    allowed tools only; a race ignores the setting; the host's control changes it.
+##  - mobility tools on or off: on unless the host turns them off; every fight follows
+##    it, a race never does; the lobby's switch changes it, and with it off the lobby
+##    and the pause menu's Loadout offer no tool.
 ##  - the lobby size is kept between 2 and 16; players ready up, the host can only
 ##    start once everyone is ready (bots and the host count as ready), the lobby shows
 ##    who is ready and gives the host a Kick button on everyone else's row.
@@ -33,6 +36,7 @@ func run() -> void:
 	await _lobby_menu()
 	await _loadout_menu()
 	await _mobility()
+	await _mobility_off()
 	await _ready_and_size()
 	await _floating_windows()
 	Net.leave()
@@ -213,6 +217,65 @@ func _loadout_menu() -> void:
 		menu.queue_free()
 		Net.in_match = false
 		await get_tree().process_frame
+
+
+func _mobility_off() -> void:
+	print("  mobility tools on or off")
+	_expect(LobbySettings.clean({}).get("mobility_on") == true, "a missing setting means the mobility tools are on")
+	_expect(LobbySettings.clean({"mobility_on": "no"}).mobility_on == true and LobbySettings.clean({"mobility_on": false}).mobility_on == false,
+		"only a plain off turns them off")
+	Net.start_offline("Host", "needle", "pistol", "portal")
+	var s := Net.match_settings.duplicate()
+	s["game"] = "ffa"
+	s["map"] = Maps.default_id("ffa")
+	s["mode"] = "kills"
+	s["weapons"] = []
+	s["mobility"] = []
+	s["mobility_on"] = true
+	Net.set_match_settings(s)
+	_expect(LobbySettings.mobility_on(), "on from the start")
+	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
+	get_tree().root.add_child(lobby)
+	await get_tree().process_frame
+	var toggle: CheckButton = lobby._mobility_on
+	_expect(toggle.is_visible_in_tree() and not toggle.disabled and toggle.button_pressed, "the host sees the switch in the lobby, on, and can change it")
+	_expect(lobby._allowed_mobility.visible and not lobby._mobility_button.disabled, "on: the allowed tools and your own pick are there")
+	toggle.button_pressed = false
+	await get_tree().process_frame
+	_expect(Net.match_settings.mobility_on == false and not LobbySettings.mobility_on(), "the switch turns the tools off in the settings everyone is sent")
+	_expect(not lobby._allowed_mobility.visible and lobby._mobility_button.disabled and lobby._mobility_button.text == "Off",
+		"off: the lobby has no tools to allow and none to pick")
+	var before := Net.player_loadout_mobility(1)
+	s = Net.match_settings.duplicate()
+	s["game"] = "dm"
+	s["map"] = Maps.default_id("dm")
+	Net.set_match_settings(s)
+	_expect(not LobbySettings.mobility_on(), "off: a Deathmatch follows it too")
+	s["game"] = "race"
+	s["map"] = Maps.default_id("race")
+	Net.set_match_settings(s)
+	await get_tree().process_frame
+	_expect(LobbySettings.mobility_on() and not toggle.is_visible_in_tree(), "a race ignores it (the courses need the grapple) and does not show the switch")
+	s["game"] = "ffa"
+	s["map"] = Maps.default_id("ffa")
+	Net.set_match_settings(s)
+	_expect(Net.player_loadout_mobility(1) == before, "off: everyone's pick is kept for when the tools are back")
+	lobby.queue_free()
+	await get_tree().process_frame
+	Net.in_match = true
+	var menu := PauseMenu.new()
+	get_tree().root.add_child(menu)
+	await get_tree().process_frame
+	menu.call("_show_loadout")
+	await get_tree().process_frame
+	var picks := menu.find_children("*", "MobilityPicker", true, false)
+	_expect(picks.is_empty() or not (picks[0] as Control).is_visible_in_tree(), "off: the pause menu's Loadout has no mobility tool to pick")
+	menu.queue_free()
+	Net.in_match = false
+	s["mobility_on"] = true
+	Net.set_match_settings(s)
+	await get_tree().process_frame
+	_expect(LobbySettings.mobility_on(), "the host can turn them back on")
 
 
 func _mobility() -> void:

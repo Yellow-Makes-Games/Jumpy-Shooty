@@ -6,6 +6,9 @@
 #    judges shots from allowed weapons, and weapons picked on the death screen (the
 #    number keys, --swap-on-death) are allowed ones; the same for the mobility tools the
 #    host allows (--allowed-mobility): everyone is told and only has allowed tools;
+#  - online with the mobility tools off (--no-mobility): the host, a client who joins
+#    before the start and one who joins mid-match are all told, and nobody's hook,
+#    blink or jetpack ever goes off (the scripted players and bots press the button);
 #  - Vs Bots with one gun (the bat): you and every bot have it;
 #  - no script errors anywhere.
 # (The rules and the pickers are checked step by step in tests/lobby_settings_test.gd.)
@@ -18,6 +21,7 @@ mkdir -p "$OUT"
 rm -f "$OUT"/lobby_*.log
 MAP="${MAP:-construction_site}"
 PORT=$((25900 + RANDOM % 100))
+PORT_OFF=$((PORT + 100))
 COMMON=(--scripted-input --scripted-fire --sync-log --map="$MAP")
 
 # Vs Bots, on a fixed game clock: one gun for everyone.
@@ -26,10 +30,14 @@ timeout 120 "$GODOT" --fixed-fps 60 --headless --path . -- --game-clock --bot=1 
 # Online: the host saved the sniper, P2 the pistol, P3 (joins at about 14 s) the rocket launcher.
 "$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --weapon=sniper --allowed-weapons=shotgun,railgun,smg --allowed-mobility=blink,jetpack --mobility=grapple \
   --autostart=2 --rules=kills:30 --time-limit=60 --swap-on-death --quit-after=34 "${COMMON[@]}" > "$OUT/lobby_host.log" 2>&1 &
+# Online, mobility off: Q1 hosts with a bot, Q2 joins before the start, Q3 at about 14 s.
+"$GODOT" --headless --path . -- --host --port="$PORT_OFF" --name=Q1 --no-mobility --mobility=grapple --host-bots=1 --bot-mobility=grapple   --autostart=2 --rules=kills:30 --time-limit=60 --scripted-kicks --quit-after=30 "${COMMON[@]}" > "$OUT/lobby_off_host.log" 2>&1 &
 sleep 1
+"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT_OFF" --name=Q2 --mobility=blink --scripted-kicks --quit-after=28 "${COMMON[@]}"   > "$OUT/lobby_off_early.log" 2>&1 &
 "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --weapon=pistol --mobility=portal --swap-on-death --quit-after=32 "${COMMON[@]}" \
   > "$OUT/lobby_early.log" 2>&1 &
 sleep 13
+"$GODOT" --headless --path . -- --join="127.0.0.1:$PORT_OFF" --name=Q3 --mobility=jetpack --scripted-kicks --quit-after=14 "${COMMON[@]}"   > "$OUT/lobby_off_late.log" 2>&1 &
 "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P3 --weapon=rocket_launcher --mobility=grapple --swap-on-death --quit-after=17 "${COMMON[@]}" \
   > "$OUT/lobby_late.log" 2>&1 &
 wait || true
@@ -95,6 +103,11 @@ for name in ["host", "early", "late"]:
         pings = [l for l in lines(name) if l.startswith("PINGS ")]
         last = max((dict(p.split(":") for p in l.split()[2:]) for l in pings), key=len, default={})
         check(len(last) >= 2 and all(0 <= int(v) < 1000 for v in last.values()), f"{name}: told every client's ping ({last})")
+for name in ["off_host", "off_early", "off_late"]:
+    told = [l for l in lines(name) if l.startswith("LOBBY_MOBILITY ")]
+    check(bool(told) and told[-1].endswith("mobility=off"), f"{name}: told the mobility tools are off ({told[-1] if told else 'never'})")
+    used = [l for l in lines(name) if re.match(r"ROPE SELF \d+ on|BLINK \d|JETPACK \d|PORTAL \d", l)]
+    check(any(l.startswith("SYNC SELF ") for l in lines(name)) and not used, f"{name}: played, and no mobility tool ever went off ({used[:2]})")
 late = loadouts("late")
 check(any(len(l) == 3 for l in late), "the late joiner is in the list with the others")
 pellets = [l.split()[2] for l in lines("host") if l.startswith("PELLETS ")]

@@ -6,7 +6,8 @@ extends RefCounted
 ## who join later too) the same way; the host enforces them.
 ##
 ## Today: which weapons are allowed in a shoot-out ("weapons"), which mobility tools
-## are allowed in any fight ("mobility"), how many players the lobby takes
+## are allowed in any fight ("mobility") or whether there are any at all
+## ("mobility_on"), how many players the lobby takes
 ## ("max_players"), the Killcam mode's points to win and time limit
 ## ("killcam_points", "killcam_minutes"; see KillcamMode), a random map and the maps
 ## it may pick from ("random_map", "map_pool"), and the song the lobby plays ("song";
@@ -22,6 +23,8 @@ extends RefCounted
 ##   id is a single gun for everyone.
 ## mobility: the ids (from Mobility) a player may pick; [] means every tool. One id is
 ##   the same tool for everyone.
+## mobility_on: false takes the mobility tools (right mouse) out of the match: nobody
+##   has one, whatever "mobility" allows.
 ## max_players: how many players the online lobby takes, MIN_PLAYERS to MAX_PLAYERS.
 ## killcam_points, killcam_minutes: Killcam mode: first to this many points, or the most
 ##   after this many minutes.
@@ -33,7 +36,7 @@ extends RefCounted
 ##   the host picks another; "" shuffles them as usual.
 ## movement: the movement variant (an id from MovementTuning.VARIANTS) every player
 ##   runs, in every kind of game; it takes effect when the match starts.
-const DEFAULTS := {"weapons": [], "mobility": [], "max_players": 16,
+const DEFAULTS := {"weapons": [], "mobility": [], "mobility_on": true, "max_players": 16,
 	"killcam_points": KillcamMode.POINTS_TO_WIN, "killcam_minutes": KillcamMode.MINUTES,
 	"random_map": false, "map_pool": [], "song": "", "movement": MovementTuning.DEFAULT_VARIANT}
 const MIN_PLAYERS := 2
@@ -50,6 +53,7 @@ static func clean(settings: Dictionary) -> Dictionary:
 	s["weapons"] = normalized_weapons(s.get("weapons", []))
 	s["max_players"] = clampi(int(s.get("max_players", MAX_PLAYERS)), MIN_PLAYERS, MAX_PLAYERS)
 	s["mobility"] = normalized_mobility(s.get("mobility", []))
+	s["mobility_on"] = not s.get("mobility_on") is bool or s.mobility_on
 	s["killcam_points"] = KillcamMode.clean_points(s.get("killcam_points"))
 	s["killcam_minutes"] = KillcamMode.clean_minutes(s.get("killcam_minutes"))
 	s["random_map"] = s.get("random_map") is bool and s.random_map
@@ -174,6 +178,13 @@ static func mobility_from(ids) -> Array:
 ## Does the allowed-mobility setting apply to the game that is set up?
 static func mobility_apply() -> bool:
 	return Net.game_kind() != "race"
+
+
+## Are there mobility tools in the game that is set up? The host can turn them off for
+## every fight; each copy then ignores its own players' mobility button (see Player),
+## and the menus and the HUD stop offering the tools.
+static func mobility_on() -> bool:
+	return not mobility_apply() or bool(Net.match_settings.get("mobility_on", true))
 
 
 ## The mobility tools a player may pick now (every one when the setting does not apply).

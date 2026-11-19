@@ -249,10 +249,12 @@ func _physics_process(delta: float) -> void:
 		_set_crosshair_ray()
 		var was_on := motor.grapple.attached
 		# Portal gun, blink and the jetpack take the mobility button: the grapple never sees it.
+		# With mobility off for the match (see LobbySettings), nothing sees it.
+		var tools_on := LobbySettings.mobility_on()
 		var roped := Mobility.is_grapple(mobility)
-		var mobility_pressed := input.grapple_pressed and not roped
-		var mobility_held := input.grapple and not roped
-		if not roped:
+		var mobility_pressed := tools_on and input.grapple_pressed and not roped
+		var mobility_held := tools_on and input.grapple and not roped
+		if not roped or not tools_on:
 			input.grapple = false
 			input.grapple_pressed = false
 		var fly := Cheats.flying() and not is_bot
@@ -273,12 +275,12 @@ func _physics_process(delta: float) -> void:
 				var jet_was_on := jetpack.on
 				var jet_held := mobility_held or motor.space_jet   # (Variant B: Space held in the air flies it too)
 				# (a ground slam is committed: the jetpack does not fire on the way down)
-				velocity = jetpack.step(velocity, jet_held and not racing and motor.state != MovementController.State.SLAM, is_on_floor(), motor._wish_dir(input), delta)
+				velocity = jetpack.step(velocity, jet_held and tools_on and not racing and motor.state != MovementController.State.SLAM, is_on_floor(), motor._wish_dir(input), delta)
 				if jetpack.on and is_on_floor():
 					motor.warped = true   # lift off: no floor snap or ground friction this step
 				if jetpack.on and not jet_was_on and DevArgs.sync_log:
 					print("JETPACK %d" % peer_id)
-			motor.has_jetpack = jetpack != null
+			motor.has_jetpack = jetpack != null and tools_on
 			motor.hang = _charge >= 0.0 and not (jetpack and jetpack.on)   # winding a melee swing up slows a fall (the jetpack takes over from it)
 			# Portals, before the step: a body about to reach one goes through with the
 			# speed it has, not what is left of it after landing on the floor round it.
@@ -484,8 +486,8 @@ func _pick_on_death(event: InputEvent) -> void:
 ## Waiting to respawn: the mobility button goes on to the next mobility tool.
 func _next_mobility() -> void:
 	var pick := LobbySettings.next_mobility(Net.pending_mobility())   # only the tools the host allows
-	if pick == Net.pending_mobility():
-		return   # one tool for everyone
+	if pick == Net.pending_mobility() or not LobbySettings.mobility_on():
+		return   # one tool for everyone, or none
 	Settings.mobility = pick
 	Settings.save_settings()
 	Sound.play("ui_select")
