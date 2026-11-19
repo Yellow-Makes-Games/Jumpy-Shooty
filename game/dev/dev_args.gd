@@ -25,7 +25,7 @@ extends Node
 ## --play-at=SEC,SEC    Spectator: press Play at these seconds after the lobby opens (tests).
 ## --mobility=ID        Take this mobility tool (grapple, portal, blink, jetpack) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
-## --movement=ID        Host / Practice / Vs Bots: the movement variant everyone plays with (classic, b; see MovementTuning.VARIANTS).
+## --movement=ID        Host / Practice / Vs Bots: the movement variant everyone plays with (b; see MovementTuning.VARIANTS).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
 ## --unlock-all        Nothing in the Character Creator is locked behind an achievement (see Achievements).

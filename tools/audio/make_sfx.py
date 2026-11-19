@@ -1315,18 +1315,23 @@ def rocket_boost():
 
 
 def glide_wind():
-    """Gliding: soft, steady air past you for as long as a whole glide lasts (the
-    game fades it early when you let go sooner). It comes in quickly, thins and
-    falls a little in pitch as you slow, and dies away at the end."""
+    """Gliding: steady air rushing past you, as a seamless loop (the game loops it for as
+    long as the glide lasts, raises its pitch and volume with your speed and fades it out
+    when you let go). Made a little longer than the loop and the overlap crossfaded onto
+    its start, so the join cannot be heard."""
     rng = np.random.default_rng(9751)
-    d = 1.7
-    t = tt(d)
-    hold = np.clip(t / 0.12, 0.0, 1.0) * np.clip((d - t) / 0.35, 0.0, 1.0) * (0.55 + 0.45 * np.exp(-t / 0.7))
-    sway = 1.0 + 0.12 * np.sin(2 * math.pi * 0.9 * t + 0.6)
-    air = sweep_bp(noise(rng, d), 900, 520, 0.8) * hold * sway
-    low = lp(noise(rng, d), 220) * hold * 0.5
-    high = bp(noise(rng, d), 2600, 0.9) * hold * 0.12
-    return finish(mix(air, low, high))
+    d, xf = 2.0, 0.25
+    t = tt(d + xf)
+    sway = 1.0 + 0.10 * np.sin(2 * math.pi * 1.5 * t + 0.6) + 0.06 * np.sin(2 * math.pi * 2.5 * t + 1.9)
+    air = bp(noise(rng, d + xf), 720, 0.7) * sway
+    low = lp(noise(rng, d + xf), 200) * 0.55
+    high = bp(noise(rng, d + xf), 2600, 0.9) * 0.14 * (1.0 + 0.3 * np.sin(2 * math.pi * 3.5 * t))
+    x = air + low + high
+    k, m = n(xf), n(d)
+    ramp = np.linspace(0.0, 1.0, k)
+    out = x[:m].copy()
+    out[:k] = x[:k] * ramp + x[m:m + k] * (1.0 - ramp)
+    return out / np.max(np.abs(out)) * PEAK   # (not finish(): its trim and fade-out would break the loop)
 
 
 # ---------------------------------------------------------------------------

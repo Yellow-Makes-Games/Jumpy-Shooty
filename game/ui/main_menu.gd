@@ -432,24 +432,7 @@ func _show_practice() -> void:
 	var map := _map_picker(left, Game.last_practice_map, mode[0])
 	map_ref[0] = map
 	_frame.back_button("Back", _show_play)
-	_movement_toggle()
 	_start_button(func(): Game.start_practice(Maps.picked(map), mode[0]))
-
-
-## The movement variant switch in the Practice and Vs Bots pages' footer (see
-## MovementTuning.VARIANTS): lit is Variant B. It is remembered for the next match.
-func _movement_toggle() -> Button:
-	var b := _frame.back_button("", func(): pass)
-	b.toggle_mode = true
-	b.custom_minimum_size.x = 260
-	b.tooltip_text = "A/B test: classic movement, or Variant B for you and the bots."
-	b.button_pressed = Game.movement_choice() == "b"
-	b.disabled = DevArgs.movement != ""   # --movement decides
-	b.text = "Movement: " + MovementTuning.variant_name(Game.movement_choice())
-	b.toggled.connect(func(on: bool):
-		Game.last_movement = "b" if on else "classic"
-		b.text = "Movement: " + MovementTuning.variant_name(Game.last_movement))
-	return b
 
 
 const RACE_BLURBS := [
@@ -585,7 +568,6 @@ func _show_bot() -> void:
 	allowed_moves.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
 	show_mode.call(mode[0])
 	_frame.back_button("Back", _show_play)
-	_movement_toggle()
 	_start_button(func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
 			count.get_selected_id(), mode[0] if mode[0] in GunGame.RULES else "kills", GunGame.game_of_mode(mode[0]), rules.value(),
 			allowed_moves.value(), {"killcam_points": int(killcam_points.value), "killcam_minutes": int(killcam_minutes.value)}))

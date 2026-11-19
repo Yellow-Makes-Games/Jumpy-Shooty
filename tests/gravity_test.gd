@@ -192,7 +192,7 @@ func _light_moves() -> void:
 		var m := MovementController.new()
 		m.call("_update_gravity", body, 0.0)   # (what step() does first: this body's gravity)
 		m.state = MovementController.State.GLIDE
-		m.set("_glide_left", 1.0)
+		m.set("_glide_used", 2.0)   # (halfway through its fade: it sinks a little)
 		var floated: Vector3 = m.call("_glide", Vector3(5, 0, 0), 0.1)
 		m.state = MovementController.State.WALL_RUN
 		m.wall_normal = Vector3(1, 0, 0)

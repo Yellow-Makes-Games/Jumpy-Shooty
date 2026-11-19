@@ -98,6 +98,7 @@ var _slam_power := 0.0            # local: how wound up that slam is, 0..1
 var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
+var _glide_fx: GlideFx            # the wind trail and speed streaks of a glide
 var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
 var _punch_roll := 0.0
 var _coil_roll := 0.0             # own view: tipped by a melee wind-up
@@ -216,6 +217,10 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	if WeaponData.melee(robot.weapon):
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
 		add_child(_trail)
+	_glide_fx = GlideFx.new().setup(RobotModel.trim_color(Net.player_color(id)))
+	add_child(_glide_fx)
+	if rig:
+		_glide_fx.set_trail_layers(1 << (CameraRig.BODY_LAYER - 1))   # (your own: not in your first-person view)
 	Match.melee_landed.connect(_on_melee_landed)
 	Match.ground_slammed.connect(_on_ground_slammed)
 
@@ -357,6 +362,7 @@ func _process(delta: float) -> void:
 			view.update(delta)
 		_draw_hook(g.line.look(g.clock, rope_origin(), g.rope_origin(self), Vector3.INF, _first_person()) if alive else [])
 		_update_trail(delta)
+		_update_glide_fx(delta)
 		_update_flame(delta)
 		return
 	if _awaiting_respawn:
@@ -416,6 +422,7 @@ func _process(delta: float) -> void:
 		var hp: Vector3 = logged[1]
 		print("HOOK SEEN %d %d %d %.4f %d %.3f %.3f %.3f %.3f %.4f" % [Net.my_id(), peer_id, shot.seq, rt, logged[0], hp.x, hp.y, hp.z, logged[2], delta])
 	_update_trail(delta)
+	_update_glide_fx(delta)
 	_update_flame(delta)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
 		var sp: Vector3 = s[0]
@@ -1079,6 +1086,18 @@ func _update_trail(delta: float) -> void:
 	_trail.tick(delta)
 
 
+## A glide's wind trail and speed streaks (everyone sees them), and in first person
+## the view widening a little with its speed.
+func _update_glide_fx(delta: float) -> void:
+	var gliding := alive and visual.visible and _anim.state == MovementController.State.GLIDE
+	if rig:
+		rig.glide_widen = clampf((velocity.length() - 8.0) / 16.0, 0.0, 1.0) if gliding else 0.0
+	if _glide_fx == null:
+		return
+	var feet := [robot.marker("foot_l"), robot.marker("foot_r")] if gliding else []
+	_glide_fx.tick(delta, gliding, feet, velocity, global_position + Vector3(0, 0.9, 0))
+
+
 ## A hit or shove from the host: knocked along, and off your feet if it lifts you.
 func knock(push: Vector3) -> void:
 	if motor and alive and not _flying:
@@ -1398,6 +1417,8 @@ func change_weapon(gun: String) -> void:
 	robot = RobotModel.new().build(character, color, false, gun, false, Teams.paint_for(peer_id))
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
+	if sounds:
+		sounds.free_voices()
 	sounds = PlayerSounds.new(self, is_local and not is_bot, gun)
 	_seen_swings = -1
 	_seen_wind = -1.0
@@ -1432,6 +1453,8 @@ func change_weapon(gun: String) -> void:
 	if WeaponData.melee(gun):
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(color))
 		add_child(_trail)
+	if _glide_fx:
+		_glide_fx.set_color(RobotModel.trim_color(color))
 	visual.visible = was_visible
 	if DevArgs.sync_log:
 		print("GUN %s %d %d %s" % ["SELF" if is_local else "SEEN", Net.my_id(), peer_id, gun])

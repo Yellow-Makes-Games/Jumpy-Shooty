@@ -18,16 +18,18 @@ extends RefCounted
 ##             the slide runs out you can crawl until you let go.
 ##   FLIP      press jump again in mid-air: a flip toward your WASD direction with a
 ##             small burst, once per jump (a dodge)
-##   GLIDE     hold Shift in mid-air (pressed there: jumping with sprint held does
-##             not start one): your up-and-down speed is cancelled and you carry on
-##             the way you were going, free to look and aim anywhere. Your speed
-##             bleeds off to a drift and you sink, slowly at first and faster the
-##             longer you glide. One budget of glide_time seconds per time in the
-##             air, spent in as many pieces as you like; landing, a wall run or the
-##             grapple refills it. Let go to stop. Any other move takes over from it
-##             (flip, dive, grapple, a wall), so it works as a way to stop rising or
-##             falling before the next move. Rocket boots do not end it: they send
-##             the glide off the way you press instead (see _glide_boost).
+##   GLIDE     the bullet glide: hold Alt in mid-air (pressed there). Your rise or
+##             fall eases out in a moment and you fly on along a locked track: the
+##             way you were going, at the speed you had, with no steering and none
+##             of it lost, free to look and aim anywhere. Hold it as long as you
+##             like, but it weakens: you hardly sink at first, then the fall builds
+##             until, glide_fade_time seconds in, it is a plain fall (still on the
+##             track). The seconds add up over one time in the air, so letting go
+##             and pressing again carries on where it was (no fresh float); landing,
+##             a wall run or the grapple start it afresh. Let go to stop. Any other
+##             move takes over from it (flip, dive, grapple, a wall). Rocket boots
+##             do not end it: they send the track off the way you press instead
+##             (see _glide_boost).
 ##   SLAM      a ground slam (melee): you drive straight down and nothing stops it
 ##             but the floor (see start_slam; Player decides when, GroundSlam what it does)
 ##   WALL_SIT  (tuning.wall_sit_time > 0, Variant B) push into a wall in mid-air: you
@@ -113,8 +115,8 @@ var _air_dive_used := false   # one dive per jump
 var _flip_used := false       # one flip per jump
 var _roll_left := 0.0
 var _flip_left := 0.0
-var _glide_left := 0.0        # seconds of glide left for this time in the air
-var _glide_wanted := false    # Shift was pressed in the air and is still held
+var _glide_used := 0.0        # seconds glided this time in the air (the glide weakens with them)
+var _glide_wanted := false    # the glide key was pressed in the air and is still held
 var _glide_on := false        # a glide is under way (to notice another move taking over from it)
 var hang := false             ## set every step by the player: winding a melee swing up (the fall slows in mid-air, see _hang)
 var hanging := false          ## the fall is being slowed right now
@@ -152,7 +154,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_air_dive_used = false
 		_flip_used = false
 		_flip_left = 0.0
-		_glide_left = t.glide_time
+		_glide_used = 0.0
 		_hang_left = t.hang_time
 		_slam_used = false
 		_sat_wall = Vector3.ZERO
@@ -221,10 +223,10 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 	if grapple.attached or state == State.WALL_RUN or state == State.WALL_SIT:
 		_flip_used = false   # swinging or wall-running gives your flip back
-		_glide_left = t.glide_time  # ...and refills your glide
+		_glide_used = 0.0           # ...and starts your glide afresh
 		_hang_left = t.hang_time    # ...and your hang
 
-	# --- Glide: Shift held in the air, having been pressed there. Letting go,
+	# --- Glide: the glide key held in the air, having been pressed there. Letting go,
 	# landing or catching the rope ends it. Every other move below simply takes
 	# over from it, and then it needs a fresh press to start again.
 	if _glide_on and state != State.GLIDE:
@@ -541,7 +543,7 @@ func reset() -> void:
 	_flip_used = false
 	_roll_left = 0.0
 	_flip_left = 0.0
-	_glide_left = tuning.glide_time
+	_glide_used = 0.0
 	_glide_wanted = false
 	_glide_on = false
 	hang = false
@@ -939,9 +941,10 @@ func take_slam_landing() -> float:
 	return fell
 
 
-## How much of this air time's glide is left: 1 = all of it, 0 = spent until you land.
+## How strong the glide still is this time in the air: 1 = fresh, 0 = it has
+## weakened into a plain fall (until you land, run a wall or catch the rope).
 func glide_readiness() -> float:
-	return clampf(_glide_left / tuning.glide_time, 0.0, 1.0)
+	return clampf(1.0 - _glide_used / tuning.glide_fade_time, 0.0, 1.0)
 
 
 func _can_dive(grounded: bool) -> bool:
@@ -1035,35 +1038,44 @@ func _flip(vel: Vector3, wish: Vector3, input: PlayerInput) -> Vector3:
 # Glide
 
 func _can_glide(body: CharacterBody3D, grounded: bool) -> bool:
-	if not tuning.glides_on or grounded or _glide_left <= 0.0 or grapple.attached or state == State.WALL_RUN:
+	if not tuning.glides_on or grounded or grapple.attached or state == State.WALL_RUN:
 		return false
-	# Shift pressed as you leave or reach the floor is a sprint, not a glide.
+	# Pressed as you leave or reach the floor: no glide.
 	return not SurfaceProbe.floor_within(body, tuning.glide_min_height)
 
 
-## Up-and-down speed goes; you carry on the way you were going. (From there you
-## slow and sink: see _glide.)
+## Onto the track: the way you are going, at the speed you have. (Your rise or fall
+## eases out over the next moment: see _glide.)
 func _start_glide(vel: Vector3) -> Vector3:
 	state = State.GLIDE
 	_glide_on = true
 	_flip_left = 0.0   # gliding out of a flip: the flip is over
-	return Vector3(vel.x, 0.0, vel.z)
+	return vel
 
 
-## Gliding: no steering, so you hold your line while your speed bleeds off toward
-## a drift, and you sink: hardly at all at first, faster the more of the budget
-## you have used (so stopping and starting again does not buy a fresh hover).
+## Gliding: no steering and no drag, so you hold your line and your speed. Up and
+## down eases to the glide's sink, which is next to nothing at first and builds the
+## longer you have glided this time in the air (see glide_sink), until it is a plain
+## fall and gravity takes over in full.
 func _glide(vel: Vector3, delta: float) -> Vector3:
 	var t := tuning
-	_glide_left = maxf(_glide_left - delta, 0.0)
-	if _glide_left <= 0.0:
-		state = State.AIR
-	var used := 1.0 - _glide_left / t.glide_time
-	var h := Vector2(vel.x, vel.z)
-	var speed := h.length()
-	if speed > t.glide_drift_speed:
-		h *= (t.glide_drift_speed + (speed - t.glide_drift_speed) * exp(-t.glide_drag * delta)) / speed
-	return Vector3(h.x, -t.glide_fall_speed * used * gravity_scale, h.y)
+	_glide_used += delta
+	if _glide_used >= t.glide_fade_time:
+		vel.y = maxf(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
+	else:
+		vel.y = lerpf(vel.y, -glide_sink(_glide_used), 1.0 - exp(-t.glide_catch * delta))
+	return vel
+
+
+## How fast a glide `used` seconds old sinks (m/s): the speed a fall would have
+## reached by then under a pull that starts at nothing and grows to full gravity at
+## glide_fade_time, as (used / glide_fade_time) ^ glide_fade_curve. Flat for a while,
+## then curving down.
+func glide_sink(used: float) -> float:
+	var t := tuning
+	var f := clampf(used / t.glide_fade_time, 0.0, 1.0)
+	var c := t.glide_fade_curve
+	return minf(t.gravity * gravity_scale * t.glide_fade_time / (c + 1.0) * pow(f, c + 1.0), t.max_fall_speed)
 
 
 ## Rocket boots while gliding: the burst turns the whole glide the way you press
