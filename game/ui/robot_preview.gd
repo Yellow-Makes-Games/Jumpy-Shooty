@@ -111,7 +111,7 @@ static func posed(robot: RobotModel, gun: String, phase: float = 0.0) -> Diction
 static func pose_at(r: Dictionary, t: float) -> void:
 	var robot: RobotModel = r.robot
 	var pose: RobotPose = r.pose
-	robot.rig.sample(pose, "idle", fmod(t, robot.rig.length("idle")))
+	robot.rig.sample(pose, robot.idle, fmod(t, robot.rig.length(robot.idle)))   # (its torso's own idle: see RobotModel.idle)
 	if r.hold:
 		var hold: RobotPose = r.hold
 		var rig := robot.rig

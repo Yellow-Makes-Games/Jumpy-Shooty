@@ -1637,11 +1637,35 @@ func _animate(delta: float) -> void:
 		_anim.crouched = false   # Variant B: your own legs do not pull up for the automatic tuck in first person
 	animator.first_person = first_person > 0.0
 	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
+	_anim.feet = _feet_ground()
 	animator.update(delta, _anim, visual.global_transform)
 	if rig:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)
 	if DevArgs.sync_log:
 		_log_animation()
+
+
+## The ground under each foot, measured from the floor this body stands on (see
+## RobotAnimInput.feet): a short ray straight down through each foot. Only while
+## standing or crouching still, which is the only time RobotAnimator uses it.
+func _feet_ground() -> Vector2:
+	if not alive or robot == null or not is_inside_tree():
+		return Vector2.ZERO
+	if not (_anim.state in [MovementController.State.GROUND, MovementController.State.CROUCH]):
+		return Vector2.ZERO
+	if Vector2(_anim.velocity.x, _anim.velocity.z).length() > RobotAnimator.FEET_STILL:
+		return Vector2.ZERO
+	var space := get_world_3d().direct_space_state
+	var floor_y := global_position.y
+	var out := Vector2.ZERO
+	for i in 2:
+		var at := robot.marker("foot_l" if i == 0 else "foot_r")
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(at.x, floor_y + RobotAnimator.FEET_REACH + 0.1, at.z),
+			Vector3(at.x, floor_y - RobotAnimator.FEET_REACH - 0.1, at.z), 1, [get_rid()])
+		var hit := space.intersect_ray(ray)
+		if not hit.is_empty():
+			out[i] = (hit.position as Vector3).y - floor_y
+	return out
 
 
 ## For tests/check_anim.py: prints the animation this body shows whenever it changes.

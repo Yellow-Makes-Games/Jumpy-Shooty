@@ -145,16 +145,377 @@ def idle(t):
     }
 
 
+# Each robot has a habit of its own when it stands still: a version of the idle, three
+# breaths long, with one small thing in it. They go by the torso ("idle_<torso>"), so a
+# character put together in the Character Creator stands the way its torso does; a
+# torso with none stands in the plain idle. A habit never turns the chest or moves it
+# sideways (the gun is held from the chest, and must not wander off its aim: _steady
+# keeps it there while the hips move); it may raise or lower it a little. And it never
+# looks like doing something: no reaching, no ducking. tests/robot_test.gd checks the first.
+
+QUIRK_PERIOD = 9.0
+
+
+def _snap(t, start, rise, hold, fall):
+    """0, up to 1 and back to 0: there in `rise` seconds with a little overshoot, held,
+    then eased back over `fall`."""
+    u = t - start
+    if u <= 0.0 or u >= rise + hold + fall:
+        return 0.0
+    if u < rise:
+        w = u / rise - 1.0
+        return 1.0 + 2.70158 * w ** 3 + 1.70158 * w ** 2
+    if u < rise + hold:
+        return 1.0
+    return 1.0 - ease((u - rise - hold) / fall)
+
+
+def _turned(spec, bone, pitch=0.0, yaw=0.0, roll=0.0):
+    r = spec[bone]
+    spec[bone] = (r[0] + pitch, r[1] + yaw, r[2] + roll)
+
+
+def _ease(t, start, rise, hold, fall):
+    """0, up to 1 and back to 0, eased both ways (no overshoot): for slow moves."""
+    u = t - start
+    if u <= 0.0 or u >= rise + hold + fall:
+        return 0.0
+    if u < rise:
+        return ease(u / rise)
+    if u < rise + hold:
+        return 1.0
+    return 1.0 - ease((u - rise - hold) / fall)
+
+
+def _steady(spec, t, lift=0.0):
+    """Keeps the chest where the plain idle has it at time t (raised by `lift`), whatever
+    this spec does with the hips: the spine and chest take up the difference and the
+    hips are put where that leaves them. The gun is held from the chest, so a habit can
+    shift its weight about underneath without the aim wandering."""
+    plain = idle(t)
+    o_spine, o_chest = BODY.offset("spine"), BODY.offset("chest")
+    gh = euler(plain["hips"]["rot"])
+    gs = gh @ euler(plain["spine"])
+    gc = gs @ euler(plain["chest"])
+    at = np.array(plain["hips"]["pos"]) + gh @ o_spine + gs @ o_chest + np.array([0.0, lift, 0.0])
+    hips = euler(spec["hips"]["rot"])
+    mid = hips @ _slerp_m(np.eye(3), hips.T @ gc, 0.5)
+    spec["spine"] = _euler_of(hips.T @ mid)
+    spec["chest"] = _euler_of(mid.T @ gc)
+    spec["hips"]["pos"] = tuple(float(x) for x in at - hips @ o_spine - mid @ o_chest)
+    return spec
+
+
+def _hips(spec, pitch=0.0, yaw=0.0, roll=0.0):
+    r = spec["hips"]["rot"]
+    spec["hips"]["rot"] = (r[0] + pitch, r[1] + yaw, r[2] + roll)
+
+
+def idle_needle(t):
+    """Needle is curious: it cocks its head like a bird, and a while later takes a quick
+    second look to the side and tips its head the other way."""
+    spec = idle(t)
+    a = _snap(t, 2.2, 0.16, 1.0, 0.26)
+    b = _snap(t, 6.0, 0.14, 0.4, 0.2)
+    c = _snap(t, 6.7, 0.15, 0.75, 0.28)
+    _turned(spec, "head", pitch=-3.0 * a + 2.0 * b - 2.0 * c, yaw=-5.0 * a + 15.0 * b + 4.0 * c, roll=15.0 * a - 13.0 * c)
+    return spec
+
+
+def idle_vanguard(t):
+    """Vanguard stands ready: it rocks up onto its toes and settles, like a soldier
+    keeping loose, then a smaller one."""
+    spec = idle(t)
+    a = _snap(t, 2.0, 0.22, 0.5, 0.45)
+    b = _snap(t, 6.2, 0.2, 0.25, 0.4) * 0.55
+    up = a + b
+    spec["leg_l"] = foot(-0.13, 0.0, -0.20, pitch=-16.0 * up, yaw=6.0, pole=(-0.15, 0.0, -1.0))
+    spec["leg_r"] = foot(0.14, 0.0, -0.02, pitch=-16.0 * up, yaw=-14.0, pole=(0.3, 0.0, -1.0))
+    _turned(spec, "head", pitch=3.0 * up)
+    return _steady(spec, t, 0.022 * up)
+
+
+def idle_kestrel(t):
+    """Kestrel is restless: two quick bounces on its talons, and later a sharp, bird-like
+    snap of the head to one side."""
+    spec = idle(t)
+    hop = _snap(t, 1.6, 0.09, 0.02, 0.13) + _snap(t, 1.9, 0.09, 0.02, 0.16) * 0.7
+    look = _snap(t, 5.2, 0.09, 0.7, 0.14)
+    spec["leg_l"] = foot(-0.13, 0.0, -0.20, pitch=-11.0 * hop, yaw=6.0, pole=(-0.15, 0.0, -1.0))
+    spec["leg_r"] = foot(0.14, 0.0, -0.02, pitch=-11.0 * hop, yaw=-14.0, pole=(0.3, 0.0, -1.0))
+    _turned(spec, "head", pitch=2.0 * look, yaw=-34.0 * look, roll=-6.0 * look)
+    return _steady(spec, t, 0.016 * hop)
+
+
+def idle_bulwark(t):
+    """Bulwark is heavy: it sags slowly into its knees, then hitches itself back up."""
+    spec = idle(t)
+    sag = ease((t - 1.0) / 3.2) if t < 4.4 else 0.0
+    up = _snap(t, 4.4, 0.2, 0.0, 0.01) if t < 4.6 else 1.0
+    low = sag if t < 4.4 else max(1.0 - up, 0.0) if t < 4.6 else 0.0
+    _hips(spec, pitch=-3.0 * low)
+    _turned(spec, "head", pitch=-7.0 * low + 4.0 * _snap(t, 4.45, 0.16, 0.1, 0.5))
+    return _steady(spec, t, -0.03 * low + 0.008 * _snap(t, 4.45, 0.16, 0.0, 0.4))
+
+
+def idle_rivet(t):
+    """Rivet is impatient: it taps the toe of its front boot, three times, then twice."""
+    spec = idle(t)
+    tap = sum(_snap(t, t0, 0.07, 0.0, 0.1) for t0 in (2.0, 2.3, 2.6, 6.4, 6.7))
+    spec["leg_l"] = foot(-0.13, 0.034 * tap, -0.20, pitch=11.0 * tap, yaw=6.0, pole=(-0.15, 0.0, -1.0))
+    glance = _ease(t, 1.8, 0.4, 1.0, 0.5) + _ease(t, 6.2, 0.4, 0.6, 0.5)
+    _turned(spec, "head", pitch=-5.0 * glance, yaw=7.0 * glance)
+    return spec
+
+
+def idle_specter(t):
+    """Specter keeps still: one slow look over its shoulder, and back."""
+    spec = idle(t)
+    look = _ease(t, 2.4, 1.0, 1.3, 1.1)
+    _turned(spec, "head", pitch=3.0 * look, yaw=46.0 * look, roll=4.0 * look)
+    _hips(spec, yaw=5.0 * look)
+    return _steady(spec, t)
+
+
+def idle_orbit(t):
+    """Orbit floats: its weight drifts slowly from side to side and its head tips with it."""
+    spec = idle(t)
+    drift = math.sin(TAU * t / 4.5)
+    slow = math.sin(TAU * t / 9.0)
+    _hips(spec, yaw=3.0 * slow, roll=3.5 * drift)
+    _turned(spec, "head", yaw=-4.0 * slow, roll=-5.0 * drift)
+    return _steady(spec, t, 0.006 * math.cos(TAU * t / 4.5))
+
+
+def idle_templar(t):
+    """Templar stands tall: it draws itself up, lifts its chin and squares its hips to
+    the front, holds it, and settles."""
+    spec = idle(t)
+    tall = _ease(t, 2.2, 0.5, 1.7, 0.9)
+    _hips(spec, pitch=1.5 * tall, yaw=5.0 * tall)
+    _turned(spec, "head", pitch=8.0 * tall)
+    return _steady(spec, t, 0.014 * tall)
+
+
+# The Character Creator's other torsos (creatures.py), each by its body's id.
+
+def _stand(spec, heels=0.0, tap_l=0.0, tap_r=0.0):
+    """The idle's feet, with both heels raised (degrees: up on the toes) or a toe tapped (0..1)."""
+    spec["leg_l"] = foot(-0.13, 0.034 * tap_l, -0.20, pitch=11.0 * tap_l - heels, yaw=6.0, pole=(-0.15, 0.0, -1.0))
+    spec["leg_r"] = foot(0.14, 0.034 * tap_r, -0.02, pitch=11.0 * tap_r - heels, yaw=-14.0, pole=(0.3, 0.0, -1.0))
+
+
+def idle_human(t):
+    """Dude rolls his neck: over to one side, then the other."""
+    spec = idle(t)
+    a, b = _ease(t, 2.0, 0.6, 0.5, 0.6), _ease(t, 4.2, 0.6, 0.5, 0.6)
+    _turned(spec, "head", pitch=-2.0 * (a + b), roll=11.0 * (a - b))
+    _hips(spec, roll=2.5 * (a - b))
+    return _steady(spec, t)
+
+
+def idle_goblin(t):
+    """Goblin is twitchy: it ducks a little and darts a look one way, then the other."""
+    spec = idle(t)
+    a, b = _snap(t, 2.0, 0.08, 0.35, 0.12), _snap(t, 2.7, 0.08, 0.3, 0.14)
+    _turned(spec, "head", pitch=-3.0 * (a + b), yaw=-28.0 * a + 24.0 * b)
+    return _steady(spec, t, -0.012 * min(a + b, 1.0))
+
+
+def idle_frog(t):
+    """Frog bobs: two slow dips into its knees, looking up, as if about to hop."""
+    spec = idle(t)
+    dip = _ease(t, 2.0, 0.35, 0.1, 0.45) + _ease(t, 3.3, 0.35, 0.1, 0.45)
+    _turned(spec, "head", pitch=5.0 * dip)
+    return _steady(spec, t, -0.028 * dip)
+
+
+def idle_skeleton(t):
+    """Bones rattles: a quick shiver of the skull, and later it tips to one side."""
+    spec = idle(t)
+    shiver = math.sin(TAU * (t - 2.0) / 0.16) * _ease(t, 2.0, 0.1, 0.45, 0.2)
+    tip = _snap(t, 5.5, 0.16, 0.9, 0.3)
+    _turned(spec, "head", yaw=3.0 * shiver, roll=6.0 * shiver + 13.0 * tip)
+    return spec
+
+
+def idle_alien(t):
+    """Zorp studies things: a long, slow tilt of the head, then a slow look across."""
+    spec = idle(t)
+    tilt = _ease(t, 1.6, 1.0, 1.1, 1.0)
+    scan = math.sin(TAU * (t - 5.2) / 3.2) if 5.2 <= t <= 8.4 else 0.0
+    _turned(spec, "head", pitch=2.0 * tilt, yaw=12.0 * scan, roll=21.0 * tilt)
+    return spec
+
+
+def idle_cat(t):
+    """Whiskers tilts its head, and later flicks it twice, like shaking off a fly."""
+    spec = idle(t)
+    tilt = _snap(t, 2.0, 0.18, 1.0, 0.3)
+    flick = _snap(t, 6.0, 0.06, 0.0, 0.1) + _snap(t, 6.3, 0.06, 0.0, 0.1)
+    _turned(spec, "head", roll=14.0 * tilt - 7.0 * flick, yaw=4.0 * flick)
+    return spec
+
+
+def idle_rex(t):
+    """Rex sniffs: three short dips of the snout, then lifts its head to look."""
+    spec = idle(t)
+    sniff = sum(_snap(t, t0, 0.12, 0.0, 0.2) for t0 in (2.0, 2.45, 2.9))
+    look = _ease(t, 3.5, 0.5, 0.9, 0.7)
+    _turned(spec, "head", pitch=-9.0 * sniff + 10.0 * look)
+    return spec
+
+
+def idle_yeti(t):
+    """Yeti is big and slow: its weight sways from foot to foot and its head lolls after it."""
+    spec = idle(t)
+    sway = math.sin(TAU * t / 4.5)
+    late = math.sin(TAU * (t - 0.35) / 4.5)
+    _hips(spec, roll=4.0 * sway)
+    _turned(spec, "head", pitch=-5.0 * _ease(t, 5.0, 0.9, 0.8, 0.9), roll=-4.0 * late)
+    return _steady(spec, t)
+
+
+def idle_duck(t):
+    """Quackers waddles on the spot for a moment, its head bobbing."""
+    spec = idle(t)
+    on = _ease(t, 1.8, 0.3, 1.9, 0.4)
+    side = math.sin(TAU * (t - 1.8) / 0.75) * on
+    _hips(spec, roll=5.0 * side)
+    _turned(spec, "head", pitch=4.0 * abs(side), roll=-4.0 * side)
+    return _steady(spec, t)
+
+
+def idle_jack(t):
+    """Jack's head is loose: it lolls slowly over to one side, then snaps upright."""
+    spec = idle(t)
+    loll = ease((t - 1.5) / 1.8) if t < 3.9 else max(1.0 - _snap(t, 3.9, 0.14, 0.0, 0.01), 0.0) if t < 4.04 else 0.0
+    _turned(spec, "head", pitch=-4.0 * loll, roll=24.0 * loll)
+    return spec
+
+
+def idle_astronaut(t):
+    """Cosmo is light on its feet: it drifts up onto its toes, looking up, and sinks back."""
+    spec = idle(t)
+    up = _ease(t, 1.8, 1.2, 0.9, 1.4)
+    _stand(spec, heels=14.0 * up)
+    _turned(spec, "head", pitch=10.0 * up)
+    return _steady(spec, t, 0.02 * up)
+
+
+def idle_imp(t):
+    """Imp fidgets: it taps one foot, the other, the first again, then sneaks a look each way."""
+    spec = idle(t)
+    _stand(spec, tap_l=_snap(t, 2.0, 0.07, 0.0, 0.1) + _snap(t, 2.5, 0.07, 0.0, 0.1), tap_r=_snap(t, 2.25, 0.07, 0.0, 0.1))
+    a, b = _snap(t, 5.4, 0.1, 0.5, 0.14), _snap(t, 6.3, 0.1, 0.3, 0.16)
+    _turned(spec, "head", pitch=-4.0 * (a + b), yaw=-30.0 * a + 20.0 * b)
+    return spec
+
+
+def idle_snowman(t):
+    """Frosty rocks gently from side to side, the way a snowman would."""
+    spec = idle(t)
+    rock = math.sin(TAU * t / 3.0)
+    _hips(spec, roll=4.0 * rock)
+    _turned(spec, "head", roll=-3.0 * math.sin(TAU * (t - 0.2) / 3.0))
+    return _steady(spec, t)
+
+
+def idle_shark(t):
+    """Chomp hunts: its head sweeps slowly from side to side."""
+    spec = idle(t)
+    sweep = math.sin(TAU * t / 4.5)
+    _turned(spec, "head", pitch=-2.0 * abs(sweep), yaw=24.0 * sweep)
+    return spec
+
+
+def idle_ninja(t):
+    """Ninja sinks a little lower and checks each side with a sharp turn of the head."""
+    spec = idle(t)
+    low = _ease(t, 1.5, 0.5, 2.3, 0.6)
+    a, b = _snap(t, 2.4, 0.08, 0.5, 0.12), _snap(t, 3.3, 0.08, 0.4, 0.12)
+    _turned(spec, "head", yaw=38.0 * a - 38.0 * b)
+    return _steady(spec, t, -0.022 * low)
+
+
+def idle_zombie(t):
+    """Zombie's head sinks slowly onto its chest, then jerks back up; it sways as it stands."""
+    spec = idle(t)
+    droop = ease((t - 1.2) / 2.2) if t < 3.8 else max(1.0 - _snap(t, 3.8, 0.16, 0.0, 0.01), 0.0) if t < 3.96 else 0.0
+    sway = math.sin(TAU * t / 4.5)
+    _hips(spec, roll=3.0 * sway)
+    _turned(spec, "head", pitch=-15.0 * droop, roll=7.0 * droop - 2.0 * sway)
+    return _steady(spec, t)
+
+
+def idle_wizard(t):
+    """Wizard nods to himself, twice, slowly, then lifts his head as if a thought had come."""
+    spec = idle(t)
+    nod = _ease(t, 2.0, 0.35, 0.1, 0.4) + _ease(t, 3.0, 0.35, 0.1, 0.4)
+    thought = _ease(t, 5.6, 0.5, 0.9, 0.7)
+    _turned(spec, "head", pitch=-8.0 * nod + 6.0 * thought, roll=4.0 * thought)
+    return spec
+
+
+def idle_bear(t):
+    """Teddy lumbers on the spot: a slow sway, and a big tilt of the head each way."""
+    spec = idle(t)
+    sway = math.sin(TAU * t / 4.5)
+    a, b = _ease(t, 2.0, 0.5, 0.9, 0.6), _ease(t, 5.4, 0.5, 0.9, 0.6)
+    _hips(spec, roll=3.5 * sway)
+    _turned(spec, "head", roll=12.0 * (a - b))
+    return _steady(spec, t)
+
+
+def idle_mushroom(t):
+    """Shroom is cheerful: two little bounces on its toes, head tipped to one side."""
+    spec = idle(t)
+    hop = _snap(t, 2.0, 0.14, 0.02, 0.2) + _snap(t, 2.45, 0.14, 0.02, 0.22) * 0.8
+    tilt = _ease(t, 1.8, 0.3, 1.2, 0.5)
+    _stand(spec, heels=11.0 * hop)
+    _turned(spec, "head", roll=10.0 * tilt)
+    return _steady(spec, t, 0.016 * hop)
+
+
+def idle_banana(t):
+    """Peel wobbles: a loose shimmy from side to side, its top going the other way."""
+    spec = idle(t)
+    on = _ease(t, 2.0, 0.4, 2.2, 0.6)
+    side = math.sin(TAU * (t - 2.0) / 1.1) * on
+    _hips(spec, roll=5.0 * side)
+    _turned(spec, "head", roll=-6.0 * side)
+    return _steady(spec, t)
+
+
+IDLES = {"needle": idle_needle, "vanguard": idle_vanguard, "kestrel": idle_kestrel, "bulwark": idle_bulwark,
+         "rivet": idle_rivet, "specter": idle_specter, "orbit": idle_orbit, "templar": idle_templar,
+         "human": idle_human, "goblin": idle_goblin, "frog": idle_frog, "skeleton": idle_skeleton, "alien": idle_alien,
+         "cat": idle_cat, "rex": idle_rex, "yeti": idle_yeti, "duck": idle_duck, "jack": idle_jack,
+         "astronaut": idle_astronaut, "imp": idle_imp, "snowman": idle_snowman, "shark": idle_shark, "ninja": idle_ninja,
+         "zombie": idle_zombie, "wizard": idle_wizard, "bear": idle_bear, "mushroom": idle_mushroom,
+         "banana": idle_banana}   # torso -> its idle
+
+
+def _bounce(p):
+    """How high the hips ride through a running cycle (two steps), -1 to 1 or so: they
+    drop quickly as each foot takes the weight and hang a moment at the top of each stride."""
+    a = 2 * TAU * (p - 0.14)
+    return (math.cos(a) + 0.28 * math.sin(2 * a)) / 1.1
+
+
 def _run(t, period, lean, bob, stance, front, back, lift, sprint):
     p = (t / period) % 1.0
     c = math.cos(TAU * p)
     s = math.sin(TAU * p)
+    nod = _bounce(p - 0.05)   # the head follows the hips a moment late
     spec = {
-        "hips": {"pos": (0.0, 0.885 - bob * math.cos(2 * TAU * (p - 0.14)), 0.0), "rot": (lean, -7.0 * c, 3.0 * s)},
-        "spine": (-lean * 0.35, 4.0 * c, -1.5 * s), "chest": (-lean * 0.25, 5.0 * c, -1.5 * s),
-        "head": (-lean * 0.3, -2.0 * c, 0.0),
-        "leg_l": stride(p, -0.10, stance, front, back, lift),
-        "leg_r": stride(p + 0.5, 0.10, stance, front, back, lift),
+        # The hips swing with the legs and the chest swings back against them, so the
+        # shoulders (and the gun) stay square while the body under them works.
+        "hips": {"pos": (0.012 * s, 0.885 - bob * _bounce(p), 0.0), "rot": (lean, -9.0 * c, 3.5 * s)},
+        "spine": (-lean * 0.3, 5.0 * c, -1.75 * s), "chest": (-lean * 0.2, 6.0 * c, -1.75 * s),
+        "head": (-lean * 0.4 + 1.6 * nod, -2.0 * c, 0.0),
+        "leg_l": stride(p, -0.085, stance, front, back, lift, push=-46.0),
+        "leg_r": stride(p + 0.5, 0.085, stance, front, back, lift, push=-46.0),
     }
     if sprint:
         spec["arm_r"] = fk_arm(-8.0 + 48.0 * c, roll=10.0, bend=95.0 + 10.0 * c, hand=(0.0, 0.0, 0.0))
@@ -170,7 +531,7 @@ SPRINT_PERIOD = 0.40   # matches 11.5 m/s
 
 
 def run(t):
-    return _run(t, RUN_PERIOD, -9.0, 0.028, 0.30, -0.36, 0.42, 0.30, False)
+    return _run(t, RUN_PERIOD, -11.0, 0.032, 0.30, -0.36, 0.42, 0.33, False)
 
 
 def sprint(t):
@@ -198,22 +559,32 @@ CROUCH_PERIOD = 0.7    # matches 4 m/s
 
 
 def crouch_walk(t):
+    """Creeping: the hips sink onto each foot as it takes the weight and swing with the
+    steps, and the chest swings back against them, so the gun stays level."""
     p = (t / CROUCH_PERIOD) % 1.0
     c = math.cos(TAU * p)
-    spec = _low(0.50 - 0.012 * math.cos(2 * TAU * (p - 0.1)))
-    spec["hips"]["rot"] = (-26.0, -6.0 * c, 0.0)
-    spec["spine"] = (LOW_SPINE[0], 6.0 * c, 0.0)
-    spec["leg_l"] = stride(p, -0.12, 0.5, -0.30, 0.30, 0.13, push=-30.0, pole=(-0.2, 0.0, -1.0))
-    spec["leg_r"] = stride(p + 0.5, 0.12, 0.5, -0.30, 0.30, 0.13, push=-30.0, pole=(0.2, 0.0, -1.0))
+    s = math.sin(TAU * p)
+    spec = _low(0.50 - 0.014 * _bounce(p + 0.04))
+    spec["hips"]["pos"] = (0.014 * s, spec["hips"]["pos"][1], 0.04)
+    spec["hips"]["rot"] = (-26.0, -8.0 * c, 2.5 * s)
+    spec["spine"] = (LOW_SPINE[0], 5.0 * c, -1.25 * s)
+    spec["chest"] = (LOW_CHEST[0], 3.0 * c, -1.25 * s)
+    spec["head"] = (LOW_HEAD[0] + 1.2 * _bounce(p - 0.02), 0.0, 0.0)
+    spec["leg_l"] = stride(p, -0.105, 0.5, -0.30, 0.30, 0.15, push=-34.0, pole=(-0.2, 0.0, -1.0))
+    spec["leg_r"] = stride(p + 0.5, 0.105, 0.5, -0.30, 0.30, 0.15, push=-34.0, pole=(0.2, 0.0, -1.0))
     return spec
 
 
 def slide(t):
+    """Sliding on one hip, a leg out in front. It is not still: the ground chatters up
+    through the hips, the front foot skips, and the head rides it out a beat behind."""
     s = math.sin(TAU * t / 0.8)
+    chatter = math.sin(TAU * t / 0.2)          # (four to the loop)
+    late = math.sin(TAU * (t - 0.05) / 0.2)
     return {
-        "hips": {"pos": (0.03, 0.27 + 0.004 * s, 0.12), "rot": (34.0, 0.0, 6.0)},
-        "spine": (-22.0, 0.0, -4.0), "chest": (-14.0, 0.0, -2.0), "head": (4.0, 0.0, 0.0),
-        "leg_l": foot(-0.11, 0.05, -0.80, pitch=22.0, pole=(-0.1, 1.0, -0.3)),
+        "hips": {"pos": (0.03, 0.27 + 0.004 * s + 0.003 * chatter, 0.12), "rot": (34.0 + 0.8 * chatter, 0.0, 6.0 + 1.0 * s)},
+        "spine": (-22.0 - 0.5 * chatter, 0.0, -4.0 - 0.5 * s), "chest": (-14.0, 0.0, -2.0 - 0.5 * s), "head": (4.0 - 1.0 * late, 0.0, 0.0),
+        "leg_l": foot(-0.11, 0.05 + 0.012 * max(chatter, 0.0), -0.80, pitch=22.0 + 3.0 * chatter, pole=(-0.1, 1.0, -0.3)),
         "leg_r": foot(0.17, 0.0, -0.17, pitch=0.0, pole=(0.5, 1.0, -0.4)),
         "arm_r": AIM_R_ONE,
         "arm_l": {"ik": (-0.36, 0.09, 0.34), "space": "model", "pole": (-0.6, 0.3, 1.0), "hand": (0.0, 0.0, 70.0)},
@@ -248,15 +619,23 @@ def air_tuck(t):
     return spec
 
 
+LAND_TIME = 0.34   # how long a landing shows (RobotAnimator lays it over the base pose, fading out)
+
+
 def land(t):
-    """The bottom of a landing: knees soak it up. Laid over the base pose briefly."""
-    return {
-        "hips": {"pos": (0.0, 0.66, 0.03), "rot": (-22.0, 0.0, 0.0)},
-        "spine": (-6.0, 0.0, 0.0), "chest": (-4.0, 0.0, 0.0), "head": (24.0, 0.0, 0.0),
-        "leg_l": foot(-0.14, 0.0, -0.18, pole=(-0.3, 0.0, -1.0)),
-        "leg_r": foot(0.14, 0.0, 0.0, pole=(0.3, 0.0, -1.0)),
-        "arm_r": AIM_R, "arm_l": AIM_L,
-    }
+    """A landing, laid over the base pose for a moment: the knees soak it up at once,
+    the head drops a beat after the hips, and the body comes back up a little past
+    standing (up on its toes) before it settles."""
+    def at(hips_y, lean, head, toes, z=0.03):
+        return {
+            "hips": {"pos": (0.0, hips_y, z), "rot": (lean, 0.0, 0.0)},
+            "spine": (lean * 0.27, 0.0, 0.0), "chest": (lean * 0.18, 0.0, 0.0), "head": (head, 0.0, 0.0),
+            "leg_l": foot(-0.14, 0.0, -0.18, pitch=toes, pole=(-0.3, 0.0, -1.0)),
+            "leg_r": foot(0.14, 0.0, 0.0, pitch=toes, pole=(0.3, 0.0, -1.0)),
+            "arm_r": AIM_R, "arm_l": AIM_L,
+        }
+    return keyed(t, [(0.0, at(0.70, -18.0, 14.0, 0.0)), (0.06, at(0.66, -22.0, 20.0, 0.0)), (0.11, at(0.67, -22.0, 26.0, 0.0)),
+                     (0.24, at(0.95, -3.0, 6.0, -12.0, 0.0)), (LAND_TIME, at(0.925, -2.0, 2.0, 0.0, 0.0))])
 
 
 # ---------------------------------------------------------------------------
@@ -270,8 +649,8 @@ def wall_run_l(t):
     p = (t / WALL_PERIOD) % 1.0
     c = math.cos(TAU * p)
     return {
-        "hips": {"pos": (0.10, 0.90 - 0.02 * math.cos(2 * TAU * (p - 0.14)), 0.0), "rot": (-10.0, -6.0 * c, -24.0)},
-        "spine": (3.0, 4.0 * c, 9.0), "chest": (3.0, 5.0 * c, 7.0), "head": (3.0, 0.0, 8.0),
+        "hips": {"pos": (0.10, 0.90 - 0.022 * _bounce(p), 0.0), "rot": (-10.0, -8.0 * c, -24.0 + 2.0 * math.sin(TAU * p))},
+        "spine": (3.0, 5.0 * c, 9.0), "chest": (3.0, 6.0 * c, 7.0), "head": (3.0 + 1.4 * _bounce(p - 0.05), -3.0 * c, 8.0),
         "leg_l": stride(p, -0.33, 0.30, -0.36, 0.42, 0.28, roll=-30.0, y0=0.10, pole=(0.25, 0.3, -1.0)),
         "leg_r": stride(p + 0.5, -0.20, 0.30, -0.36, 0.42, 0.28, roll=-30.0, y0=0.0, pole=(0.25, 0.3, -1.0)),
         "arm_r": AIM_R_ONE,
@@ -293,7 +672,9 @@ def wall_jump_l(t):
             "leg_r": fk_leg(55.0, 85.0, foot_pitch=-20.0)}
     push = merged(coil, hips={"pos": (0.0, 0.96, 0.0), "rot": (-4.0, 0.0, -20.0)},
                   leg_l={"ik": (-0.52, 0.36, 0.06), "space": "model", "pole": (0.3, 0.5, -1.0), "foot": (0.0, 0.0, -60.0)})
-    return keyed(t, [(0.0, coil), (0.09, push, "out"), (0.3, push)])
+    spent = merged(push, hips={"pos": (0.0, 0.96, 0.0), "rot": (-4.0, 0.0, -11.0)},   # the kicking leg lets go and trails
+                   leg_l={"ik": (-0.40, 0.42, 0.10), "space": "model", "pole": (0.3, 0.5, -1.0), "foot": (-20.0, 0.0, -35.0)})
+    return keyed(t, [(0.0, coil), (0.09, push, "out"), (0.3, spent)])
 
 
 def wall_jump_r(t):
@@ -314,6 +695,7 @@ def vault(t):
     over = merged(plant, hips={"pos": (0.0, 0.94, 0.0), "rot": (-12.0, -18.0, -14.0)},
                   leg_l=fk_leg(92.0, 62.0, roll=10.0), leg_r=fk_leg(100.0, 50.0, roll=16.0), arm_l=hand(0.70, -0.10))
     out = merged(plant, hips={"pos": (0.0, 0.95, 0.0), "rot": (-6.0, 0.0, 0.0)},
+                 spine=(-2.0, 3.0, 2.0), chest=(-2.0, 3.0, 2.0), head=(8.0, 0.0, 0.0),   # (the chest and head come round last)
                  leg_l=fk_leg(40.0, 30.0, roll=0.0), leg_r=fk_leg(22.0, 34.0, roll=0.0), arm_l=hand(0.80, 0.25))
     return keyed(t, [(0.0, plant), (0.14, over), (0.32, out)])
 
@@ -332,7 +714,8 @@ def climb(t):
     l2, r2 = hands(0.92, -0.22, -1.0)
     press = merged(hang, hips={"pos": (0.0, 0.94, 0.0), "rot": (-24.0, 0.0, 0.0)}, head=(18.0, 0.0, 0.0),
                    leg_l=fk_leg(8.0, 30.0), leg_r=fk_leg(100.0, 86.0), arm_l=l2, arm_r=r2)
-    return keyed(t, [(0.0, hang), (0.24, pull), (0.5, press)])
+    over = merged(press, hips={"pos": (0.0, 0.94, 0.0), "rot": (-29.0, 0.0, 0.0)}, head=(23.0, 0.0, 0.0))   # tips a little past, then settles
+    return keyed(t, [(0.0, hang), (0.24, pull), (0.42, over, "out"), (0.5, press)])
 
 
 # ---------------------------------------------------------------------------
@@ -353,9 +736,9 @@ def dive(t):
     """A flat forward lunge, gun leading."""
     s = math.sin(TAU * t / 0.6)
     return {
-        "hips": {"pos": (0.0, 0.60, 0.20), "rot": (-80.0, 0.0, 0.0)},
-        "spine": (6.0, 0.0, 0.0), "chest": (8.0, 0.0, 0.0), "head": (52.0, 0.0, 0.0),
-        "leg_l": fk_leg(-12.0 + 3.0 * s, 12.0, foot_pitch=-55.0), "leg_r": fk_leg(-2.0 - 3.0 * s, 30.0, foot_pitch=-55.0),
+        "hips": {"pos": (0.0, 0.60, 0.20), "rot": (-80.0, 0.0, 1.5 * s)},
+        "spine": (6.0, 0.0, -0.75 * s), "chest": (8.0, 0.0, -0.75 * s), "head": (52.0, 0.0, 0.0),
+        "leg_l": fk_leg(-12.0 + 6.0 * s, 12.0 - 5.0 * s, foot_pitch=-55.0), "leg_r": fk_leg(-2.0 - 6.0 * s, 30.0 + 5.0 * s, foot_pitch=-55.0),
         "arm_r": fk_arm(158.0, roll=6.0, bend=8.0), "arm_l": fk_arm(150.0, roll=-10.0, bend=20.0),
     }
 
@@ -412,21 +795,28 @@ def roll(t):
     ])
 
 
+# A flip turns once in 0.45 s: it speeds up over the first 0.10 s, turns steadily, and
+# slows over the last 0.11 s to spot the landing. These are how far it has turned at
+# the ends of those two, for the speed to be the same either side of each key.
+SPIN_IN = 52.2
+SPIN_OUT = 57.4
+
+
 def flip_front(t):
     return keyed(t, [
         (0.0, _tuck(0.0, 0.96, 0.0, thigh=30.0, knee=40.0, spine=-4.0, chest=-4.0, head=0.0, arm=40.0, elbow=80.0)),
-        (0.10, _tuck(-70.0, 0.96, 0.0), "linear"),
-        (0.34, _tuck(-295.0, 0.96, 0.0), "linear"),
-        (0.45, _tuck(-360.0, 0.96, 0.0, thigh=28.0, knee=36.0, spine=-2.0, chest=-2.0, head=4.0, arm=40.0, elbow=80.0), "linear"),
+        (0.10, _tuck(-SPIN_IN, 0.96, 0.0), "in"),
+        (0.34, _tuck(-360.0 + SPIN_OUT, 0.96, 0.0), "linear"),
+        (0.45, _tuck(-360.0, 0.96, 0.0, thigh=28.0, knee=36.0, spine=-2.0, chest=-2.0, head=4.0, arm=40.0, elbow=80.0), "out"),
     ])
 
 
 def flip_back(t):
     return keyed(t, [
         (0.0, _tuck(0.0, 0.96, 0.0, thigh=34.0, knee=44.0, spine=6.0, chest=6.0, head=-10.0, arm=70.0, elbow=60.0)),
-        (0.10, _tuck(65.0, 0.96, 0.0, head=-8.0), "linear"),
-        (0.34, _tuck(295.0, 0.96, 0.0, head=-8.0), "linear"),
-        (0.45, _tuck(360.0, 0.96, 0.0, thigh=28.0, knee=36.0, spine=-2.0, chest=-2.0, head=4.0, arm=40.0, elbow=80.0), "linear"),
+        (0.10, _tuck(SPIN_IN, 0.96, 0.0, head=-8.0), "in"),
+        (0.34, _tuck(360.0 - SPIN_OUT, 0.96, 0.0, head=-8.0), "linear"),
+        (0.45, _tuck(360.0, 0.96, 0.0, thigh=28.0, knee=36.0, spine=-2.0, chest=-2.0, head=4.0, arm=40.0, elbow=80.0), "out"),
     ])
 
 
@@ -443,9 +833,9 @@ def flip_left(t):
     """Side flip to the left: a no-hands cartwheel, legs apart."""
     return keyed(t, [
         (0.0, _aerial(0.0, 6.0, 40.0, 20.0)),
-        (0.10, _aerial(70.0, 38.0, 30.0, 70.0), "linear"),
-        (0.34, _aerial(295.0, 38.0, 30.0, 70.0), "linear"),
-        (0.45, _aerial(360.0, 6.0, 36.0, 20.0), "linear"),
+        (0.10, _aerial(SPIN_IN, 38.0, 30.0, 70.0), "in"),
+        (0.34, _aerial(360.0 - SPIN_OUT, 38.0, 30.0, 70.0), "linear"),
+        (0.45, _aerial(360.0, 6.0, 36.0, 20.0), "out"),
     ])
 
 
@@ -486,7 +876,11 @@ def death(t):
                   leg_r=fk_leg(-8.0, 14.0, roll=10.0, foot_pitch=-50.0), arm_r=r, arm_l=l)
     r, l = limp(128.0, 48.0, 50.0)
     flat = merged(fall, hips={"pos": (0.0, 0.11, -0.30), "rot": (-90.0, 12.0, 8.0)}, head=(-6.0, 34.0, 0.0), arm_r=r, arm_l=l)
-    return keyed(t, [(0.0, stand), (0.10, jolt, "out"), (0.45, knees, "in"), (0.85, fall, "in"), (0.98, flat, "out"), (1.3, flat)])
+    r, l = limp(124.0, 46.0, 54.0)
+    bounce = merged(flat, hips={"pos": (0.0, 0.15, -0.30), "rot": (-87.0, 12.0, 8.0)}, head=(-14.0, 32.0, 0.0), arm_r=r, arm_l=l,
+                    leg_l=fk_leg(-9.0, 36.0, roll=-8.0, foot_pitch=-50.0))   # the frame hits the floor, comes up off it once, and lies still
+    return keyed(t, [(0.0, stand), (0.10, jolt, "out"), (0.45, knees, "in"), (0.85, fall, "in"), (0.96, flat, "in"),
+                     (1.05, bounce, "out"), (1.16, flat, "in"), (1.3, flat)])
 
 
 def respawn(t):
@@ -507,7 +901,7 @@ def body_clips():
         Clip("slide", 0.8, slide, loop=True),
         Clip("air", 1.0, air),
         Clip("air_tuck", 0.8, air_tuck, loop=True),
-        Clip("land", 1 / 30, land),
+        Clip("land", LAND_TIME, land, fps=60),
         Clip("wall_run_l", WALL_PERIOD, wall_run_l, loop=True),
         Clip("wall_run_r", WALL_PERIOD, wall_run_r, loop=True),
         Clip("wall_jump_l", 0.3, wall_jump_l),
@@ -526,7 +920,7 @@ def body_clips():
         Clip("reload", 1.3, reload),
         Clip("death", 1.3, death),
         Clip("respawn", 0.6, respawn),
-    ] + view_clips() + hand_clips()
+    ] + [Clip("idle_" + torso, QUIRK_PERIOD, fn, loop=True, fps=24, lean=True) for torso, fn in IDLES.items()] + view_clips() + hand_clips()
 
 
 # ---------------------------------------------------------------------------

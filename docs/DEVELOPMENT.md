@@ -1575,6 +1575,38 @@ the robots' armour is the same white as the guns' plates instead of a brighter o
 lost its shading in sunlight. Surfaces are satin (roughness about 0.7, hardly any
 metal); only the glowing parts are shiny.
 
+**Idle habits.** Every torso, robot or creature, has its own way of standing still: a
+clip named `idle_<torso>` (`IDLES` in `animations.py`), a whole number of the plain
+idle's breaths long, with one small thing in it (Needle cocks its head, Rivet taps a
+boot, Bulwark sags and hitches back up, the frog puffs its throat...). It goes by the
+torso (`RobotModel.idle`), so a Character Creator body stands the way its torso does,
+and a torso with none uses the plain `idle`. The habit clips are `lean`: they hold only
+the bones that move (`Clip(..., lean=True)` in `rig.py`), which keeps 28 of them from
+bloating every model file. A new torso needs its habit added to `IDLES`.
+`RobotAnimator` lays it over the plain idle only while standing still and not shooting
+or reloading. A habit must never turn the chest or move it sideways (the gun is held
+from the chest; `_steady` keeps the chest in place while the hips move under it), may
+raise or lower it a little, and must not look like an action. `tests/robot_test.gd`
+checks the first two.
+
+**Landing.** `land` is a short strip (dip, then up a little past standing, then settle),
+not one pose: `RobotAnimator` plays it through once over the base pose, as strong as the
+fall was hard.
+
+**Feet on steps and slopes.** Standing or crouching still, each foot goes to the ground
+that is really under it. `Player._feet_ground()` casts a ray down through each foot and
+hands the two heights to the animator (`RobotAnimInput.feet`, how far the ground under
+each foot is above or below the player's own floor). `RobotAnimator._plant_feet` then
+bends that leg at the knee to put the foot there, and lowers the hips a little when a
+foot has to reach down (`FEET_REACH` and `FEET_DROP` cap both). It fades out as soon as
+you move faster than `FEET_STILL`, so no moving clip is touched, and it is looks only:
+the collision capsule never moves. In `preview.gd` a puppet step takes `"feet": [l, r]`
+and a shot takes `"blocks"` to stand the body on.
+
+**Spins.** The flips turn at a steady speed with a short ease in and out
+(`SPIN_IN` / `SPIN_OUT` in `animations.py`), keyed so the speed never jumps. Change the
+two together or the flip will hitch at the seam.
+
 In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides what the
 body shows from the movement state (the same way for you, other players and the bot),
 and `view_model.gd` does the first-person arms.
