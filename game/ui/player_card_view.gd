@@ -9,10 +9,11 @@ extends VBoxContainer
 ## The lobby shows one while the mouse is over a player (see LobbyMenu) and keeps one
 ## open in a window when you click them, so you can point at the red ones.
 
-const WIDTH := 360.0
+const WIDTH := 460.0
 const LOCKED := Color(1.0, 0.36, 0.32)
 
 var player_id := 0
+var _hint: Label   ## under the cosmetics: what unlocks the red one under the mouse
 
 
 func _init(id: int) -> void:
@@ -40,10 +41,13 @@ func _init(id: int) -> void:
 			["Mobility", Mobility.name_of(Net.player_loadout_mobility(id))], ["Colour", color_name]]:
 		if str(line[1]) == "":
 			continue
-		UiKit.label(grid, str(line[0]), true, 14)
+		var k := UiKit.label(grid, str(line[0]), true, 14)
+		k.autowrap_mode = TextServer.AUTOWRAP_OFF
+		k.custom_minimum_size.x = 90
 		var v := UiKit.label(grid, str(line[1]), false, 15)
 		v.name = str(line[0]).to_lower()
 		v.autowrap_mode = TextServer.AUTOWRAP_OFF
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	UiKit.section(self, "Cosmetics")
 	var chips := HFlowContainer.new()
 	chips.name = "cosmetics"
@@ -57,9 +61,26 @@ func _init(id: int) -> void:
 		if chip.has_meta("locked"):
 			locked += 1
 	if locked > 0:
-		var note := UiKit.label(self, "Red: not unlocked for you yet. Click the player and point at one to see how to get it.", true, 13)
-		note.name = "locked_note"
-		note.add_theme_color_override("font_color", Color(LOCKED, 0.85))
+		_hint = UiKit.label(self, LOCKED_HINT, true, 14)
+		_hint.name = "locked_note"
+		_hint.add_theme_color_override("font_color", Color(LOCKED, 0.9))
+		_hint.custom_minimum_size.x = WIDTH
+
+
+const LOCKED_HINT := "Red: not unlocked for you yet. Point at one to see how to unlock it."
+const POINT_HINT := "Red: not unlocked for you yet. Point at one to see how to unlock it."
+
+
+## In the window a click opens (the mouse can reach the cosmetics there).
+func pinned() -> void:
+	if _hint:
+		_hint.text = POINT_HINT
+
+
+## The same player looks the same: rebuild a card only when this changes.
+static func signature(id: int) -> String:
+	return var_to_str([Net.player_name(id), Net.player_level(id), Net.player_character(id), Net.player_weapon(id),
+		Net.player_loadout_mobility(id), Net.player_color(id), Net.player_card(id), Net.player_icon(id)])
 
 
 ## What a player wears that can be unlocked: their calling card and icon, and on a
@@ -89,6 +110,12 @@ func _chip(key: String) -> PanelContainer:
 		chip.set_meta("locked", true)
 		l.add_theme_color_override("font_color", LOCKED)
 		chip.tooltip_text = "Locked for you.\n" + Achievements.requirement(key)
+		chip.mouse_entered.connect(func():
+			if _hint:
+				_hint.text = "%s: locked for you.\n%s" % [Achievements.item_name(key), Achievements.requirement(key)])
+		chip.mouse_exited.connect(func():
+			if _hint:
+				_hint.text = POINT_HINT)
 	else:
 		chip.tooltip_text = "You have this one too." if Achievements.achievement_for(key).size() > 0 else "Free for everyone."
 	chip.mouse_filter = Control.MOUSE_FILTER_STOP

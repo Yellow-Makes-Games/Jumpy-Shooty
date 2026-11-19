@@ -56,6 +56,24 @@ func run() -> void:
 	_expect(panel.is_open() and not hover.visible and panel.content.find_child("player_card", true, false) != null, "a click keeps the card open in a window")
 	await get_tree().process_frame
 	_expect(picker.peeking(), "their robot stays on the stage while it is open")
+	# The mouse over the crown in the window: the card says what unlocks it. (A headless
+	# run has no real mouse hover, so the chip is told the mouse arrived.)
+	var pinned := panel.content.find_child("player_card", true, false) as PlayerCardView
+	var pinned_crown := pinned.find_child("hat_crown", true, false) as Control
+	_expect(pinned_crown.mouse_filter == Control.MOUSE_FILTER_STOP, "a cosmetic takes the mouse (for its tooltip)")
+	pinned_crown.mouse_entered.emit()
+	var hint := pinned.find_child("locked_note", true, false) as Label
+	_expect(hint != null and "Crown" in hint.text and "Warlord" in hint.text and "0 / 500" in hint.text,
+		"pointing at a red one in the window says what unlocks it (%s)" % (hint.text if hint else "no hint"))
+	_expect(pinned_crown.tooltip_text.contains("Warlord"), "and so does its tooltip")
+	var labels_ok := true
+	for k in ["robot", "weapon", "mobility"]:
+		var l := pinned.find_child(k, true, false) as Label
+		labels_ok = labels_ok and l != null and l.size.x > 60 and l.size.y < 40
+	_expect(labels_ok, "the loadout lines are one line each, not one letter per line")
+	Net.players_changed.emit()   # (anything in the lobby changing)
+	await get_tree().process_frame
+	_expect(panel.content.find_child("player_card", true, false) == pinned, "the open card is not rebuilt when nothing about them changed")
 	panel.close()
 	await get_tree().process_frame
 	_expect(not picker.peeking(), "closing it puts your robot back")

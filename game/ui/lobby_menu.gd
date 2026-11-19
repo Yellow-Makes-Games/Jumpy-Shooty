@@ -74,6 +74,8 @@ var _hover_card: PanelContainer   # the close look at the player under the mouse
 var _hover_id := 0
 var _player_panel: FloatingPanel  # a player kept open (clicked)
 var _pinned_id := 0
+var _hover_sig := ""
+var _pinned_sig := ""
 
 
 func _ready() -> void:
@@ -200,14 +202,20 @@ func _refresh() -> void:
 	for id in ids:
 		_rows[id] = _player_row(id)
 		_list.add_child(_rows[id])
-	# A player looked at closely: up to date, or gone.
-	_hover_id = 0
-	_hover_card.visible = false
-	if _pinned_id != 0:
-		if _rows.has(_pinned_id):
-			_fill_player_panel(_pinned_id)
+	# A player looked at closely: up to date (rebuilt only if they changed), or gone.
+	if _hover_id != 0:
+		if not _rows.has(_hover_id):
+			_hover_id = 0
+			_show_hover_card(0)
+		elif _hover_sig != PlayerCardView.signature(_hover_id):
+			_show_hover_card(_hover_id)
 		else:
+			_place_hover_card.call_deferred(_hover_id)
+	if _pinned_id != 0:
+		if not _rows.has(_pinned_id):
 			_player_panel.close()
+		elif _pinned_sig != PlayerCardView.signature(_pinned_id):
+			_fill_player_panel(_pinned_id)
 	var watchers := Net.spectator_ids().map(func(id): return Net.spectator_name(id) + (" (you)" if id == Net.my_id() else ""))
 	_watching.text = "Spectating: %s" % ", ".join(watchers) if not watchers.is_empty() else "Nobody is spectating."
 	if not Net.spectating():
@@ -926,6 +934,9 @@ func _process(_delta: float) -> void:
 			if is_instance_valid(row) and row.is_visible_in_tree() and row.get_global_rect().has_point(mouse) and _list_scroll.get_global_rect().has_point(mouse):
 				id = pid
 				break
+		# Still on the way to (or over) their card: keep it, so its cosmetics can be pointed at.
+		if id == 0 and _hover_id != 0 and _hover_card.visible and _hover_card.get_global_rect().grow(FloatingPanel.GAP + 4.0).has_point(mouse):
+			id = _hover_id
 	if id != _hover_id:
 		_hover_id = id
 		_show_hover_card(id)
@@ -939,8 +950,8 @@ func _show_hover_card(id: int) -> void:
 	_hover_card.visible = id != 0
 	if id == 0:
 		return
+	_hover_sig = PlayerCardView.signature(id)
 	var view := PlayerCardView.new(id)
-	_ignore_mouse(view)
 	_hover_card.add_child(view)
 	_hover_card.reset_size()
 	_place_hover_card.call_deferred(id)
@@ -959,13 +970,6 @@ func _place_hover_card(id: int) -> void:
 	_hover_card.global_position = at
 
 
-static func _ignore_mouse(node: Node) -> void:
-	if node is Control:
-		(node as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for c in node.get_children():
-		_ignore_mouse(c)
-
-
 ## Keep a player open in a window (a click on their row): there, a cosmetic you have
 ## not unlocked says in its tooltip what unlocks it.
 func _pin_player(id: int) -> void:
@@ -979,9 +983,11 @@ func _pin_player(id: int) -> void:
 
 func _fill_player_panel(id: int) -> void:
 	UiKit.clear(_player_panel.content)
+	_pinned_sig = PlayerCardView.signature(id)
 	var view := PlayerCardView.new(id)
 	view.name = "player_card"
 	_player_panel.content.add_child(view)
+	view.pinned()
 
 
 ## The stage on the right shows this player's robot (0, or you: your own again).
