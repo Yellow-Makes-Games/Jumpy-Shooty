@@ -205,11 +205,18 @@ func set_live(on: bool) -> void:
 ## What a portal camera draws: what the main camera does, but the full body of
 ## whoever it is following (the eye is somewhere else now: you see yourself), no
 ## first-person arms or gun, and portals as plain glowing faces.
+## (The layer numbers are CameraRig's and Player's, written out: naming those classes
+## here would tie this script to the game's autoloads, and map tests load it bare.)
+const _BODY_LAYER := 2        ## CameraRig.BODY_LAYER
+const _VIEW_BODY_LAYER := 4   ## CameraRig.VIEW_BODY_LAYER
+const _VIEWMODEL_LAYER := 3   ## Player.VIEWMODEL_LAYER
+
+
 static func _view_mask(main: int) -> int:
 	var m := main
-	m |= 1 << (CameraRig.BODY_LAYER - 1)
-	m &= ~(1 << (CameraRig.VIEW_BODY_LAYER - 1))
-	m &= ~(1 << (Player.VIEWMODEL_LAYER - 1))
+	m |= 1 << (_BODY_LAYER - 1)
+	m &= ~(1 << (_VIEW_BODY_LAYER - 1))
+	m &= ~(1 << (_VIEWMODEL_LAYER - 1))
 	m &= ~(1 << (VIEW_LAYER - 1))
 	m |= 1 << (FLAT_LAYER - 1)
 	return m

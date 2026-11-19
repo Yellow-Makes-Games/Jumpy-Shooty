@@ -62,6 +62,8 @@ func run() -> void:
 	_check("...and never a window", vm & (1 << (Portal.VIEW_LAYER - 1)) == 0)
 	_check("...your whole body, not the first-person one or the gun",
 		vm & (1 << (CameraRig.BODY_LAYER - 1)) != 0 and vm & (1 << (CameraRig.VIEW_BODY_LAYER - 1)) == 0 and vm & (1 << (Player.VIEWMODEL_LAYER - 1)) == 0)
+	_check("the layer numbers match the camera rig's and the player's",
+		Portal._BODY_LAYER == CameraRig.BODY_LAYER and Portal._VIEW_BODY_LAYER == CameraRig.VIEW_BODY_LAYER and Portal._VIEWMODEL_LAYER == Player.VIEWMODEL_LAYER)
 	_check("the window renders only while live", a._view.render_target_update_mode == SubViewport.UPDATE_ALWAYS)
 	_look(cam, Vector3(0, 1.6, 5), Vector3(0, 1.6, 20))
 	portals.update_views(cam)
