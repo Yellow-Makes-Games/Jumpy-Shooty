@@ -26,6 +26,8 @@ signal color_picked(index: int)   ## a colour from the stage's swatch (a number 
 const STAGE := Vector2(360, 292)
 const COLUMNS := 4
 const LIST_COLUMNS := 8   ## compact: robots per row in the list
+const NAME_SIZE := 14      ## a robot button's font size, when its name fits
+const NAME_MIN := 9       ## the smallest a long name (a custom character's) shrinks to
 
 var current := ""
 
@@ -132,10 +134,12 @@ func _add_button(id: String) -> void:
 	b.custom_minimum_size = Vector2(110 if _compact else 0, 36)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	b.clip_text = true
-	b.add_theme_font_size_override("font_size", 14)
+	b.add_theme_font_size_override("font_size", NAME_SIZE)
+	b.resized.connect(_fit_name.bind(b))
 	if Characters.is_custom(id):
 		b.add_theme_color_override("font_color", UiKit.CYAN)
-		b.tooltip_text = Characters.info(id).blurb
+		b.tooltip_text = "%s
+%s" % [b.text, Characters.info(id).blurb]
 	b.pressed.connect(_on_pressed.bind(id))
 	b.set_meta("sfx", "select")
 	_grid.add_child(b)
@@ -266,3 +270,16 @@ func refresh_custom() -> void:
 			_ids.erase(id)
 	for id in Settings.custom_characters:
 		_add_button(id)
+
+
+## A long name (a custom character's can be 16 letters) shrinks its font to fit the
+## button rather than being cut short.
+func _fit_name(b: Button) -> void:
+	var font := b.get_theme_font("font")
+	var box := b.get_theme_stylebox("normal")
+	var room := b.size.x - box.get_margin(SIDE_LEFT) - box.get_margin(SIDE_RIGHT)
+	var fs := NAME_SIZE
+	while fs > NAME_MIN and font.get_string_size(b.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+		fs -= 1
+	if b.get_theme_font_size("font_size") != fs:
+		b.add_theme_font_size_override("font_size", fs)

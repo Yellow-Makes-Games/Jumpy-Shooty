@@ -33,6 +33,10 @@ func run() -> void:
 	add_child(holder)
 	_view = SubViewport.new()
 	holder.add_child(_view)
+	# A custom character with a long name, so the robot buttons are checked against
+	# one whatever this machine has saved.
+	var saved_customs: Array = Settings.custom_characters.duplicate()
+	Settings.custom_characters = saved_customs + ["custom:n=TotallyNotDevil|l=imp|t=imp|h=imp"]
 	for window in SIZES:
 		var scale := minf(window.x / BASE.x, window.y / BASE.y)
 		_view.size = Vector2i((Vector2(window) / scale).round())
@@ -40,6 +44,7 @@ func run() -> void:
 		await _check_lobby_and_results(window)
 		await _check_pause_menu(window)
 		_check_death_screen(window)
+	Settings.custom_characters = saved_customs
 	if _fails.is_empty():
 		print("PASS menu layout: %d pages checked across %d window sizes, nothing off screen" % [_checked, SIZES.size()])
 	else:
