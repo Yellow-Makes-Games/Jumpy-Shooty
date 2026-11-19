@@ -140,6 +140,12 @@ Quick checks:
   fullscreen after a match (counting down to the best), the results page with
   them listed still fits 1600x900, and a killcam saved as a video is a Motion JPEG
   AVI with every frame and an index, as long as the clip plays;
+- killcams that match the match (`tests/killcam_sync_test.gd`): the replay looks exactly
+  where each of the killer's shots was aimed, from where it was fired (easing onto a lone
+  shot, shot to shot through a burst, never swinging past a flick), a target the killer
+  hit is moved in time to where the hits say, and on the Construction Site the crane's
+  load, the signs on its jib, its rope and a wall shot through since are drawn as they
+  were, while their collision stays the match's, and drawn live again afterwards;
 - spectating (`tests/spectator_test.gd`): in a Vs Bots match you switch to spectating and
   back; a spectator has no robot, score or scoreboard row, the bots play on, and the free
   camera flies through the floor, faster with Sprint, the way it looks;
@@ -196,7 +202,9 @@ Networked and bot runs (real time):
   with `--manual-respawn` Jump brings you back (and nothing else does), and the results
   screen plays the best kills and saves the best as a video; online, a host and a client on a laggy network each
   watch their killcams, score every kill the same, show each killer their kill's points
-  (adding up to its score), pick the same best three and have a clip of each;
+  (adding up to its score), pick the same best three and have a clip of each; every
+  killcam has the killer's shot aims and records the map's moving parts (`KILLCAM SYNC`
+  and `KILLCAM AIM` in the logs);
 - Golden Gun (`tests/run_golden_gun_test.sh`): Vs Bots and online, one player holds the
   Golden Gun at a time, whoever kills the holder takes it, every kill with it gives its
   round back, and host and client see the same hand-overs and results;
@@ -705,6 +713,7 @@ The scripts behind this:
 | `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
 | `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
 | `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
+| `game/arena/map_replay.gd` | How killcams record the map's moving parts and draw them as they were (see "Moving parts in killcams") |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
 | `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `map_ring_gate.gd`, `portal_surge_event.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, ring gates and the Portal Surge, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
@@ -1155,6 +1164,29 @@ bots find them in the scene. A different kind of event is a script that extends
 `MapEvent` and fills in `length()` and `_update()`. An event that leaves something
 changed after it ends (a LayoutEvent's layout) keeps it in `state`, which the host
 sends along with the clock; `_on_match_started()` is where it puts things back.
+
+### Moving parts in killcams
+
+A killcam records the map's moving parts beside the players and puts them back the
+way they were at each moment of the replay (`MapReplay`, `KillClip.PropTrack`): the
+crane and its load, flying islands, walkways, walls shot through. Without it a death
+killcam showed the map as it is now (a crane already swung away under a killer still
+standing on its slab) and the results screen showed the map as it was built.
+
+Already recorded, nothing to do: every **MapMover** and **MapIsland** (their meshes,
+and the signs and lamps in an island's scene node), **MapDestruction** (cracks and
+holes), **CraneEvent**'s rope and **MapSpan**. So a new map whose moving furniture,
+doors or platforms are MapMovers or MapIslands is in every killcam as it is.
+
+A new kind of moving part joins the group `MapReplay.GROUP` and has three methods:
+`replay_capture()` (how it looks now, as a plain value; called about 30 times a
+second, stored only when it changes), `replay_show(state, next, u, holder)` (look like
+that, blended `u` toward `next`) and `replay_clear()` (back to live). `replay_show`
+must change only what is drawn, never collision or anything the game plays by: a death
+killcam plays in the live arena while the match goes on round it. `MapReplay.draw_at`
+draws a mesh somewhere else without moving the node (what MapRoot does for movers).
+Parts are found by their path from the MapRoot, so the nodes must be the same every
+time the map is built (the results screen replays in a fresh copy of the map).
 
 A terminal's **Bots** box (ticked by default) says whether bots walk up to it and use
 it now and then. Untick it for one they cannot walk to, or they stand about under it.

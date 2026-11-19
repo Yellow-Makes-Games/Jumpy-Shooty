@@ -17,6 +17,11 @@ extends Node3D
 ## video saved frame by frame has it frame by frame). They are this replay's, freed
 ## with it or when it starts over. With gore off (Settings.gore), or with no recording,
 ## the body stays and plays its death instead.
+##
+## The map's moving parts (see MapReplay) are drawn as the clip has them at each moment,
+## in `map` (the arena's, or the results screen's copy), and drawn live again when the
+## replay ends. The killer's eyes turn onto the aim of each of their shots as it goes
+## (KillClip.aim_fix), so the crosshair is where theirs was when they fired.
 
 signal finished
 signal kill_moment   ## the killing blow lands
@@ -46,6 +51,9 @@ var camera: Camera3D
 var world_sound := true
 ## Watched from behind the killer (a blow), not through their eyes.
 var third_person := false
+## The map it plays in (its moving parts are put back as they were). Default: the one
+## being played (MapRoot.current).
+var map: Node
 
 var _puppet: Player          # stands in for the killer, for their first-person arms
 var _view: ViewModel
@@ -64,6 +72,8 @@ var _was_reloading := false
 var _chase_ready := false    # third person: the camera has been placed once (then it eases)
 var _chase_look := Vector3.ZERO
 var _wrecks: Dictionary = {}  # KillClip.Wreck -> the replay's own Ragdoll or Gibs for it (null: none could be made)
+var _aim_keys: Array = []     # the killer's shots (KillClip.aim_keys)
+var _shown_props: Array = []  # the map's parts this replay has drawn (to draw live again when it ends)
 
 
 ## One other player: a body that moves and animates the way the clip says.
@@ -90,6 +100,7 @@ func setup(watch: KillClip, slow: bool = false) -> KillcamView:
 	for e in clip.events:
 		_events.append([clip.event_time(e), e])
 	_events.sort_custom(func(a, b): return a[0] < b[0])
+	_aim_keys = clip.aim_keys()
 	return self
 
 
@@ -112,6 +123,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_clear_props()
 	if _puppet:
 		_puppet.free()   # never in the tree: freed by hand
 		_puppet = null
@@ -140,6 +152,7 @@ func restart() -> void:
 		(g as Ghost).animator.respawn()
 	_seen.clear()
 	_chase_ready = false
+	_clear_props()   # (so walls that break in it break again)
 	_frame(0.0)
 
 
@@ -170,6 +183,7 @@ func step(delta: float) -> void:
 
 
 func _frame(delta: float) -> void:
+	_play_props()
 	if third_person:
 		_play_ghost(clip.killer, delta)
 	else:
@@ -203,7 +217,15 @@ func _play_killer(delta: float) -> void:
 	var yaw := float(f[2])
 	var pitch := float(f[3])
 	var pose := int(f[4])
-	camera.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, _roll(f))), feet + Vector3(0, float(f[10]), 0))
+	var eye := feet + Vector3(0, float(f[10]), 0)
+	var fix := KillClip.aim_fix(_aim_keys, time)   # onto the aim of their shots
+	var w := float(fix[0])
+	if w > 0.0:
+		yaw = lerp_angle(yaw, float(fix[1]), w)
+		pitch = lerpf(pitch, float(fix[2]), w)
+		if fix[3] != Vector3.INF and (fix[3] as Vector3).distance_to(eye) <= KillClip.AIM_REACH:
+			eye = eye.lerp(fix[3], w)
+	camera.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, _roll(f))), eye)
 	# The arms follow what the killer was doing (see ViewModel).
 	var p := _puppet
 	p.alive = bool(f[8])
@@ -233,6 +255,43 @@ func _play_killer(delta: float) -> void:
 	var hook2 = _hook2(f) if p.alive else null
 	_draw_rope(_rope, _hook, bool(f[6]) and p.alive and hook2 == null, hand, f[7])
 	_hook_rope = _draw_hook2(_hook_rope, self, hand, hook2)
+
+
+## For the tests' logs: "<the killer's shots in the clip> <the most the recording was
+## off at one (degrees), before the replay put it right>".
+func aim_report() -> String:
+	var worst := 0.0
+	var n := 0
+	for key in _aim_keys:
+		if float(key[0]) < clip.start or float(key[0]) > clip.end:
+			continue
+		n += 1
+		worst = maxf(worst, clip.aim_miss(key))
+	return "%d %.1f" % [n, worst]
+
+
+## The map's moving parts as the clip has them now.
+func _play_props() -> void:
+	if clip.props.is_empty():
+		return
+	var where: Node = map if map != null and is_instance_valid(map) else MapRoot.current
+	for key in clip.props:
+		var part := MapReplay.find(where, key)
+		if part == null:
+			continue
+		var look := (clip.props[key] as KillClip.PropTrack).at(time)
+		if look[0] == null:
+			continue
+		part.call("replay_show", look[0], look[1], look[2], self)
+		if not _shown_props.has(part):
+			_shown_props.append(part)
+
+
+func _clear_props() -> void:
+	for part in _shown_props:
+		if is_instance_valid(part):
+			part.call("replay_clear")
+	_shown_props.clear()
 
 
 ## Leaning away from a wall while running along it, as the killer's camera did.

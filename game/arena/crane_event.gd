@@ -81,10 +81,12 @@ var _found := false
 var _rope: MeshInstance3D
 var _motor: AudioStreamPlayer3D
 var _was_moving := false
+var _replay_rope: Array = []   # a killcam playing: where it draws the rope ([top, bottom]), or []
 
 
 func _ready() -> void:
 	super()
+	add_to_group(MapReplay.GROUP)   # its rope in killcams (the jib and the load are MapRoot's movers)
 	set_process(DisplayServer.get_name() != "headless")
 	_place.call_deferred()
 
@@ -243,18 +245,54 @@ func _place() -> void:
 
 func _process(delta: float) -> void:
 	_find()
-	if _top != null and _bottom != null and _top.is_inside_tree() and _bottom.is_inside_tree():
-		if _rope == null:
-			_build_rope()
-		var a := _top.global_position
-		var b := _bottom.global_position
-		var between := a.distance_to(b)
-		_rope.visible = between > 0.05
-		if _rope.visible:
-			var up := (a - b) / between
-			var side := up.cross(Vector3.RIGHT if absf(up.x) < 0.9 else Vector3.FORWARD).normalized()
-			_rope.global_transform = Transform3D(Basis(side, up * between, side.cross(up)), (a + b) * 0.5)
+	if _replay_rope.size() == 2:
+		_draw_rope(_replay_rope[0], _replay_rope[1])
+	elif _top != null and _bottom != null and _top.is_inside_tree() and _bottom.is_inside_tree():
+		_draw_rope(_top.global_position, _bottom.global_position)
 	_sound(delta)
+
+
+func _draw_rope(a: Vector3, b: Vector3) -> void:
+	if _rope == null:
+		_build_rope()
+	var between := a.distance_to(b)
+	_rope.visible = between > 0.05
+	if _rope.visible:
+		var up := (a - b) / between
+		var side := up.cross(Vector3.RIGHT if absf(up.x) < 0.9 else Vector3.FORWARD).normalized()
+		_rope.global_transform = Transform3D(Basis(side, up * between, side.cross(up)), (a + b) * 0.5)
+
+
+# ---------------------------------------------------------------------------
+# Killcams (see MapReplay): the hoist rope where it was
+
+## The two ends of the rope ([top, bottom], in the world), or [] without them.
+func replay_capture() -> Variant:
+	_find()
+	if _top == null or _bottom == null or not _top.is_inside_tree() or not _bottom.is_inside_tree():
+		return []
+	return [_top.global_position, _bottom.global_position]
+
+
+func replay_show(state: Variant, next: Variant, u: float, _holder: Node3D) -> void:
+	if not state is Array or (state as Array).size() != 2:
+		return
+	var a: Vector3 = state[0]
+	var b: Vector3 = state[1]
+	if next is Array and (next as Array).size() == 2:
+		a = a.lerp(next[0], u)
+		b = b.lerp(next[1], u)
+	_replay_rope = [a, b]
+	if is_inside_tree():
+		_draw_rope(a, b)
+
+
+func replay_clear() -> void:
+	if _replay_rope.is_empty():
+		return
+	_replay_rope = []
+	if _top != null and _bottom != null and _top.is_inside_tree() and _bottom.is_inside_tree() and _rope != null:
+		_draw_rope(_top.global_position, _bottom.global_position)
 
 
 func _build_rope() -> void:

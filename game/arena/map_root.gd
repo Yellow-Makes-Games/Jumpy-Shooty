@@ -226,6 +226,10 @@ func build(with_meshes: bool = true) -> void:
 		pieces = destruction.setup(self, pieces, spawns)
 	for i in movers.size():
 		_build_mover(i, with_meshes)   # (after the breakables: a mover's own ride on it)
+	if movers.is_empty():
+		remove_from_group(MapReplay.GROUP)
+	else:
+		add_to_group(MapReplay.GROUP)   # killcams replay where they were (see MapReplay)
 	for s in spans:
 		var on: Node3D = movers[s.mover].body if s.mover >= 0 else self
 		(s.node as MapSpan).build(self, on, s.base, with_meshes)
@@ -751,9 +755,99 @@ func _physics_process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
+	replay_clear()
 	# The map's gravity zones go with it (the next map sets its own in build()).
 	if not Engine.is_editor_hint() and current == self:
 		WorldGravity.clear_zones()
+
+
+# ---------------------------------------------------------------------------
+# Killcams (see MapReplay): the moving parts as they were. A replay draws each
+# mover's meshes, and the signs and lamps riding it, where the recording says, and
+# leaves the bodies themselves (what people stand on) where the match has them.
+
+var _replay_poses: Array = []    # per mover: where a replay draws it (in the map's frame), or null
+var _replay_drawn: Array = []    # per mover: what is drawn riding it
+var _replay_frames := 0
+
+
+## Where every mover is: one Transform3D each (in the map's frame), in `movers` order,
+## then which of them are not drawn (bits: a parked island).
+func replay_capture() -> Variant:
+	var out := []
+	var hidden := 0
+	for i in movers.size():
+		var body: Node3D = movers[i].body
+		out.append(body.transform if body else movers[i].base)
+		if body and not body.visible and i < 62:
+			hidden |= 1 << i
+	out.append(hidden)
+	return out
+
+
+func replay_show(state: Variant, next: Variant, u: float, _holder: Node3D) -> void:
+	if not state is Array:
+		return
+	if _replay_poses.is_empty():
+		_replay_frames = 0
+		RenderingServer.frame_pre_draw.connect(_replay_draw)
+	if _replay_frames % 10 == 0:   # (now and then: a wall riding it may have been rebuilt)
+		_replay_drawn = []
+		for m in movers:
+			_replay_drawn.append(_riding_drawn(m))
+	_replay_frames += 1
+	_replay_poses = []
+	var hidden := int(state[-1]) if (state as Array).size() > movers.size() and state[-1] is int else 0
+	for i in movers.size():
+		var a = state[i] if i < (state as Array).size() else null
+		var b = next[i] if next is Array and i < (next as Array).size() else null
+		_replay_poses.append((a as Transform3D).interpolate_with(b, u) if a is Transform3D and b is Transform3D else a)
+		var body: Node3D = movers[i].body
+		if body and i < 62:
+			body.visible = hidden & (1 << i) == 0   # (only drawn or not: a parked island's collision is off anyway)
+	_replay_draw()
+
+
+func replay_clear() -> void:
+	if _replay_poses.is_empty():
+		return
+	_replay_poses = []
+	for m in movers:
+		if m.body and is_instance_valid(m.body):
+			(m.body as Node3D).visible = not (m.node is MapIsland and (m.node as MapIsland).is_parked())
+	if RenderingServer.frame_pre_draw.is_connected(_replay_draw):
+		RenderingServer.frame_pre_draw.disconnect(_replay_draw)
+	for list in _replay_drawn:
+		for v in list:
+			MapReplay.draw_live(v)
+	_replay_drawn = []
+
+
+## What is drawn riding mover `m`: its body's meshes (and its walls'), and, when the
+## scene's own node goes along with it, the signs and lamps in that.
+func _riding_drawn(m: Dictionary) -> Array:
+	var out := []
+	if m.body and is_instance_valid(m.body):
+		out.append_array(MapReplay.drawn_under(m.body))
+	if m.moves_node and is_instance_valid(m.node):
+		out.append_array(MapReplay.drawn_under(m.node))
+	return out
+
+
+## Draws each mover's riders where the replay has it, just before the frame is drawn
+## (after anything this frame moved them back).
+func _replay_draw() -> void:
+	if not is_inside_tree():
+		return
+	for i in mini(_replay_poses.size(), mini(movers.size(), _replay_drawn.size())):
+		var pose = _replay_poses[i]
+		var body: Node3D = movers[i].body
+		if not pose is Transform3D or body == null or not is_instance_valid(body):
+			continue
+		var shift: Transform3D = (global_transform * (pose as Transform3D)) * body.global_transform.affine_inverse()
+		for v in _replay_drawn[i]:
+			if is_instance_valid(v):
+				MapReplay.draw_at(v, shift * (v as Node3D).global_transform)
 
 
 ## Where a hazard is right now (it may be riding a mover).

@@ -55,9 +55,11 @@ func start(clip: KillClip, title: String = "KILLCAM") -> void:
 	add_child(_view)
 	var map := Maps.make(clip.map if clip.map != "" else Net.map_id())
 	map.name = "Level"
+	map.destructible = MapReplay.wants_destruction([clip])   # (to show the walls as they were)
 	_view.add_child(map)
 	map.build()
 	_player = KillcamView.new().setup(clip, true)
+	_player.map = map
 	_player.manual = true
 	_player.world_sound = false
 	_view.add_child(_player)

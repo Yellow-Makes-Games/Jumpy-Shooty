@@ -52,6 +52,7 @@ CHECKS=(
   "debug|--script tests/debug_test.gd"
   "killcam|--script tests/killcam_test.gd"
   "killcam_remains|--fixed-fps 60 --script tests/killcam_remains_test.gd"
+  "killcam_sync|--script tests/killcam_sync_test.gd"
   "mobility|--fixed-fps 60 --script tests/mobility_test.gd"
   "hook_shot|--fixed-fps 60 --script tests/hook_shot_test.gd"
   "lobby_settings|--script tests/lobby_settings_test.gd"
