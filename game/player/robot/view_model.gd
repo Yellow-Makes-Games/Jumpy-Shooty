@@ -288,6 +288,7 @@ func update(delta: float) -> void:
 	if _weapon == "pistol" or _data.is_akimbo():
 		_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
 	if _data.is_akimbo():
+		Hands.set_hand(_pose, rig, "gun", 1.0, true)   # the left hand has a gun of its own, whatever the arm is doing
 		# Each gun flips up in its own hand, and its slide snaps back.
 		_pose.pos[rig.bones["pistol_l_slide"]] += Vector3(0.0, 0.04 * _recoil_l, 0.0)
 		for side in [["upper_arm_r", _recoil], ["upper_arm_l", _recoil_l]]:

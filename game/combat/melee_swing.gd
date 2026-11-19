@@ -1005,9 +1005,12 @@ static func hold(pose: RobotPose, rig: RobotRig, k: Array, two_handed: bool, pit
 	var solved := _reach(pose, rig, rot, at, "r", grip - hand_rot * palm, hand_rot, frame * ELBOW_R, right)
 	if b.has("pistol"):
 		pose.rot[b["pistol"]] = pose.rot[b["pistol"]].slerp(Quaternion.IDENTITY, right)
+	# The fingers: round the handle, or a fist for a weapon worn on it.
+	Hands.set_hand(pose, rig, "fist" if not other.is_empty() else "handle", right, false)
 	left *= float(k[HANDS]) if k.size() > HANDS else 1.0
 	if left <= 0.0:
 		return
+	Hands.set_hand(pose, rig, "handle" if two_handed and other.is_empty() else "fist", left, true)
 	var hand_l := hand_rot
 	var want: Vector3
 	if not other.is_empty():

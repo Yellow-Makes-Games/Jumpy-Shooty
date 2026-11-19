@@ -1478,7 +1478,8 @@ python3 with numpy):
 | --- | --- |
 | `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit, Templar); the unused draft, Brick, is kept |
 | `creatures.py` | The Character Creator's creatures (a person, a goblin, a frog...): each one's shape, modelled round the same skeleton, and their materials. `KITS` lists them |
-| `rig.py` | The skeleton (bone names and positions) and the pose solver |
+| `rig.py` | The skeleton (bone names and positions), the hand poses (`HANDS`) and the pose solver |
+| `hands.py` | The robots' hands: one hand (palm, trigger finger, three fingers that move as one, thumb), which each design takes at its own bulk and in its own materials |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
 | `weapons.py` | Every gun's shape and materials, and where the left hand holds each long gun |
 | `weapon_anims.py` | The long guns' own clips: how each is held, carried when sprinting, fired (pump, bolt), reloaded, and the first-person arm poses for each |
@@ -1609,6 +1610,20 @@ its `color` and `accent`, the plate's colour (`back`) and `shape`, and if it sho
 stand out the rim's metal (`rim`: `BRONZE` or `GOLD`) and `rays`.
 It is free unless an achievement's `rewards` name it (`"card:<id>"`, `"icon:<id>"`).
 The picker, the lobby and the test read the tables.
+
+**Hands** have fingers: a trigger finger, three more that move as one, and a thumb, two
+bones each (`rig.py`: where the knuckles are, from the middle of the fist). How a hand is
+held is a pose in `rig.HANDS` (open, flat, relaxed, fist, gun, trigger, handle, support,
+foregrip, pinch): eight numbers that blend. A clip's pose can say `"fingers_l"` /
+`"fingers_r"`; left out, the right hand is round a gun's grip and the left is under a long
+gun or relaxed. The left hand under a fore-end is cupped, palm up (`weapon_anims.CUPPED`),
+so a gun's `weapons.SUPPORT` point is 2 cm above the fore-end's underside; a gun with an
+upright handle there says `"upright"` and it is held like a second grip. What the clips
+cannot know, the game sets (`game/player/robot/hands.gd`, from the one-frame `hand_...`
+clips): a blade's handle in the fist (`MeleeSwing.hold`), the akimbo pair's left gun. The
+Character Creator's other bodies keep their own one-piece hands. To look at the hands on
+every robot (open, a fist, on a pistol, a sword, under a rifle):
+`python3 tools/robot/hand_sheet.py OUT.png`.
 
 **Guns** share the melee weapons' look (gunmetal frame, armour-plate panels, steel
 barrels, lit parts in the player's trim colour: the `glow` kind, which
