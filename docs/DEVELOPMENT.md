@@ -167,10 +167,14 @@ Quick checks:
 - Grappling Hook 2 (`tests/hook_shot_test.gd`), in a real Practice match: nothing pulls
   while the hook flies, it takes the distance at its speed to arrive, bites with slack,
   the winch takes it in, the rope pulls tight with a harder yank than the first hook's and
-  then pulls the same; a miss, a hook called back, hooking a bot; the rope drawn is as
+  then pulls the same; a miss, a hook called back, hooking a bot; the hook's way back
+  (it catches a slab put in its way while the button is held, after a miss or a new
+  press, not with the button up nor after a jump off the rope); in first person the
+  rope starts on the arm's wrist as drawn while moving and turning; the rope drawn is as
   long as the rope out; a copy rebuilt from snapshots (every one, a third lost, two
   thirds lost and late) draws the hook, slack and rope exactly where the player's own
-  game had them; a killcam replay between its frames; a race keeps the first hook;
+  game had them, a miss and the catch on its way back included; a killcam replay
+  between its frames; a race keeps the first hook;
 
 Networked and bot runs (real time):
 

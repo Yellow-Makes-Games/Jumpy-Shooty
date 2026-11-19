@@ -171,6 +171,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	_since_dive += delta
 	_flip_left = max(_flip_left - delta, 0.0)
 	since_boost += delta
+	grapple.held = input.grapple
 	grapple.update(delta)
 	grapple.follow_target(body, delta)
 

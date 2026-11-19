@@ -86,6 +86,11 @@ func ready_to_fire() -> bool:
 	return not attached and cooldown_left <= 0.0
 
 
+## Is the button down? The movement code says so every step. (Grappling Hook 2 asks:
+## its hook only catches on the way back while you hold on.)
+var held := false
+
+
 ## Fired but not pulling yet. Never, for this hook: it catches the instant it is
 ## fired. Grappling Hook 2's flies there first (see HookShot).
 func busy() -> bool:

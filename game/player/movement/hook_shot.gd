@@ -14,6 +14,11 @@ extends Grapple
 ##  3. Taut: the moment the rope is as short as the distance to the hook it snaps
 ##     tight: a harder yank than the first hook's (the winch is already spinning),
 ##     then exactly its pull, swing and release. From here on it IS a Grapple.
+##  4. Back: let go (or a miss), the hook comes back to the wrist, straight at you
+##     wherever you have got to. While you hold the button it catches the first
+##     surface in its way (2. again): miss, and it can still snag the ledge you have
+##     dropped behind; let go, then press again as it comes back, for the same.
+##     A jump off the rope does not count as holding on: the hook just comes back.
 ##
 ## Because the hook takes time to arrive, you lead a moving target and commit a
 ## moment before the pull; the harder yank is what you get for it.
@@ -28,9 +33,12 @@ extends Grapple
 
 const YANK := 1.4             ## the snap as the rope pulls tight, against the first hook's yank
 const PLAYER_ASSIST := 0.7    ## the hook catches a player whose chest it passes this close to (metres)
+const BACK_CATCH_MIN := 2.5   ## coming back, it catches nothing nearer to you than this (metres)
+const BACK_SLACK_MIN := 0.6   ## a hook that catches on its way back has at least this much slack to take in (metres)
 
 var flying := false           ## the hook is on its way
 var biting := false           ## it has caught; the slack is coming in
+var returning := false        ## let go: it is on its way back
 var clock := 0.0              ## seconds this hook's body has been simulated
 var line := HookLine.new()    ## this shot (or the last one)
 var shots := 0
@@ -41,6 +49,12 @@ var _goal: MapGrapplePoint    # flying to a grapple point (it needs nothing soli
 var _bite_at := 0.0           # clock when it bit
 var _rope := 0.0              # rope out when it bit
 var _just_taut := false
+var _chest := Vector3.ZERO    # where the rope met the body, at the last step
+var _snag := false            # on its way back the hook may catch (while the button is held: see release)
+var _back_from := Vector3.ZERO   # the way back: from here...
+var _back_at := 0.0           # ...setting off at this clock...
+var _back_time := 0.0         # ...and due at the wrist this long after
+var _back_prev := Vector3.ZERO   # where the hook was a step ago
 
 
 func update(delta: float) -> void:
@@ -49,7 +63,7 @@ func update(delta: float) -> void:
 
 
 func ready_to_fire() -> bool:
-	return super.ready_to_fire() and not flying and not biting
+	return super.ready_to_fire() and not flying and not biting and not returning
 
 
 func busy() -> bool:
@@ -57,15 +71,19 @@ func busy() -> bool:
 
 
 func rope_out() -> bool:
-	return attached or flying or biting
+	return attached or flying or biting or returning
 
 
 func rope_end() -> Vector3:
-	return line.flight_pos(clock) if flying else anchor
+	if flying:
+		return line.flight_pos(clock)
+	return _back_prev if returning else anchor
 
 
 ## Fires the hook. Never attached at once (returns false): see take_hooked.
 func try_attach(body: CollisionObject3D, input: PlayerInput) -> bool:
+	if returning:
+		_snag = true   # pressed again as the hook comes back: held, it may catch on the way
 	if not ready_to_fire():
 		return false
 	var eye := body.global_position + Vector3(0, MovementTuning.EYE_HEIGHT, 0)
@@ -103,10 +121,13 @@ func try_attach(body: CollisionObject3D, input: PlayerInput) -> bool:
 ## the body, right after update.)
 func follow_target(body: Node3D, delta: float) -> void:
 	super.follow_target(body, delta)
+	_chest = rope_origin(body)
 	if flying:
 		_fly(body as CollisionObject3D, delta)
 	elif biting:
 		_take_in_slack(body)
+	elif returning:
+		_come_back(body as CollisionObject3D)
 	if attached and (target != null or carrier != null):
 		line.anchor = anchor   # it rides on what it is hooked to
 
@@ -119,7 +140,15 @@ func take_hooked() -> bool:
 	return was
 
 
+## Lets go: the hook sets off back to the wrist (see _come_back).
 func release() -> void:
+	var out := flying or biting or attached
+	var at := anchor
+	var slack := 0.0   # in the rope as it is let go
+	if flying:
+		slack = HookLine.flight_slack(line.travel(clock))
+	elif biting:
+		slack = maxf(_rope - HookLine.reeled(clock - _bite_at) - _chest.distance_to(anchor), 0.0)
 	if flying or biting:
 		flying = false
 		biting = false
@@ -128,13 +157,28 @@ func release() -> void:
 		cooldown_left = tuning.grapple_cooldown
 	super.release()
 	_just_taut = false
-	line.let_go(clock)
+	if not out:
+		return
+	line.t_stop = minf(line.t_stop, clock)
+	_back_from = line.back_from(at)
+	var dist := _back_from.distance_to(_chest)
+	_back_time = HookLine.back_time_for(dist)
+	_back_at = clock
+	_back_prev = _back_from
+	returning = true
+	# Let go of the button: it may catch again once the button is pressed again. Let
+	# go any other way with the button still down (a jump off the rope, a slam): not
+	# until a new press (try_attach), or every jump off would hook the next thing.
+	_snag = not held
+	line.let_go(clock, _back_time, slack + HookLine.LIMP * dist)
 
 
 func reset() -> void:
 	super.reset()
 	flying = false
 	biting = false
+	returning = false
+	_snag = false
 	_just_taut = false
 	line.drop(clock)
 
@@ -174,7 +218,8 @@ func _fly(body: CollisionObject3D, delta: float) -> void:
 	if hit.is_empty():
 		if upto >= _reach - 0.001:
 			line.t_stop = line.t_launch + _reach / HookLine.SPEED
-			release()   # ran out of rope with nothing caught
+			release()   # ran out of rope with nothing caught...
+			_snag = true   # ...but held, it can still catch something on its way back
 		return
 	_bite(body, hit, caught, line.t_launch + stop / HookLine.SPEED)
 
@@ -245,3 +290,53 @@ func _take_in_slack(body: Node3D) -> void:
 	_tether_time = 0.0
 	_just_taut = true
 	line.pull_taut(clock)
+
+
+## One step of the hook's way back: straight at where the rope meets you now, from
+## where it set off, so far along as its time says (HookLine.back_share). While the
+## button is held it catches the first surface on the way.
+func _come_back(body: CollisionObject3D) -> void:
+	var s := (clock - _back_at) / _back_time
+	if s >= 1.0:
+		returning = false
+		return
+	var from := _back_prev
+	var to := _back_from.lerp(_chest, HookLine.back_share(s))
+	_back_prev = to
+	if not (held and _snag) or from.distance_squared_to(to) < 0.0001:
+		return
+	var q := PhysicsRayQueryParameters3D.create(from, to, 1, [body.get_rid()])
+	var hit := body.get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		return
+	var at: Vector3 = hit.position
+	if at.distance_to(_back_from) < 0.3 or at.distance_to(_chest) < BACK_CATCH_MIN:
+		return   # what it has just let go of, or right beside you: nothing to swing on
+	if (hit.collider as Object).get_meta("unhookable", false):
+		return
+	_catch_back(body, hit, s)
+
+
+## The hook has caught something on its way back: the rope is loose (it was limp),
+## the winch takes the slack in, and it pulls tight as after any bite. For every
+## other copy this is a new shot, whose record starts where the way back did.
+func _catch_back(body: Node3D, hit: Dictionary, s: float) -> void:
+	var slack := maxf(line.back_slack * (1.0 - HookLine.back_share(s)), BACK_SLACK_MIN)
+	var set_off_slack := line.back_slack
+	var set_off_age := line.age(_back_at)
+	returning = false
+	biting = true
+	target = null
+	carrier = null
+	anchor = hit.position
+	var on = hit.collider
+	if on is AnimatableBody3D:
+		carrier = on
+		_anchor_on_carrier = (on as Node3D).global_transform.affine_inverse() * anchor
+	shots = shots % 250 + 1
+	line = HookLine.new()   # (the shot it came back from stays as it was, for whoever still holds it)
+	line.launch_back(shots, _back_at, _back_from, _back_time, set_off_slack, set_off_age)
+	_bite_at = clock
+	_rope = _chest.distance_to(anchor) + slack
+	line.bite(clock, anchor, _rope)
+	_take_in_slack(body)
