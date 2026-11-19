@@ -55,7 +55,7 @@ func _init() -> void:
 		_check(_exists(sound), "%s has variants" % sound)
 	for sound in ["jump", "land", "land_hard", "flip", "glide", "dive", "roll", "slide", "belly_slide", "wall_run",
 			"wall_jump", "vault", "ledge_climb", "crouch", "stand", "grapple_fire", "grapple_attach",
-			"grapple_release", "grapple_miss", "dry_click", "hitmarker", "hitmarker_head", "kill", "kill_head",
+			"grapple_release", "grapple_miss", "grapple_taut", "dry_click", "hitmarker", "hitmarker_head", "kill", "kill_head",
 			"hurt", "hurt_head", "death", "respawn", "ui_hover", "ui_click", "ui_confirm", "ui_back",
 			"ui_toggle", "ui_tick", "ui_select", "match_start", "match_end"]:
 		_check(_exists(sound), "%s exists" % sound)

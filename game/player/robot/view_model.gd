@@ -245,12 +245,12 @@ func update(delta: float) -> void:
 			_raise_t = -1.0
 
 	# --- The left arm points its launcher at the grapple anchor
-	_grapple_w = move_toward(_grapple_w, 1.0 if motor.grapple.attached else 0.0, delta * 10.0)
+	_grapple_w = move_toward(_grapple_w, 1.0 if motor.grapple.rope_out() else 0.0, delta * 10.0)
 	if _grapple_w > 0.0:
 		var up_l: int = rig.bones["upper_arm_l"]
 		var shoulder := model.global_transform * (rig.rest_pos[rig.bones["hips"]] + rig.rest_pos[rig.bones["spine"]] \
 			+ rig.rest_pos[rig.bones["chest"]] + rig.rest_pos[up_l])
-		var dir := model.global_transform.basis.inverse() * (motor.grapple.anchor - shoulder).normalized()
+		var dir := model.global_transform.basis.inverse() * (motor.grapple.rope_end() - shoulder).normalized()
 		# Keep the arm in view: mostly forward, a little toward where the rope goes.
 		dir = (Vector3(-0.25, -0.1, -1.0).normalized() * 1.2 + dir).normalized()
 		_pose.rot[up_l] = _pose.rot[up_l].slerp(Quaternion(Vector3.DOWN, dir), _grapple_w)

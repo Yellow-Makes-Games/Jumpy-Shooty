@@ -57,6 +57,7 @@ var _next := 0
 var _killed := false
 var _rope: MeshInstance3D
 var _hook: MeshInstance3D
+var _hook_rope: HookRope     # the killer's Grappling Hook 2 rope (made when the clip first has one)
 var _seen := {}              # killer: swing/kick counters last seen (see _watch)
 var _akimbo_shots := 0
 var _was_reloading := false
@@ -75,6 +76,7 @@ class Ghost:
 	var weapon := "?"
 	var rope: MeshInstance3D
 	var hook: MeshInstance3D
+	var hook_rope: HookRope   # Grappling Hook 2's rope (made when the clip first has one)
 	var seen := {}
 	var akimbo_shots := 0
 
@@ -227,7 +229,10 @@ func _play_killer(delta: float) -> void:
 	_watch(int(f[5]), weapon, _seen, null)
 	if _view:
 		_view.update(delta)
-	_draw_rope(_rope, _hook, bool(f[6]) and p.alive, _view.marker("grapple") if _view else camera.global_position, f[7])
+	var hand := _view.marker("grapple") if _view else camera.global_position
+	var hook2 = _hook2(f) if p.alive else null
+	_draw_rope(_rope, _hook, bool(f[6]) and p.alive and hook2 == null, hand, f[7])
+	_hook_rope = _draw_hook2(_hook_rope, self, hand, hook2)
 
 
 ## Leaning away from a wall while running along it, as the killer's camera did.
@@ -324,7 +329,9 @@ func _play_ghost(id: int, delta: float) -> void:
 	a.alive = bool(f[8])
 	_watch(a.flags, g.weapon, g.seen, g)
 	g.animator.update(delta, a, g.visual.global_transform)
-	_draw_rope(g.rope, g.hook, a.grapple_on and a.alive and g.root.visible, g.robot.marker("grapple"), a.grapple_anchor)
+	var hook2 = _hook2(f) if a.alive and g.root.visible else null
+	_draw_rope(g.rope, g.hook, a.grapple_on and a.alive and g.root.visible and hook2 == null, g.robot.marker("grapple"), a.grapple_anchor)
+	g.hook_rope = _draw_hook2(g.hook_rope, g.root, g.robot.marker("grapple"), hook2)
 
 
 func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
@@ -548,6 +555,27 @@ func _make_rope() -> Array:
 	hook.visible = false
 	add_child(hook)
 	return [rope, hook]
+
+
+## Grappling Hook 2's rope in frame `f`, as it was drawn in the match (see
+## Player.shown_state): [hook, slack, seconds since the shot, seconds since it pulled
+## tight], or null for none.
+static func _hook2(f: Array):
+	return f[12] if f.size() > 12 else null
+
+
+## Draws that rope (HookRope, the same code the match drew it with), making `rope`
+## under `holder` the first time one is needed. Returns the rope.
+func _draw_hook2(rope: HookRope, holder: Node, hand: Vector3, look) -> HookRope:
+	if look == null:
+		if rope:
+			rope.hide_line()
+		return rope
+	if rope == null:
+		rope = HookRope.new()
+		holder.add_child(rope)
+	rope.show_line(hand, look[0], float(look[1]), float(look[2]), float(look[3]))
+	return rope
 
 
 func _draw_rope(rope: MeshInstance3D, hook: MeshInstance3D, on: bool, from: Vector3, anchor: Vector3) -> void:

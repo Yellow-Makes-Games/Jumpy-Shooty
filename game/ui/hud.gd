@@ -61,7 +61,7 @@ class View:
 	var melee := false          ## a sword, hammer or dagger: no ammo, a swing that recharges
 	var swing := 1.0            ## melee: 0..1, ready to swing again at 1
 
-enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON }
+enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON, GRAPPLE_FLYING }
 
 var view := View.new()
 var style := "arcs"
@@ -258,10 +258,12 @@ func update_local(p: Player) -> void:
 		portals_up = [Net.arena.portals.get_portal(p.peer_id, 0) != null, Net.arena.portals.get_portal(p.peer_id, 1) != null]
 	if p.jetpack:
 		jet_fuel = p.jetpack.fuel
-	if mobility != Mobility.GRAPPLE:
+	if not Mobility.is_grapple(mobility):
 		grapple = GRAPPLE_NO_TARGET
 	elif g.attached:
 		grapple = GRAPPLE_ON
+	elif g.busy():
+		grapple = GRAPPLE_FLYING   # Grappling Hook 2: the hook is on its way, or the slack is coming in
 	elif g.cooldown_left > 0.0:
 		grapple = GRAPPLE_COOLING
 		grapple_cooldown = g.cooldown_left / p.motor.tuning.grapple_cooldown
@@ -270,7 +272,7 @@ func update_local(p: Player) -> void:
 	else:
 		grapple = GRAPPLE_NO_TARGET
 	var mt := p.motor.tuning
-	v.moves = [[mobility.to_upper(), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON]]
+	v.moves = [[Mobility.hud_label(mobility), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON or grapple == GRAPPLE_FLYING]]
 	if mt.ctrl_moves:   # Variant B: Ctrl dives forward and slides backward
 		v.moves.append(["DIVE", "CTRL", p.motor.dive_readiness(), false])
 	else:
@@ -762,6 +764,10 @@ func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(HudStyle.CYAN, 0.9), 2.0)
 		GRAPPLE_ON:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(HudStyle.ORANGE, 0.95), 3.0)
+		GRAPPLE_FLYING:   # a broken ring, turning: the hook is out but not pulling yet
+			var spin := fmod(Time.get_ticks_msec() * 0.5, 360.0)
+			for k in 4:
+				HudStyle.arc(ci, c, ring, spin + k * 90.0, spin + k * 90.0 + 52.0, Color(HudStyle.ORANGE, 0.8), 2.0)
 		GRAPPLE_COOLING:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(1, 1, 1, 0.15), 2.0)
 			HudStyle.arc(ci, c, ring, -90, -90 + 360.0 * (1.0 - grapple_cooldown), Color(1, 1, 1, 0.6), 2.0)

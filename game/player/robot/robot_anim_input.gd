@@ -10,8 +10,11 @@ var velocity := Vector3.ZERO     ## world space
 var yaw := 0.0                   ## facing, radians
 var pitch := 0.0                 ## aim up/down, radians
 var flags := 0                   ## see make_flags()
-var grapple_on := false
+var grapple_on := false          ## rope out: the left arm points along it
 var grapple_anchor := Vector3.ZERO
+## The rope is Grappling Hook 2's (see HookShot): its hook flies out before it catches,
+## so its sounds go by what the hook is doing (PlayerSounds.hook_stage), not by grapple_on.
+var hook2 := false
 var alive := true
 
 const FLIP_FRONT := 0
