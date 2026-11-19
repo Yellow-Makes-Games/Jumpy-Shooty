@@ -111,8 +111,7 @@ func _initialize() -> void:
 			_steer = Vector3(0, 0, -1)
 			_shots = PackedFloat32Array([0.55, 0.7, 0.85])
 			_end = 1.0
-	var custom := _character.begins_with("custom:")
-	_robot = RobotModel.new().setup(_character if custom else Characters.body(_character), _color, false, _weapon)
+	_robot = RobotModel.new().build(_character, _color, false, _weapon)   # (a robot's id, or a Character Creator id: "custom:l=frog|t=human|back=cape")
 	root.add_child(_robot)
 	_animator = RobotAnimator.new(_robot)
 	_rope = HookRope.new()
