@@ -139,6 +139,9 @@ const SURFACES := {
 	# each, a rune in a ring glowing on some.
 	"arcane_plates": {"style": 21, "wall_cell": Vector2(2.2, 1.7), "floor_cell": Vector2(1.6, 1.6), "seam": 0.018, "seam_shade": 0.64, "vary": 0.04,
 		"accent_a": Color(0.8, 0.6, 0.26), "detail": 0.14, "lit": Color(0.4, 0.9, 1.0), "lit_power": 1.5},
+	# A haunted house's wallpaper: upright stripes with a damask lozenge, stained and
+	# peeling; on a ceiling, stained plaster.
+	"wallpaper": {"style": 22, "wall_cell": Vector2(0.36, 1.0), "floor_cell": Vector2(3, 3), "seam_shade": 0.9, "vary": 0.07},
 	"ring_flags_stars": {"style": 20, "wall_cell": Vector2(1.1, 0.5), "floor_cell": Vector2(0.9, 0.6), "seam": 0.012, "seam_shade": 0.74, "vary": 0.06,
 		"inlay": 5.0, "accent_a": Color(0.85, 0.72, 0.4), "detail": 0.2, "lit": Color(1.0, 0.92, 0.7), "lit_power": 1.5},
 }

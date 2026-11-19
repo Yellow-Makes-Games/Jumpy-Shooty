@@ -15,7 +15,7 @@ extends SceneTree
 ## can still flicker far away on the Compatibility renderer).
 
 ## The maps this test holds to it.
-const MAPS := ["castle", "castle_v2", "rail_yard", "lost_temple", "neon_arcade", "sky_island"]
+const MAPS := ["castle", "castle_v2", "rail_yard", "lost_temple", "neon_arcade", "sky_island", "haunted_house"]
 
 const SAME_PLANE := 0.004    ## metres: closer than this is the same plane
 const MIN_AREA := 0.0015     ## m2: a smaller overlap than this is not seen

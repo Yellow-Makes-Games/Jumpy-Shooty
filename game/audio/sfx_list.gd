@@ -84,6 +84,8 @@ const VOLUME := {
 	# The Construction Site's crane (MapLever plays the lever's clack in the cab; CraneEvent
 	# plays the rest from the top of the mast, heard all over the site: the motor loops).
 	"lever_pull": -8.0, "crane_start": -9.0, "crane_motor": -13.0, "crane_stop": -8.0,
+	# The Haunted House (HauntEvent: the warning, the shift and the house settling; MapGhost: a moan).
+	"haunt_warn": -10.0, "haunt_shift": -12.0, "haunt_settle": -11.0, "ghost_moan": -12.0,
 	# Empyrean Tower's Portal Surge (PortalSurgeEvent plays the swell as the ring gates
 	# open and the whoosh as they collapse, all over the map but under the fighting;
 	# each open MapRingGate hums by itself, placed in the world, and that one loops).
