@@ -11,7 +11,8 @@ const GOLD := Color(1.0, 0.76, 0.22)   ## the Golden Gun
 ## Left out of the body you see in first person: the camera sits inside the head,
 ## and the arms and gun are drawn by ViewModel.
 const VIEW_HIDDEN := ["head", "upper_arm_l", "forearm_l", "hand_l", "grapple", "upper_arm_r",
-	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "pistol_l", "pistol_l_slide", "pistol_l_mag",
+	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent",
 	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
 	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 

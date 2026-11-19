@@ -26,6 +26,9 @@ var _reloading := false
 var _reload_t := -1.0
 var _reload_next := 0
 var _fire_t := -1.0
+var _end_t := -1.0           # into the flourish that ends a shell-at-a-time reload (SfxList.RELOAD_END_STEPS)
+var _end_next := 0
+var _since_shot := 99.0
 var _fire_next := 0
 var _grapple_pending := -1.0   # attach clack, a moment after the hook flies
 var _quiet := 0.0              # seconds of silence left (just spawned: no landing thud)
@@ -54,6 +57,8 @@ func _play_gun(sound: String) -> void:
 
 ## This player's gun just fired.
 func fired() -> void:
+	_since_shot = 0.0
+	_end_t = -1.0
 	if SfxList.FIRE_STEPS.has(WeaponData.look_of(weapon_id)):
 		_fire_t = 0.0
 		_fire_next = 0
@@ -244,7 +249,19 @@ func _gun(a: RobotAnimInput, delta: float) -> void:
 		_reload_next = 0
 		_fire_t = -1.0   # the reload takes over from the pump or bolt
 	elif not reloading:
+		if _reloading and _since_shot > 0.2 and SfxList.RELOAD_END_STEPS.has(WeaponData.look_of(weapon_id)):
+			_end_t = 0.0   # full, and not stopped by a shot: the gun is racked with a flourish
+			_end_next = 0
 		_reload_t = -1.0
+	_since_shot += delta
+	if _end_t >= 0.0:
+		var ends: Array = SfxList.RELOAD_END_STEPS.get(WeaponData.look_of(weapon_id), [])
+		_end_t += delta
+		while _end_next < ends.size() and _end_t >= ends[_end_next][0]:
+			_play_gun(ends[_end_next][1])
+			_end_next += 1
+		if _end_next >= ends.size() or reloading:
+			_end_t = -1.0
 	_reloading = reloading
 	if _reload_t >= 0.0:
 		var steps: Array = SfxList.RELOAD_STEPS.get(WeaponData.look_of(weapon_id), [])

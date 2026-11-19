@@ -1573,6 +1573,7 @@ func _animate(delta: float) -> void:
 	if first_person > 0.0 and motor and motor.auto_tucked():
 		_anim.crouched = false   # Variant B: your own legs do not pull up for the automatic tuck in first person
 	animator.first_person = first_person > 0.0
+	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
 	animator.update(delta, _anim, visual.global_transform)
 	if rig:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)

@@ -28,6 +28,7 @@ const SPRINT_SPEED := 11.5
 const CROUCH_SPEED := 4.0
 const WALL_SPEED := 10.5
 const FADE_DEFAULT := 0.12
+const RELOAD_CUT_FADE := 0.12   ## seconds a reload that is cut short takes to ease back to the hold
 const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
 	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06, "glide": 0.14}
@@ -96,6 +97,15 @@ var _since_fire := 99.0
 var _reload_t := -1.0
 var _reload_w := 0.0
 var _was_reloading := false
+var _reload_from := 0.0   # a reload cut short: where in the clip it stopped...
+var _reload_out := 0.0    # ...and how much of that pose is still held (it eases back to the hold)
+var _reload_out_clip := ""   # ...and which clip it was
+var _end_t := -1.0        # a shell-at-a-time reload's last flourish ("reload_end"), once the gun is full
+var _reload_chest := Quaternion.IDENTITY   # the reload clip's chest and spine as it starts: what it
+var _reload_spine := Quaternion.IDENTITY   # turns them by from there is added to the body's own
+var _fx_t := -1.0         # how far into the reload the gun's effects were last frame (ReloadFx)
+## Where a reload's spent cell is put (the arena). Null: none is thrown.
+var fx_parent: Node = null
 var _respawn_t := -1.0
 var _kick_t := -1.0
 var _kick_right := false
@@ -143,8 +153,8 @@ func _init(robot: RobotModel) -> void:
 	_tmp = rig.new_pose()
 	_aim = rig.new_pose()
 	_b = rig.bones
-	_arm_r = _bones(["upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag"] + Hands.RIGHT)
-	_arm_l = _bones(["upper_arm_l", "forearm_l", "hand_l", "pistol_l", "pistol_l_slide", "pistol_l_mag"] + Hands.LEFT)
+	_arm_r = _bones(["upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent"] + Hands.RIGHT)
+	_arm_l = _bones(["upper_arm_l", "forearm_l", "hand_l", "pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent"] + Hands.LEFT)
 	_legs_core = _bones(["hips", "spine", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r", "foot_r"])
 	for i in rig.bone_names.size():
 		if not (i in _arm_r or i in _arm_l):
@@ -165,9 +175,30 @@ func set_weapon(id: String) -> void:
 		_swing.set_weapon(weapon)
 	if rig.has_clip(clip("aim")):
 		rig.sample(_aim, clip("aim"), 0.0)
+	if rig.has_clip(clip("reload")):
+		rig.sample(_tmp, clip("reload"), 0.0)
+		_reload_chest = _tmp.rot[_b["chest"]].normalized()
+		_reload_spine = _tmp.rot[_b["spine"]].normalized()
+	_reload_t = -1.0
+	_reload_out = 0.0
+	_end_t = -1.0
 	_stance = _aim.rot[_b["chest"]].normalized()
 	if rig.has_clip("carry_" + weapon):
 		rig.sample(_carry_pose, "carry_" + weapon, 0.0)
+
+
+## Lays the reload clip at time t over the arms, `w` of it, and adds what it turns the
+## chest and spine by to the body's own (the shoulders go with a reload's flourish).
+func _lay_reload(rclip: String, t: float, w: float) -> void:
+	rig.sample(_tmp, rclip, t)
+	_pose.blend_bones(_tmp, w, _arm_r)
+	_pose.blend_bones(_tmp, w, _arm_l)
+	if first_person or w <= 0.0:
+		return
+	for part in [["chest", _reload_chest], ["spine", _reload_spine]]:
+		var b: int = _b[part[0]]
+		var by: Quaternion = (part[1] as Quaternion).inverse() * _tmp.rot[b]
+		_pose.rot[b] = _pose.rot[b] * Quaternion.IDENTITY.slerp(by.normalized(), w)
 
 
 ## The gun's own version of a clip if it has one ("reload" -> "reload_rifle"), otherwise the clip.
@@ -191,6 +222,11 @@ func fire(left: bool = false) -> void:
 	else:
 		_recoil = _kick
 	_since_fire = 0.0
+	if _end_t >= 0.0:   # a shot cuts the last flourish short: it eases back to the hold
+		_reload_from = _end_t
+		_reload_out_clip = clip("reload_end")
+		_reload_out = 1.0
+		_end_t = -1.0
 	if rig.has_clip("fire_" + weapon):
 		_fire_t = 0.0
 
@@ -367,7 +403,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var want: Array = AIM_WEIGHTS.get(key, [0.0, 0.0, 0.0])
 	var want_r: float = want[0]
 	var want_l: float = want[1] if not _melee else 0.0   # a melee weapon is held in one hand
-	var sprinting := key == "loco" and speed > RUN_SPEED + 1.0 and _since_fire > 0.7 and _reload_t < 0.0
+	var sprinting := key == "loco" and speed > RUN_SPEED + 1.0 and _since_fire > 0.7 and _reload_t < 0.0 and _end_t < 0.0
 	if sprinting:
 		want_r = 0.0   # sprinting: arms pump (a long gun is carried across the chest), until you shoot
 		want_l = 0.0
@@ -396,15 +432,34 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		if _loop_reload and reloading and _reload_t >= rlen:
 			_reload_t = fmod(_reload_t, rlen)   # a shell at a time: round and round until full
 		if _reload_t >= rlen or not inp.alive or (not reloading and (_loop_reload or _reload_t < rlen - 0.3)):
+			if _loop_reload and not reloading and inp.alive and _since_fire > 0.2 and rig.has_clip(clip("reload_end")):
+				_end_t = 0.0   # full, and not stopped by a shot: the last flourish
+			elif _reload_t < rlen and inp.alive:
+				# Cut short (the gun was swapped, or fired between shells): the arms ease
+				# back to the hold from where they were, not in one frame.
+				_reload_from = _reload_t
+				_reload_out_clip = rclip
+				_reload_out = 1.0
 			_reload_t = -1.0
 		else:
 			_reload_w = 1.0 if _loop_reload else clampf(minf(_reload_t / 0.1, (rlen - _reload_t) / 0.15), 0.0, 1.0)
 			if want[2] <= 0.0:
 				_reload_w = 0.0   # mid-flip, mid-roll: the hands are busy
-			rig.sample(_tmp, rclip, _reload_t)
-			_pose.blend_bones(_tmp, _reload_w, _arm_r)
-			_pose.blend_bones(_tmp, _reload_w, _arm_l)
+			_lay_reload(rclip, _reload_t, _reload_w)
 			_reload_t += delta
+	if _end_t >= 0.0:
+		var eclip := clip("reload_end")
+		var elen := rig.length(eclip)
+		if _end_t >= elen or not inp.alive or reloading or want[2] <= 0.0:
+			_end_t = -1.0
+		else:
+			_reload_w = clampf((elen - _end_t) / 0.12, 0.0, 1.0)
+			_lay_reload(eclip, _end_t, _reload_w)
+			_end_t += delta
+	if _reload_t < 0.0 and _end_t < 0.0 and _reload_out > 0.0:
+		_reload_out = move_toward(_reload_out, 0.0, delta / RELOAD_CUT_FADE) if rig.has_clip(_reload_out_clip) and want[2] > 0.0 else 0.0
+		if _reload_out > 0.0:
+			_lay_reload(_reload_out_clip, _reload_from, smoothstep(0.0, 1.0, _reload_out))
 
 	# The pump or the bolt, after a shot (the left hand only where it is on the gun)
 	if _fire_t >= 0.0:
@@ -555,8 +610,13 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	model.set_power(_power)
 
 	if _akimbo:
-		Hands.set_hand(_pose, rig, "gun", 1.0, true)   # the left hand has a gun of its own, whatever the arm is doing
+		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
 	_pose.apply(model.skeleton)
+	# The reload's own effects: the gun's glow, the spent cell thrown clear. (In first
+	# person the arms you see are ViewModel's, and it throws the cell.)
+	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
+	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
+	_fx_t = fx_t
 
 
 ## Your own body in first person: you see your legs and torso (not the head or the

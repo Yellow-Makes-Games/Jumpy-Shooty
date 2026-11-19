@@ -612,6 +612,17 @@ def handling(name, rng):
         "bolt_back": lambda: mix(metal_slide(rng, 0.13, 1700, 1.5), (metal_clack(rng, 0.9, 1.0, 0.6) * 0.8, 0.12)),
         "bolt_fwd": lambda: mix(metal_slide(rng, 0.11, 2300, 0.7), (metal_clack(rng, 0.78, 1.3, 1.2), 0.1)),
         "bolt_down": lambda: metal_clack(rng, 1.0, 0.9, 0.8),
+        # The reloads' flourishes (the clips in tools/robot: animations.py, sidearm_anims.py, long_reloads.py)
+        "gun_spin": lambda: mix(whoosh(rng, 0.3, 400, 2200) * 0.9, (whoosh(rng, 0.16, 900, 3000) * 0.45, 0.1)),   # a gun spun round the hand
+        "gun_toss": lambda: whoosh(rng, 0.22, 700, 2600, at=0.35) * 0.7,                                          # a cell or shell tossed
+        "cell_clink": lambda: mix(metal_clack(rng, rng.uniform(1.4, 1.7), 0.5, 0.15),                             # a spent cell hits the floor
+                                  (metal_clack(rng, rng.uniform(1.8, 2.1), 0.35, 0.1) * 0.5, rng.uniform(0.04, 0.07))),
+        "vent_hiss": lambda: mix(hp(noise(rng, 0.7), 3000) * env(0.7, 0.2, 0.012) * 0.6,                          # vents blow off steam
+                                 bp(noise(rng, 0.7), 1300, 1.2) * env(0.7, 0.12, 0.02) * 0.35),
+        "charge_hum": lambda: mix(lp(glide(0.75, 80, 300, "saw"), 1200) * np.linspace(0.0, 1.0, n(0.75)) ** 1.5 * 0.5,   # a core charging up
+                                  glide(0.75, 300, 1500) * np.linspace(0.0, 1.0, n(0.75)) ** 2.0 * 0.12),
+        "barrel_spin": lambda: mix(lp(glide(1.4, 70, 380, "saw"), 1500) * bell_env(1.4, 0.45, 1.2) * 0.45,        # a minigun's barrels run up and down
+                                   whoosh(rng, 1.4, 300, 1800, at=0.45) * 0.5),
     }
     return finish(s[name]())
 
@@ -1638,6 +1649,10 @@ def recipes():
                            "box_out", "box_in", "cell_out", "cell_in", "rocket_in", "drum_turn", "grenade_in",
                            "rail_vent"]):
         r[h] = lambda h=h, i=i: handling(h, np.random.default_rng(4600 + i))
+    for i, h in enumerate(["gun_spin", "gun_toss", "vent_hiss", "charge_hum", "barrel_spin"]):
+        r[h] = lambda h=h, i=i: handling(h, np.random.default_rng(4700 + i))
+    for i in range(3):
+        r["cell_clink_%d" % (i + 1)] = lambda i=i: handling("cell_clink", np.random.default_rng(4720 + i))
     for i in range(4):
         r["impact_wall_%d" % (i + 1)] = lambda i=i: impact_wall(i)
     for i in range(2):

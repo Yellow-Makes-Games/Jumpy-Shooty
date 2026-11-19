@@ -9,7 +9,8 @@ extends SceneTree
 ##   "hand": "open" (a pose in rig.HANDS: both hands held that way, arms out in front;
 ##            left out: the robot stands holding its weapon as it does in the game),
 ##   "bone": "hand_r" (what to look at), "aim": [x,y,z] (moved by this, in the robot's own space),
-##   "from": [x,y,z] (the camera, from that point), "ortho": 0.3 (metres of height in the picture)}]}
+##   "from": [x,y,z] (the camera, from that point), "ortho": 0.3 (metres of height in the picture),
+##   "dist": 3.0 (metres from the camera to what it looks at: closer, to get in front of the body)}]}
 
 var _job := {}
 var _shot := -1
@@ -95,7 +96,7 @@ func _set_up(shot: Dictionary) -> void:
 	var bone: String = shot.get("bone", "hand_r")
 	var at: Vector3 = robot.marker(bone) + _v(shot.get("aim", [0, 0, 0]))
 	_camera.size = shot.get("ortho", 0.3)
-	_camera.look_at_from_position(at + _v(shot.get("from", [1, 0, -1])).normalized() * 3.0, at)
+	_camera.look_at_from_position(at + _v(shot.get("from", [1, 0, -1])).normalized() * float(shot.get("dist", 3.0)), at)
 
 
 func _v(a: Array) -> Vector3:

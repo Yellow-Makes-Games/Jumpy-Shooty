@@ -1438,10 +1438,36 @@ barrels, lit parts in the player's trim colour: the `glow` kind, which
 `RobotModel.set_gun_glow` can dim and brighten). Each is built round fixed points: the
 barrel line and muzzle (`rig.py`), where the hands go (`weapons.SUPPORT`, and the bolts,
 handles and magazines in `weapon_anims.py`). Keep those where they are when reshaping
-one. Each gun's vents are added with `_vent()`: they do not move yet (the reloads will
-give them a bone). To look at guns on their own: `tools/combat/gun_preview.sh OUT_DIR
+one. Each gun's vents are added with `_vent()`, on a bone of their own (`pistol_vent`) that a
+reload opens: a flap or louvres on most, the barrels themselves on a break-open gun. To
+look at guns on their own: `tools/combat/gun_preview.sh OUT_DIR
 --guns=pistol,rifle`; for before/after sheets of every gun by family:
 `python3 tools/combat/gun_sheet.py OUT_DIR BEFORE.glb`.
+
+**Reloads** are clips like the rest (`reload_<gun>`, `fp_reload_<gun>`), each as long as
+the gun's reload time: the pistol's in `animations.py`, the other sidearms' in
+`sidearm_anims.py`, the long guns' in `long_reloads.py` (family by family: each gun's own
+flourish is described at the top of its function). A long gun is held relaxed and low,
+off to the right in first person (`weapon_anims.HOLD`, `FP_HOLD`), and each is fitted so
+the left hand reaches its fore-end with the elbow bent (`_fit`). A gun loaded a round at
+a time has a one-round clip that loops and a `reload_end_<gun>` clip (`long_reloads.ENDS`)
+that the animators play once the gun is full and the reload was not cut short by a shot:
+the gun can already fire, and firing cuts it short. A clip with a part that spins about
+its own middle is baked at 60 frames a second (`long_reloads.FPS`), or the part wobbles. A pistol is held in both hands, the left wrapped round the right
+(`animations.wrap_l`); in first person only the arms are drawn, so the clip puts the
+shoulders where both hands can reach a gun held off to the right (`FP_BODY`). A reload
+is written as the right arm's poses, the left hand's (places on the gun are worked out
+from where the gun is: `View.fist_on`, `View.palm_on`), the fingers (`rig.HANDS`) and
+the gun's parts, including whatever the left hand carries to it. What a clip cannot do
+is the game's: `game/combat/reload_fx.gd` throws the spent cell or casings (`SpentCell`:
+looks only, each copy of the game throws its own), dims and surges the gun's lit parts,
+hides the gun's own cell while the new one is out of sight, and puffs steam and smoke
+(`ReloadPuff`). Its table is timed to each clip's keys, and so are the sounds
+(`RELOAD_STEPS` and `RELOAD_END_STEPS` in `game/audio/sfx_list.gd`): change a clip and
+change both. To check that no hand is asked to reach further than its arm, solve the clip
+and compare each wrist with where its pose wants it (every reload was checked this way). To film one
+without opening the game: `tools/combat/reload_preview.sh revolver OUT_DIR --speed=0.5
+--close` (add `--cut=0.5` to see it cut short half way).
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted
