@@ -28,9 +28,34 @@ var carrier_frame := Transform3D.IDENTITY
 var _rides := false   # (a carrier that has been freed reads as null: this remembers there was one)
 var _look: Node3D   # everything drawn: scaled as it opens (the portal's own frame stays unscaled)
 var _disc: MeshInstance3D
-var _disc_mat: StandardMaterial3D
+var _disc_mat: ShaderMaterial
+var _glow: MeshInstance3D          # the band of energy round the edge (portal_rim.gdshader)
+var _glow_mat: ShaderMaterial
+var _collar: MeshInstance3D        # from the face back to the surface it stands on (see set_seat)
+var _light: OmniLight3D
+var _motes: CPUParticles3D         # sparks drifting in toward it while it is open
 var _t := 0.0
 var _open := 0.0
+
+## Opening and closing. A portal put up grows out of a point with a spring to it while
+## a ring of light runs off across the surface and sparks fly, and its view clears from
+## the middle; one that closes swells for a moment and snaps shut. Closing is looks
+## only: Portals has already let go of it (nothing goes through a closing portal), and
+## it frees itself when the animation is over.
+const OPEN_TIME := 0.34
+const CLOSE_TIME := 0.26
+const PULSE_TIME := 0.4    ## how long the flare of someone going through lasts
+const RIPPLE_TIME := 0.6   ## ...and the ripple across its face
+var closing := false
+var _age := 0.0            # seconds since it was put up
+var _shut := 0.0           # seconds into closing
+var _pulse := 0.0          # 1 as someone goes through, easing to 0
+var _ripple := 99.0        # seconds since someone went through
+
+## How it sits on what is behind it (see PortalFit.seat): how deep the collar goes, and
+## how far behind the middle of its face the surface is (INF: nothing there).
+var seat_depth := 0.02
+var seat_middle := 0.02
 
 ## Seeing through it (portal gun portals only; see update_view and Portals.update_views):
 ## a camera at the other portal renders what is beyond it into _view, and _window draws
@@ -85,7 +110,10 @@ func _build(rim: Color) -> void:
 	var col: Color = COLORS[slot % 2]
 	_look = Node3D.new()
 	add_child(_look)
-	# The glowing face: a flat cylinder squashed into an oval, lying in the surface.
+	# The oval's own frame for flat meshes that lie in their XZ plane (a cylinder's cap,
+	# a plane): x along the portal's x, their up out of the surface.
+	var flat := Basis(Vector3(HALF_WIDTH, 0, 0), Vector3(0, 0, 1), Vector3(0, -HALF_HEIGHT, 0))
+	# The face while there is nothing to see through it: swirling light in its colour.
 	_disc = MeshInstance3D.new()
 	var disc := CylinderMesh.new()
 	disc.top_radius = 1.0
@@ -93,16 +121,14 @@ func _build(rim: Color) -> void:
 	disc.height = 0.02
 	disc.radial_segments = 28
 	disc.rings = 1
-	_disc_mat = StandardMaterial3D.new()
-	_disc_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_disc_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_disc_mat.albedo_color = Color(col, 0.72)
-	_disc_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	disc.material = _disc_mat
 	_disc.mesh = disc
+	_disc_mat = ShaderMaterial.new()
+	_disc_mat.shader = WINDOW_SHADER
+	_disc_mat.set_shader_parameter("tint", col)
+	_disc_mat.set_shader_parameter("clear", 0.0)
+	_disc.material_override = _disc_mat
 	_disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The cylinder's axis is its Y: turn it to point out of the surface.
-	_disc.transform = Transform3D(Basis(Vector3(HALF_WIDTH, 0, 0), Vector3(0, 0, 1), Vector3(0, -HALF_HEIGHT, 0)), Vector3.ZERO)
+	_disc.transform = Transform3D(flat, Vector3.ZERO)
 	_look.add_child(_disc)
 	# The rim: a ring of the portal's colour, edged in the owner's.
 	for layer in [[1.0, 1.12, col.lightened(0.35)], [1.12, 1.2, rim]]:
@@ -120,12 +146,63 @@ func _build(rim: Color) -> void:
 		ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ring.transform = Transform3D(Basis(Vector3(HALF_WIDTH, 0, 0), Vector3(0, 0, 0.25), Vector3(0, -HALF_HEIGHT, 0)), Vector3(0, 0, 0.01))
 		_look.add_child(ring)
-	var light := OmniLight3D.new()
-	light.light_color = col
-	light.light_energy = 1.2
-	light.omni_range = 4.0
-	light.position = Vector3(0, 0, 0.6)
-	_look.add_child(light)
+	# The collar: from the rim back to the surface, so a portal standing proud of an
+	# uneven wall (on a container's ribs, on a sign) is not seen floating off it.
+	_collar = MeshInstance3D.new()
+	var tube := CylinderMesh.new()
+	tube.top_radius = 1.0
+	tube.bottom_radius = 1.0
+	tube.height = 1.0
+	tube.radial_segments = 32
+	tube.rings = 1
+	tube.cap_top = false
+	tube.cap_bottom = false
+	var dark := StandardMaterial3D.new()
+	dark.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dark.albedo_color = col.darkened(0.55)
+	dark.cull_mode = BaseMaterial3D.CULL_DISABLED
+	tube.material = dark
+	_collar.mesh = tube
+	_collar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_look.add_child(_collar)
+	set_seat(seat_depth, seat_middle)
+	# The band of energy round the edge: a glow inside the rim, licks of light outside it.
+	_glow = MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(2.0, 2.0) * RIM_REACH
+	_glow.mesh = plane
+	_glow_mat = ShaderMaterial.new()
+	_glow_mat.shader = RIM_SHADER
+	_glow_mat.set_shader_parameter("tint", col)
+	_glow_mat.render_priority = 1
+	_glow.material_override = _glow_mat
+	_glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_glow.transform = Transform3D(flat, Vector3(0, 0, 0.014))
+	_look.add_child(_glow)
+	_light = OmniLight3D.new()
+	_light.light_color = col
+	_light.light_energy = LIGHT
+	_light.omni_range = 4.0
+	_light.position = Vector3(0, 0, 0.6)
+	_look.add_child(_light)
+	# Sparks that drift in toward the middle while it is open.
+	_motes = _sparks(col, 14, 1.1)
+	_motes.name = "Motes"
+	_motes.local_coords = true
+	_motes.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	_motes.emission_ring_axis = Vector3(0, 0, 1)
+	_motes.emission_ring_radius = 1.25
+	_motes.emission_ring_inner_radius = 1.05
+	_motes.emission_ring_height = 0.05
+	_motes.direction = Vector3(0, 0, 1)
+	_motes.spread = 30.0
+	_motes.initial_velocity_min = 0.1
+	_motes.initial_velocity_max = 0.5
+	_motes.radial_accel_min = -1.6
+	_motes.radial_accel_max = -0.8
+	_motes.scale = Vector3(HALF_WIDTH, HALF_HEIGHT, 1.0)
+	_motes.position = Vector3(0, 0, 0.05)
+	add_child(_motes)
 	# The window you see through (hidden until Portals turns the view on).
 	_window_root = Node3D.new()
 	add_child(_window_root)
@@ -146,21 +223,236 @@ func _build(rim: Color) -> void:
 	_window.transform = _disc.transform
 	_window.visible = false
 	_window_root.add_child(_window)
+	_animate()
+
+
+func _ready() -> void:
+	if _look:
+		_opening_fx(COLORS[slot % 2])
+		_motes.emitting = true
+
+
+const RIM_SHADER := preload("res://game/arena/portal_rim.gdshader")
+const RIM_REACH := 1.6   ## the band of energy is drawn out to this many times the oval
+const LIGHT := 1.2       ## how bright its light is, open and at rest
+
+
+## How it sits on the surface (PortalFit.seat): the collar reaches back `depth` metres
+## from the face; the surface is `middle` behind the middle of it.
+func set_seat(depth: float, middle: float) -> void:
+	seat_depth = maxf(depth, 0.02)
+	seat_middle = middle
+	if _collar:
+		_collar.transform = Transform3D(
+			Basis(Vector3(HALF_WIDTH * 1.1, 0, 0), Vector3(0, 0, seat_depth), Vector3(0, -HALF_HEIGHT * 1.1, 0)),
+			Vector3(0, 0, -seat_depth * 0.5))
+
+
+## Starts closing: it swells, snaps shut with a flash and frees itself. It is no longer
+## anyone's portal (Portals lets go of it before calling this).
+func close() -> void:
+	if closing:
+		return
+	closing = true
+	_shut = 0.0
+	set_live(false)
+	name = "ClosingPortal"
+	if _motes:
+		_motes.emitting = false
+	if _look == null:
+		queue_free()   # (a map's ring gate has nothing to animate)
+		return
+	# (Sound looked up, not named: a test run as a script has no autoloads.)
+	var sound := get_node_or_null("/root/Sound") if is_inside_tree() else null
+	if sound:
+		sound.play_at("portal_close", frame.origin + normal * 0.3, "move", 0.0, 0.06)
+
+
+## Someone (or something) just went through: the rim flares, a ripple crosses the
+## face and sparks fly. `out`: they came out of this one (the sparks go with them).
+func pulse(out: bool, speed: float = 8.0) -> void:
+	if _look == null or closing:
+		return
+	_pulse = 1.0
+	_ripple = 0.0
+	var fx := _sparks(COLORS[slot % 2], 22 if out else 14, 0.45)
+	fx.one_shot = true
+	fx.explosiveness = 0.95
+	fx.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	fx.emission_ring_axis = Vector3(0, 0, 1)
+	fx.emission_ring_radius = 0.9
+	fx.emission_ring_inner_radius = 0.2
+	fx.emission_ring_height = 0.05
+	fx.direction = Vector3(0, 0, 1)
+	fx.spread = 28.0 if out else 80.0
+	var v := clampf(speed, 4.0, 30.0)
+	fx.initial_velocity_min = (v * 0.35) if out else 0.8
+	fx.initial_velocity_max = (v * 0.8) if out else 2.4
+	fx.damping_min = 4.0
+	fx.damping_max = 8.0
+	fx.scale = Vector3(HALF_WIDTH, HALF_HEIGHT, 1.0)
+	fx.position = Vector3(0, 0, 0.08)
+	add_child(fx)
+	fx.emitting = true
+	fx.finished.connect(fx.queue_free)
+
+
+## A shot just went through: a ripple across the face and a flicker of the rim (no
+## sparks: a shotgun sends eight through at once).
+func ripple() -> void:
+	if _look == null or closing:
+		return
+	_pulse = maxf(_pulse, 0.55)
+	if _ripple > 0.12:
+		_ripple = 0.0
+
+
+## What it looks like as it opens: a ring of light running off across the surface and
+## sparks thrown out along it.
+func _opening_fx(col: Color) -> void:
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.94
+	torus.outer_radius = 1.0
+	torus.rings = 32
+	torus.ring_segments = 4
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.albedo_color = Color(col.lightened(0.4), 0.9)
+	torus.material = m
+	ring.mesh = torus
+	ring.name = "Shock"
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var small := Basis(Vector3(HALF_WIDTH, 0, 0), Vector3(0, 0, 0.2), Vector3(0, -HALF_HEIGHT, 0))
+	ring.transform = Transform3D(small.scaled(Vector3(0.2, 0.2, 1.0)), Vector3(0, 0, 0.02))
+	add_child(ring)
+	var tw := ring.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ring, "transform", Transform3D(small.scaled(Vector3(1.75, 1.75, 1.0)), Vector3(0, 0, 0.02)), 0.42) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.42).set_ease(Tween.EASE_IN)
+	tw.chain().tween_callback(ring.queue_free)
+	var fx := _sparks(col, 30, 0.5)
+	fx.name = "OpenSparks"
+	fx.one_shot = true
+	fx.explosiveness = 1.0
+	fx.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
+	fx.emission_ring_axis = Vector3(0, 0, 1)
+	fx.emission_ring_radius = 0.35
+	fx.emission_ring_inner_radius = 0.1
+	fx.emission_ring_height = 0.02
+	fx.direction = Vector3(0, 0, 1)
+	fx.spread = 82.0   # mostly along the surface
+	fx.initial_velocity_min = 2.0
+	fx.initial_velocity_max = 6.5
+	fx.damping_min = 5.0
+	fx.damping_max = 9.0
+	fx.gravity = Vector3(0, -3.0, 0)
+	fx.position = Vector3(0, 0, 0.08)
+	add_child(fx)
+	fx.emitting = true
+	fx.finished.connect(fx.queue_free)
+
+
+## A puff of small glowing sparks (CPUParticles3D), not yet emitting: the caller says
+## where from and which way.
+static func _sparks(col: Color, amount: int, life: float) -> CPUParticles3D:
+	var fx := CPUParticles3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.035
+	mesh.height = 0.07
+	mesh.radial_segments = 5
+	mesh.rings = 3
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.vertex_color_use_as_albedo = true
+	mesh.material = mat
+	fx.mesh = mesh
+	fx.amount = amount
+	fx.lifetime = life
+	fx.emitting = false
+	fx.gravity = Vector3.ZERO
+	fx.scale_amount_min = 0.6
+	fx.scale_amount_max = 1.4
+	var fade := Gradient.new()
+	fade.set_color(0, Color(col.lightened(0.6), 1.0))
+	fade.set_color(1, Color(col, 0.0))
+	fx.color_ramp = fade
+	var shrink := Curve.new()
+	shrink.add_point(Vector2(0, 1))
+	shrink.add_point(Vector2(1, 0.2))
+	fx.scale_amount_curve = shrink
+	fx.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return fx
+
+
+## How big it is drawn (1: full size), as it opens (out of a point, past full size
+## and back: a spring) or closes (a swell, then shut).
+func grown() -> float:
+	if closing:
+		var u := clampf(_shut / CLOSE_TIME, 0.0, 1.0)
+		return (1.0 + 0.12 * smoothstep(0.0, 0.3, u)) * (1.0 - u * u * u)
+	var v := clampf(_age / OPEN_TIME, 0.0, 1.0) - 1.0
+	return 1.0 + 2.70158 * v * v * v + 1.70158 * v * v
+
+
+## Does it draw itself (a portal gun's portal: a map's ring gate is drawn by its gate)?
+func has_look() -> bool:
+	return _look != null
+
+
+## Fully open (the animation is over)?
+func is_open() -> bool:
+	return not closing and _age >= OPEN_TIME
 
 
 func _process(delta: float) -> void:
 	_t += delta
-	_open = minf(_open + delta * 6.0, 1.0)
-	var s := _open * (1.0 + 0.03 * sin(_t * 5.0))
+	_age += delta
+	_ripple += delta
+	_pulse = maxf(_pulse - delta / PULSE_TIME, 0.0)
+	if closing:
+		_shut += delta
+		follow()   # (Portals has let go of it: it keeps to a moving part by itself)
+		if _shut >= CLOSE_TIME:
+			if is_inside_tree():
+				flash(get_parent(), frame.origin + normal * 0.15, COLORS[slot % 2], 0.35)
+			queue_free()
+			return
+	_open = clampf(_age / OPEN_TIME, 0.0, 1.0)
+	_animate()
+
+
+## Draws it as it is at this moment of its opening, closing and pulses.
+func _animate() -> void:
+	var g := grown()
+	var beat := _pulse * _pulse
+	var s := maxf(g * (1.0 + 0.02 * sin(_t * 5.0) + 0.07 * beat), 0.01)
 	if _look:
-		_look.scale = Vector3(maxf(s, 0.01), maxf(s, 0.01), 1.0)
-	if _disc_mat:
-		_disc_mat.albedo_color.a = 0.6 + 0.15 * sin(_t * 3.0)
+		_look.scale = Vector3(s, s, 1.0)
 	if _window_root:
-		_window_root.scale = Vector3(maxf(_open, 0.01), maxf(_open, 0.01), 1.0)
-	if live and _window_mat:
+		var w := maxf(g, 0.01)
+		_window_root.scale = Vector3(w, w, 1.0)
+	# The view clears out of the swirl from the middle, a little after it opens.
+	var clear := clampf((_age - 0.1) / 0.3, 0.0, 1.0)
+	if closing:
+		clear = minf(clear, 1.0 - clampf(_shut / 0.1, 0.0, 1.0))
+	if _disc_mat:
+		_disc_mat.set_shader_parameter("time", _t)
+		_disc_mat.set_shader_parameter("ripple", _ripple)
+	if _window_mat:
 		_window_mat.set_shader_parameter("time", _t)
-		_window_mat.set_shader_parameter("clear", clampf((_open - 0.4) / 0.6, 0.0, 1.0))
+		_window_mat.set_shader_parameter("clear", clear)
+		_window_mat.set_shader_parameter("ripple", _ripple)
+	if _glow_mat:
+		_glow_mat.set_shader_parameter("time", _t)
+		_glow_mat.set_shader_parameter("power", 1.0 + 1.2 * beat + (1.0 - _open) * 0.8 + (0.8 if closing else 0.0))
+		_glow_mat.set_shader_parameter("shown", clampf(g * 1.5, 0.0, 1.0))
+	if _light:
+		_light.light_energy = LIGHT * clampf(g, 0.0, 1.0) * (1.0 + 2.0 * beat + 1.5 * (1.0 - _open))
 
 
 ## Shows the view from `to` (its partner) on this portal, as `cam` would see through
@@ -168,7 +460,8 @@ func _process(delta: float) -> void:
 ## camera is not in front of it. Portals calls it every frame for the portals in view,
 ## and set_live(false) for the rest.
 func update_view(cam: Camera3D, to: Portal, px: int) -> bool:
-	if _window == null:
+	if _window == null or closing:
+		set_live(false)
 		return false
 	var eye := cam.global_position
 	var l := to_local_frame(eye)
@@ -330,13 +623,13 @@ func carry(other: Portal, v: Vector3) -> Vector3:
 
 
 ## A quick burst of light where someone blinked or went through a portal (visual only).
-static func flash(parent: Node, at: Vector3, col: Color) -> void:
+static func flash(parent: Node, at: Vector3, col: Color, size: float = 1.0) -> void:
 	if parent == null:
 		return
 	var m := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
-	sphere.radius = 0.7
-	sphere.height = 1.8
+	sphere.radius = 0.7 * size
+	sphere.height = 1.8 * size
 	sphere.radial_segments = 12
 	sphere.rings = 6
 	var mat := StandardMaterial3D.new()
@@ -355,6 +648,115 @@ static func flash(parent: Node, at: Vector3, col: Color) -> void:
 	tw.tween_property(m, "scale", Vector3(0.15, 1.4, 0.15), 0.28)
 	tw.tween_property(mat, "albedo_color:a", 0.0, 0.28)
 	tw.chain().tween_callback(m.queue_free)
+
+
+## The portal gun's shot: a bolt of light in the portal's colour from the gun to where
+## the portal opens, gone in a moment (visual only: the portal is there at once).
+static func bolt(parent: Node, from: Vector3, to: Vector3, col: Color) -> void:
+	if parent == null or DisplayServer.get_name() == "headless":
+		return
+	var length := from.distance_to(to)
+	if length < 0.3:
+		return
+	var dir := (to - from) / length
+	var side := Vector3.UP if absf(dir.y) < 0.99 else Vector3.RIGHT
+	var x := side.cross(dir).normalized()
+	var basis := Basis(x, dir, x.cross(dir).normalized())   # (cylinders point along their Y)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.albedo_color = Color(col.lightened(0.35), 0.9)
+	# The streak it leaves, thinning out behind it.
+	var streak := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.035
+	cyl.bottom_radius = 0.012
+	cyl.height = length
+	cyl.radial_segments = 5
+	cyl.rings = 1
+	cyl.material = mat
+	streak.mesh = cyl
+	streak.name = "PortalBolt"
+	streak.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	streak.top_level = true
+	parent.add_child(streak)
+	streak.global_transform = Transform3D(basis, (from + to) * 0.5)
+	var tw := streak.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(mat, "albedo_color:a", 0.0, BOLT_TIME * 2.2).set_ease(Tween.EASE_IN)
+	tw.tween_property(streak, "scale", Vector3(0.2, 1.0, 0.2), BOLT_TIME * 2.2)
+	tw.chain().tween_callback(streak.queue_free)
+	# The bolt itself: a bright slug that flies the length of it.
+	var head := MeshInstance3D.new()
+	var slug := SphereMesh.new()
+	slug.radius = 0.05
+	slug.height = 0.1
+	slug.radial_segments = 8
+	slug.rings = 4
+	var hot := StandardMaterial3D.new()
+	hot.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	hot.albedo_color = col.lightened(0.6)
+	slug.material = hot
+	head.mesh = slug
+	head.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	head.top_level = true
+	parent.add_child(head)
+	head.global_transform = Transform3D(basis.scaled(Vector3(1.0, 6.0, 1.0)), from + dir * minf(0.6, length * 0.5))
+	var fly := head.create_tween()
+	fly.tween_property(head, "global_position", to, BOLT_TIME)
+	fly.tween_callback(head.queue_free)
+
+
+const BOLT_TIME := 0.07   ## seconds the portal gun's bolt takes to get there, however far
+
+
+## A shot that reached a surface which takes no portal: the bolt bursts into a dull
+## scatter of sparks and a ring that fades, and nothing opens (visual only).
+static func fizzle(parent: Node, at: Vector3, n: Vector3, col: Color) -> void:
+	if parent == null:
+		return
+	var dim := col.lerp(Color(0.7, 0.7, 0.75), 0.55)
+	var fx := _sparks(dim, 18, 0.4)
+	fx.name = "PortalFizzle"
+	fx.one_shot = true
+	fx.explosiveness = 1.0
+	fx.direction = Vector3(0, 0, 1)
+	fx.spread = 70.0
+	fx.initial_velocity_min = 1.5
+	fx.initial_velocity_max = 4.5
+	fx.damping_min = 4.0
+	fx.damping_max = 7.0
+	fx.gravity = Vector3(0, -9.0, 0)
+	fx.top_level = true
+	parent.add_child(fx)
+	var up := Vector3.UP if absf(n.y) < 0.9 else Vector3.FORWARD
+	fx.global_transform = Transform3D(Basis.looking_at(-n, up), at + n * 0.06)
+	fx.emitting = true
+	fx.finished.connect(fx.queue_free)
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.22
+	torus.outer_radius = 0.27
+	torus.rings = 20
+	torus.ring_segments = 4
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(dim, 0.8)
+	torus.material = m
+	ring.mesh = torus
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.top_level = true
+	parent.add_child(ring)
+	# (A torus lies in its XZ plane: its Y out of the surface.)
+	var rx := up.cross(n).normalized()
+	ring.global_transform = Transform3D(Basis(rx, n, rx.cross(n)), at + n * 0.03)
+	var tw := ring.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(ring, "scale", Vector3(0.3, 1.0, 0.3), 0.3).set_ease(Tween.EASE_IN)
+	tw.tween_property(m, "albedo_color:a", 0.0, 0.3)
+	tw.chain().tween_callback(ring.queue_free)
 
 
 ## Blink: a stream of sparks that flies from where you set off to where you land,

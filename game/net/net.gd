@@ -1444,7 +1444,7 @@ func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vect
 @rpc("authority", "call_remote", "reliable")
 func _portal_from_host(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3, on_path: String, on_frame: Transform3D) -> void:
 	if arena and is_instance_valid(arena) and arena.portals:
-		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame)
+		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame, false)   # (already up: nobody just shot it)
 
 
 # ---------------------------------------------------------------------------

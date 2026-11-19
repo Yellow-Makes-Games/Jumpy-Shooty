@@ -13,12 +13,26 @@ extends Node3D
 ## pick another mobility tool, and when the wall or floor under them breaks.
 
 const TOUCH := 0.18       ## the body this close to the portal's surface goes through
-const EXIT_GAP := 0.6     ## you come out this far in front of the other portal
+const EXIT_SKIN := 0.1    ## you come out with this much air between you and the other portal's face
+const EXIT_GAP := 0.6     ## ...or this much, where there is no room for you nearer than that
 const EXIT_SPEED := 3.0   ## ...moving out of it at least this fast (out of a floor: EXIT_SPEED_UP)
 const EXIT_SPEED_UP := 5.0
-## The portal you came out of does nothing until you are this far from it, or off
-## to one side: popping out of a floor, you land back on it without going round again.
+## The portal you came out of does nothing until you are clear of it: this far from a
+## floor's (popping out of a floor, you land back on it without going round again), or
+## off to one side of it; a step away from one on a wall or a ceiling, which you can
+## turn round and walk straight back into.
 const SKIP_CLEAR := 2.5
+const SKIP_CLEAR_WALL := 0.45
+
+## Falling toward a floor portal of a linked pair with your hands off the keys, you are
+## eased over its middle on the way down, so a long drop into one (or a fall that goes
+## round and round through two) does not clip the rim. Only while you fall at least
+## FUNNEL_SPEED with little sideways speed, from at most FUNNEL_HEIGHT above it, inside
+## a cone that widens with height; any steering of your own turns it off.
+const FUNNEL_HEIGHT := 14.0
+const FUNNEL_SPEED := 7.0
+const FUNNEL_SIDEWAYS := 8.0
+const FUNNEL_PULL := 18.0   ## m/s2 at most
 
 ## A player's two portals can be at most this far apart. Putting one up further
 ## than this from the other closes the other: the new one starts a fresh pair.
@@ -122,26 +136,53 @@ func live_views() -> Array:
 
 
 ## `on`: the moving part of the map it sits on, if any (the portal rides it); null: found
-## here (see carrier_at), so a copy told only where it is still has it ride.
-func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3, on: Node3D = null) -> void:
+## here (see carrier_at), so a copy told only where it is still has it ride. `shot`: it
+## was just shot there (the gun's bolt and the sound of it opening), not one that was
+## already up when this copy joined.
+func place(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3, on: Node3D = null, shot: bool = true) -> void:
 	slot = clampi(slot, 0, 1)
 	var pair: Array = _pairs.get(owner, [null, null])
 	var old: Portal = pair[slot]
 	if old and is_instance_valid(old):
-		old.queue_free()
+		old.close()
 	var p := Portal.make(owner, slot, at, n, up, Net.player_color(owner))
 	p.name = "Portal_%d_%d" % [owner, slot]
 	add_child(p)
 	p.ride(on if on else carrier_at(at, n))
+	if is_inside_tree():
+		var seat := PortalFit.seat(get_world_3d().direct_space_state, p.frame, p.half_width, p.half_height)
+		p.set_seat(seat[0], seat[1])
 	pair[slot] = p
 	var other: Portal = pair[1 - slot]
 	if other and is_instance_valid(other) and other.frame.origin.distance_to(at) > MAX_SPAN:
-		other.queue_free()   # too far apart to link
+		other.close()   # too far apart to link
 		pair[1 - slot] = null
 	_pairs[owner] = pair
-	Sound.play_at("portal_open", at + n * 0.3, "move", 0.0, 0.05)
+	if shot:
+		Sound.play_at("portal_open", at + n * 0.3, "move", 0.0, 0.05)
+		var who := _player(owner)
+		if who:
+			who.show_portal_shot(at, slot, true)
 	if DevArgs.sync_log:
-		print("PORTAL %d %d %d %.2f %.2f %.2f" % [Net.my_id(), owner, slot, at.x, at.y, at.z])
+		print("PORTAL %d %d %d %.2f %.2f %.2f seat %.2f" % [Net.my_id(), owner, slot, at.x, at.y, at.z, p.seat_depth])
+
+
+## `owner`'s shot reached a surface that takes no portal (PortalGun.find_spot's "miss"):
+## the bolt flies there and fizzles out.
+func fizzle(owner: int, slot: int, at: Vector3, n: Vector3) -> void:
+	Portal.fizzle(self, at, n, Portal.COLORS[clampi(slot, 0, 1)])
+	Sound.play_at("portal_fizzle", at + n * 0.2, "move", 0.0, 0.08)
+	var who := _player(owner)
+	if who:
+		who.show_portal_shot(at, slot, false)
+
+
+## The player `id` in this arena, if this is an arena and they are in it.
+func _player(id: int) -> Player:
+	var arena = Net.arena
+	if arena == null or not is_instance_valid(arena) or not arena.has_method("get_player"):
+		return null
+	return arena.get_player(id) as Player
 
 
 ## A portal at `at` facing `n` on a moving part of the map (anything that moves and can
@@ -150,7 +191,8 @@ func carrier_at(at: Vector3, n: Vector3) -> Node3D:
 	if not is_inside_tree():
 		return null
 	var space := get_world_3d().direct_space_state
-	var q := PhysicsRayQueryParameters3D.create(at + n * 0.15, at - n * 0.3, 1)
+	# (It may stand proud of the part: on a rib, a sign. See PortalFit.)
+	var q := PhysicsRayQueryParameters3D.create(at + n * 0.15, at - n * (PortalFit.MAX_LIFT + PortalFit.RECESS + 0.1), 1)
 	var hit := space.intersect_ray(q)
 	if not hit.is_empty() and hit.collider is AnimatableBody3D:
 		return hit.collider
@@ -168,13 +210,13 @@ func carrier_of(p: Portal, arena: Node) -> Array:
 ## A portal put up on a moving part elsewhere: `path` (from the arena) and its frame on
 ## it, so it lands on the same spot of the part wherever the part has got to here.
 ## Falls back to where it was (at, n, up) if this copy has no such part.
-func place_on(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3, arena: Node, path: String, local: Transform3D) -> void:
+func place_on(owner: int, slot: int, at: Vector3, n: Vector3, up: Vector3, arena: Node, path: String, local: Transform3D, shot: bool = true) -> void:
 	var on: Node3D = arena.get_node_or_null(NodePath(path)) as Node3D if path != "" and arena else null
 	if on:
 		var xf := (on.global_transform * local).orthonormalized()
-		place(owner, slot, xf.origin, xf.basis.z, xf.basis.y, on)
+		place(owner, slot, xf.origin, xf.basis.z, xf.basis.y, on, shot)
 	else:
-		place(owner, slot, at, n, up)
+		place(owner, slot, at, n, up, null, shot)
 
 
 ## Portals on moving parts go where their part has gone; ones whose part has gone close.
@@ -195,7 +237,7 @@ func _physics_process(_delta: float) -> void:
 func clear(owner: int) -> void:
 	for p in _pairs.get(owner, []):
 		if p and is_instance_valid(p):
-			p.queue_free()
+			p.close()
 	_pairs.erase(owner)
 
 
@@ -259,13 +301,35 @@ static func _nearest(body: Player, p: Portal) -> Array:
 	return [point, minf(da, db) - r]
 
 
-## Moves a body through a portal if it is touching one. Returns true if it went.
-func check(body: Player) -> bool:
+## Is `body` going into `from`: its skin within TOUCH of the face in front of the oval
+## (or it will be within `delta` seconds, moving as it is), no deeper than `back`
+## behind the face, and not on its way out of it?
+func _entering(body: Player, from: Portal, delta: float, back: float) -> bool:
+	var into := -body.velocity.dot(from.normal)
+	if into < -2.0:
+		return false   # moving away from it (just walked off it)
+	var near := _nearest(body, from)
+	var d: float = near[1]
+	if d < -back or d > TOUCH + maxf(into, 0.0) * delta:
+		return false
+	var at: Vector3 = near[0]
+	if d > TOUCH and into > 0.0:
+		at += body.velocity * ((d - TOUCH) / into)   # where it will be as it touches
+	return from.covers(at)
+
+
+## Moves a body through a portal if it is touching one, or about to: called before the
+## body's own step of `delta` seconds, so one falling or flying fast goes through
+## with all its speed instead of first landing on (or hitting) the wall round the
+## portal and losing it. Returns true if it went.
+func check(body: Player, delta: float = 0.0) -> bool:
 	follow_carriers()   # (the map's parts have moved this step: be where they are)
-	if body.portal_skip and is_instance_valid(body.portal_skip):
+	if body.portal_skip and is_instance_valid(body.portal_skip) and not body.portal_skip.closing:
 		# Just came out of this one: it does nothing until you have stepped clear of it.
-		var near := _nearest(body, body.portal_skip)
-		if near[1] < SKIP_CLEAR and body.portal_skip.covers(near[0], 1.3):
+		var skip: Portal = body.portal_skip
+		var near := _nearest(body, skip)
+		var clear := SKIP_CLEAR if skip.normal.y > 0.5 else SKIP_CLEAR_WALL
+		if near[1] < clear and skip.covers(near[0], 1.3):
 			return false
 		body.portal_skip = null
 	for owner in _pairs:
@@ -276,14 +340,9 @@ func check(body: Player) -> bool:
 			continue
 		for k in 2:
 			var from: Portal = a if k == 0 else b
-			var to: Portal = b if k == 0 else a
-			var near := _nearest(body, from)
-			if near[1] > TOUCH or near[1] < -1.0 or not from.covers(near[0]):
-				continue
-			if body.velocity.dot(from.normal) > 2.0:
-				continue   # moving away from it (just walked off it)
-			_send_through(body, from, to)
-			return true
+			if _entering(body, from, delta, 1.0):
+				_send_through(body, from, b if k == 0 else a)
+				return true
 	for pair in _map_pairs:
 		var a: Portal = pair[0]
 		var b: Portal = pair[1]
@@ -291,15 +350,57 @@ func check(body: Player) -> bool:
 			continue
 		for k in 2:
 			var from: Portal = a if k == 0 else b
-			var to: Portal = b if k == 0 else a
-			var near := _nearest(body, from)
-			if near[1] > TOUCH or near[1] < -MAP_BACK or not from.covers(near[0]):
-				continue
-			if body.velocity.dot(from.normal) > 2.0:
-				continue
-			_send_through(body, from, to)
-			return true
+			if _entering(body, from, delta, MAP_BACK):
+				_send_through(body, from, b if k == 0 else a)
+				return true
 	return false
+
+
+## Eases a falling body over the middle of the floor portal under it (see FUNNEL_HEIGHT).
+## Called before the body's step, like check.
+func funnel(body: Player, delta: float) -> void:
+	var fall := -body.velocity.y
+	if fall < FUNNEL_SPEED or body.is_on_floor() or body.input.move.length() > 0.2:
+		return
+	if Vector2(body.velocity.x, body.velocity.z).length() > FUNNEL_SIDEWAYS:
+		return
+	for owner in _pairs:
+		var pair: Array = _pairs[owner]
+		if pair[0] == null or pair[1] == null or not is_instance_valid(pair[0]) or not is_instance_valid(pair[1]):
+			continue
+		for p: Portal in pair:
+			if p.normal.y < 0.9 or p == body.portal_skip:
+				continue
+			var l := p.to_local_frame(body.global_position)
+			if l.z < 0.3 or l.z > FUNNEL_HEIGHT or not p.covers(body.global_position, 1.0 + l.z * 0.12):
+				continue
+			# The sideways speed that brings it over the middle as it gets there.
+			var off := p.frame.basis.x * l.x + p.frame.basis.y * l.y
+			var want := -off / maxf(l.z / fall, 0.15)
+			var sideways := body.velocity - p.normal * body.velocity.dot(p.normal)
+			body.velocity += (want - sideways).limit_length(FUNNEL_PULL * delta)
+			return
+
+
+## The linked portal a body at `from` (the middle of it) has just gone into to come out
+## at `to`, and its partner: [in, out], or [] if no pair is there (it blinked, or it
+## went by a map gate). For the looks of someone else's trip: a copy is told only
+## where they were and where they are now.
+func trip(from: Vector3, to: Vector3) -> Array:
+	var best := []
+	var best_d := 3.0
+	for owner in _pairs:
+		var pair: Array = _pairs[owner]
+		if pair[0] == null or pair[1] == null or not is_instance_valid(pair[0]) or not is_instance_valid(pair[1]):
+			continue
+		for k in 2:
+			var a: Portal = pair[k]
+			var b: Portal = pair[1 - k]
+			var d := maxf(a.frame.origin.distance_to(from), b.frame.origin.distance_to(to))
+			if d < best_d:
+				best_d = d
+				best = [a, b]
+	return best
 
 
 # ---------------------------------------------------------------------------
@@ -379,30 +480,80 @@ static func path_bends(legs: Array) -> PackedVector3Array:
 	return out
 
 
+## Shots went through portals at these points (`vias`: per pellet, a path_bends): the
+## portals they went into and came out of ripple. Every copy draws it from the shot it
+## was told about.
+func shots_through(vias: Array) -> void:
+	for bends in vias:
+		for at: Vector3 in bends:
+			for owner in _pairs:
+				for p: Portal in _pairs[owner]:
+					if p != null and is_instance_valid(p) and absf((at - p.frame.origin).dot(p.normal)) < 0.2 and p.covers(at):
+						p.ripple()
+
+
+## Through `from` and out of `to`, like a doorway between them: the body comes out at
+## the same spot on the other oval it went in at (as near as it fits there), moving
+## and looking the way it was, turned to match. So what you saw through the portal as
+## you went in is what you see as you come out.
 func _send_through(body: Player, from: Portal, to: Portal) -> void:
 	var n := to.normal
+	var r := Player.CAPSULE_RADIUS
+	var h := body.body_height()
+	# Speed: carried through, and at least a push out of it.
 	var vel := from.carry(to, body.velocity)
 	var out := vel.dot(n)
 	var least := EXIT_SPEED_UP if n.y > 0.5 else EXIT_SPEED
 	if out < least:
 		vel += n * (least - out)
-	var r := Player.CAPSULE_RADIUS
-	var h := body.body_height()
-	var pos: Vector3
-	if n.y > 0.5:
-		pos = to.frame.origin + n * EXIT_GAP                       # out of a floor: feet first
-	elif n.y < -0.5:
-		pos = to.frame.origin + n * EXIT_GAP + Vector3(0, -h, 0)  # out of a ceiling: head first
-	else:
-		pos = to.frame.origin + n * (EXIT_GAP + r) + Vector3(0, -h * 0.5, 0)
-	var look := Basis.from_euler(Vector3(0.0, body.input.yaw, 0.0)) * Vector3.FORWARD
-	var turned := from.carry(to, look)
+	# Place: where the middle of the body was on the oval it went into, on the other
+	# one, kept far enough inside it for the (upright) body to come out whole.
+	var b := to.frame.basis
+	var l := from.to_local_frame(body.global_position + Vector3(0, h * 0.5, 0))
+	var spine := h * 0.5 - r
+	var room_x := maxf(to.half_width - r - spine * absf(b.x.y), 0.0)
+	var room_y := maxf(to.half_height - r - spine * absf(b.y.y), 0.0)
+	var side := Vector2(clampf(-l.x, -room_x, room_x), clampf(l.y, -room_y, room_y))
+	var reach := r + spine * absf(n.y)   # how far the body reaches toward the surface
+	var mid := to.frame * Vector3(0.0, 0.0, reach + EXIT_GAP)
+	for spot in [[side, EXIT_SKIN], [side * 0.5, EXIT_SKIN], [Vector2.ZERO, EXIT_SKIN], [side, EXIT_GAP]]:
+		var at: Vector3 = to.frame * Vector3(spot[0].x, spot[0].y, reach + spot[1])
+		if body.fits_at(at - Vector3(0, h * 0.5, 0)):
+			mid = at
+			break
+	var pos := mid - Vector3(0, h * 0.5, 0)
+	# The view: carried through whole. Which way you look (up and down too: in through
+	# a floor looking down, out of a wall looking along it) and, for a moment, how the
+	# view is tipped, which then rights itself.
+	var view := Basis.from_euler(Vector3(body.input.pitch, body.input.yaw, 0.0))
+	var ahead := from.carry(to, view * Vector3.FORWARD)
+	var top := from.carry(to, view * Vector3.UP)
 	var yaw := body.input.yaw
-	if Vector2(turned.x, turned.z).length() > 0.3:
-		yaw = atan2(-turned.x, -turned.z)
-	elif absf(n.y) < 0.5:
-		yaw = atan2(-n.x, -n.z)   # out of a wall from a floor: face out of it
-	body.warp(pos, vel, yaw)
+	if Vector2(ahead.x, ahead.z).length() > 0.05:
+		yaw = atan2(-ahead.x, -ahead.z)
+	else:   # looking straight up or down: the top of the view says which way you face
+		var facing := top * (-1.0 if ahead.y > 0.0 else 1.0)
+		yaw = atan2(-facing.x, -facing.z)
+	var pitch := clampf(asin(clampf(ahead.y, -1.0, 1.0)), deg_to_rad(-89.0), deg_to_rad(89.0))
+	var upright := Basis.from_euler(Vector3(pitch, yaw, 0.0))
+	var roll := atan2(-top.dot(upright.x), top.dot(upright.y))
+	# Running through from one wall to another along the floor, you stay on your feet.
+	var on_floor := false
+	if body.is_on_floor() and absf(n.y) < 0.5 and is_inside_tree():
+		var below := PhysicsRayQueryParameters3D.create(pos + Vector3(0, 0.15, 0), pos - Vector3(0, 0.3, 0), 1)
+		var floor_hit := get_world_3d().direct_space_state.intersect_ray(below)
+		on_floor = not floor_hit.is_empty() and (floor_hit.normal as Vector3).y > 0.7
+	# Where your eyes would be had you walked through a doorway (never behind the
+	# portal's face): the view starts there and catches the body up (Player.view_carried).
+	var seen := to.to_local_frame(from.carry_point(to, body.eye_position()))
+	seen.z = maxf(seen.z, VIEW_FRONT)
+	body.warp(pos, vel, yaw, pitch, on_floor, [from, to])
 	body.portal_skip = to
+	body.view_carried(to.frame * seen, roll, vel.length())
 	if DevArgs.sync_log:
 		print("PORTAL_THROUGH %d %d %d" % [body.peer_id, from.owner_id, from.slot])
+
+
+## Coming out, your view is never nearer than this to the portal's face (the camera
+## must not look through the surface the portal is on).
+const VIEW_FRONT := 0.16

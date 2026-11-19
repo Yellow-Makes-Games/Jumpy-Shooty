@@ -22,6 +22,7 @@ const VOLUME := {
 	"crouch": -18.0, "stand": -18.0,
 	"grapple_fire": -10.0, "grapple_attach": -10.0, "grapple_release": -12.0, "grapple_miss": -12.0, "grapple_taut": -8.0,
 	"blink": -9.0, "portal_open": -10.0, "portal_through": -8.0,
+	"portal_shot": -11.0, "portal_close": -11.0, "portal_fizzle": -13.0,
 	"ui_hover": -20.0, "ui_click": -12.0, "ui_confirm": -10.0, "ui_back": -12.0,
 	"ui_toggle": -13.0, "ui_tick": -20.0, "ui_select": -12.0,
 	"match_start": -6.0, "match_end": -6.0,

@@ -180,6 +180,8 @@ func _physics_process(delta: float) -> void:
 	if portals and arena.is_ancestor_of(self):
 		gate = portals.crossing(_pos, to)
 	if gate:
+		gate.from.ripple()
+		gate.to.ripple()
 		var through := through_portal(gate, _pos, to, _vel)
 		_pos = through[0]
 		_vel = through[1]
