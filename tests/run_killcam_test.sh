@@ -138,11 +138,12 @@ check_results("Vs Bots", log)
 check_sync("Vs Bots", log, True)
 saved = re.findall(r"^KILLCAM_SAVED \d+ (\d+) (\d+) ([\d.]+) (\S+) (.*)$", log, re.M)
 print(f"Vs Bots: saved as a video {saved[:1]}")
-if not saved or saved[0][3] != "ok" or int(saved[0][1]) < 60 or not saved[0][4].endswith(".avi"):
+if not saved or saved[0][3] != "ok" or int(saved[0][1]) < 60 or not saved[0][4].endswith((".mp4", ".avi")):
     bad("the best kill should save as a video from the results screen")
 else:
     import os
-    if not os.path.isfile(saved[0][4]) or open(saved[0][4], "rb").read(4) != b"RIFF":
+    head = open(saved[0][4], "rb").read(8) if os.path.isfile(saved[0][4]) else b""
+    if not (head[4:8] == b"ftyp" if saved[0][4].endswith(".mp4") else head[:4] == b"RIFF"):
         bad(f"the saved video is not there ({saved[0][4]})")
     else:
         os.remove(saved[0][4])
