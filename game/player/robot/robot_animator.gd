@@ -32,6 +32,9 @@ const CROUCH_SPEED := 4.0
 const WALL_SPEED := 10.5
 const FADE_DEFAULT := 0.12
 const HABIT_AFTER := 2.5        ## seconds after a shot before a robot goes back to its idle habit
+const FEET_STILL := 0.6         ## m/s: standing or crouched and slower than this, each foot rests on the ground under it
+const FEET_REACH := 0.3         ## a foot goes at most this far up or down to find the ground...
+const FEET_DROP := 0.12         ## ...and the hips come down at most this far to let the lower one reach it
 const RELOAD_CUT_FADE := 0.12   ## seconds a reload that is cut short takes to ease back to the hold
 const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
@@ -95,6 +98,8 @@ var _time := 0.0          # seconds in the current source
 var _phase := 0.0         # stride phase, 0..1
 var _idle_time := 0.0
 var _habit := 0.0         # how much of the torso's own idle shows (see RobotModel.idle), 0..1
+var _feet := Vector2.ZERO    # the ground under each foot (RobotAnimInput.feet), eased
+var _feet_w := 0.0           # how much the feet are rested on it, 0..1
 var _twist := 0.0
 var _reverse := false
 var _air_t := 0.5
@@ -675,6 +680,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	if _akimbo:
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
+	_plant_feet(delta, inp, key, speed)
 	_pose.apply(model.skeleton)
 	model.settle_sway(rope.stream(inp.yaw, inp.velocity) * rope.w if hanging else Vector3.ZERO)   # a custom character's cape and tail
 	# The reload's own effects: the gun's glow, the spent cell thrown clear. (In first
@@ -682,6 +688,68 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
 	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
 	_fx_t = fx_t
+
+
+## Standing or crouching still on a slope or a step: each foot rests on the ground under
+## it (RobotAnimInput.feet) and the hips come down a little for the lower one, in place
+## of both feet staying level with one in the air or in the ground. Looks only: the
+## body's place and its hitbox are the player's, as ever.
+func _plant_feet(delta: float, inp: RobotAnimInput, key: String, speed: float) -> void:
+	var on := key in ["loco", "crouch"] and speed < FEET_STILL and inp.alive and _land <= 0.0
+	_feet_w = move_toward(_feet_w, 1.0 if on else 0.0, delta * 5.0)
+	if on:
+		var want := Vector2(clampf(inp.feet.x, -FEET_REACH, FEET_REACH), clampf(inp.feet.y, -FEET_REACH, FEET_REACH))
+		_feet = _feet.lerp(want, 1.0 - exp(-delta * 10.0))
+	# (On level ground this does nothing at all: the legs are left exactly as the clip has them.)
+	var w := smoothstep(0.0, 1.0, _feet_w) * clampf((absf(_feet.x) + absf(_feet.y)) / 0.02, 0.0, 1.0)
+	if w <= 0.001:
+		return
+	var root: int = _b["root"]
+	var hips: int = _b["hips"]
+	var root_at := Transform3D(Basis(_pose.rot[root]), _pose.pos[root])
+	var before := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips])
+	_pose.pos[hips] += root_at.basis.inverse() * Vector3(0.0, clampf(minf(_feet.x, _feet.y), -FEET_DROP, 0.0) * w, 0.0)
+	var after := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips])
+	_reach_foot(before, after, "l", _feet.x, w)
+	_reach_foot(before, after, "r", _feet.y, w)
+
+
+## One leg bent (or straightened) to put its ankle `rise` above where the clip has it,
+## from hips that have moved from `before` to `after`. The knee keeps the way it points,
+## and the foot the way it lies.
+func _reach_foot(before: Transform3D, after: Transform3D, side: String, rise: float, w: float) -> void:
+	var th: int = _b["thigh_" + side]
+	var sh: int = _b["shin_" + side]
+	var ft: int = _b["foot_" + side]
+	var thigh0 := before * Transform3D(Basis(_pose.rot[th]), _pose.pos[th])
+	var shin0 := thigh0 * Transform3D(Basis(_pose.rot[sh]), _pose.pos[sh])
+	var foot0 := shin0 * Transform3D(Basis(_pose.rot[ft]), _pose.pos[ft])
+	var hip := after * _pose.pos[th]
+	var upper := _pose.pos[sh].length()
+	var lower := _pose.pos[ft].length()
+	var to := foot0.origin + Vector3(0.0, rise * w, 0.0) - hip
+	if to.length_squared() < 0.000001:
+		return
+	var dist := clampf(to.length(), absf(upper - lower) + 0.01, (upper + lower) * 0.999)
+	var dir := to.normalized()
+	var along := (upper * upper - lower * lower + dist * dist) / (2.0 * dist)
+	var out := sqrt(maxf(upper * upper - along * along, 0.0))
+	var knee0 := shin0.origin + (after.origin - before.origin) - hip   # the knee as the clip has it, from the hip
+	var side_dir := knee0 - dir * knee0.dot(dir)
+	if side_dir.length_squared() < 0.000001:
+		side_dir = after.basis * Vector3.FORWARD
+		side_dir -= dir * side_dir.dot(dir)
+	side_dir = side_dir.normalized()
+	var knee := hip + dir * along + side_dir * out
+	var ankle := hip + dir * dist
+	var hinge := dir.cross(side_dir).normalized()   # the knee's axis: both bones' own +X (as rig.py's legs have it)
+	var thigh_y := (hip - knee).normalized()
+	var shin_y := (knee - ankle).normalized()
+	var thigh_rot := Basis(hinge, thigh_y, hinge.cross(thigh_y)).get_rotation_quaternion()
+	var shin_rot := Basis(hinge, shin_y, hinge.cross(shin_y)).get_rotation_quaternion()
+	_pose.rot[th] = _pose.rot[th].slerp(after.basis.get_rotation_quaternion().inverse() * thigh_rot, w)
+	_pose.rot[sh] = _pose.rot[sh].slerp(thigh_rot.inverse() * shin_rot, w)
+	_pose.rot[ft] = _pose.rot[ft].slerp(shin_rot.inverse() * foot0.basis.get_rotation_quaternion(), w)
 
 
 ## Your own body in first person: you see your legs and torso (not the head or the
