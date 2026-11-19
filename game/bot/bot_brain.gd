@@ -71,6 +71,7 @@ const CHEST := 1.05        ## aim heights above the feet
 const HEAD := 1.6
 const PRONE_AIM := 0.4     ## aim height at someone belly-sliding (they are lying flat)
 const SEARCH_RADIUS := 8.0 ## how far round the spot it lost you it looks
+const SENSE_RATE := 30.0   ## times a second it looks and listens (see update): its reactions are far slower than this
 const SOUND_GAP := 0.4     ## seconds between updating where it heard someone (so its goal does not jitter)
 const WHIZZ := 4.0         ## a shot ending this close is heard, however far away the shooter is
 const LOOK_TIME := 1.2     ## it looks toward a fresh sighting or sound for this long, then where it runs
@@ -174,12 +175,27 @@ var _portal_step := 0            # 0: shoot the far portal, 1: the near one, 2: 
 var _guarding := false           # team modes: inside the radius of the spot it is guarding
 var _wander := Vector3.INF       # ...and the spot near it it is strolling to
 var _wander_time := 0.0
+var _ray := PhysicsRayQueryParameters3D.new()   # the one query every ray it casts reuses (see _cast)
+var _nav_map := -1               # 1: the navigation mesh rides a moving part here (see _nav_rides), 0: not, -1: not looked yet
+var _step := 0                   # physics steps it has been asked for input (counted from its peer id: see _init)
+var _sense_every := 1            # it looks and listens on every this-many-th step (SENSE_RATE)
+
+## Guns that wait for a clean shot (see _fire).
+const STEADY_GUNS := ["sniper", "bolt_action", "railgun"]
+## How often it thinks of using each mobility tool, a second (Easy to Expert).
+const BLINK_RATE := [0.15, 0.5, 1.0, 1.4]
+const JETPACK_RATE := [0.2, 0.5, 0.9, 1.2]
+const PORTAL_RATE := [0.1, 0.35, 0.7, 1.0]
 
 
 func _init(player: Player, level: int) -> void:
 	me = player
 	d = BotDifficulty.make(level)
 	input = player.input
+	_ray.collision_mask = 1         # (the level)
+	_ray.exclude = [me.get_rid()]   # (its own body never stops its rays)
+	_sense_every = maxi(roundi(Engine.physics_ticks_per_second / SENSE_RATE), 1)
+	_step = me.peer_id   # (so the bots look on different steps, not all on the same one)
 	weapon_changed()
 	_rng.randomize()
 	Match.player_hit.connect(_on_hit)
@@ -217,6 +233,7 @@ func _nearest_pickup() -> Vector3:
 ## Fill in this frame's input.
 func update(delta: float) -> void:
 	_time += delta
+	_step += 1   # (while it is dead too, so the bots stay on different steps)
 	input.move = Vector2.ZERO
 	input.sprint = false
 	input.fire = false
@@ -226,7 +243,11 @@ func update(delta: float) -> void:
 	if not me.alive:
 		_reset()
 		return
-	_sense()
+	# Looking and listening is the dearest thing it does (two rays at everyone), and it
+	# reacts in tenths of a second: SENSE_RATE times a second is plenty. Between looks it
+	# goes on what it last saw; where its target is, it still reads on every step (below).
+	if _step % _sense_every == 0:
+		_sense()
 	_retarget -= delta
 	if not is_instance_valid(_target):
 		_target = null
@@ -362,15 +383,20 @@ func _reset() -> void:
 # ---------------------------------------------------------------------------
 # Seeing
 
-## Look and listen: update what it knows about where everyone is.
+## Look and listen: update what it knows about where everyone is. Run SENSE_RATE times
+## a second, not on every step (see update).
 func _sense() -> void:
+	# (Where it looks from and which way are the same for everyone it looks at.)
+	var eye := me.eye_position()
+	var facing := me.aim_forward()
+	var view := deg_to_rad(d.view_angle)
 	for other in _others():
 		var id := other.peer_id
 		if not other.alive:
 			_known.erase(id)
 			_in_view.erase(id)
 			continue
-		if _can_see(other):
+		if _can_see(other, eye, facing, view):
 			_known[id] = [_time, other.global_position]
 			_in_view[id] = true
 			continue
@@ -406,10 +432,11 @@ func _hear(id: int, where: Vector3, force: bool) -> void:
 func _on_shot(shooter: int, muzzle: Vector3, ends: PackedVector3Array, _hits: Array, _vias: Array) -> void:
 	if shooter == me.peer_id or not me.alive:
 		return
-	var close := me.eye_position().distance_to(muzzle) <= d.hear_range
+	var eye := me.eye_position()
+	var close := eye.distance_to(muzzle) <= d.hear_range
 	if not close:
 		for e in ends:   # a bullet cracking past
-			if Geometry3D.get_closest_point_to_segment(me.eye_position(), muzzle, e).distance_to(me.eye_position()) < WHIZZ:
+			if Geometry3D.get_closest_point_to_segment(eye, muzzle, e).distance_to(eye) < WHIZZ:
 				close = true
 				break
 	if close:
@@ -418,9 +445,12 @@ func _on_shot(shooter: int, muzzle: Vector3, ends: PackedVector3Array, _hits: Ar
 
 func _others() -> Array[Player]:
 	var list: Array[Player] = []
+	# (Asked once, not for each player: with no team mode on, nobody is a teammate. This
+	# runs for every bot on every physics step.)
+	var teams := Teams.active()
 	for p in me.get_parent().get_children():
 		var other := p as Player
-		if other != null and other != me and not Teams.same_team(me.peer_id, other.peer_id):
+		if other != null and other != me and not (teams and Teams.same_team(me.peer_id, other.peer_id)):
 			list.append(other)   # (teammates are not targets)
 	return list
 
@@ -445,18 +475,23 @@ func _pick_target() -> Player:
 	return best
 
 
-## In front of it (or right next to it) and not behind a wall.
-func _can_see(p: Player) -> bool:
-	var eye := me.eye_position()
-	var to := p.global_position + Vector3(0, CHEST, 0) - eye
-	if to.length() > 3.0 and me.aim_forward().angle_to(to) > deg_to_rad(d.view_angle):
+## In front of it (or right next to it) and not behind a wall. `eye`: where it looks
+## from, `facing`: the way it looks, `view`: how far to the side it sees (radians).
+func _can_see(p: Player, eye: Vector3, facing: Vector3, view: float) -> bool:
+	var feet := p.global_position
+	var to := feet + Vector3(0, CHEST, 0) - eye
+	if to.length() > 3.0 and facing.angle_to(to) > view:
 		return false
-	var space := me.get_world_3d().direct_space_state
-	for h in [HEAD, CHEST]:
-		var q := PhysicsRayQueryParameters3D.create(eye, p.global_position + Vector3(0, h, 0), 1, [me.get_rid()])
-		if space.intersect_ray(q).is_empty():
-			return true
-	return false
+	return _cast(eye, feet + Vector3(0, HEAD, 0)).is_empty() or _cast(eye, feet + Vector3(0, CHEST, 0)).is_empty()
+
+
+## A ray from `from` to `to`: what it hits first ({} if nothing). It hits the level,
+## never players. Every ray the bot casts comes through here and reuses one query:
+## making a new one for each ray cost more than the ray.
+func _cast(from: Vector3, to: Vector3) -> Dictionary:
+	_ray.from = from
+	_ray.to = to
+	return me.get_world_3d().direct_space_state.intersect_ray(_ray)
 
 
 ## Where it thinks its target is: where it really is when it can see it, otherwise
@@ -484,11 +519,13 @@ func _aim_point(p: Player) -> Vector3:
 ## Empty until it has been watching that long (it has only just spotted you).
 func _perceived() -> Array:
 	var when := _time - d.reaction_time
-	var best: Array = []
-	for s in _seen:
-		if s[0] <= when:
-			best = s
-	return best
+	# The newest sighting that is old enough. Looked for from the newest end: _seen is in
+	# time order and holds two seconds of them (a couple of hundred), and the one wanted
+	# is one reaction time back from its end.
+	for i in range(_seen.size() - 1, -1, -1):
+		if _seen[i][0] <= when:
+			return _seen[i]
+	return []
 
 
 # ---------------------------------------------------------------------------
@@ -752,8 +789,7 @@ func _dive(dir: Vector3) -> void:
 ## How far it can run in this direction before hitting something (up to 12 m).
 func _straight_ahead(dir: Vector3) -> float:
 	var from := me.global_position + Vector3(0, 1.0, 0)
-	var q := PhysicsRayQueryParameters3D.create(from, from + dir.normalized() * 12.0, 1, [me.get_rid()])
-	var hit := me.get_world_3d().direct_space_state.intersect_ray(q)
+	var hit := _cast(from, from + dir.normalized() * 12.0)
 	return 12.0 if hit.is_empty() else from.distance_to(hit.position)
 
 
@@ -826,12 +862,26 @@ func _nav_path(a: Vector3, b: Vector3) -> PackedVector3Array:
 ## moment (see MapRoot.to_nav). Elsewhere these change nothing.
 func _to_nav(point: Vector3) -> Vector3:
 	var map := MapRoot.current
-	return map.to_nav(point) if point != Vector3.INF and map != null and is_instance_valid(map) else point
+	return map.to_nav(point) if point != Vector3.INF and map != null and is_instance_valid(map) and _nav_rides(map) else point
 
 
 func _from_nav(point: Vector3) -> Vector3:
 	var map := MapRoot.current
-	return map.from_nav(point) if point != Vector3.INF and map != null and is_instance_valid(map) else point
+	return map.from_nav(point) if point != Vector3.INF and map != null and is_instance_valid(map) and _nav_rides(map) else point
+
+
+## Does any of this map's navigation mesh ride a moving part? Only a plain mover carries
+## it (MapRoot.to_nav and from_nav pass islands by): on a map with none, both give the
+## point back unchanged, and the bot asks for them several times a physics step.
+func _nav_rides(map: MapRoot) -> bool:
+	if map.movers.is_empty():
+		return false
+	if _nav_map < 0:
+		_nav_map = 0
+		for m in map.movers:
+			if not m.node is MapIsland:
+				_nav_map = 1
+	return _nav_map == 1
 
 
 ## Has it got to this point of the path? Close is enough on a straight stretch, but
@@ -871,13 +921,12 @@ func _ground_ahead(dir: Vector3, reach: float) -> bool:
 	if flat.length() < 0.1:
 		return true
 	flat = flat.normalized()
-	var space := me.get_world_3d().direct_space_state
+	var pos := me.global_position
 	var step := 1.0
 	while step <= reach:
-		var from := me.global_position + flat * step + Vector3(0, 0.6, 0)
+		var from := pos + flat * step + Vector3(0, 0.6, 0)
 		var drop := minf(1.0 + 0.45 * step, 3.6)   # a slope down is fine, the floor below is not
-		var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 0.6 + drop, 0), 1, [me.get_rid()])
-		if space.intersect_ray(q).is_empty():
+		if _cast(from, from - Vector3(0, 0.6 + drop, 0)).is_empty():
 			return false
 		step += 1.0
 	return true
@@ -888,8 +937,7 @@ func _blocked(dir: Vector3) -> bool:
 	if dir.length() < 0.1:
 		return false
 	var from := me.global_position + Vector3(0, 1.0, 0)
-	var q := PhysicsRayQueryParameters3D.create(from, from + dir.normalized() * 1.4, 1, [me.get_rid()])
-	return not me.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+	return not _cast(from, from + dir.normalized() * 1.4).is_empty()
 
 
 ## Not getting anywhere? Jump (vaults handle low stuff), then try another way.
@@ -986,12 +1034,11 @@ func _mind_the_edge(world_dir: Vector3) -> Vector3:
 ## real drop.
 func _floor_ahead(dir: Vector3, reach: float) -> bool:
 	var flat := Vector3(dir.x, 0.0, dir.z).normalized()
-	var space := me.get_world_3d().direct_space_state
+	var pos := me.global_position
 	var step := 1.0
 	while step <= reach:
-		var from := me.global_position + flat * step + Vector3(0, 0.7 + 0.8 * step, 0)
-		var to := me.global_position + flat * step - Vector3(0, 1.2 + 0.8 * step, 0)
-		if space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1, [me.get_rid()])).is_empty():
+		var at := pos + flat * step
+		if _cast(at + Vector3(0, 0.7 + 0.8 * step, 0), at - Vector3(0, 1.2 + 0.8 * step, 0)).is_empty():
 			return false
 		step += 1.0
 	return true
@@ -1003,10 +1050,9 @@ func _span_ahead(dir: Vector3) -> bool:
 	if flat.length() < 0.1:
 		return false
 	flat = flat.normalized()
-	var space := me.get_world_3d().direct_space_state
 	for step in [1.5, 3.0, 4.5]:
 		var from: Vector3 = me.global_position + flat * step + Vector3(0, 1.0, 0)
-		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 2.5, 0), 1, [me.get_rid()]))
+		var hit := _cast(from, from - Vector3(0, 2.5, 0))
 		if not hit.is_empty() and (hit.collider as Object).has_meta("span"):
 			return true
 	return false
@@ -1016,8 +1062,7 @@ func _span_ahead(dir: Vector3) -> bool:
 ## (a MapSpan): then toward that walkway's fixed end, which goes last.
 func _hold_spot() -> Vector3:
 	var from := me.global_position + Vector3(0, 0.5, 0)
-	var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 1.5, 0), 1, [me.get_rid()])
-	var hit := me.get_world_3d().direct_space_state.intersect_ray(q)
+	var hit := _cast(from, from - Vector3(0, 1.5, 0))
 	if hit.is_empty() or not (hit.collider as Object).has_meta("span"):
 		return Vector3.ZERO
 	var span := (hit.collider as Object).get_meta("span") as MapSpan
@@ -1065,32 +1110,52 @@ func _pick_link(pos: Vector3, goal: Vector3) -> MapJumpLink:
 	# Lifts and ring gates are short cuts, never the only way: _pick_lift and _pick_gate
 	# choose those, cheaply. Here they would only be more searches.
 	links = links.filter(func(l): return l.how != MapJumpLink.How.LIFT and l.how != MapJumpLink.How.GATE)
+	# Each question below is a path worked out by the navigation server, the dear part of
+	# this, so each is asked once: where a crossing comes down, and whether walking on
+	# from there gets to the goal, are the same whether it is taken first or second.
+	var downs := {}    # crossing -> where it comes down, on the floor
+	var arrives := {}  # crossing -> walking on from there gets to the goal
+	var here_to_goal := _flat(pos, goal)
 	for l in links:
 		var link := l as MapJumpLink
-		var cost: float = pos.distance_to(link.takeoff()) + link.landing_point().distance_to(goal)
-		var down := _from_nav(NavigationServer3D.map_get_closest_point(nav, _to_nav(link.landing_point())))
-		if not _walkable(pos, link.takeoff()) or _flat(down, goal) > _flat(pos, goal) + 60.0:
+		var from := link.takeoff()
+		var cost: float = pos.distance_to(from) + link.landing_point().distance_to(goal)
+		var down := _comes_down(link, nav, downs)
+		if _flat(down, goal) > here_to_goal + 60.0 or not _walkable(pos, from):
 			continue
-		if not _gets_to(down, goal):
+		if not _arrives(link, goal, nav, downs, arrives):
 			# Not there yet: is there a second crossing from where this one lands (island
 			# to quad, then quad to the other island)?
 			var onward := INF
 			for l2 in links:
 				var second := l2 as MapJumpLink
-				if second == link or not _walkable(down, second.takeoff()):
+				if second == link or not _arrives(second, goal, nav, downs, arrives) or not _walkable(down, second.takeoff()):
 					continue
-				var far_side := _from_nav(NavigationServer3D.map_get_closest_point(nav, _to_nav(second.landing_point())))
-				if _gets_to(far_side, goal):
-					onward = minf(onward, down.distance_to(second.takeoff()) + second.landing_point().distance_to(goal))
+				onward = minf(onward, down.distance_to(second.takeoff()) + second.landing_point().distance_to(goal))
 			if onward == INF:
 				continue
-			cost = pos.distance_to(link.takeoff()) + 30.0 + onward
+			cost = pos.distance_to(from) + 30.0 + onward
 		if cost < best_cost:
 			best = link
 			best_cost = cost
 	if best == null:
 		_no_link = NO_LINK_WAIT
 	return best
+
+
+## Where a crossing comes down, on the floor (kept in `known` for the rest of one _pick_link).
+func _comes_down(link: MapJumpLink, nav: RID, known: Dictionary) -> Vector3:
+	if not known.has(link):
+		known[link] = _from_nav(NavigationServer3D.map_get_closest_point(nav, _to_nav(link.landing_point())))
+	return known[link]
+
+
+## Does walking on from where a crossing comes down get to `goal` (kept in `known` for
+## the rest of one _pick_link)?
+func _arrives(link: MapJumpLink, goal: Vector3, nav: RID, downs: Dictionary, known: Dictionary) -> bool:
+	if not known.has(link):
+		known[link] = _gets_to(_comes_down(link, nav, downs), goal)
+	return known[link]
 
 
 ## The tractor-beam lift (a MapJumpLink set to Lift) to ride toward `goal`, or null:
@@ -1338,8 +1403,7 @@ func _fly_link(delta: float) -> void:
 			# The run-up: sprint at the landing and jump where the floor runs out.
 			input.sprint = true
 			var ahead := pos + to.normalized() * 0.5 + Vector3(0, 0.3, 0)
-			var q := PhysicsRayQueryParameters3D.create(ahead, ahead - Vector3(0, 1.2, 0), 1, [me.get_rid()])
-			if me.get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+			if _cast(ahead, ahead - Vector3(0, 1.2, 0)).is_empty():
 				input.jump_pressed = true
 			_link_jumped = _link_time
 		elif _link.how == MapJumpLink.How.BOOST:
@@ -1553,16 +1617,13 @@ func _grapple(delta: float, visible: bool) -> void:
 	# Aim up and ahead, toward the target, and hook whatever is there. Not indoors,
 	# though: under a ceiling a swing only throws it off the stairs it is climbing.
 	var eye := me.eye_position()
-	var space := me.get_world_3d().direct_space_state
-	var up := PhysicsRayQueryParameters3D.create(eye, eye + Vector3(0, GRAPPLE_HEADROOM, 0), 1, [me.get_rid()])
-	if not space.intersect_ray(up).is_empty():
+	if not _cast(eye, eye + Vector3(0, GRAPPLE_HEADROOM, 0)).is_empty():
 		return
 	var to := spot - me.global_position
 	to.y = 0.0
 	var point := me.global_position + to.normalized() * minf(dist, 18.0) + Vector3(0, 9.0, 0)
 	var dir := (point - eye).normalized()
-	var q := PhysicsRayQueryParameters3D.create(eye, eye + dir * g.tuning.grapple_range, 1, [me.get_rid()])
-	var hit := space.intersect_ray(q)
+	var hit := _cast(eye, eye + dir * g.tuning.grapple_range)
 	if hit.is_empty() or hit.position.y < me.global_position.y + 3.0:
 		return
 	input.yaw = atan2(-dir.x, -dir.z)
@@ -1588,7 +1649,7 @@ func _blink(delta: float, visible: bool) -> void:
 		var spot := _target_spot() if visible or _goal == Vector3.INF else _from_nav(_goal)
 		if spot == Vector3.INF:
 			return
-		var rate: float = [0.15, 0.5, 1.0, 1.4][d.level]
+		var rate: float = BLINK_RATE[d.level]
 		if _rng.randf() > delta * rate:
 			return
 		var to := spot - me.global_position
@@ -1628,7 +1689,7 @@ func _jetpack(delta: float, visible: bool) -> void:
 	var spot := _target_spot() if visible or _goal == Vector3.INF else _from_nav(_goal)
 	if spot == Vector3.INF:
 		return
-	var rate: float = [0.2, 0.5, 0.9, 1.2][d.level]
+	var rate: float = JETPACK_RATE[d.level]
 	if _rng.randf() > delta * rate:
 		return
 	var to := spot - me.global_position
@@ -1685,7 +1746,7 @@ func _portal(delta: float, visible: bool) -> void:
 	var dist := me.global_position.distance_to(_target.global_position)
 	if dist < maxf(FAR - 4.0, 14.0) or dist > Portals.MAX_SPAN - 8.0:   # both its portals must be in reach of each other
 		return
-	if _rng.randf() > delta * [0.1, 0.35, 0.7, 1.0][d.level]:
+	if _rng.randf() > delta * PORTAL_RATE[d.level]:
 		return
 	_portal_plan = 3.0
 	_portal_step = 0
@@ -1709,8 +1770,7 @@ func _hook_player(delta: float) -> bool:
 	point += Vector3(_rng.randfn(), _rng.randfn() * 0.5, _rng.randfn()) * dist * tan(deg_to_rad(d.aim_error)) * 0.5
 	var dir := (point - eye).normalized()
 	# They are not there yet: all it can ask is a clear flight to where they will be.
-	var clear := PhysicsRayQueryParameters3D.create(eye, point, 1, [me.get_rid()])
-	if not me.get_world_3d().direct_space_state.intersect_ray(clear).is_empty():
+	if not _cast(eye, point).is_empty():
 		return false
 	input.yaw = atan2(-dir.x, -dir.z)
 	input.pitch = asin(clamp(dir.y, -1.0, 1.0))
@@ -1860,7 +1920,7 @@ func _fire(delta: float, perceived: Array) -> void:
 			_wind_goal = clampf(_rng.randf_range(0.15, 0.6) + 0.15 * d.level, 0.0, 1.0)
 		return
 	var allowed: float = max(atan(0.35 / max(dist, 0.1)), deg_to_rad(1.0))
-	if w.data.id in ["sniper", "bolt_action", "railgun"]:
+	if w.data.id in STEADY_GUNS:
 		allowed *= 0.6   # waits for a clean shot
 	var on_target := off < allowed + deg_to_rad(d.aim_error) * 0.5
 	if w.data.automatic:
