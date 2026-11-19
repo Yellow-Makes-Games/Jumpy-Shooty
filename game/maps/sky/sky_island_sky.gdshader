@@ -36,8 +36,8 @@ void sky() {
 	vec3 d = normalize(EYEDIR);
 	vec3 sun = normalize(sun_dir);
 	// The sky: deep blue overhead, paling to a soft haze at the horizon.
-	vec3 top = vec3(0.22, 0.45, 0.82);
-	vec3 low = vec3(0.78, 0.87, 0.96);
+	vec3 top = vec3(0.05, 0.26, 0.78);
+	vec3 low = vec3(0.36, 0.64, 0.97);
 	float h = clamp(d.y, 0.0, 1.0);
 	vec3 colour = mix(low, top, pow(smoothstep(0.0, 0.85, h), 0.6));
 	// The sun: a white disc and a warm glow round it.
@@ -56,8 +56,8 @@ void sky() {
 	}
 	// The sea of clouds below: everything under the horizon.
 	float gap = POSITION.y - cloud_height;
-	vec3 cloud_lit = vec3(1.0, 0.99, 0.96);
-	vec3 cloud_shade = vec3(0.7, 0.76, 0.86);
+	vec3 cloud_lit = vec3(1.0, 1.0, 0.98);
+	vec3 cloud_shade = vec3(0.44, 0.68, 1.0);
 	if (gap <= 0.5) {
 		// Down in them (a moment before the fall ends): nothing but cloud.
 		colour = mix(cloud_shade, cloud_lit, 0.5 + 0.5 * d.y);
@@ -66,7 +66,7 @@ void sky() {
 		vec2 p = POSITION.xz + d.xz * reach;
 		vec2 drift = vec2(TIME * 0.5, TIME * 0.2);
 		float billow = fbm((p + drift) * 0.012) * 0.6 + fbm((p - drift * 1.6) * 0.045) * 0.4;
-		float lump = smoothstep(0.32, 0.7, billow);
+		float lump = smoothstep(0.38, 0.74, billow);
 		vec3 sea = mix(cloud_shade, cloud_lit, lump);
 		sea += sun_colour * pow(max(dot(normalize(vec3(d.x, 0.0, d.z)), normalize(vec3(sun.x, 0.0, sun.z))), 0.0), 5.0) * 0.12 * lump;
 		// Far away it melts into the horizon's haze.

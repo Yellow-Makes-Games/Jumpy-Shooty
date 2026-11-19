@@ -224,6 +224,7 @@ func build(with_meshes: bool = true) -> void:
 	_collect_dummies(self, Transform3D.IDENTITY)
 	has_meshes = with_meshes
 	_index_surfaces(pieces)
+	_index_decor(pieces)
 	current = self
 	if destructible:
 		destruction = MapDestruction.new()
@@ -335,6 +336,86 @@ func _index_surfaces(pieces: Array) -> void:
 
 
 var _ground_material := ""
+
+var _decor := {}   # Vector2i bucket -> [{xf: Transform3D, half: Vector3}]: the blocks that are drawn but not solid
+
+
+## Files the map's decoration (blocks that are drawn but not solid: a container's ribs,
+## a sign on a wall, trim) by where it is, for decor_relief().
+func _index_decor(pieces: Array) -> void:
+	_decor = {}
+	for p in pieces:
+		if p.solid or p.get("hidden", false):
+			continue
+		var xf: Transform3D = p.xf
+		var half: Vector3 = p.size * 0.5
+		var box: AABB = xf * AABB(-half, p.size)
+		var lo := Vector2i(floori(box.position.x / SURFACE_BUCKET), floori(box.position.z / SURFACE_BUCKET))
+		var hi := Vector2i(floori(box.end.x / SURFACE_BUCKET), floori(box.end.z / SURFACE_BUCKET))
+		if (hi - lo).length() > 30:
+			continue   # a backdrop: nothing a portal sits on
+		var entry := {"xf": xf, "half": half}
+		for x in range(lo.x, hi.x + 1):
+			for z in range(lo.y, hi.y + 1):
+				var key := Vector2i(x, z)
+				if not _decor.has(key):
+					_decor[key] = []
+				_decor[key].append(entry)
+
+
+## How far the map's decoration sticks out of a surface under an oval: `frame` is the
+## oval's (x right, y up, z out of the surface, its origin on the surface), `half_w` and
+## `half_h` its half size. The furthest any decoration lying on the surface there
+## reaches in front of it (metres), leaving out what reaches further than `reach` (a
+## lamp on a bracket, a banner: not part of the surface). 0 if there is none. Rays do
+## not find decoration (it has no collision): a portal asks this to stand clear of it
+## (see PortalFit).
+func decor_relief(frame: Transform3D, half_w: float, half_h: float, reach: float) -> float:
+	var out := 0.0
+	var to_map := global_transform.affine_inverse() if is_inside_tree() else Transform3D.IDENTITY
+	var local := to_map * frame
+	var inv := local.affine_inverse()
+	var r := maxf(half_w, half_h) + reach
+	var lo := Vector2i(floori((local.origin.x - r) / SURFACE_BUCKET), floori((local.origin.z - r) / SURFACE_BUCKET))
+	var hi := Vector2i(floori((local.origin.x + r) / SURFACE_BUCKET), floori((local.origin.z + r) / SURFACE_BUCKET))
+	var seen := {}
+	for bx in range(lo.x, hi.x + 1):
+		for bz in range(lo.y, hi.y + 1):
+			for e: Dictionary in _decor.get(Vector2i(bx, bz), []):
+				if seen.has(e):
+					continue
+				seen[e] = true
+				out = maxf(out, _relief_of(inv * (e.xf as Transform3D), e.half, half_w, half_h, reach))
+	# The moving parts' own decoration, where they are now.
+	for m in movers:
+		var body: Node3D = m.body
+		if body == null or not is_instance_valid(body) or not body.is_inside_tree():
+			continue
+		var in_body := (to_map * body.global_transform).affine_inverse() * local
+		if not (m.bounds as AABB).grow(r + 1.0).has_point(in_body.origin):
+			continue
+		var body_inv := in_body.affine_inverse()
+		for piece in m.pieces:
+			if not piece.solid and not piece.get("hidden", false):
+				out = maxf(out, _relief_of(body_inv * (piece.xf as Transform3D), (piece.size as Vector3) * 0.5, half_w, half_h, reach))
+	return out
+
+
+## One block (`xf` in the oval's frame, `half` its half size): how far it reaches in
+## front of the oval's plane, if it lies on the surface under the oval; else 0.
+static func _relief_of(xf: Transform3D, half: Vector3, half_w: float, half_h: float, reach: float) -> float:
+	var b := xf.basis
+	var c := xf.origin
+	var ez := absf(b.x.z) * half.x + absf(b.y.z) * half.y + absf(b.z.z) * half.z
+	var top := c.z + ez
+	if top <= 0.004 or top > reach or c.z - ez > 0.12:
+		return 0.0   # behind the surface, standing too far out, or hanging in front of it
+	var ex := absf(b.x.x) * half.x + absf(b.y.x) * half.y + absf(b.z.x) * half.z
+	var ey := absf(b.x.y) * half.x + absf(b.y.y) * half.y + absf(b.z.y) * half.z
+	# The point of the block's outline (seen straight on) nearest the oval's middle.
+	var px := clampf(0.0, c.x - ex, c.x + ex) / half_w
+	var py := clampf(0.0, c.y - ey, c.y + ey) / half_h
+	return top if px * px + py * py <= 1.0 else 0.0
 
 
 ## What the block at `point` (or just under it, within `below` metres) is made of:
@@ -716,9 +797,23 @@ func _standing_on(point: Vector3, at_nav: bool) -> int:
 				continue
 			var p: Vector3 = (piece.xf as Transform3D).affine_inverse() * local
 			var half: Vector3 = piece.size * 0.5
-			var inside := (absf(p.x) <= half.x + 0.3 and absf(p.z) <= half.z + 0.3) if piece.shape == "box" \
-				else Vector2(p.x, p.z).length() <= half.x + 0.3
+			var inside := false
 			var gap := p.y - half.y
+			var up: float = (piece.xf as Transform3D).basis.x.y
+			if piece.shape == "box":
+				inside = absf(p.x) <= half.x + 0.3 and absf(p.z) <= half.z + 0.3
+			elif piece.shape == "wedge" and absf(up) > 0.99:
+				# A wedge lying on its side is a three-cornered slab of ground (Sky Island's
+				# deck round its hole is made of them): its own x is up, and it covers the
+				# triangle with the right angle at its low back corner.
+				# (how far past its long side the point is, in metres)
+				var past := ((p.y + half.y) / (2.0 * half.y) + (p.z + half.z) / (2.0 * half.z) - 1.0) \
+					/ Vector2(0.5 / half.y, 0.5 / half.z).length()
+				inside = p.y >= -half.y - 0.3 and p.z >= -half.z - 0.3 and past <= 0.3
+				gap = p.x * signf(up) - half.x
+			else:
+				var reach := Vector2(p.x, p.z).length()
+				inside = reach <= half.x + 0.3 and (piece.shape != "tube" or reach >= float(piece.get("inner", 0.0)) * 0.5 - 0.3)
 			if inside and gap >= -1.0 and gap <= 8.0 and gap < best_gap:
 				best = i
 				best_gap = gap
@@ -908,6 +1003,8 @@ func mover_ground_at(point: Vector3, at: float, tolerance: float = 0.5) -> int:
 			var half: Vector3 = piece.size * 0.5
 			if absf(local.x) > half.x or absf(local.z) > half.z:
 				continue
+			if piece.shape == "tube" and Vector2(local.x, local.z).length() < float(piece.get("inner", 0.0)) * 0.5:
+				continue   # in a tube's hole: nothing there to stand on
 			near = true
 			if absf(local.y - half.y) <= tolerance:
 				return 1
@@ -924,10 +1021,12 @@ func _collect_dummies(node: Node, xf: Transform3D) -> void:
 		_collect_dummies(child, at)
 
 
-## What a piece is to bump into: one shape for most, several for a hollow dome or an
-## arch (each in the piece's own frame).
+## What a piece is to bump into: one shape for most, several for a hollow dome, an
+## arch or a tube (each in the piece's own frame). A tube is its ring, one lump per
+## flat side, so you can stand in the hole you can see through; it is not in
+## hull_points() because it is drawn by _prism, not from its lumps.
 func collision_shapes(piece: Dictionary) -> Array:
-	var lumps := MapMesher.hull_points(piece)
+	var lumps := MapMesher.tube_hulls(piece) if piece.shape == "tube" else MapMesher.hull_points(piece)
 	if lumps.is_empty():
 		return [_collision_shape(piece)]
 	var shapes := []
@@ -939,7 +1038,7 @@ func collision_shapes(piece: Dictionary) -> Array:
 
 
 func _collision_shape(piece: Dictionary) -> Shape3D:
-	if piece.shape == "cyl":
+	if piece.shape == "cyl" or piece.shape == "tube":   # (a tube here has no hole: it is drawn as a cylinder)
 		var c := CylinderShape3D.new()
 		c.radius = piece.size.x * 0.5
 		c.height = piece.size.y

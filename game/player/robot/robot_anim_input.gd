@@ -18,6 +18,11 @@ var grapple_anchor := Vector3.ZERO
 var hook_taut := -1.0
 var hook_slack := 0.0
 var alive := true
+## How far the ground under each foot (x: the left, y: the right) is above (+) or below
+## (-) the floor the body stands on, metres: RobotAnimator rests each foot on it while
+## the body stands or crouches still. Looks only, so it does not travel in snapshots:
+## each copy of the game measures it for the bodies it draws (Player._feet_ground).
+var feet := Vector2.ZERO
 
 const FLIP_FRONT := 0
 const FLIP_BACK := 1

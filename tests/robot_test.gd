@@ -106,6 +106,72 @@ func _checks() -> void:
 		_drop_robot()
 		_check_akimbo()
 		_drop_robot()
+	_check_habits()
+
+
+## A robot's own idle (its habit: "idle_<torso>") goes by the torso, in the Character
+## Creator too, runs in step with the plain idle's breathing, and never turns the chest
+## (so the gun) or moves it sideways from where the plain idle has it.
+func _check_habits() -> void:
+	print("Idle habits")
+	var plain_len := RobotRig.open(Characters.body(Characters.default_id())).length("idle")
+	var other := ""   # a body with no habit of its own, to mix parts with (none, now that every body has one)
+	for part in Characters.part_ids():
+		if not RobotRig.open(Characters.body(Characters.default_id())).has_clip("idle_" + part):
+			other = part
+			break
+	var found := 0
+	for id in Characters.part_ids():
+		var rig := RobotRig.open(Characters.body(Characters.default_id()))
+		var habit: String = "idle_" + id
+		if not rig.has_clip(habit):
+			continue
+		found += 1
+		if id in Characters.ids():
+			robot = RobotModel.new().build(id, Color(1, 0.3, 0.2))
+			_expect("%s stands in its own idle" % id, robot.idle == habit, robot.idle)
+			_drop_robot()
+		var mixed := CustomCharacter.new()
+		mixed.torso = id
+		robot = RobotModel.new().build(mixed.to_id(), Color(1, 0.3, 0.2))
+		_expect("a custom character with %s's torso stands in its idle" % id, robot.idle == habit, robot.idle)
+		_drop_robot()
+		if other != "":
+			mixed.torso = other
+			mixed.head = id
+			robot = RobotModel.new().build(mixed.to_id(), Color(1, 0.3, 0.2))
+			_expect("but not one with only its head", robot.idle == "idle", robot.idle)
+			_drop_robot()
+		var breaths := rig.length(habit) / plain_len
+		_expect("%s's idle is a whole number of breaths long" % id, absf(breaths - roundf(breaths)) < 0.001, "%.3f" % breaths)
+		var a := rig.new_pose()
+		var b := rig.new_pose()
+		var turned := 0.0
+		var moved := 0.0
+		var lifted := 0.0
+		var t := 0.0
+		while t < rig.length(habit):
+			rig.sample(a, "idle", fmod(t, plain_len))
+			rig.sample(b, habit, t)
+			var ca := _chest(rig, a)
+			var cb := _chest(rig, b)
+			turned = maxf(turned, ca.basis.get_rotation_quaternion().angle_to(cb.basis.get_rotation_quaternion()))
+			moved = maxf(moved, Vector2(ca.origin.x - cb.origin.x, ca.origin.z - cb.origin.z).length())
+			lifted = maxf(lifted, absf(ca.origin.y - cb.origin.y))
+			t += 0.05
+		_expect("%s's habit never turns the chest (and the gun) or moves it sideways" % id, turned < deg_to_rad(0.5) and moved < 0.005,
+			"%.2f deg, %.3f m" % [rad_to_deg(turned), moved])
+		_expect("and raises or lowers it only a little", lifted < 0.035, "%.3f m" % lifted)
+	_expect("every robot and every creature has a habit", found == Characters.part_ids().size(), "%d of %d" % [found, Characters.part_ids().size()])
+
+
+## Where a pose puts the chest, in the model's own space.
+func _chest(rig: RobotRig, pose: RobotPose) -> Transform3D:
+	var at := Transform3D.IDENTITY
+	for bone in ["root", "hips", "spine", "chest"]:
+		var i: int = rig.bones[bone]
+		at = at * Transform3D(Basis(pose.rot[i]), pose.pos[i])
+	return at
 
 
 ## Akimbo: a pistol in each fist, both pointing ahead, and each arm kicks only on its own shots.
@@ -219,6 +285,7 @@ func _check_character() -> void:
 	var gliding := _input(S.GLIDE, Vector3(0, 0, -12), 0.0)
 	_run(gliding, 0.5)
 	var held := robot.bone_position("muzzle")
+	var aim := _gun_dir()
 	_expect("gliding: gun still held out in front", held.z < -0.35 and held.y > 1.2, str(held))
 	var seat := robot.bone_position("hips")
 	var leg_l := robot.bone_position("foot_l") - seat
@@ -229,12 +296,60 @@ func _check_character() -> void:
 	_run(_input(S.GLIDE, Vector3(12, 0, 0), 0.0), 0.6)
 	var side_l := robot.bone_position("foot_l") - robot.bone_position("hips")
 	_expect("gliding sideways: the legs trail away from where you are going", side_l.x < -0.3 and absf(side_l.z) < 0.35, str(side_l))
-	_expect("gliding sideways: the gun stays on target", robot.bone_position("muzzle").distance_to(held) < 0.06,
-		"%.3f m" % robot.bone_position("muzzle").distance_to(held))
+	# (The chest leans into the flight only when you aim down the track, so the gun sits a
+	# little higher aiming across it: where it points is what must not change.)
+	_expect("gliding sideways: the gun stays on target", rad_to_deg(_gun_dir().angle_to(aim)) < 6.0,
+		"%.1f degrees" % rad_to_deg(_gun_dir().angle_to(aim)))
 	# Hanging in place: the legs hang nearly straight down.
 	_run(_input(S.GLIDE, Vector3.ZERO, 0.0), 0.6)
 	var hang := robot.bone_position("foot_l") - robot.bone_position("hips")
 	_expect("gliding at a standstill: the legs hang", Vector2(hang.x, hang.z).length() < 0.3 and hang.y < -0.7, str(hang))
+	# Weakened into a fall: nose-down, the legs higher than the hips behind.
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	var fresh_head := robot.bone_position("head").y
+	_run(_input(S.GLIDE, Vector3(0, -20, -14), 0.0), 1.0)
+	var dive_leg := robot.bone_position("foot_l") - robot.bone_position("hips")
+	_expect("a weakened glide tips nose-down", robot.bone_position("head").y < fresh_head - 0.15,
+		"%.2f vs %.2f" % [robot.bone_position("head").y, fresh_head])
+	_expect("...the legs streaming out behind", dive_leg.z > 0.55, str(dive_leg))
+	# Letting go of a real glide in mid-air: a backflip out of it, then the fall.
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	_expect("letting go of a glide backflips out of it", animator.source == "glide_flip", "got \"%s\"" % animator.source)
+	# One long flip: open over the top (upside down, arms flung wide), all the way round by the end.
+	_run(_input(S.AIR, Vector3(0, -4, -14), 0.0), RobotAnimator.GLIDE_FLIP_TIME * 0.5 - 0.1)
+	var hips_up := robot.skeleton.get_bone_global_pose(robot.rig.bones["hips"]).basis.y
+	var hands := absf(robot.bone_position("hand_l").x - robot.bone_position("hand_r").x)
+	_expect("...upside down halfway through", animator.source == "glide_flip" and hips_up.y < -0.7, "%s %s" % [animator.source, hips_up])
+	_expect("...open, the arms flung wide", hands > 0.9, "%.2f m apart" % hands)
+	_run(_input(S.AIR, Vector3(0, -8, -14), 0.0), RobotAnimator.GLIDE_FLIP_TIME * 0.5 - 0.05)
+	_expect("...still going just before its time is up", animator.source == "glide_flip", "got \"%s\"" % animator.source)
+	_run(_input(S.AIR, Vector3(0, -10, -14), 0.0), 0.12)
+	_expect("...then the fall", animator.source == "air", "got \"%s\"" % animator.source)
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.2), 0.2)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	_expect("a tap of the glide does not backflip", animator.source == "air", "got \"%s\"" % animator.source)
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	animator.fire()
+	_expect("a shot hurries the backflip: the arms are free at once", animator.glide_flip_hurried())
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), RobotAnimator.GLIDE_FLIP_HURRY + 0.04)
+	_expect("...and it is round in a moment", animator.source == "air", "got \"%s\"" % animator.source)
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	animator.glide_flip_floor_in(0.4)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.36)
+	_expect("the floor coming up hurries it too: round before the landing", animator.source == "air", "got \"%s\"" % animator.source)
+	_fresh()
+	_run(_input(S.GLIDE, Vector3(0, 0, -14), 0.0), 0.6)
+	_run(_input(S.AIR, Vector3(0, -2, -14), 0.0), 0.1)
+	_run(_input(S.GRAPPLE, Vector3(0, -2, -14), 0.0), 0.05)
+	_expect("another move cuts it short", animator.source == "grapple", "got \"%s\"" % animator.source)
 
 	_fresh()
 	var before := robot.marker("muzzle")
@@ -254,7 +369,41 @@ func _check_character() -> void:
 	_run(dead, 2.0)
 	_expect("dead: the body is down on the floor", _top() < 0.75, "%.2f" % _top())
 	_expect("dead: nothing sinks through the floor", _lowest_bone() > -0.12, "%.2f" % _lowest_bone())
+	_check_feet()
 	_check_first_person()
+
+
+## Standing still on uneven ground, each foot rests on the ground under it; on level
+## ground, and on the move, the legs are exactly the clip's.
+func _check_feet() -> void:
+	_fresh()
+	var still := _input(S.GROUND, Vector3.ZERO, 0.0)
+	_run(still, 1.0)
+	var level_l := robot.bone_position("foot_l").y
+	var level_r := robot.bone_position("foot_r").y
+	var level_hips := robot.bone_position("hips").y
+	still.feet = Vector2(0.15, 0.0)
+	_run(still, 3.0)   # (one whole breath of the idle on, so only the feet's ground has changed)
+	_expect("a step under the left foot: that foot rests on it", absf(robot.bone_position("foot_l").y - level_l - 0.15) < 0.02,
+		"%.3f m up" % (robot.bone_position("foot_l").y - level_l))
+	_expect("and the other foot and the hips stay where they were", absf(robot.bone_position("foot_r").y - level_r) < 0.01
+		and absf(robot.bone_position("hips").y - level_hips) < 0.01)
+	still.feet = Vector2(0.0, -0.25)
+	_run(still, 3.0)
+	var drop := level_hips - robot.bone_position("hips").y
+	_expect("a drop under the right foot: the hips come down for it, but only so far",
+		drop > 0.08 and drop < RobotAnimator.FEET_DROP + 0.01, "%.3f m" % drop)
+	_expect("and the right foot goes down toward it", robot.bone_position("foot_r").y < level_r - 0.1,
+		"%.3f m" % (robot.bone_position("foot_r").y - level_r))
+	_fresh()
+	var moving := _input(S.GROUND, Vector3(0, 0, -6.0), 0.0)
+	moving.feet = Vector2(0.2, -0.2)
+	_run(moving, 1.0)
+	var a := robot.bone_position("hips")
+	_fresh()
+	_run(_input(S.GROUND, Vector3(0, 0, -6.0), 0.0), 1.0)
+	_expect("on the move the ground under the feet is left alone", robot.bone_position("hips").distance_to(a) < 0.005,
+		"%.3f m" % robot.bone_position("hips").distance_to(a))
 
 
 ## A robot holding a long gun: it shows only that gun, holds it in both hands, aims
@@ -468,6 +617,11 @@ func _bone_y(bone: String) -> float:
 
 
 ## The head bone sits at the neck; the top of the head is about 0.26 m above it.
+## Which way the gun in the right hand points (model space).
+func _gun_dir() -> Vector3:
+	return (robot.bone_position("muzzle") - robot.bone_position("pistol")).normalized()
+
+
 func _top() -> float:
 	var pose := robot.skeleton.get_bone_global_pose(robot.rig.bones["head"])
 	return (pose * Vector3(0, 0.26, 0)).y

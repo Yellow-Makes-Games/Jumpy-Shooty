@@ -535,11 +535,13 @@ def merged(base, **over):
 # Clips
 
 class Clip:
-    def __init__(self, name, duration, fn, loop=False, fps=FPS):
+    def __init__(self, name, duration, fn, loop=False, fps=FPS, lean=False):
         """fps: frames a second it is baked at (more, for a clip with a part that turns fast:
         between frames a bone's place goes in a straight line, so a part spun about a point
-        that is not its bone's own wobbles if the frames are far apart)."""
-        self.name, self.duration, self.fn, self.loop, self.fps = name, duration, fn, loop, fps
+        that is not its bone's own wobbles if the frames are far apart).
+        lean: leave out every bone the clip never moves from its rest (the game reads a
+        bone a clip does not hold as at rest: RobotRig.sample), which keeps a long clip small."""
+        self.name, self.duration, self.fn, self.loop, self.fps, self.lean = name, duration, fn, loop, fps, lean
         self.times = []
         self.rotations = {}
         self.positions = {}
@@ -562,4 +564,8 @@ class Clip:
                 poss[b].append(T[b])
         self.rotations = {b: np.array(q, dtype=np.float32) for b, q in rots.items()}
         self.positions = {b: np.array(p, dtype=np.float32) for b, p in poss.items()}
+        if self.lean:
+            still = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
+            self.rotations = {b: q for b, q in self.rotations.items() if np.abs(np.abs(q) - still).max() > 1e-5}
+            self.positions = {b: p for b, p in self.positions.items() if np.abs(p - skel.offset(b)).max() > 1e-5}
         return self

@@ -98,6 +98,7 @@ var _slam_power := 0.0            # local: how wound up that slam is, 0..1
 var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
+var _glide_fx: GlideFx            # the wind trail and speed streaks of a glide
 var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
 var _punch_roll := 0.0
 var _coil_roll := 0.0             # own view: tipped by a melee wind-up
@@ -128,6 +129,16 @@ var jetpack: Jetpack              # local, with the jetpack
 var _seen_jet := false            # the jetpack was firing last frame (its sound and flame)
 ## Local: the portal you just came out of. It does nothing until you step clear of it (see Portals).
 var portal_skip: Portal
+# Own view, coming out of a portal (see view_carried): how far the view still is from
+# the eyes (it starts where they would be had you walked through, and catches up),
+# and how it is still tipped (it rights itself).
+var _view_shift := Vector3.ZERO
+var _portal_roll := 0.0
+const PORTAL_ROLL_MAX := 0.6      ## radians: a view carried through further round than this is not tipped that far
+# The portal gun's arm: seconds left of pointing at where it just shot, and where that is.
+var _portal_aim := 0.0
+var _portal_aim_at := Vector3.ZERO
+const PORTAL_AIM_TIME := 0.3
 
 
 func _init() -> void:
@@ -206,6 +217,10 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	if WeaponData.melee(robot.weapon):
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(Net.player_color(id)))
 		add_child(_trail)
+	_glide_fx = GlideFx.new().setup(RobotModel.trim_color(Net.player_color(id)))
+	add_child(_glide_fx)
+	if rig:
+		_glide_fx.set_trail_layers(1 << (CameraRig.BODY_LAYER - 1))   # (your own: not in your first-person view)
 	Match.melee_landed.connect(_on_melee_landed)
 	Match.ground_slammed.connect(_on_ground_slammed)
 
@@ -265,6 +280,11 @@ func _physics_process(delta: float) -> void:
 					print("JETPACK %d" % peer_id)
 			motor.has_jetpack = jetpack != null
 			motor.hang = _charge >= 0.0 and not (jetpack and jetpack.on)   # winding a melee swing up slows a fall (the jetpack takes over from it)
+			# Portals, before the step: a body about to reach one goes through with the
+			# speed it has, not what is left of it after landing on the floor round it.
+			if not racing and Net.arena and Net.arena.get("portals"):
+				Net.arena.portals.funnel(self, delta)
+				Net.arena.portals.check(self, delta)
 			motor.step(self, input, delta)
 			if not racing and is_on_floor():
 				# A floor that turns under you (an island swinging round, see MapIsland)
@@ -318,8 +338,12 @@ func _process(delta: float) -> void:
 			if coil != 0.0 or _coil_roll != 0.0:   # (spinning in mid-air, the view rocks a little with each turn)
 				coil += animator.melee_swing().air() * 0.5 * sin(animator.melee_swing().spin())
 			_coil_roll = lerpf(_coil_roll, coil * COIL_ROLL, 1.0 - exp(-delta * 16.0))
+			# Out of a portal: the view catches the body up and rights itself.
+			_view_shift = _view_shift.lerp(Vector3.ZERO, 1.0 - exp(-delta * 22.0))
+			_portal_roll = lerpf(_portal_roll, 0.0, 1.0 - exp(-delta * 9.0))
+			rig.shift = _view_shift
 			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
-				motor.eye_height, _roll + _punch_roll + _coil_roll)
+				motor.eye_height, _roll + _punch_roll + _coil_roll + _portal_roll)
 			rig.place()   # (now, not after this: the arms, and the ropes that start at them, go where this frame is drawn)
 		var g := motor.grapple
 		_anim.state = motor.state
@@ -329,6 +353,7 @@ func _process(delta: float) -> void:
 		_anim.flags = _my_anim_flags()
 		_anim.grapple_on = g.rope_out()   # (the arm follows the hook out)
 		_anim.grapple_anchor = g.rope_end()
+		_point_portal_arm(delta)
 		# (What the body needs of that rope to hang on it: see RopeSwing.)
 		_anim.set_hook(g.line.look(g.clock, g.rope_origin(self), g.rope_origin(self)) if alive else [])
 		_watch_swings(delta)
@@ -339,6 +364,7 @@ func _process(delta: float) -> void:
 			view.update(delta)
 		_draw_hook(g.line.look(g.clock, rope_origin(), g.rope_origin(self), Vector3.INF, _first_person()) if alive else [])
 		_update_trail(delta)
+		_update_glide_fx(delta)
 		_update_flame(delta)
 		return
 	if _awaiting_respawn:
@@ -377,6 +403,7 @@ func _process(delta: float) -> void:
 			_anim.grapple_anchor = _hook_look[1]   # (where it was a frame ago: it is coming to the wrist)
 	elif _anim.grapple_on:
 		_anim.grapple_anchor = hook_anchor if hook_anchor != Vector3.INF else shot.anchor_at(rt)
+	_point_portal_arm(delta)
 	var rope_at := global_position + Vector3(0, HookLine.ATTACH_HEIGHT, 0)
 	_anim.set_hook(shot.look(rt, rope_at, rope_at, hook_anchor) if shot and alive else [])
 	_watch_swings(delta)
@@ -397,6 +424,7 @@ func _process(delta: float) -> void:
 		var hp: Vector3 = logged[1]
 		print("HOOK SEEN %d %d %d %.4f %d %.3f %.3f %.3f %.3f %.4f" % [Net.my_id(), peer_id, shot.seq, rt, logged[0], hp.x, hp.y, hp.z, logged[2], delta])
 	_update_trail(delta)
+	_update_glide_fx(delta)
 	_update_flame(delta)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
 		var sp: Vector3 = s[0]
@@ -602,6 +630,8 @@ func _fire_round() -> void:
 		ends.append(end)
 		hits.append(hit and (hit.collider is Player or hit.collider is TargetDummy))
 	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id, vias)  # into the arena, not among the players
+	if portals:
+		portals.shots_through(vias)
 	Sound.shot_landed(muzzle_position(), ends, hits, sounds.own)
 	var view_times := {}
 	for p in get_parent().get_children():
@@ -1058,6 +1088,18 @@ func _update_trail(delta: float) -> void:
 	_trail.tick(delta)
 
 
+## A glide's wind trail and speed streaks (everyone sees them), and in first person
+## the view widening a little with its speed.
+func _update_glide_fx(delta: float) -> void:
+	var gliding := alive and visual.visible and _anim.state == MovementController.State.GLIDE
+	if rig:
+		rig.glide_widen = clampf((velocity.length() - 8.0) / 16.0, 0.0, 1.0) if gliding else 0.0
+	if _glide_fx == null:
+		return
+	var feet := [robot.marker("foot_l"), robot.marker("foot_r")] if gliding else []
+	_glide_fx.tick(delta, gliding, feet, velocity, global_position + Vector3(0, 0.9, 0))
+
+
 ## A hit or shove from the host: knocked along, and off your feet if it lifts you.
 func knock(push: Vector3) -> void:
 	if motor and alive and not _flying:
@@ -1377,6 +1419,8 @@ func change_weapon(gun: String) -> void:
 	robot = RobotModel.new().build(character, color, false, gun, false, Teams.paint_for(peer_id))
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
+	if sounds:
+		sounds.free_voices()
 	sounds = PlayerSounds.new(self, is_local and not is_bot, gun)
 	_seen_swings = -1
 	_seen_wind = -1.0
@@ -1411,6 +1455,8 @@ func change_weapon(gun: String) -> void:
 	if WeaponData.melee(gun):
 		_trail = SwingTrail.new().setup(RobotModel.trim_color(color))
 		add_child(_trail)
+	if _glide_fx:
+		_glide_fx.set_color(RobotModel.trim_color(color))
 	visual.visible = was_visible
 	if DevArgs.sync_log:
 		print("GUN %s %d %d %s" % ["SELF" if is_local else "SEEN", Net.my_id(), peer_id, gun])
@@ -1631,19 +1677,63 @@ func _animate(delta: float) -> void:
 		_corpse_drop = minf(_corpse_drop + _corpse_fall * delta, _corpse_room)
 	elif alive:
 		_corpse_drop = 0.0
-	visual.transform = Transform3D(Basis(Vector3.UP, _visual_yaw), Vector3(0, -_corpse_drop, 0))
+	var first_person := rig.first_person_amount() if rig and alive else 0.0
+	# (Just out of a portal, your view is still catching the body up (view_carried): in
+	# first person your own body is drawn where the view is, not in front of it.)
+	visual.transform = Transform3D(Basis(Vector3.UP, _visual_yaw), Vector3(0, -_corpse_drop, 0) + _view_shift * first_person)
 	_anim.alive = alive
 	_anim.yaw = _visual_yaw
-	var first_person := rig.first_person_amount() if rig and alive else 0.0
 	if first_person > 0.0 and motor and motor.auto_tucked():
 		_anim.crouched = false   # Variant B: your own legs do not pull up for the automatic tuck in first person
 	animator.first_person = first_person > 0.0
 	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
+	_anim.feet = _feet_ground()
+	if animator.glide_flipping():
+		animator.glide_flip_floor_in(_floor_in())   # (the backflip out of a glide is round before the landing)
 	animator.update(delta, _anim, visual.global_transform)
 	if rig:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)
 	if DevArgs.sync_log:
 		_log_animation()
+
+
+## The ground under each foot, measured from the floor this body stands on (see
+## RobotAnimInput.feet): a short ray straight down through each foot. Only while
+## standing or crouching still, which is the only time RobotAnimator uses it.
+func _feet_ground() -> Vector2:
+	if not alive or robot == null or not is_inside_tree():
+		return Vector2.ZERO
+	if not (_anim.state in [MovementController.State.GROUND, MovementController.State.CROUCH]):
+		return Vector2.ZERO
+	if Vector2(_anim.velocity.x, _anim.velocity.z).length() > RobotAnimator.FEET_STILL:
+		return Vector2.ZERO
+	var space := get_world_3d().direct_space_state
+	var floor_y := global_position.y
+	var out := Vector2.ZERO
+	for i in 2:
+		var at := robot.marker("foot_l" if i == 0 else "foot_r")
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(at.x, floor_y + RobotAnimator.FEET_REACH + 0.1, at.z),
+			Vector3(at.x, floor_y - RobotAnimator.FEET_REACH - 0.1, at.z), 1, [get_rid()])
+		var hit := space.intersect_ray(ray)
+		if not hit.is_empty():
+			out[i] = (hit.position as Vector3).y - floor_y
+	return out
+
+
+## Seconds until this body, falling as it is, reaches the floor below it (a long time
+## when there is none within 60 m). For anyone's body: it goes by where it is and how
+## it is moving, as this copy of the game shows it.
+func _floor_in() -> float:
+	if not is_inside_tree():
+		return 99.0
+	var from := global_position + Vector3(0, 0.5, 0)
+	var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 60, 0), 1, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		return 99.0
+	var drop := maxf(from.y - (hit.position as Vector3).y - 0.5, 0.0)
+	var g := 22.0 * (motor.gravity_scale if motor else 1.0)
+	return (velocity.y + sqrt(velocity.y * velocity.y + 2.0 * g * drop)) / g
 
 
 ## For tests/check_anim.py: prints the animation this body shows whenever it changes.
@@ -1720,6 +1810,8 @@ func position_at(t: float) -> Vector3:
 
 func teleport(pos: Vector3, yaw: float) -> void:
 	portal_skip = null
+	_view_shift = Vector3.ZERO
+	_portal_roll = 0.0
 	_fly_kick = 0.0
 	_tug_by = 0
 	if motor:
@@ -1732,19 +1824,48 @@ func teleport(pos: Vector3, yaw: float) -> void:
 
 ## Local: jump to `pos` keeping on the move (blink, a portal). Others see it as a
 ## jump, not a dash across the map: the respawn count goes up, so they don't blend
-## from where you were.
-func warp(pos: Vector3, vel: Vector3, yaw: float) -> void:
+## from where you were. `pitch`: look this far up or down from now on (NAN: as you
+## were). `on_floor`: you stay on your feet (out of a wall portal at floor level).
+## `via`: the portals it went by, [in, out] (a portal trip; [] a blink).
+func warp(pos: Vector3, vel: Vector3, yaw: float, pitch: float = NAN, on_floor: bool = false, via: Array = []) -> void:
 	var from := global_position
 	motor.grapple.reset()
 	if motor.state == MovementController.State.MANTLE:
 		motor.state = MovementController.State.AIR
 	global_position = pos
 	velocity = vel
-	motor.warped = true   # off the floor you were on: no snapping back to it, no ground friction
+	motor.warped = not on_floor   # off the floor you were on: no snapping back to it, no ground friction
 	input.yaw = yaw
+	if not is_nan(pitch):
+		input.pitch = pitch
 	_teleport_count += 1
 	_send_timer = 0.0   # tell everyone at once
-	_show_warp(from, pos)
+	_show_warp(from, pos, via)
+
+
+## Would this body fit with its feet at `feet`, clear of the map?
+func fits_at(feet: Vector3) -> bool:
+	if _shape == null or not is_inside_tree():
+		return true
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = _shape.shape
+	q.transform = Transform3D(Basis.IDENTITY, feet + _shape.position + Vector3(0, 0.04, 0))
+	q.collision_mask = 1
+	q.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
+
+
+## Local, your own view, just out of a portal (Portals._send_through): `eye` is where
+## your eyes would be had you walked through a doorway, `roll` how the view carried
+## through is tipped. The view starts from there and catches the body up in a few
+## frames, and rights itself, so the trip is one smooth move and not a cut. `speed`:
+## how fast you came out (the view widens a touch with it: CameraRig.rush).
+func view_carried(eye: Vector3, roll: float, speed: float) -> void:
+	if rig == null or is_bot:
+		return
+	_view_shift = (eye - eye_position()).limit_length(1.5)
+	_portal_roll = clampf(roll, -PORTAL_ROLL_MAX, PORTAL_ROLL_MAX)
+	rig.rush(clampf(speed / 24.0, 0.2, 1.0))
 
 
 # ---------------------------------------------------------------------------
@@ -1805,8 +1926,6 @@ func _update_mobility(delta: float, pressed: bool) -> void:
 			portal_gun.cooldown_left = 0.0
 		if pressed:
 			_try_portal()
-	if not racing and Net.arena and Net.arena.get("portals"):
-		Net.arena.portals.check(self)
 
 
 func _try_blink() -> void:
@@ -1832,27 +1951,83 @@ func _try_portal() -> void:
 	portal_gun.cooldown_left = PortalGun.COOLDOWN
 	var aim := mobility_aim()
 	var spot := PortalGun.find_spot(self, aim[0], aim[1])
-	if spot.is_empty():
+	if not spot.has("at"):
 		sounds.grapple_missed()   # nothing in range takes a portal
+		if spot.has("miss") and Net.arena and Net.arena.get("portals"):
+			Net.arena.portals.fizzle(peer_id, portal_gun.next_slot, spot.miss, spot.normal)   # (it reached a surface: show why not)
 		return
 	var slot := portal_gun.next_slot
 	portal_gun.next_slot = 1 - slot
 	Net.place_portal(peer_id, slot, spot.at, spot.normal, spot.up)
 
 
-## A flash where a blink or portal trip left from and where it arrived, and its sound.
-func _show_warp(from: Vector3, to: Vector3) -> void:
+## This player's portal gun just shot (every copy: see Portals.place and fizzle): a
+## bolt in the portal's colour from the launcher on the wrist to `at`, the arm thrown
+## out toward it for a moment and, for your own, a kick of the view. `took`: a portal
+## opened there (false: the shot fizzled on a surface that takes none).
+func show_portal_shot(at: Vector3, slot: int, took: bool) -> void:
+	if not is_inside_tree() or not alive:
+		return
+	_portal_aim = PORTAL_AIM_TIME
+	_portal_aim_at = at
+	if visible_in_world() or _first_person():
+		var col: Color = Portal.COLORS[clampi(slot, 0, 1)]
+		Portal.bolt(Net.arena if Net.arena else get_parent(), rope_origin(), at, col if took else col.lerp(Color(0.7, 0.7, 0.75), 0.5))
+	if is_local and not is_bot:
+		_punch += Vector2(randf_range(-0.004, 0.004), 0.012)
+		Sound.play("portal_shot", 0.0, 0.06)
+	else:
+		Sound.play_at("portal_shot", global_position + Vector3(0, 1.2, 0), "move", 0.0, 0.06)
+	if DevArgs.sync_log:
+		print("PORTAL_SHOT %d %d %d %d" % [Net.my_id(), peer_id, slot, 1 if took else 0])
+
+
+## The left arm points at where the portal gun just shot, for a moment (the body
+## everyone sees; your own first-person arms ask portal_aiming()).
+func _point_portal_arm(delta: float) -> void:
+	if _portal_aim <= 0.0:
+		return
+	_portal_aim -= delta
+	if not _anim.grapple_on:
+		_anim.grapple_on = true
+		_anim.grapple_anchor = _portal_aim_at
+
+
+func portal_aiming() -> bool:
+	return _portal_aim > 0.0
+
+
+func portal_aim_point() -> Vector3:
+	return _portal_aim_at
+
+
+## What a blink or a portal trip looks and sounds like, here and (from their
+## snapshots) on every other copy. A portal trip: both portals flare, a ripple crosses
+## each face and sparks follow the body out. A blink (or a map gate, which draws
+## itself): a flash where it left from and where it arrived, and a blink's trail.
+## `via`: [in, out], the portals your own trip went by; for anyone else's they are
+## found from where they were and where they are now (Portals.trip).
+func _show_warp(from: Vector3, to: Vector3, via: Array = []) -> void:
 	if not is_inside_tree():
 		return
-	var col: Color = Portal.COLORS[0] if mobility == Mobility.BLINK else Portal.COLORS[1]
 	var mid := Vector3(0, body_height() * 0.5, 0)
-	if not (rig and rig.first_person_amount() > 0.5):
+	var portals: Portals = Net.arena.get("portals") if Net.arena else null
+	var by_gate := not via.is_empty()   # (a map's ring gate counts: it is a portal too)
+	if via.is_empty() and portals and not is_local:
+		via = portals.trip(from + mid, to + mid)
+	var tripped := via.size() == 2 and (via[0] as Portal).has_look() and (via[1] as Portal).has_look()
+	var blinked := not tripped and not by_gate and mobility == Mobility.BLINK
+	var col: Color = Portal.COLORS[0] if blinked else Portal.COLORS[1]
+	if tripped:
+		(via[0] as Portal).pulse(false)
+		(via[1] as Portal).pulse(true, velocity.length())
+	elif not (rig and rig.first_person_amount() > 0.5):
 		var fx_parent: Node = Net.arena if Net.arena else get_parent()
 		Portal.flash(fx_parent, from + mid, col)
 		Portal.flash(fx_parent, to + mid, col)
-	if mobility == Mobility.BLINK:
+	if blinked:
 		Portal.trail(Net.arena if Net.arena else get_parent(), from + mid, to + mid, col)
-	var sound := "blink" if mobility == Mobility.BLINK else "portal_through"
+	var sound := "blink" if blinked else "portal_through"
 	if is_local and not is_bot:
 		Sound.play(sound, 0.0, 0.05)
 	else:

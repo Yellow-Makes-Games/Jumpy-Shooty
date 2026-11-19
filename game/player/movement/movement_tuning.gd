@@ -8,26 +8,29 @@ const EYE_HEIGHT := 1.6  ## eyes above the feet, standing
 const BODY_RADIUS := 0.4
 
 ## Movement variants, for A/B testing how movement feels. The host picks one in the
-## lobby (LobbySettings.movement) and every player in the match runs it; Practice and
-## Vs Bots pick it on their pages. "classic" is the numbers below as they are; "b" is
-## classic with the changes in _apply_b.
-## To change a mechanic for Variant B, give it a switch here (an @export bool that is
-## false for classic), have MovementController check the switch, and turn it on in
-## _apply_b. Prefer a switch per mechanic over checking `variant` in the controller.
-const VARIANTS := ["classic", "b"]
-const DEFAULT_VARIANT := "classic"
+## lobby (LobbySettings.movement) and every player in the match runs it. There is one
+## variant today: "b" (the numbers below with the changes in _apply_b). Classic (the
+## plain numbers, with Shift-glide and the crouch-slide on C) is retired: an old
+## "classic" choice (saved settings, an older host) now means "b". The A/B setup is kept
+## so a new variant can be tried later: add its id to VARIANTS, give each mechanic it
+## changes a switch here (an @export bool), have MovementController check the switch,
+## and turn it on in an _apply_ function. Prefer a switch per mechanic over checking
+## `variant` in the controller. (While there is only one variant there is nothing to
+## pick, so the menus show no movement switch.)
+const VARIANTS := ["b"]
+const DEFAULT_VARIANT := "b"
 
 var variant := DEFAULT_VARIANT   ## which variant built these numbers (see for_variant)
 
 
-## `id` if it is a known variant, otherwise classic.
+## `id` if it is a known variant, otherwise the default.
 static func valid_variant(id) -> String:
 	return str(id) if str(id) in VARIANTS else DEFAULT_VARIANT
 
 
 ## The variant's name for menus and the HUD.
 static func variant_name(id) -> String:
-	return "Variant B" if valid_variant(id) == "b" else "Classic"
+	return "Variant B" if valid_variant(id) == "b" else str(id)
 
 
 ## Fresh tuning for a variant. Each player gets their own copy: Player changes some
@@ -40,8 +43,8 @@ static func for_variant(id) -> MovementTuning:
 	return t
 
 
-## Variant B: its numbers and mechanic switches, set over the classic ones.
-##  - no glides; Space in mid-air flips, once per jump, as in classic (boots stay on E);
+## Variant B: its numbers and mechanic switches, set over the plain ones.
+##  - Space in mid-air flips, once per jump (boots stay on E);
 ##  - Space held in the air flies the jetpack if you have it (right mouse still does);
 ##  - legs tucked whenever you are in the air, so edges clear without a key (your own
 ##    body does not show it in first person);
@@ -51,10 +54,10 @@ static func for_variant(id) -> MovementTuning:
 ##  - stick to a wall you push into in mid-air for 2.5 seconds, then slide slowly down it;
 ##  - in a jump or fall, pressing WASD against the way you are moving brakes you much
 ##    harder (air_brake), so momentum is easy to stop;
-##  - sideways speed never goes past 27 m/s, whatever got you there (max_speed).
-## Run and sprint speeds are classic's.
+##  - sideways speed never goes past 27 m/s, whatever got you there (max_speed);
+##  - the glide is on Alt (the bullet glide: see MovementController's GLIDE).
+## Run and sprint speeds are the plain ones.
 func _apply_b() -> void:
-	glides_on = false
 	space_jetpack = true
 	always_tuck = true
 	ctrl_moves = true
@@ -171,11 +174,14 @@ func _apply_b() -> void:
 @export var belly_crawl_speed := 2.0      ## once the slide runs out (dive still held), you can crawl this fast
 
 @export_group("Glide")
-@export var glide_time := 1.5             ## hold Shift in mid-air: seconds of glide per time in the air (spend it in pieces)
-@export var glide_drag := 1.6             ## how quickly your speed bleeds off while gliding (per second; higher = sooner)
-@export var glide_drift_speed := 4.0      ## ...down to this drift, never below it (slower than this, you keep what you have)
-@export var glide_fall_speed := 2.0       ## you sink this fast by the end of the budget; hardly at all at the start
-@export var glide_min_height := 0.5       ## no glide this close above the floor (Shift there is just sprint)
+## The bullet glide (hold Alt in mid-air): you hold your line and your speed, as long
+## as you like, but it weakens: you hardly sink at first, then the fall builds until,
+## glide_fade_time seconds in, you are falling as fast as a plain fall would by then
+## (and gravity pulls in full from there). The seconds add up over one time in the air.
+@export var glide_fade_time := 4.0        ## seconds of gliding (per time in the air) until it is a plain fall
+@export var glide_fade_curve := 2.5       ## how long it stays flat before the fall builds (higher = flatter, then steeper)
+@export var glide_catch := 15.0           ## how quickly your rise or fall eases to the glide's when you start one (per second; 15 = about 0.2 s)
+@export var glide_min_height := 0.5       ## no glide this close above the floor
 
 @export_group("Melee in the air")
 @export var hang_time := 0.6              ## winding a melee swing up in mid-air slows your fall: seconds of that per time in the air
@@ -192,10 +198,10 @@ func _apply_b() -> void:
 @export var flip_up := 4.5                ## and at least this much upward speed
 @export var flip_time := 0.45             ## how long the flip lasts (for the animation)
 
-## Mechanic switches. Classic has every one as below; Variant B changes them (see _apply_b).
+## Mechanic switches. The plain numbers have every one as below; Variant B changes them (see _apply_b).
 @export_group("Mechanic switches")
 @export var flips_on := true              ## Space again in mid-air flips (when space_boost is off)
-@export var glides_on := true             ## Shift held in mid-air glides
+@export var glides_on := true             ## the glide key held in mid-air glides
 @export var space_boost := false          ## Space in mid-air fires the rocket boots (with space_jetpack and the jetpack: only a tap)
 @export var space_jetpack := false        ## Space held in the air flies the jetpack, if you have it
 @export var space_hold_time := 0.2        ## space_jetpack: Space held this long in the air flies it

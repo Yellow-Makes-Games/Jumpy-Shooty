@@ -14,9 +14,17 @@ extends RefCounted
 ## On the grappling hook's rope, once it has pulled tight, the body hangs from that arm
 ## instead of holding a pose (RopeSwing): tipped along the rope, the legs trailing a beat
 ## behind, the gun loose at the side until you shoot. It is laid over the steps above.
-## Gliding has no clip either: the legs are set trailing behind the way you are
-## going (see _glide_legs, and the waist turn in update), while everything above
-## the waist keeps aiming wherever you look.
+## Gliding has no clip either (see _glide_body): a snappy launch into a sleek,
+## stretched-out flying pose, the hips tipped into the wind along the track and the
+## legs together trailing in line behind them (the waist turn in update points them
+## down the track, however far round that is), while everything above the waist keeps
+## aiming wherever you look. As the glide weakens (read from how fast it is falling, so
+## everyone sees the same), the body tips nose-down and the legs start to kick. Let go
+## of the glide in mid-air after GLIDE_FLIP_AFTER seconds of it and the body backflips
+## out of the pose (see _glide_flip_body): one long, open backflip over the line of the
+## track, straight out of the flying pose with no stop in between, looks only. Any move
+## cuts it short; a shot (or a swing) hurries it to its end so the arms can aim, and so
+## does the floor coming up (see glide_flip_floor_in), so it lands on its feet.
 ## A melee weapon has no clips: MeleeSwing says where the weapon is (ready, wound up,
 ## mid-blow) and bends the arms to hold it, in both hands where the weapon allows.
 ## The clips come from the model file; see tools/robot/animations.py. A long gun has its
@@ -31,10 +39,15 @@ const SPRINT_SPEED := 11.5
 const CROUCH_SPEED := 4.0
 const WALL_SPEED := 10.5
 const FADE_DEFAULT := 0.12
+const HABIT_AFTER := 2.5        ## seconds after a shot before a robot goes back to its idle habit
+const FEET_STILL := 0.6         ## m/s: standing or crouched and slower than this, each foot rests on the ground under it
+const FEET_REACH := 0.3         ## a foot goes at most this far up or down to find the ground...
+const FEET_DROP := 0.12         ## ...and the hips come down at most this far to let the lower one reach it
 const RELOAD_CUT_FADE := 0.12   ## seconds a reload that is cut short takes to ease back to the hold
 const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
-	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06, "glide": 0.14}
+	"crouch": 0.16, "slide": 0.1,   # (down into a crouch a touch slower than the default, into a slide a touch quicker)
+	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06, "glide": 0.08, "glide_flip": 0.1}
 const FLIPS := ["flip_front", "flip_back", "flip_left", "flip_right"]
 const VIEW_BACK := -0.02        ## first person: the front of the chest sits this far behind the eyes (just ahead of them)...
 const VIEW_BACK_DOWN := 0.32    ## ...and this much further back when looking straight down,
@@ -45,14 +58,41 @@ const VIEW_KEEP_LEAN := ["crouch", "slide", "dive", "roll", "belly_slide", "deat
 const VIEW_UPRIGHT_MAX := 0.6   ## radians of forward lean taken out, at most
 const VIEW_SIDE := 0.10         ## the body may shift this far sideways to stay under the eyes
 const VIEW_NECK_BELOW := 0.12   ## and its neck is kept at least this far below them
-const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right", "glide"]
+const AIRBORNE := ["air", "tuck", "grapple", "wall_l", "wall_r", "flip_front", "flip_back", "flip_left", "flip_right", "glide", "glide_flip"]
 const SPIN_PIVOT := Vector3(0.0, 1.0, 0.0)   ## a mid-air melee wind-up spins the body about here (its middle)
-## Gliding: the legs trail behind you, further back the faster you go, and the
-## hips tip forward a little into the wind.
-const GLIDE_TRAIL := 42.0       ## degrees the legs trail back at GLIDE_TRAIL_SPEED and above
-const GLIDE_HANG := 8.0         ## ...and when you are hardly moving (hanging in the air)
-const GLIDE_TRAIL_SPEED := 14.0 ## m/s
-const GLIDE_LEAN := 14.0        ## degrees the hips tip forward at that speed
+## Gliding (see _glide_body): the hips tip into the wind along the track, further the
+## faster you go and further still (nose-down) as the glide weakens; the legs trail in
+## line behind them.
+const GLIDE_LEAN_HANG := 6.0    ## degrees the hips tip forward when you are hardly moving (hanging in the air)...
+const GLIDE_LEAN := 58.0        ## ...at GLIDE_FAST and above (the sleek, stretched-out flying pose)...
+const GLIDE_LEAN_DIVE := 84.0   ## ...and once the glide has weakened into a fall (nose-down)
+const GLIDE_FAST := 12.0        ## m/s
+const GLIDE_LEGS := 10.0        ## degrees the legs ride higher than the line of the body (toes pointed, streamlined)
+const GLIDE_CHEST := 42.0       ## degrees the chest leans into the flight when you aim down the track (none aiming across it)...
+const GLIDE_CHEST_DIVE := 62.0  ## ...and once it has weakened into a fall
+const GLIDE_WEAK_FALL := 16.0   ## falling this fast (m/s) the glide shows fully weakened
+const GLIDE_LAUNCH := 0.24      ## seconds the snap into the pose takes (it overshoots a little and settles)
+const GLIDE_KICK := 26.0        ## degrees the legs kick through, fully weakened...
+const GLIDE_KICK_RATE := 3.4    ## ...this many times a second
+## Letting go of a glide in mid-air after at least this many seconds of it backflips you out of it.
+const GLIDE_FLIP_AFTER := 0.4
+const GLIDE_FLIP_TIME := 0.95   ## seconds the backflip takes, left alone
+const GLIDE_FLIP_HURRY := 0.18  ## a shot or a swing: what is left of it is over in this long
+const GLIDE_FLIP_LAND := 0.06   ## the floor coming up: it is round this long before the landing
+const GLIDE_FLIP_RATE_MAX := 3.0   ## ...but it never goes round more than this many times as fast for that
+## The backflip as key moments: [share of its time, degrees round (from the glide's own
+## lean at 0), back arch (+ open, - curled in), arms out wide, left knee to the chest,
+## right knee to the chest]. Open and slow over the top (arched, arms wide, one knee up
+## and the other leg long behind), a quick tuck through the last of the turn, then out
+## into the fall.
+const GLIDE_FLIP_KEYS := [
+	[0.0, 0.0, 0.3, 0.0, 0.0, 0.0],
+	[0.14, 30.0, 0.85, 0.7, 0.1, 0.0],
+	[0.36, 120.0, 1.0, 1.0, 0.55, 0.0],
+	[0.58, 190.0, 0.7, 1.0, 0.85, 0.1],
+	[0.8, 318.0, -0.7, 0.2, 1.0, 0.75],
+	[1.0, 360.0, 0.0, 0.0, 0.0, 0.0],
+]
 ## On the rope (RopeSwing) the gun hangs at your side. A shot brings it
 ## up at once; it stays up this long after the last one (seconds), then drops this fast.
 const ROPE_AIM_HOLD := 0.6
@@ -65,7 +105,7 @@ const AIM_WEIGHTS := {
 	"air": [1.0, 1.0, 1.0], "tuck": [1.0, 1.0, 1.0], "grapple": [1.0, 0.0, 0.6],
 	"wall_l": [1.0, 0.0, 0.7], "wall_r": [1.0, 0.0, 0.7], "belly_slide": [1.0, 1.0, 0.35],
 	"glide": [1.0, 1.0, 1.0],
-}
+}   # (not "glide_flip": the arms are tucked into the backflip and the weapon goes loose)
 
 var model: RobotModel
 var rig: RobotRig
@@ -92,10 +132,14 @@ var _fade_time := FADE_DEFAULT
 var _time := 0.0          # seconds in the current source
 var _phase := 0.0         # stride phase, 0..1
 var _idle_time := 0.0
+var _habit := 0.0         # how much of the torso's own idle shows (see RobotModel.idle), 0..1
+var _feet := Vector2.ZERO    # the ground under each foot (RobotAnimInput.feet), eased
+var _feet_w := 0.0           # how much the feet are rested on it, 0..1
 var _twist := 0.0
 var _reverse := false
 var _air_t := 0.5
-var _land := 0.0
+var _land := 0.0          # how hard the last landing was, 0..1 (0: none showing)
+var _land_t := 0.0        # seconds into it
 var _aim_r := 1.0
 var _aim_l := 1.0
 var _torso := 1.0
@@ -145,6 +189,13 @@ var _tuck := 0.0             # how far the legs are drawn up by a mid-air wind-u
 var _leg_t := -1.0        # time into a kick, or -1
 var _flying_kick := false # in a flying kick: feet first
 var _fly_w := 0.0
+var _glide_secs := 0.0    # seconds into the glide under way (or the one just let go)
+var _glide_weak := 0.0    # how weakened the glide looks, 0..1 (from its fall: see _glide_body)
+var _gflip_t := -1.0      # seconds into a backflip out of a glide (of GLIDE_FLIP_TIME), or -1
+var _gflip_rate := 1.0    # how fast it is going round (hurried by a shot or by the floor)
+var _gflip_hurried := false   # a shot or a swing has hurried it: the arms are free again
+var _gflip_from := 0.0    # the hips' forward lean it started from, radians
+var _glide_lean := 0.0    # the hips' forward lean in the glide, radians (the backflip starts from it)
 ## How the body hangs on the rope (ViewModel reads it too, so your arms
 ## in first person move with the body everyone else sees).
 var rope := RopeSwing.new()
@@ -236,6 +287,7 @@ func fire(left: bool = false) -> void:
 		_recoil = _kick
 	_since_fire = 0.0
 	rope.hurry_flip()
+	_end_glide_flip()
 	if rope.w > 0.0:
 		_aim_r = 1.0   # on the rope the gun was down at your side: it is up for this shot, not on its way
 	if _end_t >= 0.0:   # a shot cuts the last flourish short: it eases back to the hold
@@ -253,6 +305,7 @@ func wind(charge: float, side: int = 0) -> void:
 	if _melee:
 		_swing.wind(charge, side, _airborne)
 		rope.hurry_flip()
+		_end_glide_flip()
 
 
 ## The swing was let go, `power` 0..1 wound up.
@@ -261,6 +314,7 @@ func swing(power: float, side: int = 0) -> void:
 		_swing.swing(power, side, _airborne)
 		_since_fire = 0.0
 		rope.hurry_flip()
+		_end_glide_flip()
 
 
 ## A kick (see Kick): the right leg snaps out in front.
@@ -358,6 +412,7 @@ func respawn() -> void:
 	_kick_t = -1.0
 	_leg_t = -1.0
 	_flying_kick = false
+	_gflip_t = -1.0
 	_fade = 1.0
 
 
@@ -367,6 +422,10 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	rope.update(delta, inp, model_xform.origin)
 
 	# --- 1. Body
+	if source == "glide":
+		_glide_secs += delta
+	if _gflip_t >= 0.0:
+		_gflip_t += delta * _gflip_rate
 	var key := _pick(inp)
 	if key != source:
 		_switch(key, inp)
@@ -382,9 +441,14 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	# --- 2. Overlays
 	if _land > 0.0 and rig.has_clip("land"):
-		rig.sample(_tmp, "land", 0.0)
-		_pose.blend_bones(_tmp, _land, _not_arms)
-		_land = maxf(_land - delta / 0.3, 0.0)
+		# The landing plays through once (it dips, then comes back up a little past
+		# standing), as strong as the fall was hard, and lets go over its second half.
+		var land_len := rig.length("land")
+		rig.sample(_tmp, "land", _land_t)
+		_pose.blend_bones(_tmp, _land * (1.0 - smoothstep(0.5, 1.0, _land_t / land_len)), _not_arms)
+		_land_t += delta
+		if _land_t >= land_len:
+			_land = 0.0
 	var jumps := inp.wall_jumps()
 	if _wall_jumps >= 0 and jumps != _wall_jumps and inp.alive:
 		_kick_t = 0.0
@@ -638,7 +702,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		if _reverse:
 			angle -= signf(angle) * PI
 		twist_target = -angle
-	elif key == "glide":
+	elif key == "glide" or key == "glide_flip":
 		_reverse = false
 		if speed > 1.0:
 			twist_target = -atan2(local_vel.x, -local_vel.z)   # the legs trail behind wherever you are going, however far round that is
@@ -648,7 +712,13 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	else:
 		_reverse = false
 	_twist = lerp_angle(_twist, twist_target, 1.0 - exp(-delta * 12.0))
-	if absf(_twist) > 0.002:
+	if key == "glide_flip" and not first_person:
+		# The backflip goes over the line of the track: the whole body turns to it, not just the legs.
+		var whole := Quaternion(Vector3.UP, _twist)
+		var root_i: int = _b["root"]
+		_pose.rot[root_i] = whole * _pose.rot[root_i]
+		_pose.pos[root_i] = whole * _pose.pos[root_i]
+	elif absf(_twist) > 0.002:
 		var h: Quaternion = _pose.rot[hips]
 		var turned := Quaternion(Vector3.UP, _twist) * h
 		_pose.rot[hips] = turned
@@ -666,6 +736,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	if _akimbo:
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
+	_plant_feet(delta, inp, key, speed)
 	_pose.apply(model.skeleton)
 	model.settle_sway(rope.stream(inp.yaw, inp.velocity) * rope.w if hanging else Vector3.ZERO)   # a custom character's cape and tail
 	# The reload's own effects: the gun's glow, the spent cell thrown clear. (In first
@@ -673,6 +744,68 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
 	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
 	_fx_t = fx_t
+
+
+## Standing or crouching still on a slope or a step: each foot rests on the ground under
+## it (RobotAnimInput.feet) and the hips come down a little for the lower one, in place
+## of both feet staying level with one in the air or in the ground. Looks only: the
+## body's place and its hitbox are the player's, as ever.
+func _plant_feet(delta: float, inp: RobotAnimInput, key: String, speed: float) -> void:
+	var on := key in ["loco", "crouch"] and speed < FEET_STILL and inp.alive and _land <= 0.0
+	_feet_w = move_toward(_feet_w, 1.0 if on else 0.0, delta * 5.0)
+	if on:
+		var want := Vector2(clampf(inp.feet.x, -FEET_REACH, FEET_REACH), clampf(inp.feet.y, -FEET_REACH, FEET_REACH))
+		_feet = _feet.lerp(want, 1.0 - exp(-delta * 10.0))
+	# (On level ground this does nothing at all: the legs are left exactly as the clip has them.)
+	var w := smoothstep(0.0, 1.0, _feet_w) * clampf((absf(_feet.x) + absf(_feet.y)) / 0.02, 0.0, 1.0)
+	if w <= 0.001:
+		return
+	var root: int = _b["root"]
+	var hips: int = _b["hips"]
+	var root_at := Transform3D(Basis(_pose.rot[root]), _pose.pos[root])
+	var before := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips])
+	_pose.pos[hips] += root_at.basis.inverse() * Vector3(0.0, clampf(minf(_feet.x, _feet.y), -FEET_DROP, 0.0) * w, 0.0)
+	var after := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips])
+	_reach_foot(before, after, "l", _feet.x, w)
+	_reach_foot(before, after, "r", _feet.y, w)
+
+
+## One leg bent (or straightened) to put its ankle `rise` above where the clip has it,
+## from hips that have moved from `before` to `after`. The knee keeps the way it points,
+## and the foot the way it lies.
+func _reach_foot(before: Transform3D, after: Transform3D, side: String, rise: float, w: float) -> void:
+	var th: int = _b["thigh_" + side]
+	var sh: int = _b["shin_" + side]
+	var ft: int = _b["foot_" + side]
+	var thigh0 := before * Transform3D(Basis(_pose.rot[th]), _pose.pos[th])
+	var shin0 := thigh0 * Transform3D(Basis(_pose.rot[sh]), _pose.pos[sh])
+	var foot0 := shin0 * Transform3D(Basis(_pose.rot[ft]), _pose.pos[ft])
+	var hip := after * _pose.pos[th]
+	var upper := _pose.pos[sh].length()
+	var lower := _pose.pos[ft].length()
+	var to := foot0.origin + Vector3(0.0, rise * w, 0.0) - hip
+	if to.length_squared() < 0.000001:
+		return
+	var dist := clampf(to.length(), absf(upper - lower) + 0.01, (upper + lower) * 0.999)
+	var dir := to.normalized()
+	var along := (upper * upper - lower * lower + dist * dist) / (2.0 * dist)
+	var out := sqrt(maxf(upper * upper - along * along, 0.0))
+	var knee0 := shin0.origin + (after.origin - before.origin) - hip   # the knee as the clip has it, from the hip
+	var side_dir := knee0 - dir * knee0.dot(dir)
+	if side_dir.length_squared() < 0.000001:
+		side_dir = after.basis * Vector3.FORWARD
+		side_dir -= dir * side_dir.dot(dir)
+	side_dir = side_dir.normalized()
+	var knee := hip + dir * along + side_dir * out
+	var ankle := hip + dir * dist
+	var hinge := dir.cross(side_dir).normalized()   # the knee's axis: both bones' own +X (as rig.py's legs have it)
+	var thigh_y := (hip - knee).normalized()
+	var shin_y := (knee - ankle).normalized()
+	var thigh_rot := Basis(hinge, thigh_y, hinge.cross(thigh_y)).get_rotation_quaternion()
+	var shin_rot := Basis(hinge, shin_y, hinge.cross(shin_y)).get_rotation_quaternion()
+	_pose.rot[th] = _pose.rot[th].slerp(after.basis.get_rotation_quaternion().inverse() * thigh_rot, w)
+	_pose.rot[sh] = _pose.rot[sh].slerp(thigh_rot.inverse() * shin_rot, w)
+	_pose.rot[ft] = _pose.rot[ft].slerp(shin_rot.inverse() * foot0.basis.get_rotation_quaternion(), w)
 
 
 ## Your own body in first person: you see your legs and torso (not the head or the
@@ -699,7 +832,20 @@ func place_for_view(amount: float, eye_height: float, pitch: float) -> void:
 
 func _pick(inp: RobotAnimInput) -> String:
 	if not inp.alive:
+		_gflip_t = -1.0
 		return "death"
+	# Let go of a glide in mid-air (after a real glide, not a tap): backflip out of it.
+	# Anything but a plain fall (landing, the rope, a flip, a dive, a wall) cuts it short.
+	if inp.state != S.AIR:
+		_gflip_t = -1.0
+	elif source == "glide" and _glide_secs >= GLIDE_FLIP_AFTER:
+		_gflip_t = 0.0
+		_gflip_rate = 1.0
+		_gflip_hurried = false
+		_gflip_from = _glide_lean
+	if _gflip_t >= 0.0 and _gflip_t < GLIDE_FLIP_TIME:
+		return "glide_flip"
+	_gflip_t = -1.0
 	match inp.state:
 		S.GROUND: return "loco"
 		S.CROUCH: return "crouch"
@@ -720,10 +866,14 @@ func _switch(key: String, inp: RobotAnimInput) -> void:
 	# Landing: dip in proportion to how hard we came down.
 	if source in AIRBORNE and key in ["loco", "crouch"] and _prev_vy < -3.0:
 		_land = clampf(-_prev_vy / 13.0, 0.3, 1.0)
+		_land_t = 0.0
 	if key == "air":
 		_air_t = _air_target(inp.velocity.y)
 	if key == "death":
 		_dead_time = 0.0
+	if key == "glide" and source != "glide_flip":
+		_glide_secs = 0.0   # a new glide (back into one out of its backflip, it carries on)
+		_glide_weak = 0.0
 	_from.copy(_base)
 	_fade = 0.0 if source != "" else 1.0
 	_fade_time = FADES.get(key, FADE_DEFAULT)
@@ -754,8 +904,15 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 			var sprint_len := rig.length("sprint")
 			var rate := clampf(speed / lerpf(RUN_SPEED, SPRINT_SPEED, ws), 0.6, 1.5) / lerpf(run_len, sprint_len, ws)
 			_phase = fposmod(_phase + rate * delta * direction, 1.0)
-			_idle_time = fmod(_idle_time + delta, rig.length("idle"))
-			rig.sample(_pose, "idle", _idle_time)
+			# Standing still: the plain idle, and over it the torso's own (its habit), which is
+			# a whole number of the plain one's breaths long. Not while shooting or reloading.
+			var calm := _since_fire > HABIT_AFTER and _reload_t < 0.0 and _end_t < 0.0 and not (_melee and _swing.active())
+			_habit = move_toward(_habit, 1.0 if calm and model.idle != "idle" else 0.0, delta * 4.0)
+			_idle_time = fmod(_idle_time + delta, rig.length(model.idle))
+			rig.sample(_pose, "idle", fmod(_idle_time, rig.length("idle")))
+			if _habit > 0.0 and wr < 1.0:
+				rig.sample(_tmp, model.idle, _idle_time)
+				_pose.blend(_tmp, smoothstep(0.0, 1.0, _habit))
 			if wr > 0.01:
 				rig.sample(_tmp, "run", _phase * run_len)
 				_pose.blend(_tmp, smoothstep(0.0, 1.0, wr))
@@ -778,7 +935,15 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 			_loop("air_tuck")
 		"glide":
 			rig.sample(_pose, "air", 0.5 * rig.length("air"))
-			_glide_legs(Vector2(inp.velocity.x, inp.velocity.z).length())
+			_glide_body(inp.velocity, delta)
+		"glide_flip":
+			var turned := clampf(_gflip_t / GLIDE_FLIP_TIME, 0.0, 1.0)
+			if first_person and rig.has_clip("view_flip_back"):
+				# Your own legs, made to be seen from the eyes: kicked up in front, tucked, dropped away.
+				var fclip := _seen("flip_back")
+				rig.sample(_pose, fclip, turned * rig.length(fclip))
+			else:
+				_glide_flip_body(turned, inp.velocity.y)
 		"belly_slide":
 			# Sliding: a still pose. Slowed to a crawl: the knees work, at crawling pace.
 			_loop("belly_slide")
@@ -806,23 +971,123 @@ func _sample_body(key: String, inp: RobotAnimInput, local_vel: Vector3, speed: f
 				rig.sample(_pose, "air", 0.5 * rig.length("air"))
 
 
-## Gliding: both legs together, trailing back (the waist turn in update points
-## "back" away from where you are going), the back one a little straighter than
-## the front, toes pointed, drifting gently. The hips tip forward with speed.
-func _glide_legs(speed: float) -> void:
-	var fast := clampf(speed / GLIDE_TRAIL_SPEED, 0.0, 1.0)
-	var trail := deg_to_rad(lerpf(GLIDE_HANG, GLIDE_TRAIL, fast))
-	var lean := deg_to_rad(GLIDE_LEAN) * fast
-	var drift := sin(_time * TAU / 1.6) * deg_to_rad(3.0)
+## Gliding: the body tipped into the wind along the track (the waist turn in update
+## points the hips down it), the legs together in line behind, toes pointed, drifting
+## gently. The chest leans into the flight only as far as you aim down the track; aim
+## across it or back along it and the upper body stays up on your aim. It snaps into
+## the pose (a little past it, then settles), and as the glide weakens (it shows in how
+## fast you fall) it tips nose-down and the legs start to kick.
+func _glide_body(velocity: Vector3, delta: float) -> void:
+	var fast := clampf(Vector2(velocity.x, velocity.z).length() / GLIDE_FAST, 0.0, 1.0)
+	_glide_weak = move_toward(_glide_weak, clampf(-velocity.y / GLIDE_WEAK_FALL, 0.0, 1.0), delta * 2.5)
+	var weak := smoothstep(0.0, 1.0, _glide_weak)
+	var u := clampf(_time / GLIDE_LAUNCH, 0.0, 1.0)
+	var c3 := 2.4   # ease out with a little overshoot: it snaps into the pose
+	var snap := 1.0 + (c3 + 1.0) * pow(u - 1.0, 3.0) + c3 * pow(u - 1.0, 2.0)
+	var lean := deg_to_rad(lerpf(lerpf(GLIDE_LEAN_HANG, GLIDE_LEAN, fast), GLIDE_LEAN_DIVE, weak)) * snap
+	var along := maxf(cos(_twist), 0.0)   # 1 aiming down the track, 0 aiming across it or back
+	var chest := deg_to_rad(lerpf(GLIDE_CHEST, GLIDE_CHEST_DIVE, weak)) * along * snap
+	var drift := sin(_time * TAU / 1.6) * deg_to_rad(3.0) * (1.0 - weak)
+	var kick := sin(_time * TAU * GLIDE_KICK_RATE) * deg_to_rad(GLIDE_KICK) * weak
+	var legs := deg_to_rad(GLIDE_LEGS) * fast * snap
+	_glide_lean = lean
 	_pose.rot[_b["hips"]] = Quaternion(Vector3.RIGHT, -lean)
-	# (thigh angles are from the tipped hips: the lean is already in them)
-	_pose.rot[_b["thigh_l"]] = Quaternion(Vector3.RIGHT, -(trail - lean) - drift) * Quaternion(Vector3.BACK, -0.05)
-	_pose.rot[_b["thigh_r"]] = Quaternion(Vector3.RIGHT, -(trail - lean) * 0.55 + drift) * Quaternion(Vector3.BACK, 0.05)
-	_pose.rot[_b["shin_l"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(14.0))
-	_pose.rot[_b["shin_r"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(lerpf(22.0, 48.0, fast)))
-	_pose.rot[_b["foot_l"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(35.0))
-	_pose.rot[_b["foot_r"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(35.0))
+	# The spine gives the hips' lean back, less what the chest leans in: the chest is where
+	# the aim (step 4) and the arms build from, and the waist turn keeps it there.
+	_pose.rot[_b["spine"]] = Quaternion(Vector3.RIGHT, lean - chest) * _pose.rot[_b["spine"]]
+	# (thigh angles are from the tipped hips: the legs ride a touch above its line)
+	_pose.rot[_b["thigh_l"]] = Quaternion(Vector3.RIGHT, -legs - drift + kick) * Quaternion(Vector3.BACK, -0.04)
+	_pose.rot[_b["thigh_r"]] = Quaternion(Vector3.RIGHT, -legs * 0.8 + drift - kick) * Quaternion(Vector3.BACK, 0.04)
+	_pose.rot[_b["shin_l"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(6.0 + 34.0 * weak * (0.5 + 0.5 * sin(_time * TAU * GLIDE_KICK_RATE))))
+	_pose.rot[_b["shin_r"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(lerpf(16.0, 10.0, fast) + 34.0 * weak * (0.5 - 0.5 * sin(_time * TAU * GLIDE_KICK_RATE))))
+	_pose.rot[_b["foot_l"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(42.0))
+	_pose.rot[_b["foot_r"]] = Quaternion(Vector3.RIGHT, -deg_to_rad(42.0))
 	_pose.pos[_b["hips"]] += Vector3(0.0, 0.015 * sin(_time * TAU / 1.6), 0.0)
+
+
+## The backflip out of a glide, `turned` 0..1 of the way through (GLIDE_FLIP_KEYS): the
+## body goes on round from the lean the glide left it at, backward, about its hips: up
+## out of the flying pose with the back arched and the arms flung wide, slow over the
+## top with one knee up and the other leg long behind, a quick tuck through the last of
+## the turn, and out into the fall's own pose.
+func _glide_flip_body(turned: float, vy: float) -> void:
+	rig.sample(_pose, "air", _air_target(vy) * rig.length("air"))
+	var k := _flip_key(turned)
+	var own := 1.0 - smoothstep(0.82, 1.0, turned)   # how much is the flip's pose, not yet the fall's
+	var angle := lerpf(-_gflip_from, 0.0, clampf(turned / 0.14, 0.0, 1.0)) + deg_to_rad(k[0])
+	var arch: float = k[1]
+	var wide: float = clampf(k[2], 0.0, 1.0)
+	var knee_l: float = clampf(k[3], 0.0, 1.0)
+	var knee_r: float = clampf(k[4], 0.0, 1.0)
+	var hips: int = _b["hips"]
+	_pose.rot[hips] = Quaternion(Vector3.RIGHT, angle) * Quaternion.IDENTITY.slerp(_pose.rot[hips], 1.0 - own)
+	_to(_b["spine"], Quaternion(Vector3.RIGHT, arch * 0.42), own)
+	_to(_b["chest"], Quaternion(Vector3.RIGHT, arch * 0.34), own)
+	_to(_b["head"], Quaternion(Vector3.RIGHT, arch * 0.38), own)   # looking back over for the way down
+	# One knee drawn to the chest, the other leg long behind; both in for the tuck.
+	_to(_b["thigh_l"], Quaternion(Vector3.RIGHT, lerpf(-0.2, 1.95, knee_l)) * Quaternion(Vector3.BACK, -0.06), own)
+	_to(_b["shin_l"], Quaternion(Vector3.RIGHT, -lerpf(0.2, 2.2, knee_l)), own)
+	_to(_b["thigh_r"], Quaternion(Vector3.RIGHT, lerpf(-0.55, 1.7, knee_r)) * Quaternion(Vector3.BACK, 0.06), own)
+	_to(_b["shin_r"], Quaternion(Vector3.RIGHT, -lerpf(0.12, 2.0, knee_r)), own)
+	_to(_b["foot_l"], Quaternion(Vector3.RIGHT, -0.75), own)
+	_to(_b["foot_r"], Quaternion(Vector3.RIGHT, -0.75), own)
+	# The arms flung out wide and a little back; in to the chest for the tuck.
+	var tucked := clampf(-arch / 0.7, 0.0, 1.0)
+	for side in [["upper_arm_r", "forearm_r", 1.0], ["upper_arm_l", "forearm_l", -1.0]]:
+		var out := Quaternion(Vector3.BACK, float(side[2]) * lerpf(0.25, 1.3, wide)) * Quaternion(Vector3.RIGHT, lerpf(0.75, -0.45, wide))
+		_to(_b[side[0]], out, own)
+		_to(_b[side[1]], Quaternion(Vector3.RIGHT, lerpf(0.3, 1.7, tucked)), own)
+
+
+## GLIDE_FLIP_KEYS at `turned`, eased through the keys: [degrees round, arch, arms, left knee, right knee].
+func _flip_key(turned: float) -> Array:
+	var keys := GLIDE_FLIP_KEYS
+	var i := 0
+	while i < keys.size() - 2 and turned > float(keys[i + 1][0]):
+		i += 1
+	var a: Array = keys[i]
+	var b: Array = keys[i + 1]
+	var before: Array = keys[maxi(i - 1, 0)]
+	var after: Array = keys[mini(i + 2, keys.size() - 1)]
+	var t0: float = a[0]
+	var w := clampf((turned - t0) / (float(b[0]) - t0), 0.0, 1.0)
+	var out := []
+	for n in range(1, a.size()):
+		out.append(cubic_interpolate_in_time(float(a[n]), float(b[n]), float(before[n]), float(after[n]), w,
+			float(b[0]) - t0, float(before[0]) - t0 - (0.1 if i == 0 else 0.0), float(after[0]) - t0 + (0.1 if i + 2 > keys.size() - 1 else 0.0)))
+	return out
+
+
+## Bone `i` goes `w` of the way to `rot`.
+func _to(i: int, rot: Quaternion, w: float) -> void:
+	_pose.rot[i] = _pose.rot[i].slerp(rot, w)
+
+
+## A shot or a swing hurries a backflip out of a glide to its end (the arms are wanted).
+func _end_glide_flip() -> void:
+	if _gflip_t >= 0.0 and _gflip_t < GLIDE_FLIP_TIME:
+		_gflip_hurried = true
+		_gflip_rate = maxf(_gflip_rate, (GLIDE_FLIP_TIME - _gflip_t) / GLIDE_FLIP_HURRY)
+
+
+## Backflipping out of a glide (the player says how long until the floor while it is).
+func glide_flipping() -> bool:
+	return source == "glide_flip" and _gflip_t >= 0.0
+
+
+## ...and a shot or a swing has hurried it: the arms are free again already.
+func glide_flip_hurried() -> bool:
+	return _gflip_hurried
+
+
+## The floor is `seconds` away: the backflip goes round faster if it must, to be over
+## just before the landing (up to GLIDE_FLIP_RATE_MAX times as fast: lower than that
+## and the landing cuts it short).
+func glide_flip_floor_in(seconds: float) -> void:
+	if _gflip_t < 0.0:
+		return
+	var left := GLIDE_FLIP_TIME - _gflip_t
+	_gflip_rate = maxf(_gflip_rate, minf(left / maxf(seconds - GLIDE_FLIP_LAND, 0.02), GLIDE_FLIP_RATE_MAX))
 
 
 func _loop(clip: String) -> void:

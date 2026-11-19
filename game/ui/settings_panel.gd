@@ -18,8 +18,8 @@ const HUD_TAB := 2
 ## The short controls list on the pause menu: [action, description]. Keys come from
 ## the current bindings.
 const CHEAT_SHEET := [
-	["move", "Move"], ["sprint", "Sprint; hold in mid-air to glide"], ["jump", "Jump; again in mid-air to flip"],
-	["crouch", "Crouch; slide when moving fast"], ["dive", "Dive (keep holding to land in a belly slide)"],
+	["move", "Move"], ["sprint", "Sprint"], ["glide", "Glide: hold in mid-air (weakens the longer you hold)"], ["jump", "Jump; again in mid-air to flip"],
+	["crouch", "Crouch; moving forward: dive, moving back: slide on your back"], ["dive", "Dive (keep holding to land in a belly slide)"],
 	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Mobility"],
 	["interact", "Interact: press at a map terminal"],
 	["fire", "Shoot; melee: hold to wind up, let go to swing"], ["reload", "Reload"],

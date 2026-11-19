@@ -63,12 +63,13 @@ they play out as fast as the machine allows instead of in real time. Their logs 
 Quick checks:
 
 - movement (`tests/movement_test.gd`): speeds, stopping, jump height, momentum in the air;
-- movement variants (`tests/movement_variant_test.gd`): the A/B movement switch (see
-  `MovementTuning.VARIANTS`): classic is unchanged, every player gets their own copy, and
-  Practice and Vs Bots start you and every bot on the variant picked;
-- Variant B movement (`tests/movement_b_test.gd`): 15% slower running with the same jump,
-  legs tucked in the air, Space for boots and the jetpack, Ctrl dives, back-slides and
-  crouches, the wall sit, and classic still flipping;
+- movement variants (`tests/movement_variant_test.gd`): Variant B is the only movement
+  and the default (see `MovementTuning.VARIANTS`; Classic is retired and an old "classic"
+  pick means B), every player gets their own copy, Practice and Vs Bots start you and
+  every bot on it, and no movement switch is left in the menus;
+- Variant B movement (`tests/movement_b_test.gd`), against the plain numbers: the same
+  running and jump, legs tucked in the air, Space for flips and the jetpack, Ctrl dives,
+  back-slides and crouches, the wall sit, the air brake and the speed limit;
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
@@ -89,6 +90,10 @@ Quick checks:
   for exists;
 - map scenes (`tests/map_scene_test.gd`): every map loads and builds, blocks, resize
   handles, race gates, bot routes, hazards, and the map lists keep race and arena maps apart;
+- tube collision (`tests/tube_collision_test.gd`): a tube block collides as the ring you
+  see, flat side for flat side, not as the box round it: nothing to hit in its hole or
+  past its flat sides where the box's corners were, its ring all round, a tube with no
+  hole as a cylinder, and no ground in the hole of one that moves;
 - the Testing Grounds courses and the Construction Site and Office routes: a scripted
   player runs each one (`tests/course_test.gd`, `tests/site_test.gd`,
   `tests/office_test.gd`), plus spawn points and bot navigation; the other arenas'
@@ -176,6 +181,16 @@ Quick checks:
   for the whole way and a tracer through both, a rocket (host and look) does too, a lone
   portal or one from behind lets shots on, and a portal on a moving part rides it, lands on
   the same spot from a message, and closes when the part goes;
+- the portal gun (`tests/portal_gun_test.gd`), in a real Practice match on the Construction
+  Site: where portals go (flat on a flat wall; on the ribs of a container, on a beam, with
+  nothing through the face and a collar behind; moved in from an edge and a corner, off a
+  crate, clear of the floor; none on a post too narrow, which fizzles), opening and
+  closing (springs open, the replaced one closes and is gone), and going through (a 45 m/s
+  fall comes out at full speed, the same spot on the other oval, the look carried up and
+  down, on your feet wall to wall, straight back in, drawn onto a floor portal, shots
+  ripple it); and online (`tests/run_portal_sync_test.sh`: a host and two clients on a
+  bad network all shooting portals; every copy has every portal in the same place with
+  the same collar, and sees the others' guns fire);
 - see-through portals (`tests/portal_view_test.gd`): looking at a point on one portal shows
   what lies straight on through the other (wall to wall, wall to floor, from the side and
   above), a portal behind you, seen from behind its wall or without its partner opens no
@@ -487,24 +502,51 @@ block-out script starts over from the old Castle. The scene is edited by hand no
 `--map=castle_v2 --practice`.
 
 `game/maps/sky_island.tscn` (test map `sky_island`, "Sky Island") is a stone castle in
-the clouds: seven floating islands, grass on top over a band of earth, rock hanging
-underneath in jagged cones, moss hanging over every rim, bushes (some in flower) and a
-few trees round the edges, and castle ruins in pale stone with copings, ivy, banners,
-columns and paved floors. Below is a sea of cloud (the sky is a shader,
-`game/maps/sky/sky_island_sky.gdshader`, at -30 m) with a slow ring of cloud turning among
-the islands' rocks and big clouds far out (MapSpinners, drawn only). The grey block-out
-it started from is kept as `game/maps/sky_island_layout.tscn` (test map
+the clouds, in bright colours: seven floating islands of vivid grass (the turf
+overhangs a band of earth) with rock hanging underneath in jagged cones (the ground
+slabs have 16 sides, the rock under them a few, blocky; pad tops 9 or more) and bits
+of rock floating beside them. On top grow pines in clumps (solid trunks) and trees in
+pink blossom, over patches of darker and sunnier meadow, with boulders near the
+edges; the grass is kept clean (no small flowers, no blades of grass, and nothing
+hangs from the rims). The castle
+ruins are warm sandstone on darker footings, with loose stones along the broken wall
+tops, arrow slits, ivy, banners with gold marks (red on the Keep, blue on the
+Citadel, purple on the Broken Tower), pennants on the two whole towers, pale columns
+and paved floors with weeds in them. The light is a strong warm sun with cool blue
+shade (one ambient colour, not the sky's light, which the white cloud below washed
+out) under a deep blue sky; below is a sea of cloud (the sky is a shader,
+`game/maps/sky/sky_island_sky.gdshader`, at -30 m). Most colours come from the
+palette; a block's tint shades one thing off the next (each clump of pines, each
+ball of blossom). The grey
+block-out it started from is kept as `game/maps/sky_island_layout.tscn` (test map
 `sky_island_layout`, "Sky Island (layout)", its own copy of the old palette). The
 scene is grouped like the castle maps: by object, each holding its own dressing, and
-whatever you would move as one (a pad, a wall piece with its coping, a bush, a tree, a
-lobe of an island with its rocks) is a selection group. The Hearth, in the middle, is the lowest (-3 m,
-the ruined Keep: broken walls, a corner of its upper floor, two corner drums); the six
-stand round it about a sixth of a turn apart, at mixed heights: the Shelf (3 m, open), the Bluff
-(8 m, open), the Spire (4 m, open), the Citadel (7 m, the Gate
-and its curtain wall with a wall walk, a gate arch and a drum), the Garden (2 m,
-standing stones) and the Terrace (6 m, the Broken Tower: an eight-sided shell with half
-a floor inside). No island is round: each is a handful of overlapping many-sided slabs
+whatever you would move as one (a pad, a wall piece with its footing and ivy, a
+column, a tree, a patch of meadow, a lobe of an island with its rocks) is a
+selection group. The Hearth, in the middle, is the lowest (-3 m, the ruined Keep:
+broken walls, a corner of its upper floor on timber joists, two corner drums); the six
+stand round it about a sixth of a turn apart, at mixed heights: the Shelf (3 m, a
+formal garden: clipped hedges with stone gate posts round a fountain of two bowls),
+the Bluff (8 m, a round hole 7.6 m across right through its middle, where
+falling in is death, with a tall wooden crane beside it whose rope and iron hook hang
+down into the hole, crates and barrels by its winch, and a low dry-stone fence round
+the edge with gaps wherever the crossings come in), the Spire (4 m, open), the Citadel (7 m, the Gate and its
+curtain wall with a wall walk, a gate arch and a drum), the Garden (2 m, a ring of
+grey standing stones, open in the middle) and the Terrace (6 m, the Broken Tower: an eight-sided shell
+with a lookout 6 m up inside, reached by a ramp from the doorway, that looks out over
+the low west walls). No island is round: each is a handful of overlapping many-sided slabs
 of different sizes (36 to 56 m across in all), with a cone of rock hung under each.
+The Bluff's hole (`HOLES` in the script) is cut without changing the island's outline:
+a slab can only have a hole in its own middle, so the middle slab's turf and earth are
+rings of flat three-cornered pieces (wedges lying on their sides: `slab()`), the three
+slabs that overlap the middle are built the same way, cut back from the hole along a
+straight line hidden inside the ring (which no tube block could do), and the rock under
+the middle is panels lining the shaft with a ring of cones round them. (A tube block
+does collide as the ring you see, one convex lump per flat side, `MapMesher.tube_hulls`;
+the ground was built from flat pieces when a tube still collided as a solid box, and
+the lobes that overlap the hole need the flat pieces either way.)
+`MapRoot.standing_on()` knows a wedge on its side as ground, and the flicker test
+counts a wedge as hiding what is inside it.
 There is no path you can walk from one island to another. Stepping pads join the six
 outer islands into a ring, each to the next (three or four big pads a gap, 4.5 to 9 m across, scattered:
 each row swings side to side and every pad is thrown off it, with its own size and
@@ -529,7 +571,7 @@ will be 6 m up or less (the Citadel and Terrace never come that low: bots go rou
 the pads). Each link rides the part it sets off from. Falling is death (Kill Height
 -36). It has 30 spawn points and 15 weapon pickups (the rocket launcher on the Keep's
 upper floor, the sniper rifle on the Citadel's wall walk, the railgun on the Broken
-Tower's floor), all inside islands so they ride the bob, so it is listed for
+Tower's lookout), all inside islands so they ride the bob, so it is listed for
 free-for-all and Deathmatch. It is written from scratch by `godot --headless --path .
 --script tools/arena/sky_island_blockout.gd` (the islands and their sizes are at the
 top; pads, crossings and pickups after them; the dressing has its own random numbers,
@@ -752,6 +794,7 @@ The scripts behind this:
 | `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
 | `game/arena/map_replay.gd` | How killcams record the map's moving parts and draw them as they were (see "Moving parts in killcams") |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
+| `game/arena/portals.gd`, `portal.gd`, `portal_fit.gd`, `portal_window.gdshader`, `portal_rim.gdshader` | The portal gun's portals: who has which and moving players through (`Portals`), one portal's look and animations (`Portal`), and fitting a portal to the surface it is shot at (`PortalFit`: moved off edges and obstacles, stood on what sticks out). Blocks that are drawn but not solid (ribs, signs, rails) count through `MapRoot.decor_relief`, so decoration on a map needs nothing special to keep out of portals |
 | `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `map_ring_gate.gd`, `portal_surge_event.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, ring gates and the Portal Surge, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
 | `game/arena/haunt_prop.gd`, `haunt_event.gd`, `map_ghost.gd` | Furniture that floats, shifts and vanishes, doorways that come and go, the clock that moves them, and the ghosts (Haunted House; any map can use them) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
@@ -1575,6 +1618,38 @@ the robots' armour is the same white as the guns' plates instead of a brighter o
 lost its shading in sunlight. Surfaces are satin (roughness about 0.7, hardly any
 metal); only the glowing parts are shiny.
 
+**Idle habits.** Every torso, robot or creature, has its own way of standing still: a
+clip named `idle_<torso>` (`IDLES` in `animations.py`), a whole number of the plain
+idle's breaths long, with one small thing in it (Needle cocks its head, Rivet taps a
+boot, Bulwark sags and hitches back up, the frog puffs its throat...). It goes by the
+torso (`RobotModel.idle`), so a Character Creator body stands the way its torso does,
+and a torso with none uses the plain `idle`. The habit clips are `lean`: they hold only
+the bones that move (`Clip(..., lean=True)` in `rig.py`), which keeps 28 of them from
+bloating every model file. A new torso needs its habit added to `IDLES`.
+`RobotAnimator` lays it over the plain idle only while standing still and not shooting
+or reloading. A habit must never turn the chest or move it sideways (the gun is held
+from the chest; `_steady` keeps the chest in place while the hips move under it), may
+raise or lower it a little, and must not look like an action. `tests/robot_test.gd`
+checks the first two.
+
+**Landing.** `land` is a short strip (dip, then up a little past standing, then settle),
+not one pose: `RobotAnimator` plays it through once over the base pose, as strong as the
+fall was hard.
+
+**Feet on steps and slopes.** Standing or crouching still, each foot goes to the ground
+that is really under it. `Player._feet_ground()` casts a ray down through each foot and
+hands the two heights to the animator (`RobotAnimInput.feet`, how far the ground under
+each foot is above or below the player's own floor). `RobotAnimator._plant_feet` then
+bends that leg at the knee to put the foot there, and lowers the hips a little when a
+foot has to reach down (`FEET_REACH` and `FEET_DROP` cap both). It fades out as soon as
+you move faster than `FEET_STILL`, so no moving clip is touched, and it is looks only:
+the collision capsule never moves. In `preview.gd` a puppet step takes `"feet": [l, r]`
+and a shot takes `"blocks"` to stand the body on.
+
+**Spins.** The flips turn at a steady speed with a short ease in and out
+(`SPIN_IN` / `SPIN_OUT` in `animations.py`), keyed so the speed never jumps. Change the
+two together or the flip will hitch at the seam.
+
 In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides what the
 body shows from the movement state (the same way for you, other players and the bot),
 and `view_model.gd` does the first-person arms.
@@ -1819,6 +1894,10 @@ godot --headless --path . --import
 Cirrus's clock has six sounds of its own (`clock_tick`, `clock_tock`, `bell_toll`,
 `layout_rise`, `island_move`, `bridge_lock`), played by its LayoutEvent. The tick is the
 quietest sound in the game on purpose.
+
+The portal gun has five (`portal_open`, `portal_through`, and `portal_shot` for the bolt
+leaving the gun, `portal_close` as a portal snaps shut, `portal_fizzle` for a shot at a
+surface that takes no portal).
 
 Empyrean Tower's Portal Surge has three (`surge_open`, `surge_close`, and `gate_hum`,
 which loops and is played by each open MapRingGate). Each of its tiers has a quiet loop

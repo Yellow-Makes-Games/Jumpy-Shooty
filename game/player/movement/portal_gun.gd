@@ -31,15 +31,24 @@ func reset() -> void:
 
 ## Where a portal shot along `dir` from `from` would land: {} if nothing in range
 ## takes one, else {"at", "normal", "up"} (up: the portal's own up, along the surface).
+## A shot that reaches a surface which takes no portal (too small, too broken, no room
+## in front of it) gives {"miss": where it hit, "normal"}: nothing to place, something
+## to show (see Portals.fizzle).
+##
+## The portal does not go exactly where the shot lands: it is fitted to the surface
+## round there (PortalFit), moved off what stands in its way and back from an edge,
+## and stood on whatever sticks out of the surface under it.
 static func find_spot(body: CollisionObject3D, from: Vector3, dir: Vector3) -> Dictionary:
 	var space := body.get_world_3d().direct_space_state
 	dir = dir.normalized()
-	var q := PhysicsRayQueryParameters3D.create(from, from + dir * RANGE, 1, [body.get_rid()])
+	var mine: Array[RID] = [body.get_rid()]
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * RANGE, 1, mine)
 	var hit := space.intersect_ray(q)
 	if hit.is_empty():
 		return {}
 	var n: Vector3 = hit.normal
 	var at: Vector3 = hit.position
+	var miss := {"miss": at, "normal": n}
 	var up: Vector3
 	if absf(n.y) < 0.7:   # a wall: upright, like a doorway
 		up = (Vector3.UP - n * n.y).normalized()
@@ -50,12 +59,16 @@ static func find_spot(body: CollisionObject3D, from: Vector3, dir: Vector3) -> D
 		up = (flat - n * flat.dot(n)).normalized()
 	# A portal low on a wall would sink into the floor: lift it clear.
 	if absf(n.y) < 0.7:
-		var down := PhysicsRayQueryParameters3D.create(at + n * 0.3, at + n * 0.3 + Vector3.DOWN * Portal.HALF_HEIGHT, 1, [body.get_rid()])
+		var down := PhysicsRayQueryParameters3D.create(at + n * 0.3, at + n * 0.3 + Vector3.DOWN * Portal.HALF_HEIGHT, 1, mine)
 		var floor_hit := space.intersect_ray(down)
 		if not floor_hit.is_empty():
 			at.y += Portal.HALF_HEIGHT - (at.y - floor_hit.position.y) + 0.05
+	var fitted := PortalFit.fit(space, at, n, up, Portal.HALF_WIDTH, Portal.HALF_HEIGHT, mine)
+	if fitted.is_empty():
+		return miss
+	at = fitted.at
 	# Room in front of it to come out.
-	var clear := PhysicsRayQueryParameters3D.create(at + n * 0.05, at + n * CLEARANCE, 1 | (1 << 1), [body.get_rid()])
+	var clear := PhysicsRayQueryParameters3D.create(at + n * 0.05, at + n * CLEARANCE, 1 | (1 << 1), mine)
 	if not space.intersect_ray(clear).is_empty():
-		return {}
-	return {"at": at + n * 0.02, "normal": n, "up": up}
+		return miss
+	return {"at": at, "normal": n, "up": up}

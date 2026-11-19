@@ -382,9 +382,9 @@ const ACTIONS := [
 	["move_right", "Move right", ["key:%d" % KEY_D]],
 	["jump", "Jump (again in mid-air to flip)", ["key:%d" % KEY_SPACE]],
 	["sprint", "Sprint", ["key:%d" % KEY_SHIFT]],
-	["glide", "Glide (hold in mid-air)", ["key:%d" % KEY_SHIFT]],
+	["glide", "Glide (hold in mid-air)", ["key:%d" % KEY_ALT]],
 	["crouch", "Crouch / slide", ["key:%d" % KEY_CTRL, "key:%d" % KEY_C]],
-	["dive", "Dive", ["key:%d" % KEY_Q, "key:%d" % KEY_ALT]],
+	["dive", "Dive", ["key:%d" % KEY_Q]],
 	["kick", "Kick", ["key:%d" % KEY_F]],
 	["boost", "Rocket boots", ["key:%d" % KEY_E]],
 	["interact", "Interact", ["key:%d" % KEY_G]],
@@ -407,6 +407,9 @@ const MAX_BINDS := 2
 ## Pairs of actions that may share a key without it counting as a conflict
 ## (sprint is for the ground, glide for the air).
 const CAN_SHARE := [["sprint", "glide"]]
+## Saved bindings older than this are brought up to date as they load (see _load_bindings).
+## 2: the glide moved from Shift to Alt, which Dive gave up.
+const BINDINGS_VERSION := 2
 
 ## Not rebindable: Esc always opens the menu (and cancels a rebind).
 const FIXED_BINDINGS := {"pause": ["key:%d" % KEY_ESCAPE]}
@@ -442,13 +445,19 @@ func _apply_bindings() -> void:
 
 
 func _load_bindings(cfg: ConfigFile) -> void:
+	var version := int(cfg.get_value("bindings", "version", 1))
+	var alt := "key:%d" % KEY_ALT
 	for a in ACTIONS:
 		var saved = cfg.get_value("bindings", a[0]) if cfg.has_section_key("bindings", a[0]) else null
 		if saved == null and a[0] == "glide" and cfg.has_section_key("bindings", "float"):
 			saved = cfg.get_value("bindings", "float")   # the glide used to be the float: keep a key chosen for it
+		if version < 2 and a[0] == "glide":
+			saved = null   # the glide moved to Alt: a key saved for it before goes back to that
 		if saved is Array:
 			var list := []
 			for b in saved:
+				if version < 2 and str(b) == alt and a[0] != "glide":
+					continue   # (Alt is the glide's now: Dive, or anything else saved with it, gives it up)
 				if binding_event(str(b)) and not list.has(str(b)) and list.size() < MAX_BINDS:
 					list.append(str(b))
 			bindings[a[0]] = list
@@ -456,6 +465,7 @@ func _load_bindings(cfg: ConfigFile) -> void:
 
 
 func _save_bindings(cfg: ConfigFile) -> void:
+	cfg.set_value("bindings", "version", BINDINGS_VERSION)
 	for a in ACTIONS:
 		if bindings[a[0]] != a[2]:
 			cfg.set_value("bindings", a[0], bindings[a[0]])
