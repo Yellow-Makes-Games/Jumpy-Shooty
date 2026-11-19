@@ -12,10 +12,7 @@ var pitch := 0.0                 ## aim up/down, radians
 var flags := 0                   ## see make_flags()
 var grapple_on := false          ## rope out: the left arm points along it
 var grapple_anchor := Vector3.ZERO
-## The rope is Grappling Hook 2's (see HookShot): its hook flies out before it catches,
-## so its sounds go by what the hook is doing (PlayerSounds.hook_stage), not by grapple_on.
-var hook2 := false
-## ...and for how the body hangs on it (RopeSwing): seconds since that rope pulled tight
+## For how the body hangs on the rope (RopeSwing): seconds since it pulled tight
 ## (-1: it has not: the hook is flying, the slack is coming in, or it is on its way
 ## back), and the metres of slack in it now. See set_hook.
 var hook_taut := -1.0
@@ -52,7 +49,7 @@ static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: 
 		| ((1 if pumping else 0) << 19)
 
 
-## Grappling Hook 2's rope as it is drawn this frame (HookLine.look; [] for none): what
+## The grappling hook's rope as it is drawn this frame (HookLine.look; [] for none): what
 ## the body needs of it to hang on it.
 func set_hook(look: Array) -> void:
 	hook_taut = float(look[4]) if look.size() > 4 else -1.0
@@ -112,7 +109,6 @@ func wall_jumps() -> int:
 ## The same from a killcam's frame (Player.shown_state): [where the hook is, slack,
 ## seconds since the shot, seconds since it pulled tight], or null for no such rope.
 func set_hook_replayed(rope) -> void:
-	hook2 = rope != null
 	hook_slack = float(rope[1]) if rope != null else 0.0
 	hook_taut = float(rope[3]) if rope != null else -1.0
 

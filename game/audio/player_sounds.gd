@@ -20,8 +20,8 @@ var weapon_id := "pistol"
 var _started := false
 var _state := 0
 var _crouched := false
-var _grapple := false
 var _wall_jumps := 0
+var _replay_stage := HookLine.OFF   # a killcam's replayed hook, as replayed_hook last saw it
 var _alive := true
 var _fall := 0.0             # fastest downward speed since leaving the ground
 var _stride := 0.0           # metres walked since the last footstep
@@ -33,7 +33,6 @@ var _end_t := -1.0           # into the flourish that ends a shell-at-a-time rel
 var _end_next := 0
 var _since_shot := 99.0
 var _fire_next := 0
-var _grapple_pending := -1.0   # attach clack, a moment after the hook flies
 var _quiet := 0.0              # seconds of silence left (just spawned: no landing thud)
 var _glide_voice: Node         # the wind of a glide while it plays, so it can be faded when the glide ends
 
@@ -75,12 +74,12 @@ func respawned() -> void:
 		Sound.play("equip_" + weapon_id)
 
 
-## The player missed with the grapple (nothing in range).
+## A mobility tool found nothing in range (the grapple's whoosh of a miss).
 func grapple_missed() -> void:
 	_play("grapple_miss")
 
 
-## Grappling Hook 2 (see HookLine's stages): its hook has gone from doing `was` to
+## The grappling hook (see HookLine's stages): its hook has gone from doing `was` to
 ## doing `now`, at `at`. The launcher fires as the hook leaves; the hook clacks where it
 ## bites; the rope thrums as it pulls tight; let go, it reels back (with nothing
 ## caught, the whoosh of a miss).
@@ -98,6 +97,20 @@ func hook_stage(was: int, now: int, at: Vector3) -> void:
 			_play("grapple_taut")
 		HookLine.RETRACT:
 			_play("grapple_miss" if was == HookLine.FLYING else "grapple_release", "move", -3.0 if was == HookLine.FLYING else 0.0)
+
+
+## A killcam's replayed hook (Player.shown_state: [hook, slack, seconds since the
+## shot, seconds since it pulled tight], or null): the same sounds as hook_stage, for
+## as much of the stage as the recording keeps (out, tight, gone).
+func replayed_hook(look) -> void:
+	var now := HookLine.OFF if look == null else (HookLine.TAUT if float(look[3]) >= 0.0 else HookLine.FLYING)
+	if now == _replay_stage:
+		return
+	var was := _replay_stage
+	_replay_stage = now
+	if now == HookLine.OFF:
+		now = HookLine.RETRACT   # (gone: it was let go)
+	hook_stage(was, now, look[0] if look != null else player.global_position)
 
 
 func _hook_bite(at: Vector3) -> void:
@@ -130,13 +143,11 @@ func _reset(a: RobotAnimInput) -> void:
 	_reloading = a.reloading() and a.alive
 	_reload_t = -1.0
 	_fire_t = -1.0
-	_grapple_pending = -1.0
 
 
 func _reset_movement(a: RobotAnimInput) -> void:
 	_state = a.state
 	_crouched = a.crouched
-	_grapple = a.grapple_on
 	_wall_jumps = a.wall_jumps()
 	_fall = 0.0
 	_stride = 0.0
@@ -175,23 +186,9 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 		_play("wall_jump")
 	if a.crouched != _crouched and state in [S.GROUND, S.CROUCH]:
 		_play("crouch" if a.crouched else "stand")
-	if a.grapple_on != _grapple and not a.hook2:
-		if a.grapple_on:
-			_play("grapple_fire")
-			_grapple_pending = clampf(player.global_position.distance_to(a.grapple_anchor) / 120.0, 0.03, 0.25)
-		else:
-			_play("grapple_release")
-	if _grapple_pending >= 0.0:
-		_grapple_pending -= delta
-		if _grapple_pending < 0.0 and a.grapple_on:
-			if own:
-				Sound.play("grapple_attach", 0.0, 0.05)
-			else:
-				Sound.play_at("grapple_attach", a.grapple_anchor, "move", 0.0, 0.05)
 	_steps(a, state, speed, delta)
 	_state = state
 	_crouched = a.crouched
-	_grapple = a.grapple_on
 	_wall_jumps = a.wall_jumps()
 
 

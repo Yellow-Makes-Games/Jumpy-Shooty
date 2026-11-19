@@ -65,9 +65,7 @@ var _fx: Node3D              # tracers, rockets, explosions
 var _events: Array = []      # [time the killer saw it, event], in order
 var _next := 0
 var _killed := false
-var _rope: MeshInstance3D
-var _hook: MeshInstance3D
-var _hook_rope: HookRope     # the killer's Grappling Hook 2 rope (made when the clip first has one)
+var _hook_rope: HookRope     # the killer's grappling hook rope
 var _seen := {}              # killer: swing/kick counters last seen (see _watch)
 var _akimbo_shots := 0
 var _was_reloading := false
@@ -89,9 +87,7 @@ class Ghost:
 	var animator: RobotAnimator
 	var anim := RobotAnimInput.new()
 	var weapon := "?"
-	var rope: MeshInstance3D
-	var hook: MeshInstance3D
-	var hook_rope: HookRope   # Grappling Hook 2's rope (made when the clip first has one)
+	var hook_rope: HookRope   # their grappling hook rope
 	var sounds: PlayerSounds  # their footsteps, jumps, landings... (in the world)
 	var seen := {}
 	var akimbo_shots := 0
@@ -124,9 +120,9 @@ func _ready() -> void:
 	camera.set_cull_mask_value(CameraRig.VIEW_BODY_LAYER, false)
 	add_child(camera)
 	camera.make_current()
-	var rope := _make_rope()
-	_rope = rope[0]
-	_hook = rope[1]
+	_hook_rope = HookRope.new()   # (made up front, hidden until the clip has a rope; headless Godot reports "material is null" errors on a replay without it)
+	add_child(_hook_rope)
+	_hook_rope.hide_line()
 	_frame(0.0)
 
 
@@ -269,7 +265,7 @@ func _play_killer(delta: float) -> void:
 	a.grapple_on = bool(f[6])
 	a.grapple_anchor = f[7]
 	a.alive = p.alive
-	a.set_hook_replayed(_hook2(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
+	a.set_hook_replayed(_hook_look(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
 	if _killer_sounds == null or _killer_sounds.weapon_id != weapon:
 		_killer_sounds = PlayerSounds.new(_killer_body, true, weapon)
 		_killer_sounds.map = map as MapRoot
@@ -278,9 +274,9 @@ func _play_killer(delta: float) -> void:
 		_view.hang(delta, a, feet)
 		_view.update(delta)
 	var hand := _view.marker("grapple") if _view else camera.global_position
-	var hook2 = _hook2(f) if p.alive else null
-	_draw_rope(_rope, _hook, bool(f[6]) and p.alive and hook2 == null, hand, f[7])
-	_hook_rope = _draw_hook2(_hook_rope, self, hand, hook2)
+	var look = _hook_look(f) if p.alive else null
+	_killer_sounds.replayed_hook(look)
+	_hook_rope = _draw_hook(_hook_rope, self, hand, look)
 
 
 ## For the tests' logs: "<the killer's shots in the clip> <the most the recording was
@@ -421,7 +417,7 @@ func _play_ghost(id: int, delta: float) -> void:
 	a.grapple_on = bool(f[6])
 	a.grapple_anchor = f[7]
 	a.alive = bool(f[8])
-	a.set_hook_replayed(_hook2(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
+	a.set_hook_replayed(_hook_look(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
 	_watch(a.flags, g.weapon, g.seen, g)
 	g.animator.update(delta, a, g.visual.global_transform)
 	if world_sound:
@@ -429,9 +425,10 @@ func _play_ghost(id: int, delta: float) -> void:
 			g.sounds = PlayerSounds.new(g.root, false, g.weapon)
 		g.sounds.map = map as MapRoot
 		g.sounds.update(delta, a, g.root.visible)
-	var hook2 = _hook2(f) if a.alive and g.root.visible else null
-	_draw_rope(g.rope, g.hook, a.grapple_on and a.alive and g.root.visible and hook2 == null, g.robot.marker("grapple"), a.grapple_anchor)
-	g.hook_rope = _draw_hook2(g.hook_rope, g.root, g.robot.marker("grapple"), hook2)
+	var look = _hook_look(f) if a.alive and g.root.visible else null
+	if world_sound:
+		g.sounds.replayed_hook(look)
+	g.hook_rope = _draw_hook(g.hook_rope, g.root, g.robot.marker("grapple"), look)
 
 
 func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
@@ -447,9 +444,9 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 	g.visual.add_child(g.robot)
 	g.animator = RobotAnimator.new(g.robot)
 	g.sounds = PlayerSounds.new(g.root, false, weapon)
-	var rope := _make_rope()
-	g.rope = rope[0]
-	g.hook = rope[1]
+	g.hook_rope = HookRope.new()   # (up front, as the killer's)
+	g.root.add_child(g.hook_rope)
+	g.hook_rope.hide_line()
 	_ghosts[id] = g
 	return g
 
@@ -628,49 +625,18 @@ func _sound(sound: String, at: Vector3, own: bool) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Grapple ropes (drawn like Player's)
+# Grapple ropes (drawn like Player's, with HookRope)
 
-func _make_rope() -> Array:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.12, 0.12, 0.13)
-	mat.metallic = 0.6
-	mat.roughness = 0.4
-	var rope := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.018
-	cyl.bottom_radius = 0.018
-	cyl.height = 1.0
-	cyl.radial_segments = 6
-	cyl.rings = 1
-	cyl.material = mat
-	rope.mesh = cyl
-	rope.top_level = true
-	rope.visible = false
-	rope.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(rope)
-	var hook := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.14, 0.14, 0.14)
-	var hook_mat := StandardMaterial3D.new()
-	hook_mat.albedo_color = Color(0.95, 0.7, 0.15)
-	box.material = hook_mat
-	hook.mesh = box
-	hook.top_level = true
-	hook.visible = false
-	add_child(hook)
-	return [rope, hook]
-
-
-## Grappling Hook 2's rope in frame `f`, as it was drawn in the match (see
+## The grappling hook's rope in frame `f`, as it was drawn in the match (see
 ## Player.shown_state): [hook, slack, seconds since the shot, seconds since it pulled
 ## tight], or null for none.
-static func _hook2(f: Array):
+static func _hook_look(f: Array):
 	return f[12] if f.size() > 12 else null
 
 
 ## Draws that rope (HookRope, the same code the match drew it with), making `rope`
 ## under `holder` the first time one is needed. Returns the rope.
-func _draw_hook2(rope: HookRope, holder: Node, hand: Vector3, look) -> HookRope:
+func _draw_hook(rope: HookRope, holder: Node, hand: Vector3, look) -> HookRope:
 	if look == null:
 		if rope:
 			rope.hide_line()
@@ -680,20 +646,3 @@ func _draw_hook2(rope: HookRope, holder: Node, hand: Vector3, look) -> HookRope:
 		holder.add_child(rope)
 	rope.show_line(hand, look[0], float(look[1]), float(look[2]), float(look[3]))
 	return rope
-
-
-func _draw_rope(rope: MeshInstance3D, hook: MeshInstance3D, on: bool, from: Vector3, anchor: Vector3) -> void:
-	var span := anchor - from
-	var dist := span.length()
-	rope.visible = on and dist > 0.05
-	hook.visible = on
-	if not rope.visible:
-		return
-	var y := span / dist
-	var x := y.cross(Vector3.UP)
-	if x.length_squared() < 0.001:
-		x = y.cross(Vector3.RIGHT)
-	x = x.normalized()
-	var z := x.cross(y).normalized()
-	rope.global_transform = Transform3D(Basis(x, y * dist, z), from + span * 0.5)
-	hook.global_position = anchor

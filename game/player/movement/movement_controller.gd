@@ -5,8 +5,8 @@ extends RefCounted
 ##
 ##   GROUND    running and sprinting
 ##   AIR       jumping and falling (bunny-hops and air-strafing live here)
-##   GRAPPLE   reeled in and swinging on the rope (see grapple.gd; Grappling Hook 2,
-##             hook_shot.gd, is the same rope once its hook has flown there and bitten)
+##   GRAPPLE   reeled in and swinging on the rope, once the hook has flown there,
+##             bitten and pulled tight (see grapple.gd)
 ##   CROUCH    crouched on the ground: lower and slower
 ##   SLIDE     crouch while moving fast: keeps momentum, speeds up downhill
 ##   WALL_RUN  run along a wall with little gravity; jump to kick off it
@@ -208,11 +208,9 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 	# --- Grapple: hold to stay on the rope, let go to fly off with your momentum,
 	# or jump to let go with an upward kick.
-	var hooked_now := false
 	if input.grapple_pressed and not grapple.attached:
-		hooked_now = grapple.try_attach(body, input)
-	if grapple.take_hooked():
-		hooked_now = true   # Grappling Hook 2: fired a moment ago, its rope has just pulled tight (see HookShot)
+		grapple.fire(body, input)
+	var hooked_now := grapple.take_hooked()   # fired a moment ago, its rope has just pulled tight
 	if (grapple.attached or grapple.busy()) and not input.grapple:
 		grapple.release()   # (a hook still in flight is called back)
 	var rope_jump := false

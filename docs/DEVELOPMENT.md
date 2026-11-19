@@ -72,8 +72,8 @@ Quick checks:
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
-- the body on Grappling Hook 2's rope (`tests/rope_swing_test.gd`, with `--fixed-fps 60`):
-  the first hook and the slack phase are untouched; tight, the body leans along the rope
+- the body on the grappling hook's rope (`tests/rope_swing_test.gd`, with `--fixed-fps 60`):
+  the slack phase is untouched; tight, the body leans along the rope
   with the legs trailing and the gun down; the jolt grows with the slack; the legs follow
   the hips after a change of direction; a shot brings the gun up at once; the hips face
   the swing and the chest the aim; steering works the legs; letting go on the way up
@@ -183,21 +183,22 @@ Quick checks:
   cameras see plain faces and your whole body, never a window (headless: the maths only;
   `tools/screenshot.sh` with the portal gun to see it);
 
-- Grappling Hook 2 (`tests/hook_shot_test.gd`), in a real Practice match: nothing pulls
+- the grappling hook (`tests/grappling_hook_test.gd`), in a real Practice match: it is the
+  only hook (a saved `grapple2`, the old Grappling Hook 2's id, becomes it); nothing pulls
   while the hook flies, it takes the distance at its speed to arrive, bites with slack,
-  the winch takes it in, the rope pulls tight with a harder yank than the first hook's and
-  then pulls the same; a miss, a hook called back, hooking a bot; the hook's way back
+  the winch takes it in, the rope pulls tight with a yank and
+  then pulls; a miss, a hook called back, hooking a bot; the hook's way back
   (it catches a slab put in its way while the button is held, after a miss or a new
   press, not with the button up nor after a jump off the rope); in first person the
   rope starts on the arm's wrist as drawn while moving and turning; the rope drawn is as
   long as the rope out; a copy rebuilt from snapshots (every one, a third lost, two
   thirds lost and late) draws the hook, slack and rope exactly where the player's own
   game had them, a miss and the catch on its way back included; a killcam replay
-  between its frames; a race keeps the first hook;
+  between its frames; a race has the same hook;
 
 Networked and bot runs (real time):
 
-- Grappling Hook 2 online (`tests/run_hook_sync_test.sh [PLAYERS] [NET_SIM]`): every copy
+- the grappling hook online (`tests/run_hook_sync_test.sh [PLAYERS] [NET_SIM]`): every copy
   fires it on its own on a bad network; every other copy must see each launch, bite,
   pull-tight and release within 30 ms of when it happened and draw the hook within
   15 cm of where its owner's game had it (95% of frames; never 40 cm), in the same
@@ -1777,7 +1778,7 @@ dummy, taps once and then lets go a full wind-up (add `--speed=0.25` for slow mo
 ends back at ready, the taps take turns, a mid-air move's turn ends as it lands, and what a
 ground slam does at each distance. `tests/movement_test.gd` checks the hang and the slam's fall.
 
-**On Grappling Hook 2's rope** the body has no clip either, once the rope has pulled
+**On the grappling hook's rope** the body has no clip either, once the rope has pulled
 tight: `game/player/robot/rope_swing.gd` (RopeSwing) hangs it from the left arm. The hips
 lean toward the line of the rope, the legs trail further along it, and the chest and head
 stay nearer upright, on your aim. Each part follows where it should hang on a spring of
@@ -1795,8 +1796,8 @@ hangs at your side until you shoot: a shot brings it up at once, and it drops ag
 person with the same springs (the gun low and canted but still in view: `ROPE_GUN_...`
 in `view_model.gd`). It is looks only: nothing in it moves the player, and it is worked
 out from what every copy of the game knows about a player (`RobotAnimInput.hook_taut`,
-`hook_slack`), so other players and killcams hang the same way. The first grappling hook
-and the slack before the rope is tight are as they were. To film it:
+`hook_slack`), so other players and killcams hang the same way. The slack before the rope
+is tight is as it was. To film it:
 
 ```
 tools/robot/rope_preview.sh OUT_DIR --scene=swing --step=0.0083333   # a test stage, from the side and behind, half speed: OUT_DIR/rope.mp4

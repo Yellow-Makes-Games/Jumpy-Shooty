@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Grappling Hook 2 online: one host and N-1 clients headless on this machine, all with
-# Grappling Hook 2, all moving and firing it on their own (--scripted-input). Checks
+# The grappling hook online: one host and N-1 clients headless on this machine, all
+# with the grappling hook, all moving and firing it on their own (--scripted-input). Checks
 # that every copy draws every other player's hook and rope where that player's own
 # game had them, moment for moment: the launch, the bite, the rope pulling tight and
 # the release at the same times, and the hook in the same place all the way
@@ -23,7 +23,7 @@ PORT=$((24900 + RANDOM % 200))
 OUT=tests/out
 mkdir -p "$OUT"
 rm -f "$OUT"/hook_*.log
-EXTRA=(--mobility=grapple2)
+EXTRA=(--mobility=grapple)
 if [[ -n "$SIM" ]]; then EXTRA+=("--net-sim=$SIM"); fi
 EXTRA+=("--map=${MAP:-testing_grounds}")
 

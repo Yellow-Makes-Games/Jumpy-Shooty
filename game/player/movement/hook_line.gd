@@ -1,6 +1,6 @@
 class_name HookLine
 extends RefCounted
-## One shot of Grappling Hook 2 (see HookShot), written down as the moments things
+## One shot of the grappling hook (see Grapple), written down as the moments things
 ## happened: when it was fired, from where and how fast; when the hook stopped and
 ## whether it caught; when the rope pulled tight; when it was let go.
 ##
@@ -9,7 +9,7 @@ extends RefCounted
 ## by frame, so two copies of the game holding the same record draw the same hook
 ## and rope for the same moment, whatever their frame rates and however late the
 ## news reached them. That is how the rope lines up for everyone:
-##  - the player who fired fills the record in as it happens (HookShot), on the
+##  - the player who fired fills the record in as it happens (Grapple), on the
 ##    clock their movement runs on;
 ##  - every snapshot they send while a shot is live carries the whole record, with
 ##    each moment as "this long ago" (pack). One snapshot is enough to rebuild the
@@ -20,7 +20,7 @@ extends RefCounted
 ##  - the killcam records what was drawn (Player.shown_state) and draws it again.
 ##
 ## Let go, the hook comes back to the wrist (the RETRACT stage), and it can catch a
-## surface on the way (HookShot._come_back). That starts a record of its own, whose
+## surface on the way (Grapple._come_back). That starts a record of its own, whose
 ## "flight" is that way back (`back`), so the same rules carry it to every copy.
 
 enum { OFF, FLYING, BITING, TAUT, RETRACT }
