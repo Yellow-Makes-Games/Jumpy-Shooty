@@ -1069,6 +1069,13 @@ def ui(name):
         return finish(mix(click(rng, 0.003, 0.0002, 6000) * 0.4, tone(3300, 0.03, 0.004) * 0.6))
     if name == "ui_select":
         return finish(mix(metal_clack(rng, 0.9, 0.8, 0.7) * 0.6, tone(1318.5, 0.3, 0.07) * 0.4, (tone(1975.5, 0.3, 0.08) * 0.3, 0.04)))
+    if name == "ui_materialize":
+        # A character building in on the portrait's stage: a soft shimmer rising with the
+        # line that makes it solid (airy noise swept upward, two faint glassy tones on top).
+        air = sweep_bp(noise(rng, 0.42), 1400, 6200, 3.0, 0.8) * bell_env(0.42, 0.55, 2.0) * 0.55
+        glass = (glide(0.4, 1760, 2640) * 0.22 + glide(0.4, 2637, 3520) * 0.12) * bell_env(0.4, 0.6, 2.0)
+        settle = (tone(2637, 0.22, 0.05) * 0.25, 0.34)
+        return finish(mix(air, glass, settle))
     raise ValueError(name)
 
 
@@ -1926,7 +1933,7 @@ def recipes():
     r["portal_shot"] = portal_shot
     r["portal_close"] = portal_close
     r["portal_fizzle"] = portal_fizzle
-    for u in ["ui_hover", "ui_click", "ui_confirm", "ui_back", "ui_toggle", "ui_tick", "ui_select"]:
+    for u in ["ui_hover", "ui_click", "ui_confirm", "ui_back", "ui_toggle", "ui_tick", "ui_select", "ui_materialize"]:
         r[u] = lambda u=u: ui(u)
     r["match_start"] = match_start
     r["match_end"] = match_end

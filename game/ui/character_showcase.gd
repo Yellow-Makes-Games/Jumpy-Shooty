@@ -57,13 +57,17 @@ const LOOKS := [
 ]
 
 const FEATHER_SHADER := "shader_type canvas_item;
-// Fade the picture out toward its edges, so it melts into the menu behind it.
+render_mode blend_premul_alpha;
+// Fade the picture out toward its edges, so it melts into the menu behind it. (The 3D
+// comes on a clear background, its edges already multiplied by how much of a pixel
+// they cover: it is blended, and faded, that way.)
 uniform vec4 feather = vec4(0.22, 0.04, 0.08, 0.10);   // left, right, top, bottom
+uniform float fade = 1.0;                              // the whole picture, in and out
 void fragment() {
-	vec4 c = texture(TEXTURE, UV) * COLOR;
+	vec4 c = texture(TEXTURE, UV);
 	float m = smoothstep(0.0, feather.x, UV.x) * smoothstep(1.0, 1.0 - feather.y, UV.x)
 		* smoothstep(0.0, feather.z, UV.y) * smoothstep(1.0, 1.0 - feather.w, UV.y);
-	COLOR = vec4(c.rgb, c.a * m);
+	COLOR = c * m * fade;
 }"
 
 const RING_SHADER := "shader_type spatial;
@@ -81,7 +85,8 @@ void fragment() {
 var caption := ""        ## a line along the bottom ("15 MAPS · 45 WEAPONS · 8 GAMEMODES")
 
 var _view: SubViewport
-var _picture: SubViewportContainer
+var _picture: PortraitView          # the 3D, at the screen's own sharpness, with your anti-aliasing picks
+var _feather: ShaderMaterial
 var _overlay: Control
 var _camera: Camera3D
 var _key: SpotLight3D
@@ -102,28 +107,22 @@ var _fade := 0.0
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_picture = SubViewportContainer.new()
-	_picture.stretch = true
-	_picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_picture = PortraitView.new()
 	_picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var feather := Shader.new()
 	feather.code = FEATHER_SHADER
-	var feather_material := ShaderMaterial.new()
-	feather_material.shader = feather
-	_picture.material = feather_material
+	_feather = ShaderMaterial.new()
+	_feather.shader = feather
+	_picture.picture.material = _feather
 	add_child(_picture)
-	_view = SubViewport.new()
-	_view.own_world_3d = true
-	_view.transparent_bg = true
-	_view.msaa_3d = Viewport.MSAA_4X
-	_view.positional_shadow_atlas_size = 2048
-	_picture.add_child(_view)
+	_view = _picture.view
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.55, 0.62, 0.80)
 	env.ambient_light_energy = 0.28   # low: the lights do the work, and the shadows stay deep
-	env.tonemap_mode = Environment.TONE_MAPPER_AGX
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC   # the same film look as the arenas
+	env.tonemap_white = 2.8
 	var world := WorldEnvironment.new()
 	world.environment = env
 	_view.add_child(world)
@@ -286,9 +285,9 @@ func _place(delta: float) -> void:
 	# Fade the picture in and out, the lights coming up a moment after it.
 	_fade = smoothstep(0.0, FADE, _t) * smoothstep(SHOT, SHOT - FADE, _t)
 	var lit := smoothstep(0.1, FADE + 0.6, _t) * smoothstep(SHOT, SHOT - FADE * 0.8, _t)
-	_key.light_energy = 5.0 * lit
-	_rim.light_energy = 11.0 * lit
-	_picture.modulate.a = _fade
+	_key.light_energy = 3.9 * lit   # (tuned for the Filmic look: it holds less in the highlights than AgX did)
+	_rim.light_energy = 9.0 * lit
+	_feather.set_shader_parameter("fade", _fade)
 	queue_redraw()
 	_overlay.queue_redraw()
 

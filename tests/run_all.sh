@@ -34,6 +34,7 @@ CHECKS=(
   "hud_icons|--script tests/hud_icons_test.gd"
   "kill_feed|--script tests/kill_feed_test.gd"
   "character_showcase|--script tests/character_showcase_test.gd"
+  "portrait|--fixed-fps 60 --script tests/portrait_test.gd"
   "hud_settings|--script tests/hud_settings_test.gd"
   "graphics_settings|--script tests/graphics_settings_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
