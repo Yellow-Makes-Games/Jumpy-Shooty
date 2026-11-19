@@ -1667,7 +1667,8 @@ func _my_anim_flags() -> int:
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
 		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive, _swing_side,
-		motor.state == MovementController.State.GRAPPLE and input.move.length() > 0.3)
+		motor.state == MovementController.State.GRAPPLE and input.move.length() > 0.3,
+		RobotAnimInput.zip_of(motor.dove_in and motor.state == MovementController.State.GRAPPLE, motor.dove_side))
 
 
 ## Turns the body to face its yaw and plays its animation.

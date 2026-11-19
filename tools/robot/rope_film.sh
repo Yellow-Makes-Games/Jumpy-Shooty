@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Films the grappling hook in the real game without a GPU (see rope_film.gd): writes
 # OUT_DIR/SCENE_first.mp4 or OUT_DIR/SCENE_third.mp4.
-# Usage: tools/robot/rope_film.sh OUT_DIR SCENE(swing|pump|player) first|third [more dev options, e.g. --weapon=sword --character=orbit]
+# Usage: tools/robot/rope_film.sh OUT_DIR SCENE(swing|pump|player|dive|dive_low|dive_go|drag) first|third [more dev options, e.g. --weapon=sword --character=orbit]
 # SIZE=WxH sets the picture size (default 1280x720).
 set -euo pipefail
 OUT="$(realpath -m "$1")"; SCENE="$2"; VIEW="$3"; shift 3

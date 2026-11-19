@@ -44,14 +44,22 @@ const FLIP_RIGHT := 3
 ## bit 15    the jetpack is firing
 ## bits 16-18 which blow of the melee combo the swing (or the wind-up) is (see MeleeSwing.combo_length)
 ## bit 19    steering while on the rope (the legs work the swing: see RopeSwing)
+## bits 20-21 dived into the rope it is on and not there yet (MovementController.dove_in;
+##           the body zips along it: see RopeSwing): 0 no, 1 yes, 2 yes and steering
+##           left as it pulled tight, 3 yes and steering right
 static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int, swings: int = 0,
 		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false, jetpack: bool = false, step: int = 0,
-		pumping: bool = false) -> int:
+		pumping: bool = false, zip: int = 0) -> int:
 	return (1 if wall_right else 0) | (2 if vaulting else 0) | (4 if reloading else 0) \
 		| ((flip & 3) << 3) | ((wall_jumps & 3) << 5) | ((swings & 3) << 7) \
 		| ((kicks & 3) << 9) | ((1 if flying_kick else 0) << 11) | ((boosts & 3) << 12) \
 		| ((1 if winding else 0) << 14) | ((1 if jetpack else 0) << 15) | ((step & 7) << 16) \
-		| ((1 if pumping else 0) << 19)
+		| ((1 if pumping else 0) << 19) | ((zip & 3) << 20)
+
+
+## The `zip` of make_flags from what the movement says (MovementController.dove_in, dove_side).
+static func zip_of(dove_in: bool, side: int) -> int:
+	return 0 if not dove_in else (2 if side < 0 else (3 if side > 0 else 1))
 
 
 ## The grappling hook's rope as it is drawn this frame (HookLine.look; [] for none): what
@@ -116,6 +124,17 @@ func wall_jumps() -> int:
 func set_hook_replayed(rope) -> void:
 	hook_slack = float(rope[1]) if rope != null else 0.0
 	hook_taut = float(rope[3]) if rope != null else -1.0
+
+
+## Dived into the rope it is on, and not there yet.
+func zipping() -> bool:
+	return (flags >> 20) & 3 != 0
+
+
+## ...and the way it was steering as the rope pulled tight: -1 left, 1 right, 0 neither.
+func zip_side() -> int:
+	var z := (flags >> 20) & 3
+	return -1 if z == 2 else (1 if z == 3 else 0)
 
 
 func pumping() -> bool:

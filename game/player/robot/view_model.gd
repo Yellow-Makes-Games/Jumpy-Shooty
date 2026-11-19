@@ -61,6 +61,7 @@ const ROPE_BLADE_DOWN := Vector3(0.05, -0.15, 0.05)
 const ROPE_BLADE_TIP := -0.3
 const ROPE_SWAY := 0.22
 const ROPE_LUNGE := 0.6
+const ROPE_SCREW := 0.5                ## diving into the rope, the body corkscrews as it pulls tight: your arms roll out this far and back (radians; the view itself stays level)
 ## In these the hands are busy (climbing, tucked): the weapon is not held up.
 const MELEE_BUSY := ["fp_mantle", "fp_tuck", "fp_dive"]
 
@@ -421,11 +422,12 @@ func update(delta: float) -> void:
 			var rock := lean.get_axis() * lean.get_angle() * ROPE_SWAY * swing.w
 			rotation.x += rock.x * 0.3   # (less up and down than side to side: the gun stays in view)
 			rotation.z += rock.z
+		rotation.z += swing.screw_lean() * ROPE_SCREW * swing.w
 		position += Basis(Vector3.RIGHT, -pitch) * swing.lunge(yaw) * ROPE_LUNGE * swing.w
 
 
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:
-	if motor.state == S.AIR and rope().flip() >= 0.0 and not rope().flip_hurried():
+	if motor.state in [S.AIR, S.DIVE, S.GRAPPLE] and rope().flip() >= 0.0 and not rope().flip_hurried():
 		return "fp_tuck"   # rolling off the rope: the arms are tucked in
 	if motor.state == S.AIR and _player.animator != null and _player.animator.glide_flipping() and not _player.animator.glide_flip_hurried():
 		return "fp_tuck"   # backflipping out of a glide: the arms swing in with it (the view stays level)

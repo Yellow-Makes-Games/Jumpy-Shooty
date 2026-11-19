@@ -190,6 +190,128 @@ func _checks() -> void:
 	var streamed := robot.skeleton.get_bone_global_pose(cape).basis.get_rotation_quaternion()
 	_expect("a cape streams out behind (%.0f degrees from how it hangs)" % rad_to_deg(hung.angle_to(streamed)), hung.angle_to(streamed) > RobotModel.CAPE_LEAN)
 
+	print("Diving into the rope: the zip")
+	var far := Vector3(0, 12.0, -26.0)   # a hook far ahead and above
+	var going := Vector3(0, 6.0, -14.0)
+	var line := going.normalized()
+	var zip := _zip_in(far, 4.0, 0, going)
+	_run(zip, 0.9)
+	_expect("it zips (and still hangs: the same state)", animator.rope.zip == 1.0 and animator.rope.w == 1.0 and animator.source == "grapple")
+	var spine_line := (_at("chest") - _at("hips")).normalized()
+	feet = (_at("foot_l") + _at("foot_r")) * 0.5
+	_expect("the body is in line with the way it is going (%.0f degrees off)" % rad_to_deg(spine_line.angle_to(line)), spine_line.angle_to(line) < 0.45)
+	_expect("the legs stream straight behind, both long", (feet - _at("hips")).normalized().dot(-line) > 0.85
+		and _bend("thigh_l", "shin_l", "foot_l") < 0.55 and _bend("thigh_r", "shin_r", "foot_r") < 0.55,
+		"%.2f; knees %.2f and %.2f" % [(feet - _at("hips")).normalized().dot(-line), _bend("thigh_l", "shin_l", "foot_l"), _bend("thigh_r", "shin_r", "foot_r")])
+	_expect("the gun arm streams behind too", (robot.marker("muzzle") - _at("chest")).dot(line) < -0.1, str(robot.marker("muzzle") - _at("chest")))
+	left = robot.marker("grapple")
+	_expect("the hook arm is up the rope", (left - _at("chest")).normalized().dot((far - Vector3(0, 1.2, 0)).normalized()) > 0.8)
+	_fresh()
+	var plain := _on_rope(far)
+	plain.velocity = going
+	_run(plain, 0.9)
+	_expect("a plain rope, going the same way, only hangs (%.0f degrees off that line)" % rad_to_deg((_at("chest") - _at("hips")).normalized().angle_to(line)),
+		animator.rope.zip == 0.0 and (_at("chest") - _at("hips")).normalized().angle_to(line) > 0.75)
+	# Going sideways to the aim: still in line, and belly down.
+	var across := Vector3(14.0, 3.0, 0.0)
+	zip = _zip_in(Vector3(26.0, 8.0, 0.0), 4.0, 0, across)
+	_run(zip, 1.0)
+	spine_line = (_at("chest") - _at("hips")).normalized()
+	var front: Vector3 = robot.skeleton.get_bone_global_pose(robot.rig.bones["chest"]).basis.orthonormalized() * Vector3.FORWARD
+	_expect("going across the aim: in line with that, belly down", spine_line.angle_to(across.normalized()) < 0.5 and front.y < -0.5,
+		"%.0f degrees off, chest front %s" % [rad_to_deg(spine_line.angle_to(across.normalized())), str(front)])
+	animator.fire()
+	_run(zip, 0.15)
+	gun = robot.marker("muzzle")
+	_expect("a shot: the gun is out in front, on the aim, in 0.15 s", (gun - _at("chest")).normalized().z < -0.7, str(gun - _at("chest")))
+
+	print("The corkscrew")
+	var turns := {}
+	for steer in [-1, 0, 1]:
+		zip = _zip_in(far, 4.0, steer, going)
+		_run(zip, 0.1)
+		var early := animator.rope.screw_turn()
+		_run(zip, 0.15)
+		var half := animator.rope.screw_turn()
+		front = robot.skeleton.get_bone_global_pose(robot.rig.bones["chest"]).basis.orthonormalized() * Vector3.FORWARD
+		_run(zip, 0.3)
+		turns[steer] = [early, half, animator.rope.screw(), front.y]
+	_expect("a long slack rope rolls the body right round, and it is over in %.1f s" % RopeSwing.SCREW_TIME,
+		absf(absf(float(turns[0][1])) - PI) < 0.7 and float(turns[0][2]) < 0.0 and float(turns[0][3]) > 0.3, str(turns[0]))
+	_expect("it goes the way you were steering, and away from the gun hand if you were not",
+		float(turns[-1][0]) * float(turns[1][0]) < 0.0 and float(turns[0][0]) * float(turns[-1][0]) > 0.0, "%s %s %s" % [turns[-1][0], turns[0][0], turns[1][0]])
+	zip = _zip_in(far, 0.8, 0, going)
+	var furthest := 0.0
+	for i in 30:
+		_run(zip, STEP)
+		furthest = maxf(furthest, absf(animator.rope.screw_turn()))
+	_expect("a small tug only twists it out and back (%.0f degrees)" % rad_to_deg(furthest), furthest > 0.4 and furthest < RopeSwing.SCREW_TWIST and animator.rope.screw() < 0.0)
+	zip = _zip_in(far, 4.0, 0, going)
+	_run(zip, 0.1)
+	animator.fire()
+	_run(zip, 0.15)
+	_expect("a shot hurries it to its end", animator.rope.screw() < 0.0)
+	zip = _zip_in(far, 4.0, 0, going)
+	animator.first_person = true
+	_run(zip, 0.25)
+	var own_side: Vector3 = robot.skeleton.get_bone_global_pose(robot.rig.bones["hips"]).basis.orthonormalized() * Vector3.RIGHT
+	_expect("your own body in first person does not roll (your arms do: ViewModel)", own_side.x > 0.7 and absf(animator.rope.screw_lean()) > 0.5, str(own_side))
+	animator.first_person = false
+
+	print("Arriving, and letting go")
+	zip = _zip_in(far, 4.0, 0, going)
+	_run(zip, 0.8)
+	var there := _on_rope(far)
+	there.velocity = going
+	there.hook_taut = 0.8
+	_run(there, STEP)
+	_expect("there, still holding on: the flip over the top", animator.rope.flip() >= 0.0)
+	_run(there, RopeSwing.FLIP_TIME + 0.4)
+	_expect("...then it hangs", animator.rope.flip() < 0.0 and animator.rope.zip == 0.0 and animator.rope.w == 1.0)
+	zip = _zip_in(far, 4.0, 0, going)
+	_run(zip, 0.15)
+	_run(there, STEP)
+	_expect("a zip too short to count: no flip", animator.rope.flip() < 0.0)
+	var results := []
+	for speed in [Vector3(0, 9.0, -13.0), Vector3(0, 2.0, -13.0)]:
+		zip = _zip_in(far, 4.0, 0, speed)
+		_run(zip, 0.7)
+		var dive_on := _input(S.DIVE, speed, 0.0)
+		dive_on.grapple_on = true
+		dive_on.grapple_anchor = far
+		_run(dive_on, STEP * 2.0)
+		results.append(animator.rope.flip() >= 0.0)
+		_run(dive_on, 0.8)
+		results.append(animator.source)
+	_expect("let go part of the way along, rising fast: the roll, then the dive", results[0] == true and results[1] == "dive", str(results))
+	_expect("...slower: straight back into the dive", results[2] == false and results[3] == "dive", str(results))
+	_fresh()
+	on = _on_rope(ahead)
+	_run(on, 0.8)
+	var tucked := _input(S.AIR, Vector3(0, 9.0, -11.0), 0.0)
+	tucked.crouched = true   # (the legs tuck by themselves in the air: everyone but you sees your body so)
+	_run(tucked, 0.2)
+	_expect("the roll off a plain rope shows on a body with its legs tucked (as other players see you)", animator.rope.flip() > 0.2)
+
+	print("Dragged along the floor on your belly")
+	_fresh()
+	var prone := _input(S.BELLY_SLIDE, Vector3(6.0, 0, -6.0), 0.0)
+	prone.crouched = true
+	_run(prone, 0.5)
+	var heading := func() -> Vector2:
+		var d := _at("head") - _at("hips")
+		return Vector2(d.x, d.z).normalized()
+	var before: Vector2 = heading.call()
+	prone.grapple_on = true
+	prone.grapple_anchor = Vector3(12.0, 0.6, -12.0)
+	prone.hook_taut = 0.3
+	_run(prone, 0.6)
+	var after: Vector2 = heading.call()
+	_expect("the body turns to face the hook", before.dot(Vector2(0, -1)) > 0.9 and after.dot(Vector2(1, -1).normalized()) > 0.95, "%s to %s" % [before, after])
+	animator.fire()
+	_run(prone, 0.4)
+	_expect("...and back to the aim to shoot", (heading.call() as Vector2).dot(Vector2(0, -1)) > 0.9)
+
 	print("The killcam")
 	var told := RobotAnimInput.new()
 	told.set_hook_replayed([ahead, 0.0, 1.5, 0.4])
@@ -269,6 +391,22 @@ func _roll(velocity: Vector3, shoot: bool, late: int) -> Array:
 	var upside_down: bool = (robot.skeleton.get_bone_global_pose(robot.rig.bones["hips"]).basis * Vector3.UP).y < 0.0
 	_run(falling, RopeSwing.FLIP_TIME * 0.5 + 0.05)
 	return [upside_down, animator.rope.flip() < 0.0]
+
+
+## A fresh body in a dive, the hook out with `slack` metres of slack in its rope; then
+## what it is told the moment the rope pulls tight in that dive (dived into: it zips),
+## steering `side` (-1 left, 1 right), going `velocity`.
+func _zip_in(anchor: Vector3, slack: float, side: int, velocity: Vector3) -> RobotAnimInput:
+	_fresh()
+	var diving := _input(S.DIVE, Vector3(0, 0, -14), 0.0)
+	diving.grapple_on = true
+	diving.grapple_anchor = anchor
+	diving.hook_slack = slack
+	_run(diving, 0.2)
+	var on := _on_rope(anchor)
+	on.velocity = velocity
+	on.flags = RobotAnimInput.make_flags(false, false, false, 0, 0, 0, 0, false, 0, false, false, 0, false, RobotAnimInput.zip_of(true, side))
+	return on
 
 
 ## A body in the GRAPPLE state on the grappling hook's rope, pulled tight a moment ago.

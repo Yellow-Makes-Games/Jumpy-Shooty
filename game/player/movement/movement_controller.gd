@@ -11,7 +11,11 @@ extends RefCounted
 ##   SLIDE     crouch while moving fast: keeps momentum, speeds up downhill
 ##   WALL_RUN  run along a wall with little gravity; jump to kick off it
 ##   MANTLE    vaulting a low obstacle or climbing up a ledge
-##   DIVE      a forward lunge toward where you look (from the ground or once per jump)
+##   DIVE      a forward lunge toward where you look (from the ground or once per jump).
+##             If the grappling hook's rope pulls tight while you are in one you
+##             have dived into the rope: it becomes GRAPPLE, with the rope's own
+##             steering and jump off, until you let go short of the hook, when the
+##             dive carries on (see dove_in)
 ##   ROLL      landing from a dive: a short roll that keeps your speed
 ##   BELLY_SLIDE  keep holding dive as you land: slide along on your front instead
 ##             of rolling. Lower than a crouch. Let go (or jump) to get up; once
@@ -54,6 +58,9 @@ extends RefCounted
 ## edges. Wall jumps work from a wall run or any wall you are touching in the air.
 
 const TUCK_SETTLE_SPEED := 3.0   ## metres per second
+const DIVE_IN_SLOW := 3.0        ## ...and you have arrived once you close on the hook slower than this (metres per second)...
+const DIVE_IN_SLOW_TIME := 0.2   ## ...for this long (seconds), wherever you are
+const DIVE_IN_MIN := 3.0         ## metres: a dive into a rope with less than this to go before its pull fades is just a swing (see dove_in)
 const BELLY_SLOPE := 0.985       ## floor normal's y below this (about 10 degrees): a belly slide never slows to a crawl
 
 ## New states go on the end: the numbers travel in snapshots (Player.make_pose).
@@ -111,6 +118,15 @@ var _since_wall := 99.0
 var _mantle := {}          # the vault or climb in progress
 var _shape: CollisionShape3D
 var _since_dive := 99.0
+## Dove into the rope: you were in a dive when the grappling hook's rope pulled tight,
+## with further to go than DIVE_IN_MIN past where its pull fades. The dive gives way to
+## the rope (its steering, its jump off) and the body shows it (RopeSwing's zip) until
+## you arrive: within grapple_pull_stop of the hook, or no longer closing on it (see
+## DIVE_IN_SLOW). Let go before that and the dive carries on (and lands in its roll).
+var dove_in := false
+## ...and the way you were steering as it pulled tight: -1 left, 1 right, 0 neither.
+var dove_side := 0
+var _dove_slow := 0.0   # seconds it has not been closing on the hook
 var _air_dive_used := false   # one dive per jump
 var _flip_used := false       # one flip per jump
 var _roll_left := 0.0
@@ -220,6 +236,24 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		grapple.release()
 		_jump_buffer = 0.0
 		rope_jump = true
+	if dove_in:
+		if not grapple.attached:
+			dove_in = false
+			if state == State.GRAPPLE and not grounded and not rope_jump:
+				state = State.DIVE   # let go before arriving: the dive carries on
+		elif grounded:
+			# Down on the floor still on the rope: as the dive would have landed (the rope
+			# takes a roll over again at once, below; on your belly it drags you).
+			dove_in = false
+			if dive_held:
+				vel = _start_belly_slide(vel)
+		else:
+			# Arrived (from here it is a plain swing): where the pull fades, or no longer
+			# closing on the hook (swinging round it, or held up against something).
+			var to_hook := grapple.anchor - grapple.rope_origin(body)
+			_dove_slow = _dove_slow + delta if vel.dot(to_hook.normalized()) < DIVE_IN_SLOW else 0.0
+			if to_hook.length() <= t.grapple_pull_stop or _dove_slow >= DIVE_IN_SLOW_TIME:
+				dove_in = false
 
 	if grapple.attached or state == State.WALL_RUN or state == State.WALL_SIT:
 		_flip_used = false   # swinging or wall-running gives your flip back
@@ -264,6 +298,13 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			state = State.GROUND
 			if crouch_held and not t.ctrl_moves and Vector2(vel.x, vel.z).length() >= t.slide_start_speed:
 				vel = _start_slide(vel)   # roll straight into a slide
+	if state == State.DIVE and grapple.attached and not grounded and not diving_now:
+		# The rope has pulled tight in a dive: it is the rope's move now (see dove_in).
+		state = State.GRAPPLE
+		if grapple.rope_origin(body).distance_to(grapple.anchor) > t.grapple_pull_stop + DIVE_IN_MIN:
+			dove_in = true
+			_dove_slow = 0.0
+			dove_side = 1 if input.move.x > 0.3 else (-1 if input.move.x < -0.3 else 0)
 	var low_move := state in [State.DIVE, State.ROLL, State.BELLY_SLIDE]
 
 	# --- Crouch (or tuck your legs in the air). Diving and rolling are low too, and
@@ -538,6 +579,7 @@ func reset() -> void:
 	_mantle = {}
 	_jump_buffer = 0.0
 	_since_dive = 99.0
+	dove_in = false
 	since_boost = 99.0
 	_air_dive_used = false
 	_flip_used = false

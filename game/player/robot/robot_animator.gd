@@ -14,6 +14,8 @@ extends RefCounted
 ## On the grappling hook's rope, once it has pulled tight, the body hangs from that arm
 ## instead of holding a pose (RopeSwing): tipped along the rope, the legs trailing a beat
 ## behind, the gun loose at the side until you shoot. It is laid over the steps above.
+## Dived into that rope, the body zips along it instead: in line with the way it is going,
+## with a corkscrew as the rope pulls tight and a flip over the top on arriving (RopeSwing).
 ## Gliding has no clip either (see _glide_body): a snappy launch into a sleek,
 ## stretched-out flying pose, the hips tipped into the wind along the track and the
 ## legs together trailing in line behind them (the waist turn in update points them
@@ -99,6 +101,9 @@ const ROPE_AIM_HOLD := 0.6
 const ROPE_AIM_DROP := 4.0
 const ROPE_CHEST := 0.45        ## how much of the hips' lean the chest gives back while the gun is down (aiming: all of it)
 const ROPE_VIEW := 0.55         ## your own body in first person leans this much of what everyone else sees
+const ZIP_AIM_UP := 12.0        ## ...this fast (a second)
+const ZIP_CHEST := 0.55         ## zipping along the rope (dived into it), a shot brings the chest this much of the way back up to aim from
+const DRAG_TURN := 10.0         ## dragged along the floor on your belly by the rope, the body turns to face the hook this fast
 ## [right arm, left arm, torso]: how much each follows the aim in each source.
 const AIM_WEIGHTS := {
 	"loco": [1.0, 1.0, 1.0], "crouch": [1.0, 1.0, 1.0], "slide": [1.0, 0.0, 1.0],
@@ -200,6 +205,7 @@ var _glide_lean := 0.0    # the hips' forward lean in the glide, radians (the ba
 ## in first person move with the body everyone else sees).
 var rope := RopeSwing.new()
 var _rope_low := 0.0         # on the rope with the gun (or blade) down at your side, 0..1
+var _drag := 0.0             # on your belly on the floor, dragged by the rope: the body's turn to face the hook, radians
 
 var _b := {}                      # bone name -> index
 var _arm_r: PackedInt32Array
@@ -480,7 +486,9 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	# On the rope: the body tips over to hang along it (the chest less, and not at all with the gun up).
 	var hanging := rope.w > 0.0 and key == "grapple"
 	if hanging:
-		rope.lay_body(_pose, _b, inp.yaw, 1.0 if first_person else lerpf(1.0, ROPE_CHEST, _rope_low), ROPE_VIEW if first_person else 1.0)
+		# (Zipping along it, the whole body is in the line with the gun down; a shot brings the chest part of the way up.)
+		var chest_up := lerpf(lerpf(1.0, ROPE_CHEST, _rope_low), lerpf(ZIP_CHEST, 0.0, _rope_low), rope.zip)
+		rope.lay_body(_pose, _b, inp.yaw, 1.0 if first_person else chest_up, ROPE_VIEW if first_person else 1.0, not first_person)
 
 	# --- First person: stand the torso up over the hips
 	var ease := 1000.0 if _snap_view else delta
@@ -513,13 +521,15 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	# On the rope the gun (or the blade) hangs at your side, until you use it.
 	var in_use := _since_fire < ROPE_AIM_HOLD or inp.reloading() or _reload_t >= 0.0 or _end_t >= 0.0 or _fire_t >= 0.0 \
 		or (_melee and _swing.active())
-	_rope_low = move_toward(_rope_low, 1.0 if hanging and not in_use and inp.alive else 0.0, delta * (ROPE_AIM_DROP if hanging else 9.0))
+	# (Zipping, a shot has the whole upper body to bring round to the aim: it comes up fast.)
+	_rope_low = move_toward(_rope_low, 1.0 if hanging and not in_use and inp.alive else 0.0,
+		delta * (ZIP_AIM_UP if hanging and in_use and rope.zip > 0.0 else (ROPE_AIM_DROP if hanging else 9.0)))
 	if hanging and not in_use:
 		want_r = 0.0
 		rope.lay_arm(_pose, _b, inp.yaw, 1.0, rig, _melee)
 	_aim_r = move_toward(_aim_r, want_r, delta * (ROPE_AIM_DROP if hanging and want_r < _aim_r else 9.0))
 	_aim_l = move_toward(_aim_l, want_l, delta * 9.0)
-	_torso = move_toward(_torso, want[2], delta * 8.0)
+	_torso = move_toward(_torso, float(want[2]) * (1.0 - rope.zip * _rope_low if hanging else 1.0), delta * 8.0)   # (zipping with the gun down, the body stays in its line whatever the aim)
 	if _carry > 0.0:
 		_pose.blend_bones(_carry_pose, _carry, _arm_r)
 		_pose.blend_bones(_carry_pose, _carry, _arm_l)
@@ -679,17 +689,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	# --- 6 (before the waist turn, which must not move the chest). Grapple arm
 	_grapple_w = move_toward(_grapple_w, 1.0 if (inp.grapple_on and inp.alive) else 0.0, delta * 10.0)
-	if _grapple_w > 0.0:
-		var chest_pos: Vector3 = _pose.pos[hips] + _pose.rot[hips] * (_pose.pos[spine] + _pose.rot[spine] * _pose.pos[chest])
-		var shoulder := chest_pos + chest_rot * _pose.pos[up_l]
-		var to_anchor := model_xform.affine_inverse() * inp.grapple_anchor - shoulder
-		if to_anchor.length_squared() > 0.01:
-			var dir := chest_rot.inverse() * to_anchor.normalized()
-			var reach := Quaternion(Vector3.DOWN, dir) if dir.dot(Vector3.DOWN) > -0.999 else Quaternion(Vector3.RIGHT, PI)
-			_pose.rot[up_l] = _pose.rot[up_l].slerp(reach, _grapple_w)
-			# (The jolt as the rope pulls tight straightens it right out.)
-			_pose.rot[_b["forearm_l"]] = _pose.rot[_b["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.12 * (1.0 - clampf(rope.lunged(), 0.0, 1.0) * rope.w)), _grapple_w)
-			_pose.rot[_b["hand_l"]] = _pose.rot[_b["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
+	_reach_rope(inp, model_xform)
 
 	# --- 5. Legs face the way we are moving
 	var twist_target := 0.0
@@ -708,7 +708,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			twist_target = -atan2(local_vel.x, -local_vel.z)   # the legs trail behind wherever you are going, however far round that is
 	elif hanging:
 		_reverse = false
-		twist_target = rope.twist(inp.yaw) * rope.w   # the hips face along the swing; the chest stays on your aim
+		twist_target = rope.twist(inp.yaw, rope.zip * _rope_low) * rope.w   # the hips face along the swing; the chest stays on your aim
 	else:
 		_reverse = false
 	_twist = lerp_angle(_twist, twist_target, 1.0 - exp(-delta * 12.0))
@@ -722,9 +722,27 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		var h: Quaternion = _pose.rot[hips]
 		var turned := Quaternion(Vector3.UP, _twist) * h
 		_pose.rot[hips] = turned
-		_pose.rot[spine] = turned.inverse() * h * _pose.rot[spine]
+		# (Zipping along the rope with the gun down, the chest goes round with the hips: the whole body faces down the line.)
+		var keep := 1.0 - rope.zip * _rope_low if hanging else 1.0
+		_pose.rot[spine] = _pose.rot[spine].slerp(turned.inverse() * h * _pose.rot[spine], keep)
+		if keep < 1.0:
+			_reach_rope(inp, model_xform)   # (the chest has moved: the hook arm finds the rope again)
 	if hanging:
 		rope.lay_legs(_pose, _b, inp.yaw)
+	# Dragged along the floor on your belly by the rope: the whole body turns to face the
+	# hook (not the body you see from inside it, and not while you shoot: it aims again).
+	var drag_to := 0.0
+	if key == "belly_slide" and inp.hook_taut >= 0.0 and not first_person and not in_use:
+		var pull := rope.rope(inp.yaw)
+		if Vector2(pull.x, pull.z).length() > 0.2:
+			drag_to = atan2(-pull.x, -pull.z)
+	_drag = lerp_angle(_drag, drag_to, 1.0 - exp(-delta * DRAG_TURN))
+	if absf(_drag) > 0.002:
+		var round_to := Quaternion(Vector3.UP, _drag)
+		var root_at: int = _b["root"]
+		_pose.rot[root_at] = round_to * _pose.rot[root_at]
+		_pose.pos[root_at] = round_to * _pose.pos[root_at]
+		_reach_rope(inp, model_xform)
 
 	# --- Power (visor glow): off when dead, back on at respawn
 	var power_target := 1.0
@@ -744,6 +762,29 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
 	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
 	_fx_t = fx_t
+
+
+## The left arm reaches for the grappling hook (its launcher is on that wrist), from
+## wherever the chest is in the pose now.
+func _reach_rope(inp: RobotAnimInput, model_xform: Transform3D) -> void:
+	if _grapple_w <= 0.0:
+		return
+	var hips: int = _b["hips"]
+	var spine: int = _b["spine"]
+	var chest: int = _b["chest"]
+	var up_l: int = _b["upper_arm_l"]
+	var root_at := Transform3D(Basis(_pose.rot[_b["root"]]), _pose.pos[_b["root"]])
+	var chest_at := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips]) * Transform3D(Basis(_pose.rot[spine]), _pose.pos[spine]) \
+		* Transform3D(Basis(_pose.rot[chest]), _pose.pos[chest])
+	var to_anchor := model_xform.affine_inverse() * inp.grapple_anchor - chest_at * _pose.pos[up_l]
+	if to_anchor.length_squared() <= 0.01:
+		return
+	var dir := chest_at.basis.inverse() * to_anchor.normalized()
+	var reach := Quaternion(Vector3.DOWN, dir) if dir.dot(Vector3.DOWN) > -0.999 else Quaternion(Vector3.RIGHT, PI)
+	_pose.rot[up_l] = _pose.rot[up_l].slerp(reach, _grapple_w)
+	# (The jolt as the rope pulls tight straightens it right out.)
+	_pose.rot[_b["forearm_l"]] = _pose.rot[_b["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.12 * (1.0 - clampf(rope.lunged(), 0.0, 1.0) * rope.w)), _grapple_w)
+	_pose.rot[_b["hand_l"]] = _pose.rot[_b["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
 
 
 ## Standing or crouching still on a slope or a step: each foot rests on the ground under

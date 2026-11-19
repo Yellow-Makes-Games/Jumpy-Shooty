@@ -9,7 +9,10 @@ extends SceneTree
 ##   godot --path . --script tools/robot/rope_preview.gd -- --out=DIR
 ##       [--scene=swing] (swing: reeled up to a hook ahead, a few shots on the way, let go on
 ##                        the way up; under: swinging to and fro under a hook, steering;
-##                        player: reeled in to a player hooked; turn: aiming off to the side)
+##                        player: reeled in to a player hooked; turn: aiming off to the side;
+##                        dive: diving into the rope (the corkscrew, the zip, the flip over the top);
+##                        dive_low: the same to a long, low hook, shooting; dive_go: letting go part
+##                        of the way along; dive_side: a hook off to the side of the dive)
 ##       [--step=0.0166667] (game seconds a frame: 1/120 is half speed at 60 frames a second)
 ##       [--character=vanguard] [--weapon=pistol] [--color=r,g,b] [--still=SEC,SEC] (only these moments, as PNGs)
 ##
@@ -55,6 +58,11 @@ var _steer := Vector3.ZERO   # held while on the rope (world)
 var _aim_turn := 0.0         # the aim's yaw, from the way to the hook (degrees)
 var _aim_ahead := false      # the aim stays where it was when the hook was fired
 var _pump := false           # steering the way the swing is going, to work it up
+var _dive := false           # in a dive as the rope pulls tight: it zips along it (MovementController.dove_in)
+var _dove := false           # ...and has not arrived yet
+var _dove_slow := 0.0
+var _dove_out := false       # ...and let go before it did: the dive carries on
+var _dive_side := 0          # the way it is steering as the rope pulls tight (the corkscrew goes that way)
 var _end := 0.0              # seconds after letting go to film
 var _target: Node3D          # the player hooked ("player")
 var _target_vel := Vector3.ZERO
@@ -97,6 +105,44 @@ func _initialize() -> void:
 			_release_at = 0.9
 			_jump = false
 			_end = 0.7
+		"dive":   # dived at a hook high ahead: the corkscrew, the zip, the flip over the top, then hanging
+			_dive = true
+			_pos = Vector3(0, 4.0, 8.0)
+			_vel = Vector3(0, 2.0, -14.0)
+			_anchor = Vector3(0, 17.0, -18.0)
+			_steer = Vector3(0, 0, -1)
+			_release_at = 2.6
+			_jump = false
+			_end = 0.5
+		"dive_low":   # a long, low hook: the zip nearly level, a few shots on the way
+			_dive = true
+			_dive_side = 1
+			_pos = Vector3(0, 6.0, 12.0)
+			_vel = Vector3(0, 2.0, -14.0)
+			_anchor = Vector3(2.0, 10.0, -24.0)
+			_steer = Vector3(0, 0, -1)
+			_shots = PackedFloat32Array([1.0, 1.15, 1.3])
+			_release_at = 2.9
+			_jump = false
+			_end = 0.5
+		"dive_go":   # let go part of the way along: the dive carries on
+			_dive = true
+			_pos = Vector3(0, 6.0, 12.0)
+			_vel = Vector3(0, 2.0, -14.0)
+			_anchor = Vector3(0, 10.0, -24.0)
+			_release_at = 0.8
+			_jump = false
+			_end = 0.9
+		"dive_side":   # the hook off to the side of the dive, the aim left where it was
+			_dive = true
+			_dive_side = -1
+			_aim_ahead = true
+			_pos = Vector3(0, 5.0, 8.0)
+			_vel = Vector3(0, 2.0, -14.0)
+			_anchor = Vector3(-16.0, 14.0, -10.0)
+			_release_at = 2.2
+			_jump = false
+			_end = 0.5
 		"turn":
 			_pos = Vector3(0, 3.0, 6.0)
 			_vel = Vector3(0, 0.0, -7.0)
@@ -211,11 +257,20 @@ func _advance(dt: float) -> void:
 		for s in _shots:
 			if since >= s and since - dt < s:
 				_animator.fire()
+		if yanked and _dive and to_hook.length() > _tuning.grapple_pull_stop + MovementController.DIVE_IN_MIN:
+			_dove = true
+		elif _dove:
+			_dove_slow = _dove_slow + dt if _vel.dot(to_hook.normalized()) < MovementController.DIVE_IN_SLOW else 0.0
+			if to_hook.length() <= _tuning.grapple_pull_stop or _dove_slow >= MovementController.DIVE_IN_SLOW_TIME:
+				_dove = false
+				print("there at %.2f s" % _t)
 		var let_go := since >= _release_at if _release_at != INF else (since > 0.5 and (_vel.y >= 9.5 or to_hook.length() < 3.0 or since > 4.0) and _vel.y > 0.0)
 		if _target and to_hook.length() < 1.6:
 			let_go = true
 		if let_go:
 			_released = true
+			_dove_out = _dove and not _jump
+			_dove = false
 			if _jump:
 				_vel.y = maxf(_vel.y, 0.0) + _tuning.grapple_jump_boost
 			_line.let_go(_t, HookLine.back_time_for(to_hook.length()), HookLine.LIMP * to_hook.length())
@@ -234,11 +289,12 @@ func _advance(dt: float) -> void:
 	_robot.position = _pos
 	_robot.rotation.y = _yaw
 	var look := _line.look(_t, chest, chest)
-	_inp.state = S.GRAPPLE if on else (S.GROUND if _pos.y <= 0.0 else S.AIR)
+	_inp.state = S.GRAPPLE if on else (S.GROUND if _pos.y <= 0.0 else (S.DIVE if (_dive and not _taut) or _dove_out else S.AIR))
 	_inp.velocity = _vel
 	_inp.yaw = _yaw
 	_inp.pitch = clampf(asin(clampf(to_hook.normalized().y, -1.0, 1.0)), -1.2, 1.2) * (0.6 if not _released and not (_aim_ahead and _taut) else 0.0)
-	_inp.flags = RobotAnimInput.make_flags(false, false, false, 0, 0, 0, 0, false, 0, false, false, 0, on and _steer != Vector3.ZERO)
+	_inp.flags = RobotAnimInput.make_flags(false, false, false, 0, 0, 0, 0, false, 0, false, false, 0, on and _steer != Vector3.ZERO,
+		RobotAnimInput.zip_of(_dove and on, _dive_side))
 	_inp.grapple_on = not look.is_empty()
 	if not look.is_empty():
 		_inp.grapple_anchor = look[1]
