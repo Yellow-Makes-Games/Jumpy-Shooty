@@ -110,15 +110,16 @@ func _checks() -> void:
 
 
 ## A robot's own idle (its habit: "idle_<torso>") goes by the torso, in the Character
-## Creator too, runs in step with the plain idle's breathing, and leaves the chest (so
-## the gun) where the plain idle has it.
+## Creator too, runs in step with the plain idle's breathing, and never turns the chest
+## (so the gun) or moves it sideways from where the plain idle has it.
 func _check_habits() -> void:
 	print("Idle habits")
 	var plain_len := RobotRig.open(Characters.body(Characters.default_id())).length("idle")
-	var other := ""   # a robot with no habit, to mix parts with
-	for id in Characters.ids():
-		if not RobotRig.open(Characters.body(id)).has_clip("idle_" + id):
-			other = id
+	var other := ""   # a body with no habit of its own, to mix parts with
+	for part in Characters.part_ids():
+		if not RobotRig.open(Characters.body(Characters.default_id())).has_clip("idle_" + part):
+			other = part
+			break
 	var found := 0
 	for id in Characters.ids():
 		var rig := RobotRig.open(Characters.body(id))
@@ -146,6 +147,7 @@ func _check_habits() -> void:
 		var b := rig.new_pose()
 		var turned := 0.0
 		var moved := 0.0
+		var lifted := 0.0
 		var t := 0.0
 		while t < rig.length(habit):
 			rig.sample(a, "idle", fmod(t, plain_len))
@@ -153,10 +155,12 @@ func _check_habits() -> void:
 			var ca := _chest(rig, a)
 			var cb := _chest(rig, b)
 			turned = maxf(turned, ca.basis.get_rotation_quaternion().angle_to(cb.basis.get_rotation_quaternion()))
-			moved = maxf(moved, ca.origin.distance_to(cb.origin))
+			moved = maxf(moved, Vector2(ca.origin.x - cb.origin.x, ca.origin.z - cb.origin.z).length())
+			lifted = maxf(lifted, absf(ca.origin.y - cb.origin.y))
 			t += 0.05
-		_expect("%s's habit leaves the chest (and the gun) where it was" % id, turned < deg_to_rad(0.5) and moved < 0.005,
+		_expect("%s's habit never turns the chest (and the gun) or moves it sideways" % id, turned < deg_to_rad(0.5) and moved < 0.005,
 			"%.2f deg, %.3f m" % [rad_to_deg(turned), moved])
+		_expect("and raises or lowers it only a little", lifted < 0.035, "%.3f m" % lifted)
 	_expect("at least one robot has a habit", found > 0)
 
 

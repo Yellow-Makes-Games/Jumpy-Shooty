@@ -35,6 +35,7 @@ const HABIT_AFTER := 2.5        ## seconds after a shot before a robot goes back
 const RELOAD_CUT_FADE := 0.12   ## seconds a reload that is cut short takes to ease back to the hold
 const CRAWL_SPEED := 2.0
 const FADES := {"roll": 0.05, "belly_slide": 0.07, "vault": 0.06, "climb": 0.08, "death": 0.08, "loco": 0.14,
+	"crouch": 0.16, "slide": 0.1,   # (down into a crouch a touch slower than the default, into a slide a touch quicker)
 	"flip_front": 0.06, "flip_back": 0.06, "flip_left": 0.06, "flip_right": 0.06, "glide": 0.14}
 const FLIPS := ["flip_front", "flip_back", "flip_left", "flip_right"]
 const VIEW_BACK := -0.02        ## first person: the front of the chest sits this far behind the eyes (just ahead of them)...
@@ -97,7 +98,8 @@ var _habit := 0.0         # how much of the torso's own idle shows (see RobotMod
 var _twist := 0.0
 var _reverse := false
 var _air_t := 0.5
-var _land := 0.0
+var _land := 0.0          # how hard the last landing was, 0..1 (0: none showing)
+var _land_t := 0.0        # seconds into it
 var _aim_r := 1.0
 var _aim_l := 1.0
 var _torso := 1.0
@@ -384,9 +386,14 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	# --- 2. Overlays
 	if _land > 0.0 and rig.has_clip("land"):
-		rig.sample(_tmp, "land", 0.0)
-		_pose.blend_bones(_tmp, _land, _not_arms)
-		_land = maxf(_land - delta / 0.3, 0.0)
+		# The landing plays through once (it dips, then comes back up a little past
+		# standing), as strong as the fall was hard, and lets go over its second half.
+		var land_len := rig.length("land")
+		rig.sample(_tmp, "land", _land_t)
+		_pose.blend_bones(_tmp, _land * (1.0 - smoothstep(0.5, 1.0, _land_t / land_len)), _not_arms)
+		_land_t += delta
+		if _land_t >= land_len:
+			_land = 0.0
 	var jumps := inp.wall_jumps()
 	if _wall_jumps >= 0 and jumps != _wall_jumps and inp.alive:
 		_kick_t = 0.0
@@ -722,6 +729,7 @@ func _switch(key: String, inp: RobotAnimInput) -> void:
 	# Landing: dip in proportion to how hard we came down.
 	if source in AIRBORNE and key in ["loco", "crouch"] and _prev_vy < -3.0:
 		_land = clampf(-_prev_vy / 13.0, 0.3, 1.0)
+		_land_t = 0.0
 	if key == "air":
 		_air_t = _air_target(inp.velocity.y)
 	if key == "death":
