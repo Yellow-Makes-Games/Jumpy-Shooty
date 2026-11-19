@@ -32,7 +32,7 @@ const UNMEASURED := ["visor", "extra", "flesh"]
 const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
 	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
 	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
-const SLIM_BONES := {"forearm_l": -1.0, "hand_l": -1.0, "forearm_r": 1.0, "hand_r": 1.0}
+const SLIM_BONES := {"forearm_l": -1.0, "forearm_r": 1.0}   # (not the hands: their fingers have to meet a gun's grip)
 const ARM_X := 0.215                         ## how far out the arms hang (rig.py: forearm_l)
 
 static var _view_meshes := {}     # body mesh -> the mesh without VIEW_HIDDEN

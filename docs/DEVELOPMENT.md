@@ -1621,9 +1621,11 @@ so a gun's `weapons.SUPPORT` point is 2 cm above the fore-end's underside; a gun
 upright handle there says `"upright"` and it is held like a second grip. What the clips
 cannot know, the game sets (`game/player/robot/hands.gd`, from the one-frame `hand_...`
 clips): a blade's handle in the fist (`MeleeSwing.hold`), the akimbo pair's left gun. The
-Character Creator's other bodies keep their own one-piece hands. To look at the hands on
-every robot (open, a fist, on a pistol, a sword, under a rifle):
-`python3 tools/robot/hand_sheet.py OUT.png`.
+Character Creator's other bodies have the same hands in their own colours
+(`creatures.hand()`: which material the palm and fingers, the back of the hand, the band
+across the knuckles and the joints each take). To look at the hands on every robot (open,
+a fist, on a pistol, a sword, under a rifle): `python3 tools/robot/hand_sheet.py OUT.png`;
+on other bodies, name them: `python3 tools/robot/hand_sheet.py OUT.png frog yeti`.
 
 **Guns** share the melee weapons' look (gunmetal frame, armour-plate panels, steel
 barrels, lit parts in the player's trim colour: the `glow` kind, which

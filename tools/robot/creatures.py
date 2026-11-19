@@ -3,6 +3,8 @@ the rest. Each is a whole body on the robots' skeleton (see rig.BODY), modelled 
 the rest pose like the robots in designs.py, so any head goes on any torso on any
 legs.
 
+Every one has the robots' own hands (hands.py), in its own colours: see hand().
+
 They hold no guns and carry no animations: build.py writes each as a small file
 of body parts (NAME.glb), and the game puts those parts on a robot's skeleton
 (see RobotModel in game/player/robot/robot_model.gd).
@@ -26,6 +28,7 @@ import math
 import numpy as np
 from kit import Mesh, Part, loft, rect, ngon, box, prism, ball
 import designs
+import hands
 from designs import rect8, _along_z
 
 def _linear(c):
@@ -204,13 +207,23 @@ def launcher(m, x=-0.275, strap="leather"):
         m.add(box(abs(x - AX) * 2 + 0.03, 0.022, 0.085, 0.01).move(AX, y, 0), strap, "forearm_l")
 
 
-def arm(m, upper, fore, hand, r1=0.046, r2=0.04, r3=0.034, shoulder=0.058, fist=(0.058, 0.10, 0.09), n=8):
-    """A plain round arm: shoulder ball, upper arm, elbow, forearm, fist."""
+def hand(m, body, back=None, band=None, knuckle=None, bulk=1.0):
+    """The hands every character has: the robots' own (hands.py: a palm, a trigger finger,
+    three more fingers that move as one, a thumb), in this character's colours. body: the
+    palm and fingers; back: the plate on the back of the hand; band: the bar across the
+    knuckles; knuckle: the round joints (each left out: as the body). bulk: how thick."""
+    hands.add(m, bulk, body=body, plate=back or body, trim=band or body, pin=knuckle or body)
+
+
+def arm(m, upper, fore, palm, r1=0.046, r2=0.04, r3=0.034, shoulder=0.058, fist=(0.058, 0.10, 0.09), n=8,
+        back=None, band=None, knuckle=None):
+    """A plain round arm: shoulder ball, upper arm, elbow, forearm, and the hand (see hand():
+    palm is its body; fist: the old one-piece fist's size, which sets how thick the hand is)."""
     m.add_pair(blob(shoulder, n=n, rows=4).move(AX, 1.40, 0), upper, "upper_arm_l")
     m.add_pair(lathe([(1.40, r1, r1), (1.27, r1, r1), (1.15, r2, r2)], n, AX), upper, "upper_arm_l")
     m.add_pair(blob(r2 * 1.08, n=n, rows=4).move(AX, 1.13, 0), fore, "forearm_l")
     m.add_pair(lathe([(1.12, r2, r2), (1.04, r2 * 1.1, r2 * 1.1), (0.89, r3, r3)], n, AX), fore, "forearm_l")
-    m.add_pair(box(fist[0], fist[1], fist[2], 0.018).move(AX, 0.835, 0), hand, "hand_l")
+    hand(m, palm, back, band, knuckle, fist[0] / 0.058)
 
 
 def leg(m, thigh, shin, r1=0.072, r2=0.052, r3=0.04, n=8, knee=None, calf=1.12):
@@ -320,7 +333,7 @@ def goblin():
                     (math.cos(a), 0, math.sin(a))), "armor_tunic", "hips")
 
     # Arms: thin, with big hands; an arm band
-    arm(m, s, s, s, 0.04, 0.034, 0.03, 0.05, (0.066, 0.11, 0.10))
+    arm(m, s, s, s, 0.04, 0.034, 0.03, 0.05, (0.066, 0.11, 0.10), band="leather")
     m.add_pair(hoop(0.046, 0.046, 1.30, 0.014, 8, tall=0.03).move(AX, 0, 0), "leather", "upper_arm_l")
     launcher(m, -0.265)
 
@@ -367,10 +380,8 @@ def frog():
     m.add(blob(0.115, 0.11, 0.05, 10, 4).move(0, 1.11, -0.075), "belly", "spine")
     m.add(lathe([(0.84, 0.11, 0.09), (0.92, 0.16, 0.115), (1.05, 0.14, 0.106)], 10), g, "hips")
 
-    # Arms: thin, with round finger pads
-    arm(m, g, g, g, 0.04, 0.034, 0.028, 0.05, (0.056, 0.09, 0.085))
-    for dz in (-0.035, 0.0, 0.035):
-        m.add_pair(blob(0.02, rows=3).move(AX, 0.782, dz), "accent", "hand_l")
+    # Arms: thin; the hands' joints are its round pads
+    arm(m, g, g, g, 0.04, 0.034, 0.028, 0.05, (0.056, 0.09, 0.085), knuckle="accent")
     launcher(m, -0.262, "dark")
 
     # Legs: strong thighs, thin shins, wide webbed feet
@@ -419,7 +430,7 @@ def skeleton():
     for dz in (-0.016, 0.016):
         m.add_pair(prism(5, 0.012, 0.23).move(AX, 1.005, dz), b, "forearm_l")
     m.add_pair(blob(0.024, rows=3).move(AX, 0.885, 0), b, "forearm_l")
-    m.add_pair(box(0.045, 0.095, 0.08, 0.012).move(AX, 0.835, 0), b, "hand_l")
+    hand(m, b, knuckle="dark", bulk=0.8)
     launcher(m, -0.255, "dark")
 
     # Leg bones
@@ -457,10 +468,7 @@ def alien():
     m.add(lathe([(0.84, 0.085, 0.072), (0.92, 0.128, 0.092), (1.05, 0.088, 0.072)], 8), a, "hips")
     m.add(hoop(0.105, 0.082, 1.0, 0.02, 12, tall=0.03), "accent", "hips")
 
-    arm(m, a, a, a, 0.032, 0.027, 0.023, 0.042, (0.044, 0.07, 0.07))
-    for dz in (-0.028, 0.0, 0.028):   # long fingers
-        m.add_pair(tube([(AX, 0.815, dz), (AX, 0.755, dz * 1.2)], [0.011, 0.008], 5), x, "hand_l")
-        m.add_pair(blob(0.013, rows=3).move(AX, 0.752, dz * 1.2), x, "hand_l")
+    arm(m, a, a, a, 0.032, 0.027, 0.023, 0.042, (0.044, 0.07, 0.07), band="accent")
     launcher(m, -0.252, "dark")
 
     leg(m, a, a, 0.05, 0.036, 0.028, calf=1.0)
@@ -507,7 +515,7 @@ def cat():
     m.add(tube(tail, [0.034, 0.034, 0.032, 0.03, 0.028], 6), x, "hips")
     m.add(blob(0.034, 0.045, 0.034, rows=4).move(0, 1.28, 0.345), "white", "hips")
 
-    arm(m, c, c, "white", 0.042, 0.037, 0.032, 0.052, (0.062, 0.10, 0.095))
+    arm(m, c, c, "white", 0.042, 0.037, 0.032, 0.052, (0.062, 0.10, 0.095), back=c, knuckle="pink")
     launcher(m, -0.268)
     leg(m, c, c, 0.07, 0.05, 0.04)
     m.add_pair(blob(0.058, 0.045, 0.10, 8, 4).move(LX, 0.042, -0.05), "white", "foot_l")
@@ -555,9 +563,7 @@ def rex():
         p = tail[i]
         m.add(spike((0, p[1] + 0.05, p[2]), (0, p[1] + 0.12 - 0.02 * i, p[2] + 0.04), 0.03, 4, 0.35, (1, 0, 0)), "accent", "hips")
 
-    arm(m, r, r, r, 0.045, 0.04, 0.034, 0.056, (0.058, 0.09, 0.09))
-    for dz in (-0.03, 0.0, 0.03):
-        m.add_pair(spike((AX, 0.80, dz), (AX, 0.755, dz * 1.3 - 0.01), 0.012, 4), "horn", "hand_l")
+    arm(m, r, r, r, 0.045, 0.04, 0.034, 0.056, (0.058, 0.09, 0.09), band="horn", knuckle="horn")
     launcher(m, -0.27, "dark")
 
     leg(m, r, r, 0.086, 0.058, 0.042)
@@ -606,7 +612,7 @@ def yeti():
     m.add(lathe([(0.82, 0.13, 0.11), (0.92, 0.185, 0.14), (1.05, 0.165, 0.13)], 10), w, "hips")
     _tufts(m, x, "hips", 0.17, 0.13, 0.90, 10, 0.08, 0.0, 0.06)
 
-    arm(m, w, w, f, 0.066, 0.06, 0.05, 0.08, (0.075, 0.115, 0.105), 10)
+    arm(m, w, w, f, 0.066, 0.06, 0.05, 0.08, (0.075, 0.115, 0.105), 10, back=w)
     _tufts(m, x, "upper_arm_l", 0.06, 0.06, 1.22, 6, 0.07, 0.012, 0.045, AX, 0.0, True)
     _tufts(m, x, "forearm_l", 0.055, 0.055, 0.95, 6, 0.07, 0.012, 0.045, AX, 0.0, True)
     launcher(m, -0.295, "dark")
@@ -646,7 +652,7 @@ def duck():
     for dx in (-0.05, 0.0, 0.05):   # tail feathers
         m.add(spike((dx, 0.98, 0.11), (dx * 1.8, 1.10 - abs(dx), 0.27), 0.05, 4, 0.3, (0, 1, 0)), x, "hips")
 
-    arm(m, d, d, d, 0.045, 0.04, 0.034, 0.056, (0.056, 0.095, 0.09))
+    arm(m, d, d, d, 0.045, 0.04, 0.034, 0.056, (0.056, 0.095, 0.09), band="beak")
     for y, ln in ((1.08, 0.13), (1.01, 0.15), (0.94, 0.13)):   # wing feathers behind the forearm
         m.add_pair(spike((AX, y, 0.02), (AX, y - 0.07, 0.02 + ln), 0.04, 4, 0.3, (1, 0, 0)), x, "forearm_l")
     launcher(m, -0.27)
@@ -704,7 +710,7 @@ def jack():
     m.add(hoop(0.14, 0.102, 1.035, 0.022, 12), "rope", "hips")
     m.add(tube([(0.05, 1.03, -0.108), (0.06, 0.93, -0.12)], [0.012, 0.012], 5), "rope", "hips")
 
-    arm(m, f, f, "burlap", 0.05, 0.044, 0.04, 0.062)
+    arm(m, f, f, "burlap", 0.05, 0.044, 0.04, 0.062, band="straw")
     _tufts(m, "straw", "forearm_l", 0.036, 0.036, 0.90, 6, 0.05, 0.012, 0.03, AX, 0.0, True)
     launcher(m, -0.272, "rope")
     leg(m, "burlap", "burlap", 0.074, 0.056, 0.05)
@@ -739,7 +745,7 @@ def astronaut():
     m.add(lathe([(0.84, 0.125, 0.105), (0.92, 0.175, 0.13), (1.05, 0.155, 0.12)], 10), s, "hips")
     m.add(hoop(0.158, 0.122, 1.03, 0.02, 12, tall=0.04), "accent", "hips")
 
-    arm(m, s, s, "accent", 0.058, 0.052, 0.046, 0.07, (0.066, 0.105, 0.098))
+    arm(m, s, s, "accent", 0.058, 0.052, 0.046, 0.07, (0.066, 0.105, 0.098), back=s, band="detail", knuckle="detail")
     for y, rr, bone in ((1.27, 0.06, "upper_arm_l"), (1.02, 0.056, "forearm_l"), (0.905, 0.05, "forearm_l")):
         m.add_pair(hoop(rr, rr, y, 0.016, 8, tall=0.03).move(AX, 0, 0), "detail", bone)
     launcher(m, -0.288, "detail")
@@ -791,9 +797,7 @@ def imp():
     m.add(tube(tail, [0.022, 0.02, 0.016, 0.013, 0.011], 5), f, "hips")
     m.add(spike((0.05, 0.94, 0.52), (0.045, 1.06, 0.54), 0.05, 4, 0.3, (1, 0, 0)), f, "hips")
 
-    arm(m, s, s, s, 0.042, 0.036, 0.031, 0.054, (0.058, 0.095, 0.09))
-    for dz in (-0.03, 0.0, 0.03):
-        m.add_pair(spike((AX, 0.80, dz), (AX, 0.758, dz * 1.3 - 0.008), 0.011, 4), "black", "hand_l")
+    arm(m, s, s, s, 0.042, 0.036, 0.031, 0.054, (0.058, 0.095, 0.09), band="black", knuckle="black")
     m.add_pair(hoop(0.04, 0.04, 0.93, 0.014, 8, tall=0.04).move(AX, 0, 0), r, "forearm_l")
     launcher(m, -0.266, "dark")
 
@@ -835,7 +839,7 @@ def snowman():
     m.add_pair(blob(0.022, rows=3).move(AX, 1.13, 0), "wood", "forearm_l")
     m.add_pair(prism(5, 0.015, 0.24).move(AX, 1.01, 0), "wood", "forearm_l")
     m.add_pair(spike((AX, 1.06, 0.0), (AX - 0.01, 0.99, 0.07), 0.01, 4), "wood", "forearm_l")
-    m.add_pair(blob(0.045, 0.058, 0.052, 8, 4).move(AX, 0.835, 0), "accent", "hand_l")
+    hand(m, "accent", band="white", bulk=1.15)
     m.add_pair(hoop(0.036, 0.04, 0.892, 0.014, 8, tall=0.03).move(AX, 0, 0), "white", "forearm_l")
     launcher(m, -0.26, "dark")
 
@@ -880,7 +884,7 @@ def shark():
     m.add(spike((0, 0.86, 0.36), (0, 1.06, 0.50), 0.06, 4, 0.25, (1, 0, 0)), x, "hips")
     m.add(spike((0, 0.86, 0.36), (0, 0.72, 0.46), 0.045, 4, 0.25, (1, 0, 0)), x, "hips")
 
-    arm(m, g, g, g, 0.046, 0.04, 0.034, 0.058)
+    arm(m, g, g, g, 0.046, 0.04, 0.034, 0.058, band="white")
     m.add_pair(spike((AX, 1.06, 0.02), (AX, 0.96, 0.14), 0.045, 4, 0.25, (1, 0, 0)), x, "forearm_l")
     launcher(m, -0.27, "dark")
     leg(m, g, g, 0.08, 0.056, 0.042)
@@ -917,7 +921,7 @@ def ninja():
     for dx in (-0.065, -0.035):
         m.add(box(0.026, 0.15, 0.014).rot(roll=dx * 150).move(dx, 0.955, -0.114), "accent", "hips")
 
-    arm(m, g, g, "skin_human", 0.046, 0.04, 0.034)
+    arm(m, g, g, "skin_human", 0.046, 0.04, 0.034, back=g, band="dark")
     for y in (1.05, 1.0, 0.95, 0.90):
         m.add_pair(hoop(0.04, 0.04, y, 0.01, 8, tall=0.03).move(AX, 0, 0), "dark", "forearm_l")
     launcher(m, -0.268, "dark")
@@ -1015,7 +1019,7 @@ def wizard():
     m.add_pair(blob(0.056, rows=4).move(AX, 1.13, 0), r, "forearm_l")
     m.add_pair(lathe([(1.12, 0.052, 0.056), (0.93, 0.064, 0.085, 0.012)], 8, AX), r, "forearm_l")
     m.add_pair(lathe([(0.945, 0.066, 0.087, 0.012), (0.925, 0.066, 0.087, 0.012)], 8, AX), "accent", "forearm_l")
-    m.add_pair(box(0.058, 0.10, 0.09, 0.018).move(AX, 0.835, 0), "skin_human", "hand_l")
+    hand(m, "skin_human")
     launcher(m, -0.285)
 
     # The robe's skirt: a split panel down each leg
@@ -1054,7 +1058,7 @@ def bear():
     m.add(lathe([(0.83, 0.125, 0.105), (0.92, 0.175, 0.135), (1.05, 0.16, 0.13)], 10), b, "hips")
     m.add(blob(0.045, rows=3).move(0, 0.95, 0.135), x, "hips")
 
-    arm(m, b, b, b, 0.056, 0.05, 0.044, 0.068, (0.07, 0.105, 0.10), 10)
+    arm(m, b, b, b, 0.056, 0.05, 0.044, 0.068, (0.07, 0.105, 0.10), 10, knuckle="belly")
     launcher(m, -0.282)
     leg(m, b, b, 0.088, 0.066, 0.055, 10)
     m.add_pair(blob(0.07, 0.05, 0.105, 8, 4).move(LX, 0.046, -0.045), b, "foot_l")
@@ -1086,7 +1090,7 @@ def mushroom():
     m.add(lathe([(1.02, 0.14, 0.12), (1.21, 0.145, 0.122)], 10), "belly", "spine")
     m.add(lathe([(0.84, 0.11, 0.095), (0.92, 0.155, 0.125), (1.05, 0.145, 0.122)], 10), "belly", "hips")
 
-    arm(m, "belly", "belly", c, 0.04, 0.036, 0.032, 0.05, (0.062, 0.095, 0.09))
+    arm(m, "belly", "belly", c, 0.04, 0.036, 0.032, 0.05, (0.062, 0.095, 0.09), band="white")
     launcher(m, -0.265)
     leg(m, "belly", "belly", 0.068, 0.052, 0.045)
     shoe(m, c, "dark", 0.11)
@@ -1121,7 +1125,7 @@ def banana():
     m.add_pair(blob(0.026, rows=3).move(AX, 1.13, 0), "black", "forearm_l")
     m.add_pair(prism(6, 0.02, 0.22).move(AX, 1.01, 0), "black", "forearm_l")
     m.add_pair(hoop(0.034, 0.036, 0.90, 0.016, 8, tall=0.035).move(AX, 0, 0), "white", "forearm_l")
-    m.add_pair(box(0.062, 0.10, 0.092, 0.02).move(AX, 0.835, 0), "white", "hand_l")
+    hand(m, "white", band="black", bulk=1.07)
     launcher(m, -0.258, "dark")
 
     m.add_pair(blob(0.04, rows=3).move(LX, 0.90, 0), "black", "thigh_l")
