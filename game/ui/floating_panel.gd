@@ -32,8 +32,8 @@ var _side := "left"
 var top_of: Control
 
 
-## side: "left" (beside the button, to its left), "below" (under it) or "above" (over
-## it: a button in the page's footer).
+## side: "left" (beside the button, to its left), "right" (to its right), "below"
+## (under it) or "above" (over it: a button in the page's footer).
 func _init(side: String = "left", min_width: float = 0.0) -> void:
 	_side = side
 	visible = false
@@ -106,7 +106,9 @@ func _place() -> void:
 	panel.size = s
 	var top := top_of.get_global_rect().position.y if is_instance_valid(top_of) else a.position.y
 	var at := Vector2(a.position.x - GAP - s.x, top)
-	if _side == "below" or at.x < view.position.x + EDGE:
+	if _side == "right":
+		at = Vector2(a.end.x + GAP, a.position.y)
+	elif _side == "below" or at.x < view.position.x + EDGE:
 		at = Vector2(a.position.x + (a.size.x - s.x) * 0.5, a.end.y + GAP)
 	if _side == "above":
 		at = Vector2(a.position.x, a.position.y - GAP - s.y)

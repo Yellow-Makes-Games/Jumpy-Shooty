@@ -59,6 +59,7 @@ CHECKS=(
   "lobby_settings|--script tests/lobby_settings_test.gd"
   "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
+  "lobby_player_card|--script tests/lobby_player_card_test.gd"
   "host_controls|--script tests/host_controls_test.gd"
   "spectator|--script tests/spectator_test.gd"
   "team_modes|--script tests/team_modes_test.gd"
