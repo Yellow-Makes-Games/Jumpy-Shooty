@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks that every game copy draws every other player's Grappling Hook 2 the way
+"""Checks that every game copy draws every other player's grappling hook the way
 that player's own game had it.
 
 Reads logs written with --sync-log (see Player._log_own_hook). Every copy prints
@@ -71,7 +71,7 @@ def main(paths):
                 elif p[0] == "SYNC" and p[1] == "SELF":
                     ends[int(p[2])] = float(p[3])
     if not own_ev:
-        print("FAIL: nobody fired Grappling Hook 2")
+        print("FAIL: nobody fired the grappling hook")
         return 1
     ok = True
     players = sorted(own_ev)

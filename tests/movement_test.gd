@@ -148,7 +148,7 @@ func _initialize() -> void:
 				t.grapple_pull_lift = _data["pull_was"][2]
 				t.grapple_yank_lift = _data["pull_was"][3]
 				_data.erase("pull_was")],
-		["grapple yanks you toward the hook the moment it catches", 1.0 / Engine.physics_ticks_per_second,
+		["grapple yanks you toward the hook the moment the rope pulls tight", 0.0,
 			func(): _start_swing(),
 			func():
 				var g := motor.grapple
@@ -178,7 +178,7 @@ func _initialize() -> void:
 				_expect_true("fast when let go (%.1f m/s)" % v0, v0 > 12.0)
 				_expect_near("speed 0.3 s later (minus gravity's share)", Vector2(body.velocity.x, body.velocity.z).length(), _data.get("fling_flat", 0.0), 0.3)
 				_data.erase("fling_flat")],
-		["hooking from the floor pops you up and reels you in", 0.5,
+		["hooking from the floor pops you up and reels you in", 0.5 + 14.0 / HookLine.SPEED + 0.2,
 			func():
 				motor.reset()
 				_teleport(LOW_HOOK + Vector3(14, -11.0 + 0.05, 0))
@@ -200,24 +200,20 @@ func _initialize() -> void:
 				_teleport(LOW_HOOK + Vector3(5, -2.5, 0))
 				_clear_input()
 				_aim_at(LOW_HOOK)
-				body.velocity = Vector3(0, 0, -20)
-				input.grapple = true
-				input.grapple_pressed = true
-				_data["fastest"] = 0.0,
+				_data["fastest"] = 0.0
+				_hook_on(Vector3(0, 0, -20)),
 			func():
 				_expect_below("top speed on the rope", _data["fastest"], 20.5)
 				_data.erase("fastest")
 				input.grapple = false
 				motor.grapple.reset()],
-		["running past a hook keeps your sideways speed", 1.0 / Engine.physics_ticks_per_second,
+		["running past a hook keeps your sideways speed", 0.0,
 			func():
 				motor.reset()
 				_teleport(LOW_HOOK + Vector3(10, -2.0, 0))
 				_clear_input()
 				_aim_at(LOW_HOOK)
-				body.velocity = Vector3(0, 0, -11)
-				input.grapple = true
-				input.grapple_pressed = true,
+				_hook_on(Vector3(0, 0, -11)),
 			func():
 				_expect_true("hooked on", motor.grapple.attached)
 				_expect_near("sideways speed", body.velocity.z, -11.0, 0.5)
@@ -247,10 +243,7 @@ func _initialize() -> void:
 			func(): input.grapple = false,
 			func():
 				_aim_at(ANCHOR)
-				input.grapple = true
-				input.grapple_pressed = true
-				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)
-				input.clear_edges()
+				_hook_on(Vector3.ZERO)
 				_expect_true("hooked on again", motor.grapple.attached)
 				input.grapple = false
 				motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)],
@@ -664,10 +657,9 @@ func _initialize() -> void:
 					motor.step(body, input, 1.0 / Engine.physics_ticks_per_second)
 					input.clear_edges()
 				_data["was_gliding"] = motor.state == MovementController.State.GLIDE and motor.glide_readiness() < 0.9
-				motor.grapple.cooldown_left = 0.0
+				motor.grapple.reset()   # (the hook back on the wrist: it is still on its way back)
 				_aim_at(ANCHOR)
-				input.grapple = true
-				input.grapple_pressed = true,
+				_hook_on(body.velocity),
 			func():
 				_expect_true("glided off the rope", _data["was_gliding"])
 				_data.erase("was_gliding")
@@ -876,8 +868,25 @@ func _start_swing() -> void:
 	_aim_at(ANCHOR)
 	input.move = Vector2.ZERO
 	input.sprint = false
+	_hook_on(Vector3.ZERO)
+
+
+## Fires the hook from where the body is and holds the body there, moving at `vel`,
+## while the hook flies and the slack comes in: returns on the step the rope pulls
+## tight (that step's yank and pull included), with the button still held.
+func _hook_on(vel: Vector3) -> void:
+	var at := body.global_position
 	input.grapple = true
 	input.grapple_pressed = true
+	var dt := 1.0 / Engine.physics_ticks_per_second
+	for i in 240:
+		body.global_position = at
+		body.velocity = vel
+		motor.step(body, input, dt)
+		input.clear_edges()
+		if motor.grapple.attached:
+			return
+	_report(false, "set-up: the hook caught and pulled tight")
 
 
 ## High in the air with this velocity, facing -z, with Shift pressed and held: one step later, gliding.

@@ -1,5 +1,5 @@
 extends Node
-## The body of tests/hook_shot_test.gd (a separate file: it uses the game's autoloads).
+## The body of tests/grappling_hook_test.gd (a separate file: it uses the game's autoloads).
 
 const STEP := 1.0 / 120.0   # the game's physics step
 
@@ -10,17 +10,20 @@ var _shot: HookLine    # that shot's record, once it is over
 
 
 func run() -> void:
-	Settings.mobility = Mobility.GRAPPLE2   # (not saved: the test never calls save_settings)
+	Settings.mobility = Mobility.GRAPPLE   # (not saved: the test never calls save_settings)
 	Game.start_practice("testing_grounds")
 	await _frames(30)
 	var arena = Net.arena
 	_me = arena.local_player
 	var me := _me
-	_check(Mobility.has(Mobility.GRAPPLE2) and Mobility.name_of(Mobility.GRAPPLE2) == "Grappling Hook 2", "Grappling Hook 2 is a mobility tool")
-	_check(Mobility.IDS.has(Mobility.GRAPPLE) and Mobility.default_id() == Mobility.GRAPPLE, "the first grappling hook is still there, and still the default")
-	_check(me.mobility == Mobility.GRAPPLE2 and me.motor.grapple is HookShot, "you have the Grappling Hook 2 you picked")
-	_check(Net.player_mobility(Net.my_id()) == Mobility.GRAPPLE2, "the lobby has it on record")
-	var g := me.motor.grapple as HookShot
+	_check(Mobility.name_of(Mobility.GRAPPLE) == "Grappling Hook" and Mobility.default_id() == Mobility.GRAPPLE, "the Grappling Hook is a mobility tool, and the default")
+	_check(Mobility.IDS == [Mobility.GRAPPLE, Mobility.PORTAL, Mobility.BLINK, Mobility.JETPACK], "there is only one grappling hook")
+	_check(not Mobility.has("grapple2") and Mobility.valid("grapple2") == Mobility.GRAPPLE, "a saved choice of the old Grappling Hook 2 id is the Grappling Hook")
+	_check(LobbySettings.normalized_mobility(["grapple2", "portal"]) == [Mobility.GRAPPLE, Mobility.PORTAL], "a lobby's saved list of allowed tools keeps it, as the Grappling Hook")
+	_check(LobbySettings.normalized_mobility(["grapple", "grapple2", "portal", "blink", "jetpack"]) == [], "...and a list of every tool is still every tool")
+	_check(me.mobility == Mobility.GRAPPLE, "you have the grappling hook you picked")
+	_check(Net.player_mobility(Net.my_id()) == Mobility.GRAPPLE, "the lobby has it on record")
+	var g := me.motor.grapple
 	var range_m: float = me.motor.tuning.grapple_range
 
 	# --- A shot at a wall: flight, bite, the slack coming in, then the pull.
@@ -84,7 +87,7 @@ func run() -> void:
 	var toward := (g.anchor - g.rope_origin(me)).normalized()
 	await _physics(1)
 	_record(me, g)
-	_check(me.velocity.dot(toward) > me.motor.tuning.grapple_yank, "pulling tight yanks you toward the hook, harder than the first hook's (%.1f m/s)" % me.velocity.dot(toward))
+	_check(me.velocity.dot(toward) > me.motor.tuning.grapple_yank, "pulling tight yanks you toward the hook (%.1f m/s)" % me.velocity.dot(toward))
 	_check(g.anchor.distance_to(eye + spot[1] * dist) < 1.0, "it is hooked where you aimed (%.2f m off)" % g.anchor.distance_to(eye + spot[1] * dist))
 	var tight := g.line.look(g.clock, me.rope_origin(), g.rope_origin(me))
 	_check(int(tight[0]) == HookLine.TAUT and float(tight[2]) == 0.0 and float(tight[4]) >= 0.0, "the rope is drawn tight, and twanging")
@@ -94,7 +97,7 @@ func run() -> void:
 	HookRope.curve(me.rope_origin(), g.anchor, 0.0, 1.0, 0.6, pts)
 	_check(HookRope.length_of(pts) - me.rope_origin().distance_to(g.anchor) < 0.01, "once the twang dies away the rope is a straight line")
 	_check(me.motor.state == MovementController.State.GRAPPLE and me.global_position.distance_to(start) > 1.5,
-		"then it pulls you in like the first grappling hook (%.1f m so far)" % me.global_position.distance_to(start))
+		"then it pulls you in (%.1f m so far)" % me.global_position.distance_to(start))
 	var frame := me.shown_state()
 	_check(frame.size() > 12 and frame[12] != null and (frame[12] as Array).size() == 4 and bool(frame[6]),
 		"the killcam's frame holds the rope as it was drawn")
@@ -270,10 +273,10 @@ func run() -> void:
 	_check(not open.is_empty(), "found an open stretch of floor")
 	if not open.is_empty():
 		Cheats.freeze_bots = true
-		var id: int = Net.add_bot(BotDifficulty.EXPERT, "", Mobility.GRAPPLE2)
+		var id: int = Net.add_bot(BotDifficulty.EXPERT, "", "grapple2")
 		await _frames(10)
 		var bot: Player = arena.get_player(id)
-		_check(bot != null and bot.motor.grapple is HookShot, "a bot can carry Grappling Hook 2")
+		_check(bot != null and bot.mobility == Mobility.GRAPPLE, "a bot asked for the old Grappling Hook 2 id carries the grappling hook")
 		var feet: Vector3 = open[0]
 		var along: Vector3 = open[2]
 		me.teleport(feet, open[1])
@@ -300,12 +303,11 @@ func run() -> void:
 		Cheats.freeze_bots = false
 		await _frames(5)
 
-	# --- A race always has the first grappling hook.
+	# --- A race always has the grappling hook: the same one.
 	Game.start_practice("rooftop_run", "race")
 	await _frames(40)
 	arena = Net.arena
-	_check(arena != null and arena.local_player != null and arena.local_player.mobility == Mobility.GRAPPLE
-		and not (arena.local_player.motor.grapple is HookShot), "a race always has the first grappling hook")
+	_check(arena != null and arena.local_player != null and arena.local_player.mobility == Mobility.GRAPPLE, "a race always has the grappling hook")
 	_finish()
 
 
@@ -412,7 +414,7 @@ func _frame_of(entry: Array) -> Array:
 		true, true, 1.6, "none", look.slice(1) if not look.is_empty() else null]
 
 
-func _record(me: Player, g: HookShot) -> void:
+func _record(me: Player, g: Grapple) -> void:
 	var packed := g.line.pack(g.clock) if g.line.sending(g.clock) else PackedFloat32Array()
 	_log.append([g.clock, g.line.look(g.clock, me.rope_origin(), g.rope_origin(me)), packed, g.rope_origin(me), me.rope_origin()])
 

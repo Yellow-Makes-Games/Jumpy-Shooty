@@ -1317,7 +1317,7 @@ func _fly_link(delta: float) -> void:
 		if not _link_hooked:
 			if g.attached:
 				_link_hooked = true
-			elif _link_time > 0.5:
+			elif _link_time > 0.5 and not g.busy():
 				_end_link(false)   # the hook did not catch
 				return
 			else:
@@ -1524,7 +1524,7 @@ func _grapple(delta: float, visible: bool) -> void:
 			input.kick_pressed = true
 		return
 	if g.busy():
-		input.grapple = true   # Grappling Hook 2: the hook is on its way (letting go would call it back)
+		input.grapple = true   # the hook is on its way (letting go would call it back)
 		input.jump_pressed = false
 		return
 	if g.attached:
@@ -1704,20 +1704,14 @@ func _hook_player(delta: float) -> bool:
 	if _rng.randf() > delta * (0.45 if d.grapples else 0.15):
 		return false
 	var eye := me.eye_position()
-	var lead := 0.08 + (dist / HookLine.SPEED if g is HookShot else 0.0)   # (Grappling Hook 2's hook takes a moment to get there)
+	var lead := 0.08 + dist / HookLine.SPEED   # (the hook takes a moment to get there)
 	var point := Grapple.target_point(_target) + _target.velocity * lead
 	point += Vector3(_rng.randfn(), _rng.randfn() * 0.5, _rng.randfn()) * dist * tan(deg_to_rad(d.aim_error)) * 0.5
 	var dir := (point - eye).normalized()
-	if g is HookShot:
-		# They are not there yet: all it can ask is a clear flight to where they will be.
-		var clear := PhysicsRayQueryParameters3D.create(eye, point, 1, [me.get_rid()])
-		if not me.get_world_3d().direct_space_state.intersect_ray(clear).is_empty():
-			return false
-	else:
-		var q := PhysicsRayQueryParameters3D.create(eye, eye + dir * g.tuning.grapple_range, 1 | (1 << 1), [me.get_rid()])
-		var hit := me.get_world_3d().direct_space_state.intersect_ray(q)
-		if hit.is_empty() or hit.collider != _target:
-			return false   # it would miss, or hit a wall: not worth it
+	# They are not there yet: all it can ask is a clear flight to where they will be.
+	var clear := PhysicsRayQueryParameters3D.create(eye, point, 1, [me.get_rid()])
+	if not me.get_world_3d().direct_space_state.intersect_ray(clear).is_empty():
+		return false
 	input.yaw = atan2(-dir.x, -dir.z)
 	input.pitch = asin(clamp(dir.y, -1.0, 1.0))
 	input.grapple = true

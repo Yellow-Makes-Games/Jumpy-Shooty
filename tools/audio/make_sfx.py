@@ -960,7 +960,7 @@ def grapple_miss():
 
 
 def grapple_taut():
-    """Grappling Hook 2: the slack rope snapping tight. A steel cable taking the load
+    """The grappling hook: the slack rope snapping tight. A steel cable taking the load
     all at once: a hard low thrum (a plucked string, dropping a little as it settles),
     the winch biting, and a short creak of tension."""
     rng = np.random.default_rng(9650)

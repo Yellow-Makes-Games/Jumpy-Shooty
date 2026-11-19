@@ -187,7 +187,7 @@ func _feed(p: Player, life: int, at: Vector3, n: int, new_life: bool = false) ->
 
 func _snap(at: Vector3, count: int, life: int) -> PackedFloat32Array:
 	var pos := _base + at
-	return PackedFloat32Array([pos.x, pos.y, pos.z, 0, 0, 0, 0, 0, 0, count, 0, 0, 0, 0, 0, life])
+	return PackedFloat32Array([pos.x, pos.y, pos.z, 0, 0, 0, 0, 0, 0, count, 0, life])
 
 
 func _frames(n: int) -> void:

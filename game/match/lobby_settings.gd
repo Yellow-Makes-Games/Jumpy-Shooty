@@ -157,8 +157,11 @@ static func weapons_summary(ids) -> String:
 # Allowed mobility tools. They apply to every fight (shoot-out, Gun Game, Deathmatch,
 # Killcam): a race ignores them, because it always uses the grapple.
 
-## A list of mobility ids as stored: known ids only, in Mobility.IDS order; [] for all.
+## A list of mobility ids as stored: known ids only (an old id as it is called now:
+## Mobility.RENAMED), in Mobility.IDS order; [] for all.
 static func normalized_mobility(ids) -> Array:
+	if ids is Array:
+		ids = ids.map(func(m): return Mobility.canonical(str(m)))
 	return _normalized(ids, Mobility.IDS)
 
 

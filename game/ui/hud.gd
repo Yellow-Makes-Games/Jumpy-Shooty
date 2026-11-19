@@ -263,7 +263,7 @@ func update_local(p: Player) -> void:
 	elif g.attached:
 		grapple = GRAPPLE_ON
 	elif g.busy():
-		grapple = GRAPPLE_FLYING   # Grappling Hook 2: the hook is on its way, or the slack is coming in
+		grapple = GRAPPLE_FLYING   # the hook is on its way, or the slack is coming in
 	elif g.cooldown_left > 0.0:
 		grapple = GRAPPLE_COOLING
 		grapple_cooldown = g.cooldown_left / p.motor.tuning.grapple_cooldown

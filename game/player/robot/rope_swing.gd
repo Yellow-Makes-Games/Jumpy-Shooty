@@ -1,6 +1,6 @@
 class_name RopeSwing
 extends RefCounted
-## How a body hangs on Grappling Hook 2's rope once it has pulled tight (see HookShot):
+## How a body hangs on the grappling hook's rope once it has pulled tight (see Grapple):
 ## loose, following the rope, not held in a pose.
 ##
 ##  - The left arm is up the rope and carries the weight. The body hangs from the
@@ -103,9 +103,9 @@ var _flip_hurry := false
 
 ## Every frame. feet: where the body stands, in the world.
 func update(delta: float, inp: RobotAnimInput, feet: Vector3) -> void:
-	var taut := inp.hook2 and inp.hook_taut >= 0.0 and inp.alive
+	var taut := inp.hook_taut >= 0.0 and inp.alive
 	var hanging := taut and inp.state == S.GRAPPLE
-	if not inp.grapple_on or not inp.hook2:
+	if not inp.grapple_on:
 		_slack = 0.0
 	elif not taut:
 		_slack = maxf(_slack, inp.hook_slack)

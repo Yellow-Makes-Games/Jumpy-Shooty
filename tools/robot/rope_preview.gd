@@ -1,8 +1,8 @@
 extends SceneTree
-## Films a robot on Grappling Hook 2's rope, frame by frame, to check how the body hangs
+## Films a robot on the grappling hook's rope, frame by frame, to check how the body hangs
 ## (RopeSwing) without opening the game: the hook flies out, bites, pulls tight, the
 ## robot is reeled in and swings, and lets go. Seen from the side and from behind at
-## once. The robot is moved by a copy of the rope's pull (Grapple, HookShot), posed by
+## once. The robot is moved by a copy of the rope's pull (Grapple), posed by
 ## the game's own animator, and the rope is the game's own (HookLine, HookRope). Used
 ## by tools/robot/rope_preview.sh.
 ##
@@ -122,7 +122,6 @@ func _initialize() -> void:
 		root.add_child(other)
 		other.position = _anchor - Vector3(0, RopeSwing.ATTACH, 0)
 		_target = other
-	_inp.hook2 = true
 	_inp.state = S.AIR
 	_focus = _pos
 	DirAccess.make_dir_recursive_absolute(_out)
@@ -177,13 +176,13 @@ func _advance(dt: float) -> void:
 		_line.pull_taut(_t)
 		yanked = true
 		_total = _t + (_release_at if _release_at != INF else 4.0) + _end
-	# The body: gravity, and on the rope its pull (as Grapple and HookShot do it).
+	# The body: gravity, and on the rope its pull (as Grapple does it).
 	var on := _taut and not _released
 	_vel.y -= _tuning.gravity * dt
 	if on:
 		if yanked:
 			_cap = maxf(_vel.length(), _tuning.grapple_pull_speed)
-			_vel = _toward(chest, _vel, _tuning.grapple_yank * HookShot.YANK)
+			_vel = _toward(chest, _vel, _tuning.grapple_yank)
 			if _target == null and _anchor.y > chest.y and _vel.y < _tuning.grapple_lift_max:
 				_vel.y = minf(_vel.y + _tuning.grapple_yank_lift, _tuning.grapple_lift_max)
 		if _target:
