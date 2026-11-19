@@ -122,6 +122,14 @@ const ACCESSORIES := {
 		{"id": "bunny_ears", "name": "Bunny Ears"},
 		{"id": "cat_ears", "name": "Cat Ears"},
 		{"id": "unicorn", "name": "Unicorn Horn"},
+		{"id": "cog_halo", "name": "Cog Halo"},
+		{"id": "machine_cowl", "name": "Machine Cowl"},
+		{"id": "void_crest", "name": "Void Crest"},
+		{"id": "netrunner_rig", "name": "Netrunner Rig"},
+		{"id": "plasma_mohawk", "name": "Plasma Mohawk"},
+		{"id": "warlord_crest", "name": "Warlord Crest"},
+		{"id": "blade_halo", "name": "Blade Halo"},
+		{"id": "skull_crown", "name": "Skull Crown"},
 	],
 	"face": [
 		{"id": "", "name": "None"},
@@ -142,6 +150,10 @@ const ACCESSORIES := {
 		{"id": "beard", "name": "Beard"},
 		{"id": "handlebar", "name": "Handlebar"},
 		{"id": "lollipop", "name": "Lollipop"},
+		{"id": "hud_eyepiece", "name": "HUD Eyepiece"},
+		{"id": "rebreather", "name": "Rebreather"},
+		{"id": "holo_visor", "name": "Holo Visor"},
+		{"id": "optic_cluster", "name": "Optic Cluster"},
 	],
 	"neck": [
 		{"id": "", "name": "None"},
@@ -158,6 +170,9 @@ const ACCESSORIES := {
 		{"id": "ruff", "name": "Ruff"},
 		{"id": "dog_tags", "name": "Dog Tags"},
 		{"id": "stethoscope", "name": "Stethoscope"},
+		{"id": "power_collar", "name": "Power Collar"},
+		{"id": "comm_torque", "name": "Comm Torque"},
+		{"id": "cable_bundle", "name": "Cable Bundle"},
 	],
 	"shoulder": [
 		{"id": "", "name": "None"},
@@ -168,6 +183,10 @@ const ACCESSORIES := {
 		{"id": "drone", "name": "Drone Buddy"},
 		{"id": "boombox", "name": "Boombox"},
 		{"id": "bandolier", "name": "Bandolier"},
+		{"id": "servo_skull", "name": "Servo Skull"},
+		{"id": "mech_arm", "name": "Mech Arm"},
+		{"id": "missile_pod", "name": "Missile Pod"},
+		{"id": "sentinel", "name": "Sentinel"},
 	],
 	"back": [
 		{"id": "", "name": "None"},
@@ -186,6 +205,10 @@ const ACCESSORIES := {
 		{"id": "banner", "name": "Banner"},
 		{"id": "balloons", "name": "Balloons"},
 		{"id": "windup_key", "name": "Wind-up Key"},
+		{"id": "energy_wings", "name": "Energy Wings"},
+		{"id": "space_cape", "name": "Space Cape"},
+		{"id": "antenna_mast", "name": "Antenna Mast"},
+		{"id": "gyro_ring", "name": "Gyro Ring"},
 	],
 	"waist": [
 		{"id": "", "name": "None"},
@@ -197,6 +220,9 @@ const ACCESSORIES := {
 		{"id": "grass_skirt", "name": "Grass Skirt"},
 		{"id": "pool_float", "name": "Pool Float"},
 		{"id": "hula_hoop", "name": "Hula Hoop"},
+		{"id": "cell_belt", "name": "Cell Belt"},
+		{"id": "thruster_skirt", "name": "Thruster Skirt"},
+		{"id": "shield_belt", "name": "Shield Belt"},
 	],
 	"tail": [
 		{"id": "", "name": "None"},
@@ -208,6 +234,8 @@ const ACCESSORIES := {
 		{"id": "scorpion_tail", "name": "Scorpion Tail"},
 		{"id": "peacock", "name": "Peacock Fan"},
 		{"id": "power_cord", "name": "Power Cord"},
+		{"id": "robo_tail", "name": "Robo Tail"},
+		{"id": "light_streamer", "name": "Light Streamer"},
 	],
 }
 
