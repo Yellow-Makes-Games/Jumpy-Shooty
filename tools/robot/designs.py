@@ -203,10 +203,12 @@ def needle():
     elbow, wrist = (ax, 1.13, 0), (ax, 0.88, 0)
     m.add_pair(ball(0.058).move(ax, 1.40, 0), "accent", "upper_arm_l")
     m.add_pair(loft([ngon(6, 0.027, 1.16, cx=ax), ngon(6, 0.031, 1.38, cx=ax)]), "joint", "upper_arm_l")
-    # The arm's own sleeve under the shoulder: skinny where it runs up into the ball (so
-    # the two meet without a step), widest a little below it, skinny again at the strut.
-    m.add_pair(loft([_oct(0.026, 0.026, 1.368, cx=ax), _oct(0.040, 0.043, 1.312, cx=ax), _oct(0.040, 0.043, 1.295, cx=ax),
-                     _oct(0.029, 0.029, 1.255, cx=ax)]), "armor", "upper_arm_l")
+    # The arm's own sleeve under the shoulder. It leaves the ball as a neck no wider than
+    # the strut and only widens once it is clear of the ball's underside (1.351), so it
+    # does not cut through the ball's faces; it is short, to leave the strut showing
+    # between it and the elbow's sleeve.
+    m.add_pair(loft([_oct(0.033, 0.033, 1.366, cx=ax), _oct(0.033, 0.033, 1.336, cx=ax), _oct(0.037, 0.040, 1.318, cx=ax),
+                     _oct(0.037, 0.040, 1.303, cx=ax), _oct(0.029, 0.029, 1.276, cx=ax)]), "armor", "upper_arm_l")
     _sleeve(m, [_oct(0.029, 0.029, 1.225, cx=ax), _oct(0.041, 0.044, 1.185, cx=ax), _oct(0.043, 0.046, 1.13 + SEAM, cx=ax)],
             "upper_arm_l", {-1: elbow})
     _hinge(m, 0.038, elbow, "forearm_l")
