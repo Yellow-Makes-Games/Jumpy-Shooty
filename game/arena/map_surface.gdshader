@@ -543,6 +543,28 @@ void fragment() {
 			shade *= 1.0 - glyph * 0.35;
 			shine = lit * lit_power * glyph * rune_life(map_pos, n, pick);
 		}
+	} else if (style == 22) {
+		// Wallpaper (a haunted house): upright stripes, every other one a shade darker,
+		// a damask lozenge in the pale ones, and stains and peeling here and there. On a
+		// floor or ceiling, plain plaster with stains.
+		float pr = max(px.x, px.y);
+		float stain = blotch(p, px, 2.4);
+		if (wall) {
+			float band = mod(id.x, 2.0);
+			float fine = clear_at(px, cell.x * 0.5);
+			shade *= 1.0 - 0.1 * band * fine;
+			vec2 m = vec2(in_cell.x - cell.x * 0.5, fract(p.y / (cell.x * 1.6)) * cell.x * 1.6 - cell.x * 0.8);
+			float lozenge = abs(m.x) / (cell.x * 0.3) + abs(m.y) / (cell.x * 0.62);
+			float motif = stroke(abs(lozenge - 0.8), 0.06, pr / (cell.x * 0.3)) * (1.0 - band);
+			float dot_mid = stroke(length(m), cell.x * 0.05, pr) * (1.0 - band);
+			paint = albedo.rgb * vec3(1.18, 1.1, 0.92);
+			painted = max(motif, dot_mid) * fine * 0.7;
+			float pin = stroke(to_edge.x, 0.006, px.x) * clear_at(px, 0.3);
+			shade *= 1.0 - pin * 0.25;
+		}
+		shade *= 1.0 + stain * vary * 1.6;
+		float peel = smoothstep(0.62, 0.7, hash(floor(p / 1.7) + vec2(4.0, 9.0))) * smoothstep(0.3, 0.0, length(fract(p / 1.7) - 0.5));
+		shade *= 1.0 - 0.22 * peel * clear_at(px, 1.0);
 	} else {
 		// Corrugated: upright ridges on the sides (a shipping container), plain on top.
 		if (wall) {

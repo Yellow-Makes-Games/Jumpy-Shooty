@@ -46,6 +46,7 @@ CHECKS=(
   "lift|--fixed-fps 60 --script tests/lift_test.gd"
   "empyrean|--script tests/empyrean_test.gd"
   "empyrean_play|--script tests/empyrean_play_test.gd"
+  "haunted_house|--script tests/haunted_house_test.gd"
   "testing_grounds|--fixed-fps 60 --script tests/course_test.gd"
   "construction_site|--fixed-fps 60 --script tests/site_test.gd"
   "office|--fixed-fps 60 --script tests/office_test.gd"
@@ -66,7 +67,7 @@ CHECKS=(
   "respawn_visible|--script tests/respawn_visible_test.gd"
 )
 # Practice mode boots without errors on every map.
-for map in construction_site office kilnworks castle halcyon cirrus empyrean testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
+for map in construction_site office kilnworks castle halcyon cirrus empyrean haunted_house testing_grounds rooftop_run foundry sky_ruins summit_plunge; do
   CHECKS+=("boot_$map|-- --practice --map=$map --quit-after=3")
 done
 

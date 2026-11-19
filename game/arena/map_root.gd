@@ -719,10 +719,11 @@ func doomed_at(point: Vector3) -> bool:
 
 
 ## A spawn point at `point`: 1 if it is on an island that is up and staying up, -1 if on
-## one that is down, on its way or about to go, 0 if it is on no island at all.
+## one that is down, on its way or about to go, 0 if it is on no island at all (or beside
+## an island marked Over Ground: a crane, a haunted wardrobe, which is no island).
 func spawn_open(point: Vector3) -> int:
 	var island := island_at(point)
-	if island == null:
+	if island == null or island.over_ground:
 		return 0
 	return 1 if island.up and not island.doomed else -1
 

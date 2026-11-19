@@ -112,6 +112,14 @@ Quick checks:
   multiplied with an event's, never touching projectiles, gone with the map;
 - tractor-beam lifts (`tests/lift_test.gd`, with `--fixed-fps 60`): 9 m/s, the hover at
   the top, leaving sideways at any height, what the beam leaves alone;
+- Haunted House (`tests/haunted_house_test.gd`): the Haunting's clock (the order of
+  layouts comes from its state alone, never one layout twice running, every prop where the
+  clock says however it got there), and in each of the four layouts every spawn point
+  clear and on a floor, every pickup clear, and on the bots' navigation mesh every spawn
+  point and pickup on both floors; doorways never solid while they come and go, someone
+  in a doorway when it closes put out on the nearer side, someone caught in furniture put
+  beside it, and a new match putting the house back in layout 0. It is held to
+  `tests/map_flicker_test.gd` too;
 - Empyrean Tower (`tests/empyrean_test.gd`): no two faces that would flicker, the river
   of magic clear of everything in the shaft, how it asks to be drawn, no bounds and the burn layer, the gravity
   zones, force fields that stop nothing, spawn points (none sees the altar) and pickups,
@@ -351,7 +359,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
 | `--benchmark` | Run the graphics benchmark (see Measuring performance), print where the report went, and quit |
-| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`, `empyrean`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`, `empyrean`, `haunted_house`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -394,7 +402,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 
 Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`,
 `game/maps/office.tscn`, `game/maps/kilnworks.tscn`, `game/maps/rail_yard.tscn`,
-`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn`, `game/maps/halcyon.tscn`, `game/maps/cirrus.tscn`, `game/maps/empyrean.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn`, `game/maps/halcyon.tscn`, `game/maps/cirrus.tscn`, `game/maps/empyrean.tscn`, `game/maps/haunted_house.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
 
 The Castle is a good small example of a map with several height levels: a curtain
 wall with a battlement walk at 6 m, four round corner towers at 12 m reached by
@@ -532,6 +540,9 @@ scene is edited by hand. Try it with `--map=sky_island --practice`.
   block that kills, a tractor-beam lift, a ring gate and the event that opens the gates,
   the clock that turns orbiting islands, and a drone that is only scenery. See "Empyrean
   Tower" and "Gravity zones, hazards, lifts and ring gates" below.
+- **HauntProp**, **HauntEvent** and **MapGhost** nodes (Haunted House): furniture that
+  floats, shifts to new places and vanishes, the clock that haunts it, and a ghost that is
+  only scenery. See "Haunted House" below.
 - **Label3D** nodes: signs and painted floor numbers.
 - **Environment** (sky, ambient light) and **Sun**: ordinary Godot nodes, so the editor
   shows the map lit the way the game does.
@@ -619,7 +630,8 @@ four heights, every stone its own length; "_runes" cuts a glowing rune into a fe
 `ring_flags` and `ring_flags_cyan` / `_green` / `_teal` / `_violet` / `_stars` (a round
 floor laid in courses round the map's middle, x = 0 and z = 0, with a line of brass
 inlaid every few courses and, on the coloured ones, glowing runes; only for a round
-building that stands on the middle), and `arcane_plates` (riveted metal plates with a
+building that stands on the middle), and for an old house (Haunted House): `wallpaper` (stripes and a damask pattern, pin
+seams, stains and peeling), and `arcane_plates` (riveted metal plates with a
 brass inlay and a rune in a ring on some). The patterns are settings of one shader,
 `game/arena/map_surface.gdshader`, listed in `MapScenery.SURFACES`; they are measured
 in metres from where the surface is in the map, so they line up from block to block. A
@@ -707,6 +719,7 @@ The scripts behind this:
 | `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
 | `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `map_ring_gate.gd`, `portal_surge_event.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, ring gates and the Portal Surge, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
+| `game/arena/haunt_prop.gd`, `haunt_event.gd`, `map_ghost.gd` | Furniture that floats, shifts and vanishes, doorways that come and go, the clock that moves them, and the ghosts (Haunted House; any map can use them) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
 | `game/arena/map_piece.gd`, `map_stairs.gd` (stairs and ramps), `map_row.gd`, `map_ring.gd` | The pieces: nodes that make their blocks from a few numbers (editor only; in the game they are plain groups) |
 | `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline, and the map tools. `plugin.gd` wires it up; `map_ops.gd` (geometry), `tool_*.gd` (what the mouse does) and `map_commands.gd` (Hollow, Mirror...) have no editor in them, so the test can run them; `map_toolbar.gd`, `map_dock.gd` and `map_dialogs.gd` are what you see |
@@ -1004,6 +1017,55 @@ Things to keep true when editing it:
 - Lighting is the ambient light, the sun and the glowing kinds; there are no light nodes.
   The sky is `game/maps/sky/empyrean_sky.gdshader`; the fog is height fog under the tower
   only (the burn layer's haze).
+
+### Haunted House
+
+`game/maps/haunted_house.tscn` is a very small map for close quarters: a two-storey house,
+30 x 22 m inside, with eleven rooms (on the ground floor a double-height Foyer with a
+gallery round it and a grand stair, the Dining Room, Parlour, Kitchen, Library and a Back
+Hall with the servants' stair; upstairs the Bedroom, with a hole in its floor into the
+Dining Room, the Nursery, Bathroom, Study and Upper Hall). It is for free-for-all (and so
+Gun Game) and Deathmatch, 16 spawn points and 13 weapon pickups, mostly shotguns, pistols,
+SMGs and blades. Outside, seen through the windows, are the grounds at midnight (graves,
+dead trees, the fence, the moon): drawn only, and the windows do not break. The front door
+is sealed; the pantry door is boarded up, and the boards can be shot through.
+
+The house is haunted, and the haunting changes the map:
+- **Floating furniture** (`HauntProp`, a MapIsland): 68 props. Tables, chairs, sofas,
+  the piano, the beds, bookcases and the bath float and bob; most are solid cover.
+- **The shift**: the house has four layouts. A turn is 22 s quiet, then 3 s of warning
+  (a low groan, the lights flicker, the camera shakes, what is about to move rattles,
+  and a faint shimmer shows where a wall will be), then a 2.5 s shift in which furniture
+  glides to its place in the next layout (cover moves; two bookcases in the Library
+  are walls that move) and the doorways change.
+- **Doorways that come and go**: 14 of the 20 doorways are there in some layouts and not
+  in others. A doorway that goes fades out and is open at once; one that comes back fades
+  in and only turns solid once it is all there. Whoever is standing in it then is put out
+  of it on the nearer side; whoever furniture came to rest on is put somewhere free beside
+  it (`HauntEvent.free_player`, run by each copy of the game for its own player and, on
+  the host, the bots).
+- **Ghosts** (`MapGhost`): seven, scenery only (no collision, never hit), flying
+  their rounds through walls and floors, moaning now and then, writhing while a shift
+  comes.
+
+Online, the haunting is like Construction Site's crane: the host owns the clock. The
+**HauntEvent** (a MapEvent) starts when the match starts, never ends by itself (also not
+when the match is over), and draws a fresh order of layouts by setting its `state` to a
+random number; the order (never one layout twice running) and where every prop is at
+every moment are worked out from `state` and the clock alone, so every copy shows the
+same thing, a reminder every 5 s keeps the clocks together, and someone who joins late
+is told both. A new match puts the house back in layout 0.
+
+Bots stand still while the house shifts (the HauntEvent sets `MapRoot.shifting`), and
+the arena keeps a navigation mesh for each layout (`MapRoot.layout_state`), baked the
+first time the house settles in it.
+
+It was laid out by `python3 tools/arena/build_arena_maps.py haunted_house` (from
+`tools/arena/haunted_house.py`; run `godot --headless --path . --script
+tools/arena/migrate_breakable.gd` after, for the pantry boards). Before it writes the
+scene the script checks that nothing that moves ends up in a wall, a spawn point, a
+pickup, an always-open doorway or another prop, in any layout and on the way between
+them; `tests/haunted_house_test.gd` checks the real thing.
 
 ### Gravity zones, hazards, lifts and ring gates
 

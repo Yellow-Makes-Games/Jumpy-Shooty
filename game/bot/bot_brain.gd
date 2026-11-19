@@ -87,6 +87,7 @@ const TERMINAL_CHANCE := [0.04, 0.06, 0.08, 0.1]   ## ...and the chance it does 
 const TERMINAL_GIVE_UP := 14.0   ## seconds it spends getting there before it drops the idea
 const NAV_SEARCH_POLYGONS := 32768  ## how much of the navigation mesh one path search may look through (see _nav_path)
 const NO_LINK_WAIT := 1.5           ## seconds before a bot that found no crossing looks for one again
+const ROAM_TRIES := 4            ## random places it tries, with nobody to go after, for one it can walk to (indoors)
 const LINK_SHORT := 3.0          ## a path that ends this far (metres) from where it is going does not get there...
 const LIFT_WORTH := 12.0         ## a goal this far above it (metres) is worth a tractor-beam lift, if one is near
 const GATE_WORTH := 25.0         ## an open ring gate is worth stepping through if it brings the goal this much nearer (metres)
@@ -631,22 +632,41 @@ func _hunt_goal(delta: float) -> Vector3:
 	var nav := me.get_world_3d().navigation_map
 	_goal_time += delta
 	var info: Array = _known[_target.peer_id] if _target != null and _known.has(_target.peer_id) else []
+	var pos := _to_nav(me.global_position)
 	if not info.is_empty() and float(info[0]) != _goal_from:
 		_goal_from = info[0]   # a new sighting or sound: go there
-		_goal = _to_nav(info[1])
+		_goal = _walk_end(pos, _to_nav(info[1]))
 		_goal_time = 0.0
-	var pos := _to_nav(me.global_position)
 	var arrived := _goal != Vector3.INF and _flat(pos, _goal) < 1.5 and absf(_goal.y - pos.y) < 2.5
 	if _goal == Vector3.INF or arrived or _goal_time > 12.0:
 		_goal_time = 0.0
 		if not info.is_empty():
 			var spot: Vector3 = _to_nav(info[1])
 			var off := Vector3(_rng.randf_range(-1.0, 1.0), 0.0, _rng.randf_range(-1.0, 1.0)).normalized() * _rng.randf_range(3.0, SEARCH_RADIUS)
-			_goal = NavigationServer3D.map_get_closest_point(nav, spot + off)
+			_goal = _walk_end(pos, NavigationServer3D.map_get_closest_point(nav, spot + off))
 		else:
 			_goal_from = -1.0
-			_goal = NavigationServer3D.map_get_random_point(nav, 1, true)
+			for i in ROAM_TRIES:
+				var pick := NavigationServer3D.map_get_random_point(nav, 1, true)
+				_goal = _walk_end(pos, pick)
+				if _goal == pick:
+					break   # (one it can walk to: not a table top, nor a room whose doors are shut)
 	return _from_nav(_goal)
+
+
+## Indoors (a map with no islands and no crossings to jump), where walking toward
+## `goal` from `pos` ends, if it ends short of it: a goal on a table top or a bookcase,
+## or in a room whose doorways have gone (Haunted House), becomes the nearest place it
+## can walk to, so the bot does not stand at a dead end until it gives up. Elsewhere,
+## and when it gets there, `goal` itself. (Both in the navigation mesh's frame.)
+func _walk_end(pos: Vector3, goal: Vector3) -> Vector3:
+	if _open() or not me.get_tree().get_nodes_in_group(MapJumpLink.GROUP).is_empty():
+		return goal
+	var path := _nav_path(pos, goal)
+	if path.is_empty():
+		return goal
+	var end := path[path.size() - 1]
+	return end if _flat(end, goal) > 1.0 or absf(end.y - goal.y) > 1.5 else goal
 
 
 ## Once it is running fast it mixes in movement tricks: slides, bunny-hops, dives.

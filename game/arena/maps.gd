@@ -25,6 +25,7 @@ const LIST := [
 	{"id": "halcyon", "name": "Halcyon", "scene": "res://game/maps/halcyon.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "cirrus", "name": "Cirrus", "scene": "res://game/maps/cirrus.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "empyrean", "name": "Empyrean Tower", "scene": "res://game/maps/empyrean.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
+	{"id": "haunted_house", "name": "Haunted House", "scene": "res://game/maps/haunted_house.tscn", "dev": false, "game": "ffa", "also": ["dm"]},
 	{"id": "testing_grounds", "name": "Testing Grounds", "scene": "res://game/maps/testing_grounds.tscn", "dev": true, "game": "ffa"},
 	{"id": "castle_v2", "name": "Castle 2", "scene": "res://game/maps/castle_v2.tscn", "dev": true, "game": "ffa"},
 	{"id": "sky_island", "name": "Sky Island", "scene": "res://game/maps/sky_island.tscn", "dev": true, "game": "ffa", "also": ["dm"]},

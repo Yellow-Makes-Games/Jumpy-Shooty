@@ -1435,6 +1435,85 @@ def bridge_lock():
 
 
 # ---------------------------------------------------------------------------
+# The Haunted House (see HauntEvent and MapGhost): the house about to shift, shifting
+# and settling, and the ghosts' moans. Soft, low and breathy: under the fighting.
+
+def _voice(rng, seconds, f0, f1, vibrato=5.0, breath=0.5):
+    """A hollow, wordless voice gliding from f0 to f1 Hz: a few formants over a buzz, with
+    a slow wobble and a lot of breath in it."""
+    t = tt(seconds)
+    p = np.clip(t / seconds, 0.0, 1.0)
+    pitch = f0 * (f1 / f0) ** (0.5 - 0.5 * np.cos(np.pi * p))
+    pitch *= 1.0 + 0.025 * np.sin(2 * math.pi * vibrato * t + rng.uniform(0, 6.0))
+    phase = 2 * math.pi * np.cumsum(pitch) / SR
+    buzz = sum(np.sin(k * phase) / k ** 1.3 for k in range(1, 9))
+    vowel = mix(bp(buzz, 520.0, 3.0), (bp(buzz, 880.0, 4.0), 0.0, 0.6), (bp(buzz, 2400.0, 6.0), 0.0, 0.15))
+    air = fit(bp(noise(rng, seconds), 700.0, 1.2) * breath, len(t))
+    vowel = fit(vowel, len(t))
+    return vowel / np.max(np.abs(vowel)) + air / np.max(np.abs(air)) * breath
+
+
+def haunt_warn():
+    """The warning before the house shifts (three seconds): a moan that rises through the
+    walls, a whisper of many voices and a slow creak of old timber, growing."""
+    rng = np.random.default_rng(7301)
+    seconds = 3.2
+    t = tt(seconds)
+    grow = np.clip(t / 2.6, 0.0, 1.0) ** 1.6
+    moan = _voice(rng, seconds, 150.0, 240.0, vibrato=4.0, breath=0.6)
+    choir = sum(_voice(rng, seconds, 300.0 * r, 330.0 * r, vibrato=6.0 + k, breath=0.9) for k, r in enumerate((1.0, 1.19, 1.5)))
+    whisper = fit(hp(noise(rng, seconds), 2500.0), len(t)) * (0.5 + 0.5 * np.sin(2 * math.pi * 6.5 * t) ** 2)
+    creak = np.zeros_like(t)
+    for k in range(18):
+        at = rng.uniform(0.6, 3.0)
+        c = modal(rng, 0.09, [rng.uniform(380, 520), rng.uniform(900, 1300)], [0.03, 0.02], [0.6, 0.3])
+        i = int(at * SR)
+        creak[i:i + len(c)] += c[: len(creak) - i] * (at / 3.0)
+    x = (moan / np.max(np.abs(moan)) * 0.7 + choir / np.max(np.abs(choir)) * 0.3 + whisper / np.max(np.abs(whisper)) * 0.12) * grow
+    x = mix(x, (creak / max(np.max(np.abs(creak)), 1e-6), 0.0, 0.35))
+    wet = fftconv(x, room_ir(rng, 1.6, bright=2200.0))
+    return finish(mix(x, (wet, 0.0, 0.5)), floor_db=-55.0, fade=0.2)
+
+
+def haunt_shift():
+    """The furniture gliding to new places (two and a half seconds): a low rush of air,
+    a groan of the whole house and the scrape of something heavy, fading."""
+    rng = np.random.default_rng(7302)
+    seconds = 2.8
+    t = tt(seconds)
+    swell = np.clip(t / 0.5, 0.0, 1.0) * np.clip((seconds - t) / 1.6, 0.0, 1.0)
+    rush = fit(sweep_bp(noise(rng, seconds), 900.0, 220.0, q=0.8), len(t))
+    groan = np.sin(2 * math.pi * np.cumsum(70.0 + 25.0 * np.sin(2 * math.pi * 0.7 * t)) / SR)
+    groan = groan + 0.5 * np.sin(2 * math.pi * np.cumsum(105.0 + 30.0 * np.sin(2 * math.pi * 0.9 * t)) / SR)
+    drag = fit(scrape(rng, seconds, 300.0, rough=0.9, rumble=0.7), len(t))
+    x = (rush / np.max(np.abs(rush)) * 0.6 + groan / np.max(np.abs(groan)) * 0.5 + drag / np.max(np.abs(drag)) * 0.4) * swell
+    wet = fftconv(x, room_ir(rng, 1.2, bright=2000.0))
+    return finish(mix(x, (wet, 0.0, 0.4)), floor_db=-50.0, fade=0.2)
+
+
+def haunt_settle():
+    """The house come to rest: a door slamming somewhere, and a sigh."""
+    rng = np.random.default_rng(7303)
+    slam = sine_sweep(0.35, 110.0, 50.0, 0.07) * env(0.35, 0.09, 0.001)
+    knock = modal(rng, 0.4, [180.0, 310.0, 520.0, 900.0], [0.12, 0.08, 0.05, 0.03], [0.8, 0.5, 0.3, 0.15])
+    rattle = lp(noise(rng, 0.25), 3000.0) * env(0.25, 0.04, 0.001) * 0.4
+    sigh = _voice(rng, 1.4, 260.0, 140.0, vibrato=3.0, breath=1.2) * fit(bell_env(1.4, 0.3), n(1.4))
+    dry = mix((slam, 0.0, 1.0), (knock, 0.0, 0.6), (rattle, 0.01, 0.5), (sigh / np.max(np.abs(sigh)), 0.25, 0.35))
+    wet = fftconv(dry, room_ir(rng, 1.3, bright=2400.0))
+    return finish(mix(dry, (wet, 0.0, 0.45)), floor_db=-52.0, fade=0.15)
+
+
+def ghost_moan():
+    """A ghost going by: a low, hollow "ooooh" that swells and falls away (heard from where
+    it is, a few rooms off at most)."""
+    rng = np.random.default_rng(7304)
+    seconds = 2.2
+    v = _voice(rng, seconds, 190.0, 130.0, vibrato=4.5, breath=0.7) * fit(bell_env(seconds, 0.35, 1.6), n(seconds))
+    wet = fftconv(v, room_ir(rng, 1.0, bright=2000.0))
+    return finish(mix(v, (wet, 0.0, 0.5)), floor_db=-50.0, fade=0.2)
+
+
+# ---------------------------------------------------------------------------
 # The Construction Site's tower crane (see CraneEvent and MapLever): heavy electric
 # machinery heard across a building site. Dull steel and motors, nothing that beeps.
 
@@ -1714,6 +1793,10 @@ def recipes():
     r["crane_start"] = crane_start
     r["crane_motor"] = crane_motor
     r["crane_stop"] = crane_stop
+    r["haunt_warn"] = haunt_warn
+    r["haunt_shift"] = haunt_shift
+    r["haunt_settle"] = haunt_settle
+    r["ghost_moan"] = ghost_moan
     for g in GUNS:
         r["fire_" + g] = lambda g=g: gun_fire(g)
         r["fire_%s_fp" % g] = lambda g=g: gun_fire(g, stereo=True, seed=7)
