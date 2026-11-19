@@ -51,6 +51,59 @@ FIST = 0.045   # from the wrist to the middle of the fist (where a grip sits)
 # down, so the gun hangs barrel-down. This turns gun-space directions into bone space.
 GUN_REST = rx(-90)
 
+# The hands. Each has a trigger finger, the other three fingers moving as one, and a
+# thumb, of two bones each. Where the knuckles are, from the grip (the middle of the
+# fist, where a gun's grip or a blade's handle sits) with the arm hanging at rest: x out
+# from the body, y up, z back. The palm is on the outside of the grip, facing in, the
+# fingers hang down from it and curl in and round under the grip, and the thumb is at
+# the front edge of the palm, pointing forward. The three fingers' knuckle is higher than
+# the trigger finger's: a gun's grip slopes back, and the fingers follow it.
+GRIP_AT = (0.215, 0.835, 0.0)
+FINGER_OUT = 0.027              # the knuckles' line, out from the middle of the grip
+INDEX_AT = (FINGER_OUT, -0.024, -0.006)
+FINGERS_AT = (FINGER_OUT, -0.011, 0.0455)
+THUMB_AT = (0.028, 0.016, -0.03)
+FINGER_BONES = (0.055, 0.035)   # a finger's two bones, knuckle to joint and joint to tip: the
+#                                 first is long enough to cross the front of a grip, the second lies along its far side
+THUMB_BONES = (0.034, 0.028)
+
+
+def _finger_bones(side):
+    s = -1.0 if side == "l" else 1.0
+
+    def at(p, down=0.0, forward=0.0):
+        return (s * (GRIP_AT[0] + p[0]), GRIP_AT[1] + p[1] - down, GRIP_AT[2] + p[2] - forward)
+    return [
+        ("index_" + side, "hand_" + side, at(INDEX_AT)),
+        ("index_%s2" % side, "index_" + side, at(INDEX_AT, down=FINGER_BONES[0])),
+        ("fingers_" + side, "hand_" + side, at(FINGERS_AT)),
+        ("fingers_%s2" % side, "fingers_" + side, at(FINGERS_AT, down=FINGER_BONES[0])),
+        ("thumb_" + side, "hand_" + side, at(THUMB_AT)),
+        ("thumb_%s2" % side, "thumb_" + side, at(THUMB_AT, forward=THUMB_BONES[0])),
+    ]
+
+
+# How a hand is held: (trigger finger's knuckle, its joint, the three fingers' knuckle,
+# their joint, their rake, the thumb's swing down, its swing across the palm, its
+# joint), in degrees. A curl of 0 is a finger straight out from the palm, 90 a right
+# angle. The rake tips the three fingers' knuckle line to follow a sloping grip. The
+# thumb at rest points forward: swung down 90 it lies along the fingers; swung across,
+# it closes over them. Poses blend number by number.
+HANDS = {
+    "open": (4.0, 4.0, 4.0, 4.0, 0.0, 58.0, -14.0, 4.0),
+    "flat": (0.0, 0.0, 0.0, 0.0, 0.0, 66.0, -6.0, 0.0),             # a slap
+    "relaxed": (26.0, 36.0, 32.0, 42.0, 0.0, 62.0, 14.0, 22.0),    # a free hand
+    "fist": (84.0, 100.0, 84.0, 100.0, 0.0, 24.0, 80.0, 32.0),     # the thumb across the front of the fingers
+    "gun": (86.0, 88.0, 86.0, 88.0, -14.0, 88.0, 0.0, 6.0),        # round a gun's grip, the thumb along its frame
+    "trigger": (86.0, 8.0, 20.0, 16.0, 0.0, 50.0, -12.0, 0.0),     # only the trigger finger through the guard (a spin)
+    "handle": (74.0, 106.0, 88.0, 94.0, -26.0, 6.0, 10.0, 10.0),  # round a blade's handle (which leans in the fist), the thumb along it
+    "support": (48.0, 74.0, 48.0, 74.0, 0.0, 40.0, 30.0, 26.0),    # under or round a long gun's fore-end
+    "wrap": (84.0, 72.0, 84.0, 72.0, -14.0, 100.0, 20.0, 6.0),      # round the right hand on a pistol's grip
+    "foregrip": (84.0, 90.0, 84.0, 90.0, 0.0, 34.0, 62.0, 30.0),   # round an upright handle under a gun
+    "pinch": (40.0, 52.0, 44.0, 56.0, 0.0, 44.0, 50.0, 30.0),      # something small held between thumb and fingers
+}
+
+
 BODY = Skeleton([
     ("root", None, (0, 0, 0)),
     ("hips", "root", (0, 0.96, 0)),
@@ -60,18 +113,22 @@ BODY = Skeleton([
     ("upper_arm_l", "chest", (-0.215, 1.40, 0)),
     ("forearm_l", "upper_arm_l", (-0.215, 1.13, 0)),
     ("hand_l", "forearm_l", (-0.215, 0.88, 0)),
+    *_finger_bones("l"),
     ("grapple", "forearm_l", (-0.285, 0.90, 0)),      # where the grapple rope leaves the left wrist
     # The second pistol of the akimbo pair, in the left fist (the same three gun bones, mirrored).
     ("pistol_l", "hand_l", (-0.215, 0.835, 0)),
     ("pistol_l_slide", "pistol_l", (-0.215, 0.835, 0)),
     ("pistol_l_mag", "pistol_l", (-0.215, 0.835, 0)),
+    ("pistol_l_vent", "pistol_l", (-0.215, 0.835, 0)),
     ("muzzle_akimbo_l", "pistol_l", (-0.215, 0.835 - 0.20, -0.064)),
     ("upper_arm_r", "chest", (0.215, 1.40, 0)),
     ("forearm_r", "upper_arm_r", (0.215, 1.13, 0)),
     ("hand_r", "forearm_r", (0.215, 0.88, 0)),
+    *_finger_bones("r"),
     ("pistol", "hand_r", (0.215, 0.835, 0)),          # the grip, in the fist
     ("pistol_slide", "pistol", (0.215, 0.835, 0)),
     ("pistol_mag", "pistol", (0.215, 0.835, 0)),
+    ("pistol_vent", "pistol", (0.215, 0.835, 0)),     # the gun's vents: a reload snaps them open
     ("muzzle", "pistol", (0.215, 0.835 - 0.20, -0.064)),  # where shots leave the barrel
     # The other guns' muzzles (in gun space: forward, up), added below.
     ("thigh_l", "hips", (-0.10, 0.90, 0)),
@@ -110,7 +167,8 @@ def _with_muzzles(skel_spec):
 
 BODY = Skeleton(_with_muzzles(BODY.spec))
 
-MOVING_BONES = ("root", "hips", "pistol", "pistol_slide", "pistol_mag", "pistol_l", "pistol_l_slide", "pistol_l_mag")  # bones whose position is animated
+MOVING_BONES = ("root", "hips", "pistol", "pistol_slide", "pistol_mag", "pistol_vent",
+                "pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent")  # bones whose position is animated
 
 ZERO = (0.0, 0.0, 0.0)
 OVERREACH = []   # how far beyond reach each over-stretched limb was asked to go (for checking new poses)
@@ -157,9 +215,14 @@ def solve(skel, spec):
                       cant: roll about the fingers (tilts a held gun), hand_local: euler}
       leg_l, leg_r:  {fk: euler, bend: deg, foot: euler}
                   or {ik: ankle target, space: model|hips, pole: dir, foot: euler in model space}
+      fingers_l, fingers_r: how the hand is held: hand("open"), hand("fist")... (see HANDS)
       pistol: {pos, rot}   offset and rotation in the hand, in gun space (barrel -Z, up +Y)
       slide: float         slide travel backwards, metres
-      mag:   (x, y, z)     magazine offset in gun space
+      mag:   (x, y, z)     magazine offset in gun space ("mag_rot": its turn, euler)
+      vent_roll: float     the vent part turned about the barrel's line instead (a minigun's barrels), through "vent_pivot"
+      vent:  float         how far the gun's vents are open, degrees, hinged about a sideways line
+                           through "vent_pivot": (up, forward) of the grip; "vent_pos": (x, y, z)
+                           slides them instead (or as well), in gun space
     Returns (rotations {bone: 3x3}, positions {bone: local xyz}).
     """
     if "_blend" in spec:
@@ -268,6 +331,7 @@ def solve(skel, spec):
             place(up, euler(arm.get("fk", ZERO)))
             place(fo, rx(arm.get("bend", 0.0)))
             place(ha, euler(arm.get("hand", ZERO)))
+        _place_fingers(spec, place, side, arm)
         if side == "r" and "pistol" in skel._by_name:
             _place_gun(skel, spec, place)
         if side == "l" and "pistol_l" in skel._by_name:
@@ -277,6 +341,30 @@ def solve(skel, spec):
         if b.name not in L:
             place(b.name, np.eye(3))
     return L, T
+
+
+def _place_fingers(spec, place, side, arm):
+    """The fingers and thumb of one hand: "fingers_l" / "fingers_r" in the pose (a name in
+    HANDS or its eight numbers), or "fingers" in the arm's own pose. Left out: the right
+    hand is round a gun's grip, the left under a long gun if it holds one ("grip" in its
+    arm) and relaxed if not."""
+    how = spec.get("fingers_" + side, arm.get("fingers"))
+    if how is None:
+        how = "gun" if side == "r" else ("support" if "grip" in arm else "relaxed")
+    index1, index2, mitt1, mitt2, rake, down, across, joint = HANDS[how] if isinstance(how, str) else how
+    s = -1.0 if side == "l" else 1.0   # the left hand is the right's mirror image
+    place("index_" + side, rz(-s * index1))
+    place("index_%s2" % side, rz(-s * index2))
+    place("fingers_" + side, rx(rake) @ rz(-s * mitt1))
+    place("fingers_%s2" % side, rz(-s * mitt2))
+    place("thumb_" + side, rx(-down) @ ry(s * across))
+    place("thumb_%s2" % side, ry(s * joint))
+
+
+def hand(how):
+    """A hand pose's numbers, for a pose's "fingers_l" / "fingers_r" (so that it blends
+    with another by number)."""
+    return HANDS[how]
 
 
 def _place_gun(skel, spec, place):
@@ -297,6 +385,16 @@ def _place_gun(skel, spec, place):
     place("pistol_slide", GUN_REST @ turn @ GUN_REST.T, GUN_REST @ (v(0, 0, spec.get("slide", 0.0)) + axis - turn @ axis))
     place("pistol_mag", GUN_REST @ euler(spec.get("mag_rot", ZERO)) @ GUN_REST.T,
           GUN_REST @ np.array(spec.get("mag", ZERO), dtype=float))
+    _place_vent(spec, place, "pistol_vent", "")
+
+
+def _place_vent(spec, place, bone, side):
+    """A gun's vents ("vent", "vent_pivot", "vent_pos"; the left gun's: "vent_l"...)."""
+    turn = rx(spec.get("vent" + side, 0.0)) @ rz(spec.get("vent_roll" + side, 0.0))
+    pivot = spec.get("vent_pivot" + side, (0.0, 0.0))
+    axis = v(0.0, pivot[0], -pivot[1])
+    place(bone, GUN_REST @ turn @ GUN_REST.T,
+          GUN_REST @ (np.array(spec.get("vent_pos" + side, ZERO), dtype=float) + axis - turn @ axis))
 
 
 def _place_left_gun(skel, spec, place):
@@ -306,7 +404,9 @@ def _place_left_gun(skel, spec, place):
     place("pistol_l", GUN_REST @ euler(gun.get("rot", ZERO)) @ GUN_REST.T,
           skel.offset("pistol_l") + GUN_REST @ np.array(gun.get("pos", ZERO), dtype=float))
     place("pistol_l_slide", np.eye(3), GUN_REST @ v(0, 0, spec.get("slide_l", 0.0)))
-    place("pistol_l_mag", np.eye(3), GUN_REST @ np.array(spec.get("mag_l", ZERO), dtype=float))
+    place("pistol_l_mag", GUN_REST @ euler(spec.get("mag_rot_l", ZERO)) @ GUN_REST.T,
+          GUN_REST @ np.array(spec.get("mag_l", ZERO), dtype=float))
+    _place_vent(spec, place, "pistol_l_vent", "_l")
 
 
 def _slerp_m(a, b, u):
@@ -435,15 +535,20 @@ def merged(base, **over):
 # Clips
 
 class Clip:
-    def __init__(self, name, duration, fn, loop=False):
-        self.name, self.duration, self.fn, self.loop = name, duration, fn, loop
+    def __init__(self, name, duration, fn, loop=False, fps=FPS, lean=False):
+        """fps: frames a second it is baked at (more, for a clip with a part that turns fast:
+        between frames a bone's place goes in a straight line, so a part spun about a point
+        that is not its bone's own wobbles if the frames are far apart).
+        lean: leave out every bone the clip never moves from its rest (the game reads a
+        bone a clip does not hold as at rest: RobotRig.sample), which keeps a long clip small."""
+        self.name, self.duration, self.fn, self.loop, self.fps, self.lean = name, duration, fn, loop, fps, lean
         self.times = []
         self.rotations = {}
         self.positions = {}
 
     def bake(self, skel):
-        n = max(int(round(self.duration * FPS)), 1)
-        self.times = [i / FPS for i in range(n + 1)]
+        n = max(int(round(self.duration * self.fps)), 1)
+        self.times = [i / self.fps for i in range(n + 1)]
         self.times[-1] = self.duration
         rots = {b: [] for b in skel.names()}
         poss = {b: [] for b in MOVING_BONES if b in skel._by_name}
@@ -459,4 +564,8 @@ class Clip:
                 poss[b].append(T[b])
         self.rotations = {b: np.array(q, dtype=np.float32) for b, q in rots.items()}
         self.positions = {b: np.array(p, dtype=np.float32) for b, p in poss.items()}
+        if self.lean:
+            still = np.array([0.0, 0.0, 0.0, 1.0], dtype=np.float32)
+            self.rotations = {b: q for b, q in self.rotations.items() if np.abs(np.abs(q) - still).max() > 1e-5}
+            self.positions = {b: p for b, p in self.positions.items() if np.abs(p - skel.offset(b)).max() > 1e-5}
         return self

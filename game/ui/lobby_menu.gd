@@ -11,6 +11,11 @@ extends Control
 ## opens a FloatingPanel with every option (the game mode for the host, and your
 ## robot, mobility tool and weapon), so the page stays tidy however many modes,
 ## robots and weapons there are.
+##
+## Each player's row shows their level. Point at a row for a close look at them (their
+## loadout and the cosmetics they wear, the ones you have not unlocked in red: see
+## PlayerCardView) while the stage on the right shows their robot; click the row to
+## keep it open in a window, where a red cosmetic's tooltip says how to unlock it.
 
 var _frame: MenuFrame
 var _col: VBoxContainer          # the middle column: mode, loadout rules, map, win condition
@@ -35,6 +40,7 @@ var _killcam_points: SpinBox
 var _killcam_minutes: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
+var _movement: CheckButton   # every game: the movement variant everyone plays with (A/B testing)
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
 var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
@@ -63,6 +69,13 @@ var _mobility_panel: FloatingPanel
 var _weapon_card: WeaponPicker.Card   # your weapon; opens the weapon window
 var _weapon_panel: FloatingPanel
 var _updating := false   # true while we fill the controls from settings (ignore their signals)
+var _rows := {}           # player id -> their row in the list (for the hover card)
+var _hover_card: PanelContainer   # the close look at the player under the mouse
+var _hover_id := 0
+var _player_panel: FloatingPanel  # a player kept open (clicked)
+var _pinned_id := 0
+var _hover_sig := ""
+var _pinned_sig := ""
 
 
 func _ready() -> void:
@@ -151,7 +164,20 @@ func _ready() -> void:
 	_start = _frame.main_button("Start match", func(): Net.host_start_match())
 	Net.players_changed.connect(_refresh)
 	Net.internet_changed.connect(_refresh)
+	_hover_card = PanelContainer.new()
+	var hover_box := UiKit.panel_box(18)
+	hover_box.border_color = Color(UiKit.CYAN, 0.45)
+	hover_box.shadow_size = 14
+	_hover_card.add_theme_stylebox_override("panel", hover_box)
+	_hover_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hover_card.visible = false
+	_frame.add_child(_hover_card)
+	_player_panel = _floating(null, "right")
+	_player_panel.closed.connect(func():
+		_pinned_id = 0
+		_peek_at(0))
 	_refresh()
+	Net.send_my_level()
 	_dev_lobby_steps()
 	# Dev/test: the host starts the next match on its own.
 	if DevArgs.autostart > 0 and Net.is_host() and Net.players.size() >= DevArgs.autostart:
@@ -172,8 +198,24 @@ func _refresh() -> void:
 	UiKit.clear(_list)
 	var ids := Net.players.keys()
 	ids.sort()
+	_rows.clear()
 	for id in ids:
-		_list.add_child(_player_row(id))
+		_rows[id] = _player_row(id)
+		_list.add_child(_rows[id])
+	# A player looked at closely: up to date (rebuilt only if they changed), or gone.
+	if _hover_id != 0:
+		if not _rows.has(_hover_id):
+			_hover_id = 0
+			_show_hover_card(0)
+		elif _hover_sig != PlayerCardView.signature(_hover_id):
+			_show_hover_card(_hover_id)
+		else:
+			_place_hover_card.call_deferred(_hover_id)
+	if _pinned_id != 0:
+		if not _rows.has(_pinned_id):
+			_player_panel.close()
+		elif _pinned_sig != PlayerCardView.signature(_pinned_id):
+			_fill_player_panel(_pinned_id)
 	var watchers := Net.spectator_ids().map(func(id): return Net.spectator_name(id) + (" (you)" if id == Net.my_id() else ""))
 	_watching.text = "Spectating: %s" % ", ".join(watchers) if not watchers.is_empty() else "Nobody is spectating."
 	if not Net.spectating():
@@ -218,6 +260,7 @@ func _refresh() -> void:
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
 		_character.set_color(Net.player_color(Net.my_id()))
+		_character.offer_colors(Teams.mode() == "")   # a team mode dresses you in your team's colour
 		_weapon.select(Net.player_weapon(Net.my_id()))
 		_show_weapon_card(Net.player_weapon(Net.my_id()))
 		_character.set_weapon(Net.player_weapon(Net.my_id()))
@@ -235,6 +278,11 @@ func _player_row(id: int) -> PanelContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	card.add_child(row)
+	row.add_child(CallingCardView.of_player(id, Vector2(64, 28)))   # their calling card and icon
+	if Net.player_level(id) > 0:
+		var lv := UiKit.tag(row, "LV %d" % Net.player_level(id), UiKit.CYAN)
+		lv.name = "level"
+		lv.tooltip_text = "Level %d" % Net.player_level(id)
 	var name_label := UiKit.label(row, Net.player_name(id), false, 18)
 	name_label.add_theme_font_override("font", HudStyle.font(true))
 	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
@@ -257,7 +305,13 @@ func _player_row(id: int) -> PanelContainer:
 	who.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	who.custom_minimum_size = Vector2(60, 0)
 	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	card.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_pin_player(id))
+	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	if Net.is_host() and Net.is_online and id != Net.my_id() and not Net.is_bot(id):
+		# The host's buttons need the room (what they picked is in the hover card).
+		who.visible = false
 		var kick := UiKit.button(row, "Kick", func(): Net.host_kick(id))
 		kick.theme_type_variation = "Chip"
 		kick.custom_minimum_size = Vector2(0, 28)
@@ -284,6 +338,11 @@ func _build_character(columns: Node) -> void:
 	_robot_panel = _floating(_character.list)
 	_character.list_requested.connect(func(): _robot_panel.open(_character._name_button))
 	_character.create_requested.connect(_open_creator)
+	# Your colour: saved as the one you like, and yours here if nobody else has it.
+	_character.color_picked.connect(func(index: int):
+		Settings.player_color = index
+		Settings.save_settings()
+		Net.set_my_color(index))
 	# Your mobility tool: a button with it on, which opens the mobility window.
 	_mobility_box = VBoxContainer.new()
 	_mobility_box.add_theme_constant_override("separation", 8)
@@ -430,6 +489,8 @@ func _open_creator() -> void:
 	keep.custom_minimum_size = Vector2(160, 50)
 	var play := UiKit.primary_button(buttons, "Save and play as this", func():
 		var id := creator.save()
+		if id == "":
+			return   # it wears something still locked (the creator says what)
 		_character.refresh_custom()
 		Settings.character = id
 		Settings.save_settings()
@@ -437,6 +498,11 @@ func _open_creator() -> void:
 		Net.set_my_character(id)
 		panel.close())
 	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var lock := func():   # something locked on it: it can be looked at, not saved
+		keep.disabled = not creator.can_save()
+		play.disabled = keep.disabled
+	creator.changed.connect(lock)
+	lock.call()
 	panel.open(_character._name_button)
 
 
@@ -656,6 +722,19 @@ func _build_rules() -> void:
 # Lobby settings (see LobbySettings): the host picks; everyone else sees them. New
 # settings get their control here.
 func _build_lobby_settings() -> void:
+	# The movement variant (see MovementTuning.VARIANTS): on is Variant B for everyone.
+	_movement = CheckButton.new()
+	_movement.text = "Movement: Variant B (A/B test)"
+	_movement.tooltip_text = "Off: classic movement. On: everyone in the match moves with Variant B."
+	_movement.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(_movement)
+	_movement.toggled.connect(func(on: bool):
+		if _updating:
+			return
+		var ms := Net.match_settings.duplicate()
+		ms["movement"] = "b" if on else "classic"
+		Game.last_movement = ms.movement   # (the next lobby or offline match starts with it too)
+		Net.set_match_settings(ms))
 	_rules_head = UiKit.section(_col, "Loadout rules").get_parent()
 	_allowed_mobility = AllowedMobilityPicker.new(Net.match_settings.get("mobility", []), Net.is_host(), false)
 	var mobility_window := _floating()   # (its chips move to the window before the page has them)
@@ -771,6 +850,9 @@ func _refresh_rules() -> void:
 	_powerups.set_pressed_no_signal(Net.powerups_on())
 	if _allowed:
 		_allowed.set_value(s.get("weapons", []))
+	if _movement:
+		_movement.disabled = not Net.is_host()   # everyone else just sees the host's choice
+		_movement.set_pressed_no_signal(LobbySettings.movement() == "b")
 	if _allowed_mobility:
 		_allowed_mobility.visible = LobbySettings.mobility_apply()   # a race always has the grapple
 		_rules_head.visible = _allowed_mobility.visible   # a race has no loadout rules
@@ -836,3 +918,91 @@ func _dev_lobby_steps() -> void:
 		Net.players_changed.connect(func():
 			if is_inside_tree() and not Net.in_match and Net.players.size() >= 2 and Net.all_ready():
 				Net.host_start_match())
+
+
+# ---------------------------------------------------------------------------
+# A close look at a player: on hover, and kept open on a click
+
+func _process(_delta: float) -> void:
+	if _pinned_id != 0:
+		return
+	var id := 0
+	var mouse := get_global_mouse_position()
+	if not _any_window_open():
+		for pid in _rows:
+			var row: Control = _rows[pid]
+			if is_instance_valid(row) and row.is_visible_in_tree() and row.get_global_rect().has_point(mouse) and _list_scroll.get_global_rect().has_point(mouse):
+				id = pid
+				break
+		# Still on the way to (or over) their card: keep it, so its cosmetics can be pointed at.
+		if id == 0 and _hover_id != 0 and _hover_card.visible and _hover_card.get_global_rect().grow(FloatingPanel.GAP + 4.0).has_point(mouse):
+			id = _hover_id
+	if id != _hover_id:
+		_hover_id = id
+		_show_hover_card(id)
+	_peek_at(id)
+
+
+## Show the hover card for `id` beside their row (0: hide it).
+func _show_hover_card(id: int) -> void:
+	for c in _hover_card.get_children():
+		c.queue_free()
+	_hover_card.visible = id != 0
+	if id == 0:
+		return
+	_hover_sig = PlayerCardView.signature(id)
+	var view := PlayerCardView.new(id)
+	_hover_card.add_child(view)
+	_hover_card.reset_size()
+	_place_hover_card.call_deferred(id)
+
+
+func _place_hover_card(id: int) -> void:
+	if id != _hover_id or not _rows.has(id) or not is_instance_valid(_rows[id]):
+		return
+	var a: Rect2 = (_rows[id] as Control).get_global_rect()
+	var s := _hover_card.get_combined_minimum_size()
+	_hover_card.size = s
+	var view := get_global_rect()
+	var at := Vector2(a.end.x + FloatingPanel.GAP, a.position.y)
+	at.y = clampf(at.y, view.position.y + FloatingPanel.EDGE, maxf(view.end.y - s.y - FloatingPanel.EDGE, view.position.y))
+	at.x = minf(at.x, view.end.x - s.x - FloatingPanel.EDGE)
+	_hover_card.global_position = at
+
+
+## Keep a player open in a window (a click on their row): there, a cosmetic you have
+## not unlocked says in its tooltip what unlocks it.
+func _pin_player(id: int) -> void:
+	_hover_id = 0
+	_hover_card.visible = false
+	_pinned_id = id
+	_fill_player_panel(id)
+	_peek_at(id)
+	_player_panel.open(_rows[id])
+
+
+func _fill_player_panel(id: int) -> void:
+	UiKit.clear(_player_panel.content)
+	_pinned_sig = PlayerCardView.signature(id)
+	var view := PlayerCardView.new(id)
+	view.name = "player_card"
+	_player_panel.content.add_child(view)
+	view.pinned()
+
+
+## The stage on the right shows this player's robot (0, or you: your own again).
+func _peek_at(id: int) -> void:
+	if not _character:
+		return
+	if id == 0 or id == Net.my_id() or not Net.players.has(id):
+		_character.unpeek()
+	else:
+		_character.peek(Net.player_character(id), Net.player_color(id), Net.player_weapon(id), Net.player_name(id))
+
+
+## A window over the page (a pick, the creator, a player kept open): no hover card.
+func _any_window_open() -> bool:
+	for p in [_mode_panel, _robot_panel, _creator_panel, _mobility_panel, _weapon_panel, _map_window, _song_window, _player_panel]:
+		if p and is_instance_valid(p) and p.is_open():
+			return true
+	return false

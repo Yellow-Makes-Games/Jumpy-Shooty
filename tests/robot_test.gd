@@ -22,15 +22,20 @@ const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const BODY_BONES := ["root", "hips", "spine", "chest", "head", "upper_arm_l", "forearm_l", "hand_l",
 	"upper_arm_r", "forearm_r", "hand_r", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r",
-	"foot_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper",
-	"pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo", "muzzle_akimbo_l"]
+	"foot_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent", "muzzle_akimbo", "muzzle_akimbo_l",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 const LONG_GUNS := ["shotgun", "rifle", "sniper"]
 ## Each long gun's own versions of these (e.g. "aim_rifle"); the pump and bolt guns also have "fire".
 const GUN_BODY_CLIPS := ["aim", "carry", "reload", "respawn"]
 const GUN_ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
-	"pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo_l"]
+	"pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent", "muzzle_akimbo_l",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 ## Akimbo (a pistol in each hand) has its own aim and reload, and first-person poses.
 const AKIMBO_BODY_CLIPS := ["aim_akimbo", "reload_akimbo"]
 const AKIMBO_ARM_CLIPS := ["fp_idle_akimbo", "fp_sprint_akimbo", "fp_one_hand_akimbo", "fp_wall_r_akimbo",
@@ -101,6 +106,72 @@ func _checks() -> void:
 		_drop_robot()
 		_check_akimbo()
 		_drop_robot()
+	_check_habits()
+
+
+## A robot's own idle (its habit: "idle_<torso>") goes by the torso, in the Character
+## Creator too, runs in step with the plain idle's breathing, and never turns the chest
+## (so the gun) or moves it sideways from where the plain idle has it.
+func _check_habits() -> void:
+	print("Idle habits")
+	var plain_len := RobotRig.open(Characters.body(Characters.default_id())).length("idle")
+	var other := ""   # a body with no habit of its own, to mix parts with (none, now that every body has one)
+	for part in Characters.part_ids():
+		if not RobotRig.open(Characters.body(Characters.default_id())).has_clip("idle_" + part):
+			other = part
+			break
+	var found := 0
+	for id in Characters.part_ids():
+		var rig := RobotRig.open(Characters.body(Characters.default_id()))
+		var habit: String = "idle_" + id
+		if not rig.has_clip(habit):
+			continue
+		found += 1
+		if id in Characters.ids():
+			robot = RobotModel.new().build(id, Color(1, 0.3, 0.2))
+			_expect("%s stands in its own idle" % id, robot.idle == habit, robot.idle)
+			_drop_robot()
+		var mixed := CustomCharacter.new()
+		mixed.torso = id
+		robot = RobotModel.new().build(mixed.to_id(), Color(1, 0.3, 0.2))
+		_expect("a custom character with %s's torso stands in its idle" % id, robot.idle == habit, robot.idle)
+		_drop_robot()
+		if other != "":
+			mixed.torso = other
+			mixed.head = id
+			robot = RobotModel.new().build(mixed.to_id(), Color(1, 0.3, 0.2))
+			_expect("but not one with only its head", robot.idle == "idle", robot.idle)
+			_drop_robot()
+		var breaths := rig.length(habit) / plain_len
+		_expect("%s's idle is a whole number of breaths long" % id, absf(breaths - roundf(breaths)) < 0.001, "%.3f" % breaths)
+		var a := rig.new_pose()
+		var b := rig.new_pose()
+		var turned := 0.0
+		var moved := 0.0
+		var lifted := 0.0
+		var t := 0.0
+		while t < rig.length(habit):
+			rig.sample(a, "idle", fmod(t, plain_len))
+			rig.sample(b, habit, t)
+			var ca := _chest(rig, a)
+			var cb := _chest(rig, b)
+			turned = maxf(turned, ca.basis.get_rotation_quaternion().angle_to(cb.basis.get_rotation_quaternion()))
+			moved = maxf(moved, Vector2(ca.origin.x - cb.origin.x, ca.origin.z - cb.origin.z).length())
+			lifted = maxf(lifted, absf(ca.origin.y - cb.origin.y))
+			t += 0.05
+		_expect("%s's habit never turns the chest (and the gun) or moves it sideways" % id, turned < deg_to_rad(0.5) and moved < 0.005,
+			"%.2f deg, %.3f m" % [rad_to_deg(turned), moved])
+		_expect("and raises or lowers it only a little", lifted < 0.035, "%.3f m" % lifted)
+	_expect("every robot and every creature has a habit", found == Characters.part_ids().size(), "%d of %d" % [found, Characters.part_ids().size()])
+
+
+## Where a pose puts the chest, in the model's own space.
+func _chest(rig: RobotRig, pose: RobotPose) -> Transform3D:
+	var at := Transform3D.IDENTITY
+	for bone in ["root", "hips", "spine", "chest"]:
+		var i: int = rig.bones[bone]
+		at = at * Transform3D(Basis(pose.rot[i]), pose.pos[i])
+	return at
 
 
 ## Akimbo: a pistol in each fist, both pointing ahead, and each arm kicks only on its own shots.
@@ -131,9 +202,9 @@ func _check_akimbo() -> void:
 	_fresh()
 	var reloading := _input(S.GROUND, Vector3.ZERO, 0.0)
 	reloading.flags = RobotAnimInput.make_flags(false, false, true, 0, 0)
-	_run(reloading, 0.6)
-	_expect("reloading: both magazines drop out", robot.marker("pistol_l_mag").distance_to(robot.marker("pistol_l")) > 0.3
-		and robot.marker("pistol_mag").distance_to(robot.marker("pistol")) > 0.3)
+	_run(reloading, 0.4)
+	_expect("reloading: both cells are out of their guns", robot.marker("pistol_l_mag").distance_to(robot.marker("pistol_l")) > 0.15
+		and robot.marker("pistol_mag").distance_to(robot.marker("pistol")) > 0.15)
 	_weapon = "pistol"
 
 
@@ -249,7 +320,41 @@ func _check_character() -> void:
 	_run(dead, 2.0)
 	_expect("dead: the body is down on the floor", _top() < 0.75, "%.2f" % _top())
 	_expect("dead: nothing sinks through the floor", _lowest_bone() > -0.12, "%.2f" % _lowest_bone())
+	_check_feet()
 	_check_first_person()
+
+
+## Standing still on uneven ground, each foot rests on the ground under it; on level
+## ground, and on the move, the legs are exactly the clip's.
+func _check_feet() -> void:
+	_fresh()
+	var still := _input(S.GROUND, Vector3.ZERO, 0.0)
+	_run(still, 1.0)
+	var level_l := robot.bone_position("foot_l").y
+	var level_r := robot.bone_position("foot_r").y
+	var level_hips := robot.bone_position("hips").y
+	still.feet = Vector2(0.15, 0.0)
+	_run(still, 3.0)   # (one whole breath of the idle on, so only the feet's ground has changed)
+	_expect("a step under the left foot: that foot rests on it", absf(robot.bone_position("foot_l").y - level_l - 0.15) < 0.02,
+		"%.3f m up" % (robot.bone_position("foot_l").y - level_l))
+	_expect("and the other foot and the hips stay where they were", absf(robot.bone_position("foot_r").y - level_r) < 0.01
+		and absf(robot.bone_position("hips").y - level_hips) < 0.01)
+	still.feet = Vector2(0.0, -0.25)
+	_run(still, 3.0)
+	var drop := level_hips - robot.bone_position("hips").y
+	_expect("a drop under the right foot: the hips come down for it, but only so far",
+		drop > 0.08 and drop < RobotAnimator.FEET_DROP + 0.01, "%.3f m" % drop)
+	_expect("and the right foot goes down toward it", robot.bone_position("foot_r").y < level_r - 0.1,
+		"%.3f m" % (robot.bone_position("foot_r").y - level_r))
+	_fresh()
+	var moving := _input(S.GROUND, Vector3(0, 0, -6.0), 0.0)
+	moving.feet = Vector2(0.2, -0.2)
+	_run(moving, 1.0)
+	var a := robot.bone_position("hips")
+	_fresh()
+	_run(_input(S.GROUND, Vector3(0, 0, -6.0), 0.0), 1.0)
+	_expect("on the move the ground under the feet is left alone", robot.bone_position("hips").distance_to(a) < 0.005,
+		"%.3f m" % robot.bone_position("hips").distance_to(a))
 
 
 ## A robot holding a long gun: it shows only that gun, holds it in both hands, aims

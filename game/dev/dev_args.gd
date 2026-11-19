@@ -10,6 +10,7 @@ extends Node
 ## --autostart=N        Host only: start the match once N players are in the lobby.
 ## --character=ID      Play as this robot (needle, vanguard, kestrel, bulwark, rivet, specter, orbit, templar, or a
 ##                      Character Creator id "custom:n=Name|l=frog|t=human|h=goblin|hat=top_hat") without changing the saved choice.
+## --color=N           Your colour in a free-for-all: a number in Net.PLAYER_COLORS (0 red, 1 blue, 2 green...).
 ## --switch-character  Online: pick the next robot each time you come back to the lobby after a match (tests).
 ## --weapon=ID          Take this gun (pistol, shotgun, rifle, sniper) without changing the saved choice.
 ## --bot-weapon=ID      Every bot takes this gun (instead of one at random).
@@ -22,12 +23,15 @@ extends Node
 ## --start-when-ready   Host: start the match as soon as everyone (at least 2) is ready (tests).
 ## --move-at=SEC:NAME   Host: move the player called NAME to the spectators SEC seconds after the lobby opens (tests).
 ## --play-at=SEC,SEC    Spectator: press Play at these seconds after the lobby opens (tests).
-## --mobility=ID        Take this mobility tool (grapple, portal, blink) without changing the saved choice.
+## --mobility=ID        Take this mobility tool (grapple, portal, blink, jetpack) without changing the saved choice.
 ## --bot-mobility=ID    Every bot takes this mobility tool (instead of one at random).
+## --movement=ID        Host / Practice / Vs Bots: the movement variant everyone plays with (classic, b; see MovementTuning.VARIANTS).
 ## --switch-weapon      Online: pick the next gun each time you come back to the lobby after a match (tests).
 ## --swap-on-death      Pick the next weapon each time you die, as if pressing its number key (tests).
+## --unlock-all        Nothing in the Character Creator is locked behind an achievement (see Achievements).
 ## --spectate          Watch instead of play: --join joins as a spectator; with --host or --bot, you spectate.
 ## --practice           Skip the menus and drop into the arena alone.
+## --benchmark          Run the graphics benchmark (see Benchmark), print where the report went, and quit.
 ## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
 ##                      --map=random: a random map, picked as the match starts (from --map-pool, if given).
@@ -46,6 +50,8 @@ extends Node
 ## --quit-after=SECONDS Quit automatically after this many seconds.
 ## --net-sim=L,J,P     Simulate a bad connection: L ms latency, up to J ms extra jitter,
 ##                      P percent of movement packets lost (incoming, this copy only).
+## --delay-respawn=MS  Client: apply another player's respawn MS milliseconds late, as if the message
+##                      were held up on the way, so their first snapshot from the new life arrives first (tests).
 ## --scripted-fire     With --scripted-input: aim at the nearest opponent and shoot.
 ## --map-event=SEC     Start the map's events (Halcyon's low gravity) SEC seconds after start, as if a terminal
 ##                      had fired them (host, practice and bot matches; tests and screenshots).
@@ -56,8 +62,9 @@ extends Node
 ## --points=N           Host or --bot, Killcam mode: set the points to win (a lobby setting, so clients see it too).
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
-## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, creator.
-## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics).
+## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, profile, creator, achievements, card.
+## --showcase=N         Start the main menu's character showcase on its Nth character (from 1; screenshots).
+## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).
 ## --manual-respawn     Wait for a Jump or Fire press to respawn, as in a real game, even in a
 ##                      headless or scripted run (those otherwise ask as soon as the wait is over).
@@ -65,6 +72,7 @@ extends Node
 ## --save-killcam=N     On the results screen, save best kill #N as a video straight away, into the game's
 ##                      own data folder (user://killcams) rather than Videos (tests).
 ## --hud=STYLE          Use this HUD layout in both views: arcs or clean (screenshots).
+## --hud-scale=X        HUD scale, 0.75 to 1.25 (screenshots).
 ## --third-person      Start in third-person view (not saved to settings).
 ## --speed=X            Game speed (0.25: quarter speed, for filming a move in slow motion; Practice and Vs Bots).
 ## --screenshot=SEC:PATH Save a screenshot SEC seconds after start (repeatable).
@@ -84,7 +92,9 @@ var player_name := ""
 var port := 0
 var autostart := 0
 var practice := false
+var benchmark := false
 var spectate := false
+var unlock_all := false
 var character := ""
 var switch_character := false
 var weapon := ""
@@ -109,6 +119,7 @@ var map_pool: Array = []   ## --map-pool (see LobbySettings.pool_for)
 var song := ""             ## --song
 var song_at := -1.0        ## --song-at (when)
 var song_later := ""       ## --song-at (which)
+var movement := ""         ## --movement (see MovementTuning.VARIANTS; "" keeps the menu's choice)
 var race := false
 var game := ""   ## --game=dm: a Deathmatch (on an arena map)
 var autopilot := false
@@ -133,12 +144,14 @@ var time_limit := 0.0
 var quit_after := 0.0
 var save_killcam := 0
 var menu := ""
+var showcase := 0
 var pause_page := ""
 var fall_at := -1.0          # --fall: seconds after start (-1 = never)
 var window_rect := Rect2i()
 var net_sim_latency := 0.0
 var net_sim_jitter := 0.0
 var net_sim_loss := 0.0
+var delay_respawn := 0.0     # --delay-respawn: milliseconds
 var screenshots: Array = []  # [seconds, path]
 var presses: Array = []      # [seconds, action]
 var holds: Array = []        # [start seconds, action, end seconds, is down]
@@ -168,12 +181,15 @@ func _ready() -> void:
 			"--port": port = int(value)
 			"--autostart": autostart = int(value)
 			"--practice": practice = true
+			"--benchmark": benchmark = true
 			"--spectate": spectate = true
+			"--unlock-all": unlock_all = true
 			"--character":
 				if Characters.has(value):
 					character = value
 				else:
 					push_warning("Unknown character: %s (characters: %s)" % [value, ", ".join(Characters.ids())])
+			"--color": Settings.player_color = clampi(int(value), -1, 15)
 			"--switch-character": switch_character = true
 			"--weapon", "--bot-weapon":
 				if WeaponData.has(value):
@@ -184,6 +200,7 @@ func _ready() -> void:
 				else:
 					push_warning("Unknown weapon: %s (weapons: %s)" % [value, ", ".join(WeaponData.IDS)])
 			"--mobility", "--bot-mobility":
+				value = Mobility.canonical(value)
 				if Mobility.has(value):
 					if key == "--mobility":
 						mobility = value
@@ -212,6 +229,7 @@ func _ready() -> void:
 					play_at.append(float(t))
 			"--allowed-mobility":
 				for m in value.split(",", false):
+					m = Mobility.canonical(m)
 					if Mobility.has(m):
 						allowed_mobility.append(m)
 					else:
@@ -230,6 +248,11 @@ func _ready() -> void:
 					else:
 						push_warning("Unknown map: %s (maps: %s)" % [m, ", ".join(Maps.ids())])
 			"--song": song = value
+			"--movement":
+				if value in MovementTuning.VARIANTS:
+					movement = value
+				else:
+					push_warning("Unknown movement variant: %s (variants: %s)" % [value, ", ".join(MovementTuning.VARIANTS)])
 			"--song-at":
 				song_at = float(value.get_slice(":", 0))
 				song_later = value.substr(value.find(":") + 1)
@@ -253,6 +276,7 @@ func _ready() -> void:
 			"--scripted-kicks": scripted_kicks = true
 			"--auto-return": auto_return = true
 			"--menu": menu = value
+			"--showcase": showcase = int(value)
 			"--settings-tab": SettingsPanel.open_on_tab(int(value))
 			"--pause-page": pause_page = value
 			"--fall": fall_at = float(value)
@@ -260,6 +284,7 @@ func _ready() -> void:
 				if Settings.HUD_STYLES.has(value):
 					Settings.hud_first_person = value
 					Settings.hud_third_person = value
+			"--hud-scale": Settings.hud.scale = HudConfig.valid("scale", float(value))
 			"--kill-target": kill_target = int(value)
 			"--points": points_target = int(value)
 			"--rules": rules = value
@@ -272,6 +297,7 @@ func _ready() -> void:
 				net_sim_latency = float(q[0]) if q.size() > 0 else 0.0
 				net_sim_jitter = float(q[1]) if q.size() > 1 else 0.0
 				net_sim_loss = float(q[2]) if q.size() > 2 else 0.0
+			"--delay-respawn": delay_respawn = maxf(float(value), 0.0)
 			"--press":
 				drives_keys = true
 				presses.append([float(value.get_slice(":", 0)), value.substr(value.find(":") + 1)])

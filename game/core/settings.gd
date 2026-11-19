@@ -18,6 +18,8 @@ var third_person: bool = false
 const HUD_STYLES := {"arcs": "Twin arcs (around the crosshair)", "clean": "Clean (corners)"}
 var hud_first_person: String = "arcs"
 var hud_third_person: String = "clean"
+## Scale, opacity, crosshair and which parts of the HUD show (see HudConfig).
+var hud := HudConfig.new()
 ## When you are knocked out, watch the kill again from the eyes of whoever got you.
 var killcam: bool = true
 
@@ -34,6 +36,21 @@ var vsync: bool = true
 var resolution: Vector2i = Vector2i.ZERO
 ## Frame rate cap. 0 = no cap, -1 = match the monitor's refresh rate.
 var frame_rate: int = 0
+## What is left of a robot that is knocked out (see Remains).
+const GORE := {"full": "Ragdolls and giblets", "ragdolls": "Ragdolls only", "off": "Off"}
+var gore: String = "full"
+## Graphics quality: a preset from GraphicsQuality.PRESETS, or "custom" when the advanced
+## settings below don't match one. "" until the first launch picks one for this computer.
+var quality: String = ""
+## The advanced settings (see GraphicsQuality for what each does).
+var msaa: int = 4
+var screen_aa: String = "smaa"
+var render_scale: float = 1.0
+var fsr_sharpness: float = 0.2
+var shadows: String = "high"
+var ao: String = "high"
+var glow: bool = true
+const GRAPHICS_KEYS := ["msaa", "screen_aa", "render_scale", "fsr_sharpness", "shadows", "ao", "glow"]
 
 ## Resolutions offered in the menu (only those that fit the screen are shown).
 const RESOLUTIONS: Array[Vector2i] = [
@@ -45,6 +62,7 @@ const RESOLUTIONS: Array[Vector2i] = [
 const FRAME_RATES: Array[int] = [30, 60, 75, 120, 144, 165, 240, 360]
 
 # What apply() last put on the window, so it only resizes when the resolution changes.
+var _resolution_scale := 1.0   # how much of the screen 3D is drawn at, from the fullscreen Resolution
 var _applied_resolution := Vector2i(-1, -1)
 var _applied_fullscreen := false
 
@@ -52,16 +70,31 @@ var _applied_fullscreen := false
 var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
-var mobility: String = Mobility.default_id()       # the tool on the mobility button: grapple, portal gun or blink (see Mobility)
+var mobility: String = Mobility.default_id()       # the tool on the mobility button: a grappling hook, the portal gun, blink or the jetpack (see Mobility)
+var player_color := -1   # your colour in a free-for-all: a number in Net.PLAYER_COLORS, or -1 for the first free one
+var calling_card: String = CallingCard.DEFAULT_CARD   # the banner behind your name (see CallingCard)
+var icon: String = CallingCard.DEFAULT_ICON           # the badge beside it
 ## Characters made in the Character Creator, as ids (see CustomCharacter), newest last.
 var custom_characters: Array = []
 const MAX_CUSTOM := 12
+## Achievements you track (up to Achievements.MAX_TRACKED ids): the Profile page shows them first.
+var tracked_achievements: Array = []
+## When the profile (name, characters, card, picks, tracked achievements) last changed
+## here (unix seconds): an account's cloud save keeps whichever copy is newer (see CloudSave).
+var profile_updated_at := 0.0
+var _profile_key := ""
 var last_address: String = ""   # the lobby code (or address) you last joined (filled in on the Join box next time)
+
+
+## The settings were written (Account syncs a signed-in player's profile from this).
+signal saved
 
 
 func _ready() -> void:
 	_setup_input_map()
 	load_settings()
+	if quality == "":
+		set_quality(GraphicsQuality.first_launch())
 	apply()
 
 
@@ -76,6 +109,7 @@ func load_settings() -> void:
 	hud_first_person = _hud_style(cfg.get_value("hud", "first_person", hud_first_person))
 	hud_third_person = _hud_style(cfg.get_value("hud", "third_person", hud_third_person))
 	killcam = bool(cfg.get_value("hud", "killcam", killcam))
+	hud.load_from(cfg)
 	master_volume = cfg.get_value("audio", "master_volume", master_volume)
 	music_volume = cfg.get_value("audio", "music_volume", music_volume)
 	sfx_volume = cfg.get_value("audio", "sfx_volume", sfx_volume)
@@ -84,8 +118,19 @@ func load_settings() -> void:
 	var res = cfg.get_value("graphics", "resolution", resolution)
 	resolution = res if res is Vector2i else Vector2i.ZERO
 	frame_rate = int(cfg.get_value("graphics", "frame_rate", frame_rate))
+	var g := str(cfg.get_value("graphics", "gore", gore))
+	gore = g if GORE.has(g) else "full"
+	if cfg.has_section_key("graphics", "quality"):
+		var picks := {}
+		for k in GRAPHICS_KEYS:
+			picks[k] = cfg.get_value("graphics", k, get(k))
+		set_graphics(GraphicsQuality.clean(picks))
+		quality = GraphicsQuality.matching(graphics())
 	player_name = cfg.get_value("profile", "player_name", player_name)
 	character = Characters.valid(str(cfg.get_value("profile", "character", character)))
+	player_color = clampi(int(cfg.get_value("profile", "color", player_color)), -1, 15)
+	calling_card = CallingCard.valid_card(str(cfg.get_value("profile", "calling_card", calling_card)))
+	icon = CallingCard.valid_icon(str(cfg.get_value("profile", "icon", icon)))
 	custom_characters.clear()
 	var saved = cfg.get_value("creator", "characters", [])
 	if saved is Array:
@@ -95,6 +140,14 @@ func load_settings() -> void:
 	weapon = WeaponData.valid(str(cfg.get_value("profile", "weapon", weapon)))
 	mobility = Mobility.valid(str(cfg.get_value("profile", "mobility", mobility)))
 	last_address = str(cfg.get_value("network", "last_address", last_address))
+	tracked_achievements.clear()
+	var tracked = cfg.get_value("profile", "tracked", [])
+	if tracked is Array:
+		for id in tracked:
+			if not str(id) in tracked_achievements:
+				tracked_achievements.append(str(id))
+	profile_updated_at = float(cfg.get_value("profile", "updated_at", 0.0))
+	_profile_key = profile_key()
 	_load_bindings(cfg)
 
 
@@ -107,6 +160,7 @@ func save_settings() -> void:
 	cfg.set_value("hud", "first_person", hud_first_person)
 	cfg.set_value("hud", "third_person", hud_third_person)
 	cfg.set_value("hud", "killcam", killcam)
+	hud.save_to(cfg)
 	cfg.set_value("audio", "master_volume", master_volume)
 	cfg.set_value("audio", "music_volume", music_volume)
 	cfg.set_value("audio", "sfx_volume", sfx_volume)
@@ -114,14 +168,40 @@ func save_settings() -> void:
 	cfg.set_value("graphics", "vsync", vsync)
 	cfg.set_value("graphics", "resolution", resolution)
 	cfg.set_value("graphics", "frame_rate", frame_rate)
+	cfg.set_value("graphics", "gore", gore)
+	if quality != "":
+		cfg.set_value("graphics", "quality", quality)
+		for k in GRAPHICS_KEYS:
+			cfg.set_value("graphics", k, get(k))
 	cfg.set_value("profile", "player_name", player_name)
 	cfg.set_value("profile", "character", character)
+	cfg.set_value("profile", "color", player_color)
+	cfg.set_value("profile", "calling_card", calling_card)
+	cfg.set_value("profile", "icon", icon)
 	cfg.set_value("creator", "characters", custom_characters)
 	cfg.set_value("profile", "weapon", weapon)
 	cfg.set_value("profile", "mobility", mobility)
 	cfg.set_value("network", "last_address", last_address)
+	cfg.set_value("profile", "tracked", tracked_achievements)
+	if profile_key() != _profile_key:
+		_profile_key = profile_key()
+		profile_updated_at = Time.get_unix_time_from_system()
+	cfg.set_value("profile", "updated_at", profile_updated_at)
 	_save_bindings(cfg)
 	cfg.save(SAVE_PATH)
+	saved.emit()
+
+
+## The profile's fields in one string, to tell when one of them changed.
+func profile_key() -> String:
+	return var_to_str([player_name, character, player_color, calling_card, icon, weapon, mobility,
+		custom_characters, tracked_achievements])
+
+
+## Take a profile from the cloud (see CloudSave) without marking it as changed here.
+func adopt_profile(updated_at: float) -> void:
+	_profile_key = profile_key()
+	profile_updated_at = updated_at
 
 
 ## Keep a custom character (replacing one with the same name). Returns its id.
@@ -165,6 +245,7 @@ func apply() -> void:
 		DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
 		_apply_resolution()
 		Engine.max_fps = monitor_refresh_rate() if frame_rate < 0 else frame_rate
+		_apply_graphics()
 	changed.emit()   # Sound puts the volumes on the audio buses
 
 
@@ -177,9 +258,7 @@ func _apply_resolution() -> void:
 	var res := resolution
 	if res.x > screen.x or res.y > screen.y:
 		res = Vector2i.ZERO   # saved on a bigger monitor: fall back to native
-	var root := get_tree().root if is_inside_tree() else null
-	if root:
-		root.scaling_3d_scale = clampf(float(res.y) / screen.y, 0.25, 1.0) if fullscreen and res != Vector2i.ZERO else 1.0
+	_resolution_scale = clampf(float(res.y) / screen.y, 0.25, 1.0) if fullscreen and res != Vector2i.ZERO else 1.0
 	if res == _applied_resolution and fullscreen == _applied_fullscreen:
 		return
 	var first := _applied_resolution == Vector2i(-1, -1)
@@ -199,6 +278,37 @@ func _apply_resolution() -> void:
 	var usable := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
 	DisplayServer.window_set_size(res)
 	DisplayServer.window_set_position(usable.position + (usable.size - res) / 2)
+
+
+## The graphics picks (see GraphicsQuality) on the window, the renderer and the maps.
+func _apply_graphics() -> void:
+	var picks := graphics()
+	GraphicsQuality.apply_global(picks)
+	if is_inside_tree():
+		var root := get_tree().root
+		GraphicsQuality.apply_viewport(root, picks, _resolution_scale)
+		GraphicsQuality.apply_environments(root, picks)
+
+
+## The advanced graphics settings, as GraphicsQuality takes them.
+func graphics() -> Dictionary:
+	var picks := {}
+	for k in GRAPHICS_KEYS:
+		picks[k] = get(k)
+	return picks
+
+
+func set_graphics(picks: Dictionary) -> void:
+	for k in GRAPHICS_KEYS:
+		if picks.has(k):
+			set(k, picks[k])
+
+
+## Pick a preset ("low", "medium", "high"): every advanced setting follows it.
+func set_quality(id: String) -> void:
+	if GraphicsQuality.PRESETS.has(id):
+		set_graphics(GraphicsQuality.preset(id))
+	quality = GraphicsQuality.matching(graphics())
 
 
 func screen_size() -> Vector2i:
@@ -243,6 +353,15 @@ static func _hud_style(value) -> String:
 	return str(value) if HUD_STYLES.has(str(value)) else "arcs"
 
 
+## Settings → HUD → Reset HUD: both layouts and every HUD option back to the defaults
+## (the killcam switch, on the Camera tab, stays as it is).
+func reset_hud() -> void:
+	hud_first_person = "arcs"
+	hud_third_person = "clean"
+	hud.reset()
+	changed.emit()
+
+
 func set_third_person(value: bool) -> void:
 	third_person = value
 	save_settings()
@@ -269,7 +388,7 @@ const ACTIONS := [
 	["kick", "Kick", ["key:%d" % KEY_F]],
 	["boost", "Rocket boots", ["key:%d" % KEY_E]],
 	["interact", "Interact", ["key:%d" % KEY_G]],
-	["grapple", "Mobility (grapple, portal, blink)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
+	["grapple", "Mobility (grapple, portal, blink, jetpack)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
 	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
 	["weapon_1", "Weapon slot 1", ["key:%d" % KEY_1]],

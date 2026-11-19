@@ -39,11 +39,12 @@ def body_clips():
 
 
 def slim(mesh, k):
-    """Thin the forearms and hands around their own length (first-person arms only)."""
+    """Thin the forearms around their own length (first-person arms only). The hands
+    stay as they are: they are built to fit the guns' grips."""
     if k == 1.0:
         return
     for i, t in enumerate(mesh.tris):
-        side = {"forearm_l": -1, "hand_l": -1, "forearm_r": 1, "hand_r": 1}.get(t.bone)
+        side = {"forearm_l": -1, "forearm_r": 1}.get(t.bone)
         if side is None:
             continue
         cx = BODY.bone("forearm_l").pos[0] * -side

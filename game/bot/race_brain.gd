@@ -390,6 +390,8 @@ func _do_action(delta: float, dir: Vector3, target: Dictionary) -> void:
 				if not grounded and g.ready_to_fire() and _last_jump > 0.08:
 					input.grapple = true
 					input.grapple_pressed = true
+				if g.busy():
+					input.grapple = true   # the hook is on its way (letting go would call it back)
 				if g.attached:
 					input.grapple = true
 					_phase = 2

@@ -121,7 +121,7 @@ func _add_gun(model: Node3D) -> void:
 	# Lit trim, like the guns robots carry.
 	for s in mesh.get_surface_count():
 		var base := mesh.surface_get_material(s) as StandardMaterial3D
-		if base and RobotModel.material_kind(base.resource_name) == "accent":
+		if base and RobotModel.material_kind(base.resource_name) in ["accent", "glow"]:
 			var m: StandardMaterial3D = base.duplicate()
 			m.albedo_color = GLOW
 			m.emission_enabled = true

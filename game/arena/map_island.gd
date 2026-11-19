@@ -20,6 +20,17 @@ const GROUP := "map_islands"
 ## The point (in the map's frame) it turns round: the middle of the quad.
 @export var pivot := Vector3.ZERO
 
+## Degrees a second it goes round the pivot for as long as a match runs, if the map
+## has an OrbitEvent (Empyrean Tower's drifting debris). 0: it stays where a
+## LayoutEvent puts it.
+@export var orbit := 0.0
+
+## Tick this for a machine on a map with solid ground under it (the Construction
+## Site's crane). Bots take a map with islands in it for islands over a drop: they stop
+## swinging on the grapple and jump and dodge only where they can see floor ahead. An
+## island with this ticked does not count toward that.
+@export var over_ground := false
+
 ## MapRoot moves this node along with the body it builds (see MapRoot.update_movers).
 var carries_nodes := true
 ## Where it comes from and where it goes: (degrees round the pivot, metres up, metres out).

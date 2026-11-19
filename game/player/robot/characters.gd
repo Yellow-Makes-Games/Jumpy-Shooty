@@ -99,6 +99,22 @@ static func info(id: String) -> Dictionary:
 	return LIST[0]
 
 
+## What the robots' own materials are to the creator's colours: a material of a
+## robot's file counts as this one (the kits' files already name theirs by role).
+## A robot's shell ("armor") is its main colour; its frame takes the second colour
+## and its fittings the detail colour. The Templar has no shell: its plate is its
+## main colour, its surcoat the second, its cross the detail.
+const ROBOT_ROLES := {"joint": "trim_joint", "detail": "mark_detail"}
+const PART_ROLES := {"templar": {"steel": "armor_steel", "cloth": "trim_cloth", "cross": "mark_cross"}}
+
+
+## The name a body's material goes by for colouring (see RobotModel.CHANNELS).
+static func material_role(part: String, material: String) -> String:
+	if is_kit(part) or "." in material:   # (a gun's material: "rifle.accent")
+		return material
+	return PART_ROLES.get(part, ROBOT_ROLES).get(material, material)
+
+
 ## Every body the Character Creator can take a head, a torso or legs from: the
 ## robots, then the kits.
 static func part_ids() -> Array:

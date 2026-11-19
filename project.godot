@@ -14,6 +14,11 @@ config/name="Jumpy Shooty"
 config/description="High-mobility multiplayer arena shooter."
 run/main_scene="res://game/ui/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
+boot_splash/bg_color=Color(0.03, 0.04, 0.065, 1)
+boot_splash/stretch_mode=4
+boot_splash/image="res://game/brand/splash.png"
+config/icon="res://game/brand/icon.png"
+config/windows_native_icon="res://game/brand/icon.ico"
 
 [autoload]
 
@@ -23,10 +28,12 @@ Net="*res://game/net/net.gd"
 Match="*res://game/match/match_state.gd"
 Race="*res://game/match/race_state.gd"
 Teams="*res://game/match/team_play.gd"
+Achievements="*res://game/core/achievements.gd"
 Killcam="*res://game/match/killcam.gd"
 Game="*res://game/core/game.gd"
 Sound="*res://game/audio/sound.gd"
 Music="*res://game/audio/music.gd"
+Account="*res://game/online/account.gd"
 
 [display]
 
@@ -48,3 +55,7 @@ common/max_physics_steps_per_frame=12
 [rendering]
 
 anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/screen_space_aa=2
+anti_aliasing/quality/use_debanding=true
+anti_aliasing/screen_space_roughness_limiter/amount=0.4
+anti_aliasing/screen_space_roughness_limiter/limit=0.25

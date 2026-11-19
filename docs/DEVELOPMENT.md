@@ -63,9 +63,26 @@ they play out as fast as the machine allows instead of in real time. Their logs 
 Quick checks:
 
 - movement (`tests/movement_test.gd`): speeds, stopping, jump height, momentum in the air;
+- movement variants (`tests/movement_variant_test.gd`): the A/B movement switch (see
+  `MovementTuning.VARIANTS`): classic is unchanged, every player gets their own copy, and
+  Practice and Vs Bots start you and every bot on the variant picked;
+- Variant B movement (`tests/movement_b_test.gd`): 15% slower running with the same jump,
+  legs tucked in the air, Space for boots and the jetpack, Ctrl dives, back-slides and
+  crouches, the wall sit, and classic still flipping;
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- the body on the grappling hook's rope (`tests/rope_swing_test.gd`, with `--fixed-fps 60`):
+  the slack phase is untouched; tight, the body leans along the rope
+  with the legs trailing and the gun down; the jolt grows with the slack; the legs follow
+  the hips after a change of direction; a shot brings the gun up at once; the hips face
+  the swing and the chest the aim; steering works the legs; letting go on the way up
+  rolls the body (whichever news arrives first, and a shot hurries it); your own body
+  leans less; a blade hangs point down, a cape streams; killcam bodies are told the rope;
+- ragdolls (`tests/ragdoll_test.gd`, with `--fixed-fps 60`), for every robot and two
+  custom characters: thrown over a floor they settle above it, at rest, with elbows and
+  knees bent the right way; each lasts 10 s and dissolves, a respawn or the player
+  leaving changes nothing, at most 8 at once, none with the setting off;
 - weapons (`tests/weapon_test.gd`): damage and falloff, magazine and shell-by-shell
   reloads, melee wind-ups and shoves;
 - sounds (`tests/audio_test.gd`): every sound file loads and every sound the code asks
@@ -102,7 +119,30 @@ Quick checks:
   what cancels a hold, no use during the event or cooldown, one player at a time;
 - low gravity (`tests/gravity_test.gd`): the multiplier's schedule, jump heights,
   rockets and grenades fly the same path, the centrifuge slows, and gravity always
-  comes back to 1.0;
+  comes back to 1.0; gravity zones: 1.0 inside and 0.4 outside, eased over a second,
+  multiplied with an event's, never touching projectiles, gone with the map;
+- tractor-beam lifts (`tests/lift_test.gd`, with `--fixed-fps 60`): 9 m/s, the hover at
+  the top, leaving sideways at any height, what the beam leaves alone;
+- Haunted House (`tests/haunted_house_test.gd`): the Haunting's clock (the order of
+  layouts comes from its state alone, never one layout twice running, every prop where the
+  clock says however it got there), and in each of the four layouts every spawn point
+  clear and on a floor, every pickup clear, and on the bots' navigation mesh every spawn
+  point and pickup on both floors; doorways never solid while they come and go, someone
+  in a doorway when it closes put out on the nearer side, someone caught in furniture put
+  beside it, and a new match putting the house back in layout 0. It is held to
+  `tests/map_flicker_test.gd` too;
+- Empyrean Tower (`tests/empyrean_test.gd`): no two faces that would flicker, the river
+  of magic clear of everything in the shaft, how it asks to be drawn, no bounds and the burn layer, the gravity
+  zones, force fields that stop nothing, spawn points (none sees the altar) and pickups,
+  the altar, four pairs of gates and the lifts, only the glass breaks, and on the bots'
+  navigation mesh every tier from its neighbours, every storey, the docking ring and the
+  altar from six directions; and in a real Practice match
+  (`tests/empyrean_play_test.gd`): gravity through a doorway, a lift ride, the magic
+  answering to you (stirred when you stand in it, at rest while you sneak, never through a
+  wall, through glass), the whole
+  Portal Surge (what cancels the hold, both ways through a gate with speed carried, a
+  rocket flying straight through, the portal gun beside it, closing after 30 s, the
+  cooldown), and the three deaths (the core, the burn layer, not flying off);
 - menu layout (`tests/ui_layout_test.gd`): builds every menu page (main menu and its
   pages, the four Settings tabs, lobby, results, pause, loadout) at 18 window sizes
   and shapes (960x540 to 4K, 16:10, 21:9, 32:9, 4:3, 5:4, tall and tiny windows) and
@@ -119,12 +159,54 @@ Quick checks:
   fullscreen after a match (counting down to the best), the results page with
   them listed still fits 1600x900, and a killcam saved as a video is a Motion JPEG
   AVI with every frame and an index, as long as the clip plays;
+- killcams that match the match (`tests/killcam_sync_test.gd`): the replay looks exactly
+  where each of the killer's shots was aimed, from where it was fired (easing onto a lone
+  shot, shot to shot through a burst, never swinging past a flick), a target the killer
+  hit is moved in time to where the hits say, and on the Construction Site the crane's
+  load, the signs on its jib, its rope and a wall shot through since are drawn as they
+  were, while their collision stays the match's, and drawn live again afterwards;
 - spectating (`tests/spectator_test.gd`): in a Vs Bots match you switch to spectating and
   back; a spectator has no robot, score or scoreboard row, the bots play on, and the free
   camera flies through the floor, faster with Sprint, the way it looks;
+- respawn visibility (`tests/respawn_visible_test.gd`): another player who dies and comes
+  back is shown again (drawn and solid) whether their first snapshot from the new life
+  or the news of the respawn gets here first, when killed again before any snapshot
+  from the new life, after a new robot or gun while waiting to see them back, and
+  through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the game boots into practice mode on every map without script errors.
 
+- shooting through portals and portals on moving parts (`tests/portal_shot_test.gd`), in a
+  real Practice match: a pistol shot into blue hits a dummy out of orange with the damage
+  for the whole way and a tracer through both, a rocket (host and look) does too, a lone
+  portal or one from behind lets shots on, and a portal on a moving part rides it, lands on
+  the same spot from a message, and closes when the part goes;
+- see-through portals (`tests/portal_view_test.gd`): looking at a point on one portal shows
+  what lies straight on through the other (wall to wall, wall to floor, from the side and
+  above), a portal behind you, seen from behind its wall or without its partner opens no
+  view, at most four at once (the nearest), sized to the portal on screen, and the portal
+  cameras see plain faces and your whole body, never a window (headless: the maths only;
+  `tools/screenshot.sh` with the portal gun to see it);
+
+- the grappling hook (`tests/grappling_hook_test.gd`), in a real Practice match: it is the
+  only hook (a saved `grapple2`, the old Grappling Hook 2's id, becomes it); nothing pulls
+  while the hook flies, it takes the distance at its speed to arrive, bites with slack,
+  the winch takes it in, the rope pulls tight with a yank and
+  then pulls; a miss, a hook called back, hooking a bot; the hook's way back
+  (it catches a slab put in its way while the button is held, after a miss or a new
+  press, not with the button up nor after a jump off the rope); in first person the
+  rope starts on the arm's wrist as drawn while moving and turning; the rope drawn is as
+  long as the rope out; a copy rebuilt from snapshots (every one, a third lost, two
+  thirds lost and late) draws the hook, slack and rope exactly where the player's own
+  game had them, a miss and the catch on its way back included; a killcam replay
+  between its frames; a race has the same hook;
+
 Networked and bot runs (real time):
+
+- the grappling hook online (`tests/run_hook_sync_test.sh [PLAYERS] [NET_SIM]`): every copy
+  fires it on its own on a bad network; every other copy must see each launch, bite,
+  pull-tight and release within 30 ms of when it happened and draw the hook within
+  15 cm of where its owner's game had it (95% of frames; never 40 cm), in the same
+  stage (`tests/check_hook.py`);
 
 - sync (`tests/run_sync_test.sh`): 3 copies on a simulated bad network (100 ms latency,
   60 ms jitter, 10% loss) move on their own; every copy must draw every other player
@@ -145,6 +227,9 @@ Networked and bot runs (real time):
 - ground slam (`tests/run_slam_test.sh`): a hammer slam from a drop in Practice hits
   the target dummy, and online a client's slam is ruled on by the host, hits the host's
   player and is heard by both;
+- respawn visibility online (`tests/run_respawn_visible_test.sh`): a host and two clients
+  shoot it out; one client gets every respawn 300 ms late (`--delay-respawn`), behind the
+  player's first snapshot from the new life, and both must show every respawned player;
 - Halcyon online and with bots (`tests/run_gravity_test.sh`): a client fires the
   terminal on the host, a client across the room cannot, a late joiner is told how far
   along the event is, and bots use the terminal and keep moving in low gravity;
@@ -153,7 +238,9 @@ Networked and bot runs (real time):
   with `--manual-respawn` Jump brings you back (and nothing else does), and the results
   screen plays the best kills and saves the best as a video; online, a host and a client on a laggy network each
   watch their killcams, score every kill the same, show each killer their kill's points
-  (adding up to its score), pick the same best three and have a clip of each;
+  (adding up to its score), pick the same best three and have a clip of each; every
+  killcam has the killer's shot aims and records the map's moving parts (`KILLCAM SYNC`
+  and `KILLCAM AIM` in the logs);
 - Golden Gun (`tests/run_golden_gun_test.sh`): Vs Bots and online, one player holds the
   Golden Gun at a time, whoever kills the holder takes it, every kill with it gives its
   round back, and host and client see the same hand-overs and results;
@@ -188,6 +275,23 @@ The sync, match and bot tests take a map and a player count, for example
   kept down does not fire it again; and for a terminal set to need a hold: a 2 s hold
   fires it, letting go, leaving the range and dying cancel and taking damage does not,
   one player at a time;
+- achievements (`tests/achievements_test.gd`): every reward is a real item given once;
+  your kills, deaths, wins and race finishes are counted and a bot's are not; an
+  achievement completes once at its goal and unlocks its items; the creator shows a
+  locked item but won't save it, and Randomize keeps to what you have; what a saved
+  character wears stays yours; the counts come back from the file, and two copies of
+  the game add to it; a kill counts for its weapon's group and each weapon once, kills
+  without dying, revenge, the first kill, big, far and fast kills; wins count for their
+  mode, by one kill, with no deaths, against an Expert bot, online and hosted; plants,
+  defuses and captures; race medals and best times; every achievement has a kind,
+  and the page's tabs show each kind's own;
+- calling cards (`tests/calling_card_test.gd`): every card and icon has its own id and
+  draws, with a glyph or pattern the drawing code knows; the plain ones are free and the rest locked; the picker takes a free one and
+  refuses a locked one, saying what it needs; your card goes into the lobby with you,
+  a pick there shows at once, a made-up id becomes the plain card, and bots have one;
+- your colour (`tests/player_color_test.gd`): the colour you picked is yours when you
+  host, a joiner gets theirs unless another player has it, a bot hands its colour over,
+  nobody changes mid-match, and the swatch on the robot stage offers the free ones;
 - low gravity (`tests/gravity_test.gd`): the multiplier reaches 0.3 and returns to 1.0
   on schedule, a jump reaches about 4 m against about 1.2 m, rockets and grenades fly
   the same path, the centrifuge slows to half speed, and gravity is back at 1.0 when a
@@ -245,6 +349,43 @@ freezing bots, and an FPS readout. It lives in `game/dev/debug_menu.gd`; the swi
 are in `game/dev/cheats.gd`, whose checks all answer "off" in an online match, so a new
 cheat should go through one of them.
 
+Its **Achievements and unlocks** section changes your saved progress
+(`user://achievements.cfg`), through four functions of the Achievements autoload:
+`complete(id)` (as if you had earned it, toast and all), `complete_all()`,
+`unlock_items(cards)` (the creator's items, or the calling cards and icons, with no
+achievement done) and `reset_progress()` (back to nothing; it deletes the file). What
+your saved characters wear stays unlocked after a reset, as it does everywhere else.
+
+## Measuring performance
+
+Settings → Graphics → **Run benchmark** (or `godot --path . -- --benchmark`, which quits
+when done and prints `BENCHMARK_REPORT <path>`) flies the same path over Cirrus, Castle
+and Halcyon and writes a report and a per-frame CSV to `user://benchmarks`
+(`%APPDATA%\Godot\app_userdata\Jumpy Shooty\benchmarks`). The code is
+`game/core/benchmark.gd`. Keep `Benchmark.MAPS` and the path timings as they are, so
+runs from different days and PCs compare; change them only on purpose and say so in
+the commit.
+
+How to use it to choose what to optimize:
+
+- Run it in a window (not headless), twice. Runs agree within about half a millisecond
+  on the same PC; a single run after a change to shaders or materials may pay for
+  compiling them, even with the warm-up.
+- Read **Limited by** first. **GPU**: make the drawing smaller (fewer draw calls, fewer
+  lights casting shadows, less transparency, lower MSAA; on a map with movers every
+  block kind on every MapMover is its own draw call). **CPU**: look at the CPU split
+  under each map (drawing set-up vs physics), then run the game with the Godot editor's
+  Profiler for scripts.
+- The **Slowest part** line names the view to look at. A spawn stop is spawn point N
+  in the map's list (spread evenly through it); the Overview circles the spawn
+  points' middle. `tools/map_preview.sh` can render the same view to look at.
+- Change one thing, run it again, and compare the two reports. Check a big win in an
+  exported build too: the editor's debug build runs scripts slower.
+
+The benchmark measures drawing only. A match also has players, bots, bullets and the
+network; for that, play Vs Bots with the debug menu's FPS readout (F1) and use the
+editor's Profiler and Visual Profiler (Debugger panel).
+
 ## Developer command-line options
 
 Pass these after `--`, for example `godot --path . -- --practice`. The full list is at the
@@ -253,23 +394,29 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | Option | What it does |
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
-| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--benchmark` | Run the graphics benchmark (see Measuring performance), print where the report went, and quit |
+| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`, `empyrean`, `haunted_house`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
 | `--net-sim=L,J,P` | Pretend the connection is bad: L ms latency, J ms jitter, P% loss |
+| `--delay-respawn=MS` | Client: apply other players' respawns MS ms late, as if the message were held up on the way, so their first snapshot from the new life arrives first (`tests/run_respawn_visible_test.sh`) |
 | `--third-person` | Start in third person |
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
-| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings` |
-| `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera & HUD, 2 Audio, 3 Graphics (with `--menu=settings`, or in the pause menu) |
+| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `profile`, `creator`, `card`, `achievements` |
+| `--showcase=N` | Start the main menu's character showcase on its Nth character (from 1), for screenshots |
+| `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
 | `--hud=STYLE` | Use the `arcs` or `clean` HUD in both views for this run |
+| `--hud-scale=X` | HUD scale for this run, 0.75 to 1.25 (as Settings → HUD → HUD scale) |
 | `--manual-respawn` | Respawn only on a Jump or Fire press, as in a real game, even headless or with `--scripted-input` (which otherwise ask to respawn as soon as the wait is over) |
 | `--save-killcam=N` | On the results screen, save best kill #N as a video straight away, into the game's own data folder (`user://killcams`) instead of Videos (tests) |
 | `--fall=SEC` | Your player falls out of the arena after SEC seconds, to show the death screen |
 | `--character=ID` | Play as `needle`, `vanguard`, `kestrel`, `bulwark`, `rivet`, `specter`, `orbit` or `templar`, or as a Character Creator id (`'--character=custom:n=Greg|l=frog|t=human|h=goblin|hat=crown'`), without changing your saved choice |
+| `--unlock-all` | Nothing is locked behind an achievement (Character Creator items, calling cards, icons) |
+| `--color=N` | Your colour in a free-for-all: a number in `Net.PLAYER_COLORS` (0 red, 1 blue, 2 green... 15 brown) |
 | `--weapon=ID` | Play with `pistol`, `shotgun`, `rifle` or `sniper` without changing your saved choice |
 | `--bot-weapon=ID` | Give every bot this gun (normally each bot picks one at random) |
 | `--switch-weapon` | With `--auto-return`: pick the next gun in the lobby between matches (for the match test) |
@@ -283,7 +430,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--rules=killcam` / `--points=N` | Host or `--bot`: a Killcam-mode match; `--points` sets the points to win (a lobby setting, so clients play to it too; default 5,000) |
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
 | `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`...) |
-| `--map-event=SEC` | Start the map's events (Halcyon's low gravity) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
+| `--map-event=SEC` | Start the map's events (Halcyon's low gravity, Empyrean Tower's Portal Surge) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
 | `--eager-terminal` | Bots go for a map terminal whenever one is ready and they have nobody to fight (normally they only try now and then) |
 | `--autopilot` | Your own racer runs the course the way a bot does (race tests and screenshots) |
 | `--bot-level=LEVEL` | With `--autopilot`: at this bot difficulty (default 3, Expert) |
@@ -292,7 +439,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 
 Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`,
 `game/maps/office.tscn`, `game/maps/kilnworks.tscn`, `game/maps/rail_yard.tscn`,
-`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn`, `game/maps/halcyon.tscn`, `game/maps/cirrus.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn`, `game/maps/halcyon.tscn`, `game/maps/cirrus.tscn`, `game/maps/empyrean.tscn`, `game/maps/haunted_house.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
 
 The Castle is a good small example of a map with several height levels: a curtain
 wall with a battlement walk at 6 m, four round corner towers at 12 m reached by
@@ -450,6 +597,16 @@ scene is edited by hand. Try it with `--map=sky_island --practice`.
 - **MapIsland**, **LayoutEvent** and **MapJumpLink** nodes (Cirrus): a group of blocks
   that flies, the clock that rearranges the islands, and a crossing bots are told how
   to make. See "Maps of flying islands" below.
+- **MapLever** and **CraneEvent** nodes (Construction Site): a lever players throw with
+  Interact, and the tower crane it works. See "The crane" below.
+- **MapGravityZone**, **MapHazard**, **MapLiftWell**, **MapRingGate**, **PortalSurgeEvent**,
+  **OrbitEvent** and **MapDrone** nodes (Empyrean Tower): a place with its own gravity, a
+  block that kills, a tractor-beam lift, a ring gate and the event that opens the gates,
+  the clock that turns orbiting islands, and a drone that is only scenery. See "Empyrean
+  Tower" and "Gravity zones, hazards, lifts and ring gates" below.
+- **HauntProp**, **HauntEvent** and **MapGhost** nodes (Haunted House): furniture that
+  floats, shifts to new places and vanishes, the clock that haunts it, and a ghost that is
+  only scenery. See "Haunted House" below.
 - **Label3D** nodes: signs and painted floor numbers.
 - **Environment** (sky, ambient light) and **Sun**: ordinary Godot nodes, so the editor
   shows the map lit the way the game does.
@@ -531,7 +688,15 @@ hatch or vent slots), `panels_plain`, `tiles`, `plates` (rivets), `grating`, `sl
 floor, flagstones), `cobbles`, `planks` and `planks_upright`, `shingles` and `thatch`
 (roofs), `grass`, `dirt`, `gravel` and `tarmac` (soft blotches), `clumps` (leaves),
 `bark`, `strata` (a cliff), `water` (ripples that move), `confetti` (an arcade carpet)
-and `windows` / `windows_lit` (rows of windows on far-off buildings). The patterns are settings of one shader,
+and `windows` / `windows_lit` (rows of windows on far-off buildings), and for a wizard's
+tower (Empyrean Tower): `masonry`, `masonry_small` and `masonry_runes` (stone in courses of
+four heights, every stone its own length; "_runes" cuts a glowing rune into a few),
+`ring_flags` and `ring_flags_cyan` / `_green` / `_teal` / `_violet` / `_stars` (a round
+floor laid in courses round the map's middle, x = 0 and z = 0, with a line of brass
+inlaid every few courses and, on the coloured ones, glowing runes; only for a round
+building that stands on the middle), and for an old house (Haunted House): `wallpaper` (stripes and a damask pattern, pin
+seams, stains and peeling), and `arcane_plates` (riveted metal plates with a
+brass inlay and a rune in a ring on some). The patterns are settings of one shader,
 `game/arena/map_surface.gdshader`, listed in `MapScenery.SURFACES`; they are measured
 in metres from where the surface is in the map, so they line up from block to block. A
 kind that glows or is see-through takes no pattern. The MapRoot's inspector also has the map's rules:
@@ -581,6 +746,12 @@ practice mode on that map. In the game, all blocks of one kind are merged into a
 mesh and the bots' navigation mesh is worked out from the solid blocks, so moving
 things needs no extra step.
 
+The Construction Site's crane, the netting on its scaffold and steel, the cover in its
+yard and most of its dressing were written by `tools/arena/construction_site_revamp.gd`
+(run once; it is kept as a record and refuses to run again, like the Castle's). The
+palette's Surface list gives its kinds their patterns (dirt, gravel, slabs, blockwork,
+planks, grating...).
+
 **Checking it.** After moving things on the Construction Site, run `tests/site_test.gd`:
 it tells you if a route no longer works or a bot can no longer reach a floor. The test
 keeps its own note of where the routes are (at the top of `tests/site_test.gd`), so if
@@ -609,7 +780,11 @@ The scripts behind this:
 | `game/arena/map_mesher.gd`, `map_scenery.gd` | One merged mesh per kind, the materials, the navigation mesh |
 | `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
 | `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
+| `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
+| `game/arena/map_replay.gd` | How killcams record the map's moving parts and draw them as they were (see "Moving parts in killcams") |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
+| `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `map_ring_gate.gd`, `portal_surge_event.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, ring gates and the Portal Surge, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
+| `game/arena/haunt_prop.gd`, `haunt_event.gd`, `map_ghost.gd` | Furniture that floats, shifts and vanishes, doorways that come and go, the clock that moves them, and the ghosts (Haunted House; any map can use them) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
 | `game/arena/map_piece.gd`, `map_stairs.gd` (stairs and ramps), `map_row.gd`, `map_ring.gd` | The pieces: nodes that make their blocks from a few numbers (editor only; in the game they are plain groups) |
 | `addons/map_tools/` | The editor plugin: resize handles, click-to-select, the bounds outline, and the map tools. `plugin.gd` wires it up; `map_ops.gd` (geometry), `tool_*.gd` (what the mouse does) and `map_commands.gd` (Hollow, Mirror...) have no editor in them, so the test can run them; `map_toolbar.gd`, `map_dock.gd` and `map_dialogs.gd` are what you see |
@@ -629,6 +804,17 @@ home; `--layout=SET,KIND,VARIANT,LOOK` shows one of its arrangements instead (SE
 which islands are up; KIND 0 Swap, 1 Drift, 2 Close, 3 Far, 4 Split; LOOK 1 = sunset),
 `--layout=A:B:0.5` half way through the move from arrangement A to B, and
 `--layout=A:B:warn` the end of the warning before it.
+
+`map_preview.sh` draws with the simple OpenGL renderer. To see a map the way the game
+draws it (Forward+, with its anti-aliasing, shadows and ambient occlusion), at eye height
+from its spawn points with a robot in view, use:
+
+```
+tools/graphics_preview.sh cirrus OUT_DIR --quality=high --spawns=0,2 --tag=after
+```
+
+`--quality` is a graphics preset (low, medium, high); left out, the project's own settings
+are used. It runs in software when there is no graphics card, about a minute a map.
 
 ### Rail Yard, Lost Temple and Neon Arcade
 
@@ -800,6 +986,263 @@ Things to keep true when editing it:
   height fog only (nothing above -34 m is touched): it is what a falling island
   vanishes into.
 
+### Empyrean Tower
+
+`game/maps/empyrean.tscn` is a wizard's tower in low orbit for up to 16 players, the tallest
+arena by far: round, 61 m across at its foot and 40 m at the eaves 183 m up, under a
+conical roof with a crystal and an orrery at its peak and with a root of rock hanging
+below. Fantasy in its construction and sci-fi in its modification: a stone shell with stone ribs
+and brass, and fitted to it conduits of light, pipes and dishes, thrusters, a docking ring with a parked starship, holograms.
+
+Inside, six tiers of 30.5 m round a hollow shaft 16 m across: Arcane Engine (cyan),
+Grand Library (gold), Alchemy Labs (green), Menagerie (teal), Summoning Chamber (violet),
+Observatory (silver). The five lower tiers are one plan, all turned the same way,
+measured in 24 sectors of 15 degrees (0 = south, 90 = east):
+
+- sectors 0-9 (0 to 150 degrees): the feature room, open to the shaft, 19 m tall, with a
+  balcony along its back wall at 6.35 m and one at each end at 12.7 m;
+- sectors 10-23: three storeys (0, 6.35, 12.7 m) of rooms on the shaft side and a
+  corridor two lanes wide along the outer wall. Its outer lane carries two spiral ramps,
+  one from each end (150 and 360 degrees), 30 degrees a storey, meeting at 19 m;
+- 19 m: the upper hall, all the way round, from which two long ramps (150 to 240 and
+  360 to 270 degrees) climb to the next tier and come up through its floor.
+
+The Observatory is one room with a gallery half way round at 9 m. Bridges cross the
+shaft at every tier's floor and every upper hall, turned so no two line up. The Engine's
+crystal core at the bottom of the shaft kills on touch (MapHazard blocks in a sunken,
+glowing basin behind a kerb).
+
+Outside: gravity is 40% (the MapRoot's **Gravity Outside**; one MapGravityZone fills the
+tower). There are no bounds (its **Bounds** is zero-size) and no ceiling: the only death
+out there is the burn layer, the **Kill Height** at -88 m, 46 m under the root's lowest
+rock. Balconies at 75, 213.75 and 303.75 degrees on every tier, the docking ring at
+91.5 m with the landing pad and starship at 255 degrees, eight thrusters round the foot,
+sensor masts on the eaves, and the debris field. Three chunks orbit (MapIslands with an
+**Orbit**, turned by the scene's OrbitEvent); the rest is still.
+
+Four tractor-beam lifts: LiftA in the shaft from the Engine to the Menagerie, LiftB in the
+shaft from the Labs to the Observatory, LiftC outside from the Engine's west balcony to
+the Labs', LiftD outside from the docking ring to the Observatory's. The rune altar (a
+MapTerminal with Channel Time 2) stands in the middle of the Summoning Chamber and starts
+the Portal Surge: eight MapRingGates in four pairs (1 Engine and Observatory, 2 Library
+and a debris island, 3 Labs and Summoning Chamber, 4 Menagerie and another island).
+
+It was laid out by `python3 tools/arena/build_arena_maps.py empyrean` (the structure is
+`tools/arena/empyrean.py`, what stands in it `tools/arena/empyrean_dressing.py`, and the
+decor laid over both, banners, sconces, lanterns, wall units, turrets and the rest, most
+of it drawn only, `tools/arena/empyrean_decor.py`, and the magic,
+`tools/arena/empyrean_magic.py`: see "Living magic" below; its last step,
+`tools/arena/empyrean_planes.py`, moves by a few millimetres every face that shares a
+plane with a face of another kind, so nothing flickers), followed by
+`tools/arena/migrate_breakable.gd` on the scene so its stained glass breaks. Like the
+other generated arenas the scene is what you edit from here on, and running the script
+again **overwrites hand edits**. After moving things, `godot --headless --path . --script
+tests/empyrean_test.gd` checks the map and `tests/empyrean_play_test.gd` plays its systems
+in a real Practice match.
+
+Things to keep true when editing it:
+
+- Fantasy in its construction, sci-fi in its modification. It is an old tower, built of
+  stone, wood and brass with magic in mind, and fitted out with technology long after.
+  So nothing structural is alloy: walls, floors, pillars, ribs, pilasters and courses are
+  stone (beams are wood). Alloy, screens, conduits and lamps are always something added
+  to the stone: clamped on, bolted on, hung from it or stood on its floor. Never plate a
+  stretch of wall in metal. Both halves still show in every view, through what is fitted.
+- Nothing stepped or blocky: the shell is 48 leaning wall pieces a tier, roofs are cones,
+  ramps are smooth slabs (no steps), trims are tubes and bevelled boxes.
+- A force field (the kind `field`) is drawn only: Solid stays off. It stands in the wall
+  line, which is where the gravity zone ends; if you move the wall, move the zone.
+- Only the stained glass (`glass_stained`) breaks. A pane must be a box square to the
+  map (they face due east, north and west), stop a little short of the head above it and
+  of the jambs beside it, and have nothing running past it in one piece (the ribs are cut
+  into one length a tier for that reason), or it will not break.
+- A ramp starts and ends with a short level landing (3 degrees of its curve): without it
+  the bots' navigation mesh does not join it to the floor beside it. Leave the floor above
+  open over a ramp's whole run.
+- The ramps wind up over themselves, so the MapRoot has **Winding Floors** ticked; three
+  spawn points are on still islands a grapple swing from the tower, so **Bots Grapple** is
+  ticked too, and each of those islands has a MapJumpLink back (under `Debris/Ways`).
+- No spawn point that can see the altar, and no weapon within 12 m of it.
+- No two faces of different kinds in one plane, facing the same way and overlapping (a
+  carpet level with a strip of light in the floor, a landing level with the floor it
+  lands on): the two flicker. Lay one a centimetre proud of the other.
+  `godot --headless --path . --script tools/arena/find_shared_planes.gd -- --map=empyrean`
+  lists them (it works on any map), and `tests/empyrean_test.gd` fails on one.
+- The river of magic passes every bridge square on to it, three metres to one side, from
+  below the bridge's banners to above its rails, and the shaft's floating stones hang
+  across the shaft from it (`river_at`, `bridges` and `stone_at` in empyrean.py). The
+  generator stops if the river or a thread off it comes too near any of them, and the
+  test checks the built map with rays.
+- It is drawn with care, because it is far the biggest map (about 350,000 triangles;
+  the next has 42,000). On its MapRoot, under **Drawing**: **Decor Shadows** is off
+  (blocks that are drawn only cast no shadow, which is most of its triangles drawn once
+  instead of three times), and **Detail Range** is 80 (drawn-only blocks no bigger than
+  **Detail Size**, 1.5 m, are not drawn from farther off; they are meshed in cubes of
+  **Detail Chunk** metres so that works). Its sun's shadow reaches 150 m in two steps.
+  A MapMagic box is not drawn beyond its **Draw Range** (90 m). `tools/perf/draw_load.sh
+  --map=empyrean` counts the triangles and draw calls in a frame from six viewpoints
+  (about 630,000 and 570; before these settings 1,730,000 and 600).
+- Bots: its navigation mesh has about 8,800 polygons, more than the navigation server
+  will search by default (4,096), which is why `BotBrain._nav_path` asks with a higher
+  limit. `godot --headless --path . --script tools/perf/bot_load.gd -- --perf-map=empyrean`
+  prints what a four-bot match costs a frame; compare it with `--perf-map=cirrus`.
+- Nothing solid inside a lift's beam, and a floor or a balcony edge within a step of it
+  at every level bots get off at (each has a MapJumpLink set to Lift, with its Landing).
+- Keep the kerb round the core's basin (0.35 m: more than the bots' navigation mesh
+  climbs), and the Kill Height 46 m under the root.
+- Lighting is the ambient light, the sun and the glowing kinds; there are no light nodes.
+  The sky is `game/maps/sky/empyrean_sky.gdshader`; the fog is height fog under the tower
+  only (the burn layer's haze).
+
+### Haunted House
+
+`game/maps/haunted_house.tscn` is a very small map for close quarters: a two-storey house,
+30 x 22 m inside, with eleven rooms (on the ground floor a double-height Foyer with a
+gallery round it and a grand stair, the Dining Room, Parlour, Kitchen, Library and a Back
+Hall with the servants' stair; upstairs the Bedroom, with a hole in its floor into the
+Dining Room, the Nursery, Bathroom, Study and Upper Hall). It is for free-for-all (and so
+Gun Game) and Deathmatch, 16 spawn points and 13 weapon pickups, mostly shotguns, pistols,
+SMGs and blades. Outside, seen through the windows, are the grounds at midnight (graves,
+dead trees, the fence, the moon): drawn only, and the windows do not break. The front door
+is sealed; the pantry door is boarded up, and the boards can be shot through.
+
+The house is haunted, and the haunting changes the map:
+- **Floating furniture** (`HauntProp`, a MapIsland): 68 props. Tables, chairs, sofas,
+  the piano, the beds, bookcases and the bath float and bob; most are solid cover.
+- **The shift**: the house has four layouts. A turn is 22 s quiet, then 3 s of warning
+  (a low groan, the lights flicker, the camera shakes, what is about to move rattles,
+  and a faint shimmer shows where a wall will be), then a 2.5 s shift in which furniture
+  glides to its place in the next layout (cover moves; two bookcases in the Library
+  are walls that move) and the doorways change.
+- **Doorways that come and go**: 14 of the 20 doorways are there in some layouts and not
+  in others. A doorway that goes fades out and is open at once; one that comes back fades
+  in and only turns solid once it is all there. Whoever is standing in it then is put out
+  of it on the nearer side; whoever furniture came to rest on is put somewhere free beside
+  it (`HauntEvent.free_player`, run by each copy of the game for its own player and, on
+  the host, the bots).
+- **Ghosts** (`MapGhost`): seven, scenery only (no collision, never hit), flying
+  their rounds through walls and floors, moaning now and then, writhing while a shift
+  comes.
+
+Online, the haunting is like Construction Site's crane: the host owns the clock. The
+**HauntEvent** (a MapEvent) starts when the match starts, never ends by itself (also not
+when the match is over), and draws a fresh order of layouts by setting its `state` to a
+random number; the order (never one layout twice running) and where every prop is at
+every moment are worked out from `state` and the clock alone, so every copy shows the
+same thing, a reminder every 5 s keeps the clocks together, and someone who joins late
+is told both. A new match puts the house back in layout 0.
+
+Bots stand still while the house shifts (the HauntEvent sets `MapRoot.shifting`), and
+the arena keeps a navigation mesh for each layout (`MapRoot.layout_state`), baked the
+first time the house settles in it.
+
+It was laid out by `python3 tools/arena/build_arena_maps.py haunted_house` (from
+`tools/arena/haunted_house.py`; run `godot --headless --path . --script
+tools/arena/migrate_breakable.gd` after, for the pantry boards). Before it writes the
+scene the script checks that nothing that moves ends up in a wall, a spawn point, a
+pickup, an always-open doorway or another prop, in any layout and on the way between
+them; `tests/haunted_house_test.gd` checks the real thing.
+
+### Gravity zones, hazards, lifts and ring gates
+
+Five things Empyrean Tower added that any map can use. All are in `game/arena/`.
+
+**Gravity zones.** A **MapGravityZone** is a volume with its own gravity: a box, or a
+round shape on its own y axis whose **Top** makes it taper (a tower). **Gravity** is the
+share of normal inside it; the MapRoot's **Gravity Outside** is the share wherever no
+zone covers. Each player's gravity is `WorldGravity.scale` (a map event such as
+Halcyon's) times their zone's, and eases from one zone's to the next over one second
+(`WorldGravity.BLEND_TIME`); after a respawn or a teleport the new place's counts at
+once. `MovementController` works the number out once a step (`gravity_scale`) and uses
+it for falling, slopes, wall runs, the hang and the glide; the grapple and the bots read
+the same number. Projectiles never do. Zones are fixed map data that `MapRoot.build()`
+hands to `WorldGravity`, so every copy of the game works out each player's zone by
+itself and nothing travels over the network; a map without zones is exactly 1.0. To use
+them on another map: set Gravity Outside, add a MapGravityZone node (a plain Node3D with
+`map_gravity_zone.gd`) for each place that differs. For "low gravity outdoors", set
+Gravity Outside low and fill the indoors with zones of 1.0, as the tower does.
+
+**Force-field doorways** are not a node type: a MapBlock of a see-through, glowing kind
+(`field`) with Solid off, in a doorway that stands on a gravity zone's edge. Nothing
+stops at it; it only shows where the gravity changes.
+
+**Hazards in arenas.** A **MapHazard** block used to do something only in races (back to
+your checkpoint). In an arena match touching one is now a death, reported exactly as a
+fall out of the map is (`Arena._physics_process` asks `MapRoot.body_in_hazard()` for each
+player it runs, and calls `Player.report_fell_once()`), so it scores the way a fall does.
+Races are unchanged. To use one: add a MapBlock with `map_hazard.gd` (a box or an upright
+cylinder), pick a glowing kind, untick Solid, and make the danger plain to see. Give bots
+a reason not to walk in: a kerb above 0.25 m, or a drop.
+
+**Tractor-beam lifts.** A **MapLiftWell** stands on a floor and reaches **Height** metres
+up; anyone inside its **Radius** rises at **Speed** (9 m/s), slowing to a hover over the
+last **Ease Top** metres. It only sets how fast you go up, so you look, shoot and steer as
+in any fall, and leave by steering or flipping out sideways. A ground slam, a climb, a
+glide and the grapple rope are left alone. Each copy lifts the players it runs just
+before their own movement step. The node draws the beam in its **Color**; build the
+emitter rings from MapBlocks (the lower one under 0.25 m high). For bots, add a
+**MapJumpLink** with **How** set to Lift at the beam's foot (as the lift's child) for
+each floor to get off at, its **Landing** a Marker3D on that floor beside the beam: a
+bot takes it when its goal is 12 m or more above it and the beam is near on its own floor.
+
+**Ring gates and the Portal Surge.** A **MapRingGate** marks the middle of a ring's
+opening, its z axis square to the ring; two gates with the same **Pair** are joined. A
+**PortalSurgeEvent** in the scene opens every pair: **Open Time** (2 s), **Duration**
+(30 s), **Close Time** (2 s), **Cooldown** (60 s). Point a MapTerminal's Event at it (give
+the terminal a Channel Time for a hold, and a **Light** colour). While the gates are fully
+open the event hands their portals to the arena's `Portals` node
+(`Portals.set_map_pairs`), which moves players through with the portal gun's own maths:
+speed carried and turned, facing out of the far gate. Map pairs belong to no player, so
+the gun's rules never apply to them (no `MAX_SPAN`, nothing closes them but the event)
+and they never touch a player's own pair. Projectiles are not moved. A gate standing
+free has a portal facing each way (**Two Sided**); untick it for one against a wall. The
+gate draws its emitter nodes and the portal's surface and hums; the ring, its plinth and
+its solid frame are MapBlocks round it (leave the bottom of the ring open to walk
+through). For bots, a MapJumpLink with How set to Gate in front of a gate, **Hook** the
+gate, Landing a marker in front of the other one: they step through when it is open and
+saves them 25 m or more.
+
+**Orbiting islands.** Give a **MapIsland** an **Orbit** (degrees a second) and a **Pivot**
+and add an **OrbitEvent** node to the scene: for as long as a match runs it goes round,
+carrying riders, pickups and grapple points, in the same place on every copy (the host
+owns the clock). **MapDrone** is unrelated: a drone drawn by its script that drifts round
+a spot, for looks only.
+
+### Living magic
+
+Scenery that moves, glows and answers to players, made for Empyrean Tower and usable on
+any map. None of it is solid, can be shot or hooked, or is sent over the network: every
+copy of the game runs it by itself.
+
+- **MapMagic** (`game/arena/map_magic.gd`): a box of air with something drifting in it.
+  Put the node at the middle, set **Size** and pick a **Kind**: motes, sparks, pages,
+  books (a flock), droplets, bubbles, fish, jellyfish, moths, candles, stars (a
+  constellation) or arcs (caged lightning). **Count**, **Piece** (a piece's size),
+  **Color** / **Color B**, **Power** and **Variation** shape it. It is one MultiMesh and
+  one shader (`map_magic_glow.gdshader` for light, `map_magic_solid.gdshader` for books,
+  pages and candles) and all its movement is worked out on the graphics card, so it
+  costs nothing on the CPU while nobody is near.
+- **MapMagicStream** (`map_magic_stream.gd`): a rope of liquid magic along **Path** (the
+  tower's river, and the threads drawn off it), its light running toward the path's end.
+- **MapMagicField** (`map_magic_field.gd`): one per map; it is what makes the magic
+  answer. Ten times a second it finds each MapMagic with **Reacts** ticked that has a
+  player within 4 m (13 ft) **in plain sight** (a ray from the player's chest to the box:
+  walls, floors and furniture block it, glass does not) and tells the box, which
+  scatters, flees or gutters. It also tells the rune surfaces (`masonry_runes`,
+  `ring_flags_*`, `arcane_plates`) where those players are, and runes within reach
+  **that face the player** flare (so a wall's far side never lights). Every living
+  player and bot counts, yours too; the dead, spectators and anyone crouched and moving
+  no faster than a crouch-walk do not (`MapMagicField.noticed`). Its **Event** is the
+  map event that livens everything up while it runs (the Portal Surge here).
+  Boxes are sorted into bands of height so each player is compared with few of them;
+  with 16 players spread through the tower a look takes about 1.6 ms.
+- **MapAmbientSound** (`map_ambient_sound.gd`): a quiet loop that belongs to a place.
+
+Empyrean Tower's rules for it (see docs/DESIGN.md): looks and sound only, no fog indoors,
+nothing that hides a player, never red, and the three impossible things outside are
+drawn as **phantoms** (the `phantom` kinds: pale and see-through), so nobody takes one
+for something to land on.
+
 ### Terminals and map events
 
 A **MapTerminal** is a console players use by pressing **Interact** (`interact` in
@@ -851,13 +1294,105 @@ bots find them in the scene. A different kind of event is a script that extends
 changed after it ends (a LayoutEvent's layout) keeps it in `state`, which the host
 sends along with the clock; `_on_match_started()` is where it puts things back.
 
+### Moving parts in killcams
+
+A killcam records the map's moving parts beside the players and puts them back the
+way they were at each moment of the replay (`MapReplay`, `KillClip.PropTrack`): the
+crane and its load, flying islands, walkways, walls shot through. Without it a death
+killcam showed the map as it is now (a crane already swung away under a killer still
+standing on its slab) and the results screen showed the map as it was built.
+
+Already recorded, nothing to do: every **MapMover** and **MapIsland** (their meshes,
+and the signs and lamps in an island's scene node), **MapDestruction** (cracks and
+holes), **CraneEvent**'s rope and **MapSpan**. So a new map whose moving furniture,
+doors or platforms are MapMovers or MapIslands is in every killcam as it is.
+
+A new kind of moving part joins the group `MapReplay.GROUP` and has three methods:
+`replay_capture()` (how it looks now, as a plain value; called about 30 times a
+second, stored only when it changes), `replay_show(state, next, u, holder)` (look like
+that, blended `u` toward `next`) and `replay_clear()` (back to live). `replay_show`
+must change only what is drawn, never collision or anything the game plays by: a death
+killcam plays in the live arena while the match goes on round it. `MapReplay.draw_at`
+draws a mesh somewhere else without moving the node (what MapRoot does for movers).
+Parts are found by their path from the MapRoot, so the nodes must be the same every
+time the map is built (the results screen replays in a fresh copy of the map).
+
+A terminal's **Bots** box (ticked by default) says whether bots walk up to it and use
+it now and then. Untick it for one they cannot walk to, or they stand about under it.
+
+### The crane
+
+The Construction Site's tower crane works. Its parts are all in the `Crane` group of
+`game/maps/construction_site.tscn`:
+
+- **Mast**: hollow, 2 m square inside, so it is a chimney to wall-jump up like the lift
+  shaft (its walls are hidden boxes; the lattice and the guard mesh are drawn only). A
+  ramp leads onto its base and in at the south door. It is open again 20 m up, where the
+  **Tie** gangway comes across from the corner of the tower's 20 m steel, and at the
+  top, where a collar is level with the deck that turns round it.
+- **Jib** (a MapIsland whose Pivot is the middle of the mast): everything that turns.
+  The deck round the mast head, the cab, the jib and counter-jib with a walkway along
+  their top, the trolley. The cab has a floor, a door at the back and glass that
+  shatters; the cabinet behind it and the box on its roof are the steps up to the jib.
+- **Lever** (a **MapLever**, in the cab): a MapTerminal in everything but its looks. It
+  draws a lever with a red knob that leans back while it is ready and is thrown forward
+  while the crane works, and a lamp beside it that is green when it can be pulled and
+  amber when it cannot. Its Bots box is unticked.
+- **Hook** (a second MapIsland with the same Pivot): the slab on its slings. Solid, so
+  it is a platform, and whoever stands on it rides along.
+- **CraneEvent** (a MapEvent): what the lever's Event points at. It has a few stops
+  (**Turns**: degrees the jib is turned from where the scene has it; **Heights**: metres
+  the load hangs above or below where the scene has it) and a **Route**, the order it
+  visits them in, round and round. One pull of the lever is one move: the load is
+  hoisted to **Carry Height**, the jib turns, the load is lowered, and the lever stays
+  locked for **Cooldown** more seconds. On the Construction Site the stops are the
+  tower's steel bay (where the scene has it), the south-east yard and the north-west
+  yard, and the route is tower, south-east, tower, north-west: about 13 s a move.
+
+The two islands are placed from the event's clock and `state` (how far round the route
+it has got) alone, so the crane is in the same place on every copy of the game, also
+for someone who joins part-way through a move, and a new match puts it back at the
+tower. The hoist rope is drawn by the event between two markers (**Rope Top** in the
+jib, **Rope Bottom** in the load), because its length changes. Its sounds come from the
+top of the mast and carry over the whole site.
+
+If you move a stop, keep the load's way clear: Carry Height must lift it over whatever
+stands under its arc, and a stop in the yard must leave standing room under the load (it
+is not a hazard, and must not squash anyone). `tests/site_test.gd` sweeps the slab along
+every move of the route and looks under every stop, climbs the mast, throws the lever
+with a player in the cab and rides the slab to both yards. The loading zones painted on
+the ground mark where the slab comes down; they are ordinary drawn-only blocks, so move
+them with the stops.
+
+Both islands have **Over Ground** ticked. Bots take a map with MapIslands in it for
+islands over a drop (no free swings on the grapple, no jump or dodge without floor in
+sight); Over Ground says this island is a machine on a map with solid ground, so it
+does not count.
+
+Turns, Heights and Route are typed arrays (`Array[float]`, `Array[int]`), not packed
+ones, on purpose. Godot's export drops a packed array (PackedFloat32Array,
+PackedInt32Array, PackedStringArray) that a scene sets on a node whose script does not
+run in the editor: the value is there when you play from the editor and gone in the
+exported game. v0.1.48 shipped that way, with a lever that clacked and a crane with no
+stops, and Cirrus and Empyrean Tower had been losing their lit, flaring and pulsing
+kinds the same way (LayoutEvent and PortalSurgeEvent use typed arrays now too). Give a
+new map script's list settings a typed array; `tests/map_scene_test.gd` fails if a map
+scene sets a packed array on a node whose script is not a `@tool` script. To look at
+an exported copy: `godot --headless --export-pack "Windows Desktop" out.pck`, then
+`godot --main-pack out.pck`.
+
+To put a crane (or anything else that swings a load) on another map: two MapIslands
+with one Pivot (Over Ground ticked if the map has ground under it), a CraneEvent
+pointing at them, and a MapLever or a plain MapTerminal pointing at the event.
+
 A **MapSpinner** is a group of MapBlocks that turns round its own y axis (tip the node
 over for another axis): Halcyon's centrifuge ring, outside the hull. It is decoration
 only: drawn, never solid, and each copy of the game turns it by its own clock. That is
 why it is not a MapMover (a mover is solid, carries riders and runs off the race clock,
 so plain movers are for race maps; in an arena the one kind of mover is a MapIsland,
-below, which runs off its LayoutEvent's clock). MapHazard is race-only too, so
-Halcyon's pit uses the Kill Height and its decks are joined by fixed ramps.
+below, which runs off its LayoutEvent's, OrbitEvent's or CraneEvent's clock). MapHazard was race-only
+when Halcyon was built, so its pit uses the Kill Height and its decks are joined by fixed
+ramps (hazards work in arenas now: see "Gravity zones, hazards, lifts and ring gates").
 
 ### Maps of flying islands
 
@@ -889,7 +1424,9 @@ Three node kinds, all in `game/arena/`, none of them tied to Cirrus:
   toward the landing), Hop (sprint at the landing and jump at the edge: a gap a running
   jump clears, or a step up a ledge climb takes) or Boost (sprint, jump at the edge,
   fire the rocket boots toward the landing, steeper the higher it is, and glide on until
-  it can drop onto it: about 24 m of open sky, up to about 6 m higher). **Rise Min** and
+  it can drop onto it: about 24 m of open sky, up to about 6 m higher), Lift (ride the
+tractor beam here up to the landing) or Gate (step through the ring gate Hook names while
+it is open). **Rise Min** and
   **Rise Max** (Timing) are for parts that keep moving: the bot waits at the takeoff
   until the landing will be that far above it (below, if negative) when it comes down,
   **Flight** seconds on; both zero, any time. **Hook** names what to hook, or **Hook Group** says "the nearest
@@ -1008,9 +1545,10 @@ python3 with numpy):
 | --- | --- |
 | `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit, Templar); the unused draft, Brick, is kept |
 | `creatures.py` | The Character Creator's creatures (a person, a goblin, a frog...): each one's shape, modelled round the same skeleton, and their materials. `KITS` lists them |
-| `rig.py` | The skeleton (bone names and positions) and the pose solver |
+| `rig.py` | The skeleton (bone names and positions), the hand poses (`HANDS`) and the pose solver |
+| `hands.py` | The robots' hands: one hand (palm, trigger finger, three fingers that move as one, thumb), which each design takes at its own bulk and in its own materials |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
-| `weapons.py` | The four guns' shapes and materials (pistol, shotgun, rifle, sniper), and where the left hand holds each long gun |
+| `weapons.py` | Every gun's shape and materials, and where the left hand holds each long gun |
 | `weapon_anims.py` | The long guns' own clips: how each is held, carried when sprinting, fired (pump, bolt), reloaded, and the first-person arm poses for each |
 | `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and guns), and for each creature `game/player/robot/kits/NAME.glb` (its mesh only: no guns, no animations). `--kits` writes only the creatures (a few seconds) |
 
@@ -1030,6 +1568,75 @@ graphics card, so I can check poses myself):
 - `tools/robot/preview.sh JOB.json` renders any set of robots, poses and camera angles
   described in a job file; the format is at the top of `tools/robot/preview.gd`. It can
   also drive a robot with the game's real animator from made-up movement.
+
+**Joints.** A body is stiff pieces, each riding on one bone, so a joint only stays
+closed if what fills it is centred on the joint's own point (the bone's place in
+`rig.py`). The pattern, in `designs.py` above `needle()`: a dark core (`kit.bead`) at
+that point; each half of the limb ending in a sleeve a little wider than the core, its
+rim `SEAM` short of the point and its open end faced dark (`_sleeve`); elbows and knees
+get the core lying across the limb with a pin through it (`_hinge`). Straight, a slim
+dark band shows between the sleeves; bent, they slide over the core and nothing opens.
+Keep a core no smaller than the sleeves' inside, and do not go back to `ball()` for a
+joint: its flat faces sit well inside its radius, which is where the old gaps came from
+(it is still fine for a shoulder or hip ball sunk into the torso, and for ornaments).
+All eight robots are built this way (`_wrist` and `_ankle` are the cores every design
+shares; a thin strut under a shoulder gets one sleek taper where it leaves the ball, no
+bulge). The Templar's elbow cop is its elbow's core, and Orbit's knee keeps the player's
+colour as its core.
+
+The Character Creator's creatures (`creatures.py`) are built the same way, dressed to
+match: a soft body's core is a rounded `knob` in the limb's own colour, a little wider
+than the limb, with each half ending `SOFT` short of the joint's point, inside it, so it
+reads as a rounded elbow or knee and not as a part. `arm()` and `leg()` do this (wrists
+and ankles included) for every body that uses them; the few with limbs of their own
+(the goblin's and imp's bare knees, the snowman, the wizard's robe, the zombie's torn
+leg) do the same by hand. The stick-limbed ones (Bones, Quackers' legs, Peel) already
+had joints wider than their sticks.
+
+**Any torso on any legs.** `kit.plug` gives a part a rounded core at the point it turns
+on, as wide as the part itself there and in its material: every torso gets one at the
+waist (`designs.waist`, robots and creatures alike), and every creature one at the belly
+and one round the neck's stub (`creatures._close`). A mixed character's torso then rests
+on something round whatever legs are under it, and nothing opens at the belt when it
+leans back to aim.
+
+**Colours and finish.** `designs.py` writes colours the way the game's code does (sRGB)
+and turns them into what a model file holds, as `weapons.py` and `creatures.py` do, so
+the robots' armour is the same white as the guns' plates instead of a brighter one that
+lost its shading in sunlight. Surfaces are satin (roughness about 0.7, hardly any
+metal); only the glowing parts are shiny.
+
+**Idle habits.** Every torso, robot or creature, has its own way of standing still: a
+clip named `idle_<torso>` (`IDLES` in `animations.py`), a whole number of the plain
+idle's breaths long, with one small thing in it (Needle cocks its head, Rivet taps a
+boot, Bulwark sags and hitches back up, the frog puffs its throat...). It goes by the
+torso (`RobotModel.idle`), so a Character Creator body stands the way its torso does,
+and a torso with none uses the plain `idle`. The habit clips are `lean`: they hold only
+the bones that move (`Clip(..., lean=True)` in `rig.py`), which keeps 28 of them from
+bloating every model file. A new torso needs its habit added to `IDLES`.
+`RobotAnimator` lays it over the plain idle only while standing still and not shooting
+or reloading. A habit must never turn the chest or move it sideways (the gun is held
+from the chest; `_steady` keeps the chest in place while the hips move under it), may
+raise or lower it a little, and must not look like an action. `tests/robot_test.gd`
+checks the first two.
+
+**Landing.** `land` is a short strip (dip, then up a little past standing, then settle),
+not one pose: `RobotAnimator` plays it through once over the base pose, as strong as the
+fall was hard.
+
+**Feet on steps and slopes.** Standing or crouching still, each foot goes to the ground
+that is really under it. `Player._feet_ground()` casts a ray down through each foot and
+hands the two heights to the animator (`RobotAnimInput.feet`, how far the ground under
+each foot is above or below the player's own floor). `RobotAnimator._plant_feet` then
+bends that leg at the knee to put the foot there, and lowers the hips a little when a
+foot has to reach down (`FEET_REACH` and `FEET_DROP` cap both). It fades out as soon as
+you move faster than `FEET_STILL`, so no moving clip is touched, and it is looks only:
+the collision capsule never moves. In `preview.gd` a puppet step takes `"feet": [l, r]`
+and a shot takes `"blocks"` to stand the body on.
+
+**Spins.** The flips turn at a steady speed with a short ease in and out
+(`SPIN_IN` / `SPIN_OUT` in `animations.py`), keyed so the speed never jumps. Change the
+two together or the flip will hitch at the seam.
 
 In the game, `game/player/robot/` holds the code: `robot_animator.gd` decides what the
 body shows from the movement state (the same way for you, other players and the bot),
@@ -1095,18 +1702,102 @@ animations of its own: a character with a creature's torso uses the first robot'
 skeleton, clips and guns, and its first-person arms are cut from the creature's own arm
 triangles (`RobotModel._kit_arms_mesh`; bulky arms get an entry in
 `Characters.KIT_FP_SLIM`). What a material is called decides how the game treats it, by
-the part of its name before the first `_`: `armor_*` takes the paint and the team colour,
-`extra_*` takes them too but is left out when accessories are fitted (ears, fins),
-`skin_*` and `flesh_*` take the skin tone (same split), `hair_*` and `shell_*` count as
-the head's surface for fitting hats, `eye_*` is where glasses sit, and `accent` is the
-player's colour. Anything else is drawn as built.
+the part of its name before the first `_`: `armor_*` takes the main colour and the team
+colour, `extra_*` takes them too but is left out when accessories are fitted (ears,
+fins), `trim_*` takes the second colour, `mark_*` and `hair_*` the detail colour,
+`skin_*` and `flesh_*` the skin tone (same split as armor and extra), `hair_*` and
+`shell_*` count as the head's surface for fitting hats, `eye_*` is where glasses sit, and
+`accent` is the player's colour. Anything else is drawn as built. (`RobotModel.CHANNELS`
+is the list.) A creature's shape functions use plain names ("belly", "leather"); `ROLES`
+in `creatures.py` says which of them are its second and detail colours, and the build
+writes them as `trim_belly`, `mark_spot`. The robots' files keep their own names:
+`Characters.material_role` maps them as the model is put together (every robot's `joint`
+is its second colour and `detail` its detail colour; the Templar's `steel`, `cloth` and
+`cross` are its main, second and detail colours).
 
 **Adding an accessory:** add it to `CustomCharacter.ACCESSORIES` under its slot and write
 a function of the same name with a leading underscore in
 `game/player/robot/accessories.gd` (`"fox_tail"` is built by `_fox_tail()`), from the
 helpers there (`_ball`, `_tube`, `_cone`, `_plate`...), placed with the measurements in
 `f` (the head, chest and waist of the body it is on). The creator, the id check and the
-test pick it up from the table.
+test pick it up from the table. Its colour button repaints the material that
+covers most of it; if that is the wrong one, name the right one in `Accessories.MAIN`.
+
+**Adding an achievement:** add a line to `LIST` in `game/core/achievements.gd`: an id, a
+name, its kind (`group`: the tab it is under, an id from `GROUPS`), the count it watches (`stat`), the `goal`, the line under its name (`what`) and
+the items it unlocks (`rewards`: `"part:ninja"`, `"paint:gold"`, `"<slot>:<accessory>"`
+such as `"hat:crown"`, or `"card:sunset"` and `"icon:skull"`). An item named by no
+achievement is free. The counts are bumped in `_on_kill` (from a kill's tags, see
+`KillScore`, and its weapon, score, distance and speed), `_on_died`, `_on_match_over`,
+`_on_team_event` and `_on_gate`; for a new kind of count, call `Achievements.add("name")`
+where it happens. Something that should count once each (a weapon, a course, a medal)
+goes in a set: add it to `SET_STATS` and call `_collect("set", "thing")`. The page, the
+creator's locks, the toast and the test read the list. A new race course needs its
+bronze, silver and gold times in `MEDALS` (run it with `--bot=3 --bots=3 --autopilot
+--sync-log --map=ID` and read the `RACE_GATE ... FINISH` lines: gold is about the
+Expert bots' time).
+
+**Adding a calling card or an icon:** add a line to `CARDS` or `ICONS` in
+`game/ui/calling_card.gd`: an id, a name, and for a card a `pattern` (one of the ones
+`_draw_pattern` knows, or a new branch there) and its three colours `a`, `b`, `c`; for
+an icon a `glyph` (a branch of `_draw_glyph`, drawn with the `Pen` there: shapes in a
+-1 to 1 square, which the pen also draws once in a dark colour as the glyph's shadow),
+its `color` and `accent`, the plate's colour (`back`) and `shape`, and if it should
+stand out the rim's metal (`rim`: `BRONZE` or `GOLD`) and `rays`.
+It is free unless an achievement's `rewards` name it (`"card:<id>"`, `"icon:<id>"`).
+The picker, the lobby and the test read the tables.
+
+**Hands** have fingers: a trigger finger, three more that move as one, and a thumb, two
+bones each (`rig.py`: where the knuckles are, from the middle of the fist). How a hand is
+held is a pose in `rig.HANDS` (open, flat, relaxed, fist, gun, trigger, handle, support,
+foregrip, pinch): eight numbers that blend. A clip's pose can say `"fingers_l"` /
+`"fingers_r"`; left out, the right hand is round a gun's grip and the left is under a long
+gun or relaxed. The left hand under a fore-end is cupped, palm up (`weapon_anims.CUPPED`),
+so a gun's `weapons.SUPPORT` point is 2 cm above the fore-end's underside; a gun with an
+upright handle there says `"upright"` and it is held like a second grip. What the clips
+cannot know, the game sets (`game/player/robot/hands.gd`, from the one-frame `hand_...`
+clips): a blade's handle in the fist (`MeleeSwing.hold`), the akimbo pair's left gun. The
+Character Creator's other bodies have the same hands in their own colours
+(`creatures.hand()`: which material the palm and fingers, the back of the hand, the band
+across the knuckles and the joints each take). To look at the hands on every robot (open,
+a fist, on a pistol, a sword, under a rifle): `python3 tools/robot/hand_sheet.py OUT.png`;
+on other bodies, name them: `python3 tools/robot/hand_sheet.py OUT.png frog yeti`.
+
+**Guns** share the melee weapons' look (gunmetal frame, armour-plate panels, steel
+barrels, lit parts in the player's trim colour: the `glow` kind, which
+`RobotModel.set_gun_glow` can dim and brighten). Each is built round fixed points: the
+barrel line and muzzle (`rig.py`), where the hands go (`weapons.SUPPORT`, and the bolts,
+handles and magazines in `weapon_anims.py`). Keep those where they are when reshaping
+one. Each gun's vents are added with `_vent()`, on a bone of their own (`pistol_vent`) that a
+reload opens: a flap or louvres on most, the barrels themselves on a break-open gun. To
+look at guns on their own: `tools/combat/gun_preview.sh OUT_DIR
+--guns=pistol,rifle`; for before/after sheets of every gun by family:
+`python3 tools/combat/gun_sheet.py OUT_DIR BEFORE.glb`.
+
+**Reloads** are clips like the rest (`reload_<gun>`, `fp_reload_<gun>`), each as long as
+the gun's reload time: the pistol's in `animations.py`, the other sidearms' in
+`sidearm_anims.py`, the long guns' in `long_reloads.py` (family by family: each gun's own
+flourish is described at the top of its function). A long gun is held relaxed and low,
+off to the right in first person (`weapon_anims.HOLD`, `FP_HOLD`), and each is fitted so
+the left hand reaches its fore-end with the elbow bent (`_fit`). A gun loaded a round at
+a time has a one-round clip that loops and a `reload_end_<gun>` clip (`long_reloads.ENDS`)
+that the animators play once the gun is full and the reload was not cut short by a shot:
+the gun can already fire, and firing cuts it short. A clip with a part that spins about
+its own middle is baked at 60 frames a second (`long_reloads.FPS`), or the part wobbles. A pistol is held in both hands, the left wrapped round the right
+(`animations.wrap_l`); in first person only the arms are drawn, so the clip puts the
+shoulders where both hands can reach a gun held off to the right (`FP_BODY`). A reload
+is written as the right arm's poses, the left hand's (places on the gun are worked out
+from where the gun is: `View.fist_on`, `View.palm_on`), the fingers (`rig.HANDS`) and
+the gun's parts, including whatever the left hand carries to it. What a clip cannot do
+is the game's: `game/combat/reload_fx.gd` throws the spent cell or casings (`SpentCell`:
+looks only, each copy of the game throws its own), dims and surges the gun's lit parts,
+hides the gun's own cell while the new one is out of sight, and puffs steam and smoke
+(`ReloadPuff`). Its table is timed to each clip's keys, and so are the sounds
+(`RELOAD_STEPS` and `RELOAD_END_STEPS` in `game/audio/sfx_list.gd`): change a clip and
+change both. To check that no hand is asked to reach further than its arm, solve the clip
+and compare each wrist with where its pose wants it (every reload was checked this way). To film one
+without opening the game: `tools/combat/reload_preview.sh revolver OUT_DIR --speed=0.5
+--close` (add `--cut=0.5` to see it cut short half way).
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted
@@ -1141,6 +1832,36 @@ dummy, taps once and then lets go a full wind-up (add `--speed=0.25` for slow mo
 ends back at ready, the taps take turns, a mid-air move's turn ends as it lands, and what a
 ground slam does at each distance. `tests/movement_test.gd` checks the hang and the slam's fall.
 
+**On the grappling hook's rope** the body has no clip either, once the rope has pulled
+tight: `game/player/robot/rope_swing.gd` (RopeSwing) hangs it from the left arm. The hips
+lean toward the line of the rope, the legs trail further along it, and the chest and head
+stay nearer upright, on your aim. Each part follows where it should hang on a spring of
+its own (the hips, then the thighs, then the shins, and the gun arm), so the legs swing a
+beat after the body when the rope changes direction; the numbers at the top of the file
+say how far each leans, how fast it follows and how soon it settles. The moment the rope
+pulls tight the body takes a jolt, harder the more slack the winch took in. The hips face
+along the swing while the waist turns to keep the chest on the aim, steering along the
+swing works the legs (a flag in the movement snapshot, so everyone sees it), a cape and a
+tail stream behind (`RobotModel.settle_sway`), and letting go on the way up, fast, rolls
+the body forward once (`FLIP_RISE`, `FLIP_SPEED`; a shot or a swing hurries it). The gun
+hangs at your side until you shoot: a shot brings it up at once, and it drops again
+`ROPE_AIM_HOLD` seconds after the last (`robot_animator.gd`); a blade hangs point down.
+`RobotAnimator` lays all this over its own steps and `ViewModel` moves your arms in first
+person with the same springs (the gun low and canted but still in view: `ROPE_GUN_...`
+in `view_model.gd`). It is looks only: nothing in it moves the player, and it is worked
+out from what every copy of the game knows about a player (`RobotAnimInput.hook_taut`,
+`hook_slack`), so other players and killcams hang the same way. The slack before the rope
+is tight is as it was. To film it:
+
+```
+tools/robot/rope_preview.sh OUT_DIR --scene=swing --step=0.0083333   # a test stage, from the side and behind, half speed: OUT_DIR/rope.mp4
+tools/robot/rope_preview.sh OUT_DIR --scene=player --weapon=sword    # reeled in to a hooked player; also under (round a hook, steering), turn (aiming off to the side)
+tools/robot/rope_film.sh OUT_DIR swing third                         # the real game, played by a script on the Testing Grounds: OUT_DIR/swing_third.mp4
+tools/robot/rope_film.sh OUT_DIR player first --weapon=hammer        # scenes: swing, pump, player; first or third person
+```
+
+`tests/rope_swing_test.gd` checks each of those things on a body driven by made-up movement.
+
 ## Sound effects
 
 Every sound is made by code, like the robots: `tools/audio/make_sfx.py` (python3 with
@@ -1162,7 +1883,16 @@ Cirrus's clock has six sounds of its own (`clock_tick`, `clock_tock`, `bell_toll
 `layout_rise`, `island_move`, `bridge_lock`), played by its LayoutEvent. The tick is the
 quietest sound in the game on purpose.
 
-Two of the sounds loop (`terminal_hum` and `gravity_pad`, for Halcyon's terminal and low
+Empyrean Tower's Portal Surge has three (`surge_open`, `surge_close`, and `gate_hum`,
+which loops and is played by each open MapRingGate). Each of its tiers has a quiet loop
+of its own (`magic_engine`, `magic_library`, `magic_labs`, `magic_menagerie`,
+`magic_summoning`, `magic_observatory`), played in the room by a MapAmbientSound.
+
+The Construction Site's crane has four (`lever_pull`, `crane_start`, `crane_stop`, and
+`crane_motor`, which loops while the crane moves and is pitched up while the hook goes
+up or down), played by its MapLever and CraneEvent.
+
+Two more of the sounds loop (`terminal_hum` and `gravity_pad`, for Halcyon's terminal and low
 gravity): every frequency in them fits a whole number of times into the file, so the end
 runs into the start, and the nodes that play them (MapTerminal, GravityEvent) set the
 loop and fade them in and out.

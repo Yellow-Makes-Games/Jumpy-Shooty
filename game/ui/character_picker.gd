@@ -12,12 +12,16 @@ extends VBoxContainer
 ## `list` instead, which the page shows in a FloatingPanel when the name is pressed
 ## (list_requested).
 ##
+## Where the screen offers it (offer_colors), a swatch in the corner of the stage
+## opens your own colour: the one you wear in a free-for-all.
+##
 ## The picker only reports the choice; the screen using it decides what to do with
 ## it (save it, tell the lobby).
 
 signal picked(id: String)
 signal list_requested   ## compact: the name under the stage was pressed
 signal create_requested ## compact: "Make new character" in the list was pressed
+signal color_picked(index: int)   ## a colour from the stage's swatch (a number in Net.PLAYER_COLORS)
 
 const STAGE := Vector2(360, 292)
 const COLUMNS := 4
@@ -37,6 +41,10 @@ var _preview: RobotPreview
 var _time := 0.0
 var _compact := false
 var _name_button: Button   ## compact: the robot's name under the stage; opens the list
+var _color_button: Button  ## the swatch in the corner of the stage (see offer_colors)
+var _palette: SwatchPalette
+var _offer_colors := false
+var _peek := {}   ## while showing someone else's robot (see peek): id, color, weapon, who
 
 ## Compact: the buttons for every robot and the line about the one picked (the page
 ## puts it in a FloatingPanel). Otherwise null: they are in the picker itself.
@@ -61,6 +69,22 @@ func _init(start: String = "", player_color: Color = Net.PLAYER_COLORS[0], gun: 
 	_stage.add_child(_preview)
 	_arrow("<", Control.PRESET_CENTER_LEFT, -1)
 	_arrow(">", Control.PRESET_CENTER_RIGHT, 1)
+	_color_button = Button.new()
+	_color_button.name = "color"
+	_color_button.theme_type_variation = "Chip"
+	_color_button.custom_minimum_size = Vector2(40, 36)
+	_color_button.focus_mode = Control.FOCUS_NONE
+	_color_button.icon = SwatchPalette.swatch(_color)
+	_color_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	SwatchPalette.true_colors(_color_button)
+	_color_button.tooltip_text = "Your colour in a free-for-all"
+	_color_button.set_meta("sfx", "select")
+	_color_button.visible = false
+	_color_button.pressed.connect(open_colors)
+	_stage.add_child(_color_button)
+	_color_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT, Control.PRESET_MODE_MINSIZE, 12)
+	_palette = SwatchPalette.new(8)
+	add_child(_palette)
 	var holder: VBoxContainer = self
 	if compact:
 		_name_button = Button.new()
@@ -168,7 +192,12 @@ func _draw_stage() -> void:
 		var a := _time * 0.5 + i * TAU / 6.0
 		_stage.draw_arc(Vector2.ZERO, 132.0, a, a + 0.5, 12, Color(UiKit.CYAN, 0.55), 3.0, true)
 	_stage.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# Its name and where it is in the list.
+	# Its name and where it is in the list (or whose it is, while peeking).
+	if not _peek.is_empty():
+		HudStyle.label(_stage, Vector2(16, 20), str(_peek.who).to_upper(), 11, Color(UiKit.ACCENT, 0.95))
+		HudStyle.text(_stage, Vector2(16, 44), Characters.name_of(_peek.id).to_upper(), 28, Color.WHITE)
+		HudStyle.brackets(_stage, r.grow(-8.0), 12.0, Color(UiKit.ACCENT, 0.5), 1.5)
+		return
 	HudStyle.label(_stage, Vector2(16, 20), ("CUSTOM %d / %d" if Characters.is_custom(current) else "UNIT %d / %d") % [_ids.find(current) + 1, _ids.size()], 11, Color(UiKit.CYAN, 0.9))
 	HudStyle.text(_stage, Vector2(16, 44), Characters.name_of(current).to_upper(), 28, Color.WHITE)
 	HudStyle.brackets(_stage, r.grow(-8.0), 12.0, Color(1, 1, 1, 0.25), 1.5)
@@ -194,7 +223,26 @@ func select(id: String) -> void:
 func set_color(player_color: Color) -> void:
 	if player_color != _color:
 		_color = player_color
+		_color_button.icon = SwatchPalette.swatch(_color)
 		_show_robot()
+
+
+## Show (or hide) the swatch that lets you pick your own colour. The screen hears
+## color_picked and shows the result with set_color.
+func offer_colors(on: bool) -> void:
+	_offer_colors = on
+	_color_button.visible = on and _peek.is_empty()
+
+
+## The colours to pick from: all of them, less the ones other players have.
+func open_colors() -> void:
+	var entries := []
+	for i in Net.PLAYER_COLORS.size():
+		var e := {"id": i, "name": Net.PLAYER_COLOR_NAMES[i], "color": Net.PLAYER_COLORS[i]}
+		if Net.color_taken(i):
+			e["off"] = "another player has it"
+		entries.append(e)
+	_palette.open(_color_button, "Your colour", entries, Net.PLAYER_COLORS.find(_color), func(i): color_picked.emit(i))
 
 
 func _on_pressed(id: String) -> void:
@@ -213,7 +261,31 @@ func set_weapon(id: String) -> void:
 
 
 func _show_robot() -> void:
+	if _peek.is_empty():
+		_preview.show_robot(current, _color, _weapon)
+
+
+## Show someone else's robot on the stage for a while (the lobby, while you look at
+## a player), labelled `who`; unpeek() puts yours back. Your pick is untouched.
+func peek(id: String, player_color: Color, gun: String, who: String) -> void:
+	var p := {"id": Characters.valid(id), "color": player_color, "weapon": WeaponData.valid(gun), "who": who}
+	if p == _peek:
+		return
+	_peek = p
+	_preview.show_robot(p.id, p.color, p.weapon)
+	_color_button.visible = false
+
+
+func unpeek() -> void:
+	if _peek.is_empty():
+		return
+	_peek = {}
 	_preview.show_robot(current, _color, _weapon)
+	_color_button.visible = _offer_colors
+
+
+func peeking() -> bool:
+	return not _peek.is_empty()
 
 
 ## The characters from the Character Creator changed (one saved, replaced or deleted):

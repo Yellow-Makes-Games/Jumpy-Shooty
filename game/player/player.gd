@@ -14,6 +14,8 @@ const VIEWMODEL_LAYER := 3   ## render layer for the first-person gun
 const CROUCH_HEIGHT := 1.1
 const PRONE_HEIGHT := 0.8    ## lying on your front (belly slide)
 const TUCK_LIFT := CAPSULE_HEIGHT - CROUCH_HEIGHT
+const OVERDUE_RESPAWN := 1.0  ## seconds a living remote player may stay hidden waiting for their respawn snapshot
+const SNAPSHOT_SIZE := 12     ## floats in a snapshot (see make_snapshot), before a grappling hook shot on the end
 
 var _dev_group := -1   # --swap-on-death: the weapon group to pick (see dev_swap_after_death)
 var peer_id := 1
@@ -37,6 +39,17 @@ var _scripted_time := 0.0
 var _remote_state := 0
 var _teleport_count := 0          # local: bumped on every respawn; remote: last seen value
 var _awaiting_respawn := false    # remote: hidden until the first post-respawn snapshot
+## Lives are numbered by the host (the spawn index of Match._respawned; 0 before the
+## first respawn) and the number travels in snapshots, so a copy can tell which life a
+## snapshot is from whichever of the two (snapshot or respawn) gets here first.
+var _life := 0                    # local: this life's number
+var _seen_life := -1              # remote: the life of the newest snapshot (-1: none yet)
+var _awaited_life := -1           # remote: the life we were told they are back in
+var _dead_life := -1              # remote: the newest life we knew of when they died
+var _newest_snap := -INF          # remote: sender time of the newest snapshot (older ones that arrive late are dropped)
+var _newest_snap_at := 0.0        # remote: when it got here (our clock)
+var _hidden_for := 0.0            # remote: seconds hidden waiting for the respawn snapshot (see _check_overdue_respawn)
+var _hidden_snaps := 0            # remote: snapshots that arrived in that time
 var robot: RobotModel             ## the body everyone sees
 var character := ""               ## the robot it was built as (an id from Characters)
 var _ammo := {}                   # local, Deathmatch: weapon id -> rounds left in the ones you are not holding
@@ -49,18 +62,26 @@ var _anim := RobotAnimInput.new()
 var _corpse_drop := 0.0           # a body shot in mid-air falls to the ground (visual only)
 var _corpse_fall := 0.0
 var _corpse_room := 0.0
+var _in_remains := false          # the body is hidden because remains took its place (see hide_for_remains)
 var _logged_anim := ""            # --sync-log: the last animation we printed
 var _fell_reported := false
 var _fire_buffer := 0.0           # a click slightly too early still fires when the gun is ready
-var _rope: MeshInstance3D         # the grapple line, drawn from the gun to the anchor
-var _hook: MeshInstance3D         # the hook at the anchor
-var _rope_events: Array = []      # remote: [time, attached, anchor] waiting to be shown
-var _rope_on := false             # remote: is the rope shown
-var _rope_anchor := Vector3.ZERO  # remote: where it is hooked
+var _hook_rope: HookRope          # the grappling hook's rope and hook (made when first needed; see Grapple)
+var _hook_line: HookLine          # remote: their latest grappling hook shot, rebuilt from their snapshots
+var _hook_old: HookLine           # remote: the shot before it (it may still be whipping back when the next is fired)
+var _hook_look: Array = []        # what is drawn of the hook this frame (HookLine.look; [] nothing)
+var _hook_stage := HookLine.OFF   # ...and the stage that was in last frame (its sounds go by the changes)
+var _hook_guard := [0, 0.0]       # remote: [shot, time] the flight was last checked against the map (see _guard_hook)
+var _hook_logged := [0, 0]        # --sync-log: [shot, moments of it already printed]
+var _rope_seen := false           # remote, --sync-log: their rope was tight last frame
 var _roll := 0.0                  # local: camera tilt while wall-running
 var _shape: CollisionShape3D
 var _height := CAPSULE_HEIGHT     # remote: collision shape height for the pose we draw
 var _visual_yaw := 0.0
+# Another player: where they were at the moment we draw them at, before MapRoot.carried
+# moved them along with an island under way (the killcam records this, beside where
+# the island was at that same moment; INF until the first snapshot).
+var _uncarried := Vector3.INF
 var _flying := false              # local: the debug menu's noclip is on
 var _swings := 0                  # local: melee swings so far (travels in snapshots, wrapping at 4)
 var _seen_swings := -1            # the swing count last shown (starts the swing animation and sound)
@@ -99,7 +120,7 @@ var _akimbo_shots := 0            # akimbo: shots so far (yours, or seen); odd o
 var _akimbo_left := false         # akimbo: the last shot came from the left gun
 var _burst_wait := 0.0            # local: seconds until the next round of the burst
 ## The tool on the mobility button (an id from Mobility): the grapple, the portal
-## gun or blink. A race always has the grapple.
+## gun, blink or the jetpack. A race always has the grapple.
 var mobility := Mobility.GRAPPLE
 var blink: Blink                  # local, with blink
 var portal_gun: PortalGun         # local, with the portal gun
@@ -156,7 +177,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		Sound.play("equip_" + gun)   # bringing your gun up as the match starts
 
 	if is_bot:
-		motor = MovementController.new()
+		motor = MovementController.new(MovementTuning.for_variant(LobbySettings.movement()))   # (the host's pick: everyone moves the same way)
 		weapon = _make_weapon(Net.player_weapon(id))
 		_apply_move_bonus()
 		if racing:
@@ -164,7 +185,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		else:
 			brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
 	elif is_local:
-		motor = MovementController.new()
+		motor = MovementController.new(MovementTuning.for_variant(LobbySettings.movement()))   # (the host's pick: everyone moves the same way)
 		weapon = _make_weapon(Net.player_weapon(id))
 		_apply_move_bonus()
 		if racing and DevArgs.autopilot:
@@ -178,7 +199,6 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		rig.camera.add_child(view)
 		view.setup(self, Net.player_color(id))
 		view.visible = not racing   # no gun to hold in a race: you see your body, not arms
-	_build_rope()
 	_build_flame()
 	if motor:
 		motor.grapple.hook_players = not racing
@@ -213,11 +233,11 @@ func _physics_process(delta: float) -> void:
 	if alive:
 		_set_crosshair_ray()
 		var was_on := motor.grapple.attached
-		var hooking := input.grapple_pressed and motor.grapple.ready_to_fire() and mobility == Mobility.GRAPPLE
-		# Portal gun and blink take the mobility button: the grapple never sees it.
-		var mobility_pressed := input.grapple_pressed and mobility != Mobility.GRAPPLE
-		var mobility_held := input.grapple and mobility != Mobility.GRAPPLE
-		if mobility != Mobility.GRAPPLE:
+		# Portal gun, blink and the jetpack take the mobility button: the grapple never sees it.
+		var roped := Mobility.is_grapple(mobility)
+		var mobility_pressed := input.grapple_pressed and not roped
+		var mobility_held := input.grapple and not roped
+		if not roped:
 			input.grapple = false
 			input.grapple_pressed = false
 		var fly := Cheats.flying() and not is_bot
@@ -236,12 +256,14 @@ func _physics_process(delta: float) -> void:
 			var boosts := motor.boosts
 			if jetpack:
 				var jet_was_on := jetpack.on
+				var jet_held := mobility_held or motor.space_jet   # (Variant B: Space held in the air flies it too)
 				# (a ground slam is committed: the jetpack does not fire on the way down)
-				velocity = jetpack.step(velocity, mobility_held and not racing and motor.state != MovementController.State.SLAM, is_on_floor(), motor._wish_dir(input), delta)
+				velocity = jetpack.step(velocity, jet_held and not racing and motor.state != MovementController.State.SLAM, is_on_floor(), motor._wish_dir(input), delta)
 				if jetpack.on and is_on_floor():
 					motor.warped = true   # lift off: no floor snap or ground friction this step
 				if jetpack.on and not jet_was_on and DevArgs.sync_log:
 					print("JETPACK %d" % peer_id)
+			motor.has_jetpack = jetpack != null
 			motor.hang = _charge >= 0.0 and not (jetpack and jetpack.on)   # winding a melee swing up slows a fall (the jetpack takes over from it)
 			motor.step(self, input, delta)
 			if not racing and is_on_floor():
@@ -251,8 +273,6 @@ func _physics_process(delta: float) -> void:
 				if turning != 0.0:
 					input.yaw += turning * delta
 			_watch_ground_slam()
-			if hooking and not motor.grapple.attached:
-				sounds.grapple_missed()   # nothing in range to hook
 			if motor.boosts != boosts and DevArgs.sync_log:
 				print("BOOST %d" % peer_id)
 			_check_slam(delta)
@@ -262,6 +282,8 @@ func _physics_process(delta: float) -> void:
 			motor.clear_cooldowns()
 		if DevArgs.sync_log and motor.grapple.attached != was_on:
 			print("ROPE SELF %d %s" % [peer_id, "on" if motor.grapple.attached else "off"])
+		if DevArgs.sync_log and Mobility.is_grapple(mobility):
+			_log_own_hook(motor.grapple)
 		_visual_yaw = input.yaw
 		if not racing:
 			if weapon:
@@ -296,30 +318,36 @@ func _process(delta: float) -> void:
 			_coil_roll = lerpf(_coil_roll, coil * COIL_ROLL, 1.0 - exp(-delta * 16.0))
 			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
 				motor.eye_height, _roll + _punch_roll + _coil_roll)
+			rig.place()   # (now, not after this: the arms, and the ropes that start at them, go where this frame is drawn)
 		var g := motor.grapple
 		_anim.state = motor.state
 		_anim.crouched = motor.crouched
 		_anim.velocity = velocity
 		_anim.pitch = input.pitch
 		_anim.flags = _my_anim_flags()
-		_anim.grapple_on = g.attached
-		_anim.grapple_anchor = g.anchor
+		_anim.grapple_on = g.rope_out()   # (the arm follows the hook out)
+		_anim.grapple_anchor = g.rope_end()
+		# (What the body needs of that rope to hang on it: see RopeSwing.)
+		_anim.set_hook(g.line.look(g.clock, g.rope_origin(self), g.rope_origin(self)) if alive else [])
 		_watch_swings(delta)
 		_watch_kicks()
 		_animate(delta)
 		sounds.update(delta, _anim, true)
 		if view:
 			view.update(delta)
-		_draw_rope(g.attached and alive, g.anchor)
+		_draw_hook(g.line.look(g.clock, rope_origin(), g.rope_origin(self), Vector3.INF, _first_person()) if alive else [])
 		_update_trail(delta)
 		_update_flame(delta)
 		return
+	if _awaiting_respawn:
+		_check_overdue_respawn(delta)
 	if not buffer.has_data():
 		return
 	var rt := buffer.render_time(Net.now(), delta)
 	last_render_time = rt
 	var s := buffer.sample(rt)
 	var shown: Vector3 = s[0]
+	_uncarried = shown + Vector3(0, tuck_offset(s[4]), 0)
 	if MapRoot.current != null and is_instance_valid(MapRoot.current):
 		# We see them a moment late: on an island under way, put them where it is now.
 		shown = MapRoot.current.carried(shown, buffer.delay())
@@ -334,19 +362,38 @@ func _process(delta: float) -> void:
 	_anim.velocity = velocity
 	_anim.pitch = s[3]
 	_anim.flags = s[5]
-	_anim.grapple_on = _rope_on
-	_anim.grapple_anchor = _rope_anchor
+	# Their grappling hook shot, at the same moment as their body (see HookLine).
+	var shot := _hook_shot_at(rt) if Mobility.is_grapple(mobility) else null
+	var hook_anchor := _hook_anchor(shot)
+	var st := shot.stage(rt) if shot else HookLine.OFF
+	_guard_hook(shot, rt)
+	_anim.grapple_on = st != HookLine.OFF   # (the arm stays out until the hook is back)
+	if st == HookLine.FLYING:
+		_anim.grapple_anchor = shot.flight_pos(rt)
+	elif st == HookLine.RETRACT:
+		if not _hook_look.is_empty():
+			_anim.grapple_anchor = _hook_look[1]   # (where it was a frame ago: it is coming to the wrist)
+	elif _anim.grapple_on:
+		_anim.grapple_anchor = hook_anchor if hook_anchor != Vector3.INF else shot.anchor_at(rt)
+	var rope_at := global_position + Vector3(0, HookLine.ATTACH_HEIGHT, 0)
+	_anim.set_hook(shot.look(rt, rope_at, rope_at, hook_anchor) if shot and alive else [])
 	_watch_swings(delta)
 	_watch_kicks()
 	_animate(delta)
 	sounds.update(delta, _anim, visual.visible)
-	while not _rope_events.is_empty() and _rope_events[0][0] <= rt:
-		var ev: Array = _rope_events.pop_front()
-		_rope_on = ev[1]
-		_rope_anchor = ev[2]
-		if DevArgs.sync_log:
-			print("ROPE SEEN %d %d %s" % [Net.my_id(), peer_id, "on" if _rope_on else "off"])
-	_draw_rope(_rope_on and alive and not _awaiting_respawn, _rope_anchor)
+	var tight := st == HookLine.TAUT and alive and not _awaiting_respawn
+	if DevArgs.sync_log and tight != _rope_seen:
+		print("ROPE SEEN %d %d %s" % [Net.my_id(), peer_id, "on" if tight else "off"])
+	_rope_seen = tight
+	var drawn := alive and not _awaiting_respawn and visual.visible
+	var chest := global_position + Vector3(0, HookLine.ATTACH_HEIGHT, 0)
+	_draw_hook(shot.look(rt, rope_origin(), chest, hook_anchor) if shot and drawn else [])
+	if DevArgs.sync_log and not _hook_look.is_empty():
+		# (For the log the rope's near end is the chest, as in _log_own_hook: each copy
+		# draws it at the wrist of the body as it poses it, which is not the shot's to say.)
+		var logged := shot.look(rt, chest, chest, hook_anchor)
+		var hp: Vector3 = logged[1]
+		print("HOOK SEEN %d %d %d %.4f %d %.3f %.3f %.3f %.3f %.4f" % [Net.my_id(), peer_id, shot.seq, rt, logged[0], hp.x, hp.y, hp.z, logged[2], delta])
 	_update_trail(delta)
 	_update_flame(delta)
 	if DevArgs.sync_log and alive and not _awaiting_respawn:
@@ -528,26 +575,37 @@ func _fire_round() -> void:
 	if weapon.data.is_projectile():
 		Match.request_projectile(eye, _aim_direction(eye), peer_id)
 		return
-	var dirs := shot_directions(_aim_direction(eye), weapon.data, spread_scale())
+	var aim := _aim_direction(eye)
+	var dirs := shot_directions(aim, weapon.data, spread_scale())
 	# Show the shot straight away; the host decides whether it hit.
 	var ends := PackedVector3Array()
 	var hits := []
+	var vias := []   # through portals: where each pellet goes in and comes out
 	var space := get_world_3d().direct_space_state
+	var portals: Portals = Net.arena.get("portals") if Net.arena else null
 	for dir in dirs:
 		var end := eye + dir * weapon.data.max_range
-		var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
-		var hit := space.intersect_ray(ray)
-		if hit:
-			end = hit.position
+		var hit := {}
+		if portals:
+			var legs: Array = portals.shot_path(space, eye, dir, weapon.data.max_range, 1 | (1 << 1), [get_rid()])
+			end = legs[legs.size() - 1].b
+			hit = legs[legs.size() - 1].hit
+			vias.append(Portals.path_bends(legs))
+		else:
+			var ray := PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()])
+			hit = space.intersect_ray(ray)
+			if hit:
+				end = hit.position
+			vias.append(PackedVector3Array())
 		ends.append(end)
 		hits.append(hit and (hit.collider is Player or hit.collider is TargetDummy))
-	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id)  # into the arena, not among the players
+	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id, vias)  # into the arena, not among the players
 	Sound.shot_landed(muzzle_position(), ends, hits, sounds.own)
 	var view_times := {}
 	for p in get_parent().get_children():
 		if p != self and p is Player and p.last_render_time >= 0.0:
 			view_times[p.peer_id] = p.last_render_time
-	Match.request_shot(eye, dirs, view_times, weapon.data.id, peer_id)
+	Match.request_shot(eye, dirs, view_times, weapon.data.id, peer_id, aim)
 
 
 # ---------------------------------------------------------------------------
@@ -587,9 +645,11 @@ func _update_melee(delta: float) -> void:
 		print("ANIM WIND %d" % peer_id)
 
 
-## Which tap comes next: taps take turns, starting from the right again after a pause.
+## Which tap comes next: taps take turns (the right, then the left; Karate goes on
+## through its combo), starting from the first again after a pause.
 func _next_side() -> int:
-	return 0 if _since_swing > MeleeSwing.COMBO_RESET else 1 - _seen_side
+	var n := MeleeSwing.combo_length(robot.weapon) if robot and WeaponData.melee(robot.weapon) else 2
+	return 0 if _since_swing > MeleeSwing.COMBO_RESET else (_seen_side + 1) % n
 
 
 ## Let go: the swing starts from however far it was wound up.
@@ -598,10 +658,15 @@ func _swing() -> void:
 	weapon.fire()
 	_swing_power = data.charge_of(_charge)
 	_charge = -1.0
-	_swings += 1
-	if 1 - (_swings & 1) != _swing_side:
-		_swings += 1   # the count's last bit tells everyone the side: odd from the right, even from the left
-	_strike_left = MeleeSwing.impact_time(data.id)   # when the blade is mid-blow on screen
+	_swings += 1   # (which blow it is travels with it: see RobotAnimInput.step_of)
+	var airborne := motor.state in [MovementController.State.AIR, MovementController.State.FLIP, MovementController.State.GLIDE]
+	_strike_left = MeleeSwing.impact_time(data.id, _swing_side, _swing_power, airborne)   # when the blade is mid-blow on screen
+	# A slow blow (a spinning kick) holds the next one off until it is nearly done.
+	weapon.hold_off(MeleeSwing.blow_length(data.id, _swing_side, _swing_power, airborne) * 0.7)
+	# A jumping kick lifts you off your feet.
+	var hop := MeleeSwing.hop_of(data.id, _swing_side, _swing_power, airborne) if not airborne else 0.0
+	if hop > 0.0 and velocity.y < hop:
+		motor.knock(Vector3.UP * (hop - maxf(velocity.y, 0.0)))
 	# Lunge toward where you look (never past a sprinting dive's speed).
 	var ahead := Vector3.FORWARD.rotated(Vector3.UP, input.yaw)
 	var along := velocity.dot(ahead)
@@ -609,7 +674,7 @@ func _swing() -> void:
 	if lunge > 0.0 and along < 14.0:
 		motor.knock(ahead * minf(lunge, 14.0 - along))
 	if DevArgs.sync_log:
-		print("ANIM SWING %d %.2f" % [peer_id, _swing_power])
+		print("ANIM SWING %d %.2f %d" % [peer_id, _swing_power, _swing_side])
 
 
 # Ground slam (see GroundSlam): let go of a swing wound up in mid-air with crouch held.
@@ -711,8 +776,8 @@ func _watch_swings(delta: float) -> void:
 	var winding := melee and (_charge >= 0.0 if is_local else RobotAnimInput.winding_of(_anim.flags))
 	_since_swing += delta
 	if winding:
-		if not is_local and _seen_wind < 0.0:
-			_swing_side = _next_side()   # (a guess, for the wind-up only: the swing itself says its side)
+		if not is_local:
+			_swing_side = RobotAnimInput.step_of(_anim.flags)   # (the wind-up says which blow is coming)
 		_seen_wind = _charge if is_local else maxf(_seen_wind, 0.0) + delta
 		var held := WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
 		animator.wind(held, _swing_side)
@@ -728,8 +793,8 @@ func _watch_swings(delta: float) -> void:
 		if melee:
 			var power := _swing_power if is_local else WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
 			if DevArgs.sync_log and not is_local:
-				print("ANIM SWUNG %d %d %.2f" % [Net.my_id(), peer_id, power])
-			_seen_side = 1 - (count & 1)
+				print("ANIM SWUNG %d %d %.2f %d" % [Net.my_id(), peer_id, power, RobotAnimInput.step_of(_anim.flags)])
+			_seen_side = _swing_side if is_local else RobotAnimInput.step_of(_anim.flags)
 			_since_swing = 0.0
 			_shown_power = power
 			animator.swing(power, _seen_side)
@@ -738,7 +803,7 @@ func _watch_swings(delta: float) -> void:
 			if _trail:
 				_trail.power = power
 			var loud := lerpf(-5.0, 2.0, power)   # a wound-up swing whooshes louder, and the heavy blow deeper
-			var pitch := 0.84 if power >= MeleeSwing.HEAVY_AT else (1.05 if _seen_side == 0 else 1.12)
+			var pitch := 0.84 if power >= MeleeSwing.HEAVY_AT else (1.05 if _seen_side % 2 == 0 else 1.12)
 			if sounds.own:
 				var whoosh := Sound.play("swing_" + robot.weapon, loud, 0.05)
 				if whoosh:
@@ -978,7 +1043,11 @@ func _update_trail(delta: float) -> void:
 	if _trail == null:
 		return
 	var own_view := view != null and rig != null and not rig.is_third_person()
-	if own_view and view.visible and view.cutting():
+	var limb := animator.melee_swing().kicking() if alive and animator.cutting() else ""
+	if limb != "" and visual.visible:   # a kick: the shin and foot leave the trail (your own leg, in first person too)
+		var e := MeleeModel.kick_edge(robot, limb)
+		_trail.add(e[0], e[1])
+	elif own_view and view.visible and view.cutting():
 		var e := view.edge()
 		_trail.add(e[0], e[1])
 	elif not own_view and alive and visual.visible and animator.cutting() and robot.melee:
@@ -1152,9 +1221,14 @@ func _next_gun() -> void:
 
 ## Where the grapple rope leaves the robot: the launcher on its left wrist.
 func rope_origin() -> Vector3:
-	if view and not rig.is_third_person():
+	if _first_person():
 		return view.marker("grapple")
 	return robot.marker("grapple")
+
+
+## Is this body seen through its own eyes here (the first-person arms, not the robot)?
+func _first_person() -> bool:
+	return view != null and not rig.is_third_person()
 
 
 ## Another player's shot, as told by the host: kick their gun.
@@ -1185,6 +1259,7 @@ func dev_swap_after_death() -> void:
 
 func set_dead() -> void:
 	alive = false
+	_in_remains = false
 	portal_skip = null
 	_charge = -1.0
 	_fly_kick = 0.0
@@ -1192,7 +1267,6 @@ func set_dead() -> void:
 	_flame_t = 0.0
 	if motor:
 		motor.reset()
-	_rope_on = false
 	collision_layer = 0
 	# The body stays where it fell and powers down. Shot in mid-air, it drops to the ground.
 	_corpse_drop = 0.0
@@ -1202,12 +1276,28 @@ func set_dead() -> void:
 	_corpse_room = maxf(global_position.y - hit.position.y, 0.0) if hit else 200.0
 	if not is_local and not buffer.has_data():
 		visual.visible = false   # joined while they were dead: nothing to show yet
+	if _awaiting_respawn:
+		# Killed again before a snapshot from that life got here: we never saw them back.
+		_awaiting_respawn = false
+		if DevArgs.sync_log:
+			print("RESPAWN_CANCEL %d %d" % [Net.my_id(), peer_id])
+	_dead_life = maxi(_seen_life, _awaited_life)
 
 
-## Local player: come back at a spawn point.
-func respawn_at(pos: Vector3, yaw: float) -> void:
+## Dead: a ragdoll or giblets took the body's place (see Remains), so it is hidden
+## until the respawn. The killcam still counts it as drawn (see shown_state).
+func hide_for_remains() -> void:
+	visual.visible = false
+	_in_remains = true
+
+
+## Local player: come back at a spawn point, in the life the host numbered `life`
+## (see Match._respawned; -1 keeps the number, for a race's send-back).
+func respawn_at(pos: Vector3, yaw: float, life: int = -1) -> void:
 	teleport(pos, yaw)
 	_teleport_count += 1
+	if life >= 0:
+		_life = life
 	_fell_reported = false
 	alive = true
 	_ammo.clear()   # Deathmatch: what you carried went with you
@@ -1246,6 +1336,19 @@ func respawn_count() -> int:
 
 func set_respawn_count(n: int) -> void:
 	_teleport_count = n
+
+
+## Arena.rebuild_player: the new body takes over which life the old one was in, and
+## (for someone else) whether it was still waiting to see them back.
+func carry_life_from(old: Player) -> void:
+	_life = old._life
+	_seen_life = old._seen_life
+	_awaited_life = old._awaited_life
+	_dead_life = old._dead_life
+	if old._awaiting_respawn and not is_local:
+		_awaiting_respawn = true
+		visual.visible = false
+		collision_layer = 0
 
 
 ## A blast went off nearby: the view jolts (0..1, how close).
@@ -1316,14 +1419,50 @@ func expect_dead() -> void:
 	visual.visible = false
 
 
-## Remote player: alive again, but stay hidden until their new position arrives.
-func expect_respawn() -> void:
+## Remote player: alive again in `life` (the host's number for it, see Match._respawned).
+## Their snapshots and the news of the respawn travel separately, so either can get
+## here first: if a snapshot from the new life is already here they show at once,
+## otherwise they stay hidden until one arrives (where they were is no place to draw them).
+func expect_respawn(life: int) -> void:
 	alive = true
 	if _pending_gun != "":
 		equip(_pending_gun)
-	_awaiting_respawn = true
-	visual.visible = false
 	sounds.respawned()
+	_awaited_life = life
+	if _seen_life >= life and buffer.has_data():
+		_show_respawned("early")   # (a new life clears the buffer: it holds only snapshots from after the respawn)
+		return
+	_awaiting_respawn = true
+	_hidden_for = 0.0
+	_hidden_snaps = 0
+	visual.visible = false
+	if DevArgs.sync_log:
+		print("RESPAWN_WAIT %d %d" % [Net.my_id(), peer_id])
+
+
+## Remote player: back, and we know where: show them. `how` is for --sync-log: "snapshot"
+## (it came after the respawn), "early" (before it) or "late" (the safety net).
+func _show_respawned(how: String) -> void:
+	_awaiting_respawn = false
+	visual.visible = true
+	collision_layer = 1 << 1
+	animator.respawn()
+	if DevArgs.sync_log:
+		print("RESPAWN_SHOW %d %d %s" % [Net.my_id(), peer_id, how])
+
+
+## Safety net: someone the host says is alive, still hidden waiting for a snapshot from
+## their new life over a second after we were told, while their snapshots keep coming,
+## is shown anyway. Being shot by someone you cannot see is worse than a jump on screen.
+func _check_overdue_respawn(delta: float) -> void:
+	_hidden_for += delta
+	if _hidden_for < OVERDUE_RESPAWN or _hidden_snaps < 10 or not alive or not Match.is_alive(peer_id):
+		return
+	if Net.now() - _newest_snap_at > 0.5:
+		return   # their snapshots have stopped coming: nothing new to draw them with
+	if DevArgs.sync_log:
+		print("RESPAWN_SHOW_LATE %d" % peer_id)
+	_show_respawned("late")
 
 
 func report_fell_once() -> void:
@@ -1339,43 +1478,59 @@ func report_fell_once() -> void:
 # Network state
 
 ## Snapshot layout: position (3), velocity (3), yaw, pitch, movement state,
-## respawn count, grapple attached (0/1), grapple anchor (3), animation flags
-## (see RobotAnimInput.make_flags).
+## respawn count (it also goes up on a blink or a portal), animation flags (see
+## RobotAnimInput.make_flags), life (see _life). While a grappling hook shot is out
+## (and a moment after): the whole shot (HookLine.pack) on the end, so any one
+## snapshot is enough to draw it.
 func make_snapshot() -> PackedFloat32Array:
 	var p := _sent_position()
 	var v := velocity
 	var g := motor.grapple
-	var a := g.anchor
-	return PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch,
-		float(_my_pose()), float(_teleport_count), 1.0 if g.attached else 0.0, a.x, a.y, a.z,
-		float(_my_anim_flags())])
+	var out := PackedFloat32Array([p.x, p.y, p.z, v.x, v.y, v.z, input.yaw, input.pitch,
+		float(_my_pose()), float(_teleport_count), float(_my_anim_flags()), float(_life)])
+	if g.line.sending(g.clock):
+		out.append_array(g.line.pack(g.clock))
+	return out
 
 
 func apply_snapshot(remote_time: float, data: PackedFloat32Array) -> void:
 	if data.size() < 10:
 		return
+	if remote_time <= _newest_snap:
+		return   # older than one already here (unreliable packets can arrive out of order): it would undo a respawn or a jump
+	_newest_snap = remote_time
+	_newest_snap_at = Net.now()
 	var count := int(data[9])
-	if count != _teleport_count:
+	var life := int(data[11]) if data.size() >= SNAPSHOT_SIZE else _seen_life
+	var new_life := life != _seen_life
+	if count != _teleport_count or new_life:
 		_teleport_count = count
-		if alive and not _awaiting_respawn and visual.visible and buffer.has_data():
+		if alive and not _awaiting_respawn and visual.visible and buffer.has_data() and not new_life:
 			_show_warp(latest_position(), Vector3(data[0], data[1], data[2]))   # a blink or a portal, not a respawn
 		buffer.clear_history()  # never blend across a respawn
-		if _awaiting_respawn:
-			_awaiting_respawn = false
-			if alive:
-				visual.visible = true
-				collision_layer = 1 << 1
-				animator.respawn()
+		if new_life and not alive and _dead_life >= 0 and life > _dead_life:
+			# Back already, and we have not been told yet: the body that fell is not
+			# dragged to where they are now. They show once the respawn gets here.
+			visual.visible = false
+			_in_remains = false
+	_seen_life = life
 	buffer.push(remote_time, Net.now(),
 		Vector3(data[0], data[1], data[2]), Vector3(data[3], data[4], data[5]),
-		data[6], data[7], int(data[8]), int(data[14]) if data.size() >= 15 else 0)
-	if data.size() >= 14:
-		var on := data[10] > 0.5
-		var anchor := Vector3(data[11], data[12], data[13])
-		var last_on: bool = _rope_events[-1][1] if not _rope_events.is_empty() else _rope_on
-		var last_anchor: Vector3 = _rope_events[-1][2] if not _rope_events.is_empty() else _rope_anchor
-		if on != last_on or (on and anchor.distance_squared_to(last_anchor) > 0.01):
-			_rope_events.append([remote_time, on, anchor])
+		data[6], data[7], int(data[8]), int(data[10]) if data.size() >= 11 else 0)
+	if _awaiting_respawn:
+		_hidden_snaps += 1
+		if life >= _awaited_life:
+			_show_respawned("snapshot")
+	if data.size() >= SNAPSHOT_SIZE + HookLine.PACKED:
+		if _hook_line == null or HookLine.packed_seq(data, SNAPSHOT_SIZE) != _hook_line.seq:
+			_hook_old = _hook_line   # (the shot before may still be whipping back on our screen)
+			_hook_line = HookLine.new()
+		var known := _hook_line.moments()
+		_hook_line.absorb(remote_time, data, SNAPSHOT_SIZE, _hook_old)
+		if DevArgs.sync_log and _hook_line.moments() != known:
+			_log_hook("SEEN %d %d" % [Net.my_id(), peer_id], _hook_line, known, 0.0)
+	elif _hook_line and _hook_line.t_release == INF:
+		_hook_line.drop(remote_time)   # no more news of a shot we never saw end: it is over
 
 
 func latest_position() -> Vector3:
@@ -1454,7 +1609,7 @@ func _update_pose(h: float) -> void:
 ## The small animation facts that travel in snapshots (see RobotAnimInput.make_flags).
 func _my_anim_flags() -> int:
 	var right := Vector3.RIGHT.rotated(Vector3.UP, input.yaw)
-	var wall := motor.wall_normal if motor.state == MovementController.State.WALL_RUN else motor.kick_wall
+	var wall := motor.wall_normal if motor.state in [MovementController.State.WALL_RUN, MovementController.State.WALL_SIT] else motor.kick_wall
 	var flip := RobotAnimInput.FLIP_BACK
 	var f := motor.flip_dir
 	if absf(f.x) > absf(f.y):
@@ -1463,7 +1618,8 @@ func _my_anim_flags() -> int:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
-		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive)
+		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive, _swing_side,
+		motor.state == MovementController.State.GRAPPLE and input.move.length() > 0.3)
 
 
 ## Turns the body to face its yaw and plays its animation.
@@ -1477,12 +1633,39 @@ func _animate(delta: float) -> void:
 	_anim.alive = alive
 	_anim.yaw = _visual_yaw
 	var first_person := rig.first_person_amount() if rig and alive else 0.0
+	if first_person > 0.0 and motor and motor.auto_tucked():
+		_anim.crouched = false   # Variant B: your own legs do not pull up for the automatic tuck in first person
 	animator.first_person = first_person > 0.0
+	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
+	_anim.feet = _feet_ground()
 	animator.update(delta, _anim, visual.global_transform)
 	if rig:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)
 	if DevArgs.sync_log:
 		_log_animation()
+
+
+## The ground under each foot, measured from the floor this body stands on (see
+## RobotAnimInput.feet): a short ray straight down through each foot. Only while
+## standing or crouching still, which is the only time RobotAnimator uses it.
+func _feet_ground() -> Vector2:
+	if not alive or robot == null or not is_inside_tree():
+		return Vector2.ZERO
+	if not (_anim.state in [MovementController.State.GROUND, MovementController.State.CROUCH]):
+		return Vector2.ZERO
+	if Vector2(_anim.velocity.x, _anim.velocity.z).length() > RobotAnimator.FEET_STILL:
+		return Vector2.ZERO
+	var space := get_world_3d().direct_space_state
+	var floor_y := global_position.y
+	var out := Vector2.ZERO
+	for i in 2:
+		var at := robot.marker("foot_l" if i == 0 else "foot_r")
+		var ray := PhysicsRayQueryParameters3D.create(Vector3(at.x, floor_y + RobotAnimator.FEET_REACH + 0.1, at.z),
+			Vector3(at.x, floor_y - RobotAnimator.FEET_REACH - 0.1, at.z), 1, [get_rid()])
+		var hit := space.intersect_ray(ray)
+		if not hit.is_empty():
+			out[i] = (hit.position as Vector3).y - floor_y
+	return out
 
 
 ## For tests/check_anim.py: prints the animation this body shows whenever it changes.
@@ -1518,12 +1701,28 @@ func _target_roll() -> float:
 
 ## What this copy of the game draws for this player right now, for the killcam's
 ## recording (see Killcam): [feet, velocity, yaw, pitch, pose, animation flags,
-## rope on, rope anchor, alive, drawn, eye height above the feet, weapon in hand].
+## rope on, rope anchor, alive, drawn, eye height above the feet, weapon in hand,
+## the grappling hook's rope]. That last one is null with no rope drawn, otherwise
+## [where the hook is, slack, seconds since the shot, seconds since it pulled tight]:
+## what HookRope drew it from, so the replay draws the same rope ("rope on" and
+## "rope anchor" only say where the arm points).
+## A body hidden only because remains took its place counts as drawn: the replay has
+## remains of its own to put there (see KillcamView), or shows the body as it was.
 func shown_state() -> Array:
 	var pose := _my_pose() if is_local and motor else _remote_state
 	var eye := motor.eye_height if is_local and motor else eye_for_pose(pose) - tuck_offset(pose)   # (a remote body is drawn lifted by its tuck)
-	return [global_position, velocity, _visual_yaw, _anim.pitch, pose, _anim.flags, _anim.grapple_on and alive,
-		_anim.grapple_anchor, alive, visual.visible and not _awaiting_respawn, eye, robot.weapon if robot else "none"]
+	var hook := _hook_look
+	if not hook.is_empty() and _first_person():
+		# (Your own hook was drawn from your first-person arm; the replay shows your
+		# body from outside, so it gets the hook as everyone else saw it.)
+		var mine := motor.grapple
+		hook = mine.line.look(mine.clock, robot.marker("grapple"), mine.rope_origin(self))
+	var at := global_position
+	if not is_local and _uncarried != Vector3.INF and _uncarried.distance_to(at) < 4.0:   # (a stale one, after a respawn: no)
+		at = _uncarried
+	return [at, velocity, _visual_yaw, _anim.pitch, pose, _anim.flags, _anim.grapple_on and alive,
+		_anim.grapple_anchor, alive, (visual.visible or (_in_remains and not alive)) and not _awaiting_respawn, eye, robot.weapon if robot else "none",
+		hook.slice(1) if not hook.is_empty() else null]
 
 
 ## Eye height above the feet for a pose (as sent in snapshots).
@@ -1571,7 +1770,7 @@ func warp(pos: Vector3, vel: Vector3, yaw: float) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Mobility: the grapple, portal gun or blink (see Mobility)
+# Mobility: the grapple, portal gun, blink or jetpack (see Mobility)
 
 ## Change the tool on the mobility button (picked while waiting to respawn).
 func set_mobility(id: String) -> void:
@@ -1584,7 +1783,9 @@ func set_mobility(id: String) -> void:
 	blink = Blink.new() if mobility == Mobility.BLINK else null
 	portal_gun = PortalGun.new() if mobility == Mobility.PORTAL else null
 	jetpack = Jetpack.new() if mobility == Mobility.JETPACK else null
-	if motor and mobility != Mobility.GRAPPLE:
+	if motor == null:
+		return
+	if not Mobility.is_grapple(mobility):
 		motor.grapple.reset()
 
 
@@ -1763,6 +1964,8 @@ func _scripted_input(delta: float) -> void:
 			input.fire = true
 			if weapon and weapon.data.is_melee():
 				input.fire = fmod(t, 1.6) < 1.1   # wind a swing up for a second, then let go
+				if MeleeSwing.combo_length(weapon.data.id) > 2:   # a combo (Karate): a run of quick taps, then a full wind-up
+					input.fire = fmod(t, 0.42) < 0.1 if fmod(t, 4.0) < 3.0 else fmod(t, 4.0) < 3.8
 			if fmod(t, 0.2) < delta and input.fire:
 				input.fire_pressed = true  # click about 5 times a second
 		if fmod(t, 6.0) < delta and weapon:
@@ -1816,58 +2019,89 @@ func _nearest_visible_opponent() -> Player:
 
 
 # ---------------------------------------------------------------------------
-# Grapple rope
+# The grappling hook's rope (see Grapple, HookLine and HookRope)
 
-func _build_rope() -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.12, 0.12, 0.13)
-	mat.metallic = 0.6
-	mat.roughness = 0.4
-	_rope = MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.018
-	cyl.bottom_radius = 0.018
-	cyl.height = 1.0
-	cyl.radial_segments = 6
-	cyl.rings = 1
-	cyl.material = mat
-	_rope.mesh = cyl
-	_rope.top_level = true
-	_rope.visible = false
-	_rope.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_rope)
-	_hook = MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3(0.14, 0.14, 0.14)
-	var hook_mat := StandardMaterial3D.new()
-	hook_mat.albedo_color = Color(0.95, 0.7, 0.15)
-	box.material = hook_mat
-	_hook.mesh = box
-	_hook.top_level = true
-	_hook.visible = false
-	add_child(_hook)
-
-
-## Stretches the rope from the wrist launcher to the anchor.
-func _draw_rope(on: bool, anchor: Vector3) -> void:
-	_rope.visible = on
-	_hook.visible = on
-	if not on:
+## Draws the grappling hook's rope and hook from `look` (HookLine.look; [] for none),
+## and plays the sounds of whatever has just happened to it.
+func _draw_hook(look: Array) -> void:
+	_hook_look = look
+	var stage: int = look[0] if not look.is_empty() else HookLine.OFF
+	if stage != _hook_stage:
+		sounds.hook_stage(_hook_stage, stage, look[1] if not look.is_empty() else global_position)
+		_hook_stage = stage
+	if look.is_empty():
+		if _hook_rope:
+			_hook_rope.hide_line()
 		return
-	var from := rope_origin()
-	var span := anchor - from
-	var dist := span.length()
-	if dist < 0.05:
-		_rope.visible = false
+	if _hook_rope == null:
+		_hook_rope = HookRope.new()
+		add_child(_hook_rope)
+	_hook_rope.show_look(rope_origin(), look)
+
+
+## Remote: which of their shots is on screen at their time `t` (null: none yet).
+func _hook_shot_at(t: float) -> HookLine:
+	if _hook_line and t >= _hook_line.t_launch:
+		return _hook_line
+	return _hook_old
+
+
+## Remote: a shot hooked on a player ends on that player's chest as this copy draws
+## them (INF: it is on a surface, or they are not to be seen: use the shot's own anchor).
+func _hook_anchor(shot: HookLine) -> Vector3:
+	if shot == null or shot.target_id == 0 or Net.arena == null:
+		return Vector3.INF
+	var on: Player = Net.arena.get_player(shot.target_id)
+	return Grapple.target_point(on) if on and on.visible_in_world() else Vector3.INF
+
+
+## Remote: a hook still flying on our screen, with no news yet of where it stopped
+## (a late or lost packet), is held at the first wall on its way instead of being
+## drawn flying on through it. The news, when it comes, takes over (HookLine.absorb).
+func _guard_hook(shot: HookLine, t: float) -> void:
+	if shot == null or shot.t_stop != INF or shot.stage(t) != HookLine.FLYING or not is_inside_tree():
 		return
-	var y := span / dist
-	var x := y.cross(Vector3.UP)
-	if x.length_squared() < 0.001:
-		x = y.cross(Vector3.RIGHT)
-	x = x.normalized()
-	var z := x.cross(y).normalized()
-	_rope.global_transform = Transform3D(Basis(x, y * dist, z), from + span * 0.5)
-	_hook.global_position = anchor
+	var from := shot.flight_pos(float(_hook_guard[1])) if int(_hook_guard[0]) == shot.seq else shot.origin
+	_hook_guard = [shot.seq, t]
+	var to := shot.flight_pos(t)
+	if from.distance_squared_to(to) < 0.0001:
+		return
+	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1))
+	if not hit.is_empty():
+		shot.hold = shot.origin.distance_to(hit.position)
+
+
+## --sync-log, your own hook (or your bot's): each moment of the shot as it happens,
+## and where the hook is every step, for tests/check_hook.py.
+func _log_own_hook(hook: Grapple) -> void:
+	var line := hook.line
+	var known := int(_hook_logged[1]) if int(_hook_logged[0]) == line.seq else 0
+	if line.moments() != known:
+		_log_hook("SELF %d" % peer_id, line, known, Net.now() - hook.clock)
+		_hook_logged = [line.seq, line.moments()]
+	# (As everyone else sees it leave you, not from your first-person arm: that one is
+	# only on your own screen. And with the rope's near end at the chest: every copy
+	# draws it at the wrist of the body as it poses it, so the hook coming back is
+	# compared by where it is on its way to the body.)
+	var chest := hook.rope_origin(self)
+	var look := line.look(hook.clock, chest, chest) if alive else []
+	if not look.is_empty():
+		var hp: Vector3 = look[1]
+		print("HOOK SELF %d %d %.4f %d %.3f %.3f %.3f %.3f" % [peer_id, line.seq, Net.now(), look[0], hp.x, hp.y, hp.z, look[2]])
+
+
+## Prints the moments of `line` not yet printed (`known`: HookLine.moments() before),
+## as times on the clock of the player whose hook it is (`shift` takes the line's own
+## times to that clock).
+func _log_hook(who: String, line: HookLine, known: int, shift: float) -> void:
+	var names := ["launch", "stop", "taut", "release"]
+	var times := [line.t_launch, line.t_stop, line.t_taut, line.t_release]
+	for i in 4:
+		if line.moments() & (1 << i) != 0 and known & (1 << i) == 0:
+			var extra := (" caught %d" % line.target_id if line.caught else " missed") if i == 1 else ""
+			if i == 0 and line.back:
+				extra = " back"   # (a hook that caught on its way back: its record begins as it set off)
+			print("HOOKEV %s %d %s %.4f%s" % [who, line.seq, names[i], float(times[i]) + shift, extra])
 
 
 

@@ -1,7 +1,7 @@
 class_name MobilityPicker
 extends VBoxContainer
 ## "Mobility" chooser for the menus: a button for each tool on the mobility button
-## (grappling hook, portal gun, blink) and a line about the one picked (or the one
+## (the grappling hook, portal gun, blink, jetpack) and a line about the one picked (or the one
 ## under the mouse). Like WeaponPicker it only reports the choice. Only the tools the
 ## host allows can be picked (set_allowed); the others are greyed out.
 

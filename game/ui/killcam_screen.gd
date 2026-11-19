@@ -43,7 +43,7 @@ func _init() -> void:
 	add_child(_box)
 	_view = SubViewport.new()
 	_view.own_world_3d = true
-	_view.msaa_3d = Viewport.MSAA_4X
+	GraphicsQuality.apply_viewport(_view, Settings.graphics(), -1.0)   # your anti-aliasing picks
 	_view.audio_listener_enable_3d = false   # its sounds play as your own (see KillcamView.world_sound)
 	_box.add_child(_view)
 	_overlay = Control.new()
@@ -64,6 +64,7 @@ func play(list: Array, which: Array = []) -> void:
 	if _map == null:
 		_map = Maps.make(Net.map_id())
 		_map.name = "Level"
+		_map.destructible = MapReplay.wants_destruction(highlights.map(func(h): return Killcam.clip_for(h)))   # (to show the walls as they were)
 		_view.add_child(_map)
 		_map.build()
 	show_clip(order.pop_front())
@@ -83,6 +84,7 @@ func show_clip(i: int) -> void:
 		_wait = PAUSE * 2.0
 	else:
 		_player = KillcamView.new().setup(clip, true)
+		_player.map = _map
 		_player.world_sound = false
 		_view.add_child(_player)
 		_player.finished.connect(func(): _wait = PAUSE)

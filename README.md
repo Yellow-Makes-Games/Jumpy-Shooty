@@ -12,7 +12,7 @@ Built with **Godot 4.7** (GDScript). Multiplayer is player-hosted: one player ho
 up to 15 friends connect to them. Today that works over direct IP; Steam invites and
 relays are next.
 
-**Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site, Office, Kilnworks, Rail Yard, Lost Temple and Neon Arcade maps, four race courses (Rooftop Run, Foundry, Sky Ruins, Summit Plunge), a Character Creator (mix the heads, torsos and legs of the robots and of 20 creatures such as a dude, a goblin, a frog or a skeleton, pick a paint and a skin tone, add hats, glasses, capes, tails and more, and play as it online), the Testing Grounds test map and offline bot matches (1v1, or a free-for-all against up to 4 bots) work, with sound effects for every gun, hit, move and menu; Steam is next. See [docs/FEATURES.md](docs/FEATURES.md)
+**Status:** Milestone 1 in progress: match loop, full movement set, the Construction Site, Office, Kilnworks, Rail Yard, Lost Temple and Neon Arcade maps, four race courses (Rooftop Run, Foundry, Sky Ruins, Summit Plunge), a Character Creator (mix the heads, torsos and legs of the robots and of 20 creatures such as a dude, a goblin, a frog or a skeleton, pick its main, second and detail colours and a skin tone, add hats, glasses, capes, tails and more, each in a colour of its own, and play as it online), your own colour in a free-for-all, achievements that unlock creator items, calling cards and icons (kills, headshots, wins, race medals and more), the Testing Grounds test map and offline bot matches (1v1, or a free-for-all against up to 4 bots) work, with sound effects for every gun, hit, move and menu; Steam is next. See [docs/FEATURES.md](docs/FEATURES.md)
 for what works and what does not yet.
 
 ## Quick start
@@ -32,12 +32,12 @@ More detail, including how to play with a friend and run several copies on one P
 | Sprint | Shift |
 | Glide (hold in mid-air: you carry on the way you were going, slowing and sinking gently, free to look and aim, and guns scatter less; let go to stop) | Shift |
 | Jump | Space |
-| Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit) | Left mouse |
+| Shoot (melee: hold to wind a swing up, let go to swing; the longer the wind-up, the harder the hit; Karate: each swing is the next move of a six-hit combo) | Left mouse |
 | Change weapon (while waiting to respawn) | 1-7 or mouse wheel |
 | Deathmatch: take out the weapon in slot 1 or 2 (you carry two) | 1 / 2 or mouse wheel |
 | Kick (any weapon; with a player on your grapple: flying kick) | F |
 | Rocket boots (a burst toward WASD as you look; hold Space to tip it up; while gliding, turns the glide that way) | E |
-| Interact (press at the terminal in Halcyon's Control Room: low gravity; Search and Destroy: hold to plant or defuse the bomb) | G |
+| Interact (press at the terminal in Halcyon's Control Room: low gravity; at the lever in the Construction Site's crane cab: the crane moves its load; Search and Destroy: hold to plant or defuse the bomb) | G |
 | Reload (in a race: back to your last checkpoint) | R |
 | Switch first / third person | V |
 | Scoreboard | Tab (hold) |
@@ -46,9 +46,12 @@ More detail, including how to play with a friend and run several copies on one P
 | Spectate (fly a noclip camera nobody can see) | Esc > Spectate, or **Join as spectator**; then W A S D fly, Space up, Ctrl / C down, Shift fast |
 
 Right mouse is your **mobility** tool, picked before a match, in the pause menu's Loadout or
-by pressing right mouse while you wait to respawn: the **grappling hook**, the **portal gun**
+by pressing right mouse while you wait to respawn: the **grappling hook**
+(the hook is a projectile: it flies out with slack in the rope, bites, the winch takes the slack in and
+the rope snaps tight with a yank, then it reels you in and you swing; lead a moving target, and let go to call it back; while you hold the
+button, a hook on its way back catches the first surface in its way), the **portal gun**
 (each press puts up your next portal, blue then orange, up to 45 m apart; walk into one and come out of the other
-with your speed carried through; anyone can use anyone's portals, and yours go when you die) or
+with your speed carried through, and see and shoot through each to the other side (bullets, rockets and grenades go through too); portals on moving parts of a map ride them; anyone can use anyone's portals, and yours go when you die) or
 **blink** (a short teleport where you look, one charge that recharges, with a trail of sparks to where you land) or the **jetpack** (hold to fly and steer with WASD, on fuel that refills when you let go, fastest on the ground). A race always has the grapple.
 Grapple is right mouse, crouch / slide is Ctrl or C, dive is Q or Alt. Every key except Esc can be
 rebound under **Settings > Controls** (two bindings per action, keys or mouse buttons); a key

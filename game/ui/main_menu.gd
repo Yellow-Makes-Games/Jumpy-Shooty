@@ -1,8 +1,14 @@
 extends Control
-## Main menu. The front page has the title and big buttons on the left and every
-## robot lined up on the right; every other page (Play, Practice, Vs Bots,
-## Multiplayer, Settings) is built in one MenuFrame, which keeps its buttons on
-## screen whatever the window size. Built in code.
+## Main menu. The front page has the title and big buttons on the left (Play, with a
+## globe button beside it that goes straight to Multiplayer; Profile; Settings; Exit)
+## and a cinematic showcase of the characters on the right (CharacterShowcase); every other page (Play, Practice, Vs Bots,
+## Multiplayer, Settings, and Profile with its tabs: Character, Calling Card,
+## Achievements) is built in one MenuFrame, which keeps its buttons on screen whatever
+## the window size. Built in code.
+
+## The Profile page's tabs: [name, page].
+const PROFILE_TABS := [["Profile", "_show_profile"], ["Character", "_show_creator"],
+	["Calling Card", "_show_calling_card"], ["Achievements", "_show_achievements"]]
 
 const MODE_LABELS := ["Shoot-out", "Deathmatch", "Race"]
 ## Shown where the weapon cards would be, in the modes that don't use your pick.
@@ -13,10 +19,15 @@ const NO_WEAPON_NOTES := {
 	"killcam": "Killcam is snipers only: every kill scores its killcam points.",
 }
 
+## The character showcase on the front page runs top to bottom from SHOWCASE_LEFT
+## (clear of the buttons) to the right edge, at most SHOWCASE_MAX_W wide (a wide
+## screen keeps the character near the middle of the empty space, not at the edge).
+const SHOWCASE_LEFT := 600.0
+const SHOWCASE_MAX_W := 1400.0
+
 var _front: Control             # the front page
-var _robot: RobotPreview
+var _showcase: CharacterShowcase
 var _frame: MenuFrame           # every other page
-var _name_edit: LineEdit
 var _code_edit: LineEdit
 var _status: Label
 
@@ -35,6 +46,9 @@ func _ready() -> void:
 		"multiplayer": _show_multiplayer()
 		"settings": _show_settings()
 		"creator": _show_creator()
+		"achievements": _show_achievements()
+		"card": _show_calling_card()
+		"profile": _show_profile()
 		_: _show_main()
 
 
@@ -44,11 +58,14 @@ func _build_front() -> void:
 	_front.draw.connect(_draw_front)
 	_front.resized.connect(_front.queue_redraw)
 	add_child(_front)
-	_robot = RobotPreview.new(Vector2(820, 720), 0.92)
-	_robot.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, 60)
-	_robot.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_robot.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_front.add_child(_robot)
+	_showcase = CharacterShowcase.new()
+	_showcase.name = "Showcase"
+	_showcase.set_anchors_preset(Control.PRESET_RIGHT_WIDE)
+	_showcase.offset_right = 0.0
+	_showcase.caption = caption()
+	_front.add_child(_showcase)
+	_front.resized.connect(_fit_showcase)
+	_fit_showcase()
 	var left := VBoxContainer.new()
 	left.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT, Control.PRESET_MODE_MINSIZE, 120)
 	left.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -66,7 +83,11 @@ func _build_front() -> void:
 	_front.add_child(notice)
 
 
-## A ruled line down the left of the front page's column, and a caption under the robots.
+func _fit_showcase() -> void:
+	_showcase.offset_left = -minf(maxf(_front.size.x - SHOWCASE_LEFT, 600.0), SHOWCASE_MAX_W)
+
+
+## A ruled line down the left of the front page's column.
 func _draw_front() -> void:
 	var s := _front.size
 	var x := 92.0
@@ -74,9 +95,13 @@ func _draw_front() -> void:
 	_front.draw_rect(Rect2(x - 2.0, s.y * 0.5 - 250.0, 5.0, 34.0), UiKit.ACCENT)
 	for i in 9:
 		_front.draw_line(Vector2(x, s.y * 0.5 - 180.0 + i * 52.0), Vector2(x + 8.0, s.y * 0.5 - 180.0 + i * 52.0), Color(UiKit.LINE, 0.4), 1.0)
-	var cap := Vector2(s.x - 60.0 - 410.0, s.y * 0.5 + 200.0)
-	HudStyle.label(_front, cap, "%d ROBOTS  ·  %d WEAPONS  ·  PICK YOURS" % [Characters.LIST.size(), WeaponData.IDS.size()], 12,
-		Color(UiKit.CYAN, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
+
+
+## The line under the showcase: "14 MAPS  ·  45 WEAPONS  ·  8 GAMEMODES" (the maps you
+## can pick, not the ones still in the works).
+static func caption() -> String:
+	var maps := Maps.LIST.filter(func(m): return not m.dev).size()
+	return "%d MAPS  ·  %d WEAPONS  ·  %d GAMEMODES" % [maps, WeaponData.IDS.size(), GunGame.MODES.size()]
 
 
 ## Start a page in the frame: `width` wide, with this heading.
@@ -92,32 +117,67 @@ func _show_main() -> void:
 	_front.visible = true
 	_frame.visible = false
 	_frame.clear()
-	# Every robot, newest on the left, then your three newest custom characters.
-	_robot.show_lineup(Characters.ids() + Settings.custom_characters.slice(-3), Net.PLAYER_COLORS)
+	# The characters one at a time, your three newest custom ones among them.
+	_showcase.start(Settings.custom_characters.slice(-3))
 	var left: VBoxContainer = _front.get_node("Column")
 	UiKit.clear(left)
+	var logo := VBoxContainer.new()
+	logo.add_theme_constant_override("separation", -34)   # the font's line height is generous
+	left.add_child(logo)
+	_big(logo, "JUMPY", Color.WHITE)
+	_big(logo, "SHOOTY", UiKit.ACCENT)
+	if Game.pending_notice != "":
+		var n := UiKit.label(left, Game.pending_notice, false, 17)
+		n.add_theme_color_override("font_color", UiKit.ACCENT)
+		Game.pending_notice = ""
+	UiKit.spacer(left, 14)
+	# Play, and beside it a square globe button: straight to Multiplayer.
+	var play_row := HBoxContainer.new()
+	play_row.add_theme_constant_override("separation", 12)
+	left.add_child(play_row)
+	var play := UiKit.primary_button(play_row, "Play", _show_play)
+	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	play.grab_focus()
+	var online := UiKit.primary_button(play_row, "", _show_multiplayer)
+	online.name = "Online"
+	online.tooltip_text = "Multiplayer"
+	online.custom_minimum_size = Vector2(72, 56)
+	var globe := Control.new()
+	globe.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	globe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	globe.draw.connect(_draw_globe.bind(globe))
+	online.add_child(globe)
+	_front_button(left, "Profile", _show_profile)
+	_front_button(left, "Settings", _show_settings)
+	_front_button(left, "Exit", Game.quit_game)
+	UiKit.spacer(left, 18)
 	var kicker := Label.new()
 	kicker.text = "HIGH-MOBILITY ARENA SHOOTER"
 	kicker.add_theme_font_override("font", HudStyle.font_spaced(3))
 	kicker.add_theme_font_size_override("font_size", 13)
 	kicker.add_theme_color_override("font_color", UiKit.CYAN)
 	left.add_child(kicker)
-	var logo := VBoxContainer.new()
-	logo.add_theme_constant_override("separation", -34)   # the font's line height is generous
-	left.add_child(logo)
-	_big(logo, "JUMPY", Color.WHITE)
-	_big(logo, "SHOOTY", UiKit.ACCENT)
-	UiKit.label(left, "Grapple, wall-run, slide and shoot.", true, 18)
-	if Game.pending_notice != "":
-		var n := UiKit.label(left, Game.pending_notice, false, 17)
-		n.add_theme_color_override("font_color", UiKit.ACCENT)
-		Game.pending_notice = ""
-	UiKit.spacer(left, 14)
-	UiKit.primary_button(left, "Play", _show_play).grab_focus()
-	_front_button(left, "Multiplayer", _show_multiplayer)
-	_front_button(left, "Character Creator", _show_creator)
-	_front_button(left, "Settings", _show_settings)
-	_front_button(left, "Exit", Game.quit_game)
+
+
+## The globe on the Multiplayer button: a circle, its equator, two lines of latitude
+## and two meridians.
+func _draw_globe(c: Control) -> void:
+	var mid := c.size * 0.5
+	var r := minf(c.size.x, c.size.y) * 0.3
+	var col := UiKit.ACCENT_DARK
+	var w := 2.0
+	c.draw_arc(mid, r, 0.0, TAU, 40, col, w, true)
+	c.draw_line(mid + Vector2(-r, 0), mid + Vector2(r, 0), col, w, true)
+	for k in [-0.5, 0.5]:
+		var y: float = r * k
+		var half := sqrt(r * r - y * y)
+		c.draw_line(mid + Vector2(-half, y), mid + Vector2(half, y), col, w * 0.75, true)
+	c.draw_line(mid + Vector2(0, -r), mid + Vector2(0, r), col, w * 0.75, true)
+	var pts := PackedVector2Array()
+	for i in 41:
+		var t := TAU * i / 40.0
+		pts.append(mid + Vector2(cos(t) * r * 0.45, sin(t) * r))
+	c.draw_polyline(pts, col, w * 0.75, true)
 
 
 func _big(parent: Node, text: String, color: Color) -> Label:
@@ -247,8 +307,13 @@ func _three_columns() -> Array:
 	left.custom_minimum_size = Vector2(410, 0)
 	row.add_child(left)
 	_divider(row)
-	var pick := CharacterPicker.new(Game.local_character(), Net.PLAYER_COLORS[0], Game.local_weapon())
+	var pick := CharacterPicker.new(Game.local_character(), Net.menu_color(), Game.local_weapon())
 	row.add_child(pick)
+	pick.offer_colors(true)   # your colour in a free-for-all (a team mode gives you your team's)
+	pick.color_picked.connect(func(index: int):
+		Settings.player_color = index
+		Settings.save_settings()
+		pick.set_color(Net.menu_color()))
 	pick.picked.connect(func(id: String):
 		Settings.character = id
 		Settings.save_settings())
@@ -367,7 +432,24 @@ func _show_practice() -> void:
 	var map := _map_picker(left, Game.last_practice_map, mode[0])
 	map_ref[0] = map
 	_frame.back_button("Back", _show_play)
+	_movement_toggle()
 	_start_button(func(): Game.start_practice(Maps.picked(map), mode[0]))
+
+
+## The movement variant switch in the Practice and Vs Bots pages' footer (see
+## MovementTuning.VARIANTS): lit is Variant B. It is remembered for the next match.
+func _movement_toggle() -> Button:
+	var b := _frame.back_button("", func(): pass)
+	b.toggle_mode = true
+	b.custom_minimum_size.x = 260
+	b.tooltip_text = "A/B test: classic movement, or Variant B for you and the bots."
+	b.button_pressed = Game.movement_choice() == "b"
+	b.disabled = DevArgs.movement != ""   # --movement decides
+	b.text = "Movement: " + MovementTuning.variant_name(Game.movement_choice())
+	b.toggled.connect(func(on: bool):
+		Game.last_movement = "b" if on else "classic"
+		b.text = "Movement: " + MovementTuning.variant_name(Game.last_movement))
+	return b
 
 
 const RACE_BLURBS := [
@@ -503,6 +585,7 @@ func _show_bot() -> void:
 	allowed_moves.changed.connect(func(_ids: Array): show_mode.call(mode[0]))
 	show_mode.call(mode[0])
 	_frame.back_button("Back", _show_play)
+	_movement_toggle()
 	_start_button(func(): Game.start_bot(level[0], int(kills.value), Maps.picked(map),
 			count.get_selected_id(), mode[0] if mode[0] in GunGame.RULES else "kills", GunGame.game_of_mode(mode[0]), rules.value(),
 			allowed_moves.value(), {"killcam_points": int(killcam_points.value), "killcam_minutes": int(killcam_minutes.value)}))
@@ -511,8 +594,8 @@ func _show_bot() -> void:
 func _show_multiplayer() -> void:
 	_page(900, "Multiplayer", "Play  /  with friends")
 	var col := _frame.body
-	UiKit.section(col, "Your name")
-	_name_edit = UiKit.line_edit(col, "Player", Game.local_name() if Game.local_name() != "Player" else "")
+	var who := UiKit.label(col, "Playing as %s  ·  change your name in Profile" % Game.local_name(), true, 16)
+	who.name = "PlayingAs"
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	col.add_child(row)
@@ -532,10 +615,47 @@ func _show_multiplayer() -> void:
 
 
 # ---------------------------------------------------------------------------
+# Profile: your name, stats, level and achievements; its tabs lead to the Character
+# Creator, the Calling Card and the Achievements.
+
+## Start a Profile page: the tabs along the top, `current` lit (a page from PROFILE_TABS).
+func _profile_page(current: String, width: float = 1280) -> void:
+	_page(width)
+	var row := HBoxContainer.new()
+	row.name = "ProfileTabs"
+	row.add_theme_constant_override("separation", 10)
+	_frame.header.add_child(row)
+	var group := ButtonGroup.new()
+	for i in PROFILE_TABS.size():
+		if i == 2:   # Calling Card and Achievements on the right, as a pair
+			var gap := Control.new()
+			gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(gap)
+		var page: String = PROFILE_TABS[i][1]
+		var b := UiKit.button(row, str(PROFILE_TABS[i][0]).to_upper(), func():
+			if page != current:
+				call(page))
+		b.name = page.trim_prefix("_show_")
+		b.toggle_mode = true
+		b.button_group = group
+		b.button_pressed = page == current
+		b.custom_minimum_size = Vector2(190, 46)
+		b.add_theme_font_size_override("font_size", 19)
+		b.set_meta("sfx", "select")
+
+
+func _show_profile() -> void:
+	_profile_page("_show_profile")
+	_frame.body.add_child(ProfilePage.new())
+	_frame.back_button("Back", _show_main).grab_focus()
+
+
+# ---------------------------------------------------------------------------
 # Character Creator
 
 func _show_creator() -> void:
-	_page(1280, "Character Creator", "Robot, dude, goblin, frog: mix any head, torso and legs, then dress it up")
+	_profile_page("_show_creator")
+	UiKit.label(_frame.header, "Robot, dude, goblin, frog: mix any head, torso and legs, then dress it up.", true, 15)
 	var start := Game.local_character()
 	if not Characters.is_custom(start) and not Settings.custom_characters.is_empty():
 		start = Settings.custom_characters[-1]
@@ -546,10 +666,44 @@ func _show_creator() -> void:
 	del.custom_minimum_size.x = 140
 	var keep := _frame.back_button("Save", func(): creator.save())
 	keep.custom_minimum_size.x = 160
-	_frame.main_button("Save and play as this", func():
-		Settings.character = creator.save()
+	var play := _frame.main_button("Save and play as this", func():
+		var id := creator.save()
+		if id == "":
+			return   # it wears something still locked (the creator says what)
+		Settings.character = id
 		Settings.save_settings()
-		_show_main()).grab_focus()
+		_show_main())
+	play.grab_focus()
+	# Something locked on it: it can be looked at, not saved.
+	var lock := func():
+		keep.disabled = not creator.can_save()
+		play.disabled = keep.disabled
+		play.text = "SAVE AND PLAY AS THIS" if creator.can_save() else "LOCKED: SEE ACHIEVEMENTS"
+	creator.changed.connect(lock)
+	lock.call()
+
+
+# Calling Card: the banner and the badge other players see with your name.
+func _show_calling_card() -> void:
+	_profile_page("_show_calling_card")
+	UiKit.label(_frame.header, "Your banner and icon, by your name for everyone to see. Play to unlock more.", true, 15)
+	_frame.body.add_child(CallingCardPicker.new())
+	_frame.back_button("Back", _show_main).grab_focus()
+
+
+# Achievements: what you have done, how far along the rest are, and what each unlocks.
+func _show_achievements() -> void:
+	var counts := Achievements.item_counts()
+	_profile_page("_show_achievements")
+	UiKit.label(_frame.header, "%d of %d done  ·  %d of %d items unlocked  ·  click one, or point at it and press T, to track it on your Profile (up to %d)" % [
+		Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1], Achievements.MAX_TRACKED], true, 15)
+	UiKit.section(_frame.body, "Race medals")
+	_frame.body.add_child(AchievementsPanel.medals())
+	UiKit.section(_frame.body, "Achievements")
+	var panel := AchievementsPanel.new()
+	_frame.body.add_child(AchievementsPanel.tabs(panel))
+	_frame.body.add_child(panel)
+	_frame.back_button("Back", _show_main).grab_focus()
 
 
 func _show_settings() -> void:
@@ -559,15 +713,7 @@ func _show_settings() -> void:
 	_frame.body.add_child(panel)
 
 
-func _save_name() -> void:
-	var n := _name_edit.text.strip_edges()
-	if n != "" and n != Settings.player_name:
-		Settings.player_name = n
-		Settings.save_settings()
-
-
 func _on_create() -> void:
-	_save_name()
 	var err := Game.host_online()
 	if err != OK:
 		_status.text = "Could not create the lobby (%s). Is another copy already hosting on this PC?" % error_string(err)
@@ -575,7 +721,6 @@ func _on_create() -> void:
 
 ## spectate: watch with a free camera instead of playing (you can join in from the menu).
 func _on_join(spectate: bool = false) -> void:
-	_save_name()
 	var address := _code_edit.text.strip_edges()
 	var bad: String = LobbyCode.parse(address).error
 	if bad != "":

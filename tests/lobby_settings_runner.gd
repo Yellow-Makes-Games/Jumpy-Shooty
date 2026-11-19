@@ -219,6 +219,7 @@ func _mobility() -> void:
 	print("  allowed mobility")
 	_expect(LobbySettings.clean({}).get("mobility") == [], "a missing mobility setting means any tool")
 	_expect(LobbySettings.normalized_mobility(["jetpack", "nonsense", "grapple"]) == ["grapple", "jetpack"], "mobility ids are cleaned and ordered")
+	_expect(LobbySettings.normalized_mobility(["blink", "grapple2"]) == ["grapple", "blink"], "a saved list with the old Grappling Hook 2 id keeps it, as the Grappling Hook")
 	Net.start_offline("Host", "needle", "pistol", "portal")
 	var s := Net.match_settings.duplicate()
 	s["game"] = "ffa"
@@ -279,9 +280,10 @@ func _mobility() -> void:
 	_expect(c.value() == ["grapple"], "the host's control: unticking a tool")
 	c._on_chip("grapple")
 	_expect(c.value() == ["grapple"], "the host's control: the last tool cannot be unticked")
-	for m in ["portal", "blink", "jetpack"]:
-		c._on_chip(m)
-	_expect(c.value() == [] and got.size() == 4, "the host's control: ticking every tool is any tool (%d changes)" % got.size())
+	for m in Mobility.IDS:
+		if m != "grapple":
+			c._on_chip(m)
+	_expect(c.value() == [] and got.size() == Mobility.IDS.size(), "the host's control: ticking every tool is any tool (%d changes)" % got.size())
 	c.free()
 	var lobby: Control = load("res://game/ui/lobby_menu.tscn").instantiate()
 	get_tree().root.add_child(lobby)

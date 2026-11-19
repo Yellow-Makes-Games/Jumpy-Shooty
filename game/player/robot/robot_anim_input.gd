@@ -10,9 +10,19 @@ var velocity := Vector3.ZERO     ## world space
 var yaw := 0.0                   ## facing, radians
 var pitch := 0.0                 ## aim up/down, radians
 var flags := 0                   ## see make_flags()
-var grapple_on := false
+var grapple_on := false          ## rope out: the left arm points along it
 var grapple_anchor := Vector3.ZERO
+## For how the body hangs on the rope (RopeSwing): seconds since it pulled tight
+## (-1: it has not: the hook is flying, the slack is coming in, or it is on its way
+## back), and the metres of slack in it now. See set_hook.
+var hook_taut := -1.0
+var hook_slack := 0.0
 var alive := true
+## How far the ground under each foot (x: the left, y: the right) is above (+) or below
+## (-) the floor the body stands on, metres: RobotAnimator rests each foot on it while
+## the body stands or crouches still. Looks only, so it does not travel in snapshots:
+## each copy of the game measures it for the bodies it draws (Player._feet_ground).
+var feet := Vector2.ZERO
 
 const FLIP_FRONT := 0
 const FLIP_BACK := 1
@@ -31,12 +41,29 @@ const FLIP_RIGHT := 3
 ## bit 11    in a flying kick
 ## bits 12-13 rocket-boot burst counter
 ## bit 14    winding up a melee swing (holding the button)
+## bit 15    the jetpack is firing
+## bits 16-18 which blow of the melee combo the swing (or the wind-up) is (see MeleeSwing.combo_length)
+## bit 19    steering while on the rope (the legs work the swing: see RopeSwing)
 static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int, swings: int = 0,
-		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false, jetpack: bool = false) -> int:
+		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false, jetpack: bool = false, step: int = 0,
+		pumping: bool = false) -> int:
 	return (1 if wall_right else 0) | (2 if vaulting else 0) | (4 if reloading else 0) \
 		| ((flip & 3) << 3) | ((wall_jumps & 3) << 5) | ((swings & 3) << 7) \
 		| ((kicks & 3) << 9) | ((1 if flying_kick else 0) << 11) | ((boosts & 3) << 12) \
-		| ((1 if winding else 0) << 14) | ((1 if jetpack else 0) << 15)
+		| ((1 if winding else 0) << 14) | ((1 if jetpack else 0) << 15) | ((step & 7) << 16) \
+		| ((1 if pumping else 0) << 19)
+
+
+## The grappling hook's rope as it is drawn this frame (HookLine.look; [] for none): what
+## the body needs of it to hang on it.
+func set_hook(look: Array) -> void:
+	hook_taut = float(look[4]) if look.size() > 4 else -1.0
+	hook_slack = float(look[2]) if look.size() > 2 else 0.0
+
+
+## Which blow of the melee combo the last swing (or the wind-up under way) is.
+static func step_of(f: int) -> int:
+	return (f >> 16) & 7
 
 
 ## The jetpack is firing.
@@ -82,3 +109,14 @@ func flip() -> int:
 
 func wall_jumps() -> int:
 	return (flags >> 5) & 3
+
+
+## The same from a killcam's frame (Player.shown_state): [where the hook is, slack,
+## seconds since the shot, seconds since it pulled tight], or null for no such rope.
+func set_hook_replayed(rope) -> void:
+	hook_slack = float(rope[1]) if rope != null else 0.0
+	hook_taut = float(rope[3]) if rope != null else -1.0
+
+
+func pumping() -> bool:
+	return (flags >> 19) & 1 == 1

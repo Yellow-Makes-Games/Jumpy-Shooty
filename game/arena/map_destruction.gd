@@ -51,6 +51,13 @@ var root: MapRoot
 
 var _pending := {}   # host: cell -> new stage, sent by flush()
 var _debris := 0
+# Killcams (see MapReplay): what a replay draws in place of the live damage.
+var _revision := 0          # goes up whenever a cell changes stage
+var _captured_rev := -1
+var _captured: Array = []
+var _replaying := false
+var _replay := {}           # cell -> the stage a replay draws it at (cells not in it: whole)
+var _replay_of: Variant = null   # ...from this replay_capture() (the same one again: nothing to do)
 
 
 ## Takes the pieces that will break out of `pieces` (they are built here instead)
@@ -58,13 +65,19 @@ var _debris := 0
 func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
 	root = map
 	name = "Breakables"
-	return _take(pieces, spawn_points, null)
+	var rest := _take(pieces, spawn_points, null)
+	if not panels.is_empty():
+		add_to_group(MapReplay.GROUP)
+	return rest
 
 
 ## The same for the blocks of a mover (MapRoot calls it for each): `pieces` and
 ## `spawn_points` are in the mover's own frame, and `frame` is its moving body.
 func add_riding(frame: Node3D, pieces: Array, spawn_points: Array) -> Array:
-	return _take(pieces, spawn_points, frame)
+	var rest := _take(pieces, spawn_points, frame)
+	if not panels.is_empty():
+		add_to_group(MapReplay.GROUP)
+	return rest
 
 
 func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
@@ -406,9 +419,11 @@ func apply(ids: PackedInt32Array, stages: PackedByteArray) -> PackedInt32Array:
 		touched[cell.panel] = true
 	for p in touched:
 		_rebuild_panel(p)
+	if not touched.is_empty():
+		_revision += 1
 	if not ids.is_empty():
 		cells_changed.emit(ids, stages)
-	if not broke.is_empty():
+	if not broke.is_empty() and not _replaying:   # (a killcam playing shows the wall as it was: no rubble from it)
 		_break_effects(broke)
 	return broke
 
@@ -464,13 +479,28 @@ func _rebuild_panel(index: int) -> void:
 		shape.shape = bs
 		shape.position = local.get_center()
 		body.add_child(shape)
+	_rebuild_meshes(index)
+
+
+## The stage cell `c` is drawn at: its own, or what a killcam playing says it was.
+func _shown(c: int) -> int:
+	return int(_replay.get(c, 0)) if _replaying else int(cells[c].stage)
+
+
+## Rebuilds one panel's meshes from the stages its cells are drawn at (see _shown).
+func _rebuild_meshes(index: int) -> void:
+	var panel: Dictionary = panels[index]
+	if panel.whole:
+		_rebuild_whole_meshes(panel)
+		return
+	var first: int = panel.first
 	var holder: Node3D = panel.meshes
 	for child in holder.get_children():
 		holder.remove_child(child)
 		child.free()
 	if DisplayServer.get_name() == "headless" and not root.has_meshes:
 		return
-	var by_stage := func(c: int) -> int: return 0 if cells[first + c].stage >= BROKEN else cells[first + c].stage + 1
+	var by_stage := func(c: int) -> int: return 0 if _shown(first + c) >= BROKEN else _shown(first + c) + 1
 	var pieces := []
 	for box in _merge(panel.n, by_stage):
 		var local := _boxes_extent(panel, box)
@@ -494,22 +524,29 @@ func _rebuild_panel(index: int) -> void:
 ## A whole-block panel: its own shape while it stands (darker as it cracks), nothing
 ## once broken. (Its children were cleared by _rebuild_panel.)
 func _rebuild_whole(panel: Dictionary) -> void:
+	var cell: Dictionary = cells[panel.first]
+	if cell.stage < BROKEN:
+		var piece: Dictionary = (panel.piece as Dictionary).duplicate()
+		piece.xf = Transform3D.IDENTITY   # the body sits where the block does
+		for lump in root.collision_shapes(piece):
+			var shape := CollisionShape3D.new()
+			shape.shape = lump
+			(panel.body as StaticBody3D).add_child(shape)
+	_rebuild_whole_meshes(panel)
+
+
+func _rebuild_whole_meshes(panel: Dictionary) -> void:
 	var holder: Node3D = panel.meshes
 	for child in holder.get_children():
 		holder.remove_child(child)
 		child.free()
-	var cell: Dictionary = cells[panel.first]
-	if cell.stage >= BROKEN:
+	var stage := _shown(panel.first)
+	if stage >= BROKEN:
 		return
-	var piece: Dictionary = (panel.piece as Dictionary).duplicate()
-	piece.xf = Transform3D.IDENTITY   # the body sits where the block does
-	for lump in root.collision_shapes(piece):
-		var shape := CollisionShape3D.new()
-		shape.shape = lump
-		(panel.body as StaticBody3D).add_child(shape)
 	if DisplayServer.get_name() == "headless" and not root.has_meshes:
 		return
-	var shade: float = CRACK_SHADE[cell.stage]
+	var piece: Dictionary = (panel.piece as Dictionary).duplicate()
+	var shade: float = CRACK_SHADE[stage]
 	var tint: Color = panel.tint
 	piece.xf = panel.xf
 	piece.tint = Color(tint.r * shade, tint.g * shade, tint.b * shade, tint.a)
@@ -600,6 +637,79 @@ static func _merge(n: Vector3i, key_of: Callable) -> Array:
 							used[at.call(x, y, z)] = 1
 				boxes.append([Vector3i(i, j, k), Vector3i(i2, j2, k2), key])
 	return boxes
+
+
+# ---------------------------------------------------------------------------
+# Killcams (see MapReplay): the walls as they were. Only what is drawn changes: the
+# collision stays the live one (the match goes on round a death killcam).
+
+## Every cell that is not whole, as [cells, stages]: the same array until one changes.
+func replay_capture() -> Variant:
+	if _captured_rev != _revision:
+		_captured = snapshot()
+		_captured_rev = _revision
+	return _captured
+
+
+## Draws the cells as `state` (a replay_capture()) has them. A cell that breaks as the
+## replay plays on crashes and drops its rubble, as it did in the match.
+func replay_show(state: Variant, _next: Variant, _u: float, _holder: Node3D) -> void:
+	if not state is Array or (state as Array).size() < 2 or (_replaying and is_same(state, _replay_of)):
+		return
+	_replay_of = state
+	var want := {}
+	var ids: PackedInt32Array = state[0]
+	var stages: PackedByteArray = state[1]
+	for i in mini(ids.size(), stages.size()):
+		if ids[i] >= 0 and ids[i] < cells.size():
+			want[ids[i]] = int(stages[i])
+	var before := _replay if _replaying else _live_damage()
+	var touched := {}
+	var broke := PackedInt32Array()
+	for c in want:
+		var was := int(before.get(c, 0))
+		if int(want[c]) != was:
+			touched[cells[c].panel] = true
+			if _replaying and int(want[c]) >= BROKEN and was < BROKEN:
+				broke.append(c)
+	for c in before:
+		if not want.has(c):
+			touched[cells[c].panel] = true
+	if _replaying and touched.is_empty():
+		return
+	_replaying = true
+	_replay = want
+	for p in touched:
+		_rebuild_meshes(p)
+	if not broke.is_empty():
+		_break_effects(broke)
+
+
+## Back to drawing the live damage.
+func replay_clear() -> void:
+	if not _replaying:
+		return
+	var shown := _replay
+	_replaying = false
+	_replay = {}
+	_replay_of = null
+	var touched := {}
+	for c in shown:
+		if int(shown[c]) != int(cells[c].stage):
+			touched[cells[c].panel] = true
+	for c in _live_damage():
+		if int(shown.get(c, 0)) != int(cells[c].stage):
+			touched[cells[c].panel] = true
+	for p in touched:
+		_rebuild_meshes(p)
+
+
+func _live_damage() -> Dictionary:
+	var out := {}
+	for c in cells.size():
+		if cells[c].stage != 0:
+			out[c] = int(cells[c].stage)
+	return out
 
 
 # ---------------------------------------------------------------------------

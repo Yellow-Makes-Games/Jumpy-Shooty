@@ -82,7 +82,8 @@ func _tick() -> void:
 	_aim(me, input, point.global_position, 5.0)
 	var hit := g.find_target(me, input)
 	_check("snaps to a grapple point 5 degrees off aim", hit.get("collider") == point)
-	_check("try_attach anchors on the point", g.try_attach(me, input) and g.anchor.is_equal_approx(point.global_position) and g.target == null)
+	_fly(g, input)
+	_check("the hook flies to the point and bites there", (g.biting or g.attached) and g.anchor.is_equal_approx(point.global_position) and g.target == null)
 	g.reset()
 
 	_aim(me, input, point.global_position, 15.0)
@@ -107,7 +108,8 @@ func _tick() -> void:
 	_aim(me, input, chest, 2.0)
 	hit = g.find_target(me, input)
 	_check("snaps to a player 2 degrees off aim", hit.get("collider") == foe)
-	_check("hooking the player tethers to them", g.try_attach(me, input) and g.target == foe)
+	_fly(g, input)
+	_check("the hook flies to the player and catches them", (g.biting or g.attached) and g.target == foe)
 	g.reset()
 
 	_aim(me, input, chest, 6.0)
@@ -119,3 +121,13 @@ func _tick() -> void:
 
 	print("ALL PASS" if failures == 0 else "%d FAILED" % failures)
 	quit(failures)
+
+
+## Fires the hook and lets it fly (the body standing still) until it bites, or for 2 s.
+func _fly(g: Grapple, input: PlayerInput) -> void:
+	g.fire(me, input)
+	for i in 120:
+		if not g.flying:
+			return
+		g.update(1.0 / 60.0)
+		g.follow_target(me, 1.0 / 60.0)

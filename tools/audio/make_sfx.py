@@ -612,6 +612,17 @@ def handling(name, rng):
         "bolt_back": lambda: mix(metal_slide(rng, 0.13, 1700, 1.5), (metal_clack(rng, 0.9, 1.0, 0.6) * 0.8, 0.12)),
         "bolt_fwd": lambda: mix(metal_slide(rng, 0.11, 2300, 0.7), (metal_clack(rng, 0.78, 1.3, 1.2), 0.1)),
         "bolt_down": lambda: metal_clack(rng, 1.0, 0.9, 0.8),
+        # The reloads' flourishes (the clips in tools/robot: animations.py, sidearm_anims.py, long_reloads.py)
+        "gun_spin": lambda: mix(whoosh(rng, 0.3, 400, 2200) * 0.9, (whoosh(rng, 0.16, 900, 3000) * 0.45, 0.1)),   # a gun spun round the hand
+        "gun_toss": lambda: whoosh(rng, 0.22, 700, 2600, at=0.35) * 0.7,                                          # a cell or shell tossed
+        "cell_clink": lambda: mix(metal_clack(rng, rng.uniform(1.4, 1.7), 0.5, 0.15),                             # a spent cell hits the floor
+                                  (metal_clack(rng, rng.uniform(1.8, 2.1), 0.35, 0.1) * 0.5, rng.uniform(0.04, 0.07))),
+        "vent_hiss": lambda: mix(hp(noise(rng, 0.7), 3000) * env(0.7, 0.2, 0.012) * 0.6,                          # vents blow off steam
+                                 bp(noise(rng, 0.7), 1300, 1.2) * env(0.7, 0.12, 0.02) * 0.35),
+        "charge_hum": lambda: mix(lp(glide(0.75, 80, 300, "saw"), 1200) * np.linspace(0.0, 1.0, n(0.75)) ** 1.5 * 0.5,   # a core charging up
+                                  glide(0.75, 300, 1500) * np.linspace(0.0, 1.0, n(0.75)) ** 2.0 * 0.12),
+        "barrel_spin": lambda: mix(lp(glide(1.4, 70, 380, "saw"), 1500) * bell_env(1.4, 0.45, 1.2) * 0.45,        # a minigun's barrels run up and down
+                                   whoosh(rng, 1.4, 300, 1800, at=0.45) * 0.5),
     }
     return finish(s[name]())
 
@@ -948,6 +959,21 @@ def grapple_miss():
                       (metal_clack(rng, 0.95, 0.6, 0.5) * 0.5, 0.45)))
 
 
+def grapple_taut():
+    """The grappling hook: the slack rope snapping tight. A steel cable taking the load
+    all at once: a hard low thrum (a plucked string, dropping a little as it settles),
+    the winch biting, and a short creak of tension."""
+    rng = np.random.default_rng(9650)
+    t = tt(0.34)
+    f = 118 + 26 * np.exp(-t / 0.03)
+    ph = 2 * math.pi * np.cumsum(f) / SR
+    thrum = (np.sin(ph) + 0.45 * np.sin(2.01 * ph) + 0.22 * np.sin(3.03 * ph) + 0.1 * np.sin(4.07 * ph)) * env(0.34, 0.085, 0.0015)
+    snap = bp(noise(rng, 0.05), 1700, 1.4) * env(0.05, 0.008, 0.0002) * 0.7
+    creak = sweep_bp(noise(rng, 0.2), 420, 250, 5.0) * env(0.2, 0.07, 0.01) * 0.3
+    return finish(mix(click(rng, 0.006, 0.0004, 2800) * 0.5, snap, sat(thrum, 1.6) * 0.8,
+                      metal_clack(rng, 0.8, 0.8, 0.9) * 0.45, (creak, 0.02), servo(rng, 0.12, 900, 380, 0.22)))
+
+
 def blink():
     """Blink: a short teleport. A bright zip of air rushing up and away, a soft
     electric snap at the start and a low thump as you arrive."""
@@ -1036,12 +1062,15 @@ def match_end():
 # Melee: swings, blows, crashing into walls
 
 MELEE = ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-         "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]
+         "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
 
 
 def swing(name):
     """A blade or hammer cutting the air: a fast whoosh (deeper and longer for the hammer) and a servo."""
     rng = np.random.default_rng(9100 + MELEE.index(name))
+    if name == "karate":   # a limb snapping through the air: a short sharp whoosh with a crack of cloth at its end
+        snap = (hp(noise(rng, 0.03), 1800) * env(0.03, 0.004, 0.0005) * 0.5, 0.11)
+        return finish(mix(whoosh(rng, 0.16, 700, 3600, 2.0, 0.55), snap, servo(rng, 0.08, 700, 1300, 0.12)))
     if name in ("brass_knuckles", "claws"):
         if name == "claws":
             return finish(mix(whoosh(rng, 0.15, 900, 4600, 2.0, 0.42), servo(rng, 0.09, 600, 1100, 0.16)))
@@ -1197,6 +1226,10 @@ def punch_hit(seed):
 def equip_melee(name):
     """Drawing a blade or hefting the hammer: a whoosh and a ring of steel (a clunk for the hammer)."""
     rng = np.random.default_rng(9500 + MELEE.index(name))
+    if name == "karate":   # knuckles cracking, a fist smacked into a palm
+        smack = mix(click(rng, 0.012, 0.001, 2200), lp(noise(rng, 0.08), 1400) * env(0.08, 0.012, 0.001) * 0.8)
+        return finish(mix((click(rng, 0.006, 0.0004, 4200) * 0.5, 0.0), (click(rng, 0.006, 0.0004, 3800) * 0.45, 0.05),
+                          (click(rng, 0.006, 0.0004, 4600) * 0.4, 0.09), (smack, 0.22), (servo(rng, 0.15, 500, 900, 0.12), 0.18)))
     if name == "energy_sword":   # the blade lighting up
         return finish(mix(metal_clack(rng, 1.1, 0.6, 0.4) * 0.6, (glide(0.5, 200, 1100) * bell_env(0.5, 0.3) * 0.3, 0.03),
                           (sat(glide(0.5, 90, 140, "saw") * bell_env(0.5, 0.6) * 0.25, 2.0), 0.05)))
@@ -1419,8 +1452,353 @@ def bridge_lock():
     return finish(mix(dry, (wet, 0.0, 0.22)), fade=0.05)
 
 
+# ---------------------------------------------------------------------------
+# The Haunted House (see HauntEvent and MapGhost): the house about to shift, shifting
+# and settling, and the ghosts' moans. Soft, low and breathy: under the fighting.
+
+def _voice(rng, seconds, f0, f1, vibrato=5.0, breath=0.5):
+    """A hollow, wordless voice gliding from f0 to f1 Hz: a few formants over a buzz, with
+    a slow wobble and a lot of breath in it."""
+    t = tt(seconds)
+    p = np.clip(t / seconds, 0.0, 1.0)
+    pitch = f0 * (f1 / f0) ** (0.5 - 0.5 * np.cos(np.pi * p))
+    pitch *= 1.0 + 0.025 * np.sin(2 * math.pi * vibrato * t + rng.uniform(0, 6.0))
+    phase = 2 * math.pi * np.cumsum(pitch) / SR
+    buzz = sum(np.sin(k * phase) / k ** 1.3 for k in range(1, 9))
+    vowel = mix(bp(buzz, 520.0, 3.0), (bp(buzz, 880.0, 4.0), 0.0, 0.6), (bp(buzz, 2400.0, 6.0), 0.0, 0.15))
+    air = fit(bp(noise(rng, seconds), 700.0, 1.2) * breath, len(t))
+    vowel = fit(vowel, len(t))
+    return vowel / np.max(np.abs(vowel)) + air / np.max(np.abs(air)) * breath
+
+
+def haunt_warn():
+    """The warning before the house shifts (three seconds): a moan that rises through the
+    walls, a whisper of many voices and a slow creak of old timber, growing."""
+    rng = np.random.default_rng(7301)
+    seconds = 3.2
+    t = tt(seconds)
+    grow = np.clip(t / 2.6, 0.0, 1.0) ** 1.6
+    moan = _voice(rng, seconds, 150.0, 240.0, vibrato=4.0, breath=0.6)
+    choir = sum(_voice(rng, seconds, 300.0 * r, 330.0 * r, vibrato=6.0 + k, breath=0.9) for k, r in enumerate((1.0, 1.19, 1.5)))
+    whisper = fit(hp(noise(rng, seconds), 2500.0), len(t)) * (0.5 + 0.5 * np.sin(2 * math.pi * 6.5 * t) ** 2)
+    creak = np.zeros_like(t)
+    for k in range(18):
+        at = rng.uniform(0.6, 3.0)
+        c = modal(rng, 0.09, [rng.uniform(380, 520), rng.uniform(900, 1300)], [0.03, 0.02], [0.6, 0.3])
+        i = int(at * SR)
+        creak[i:i + len(c)] += c[: len(creak) - i] * (at / 3.0)
+    x = (moan / np.max(np.abs(moan)) * 0.7 + choir / np.max(np.abs(choir)) * 0.3 + whisper / np.max(np.abs(whisper)) * 0.12) * grow
+    x = mix(x, (creak / max(np.max(np.abs(creak)), 1e-6), 0.0, 0.35))
+    wet = fftconv(x, room_ir(rng, 1.6, bright=2200.0))
+    return finish(mix(x, (wet, 0.0, 0.5)), floor_db=-55.0, fade=0.2)
+
+
+def haunt_shift():
+    """The furniture gliding to new places (two and a half seconds): a low rush of air,
+    a groan of the whole house and the scrape of something heavy, fading."""
+    rng = np.random.default_rng(7302)
+    seconds = 2.8
+    t = tt(seconds)
+    swell = np.clip(t / 0.5, 0.0, 1.0) * np.clip((seconds - t) / 1.6, 0.0, 1.0)
+    rush = fit(sweep_bp(noise(rng, seconds), 900.0, 220.0, q=0.8), len(t))
+    groan = np.sin(2 * math.pi * np.cumsum(70.0 + 25.0 * np.sin(2 * math.pi * 0.7 * t)) / SR)
+    groan = groan + 0.5 * np.sin(2 * math.pi * np.cumsum(105.0 + 30.0 * np.sin(2 * math.pi * 0.9 * t)) / SR)
+    drag = fit(scrape(rng, seconds, 300.0, rough=0.9, rumble=0.7), len(t))
+    x = (rush / np.max(np.abs(rush)) * 0.6 + groan / np.max(np.abs(groan)) * 0.5 + drag / np.max(np.abs(drag)) * 0.4) * swell
+    wet = fftconv(x, room_ir(rng, 1.2, bright=2000.0))
+    return finish(mix(x, (wet, 0.0, 0.4)), floor_db=-50.0, fade=0.2)
+
+
+def haunt_settle():
+    """The house come to rest: a door slamming somewhere, and a sigh."""
+    rng = np.random.default_rng(7303)
+    slam = sine_sweep(0.35, 110.0, 50.0, 0.07) * env(0.35, 0.09, 0.001)
+    knock = modal(rng, 0.4, [180.0, 310.0, 520.0, 900.0], [0.12, 0.08, 0.05, 0.03], [0.8, 0.5, 0.3, 0.15])
+    rattle = lp(noise(rng, 0.25), 3000.0) * env(0.25, 0.04, 0.001) * 0.4
+    sigh = _voice(rng, 1.4, 260.0, 140.0, vibrato=3.0, breath=1.2) * fit(bell_env(1.4, 0.3), n(1.4))
+    dry = mix((slam, 0.0, 1.0), (knock, 0.0, 0.6), (rattle, 0.01, 0.5), (sigh / np.max(np.abs(sigh)), 0.25, 0.35))
+    wet = fftconv(dry, room_ir(rng, 1.3, bright=2400.0))
+    return finish(mix(dry, (wet, 0.0, 0.45)), floor_db=-52.0, fade=0.15)
+
+
+def ghost_moan():
+    """A ghost going by: a low, hollow "ooooh" that swells and falls away (heard from where
+    it is, a few rooms off at most)."""
+    rng = np.random.default_rng(7304)
+    seconds = 2.2
+    v = _voice(rng, seconds, 190.0, 130.0, vibrato=4.5, breath=0.7) * fit(bell_env(seconds, 0.35, 1.6), n(seconds))
+    wet = fftconv(v, room_ir(rng, 1.0, bright=2000.0))
+    return finish(mix(v, (wet, 0.0, 0.5)), floor_db=-50.0, fade=0.2)
+
+
+# ---------------------------------------------------------------------------
+# The Construction Site's tower crane (see CraneEvent and MapLever): heavy electric
+# machinery heard across a building site. Dull steel and motors, nothing that beeps.
+
+def lever_pull():
+    """A big control lever thrown over: the ratchet letting go, the slide, and the clack
+    and thud as it lands against its stop."""
+    rng = np.random.default_rng(7401)
+    clack = click(rng, 0.01, 0.0015, 2600.0)
+    body = modal(rng, 0.35, [420.0, 910.0, 1480.0, 2350.0], [0.05, 0.04, 0.03, 0.02], [0.5, 0.35, 0.2, 0.1], detune=0.01)
+    thud = sine_sweep(0.25, 150.0, 70.0, 0.05) * env(0.25, 0.06, 0.001)
+    slide = bp(noise(rng, 0.16), 1800.0, 1.2) * bell_env(0.16, 0.5, 1.5)
+    dry = mix((clack, 0.0, 0.6), (slide, 0.01, 0.12), (clack * 0.8, 0.09, 0.5), (clack, 0.17, 0.9), (body, 0.172, 0.5), (thud, 0.17, 0.9))
+    wet = fftconv(dry, room_ir(rng, 0.35, bright=3000.0))
+    return finish(mix(dry, (wet, 0.0, 0.18)), fade=0.03)
+
+
+def crane_start():
+    """The crane coming to life: a contactor slamming in, then its motor running up from
+    nothing to its working note in a little over half a second (the loop takes over)."""
+    rng = np.random.default_rng(7402)
+    seconds = 0.75
+    t = tt(seconds)
+    p = np.clip(t / 0.6, 0.0, 1.0)
+    f = 87.0 * (0.25 + 0.75 * p ** 0.7)
+    ph = 2 * math.pi * np.cumsum(f) / SR
+    run = (np.sin(ph) + 0.7 * np.sin(2 * ph + 0.4) + 0.35 * np.sin(3 * ph + 1.0) + 0.3 * np.sin(4 * ph) + 0.16 * np.sin(6 * ph + 0.7))
+    run *= (0.15 + 0.85 * p ** 1.3) * np.clip((seconds - t) / 0.12, 0.0, 1.0)
+    clunk = sine_sweep(0.2, 140.0, 60.0, 0.04) * env(0.2, 0.05, 0.001)
+    snap = click(rng, 0.012, 0.002, 2400.0)
+    ring = modal(rng, 0.5, [236.0, 388.0, 640.0, 1010.0], [0.2, 0.15, 0.1, 0.06], [0.4, 0.3, 0.2, 0.1], detune=0.01)
+    dry = mix((snap, 0.0, 0.8), (clunk, 0.0, 1.0), (ring, 0.002, 0.3), (run / np.max(np.abs(run)), 0.04, 0.7))
+    wet = fftconv(dry, room_ir(rng, 0.8, bright=2800.0))
+    return finish(mix(dry, (wet, 0.0, 0.2)), floor_db=-55.0, fade=0.06)
+
+
+def crane_motor():
+    """The crane working: an electric motor's hum (87 Hz and its harmonics, beating
+    slowly), the whine of the gearbox over it, a low rumble through the steel and the
+    slew ring's rollers ticking round, eight to the loop. Loops (2 s); the game plays it
+    a third higher while the winch runs and fades it in and out."""
+    seconds = 2.0
+    rng = np.random.default_rng(7403)
+    t = tt(seconds)
+    x = np.zeros_like(t)
+    for k, gain in ((1, 1.0), (2, 0.7), (3, 0.35), (4, 0.3), (6, 0.16), (8, 0.08)):
+        for detune, share in ((0.0, 0.65), (0.5, 0.2), (-0.5, 0.15)):   # (every one fits the loop a whole number of times)
+            x += gain * share * np.sin(2 * math.pi * (87.0 * k + detune) * t + rng.uniform(0, 2 * math.pi))
+    x *= 0.85 + 0.15 * np.sin(2 * math.pi * 11.0 * t)          # the gear teeth
+    whine = 0.5 * np.sin(2 * math.pi * 522.0 * t + 0.3) + 0.25 * np.sin(2 * math.pi * 1044.5 * t + 1.1)
+    whine *= 0.7 + 0.3 * np.sin(2 * math.pi * 3.0 * t)
+    rumble = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 140.0)) ** 2) / 1.0))
+    grit = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 2600.0)) ** 2) / 0.8))
+    y = x / np.max(np.abs(x)) + 0.22 * whine + 0.5 * rumble + 0.05 * grit
+    for i in range(8):
+        _lay(y, i * 0.25 + 0.03, click(rng, 0.008, 0.0012, 1800.0), 0.12)
+    return _looped(y)
+
+
+def crane_stop():
+    """The crane arriving: the motor winding down for half a second, the brake going on
+    with a heavy clunk, and the steel settling: a low ring and a short creak."""
+    rng = np.random.default_rng(7404)
+    seconds = 0.55
+    t = tt(seconds)
+    p = t / seconds
+    f = 87.0 * (1.0 - 0.6 * p ** 0.8)
+    ph = 2 * math.pi * np.cumsum(f) / SR
+    wind = (np.sin(ph) + 0.6 * np.sin(2 * ph + 0.4) + 0.3 * np.sin(3 * ph + 1.0) + 0.2 * np.sin(6 * ph)) * (1.0 - p) ** 1.2
+    thud = sine_sweep(0.4, 110.0, 48.0, 0.07) * env(0.4, 0.09, 0.001)
+    latch = click(rng, 0.012, 0.002, 2000.0)
+    ring = modal(rng, 1.3, [173.0, 262.0, 415.0, 688.0, 1040.0], [0.5, 0.42, 0.3, 0.2, 0.12], [0.5, 0.4, 0.3, 0.18, 0.1], detune=0.012)
+    creak = sweep_bp(noise(rng, 0.5), 520.0, 380.0, q=14.0) * bell_env(0.5, 0.3, 1.2)
+    dry = mix((wind / np.max(np.abs(wind)), 0.0, 0.5), (thud, 0.5, 1.0), (latch, 0.5, 0.6), (ring, 0.503, 0.4),
+              (creak / np.max(np.abs(creak)), 0.6, 0.12))
+    wet = fftconv(dry, room_ir(rng, 1.1, bright=2600.0))
+    return finish(mix(dry, (wet, 0.0, 0.25)), fade=0.08)
+
+
+# ---------------------------------------------------------------------------
+# Empyrean Tower: the Portal Surge (see PortalSurgeEvent and MapRingGate). Wondrous,
+# never an alarm: nothing harsh, nothing that pulses fast.
+
+def surge_open():
+    """The ring gates powering up, about 2.4 s: a shimmer that rises (a D major chord's
+    notes climbing an octave, soft and glassy) over a mechanical whine as the gates'
+    machinery spins up, ending in a gentle bloom as the portals form."""
+    rng = np.random.default_rng(7301)
+    seconds = 2.4
+    t = tt(seconds)
+    p = np.clip(t / 2.0, 0.0, 1.0)
+    rise = p ** 1.6
+    shimmer = np.zeros_like(t)
+    for f, gain, lag in ((293.66, 1.0, 0.0), (369.99, 0.8, 0.12), (440.0, 0.7, 0.24), (587.33, 0.55, 0.36)):
+        fr = f * (1.0 + rise)                       # each note climbs an octave
+        ph = 2 * math.pi * np.cumsum(fr) / SR
+        swell = np.clip((t - lag) / 0.5, 0.0, 1.0) ** 1.5
+        shimmer += gain * swell * (np.sin(ph) + 0.25 * np.sin(2 * ph + 0.5)) * (0.8 + 0.2 * np.sin(2 * math.pi * 5.0 * t + lag * 9.0))
+    air = sweep_bp(noise(rng, seconds), 900.0, 5200.0, q=2.2, curve=1.5) * (0.15 + 0.85 * rise)
+    # The whine: a motor spinning up from 70 Hz to 420 Hz, dull steel rather than a siren.
+    wf = 70.0 + 350.0 * p ** 1.3
+    wph = 2 * math.pi * np.cumsum(wf) / SR
+    whine = np.sin(wph) + 0.4 * np.sin(2 * wph + 0.3) + 0.2 * np.sin(3 * wph + 1.2) + 0.1 * np.sin(5 * wph)
+    whine = lp(whine, 1800.0) * (0.25 + 0.75 * p) * (0.85 + 0.15 * np.sin(2 * math.pi * (4.0 + 10.0 * p) * t))
+    loud = np.clip(t / 0.25, 0.0, 1.0) * (0.25 + 0.75 * p ** 1.2) * np.clip((seconds - t) / 0.45, 0.0, 1.0) ** 0.8
+    x = (shimmer / np.max(np.abs(shimmer)) * 0.6 + air / np.max(np.abs(air)) * 0.3 + whine / np.max(np.abs(whine)) * 0.38) * loud
+    bloom = lp(noise(rng, 0.5), 900.0) * bell_env(0.5, 0.25, 1.6) * 0.35 + sine_sweep(0.5, 180.0, 90.0, 0.12) * env(0.5, 0.16, 0.02) * 0.4
+    return finish(mix(x, (bloom, 1.95, 0.6)), floor_db=-60.0, fade=0.08)
+
+
+def surge_close():
+    """The portals collapsing, about 2 s: a soft whoosh of air drawn inward and falling in
+    pitch, the gates' whine winding down under it. No thump at the end: it just goes."""
+    rng = np.random.default_rng(7302)
+    seconds = 2.1
+    t = tt(seconds)
+    p = np.clip(t / seconds, 0.0, 1.0)
+    whoosh = sweep_bp(noise(rng, seconds), 3200.0, 280.0, q=1.4, curve=0.7) * bell_env(seconds, 0.3, 1.5)
+    low = lp(noise(rng, seconds), 240.0) * bell_env(seconds, 0.45, 1.6) * 2.0
+    wf = 400.0 - 320.0 * p ** 0.7
+    wph = 2 * math.pi * np.cumsum(wf) / SR
+    whine = lp(np.sin(wph) + 0.35 * np.sin(2 * wph + 0.4) + 0.15 * np.sin(3 * wph), 1500.0) * (1.0 - p) ** 1.3 * np.clip(t / 0.1, 0.0, 1.0)
+    tail = np.sin(2 * math.pi * np.cumsum(880.0 - 440.0 * p) / SR) * (1.0 - p) ** 2 * np.clip(t / 0.15, 0.0, 1.0)
+    x = whoosh / np.max(np.abs(whoosh)) * 0.75 + low / np.max(np.abs(low)) * 0.3 + whine / np.max(np.abs(whine)) * 0.3 + tail * 0.1
+    return finish(x, floor_db=-58.0, fade=0.15)
+
+
+def gate_hum():
+    """An open ring gate, heard near it: a soft hum on D (146.8 Hz) with a fifth and an
+    octave, slowly beating, and a breath of air through the ring. Loops (4 s); each gate
+    plays its own, placed in the world, faded in and out by the gate."""
+    seconds = 4.0
+    rng = np.random.default_rng(7303)
+    t = tt(seconds)
+    step = 1.0 / seconds
+    x = np.zeros_like(t)
+    for f, gain in ((73.42, 0.5), (146.83, 1.0), (220.0, 0.5), (293.66, 0.4), (440.0, 0.14), (587.33, 0.08)):
+        for detune, share in ((0.0, 0.6), (0.25, 0.25), (-0.5, 0.15)):
+            fv = round((f + detune) / step) * step
+            x += gain * share * np.sin(2 * math.pi * fv * t + rng.uniform(0, 2 * math.pi))
+    x *= 0.86 + 0.14 * np.sin(2 * math.pi * 0.5 * t)       # a slow breath, two a loop
+    air = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 1400.0)) ** 2) / 1.2))
+    return _looped(x / np.max(np.abs(x)) + 0.12 * air)
+
+
+# ---------------------------------------------------------------------------
+# Empyrean Tower's tiers: a quiet sound of its own in each (MapAmbientSound loops them,
+# placed in the room). Magic heard from the next room: soft, no attack, no voices, far
+# under the fighting. Every one loops: its tones are whole numbers of cycles long, its
+# noise is built looping, and anything struck is laid in round the join.
+
+def _lay(x, at, snippet, gain=1.0):
+    """Adds `snippet` into the loop x starting `at` seconds in, wrapping round its end."""
+    start = int(at * SR) % len(x)
+    idx = (start + np.arange(len(snippet))) % len(x)
+    np.add.at(x, idx, snippet * gain)
+
+
+def _ping(f, seconds, tau, partials=((1, 1.0), (2.76, 0.35), (5.4, 0.12))):
+    t = tt(seconds)
+    y = sum(g * np.sin(2 * math.pi * f * k * t) * np.exp(-t / (tau / (1 + 0.6 * i))) for i, (k, g) in enumerate(partials))
+    return y * np.clip(t / 0.004, 0.0, 1.0)
+
+
+def _drone(seconds, rng, notes, wobble=0.14):
+    t = tt(seconds)
+    step = 1.0 / seconds
+    x = np.zeros_like(t)
+    for f, gain in notes:
+        for detune, share in ((0.0, 0.6), (0.3, 0.25), (-0.45, 0.15)):
+            fv = round((f + detune) / step) * step
+            x += gain * share * np.sin(2 * math.pi * fv * t + rng.uniform(0, 2 * math.pi))
+    x *= (1.0 - wobble) + wobble * np.sin(2 * math.pi * 2 * step * t)
+    return x / np.max(np.abs(x))
+
+
+def magic_engine():
+    """The Arcane Engine: a low hum on A with a fifth, and lightning ticking in its jars."""
+    seconds = 6.0
+    rng = np.random.default_rng(8101)
+    x = _drone(seconds, rng, ((55.0, 1.0), (110.0, 0.7), (164.8, 0.3), (220.0, 0.12))) * 0.8
+    for _ in range(46):
+        k = n(rng.uniform(0.004, 0.02))
+        tick = rng.uniform(-1.0, 1.0, k) * np.exp(-np.arange(k) / (k * 0.3))
+        _lay(x, rng.uniform(0, seconds), np.diff(tick, prepend=0.0), rng.uniform(0.1, 0.4))
+    x += 0.05 * _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 3200.0)) ** 2) / 0.6))
+    return _looped(x)
+
+
+def magic_library():
+    """The Grand Library: pages turning somewhere overhead, and now and then one soft high note."""
+    seconds = 8.0
+    rng = np.random.default_rng(8102)
+    rustle = _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 4200.0)) ** 2) / 0.5))
+    t = tt(seconds)
+    swell = np.zeros_like(t)
+    for _ in range(11):                       # each turn of a page: a short breath of it
+        at, wide = rng.uniform(0, seconds), rng.uniform(0.08, 0.22)
+        d = np.minimum(np.abs(t - at), seconds - np.abs(t - at))
+        swell += np.exp(-(d / wide) ** 2) * rng.uniform(0.4, 1.0)
+    x = rustle * swell * 0.5
+    for f, at in ((880.0, 0.7), (1318.5, 3.4), (1174.7, 5.9)):
+        _lay(x, at, _ping(f, 2.6, 0.9), 0.09)
+    return _looped(x)
+
+
+def magic_labs():
+    """The Alchemy Labs: something simmering, bubbles rising through it."""
+    seconds = 6.0
+    rng = np.random.default_rng(8103)
+    x = 0.3 * _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 260.0)) ** 2) / 1.4))
+    for _ in range(34):
+        length = rng.uniform(0.035, 0.09)
+        f0 = rng.uniform(260.0, 620.0)
+        tb = tt(length)
+        blip = np.sin(2 * math.pi * (f0 * tb + f0 * 0.9 * tb * tb / length)) * np.sin(math.pi * tb / length) ** 2
+        _lay(x, rng.uniform(0, seconds), blip, rng.uniform(0.12, 0.4))
+    return _looped(x)
+
+
+def magic_menagerie():
+    """The Menagerie: still air, and small bright things moving in it, like far-off glass chimes."""
+    seconds = 8.0
+    rng = np.random.default_rng(8104)
+    x = 0.35 * _drone(seconds, rng, ((392.0, 0.5), (587.3, 0.4), (784.0, 0.25)), wobble=0.3)
+    x += 0.08 * _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 2400.0)) ** 2) / 0.8))
+    scale = (1568.0, 1760.0, 2093.0, 2349.3, 2637.0)
+    for _ in range(13):
+        _lay(x, rng.uniform(0, seconds), _ping(scale[rng.integers(len(scale))], 1.4, 0.35), rng.uniform(0.04, 0.12))
+    return _looped(x)
+
+
+def magic_summoning():
+    """The Summoning Chamber: a deep, slow drone on D, something bowed far above it."""
+    seconds = 8.0
+    rng = np.random.default_rng(8105)
+    x = _drone(seconds, rng, ((36.71, 0.8), (73.42, 1.0), (110.0, 0.45), (146.83, 0.2)), wobble=0.22)
+    high = _drone(seconds, rng, ((880.0, 1.0), (1318.5, 0.4)), wobble=0.5)
+    t = tt(seconds)
+    x += 0.07 * high * (0.5 + 0.5 * np.sin(2 * math.pi * t / seconds - 1.0))
+    x += 0.04 * _loop_noise(rng, seconds, lambda f: np.exp(-((np.log2(np.maximum(f, 1.0) / 500.0)) ** 2) / 1.0))
+    return _looped(x)
+
+
+def magic_observatory():
+    """The Observatory: a glassy shimmer, each note swelling and fading in its own time, a few far pings."""
+    seconds = 8.0
+    rng = np.random.default_rng(8106)
+    t = tt(seconds)
+    step = 1.0 / seconds
+    x = np.zeros_like(t)
+    for k, f in enumerate((659.3, 987.8, 1318.5, 1480.0, 1975.5)):
+        fv = round(f / step) * step
+        swell = 0.5 + 0.5 * np.sin(2 * math.pi * (k % 3 + 1) * step * t + rng.uniform(0, 2 * math.pi))
+        x += (0.8 / (1 + k * 0.5)) * swell ** 2 * np.sin(2 * math.pi * fv * t + rng.uniform(0, 2 * math.pi))
+    x /= np.max(np.abs(x))
+    for f, at in ((2637.0, 1.1), (3136.0, 4.3), (2349.3, 6.6)):
+        _lay(x, at, _ping(f, 1.8, 0.5), 0.07)
+    return _looped(x)
+
+
 def recipes():
     r = {}
+    for make in (magic_engine, magic_library, magic_labs, magic_menagerie, magic_summoning, magic_observatory):
+        r[make.__name__] = make
+    r["surge_open"] = surge_open
+    r["surge_close"] = surge_close
+    r["gate_hum"] = gate_hum
     r["terminal_hum"] = terminal_hum
     r["gravity_pad"] = gravity_pad
     r["bell_toll"] = bell_toll
@@ -1429,6 +1807,14 @@ def recipes():
     r["layout_rise"] = layout_rise
     r["island_move"] = island_move
     r["bridge_lock"] = bridge_lock
+    r["lever_pull"] = lever_pull
+    r["crane_start"] = crane_start
+    r["crane_motor"] = crane_motor
+    r["crane_stop"] = crane_stop
+    r["haunt_warn"] = haunt_warn
+    r["haunt_shift"] = haunt_shift
+    r["haunt_settle"] = haunt_settle
+    r["ghost_moan"] = ghost_moan
     for g in GUNS:
         r["fire_" + g] = lambda g=g: gun_fire(g)
         r["fire_%s_fp" % g] = lambda g=g: gun_fire(g, stereo=True, seed=7)
@@ -1451,6 +1837,10 @@ def recipes():
                            "box_out", "box_in", "cell_out", "cell_in", "rocket_in", "drum_turn", "grenade_in",
                            "rail_vent"]):
         r[h] = lambda h=h, i=i: handling(h, np.random.default_rng(4600 + i))
+    for i, h in enumerate(["gun_spin", "gun_toss", "vent_hiss", "charge_hum", "barrel_spin"]):
+        r[h] = lambda h=h, i=i: handling(h, np.random.default_rng(4700 + i))
+    for i in range(3):
+        r["cell_clink_%d" % (i + 1)] = lambda i=i: handling("cell_clink", np.random.default_rng(4720 + i))
     for i in range(4):
         r["impact_wall_%d" % (i + 1)] = lambda i=i: impact_wall(i)
     for i in range(2):
@@ -1488,6 +1878,7 @@ def recipes():
     r["grapple_attach"] = grapple_attach
     r["grapple_release"] = grapple_release
     r["grapple_miss"] = grapple_miss
+    r["grapple_taut"] = grapple_taut
     r["blink"] = blink
     r["portal_open"] = portal_open
     r["portal_through"] = portal_through

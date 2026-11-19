@@ -8,7 +8,11 @@ extends "res://tests/course_runner.gd"
 ##    crates, climb the scaffolding and the hoist tower, wall-run the tower's north
 ##    wall and the fence, slide under the trailer and down the conveyor, vault a
 ##    barrier, run through a pipe, swing off the tower on the grapple, and jump the
-##    gap from the hoist tower.
+##    gap from the hoist tower;
+##  - the crane: its mast is a chimney you wall-jump up (to the deck round its head, or
+##    out at the tie gangway from the tower's 20 m steel), the lever in its cab is in
+##    reach of someone standing there and sets the crane off, whoever is in the cab or
+##    on the slab rides along, and nothing stands in the slab's way or under it.
 ## Run: godot --headless --path . --script tests/site_test.gd
 
 ## Where things are on the map (game/maps/construction_site.tscn). If you move one
@@ -35,6 +39,11 @@ class S:
 	const SCAFFOLD_X1 := 18.4
 	const CONTAINER_H := 2.6
 	const NORTH_STACK_Z := -19.7      ## centre line of the containers north of the tower
+	const MAST := Vector3(27, 0, -27) ## the crane's mast: hollow, 2 m square inside, its floor 1 m up
+	const MAST_DECK := 30.6           ## the deck round the mast's head (the cab's floor)
+	const MAST_TIE := 20.06           ## the gangway from the tower's steel to the mast's south door
+	const TIE_FROM := Vector3(15.5, 20.06, -15.5)   ## where the gangway leaves the tower
+	const SLAB := Vector3(2.4, 0.6, 6.0)            ## the slab on the crane's hook
 
 
 func _map_id() -> String:
@@ -65,6 +74,12 @@ func _courses() -> Array:
 		_barrier_run(),
 		_pipe_run(),
 		_swing_run(),
+		_mast_run(S.MAST_DECK, "to the deck round its head"),
+		_mast_run(S.MAST_TIE, "and step out onto the tie gangway"),
+		_gangway_run(),
+		_cab_run(),
+		_slab_run(0, "south-east"),
+		_slab_run(2, "north-west"),
 	]
 
 
@@ -107,6 +122,7 @@ func _before_courses() -> void:
 		"scaffolding at 4 m": Vector3(17.2, 4, 0), "scaffolding at 8 m": Vector3(17.2, 8, 0),
 		"hoist tower plank at 4 m": Vector3(-24.2, 4, -6.75), "hoist tower plank at 12 m": Vector3(-24.2, 12, -6.75),
 		"inside the lift shaft": Vector3(0, 0, 0),
+		"foot of the crane's mast": S.MAST + Vector3(0, 1, 0),
 	}
 	for goal_name in goals:
 		var goal: Vector3 = goals[goal_name]
@@ -117,6 +133,7 @@ func _before_courses() -> void:
 			worst = maxf(worst, miss)
 		_expect(worst < 1.0, "a bot can walk to the %s from every spawn point%s" % [goal_name, "" if worst < 1.0 else " (ends %.1f m short)" % worst])
 	region.queue_free()
+	_crane_checks()
 
 
 # ---------------------------------------------------------------------------
@@ -428,4 +445,243 @@ func _swing_run() -> Dictionary:
 			var p := body.global_position
 			_expect(_did(MovementController.State.GRAPPLE), "swung on the rope")
 			_expect(p.z > 26.0, "flew out over the yard and landed %.0f m from the tower (z %.1f, height %.1f)" % [p.z - S.TOWER, p.z, p.y]),
+	}
+
+
+# ---------------------------------------------------------------------------
+# The crane
+
+func _crane() -> CraneEvent:
+	for e in root.get_tree().get_nodes_in_group(MapEvent.GROUP):
+		if e is CraneEvent:
+			return e
+	return null
+
+
+func _lever() -> MapLever:
+	for t in root.get_tree().get_nodes_in_group(MapTerminal.GROUP):
+		if t is MapLever:
+			return t
+	return null
+
+
+## Puts the crane where it stands after `pulls` pulls of the lever, at rest.
+func _set_crane(pulls: int) -> void:
+	var crane := _crane()
+	crane.stop()
+	crane.state = pulls
+	crane._place()
+
+
+## What the crane is made of, and that its load has a clear way round.
+func _crane_checks() -> void:
+	print("  the crane")
+	var crane := _crane()
+	var lever := _lever()
+	_expect(crane != null and lever != null, "the map has a CraneEvent and a MapLever")
+	if crane == null or lever == null:
+		return
+	var jib := crane.get_node_or_null(crane.jib) as MapIsland
+	var hook := crane.get_node_or_null(crane.hook) as MapIsland
+	_expect(jib != null and hook != null, "the crane's Jib and Hook are MapIslands")
+	_expect(lever.get_node_or_null(lever.event) == crane, "the lever's Event is the crane")
+	_expect(jib != null and jib.is_ancestor_of(lever), "the lever is inside the jib, so it rides round with the cab")
+	_expect(not lever.bots, "bots leave the lever alone (they cannot walk to it)")
+	_expect(jib != null and hook != null and jib.over_ground and hook.over_ground, "the Jib and Hook are marked Over Ground (bots still play it as a map with a floor)")
+	# The exported game: an export keeps a typed array on this node and drops a packed one
+	# (v0.1.48 shipped a crane with no stops), so the scene must hold plain arrays.
+	var kept := {}
+	var state := (load("res://game/maps/construction_site.tscn") as PackedScene).get_state()
+	for i in state.get_node_count():
+		if state.get_node_name(i) == crane.name:
+			for p in state.get_node_property_count(i):
+				kept[String(state.get_node_property_name(i, p))] = typeof(state.get_node_property_value(i, p))
+	_expect(kept.get("turns") == TYPE_ARRAY and kept.get("heights") == TYPE_ARRAY and kept.get("route") == TYPE_ARRAY,
+		"the scene stores the crane's Turns, Heights and Route as typed arrays (an export drops packed ones)")
+	_expect(crane.route.size() >= 2 and crane.turns.size() == crane.heights.size(), "it has %d stops and a route of %d moves" % [crane.turns.size(), crane.route.size()])
+	if jib == null or hook == null:
+		return
+	# Every move of the route, sampled: the slab touches nothing, and at each stop in
+	# the yard nothing stands under it that someone could be squashed on.
+	var space := root.get_world_3d().direct_space_state
+	var slab := BoxShape3D.new()
+	slab.size = S.SLAB - Vector3(0.1, 0.1, 0.1)
+	var home := hook.transform
+	var pivot: Vector3 = hook.pivot
+	var hits := {}
+	var longest := 0.0
+	for step in crane.route.size():
+		var a := crane._stop(step)
+		var b := crane._stop(step + 1)
+		var p := crane._parts(a, b)
+		var total := p.x + p.y + p.z + crane.pause * 2.0
+		longest = maxf(longest, total)
+		var t := 0.0
+		while t <= total:
+			var pose := crane.pose_between(a, b, t)
+			var turn := Basis(Vector3.UP, deg_to_rad(pose.x))
+			var at := Transform3D(turn * home.basis, pivot + turn * (home.origin - pivot) + Vector3(0, pose.y - S.SLAB.y * 0.5, 0))
+			var q := PhysicsShapeQueryParameters3D.new()
+			q.shape = slab
+			q.transform = at
+			for hit in space.intersect_shape(q, 8):
+				if not hit.collider is AnimatableBody3D:
+					hits["%s at %s" % [hit.collider.name, at.origin.snapped(Vector3.ONE * 0.1)]] = true
+			t += 0.1
+	if not hits.is_empty():
+		print("      in the way: %s" % ", ".join(hits.keys().slice(0, 6)))
+	_expect(hits.is_empty(), "the slab touches nothing on any move of its route (the longest takes %.1f s)" % longest)
+	var under := BoxShape3D.new()
+	var low := 0
+	for stop in crane.turns.size():
+		var turn := Basis(Vector3.UP, deg_to_rad(crane.turns[stop]))
+		var top: float = home.origin.y + crane.heights[stop]
+		var bottom := top - S.SLAB.y
+		var below := space.intersect_ray(PhysicsRayQueryParameters3D.create(pivot + turn * (home.origin - pivot) + Vector3(0, bottom - 0.05, 0), pivot + turn * (home.origin - pivot) + Vector3(0, -6, 0)))
+		if below.is_empty() or below.position.y > 6.0:
+			continue   # (the stop in the tower's steel bay: nothing to stand on under it)
+		var floor_y: float = below.position.y
+		_expect(bottom - floor_y >= 1.95, "stop %d rests with standing room under the slab (%.2f m)" % [stop, bottom - floor_y])
+		under.size = Vector3(S.SLAB.x + 0.8, bottom - floor_y - 0.3, S.SLAB.z + 0.8)
+		var q := PhysicsShapeQueryParameters3D.new()
+		q.shape = under
+		q.transform = Transform3D(turn * home.basis, pivot + turn * (home.origin - pivot) + Vector3(0, (bottom + floor_y) * 0.5 + 0.1 - home.origin.y, 0) + Vector3(0, home.origin.y, 0))
+		q.transform.origin.y = (bottom + floor_y) * 0.5 + 0.1
+		for hit in space.intersect_shape(q, 8):
+			if not hit.collider is AnimatableBody3D:
+				print("      under the slab at stop %d: %s" % [stop, hit.collider.name])
+				low += 1
+	_expect(low == 0, "nothing stands under the slab's stops in the yard")
+
+
+## Wall-jump up the inside of the crane's mast, from its floor. `exit` is the deck
+## round its head (out of the top) or the tie gangway (out of the south door).
+func _mast_run(exit: float, what: String) -> Dictionary:
+	var out_south := exit < S.MAST_DECK - 1.0
+	return {
+		"name": "crane mast: wall-jump up %s" % what,
+		"start": S.MAST + Vector3(-0.55, 1.05, 0), "yaw": NORTH, "max_time": 16.0,
+		"drive": func(dt):
+			var p := body.global_position
+			input.move = Vector2.ZERO
+			input.yaw = SOUTH if out_south else NORTH
+			if body.is_on_floor() and p.y < 1.5 and not _mem.has("started"):
+				input.jump_pressed = true
+				_mem["started"] = true
+				_mem["last_jump"] = 0.0
+			_mem["last_jump"] = _mem.get("last_jump", 0.0) + dt
+			if p.y > exit - 2.0:
+				input.move = Vector2(0, 1)   # push toward the doorway (or the top of the wall): the climb does the rest
+			elif _mem.has("started") and _mem.last_jump > 0.12 and body.velocity.y < 3.0:
+				input.jump_pressed = true
+				_mem["last_jump"] = 0.0,
+		"done": func(): return body.global_position.y > exit - 0.1 and body.is_on_floor(),
+		"check": func():
+			var p := body.global_position
+			var out := p.z > S.MAST.z + 1.0 if out_south else _flat(p, S.MAST) > 0.7
+			_expect(absf(p.y - exit) < 0.15 and body.is_on_floor() and out,
+				"standing at %.1f m, out of the mast (feet at %.1f m, %.1f m from its middle, after %.1f s)" % [exit, p.y, _flat(p, S.MAST), _time]),
+	}
+
+
+## From the corner of the tower's 20 m steel along the gangway to the mast's door.
+func _gangway_run() -> Dictionary:
+	var along := Vector3(1, 0, -1).normalized()
+	var door := S.MAST + Vector3(0, S.MAST_TIE, 1.75)
+	var bend := S.TIE_FROM + along * 13.4
+	return {
+		"name": "crane: run the tie gangway from the tower's steel to the mast's door",
+		"start": S.TIE_FROM + along * 0.3 + Vector3(0, 0.05, 0), "yaw": _yaw_to(along), "max_time": 8.0,
+		"drive": func(_dt):
+			var p := body.global_position
+			if _flat(p, bend) < 0.5:
+				_mem["bent"] = true
+			var to := (door if _mem.has("bent") else bend) - p
+			input.yaw = _yaw_to(to)
+			input.move = Vector2(0, 1),
+		"done": func(): return _flat(body.global_position, door) < 0.4,
+		"check": func():
+			var p := body.global_position
+			_expect(_flat(p, door) < 0.5 and absf(p.y - S.MAST_TIE) < 0.15 and body.is_on_floor(),
+				"standing at the mast's door, 20 m up (%.1f m from it, feet at %.1f m, after %.1f s)" % [_flat(p, door), p.y, _time]),
+	}
+
+
+## Stand in the cab, throw the lever, and ride the jib round to its next stop.
+func _cab_run() -> Dictionary:
+	var stand := Vector3(0.55, 0.05, 0.65)   # from the lever, in the cab's own frame
+	return {
+		"name": "crane: throw the lever in the cab and ride the jib round",
+		"start": Vector3(0, 0.05, 0), "max_time": 30.0,
+		"drive": func(dt):
+			var crane := _crane()
+			var lever := _lever()
+			var ticks: int = _mem.get("ticks", 0)
+			_mem["ticks"] = ticks + 1
+			input.move = Vector2.ZERO
+			if ticks == 0:
+				_set_crane(0)
+			elif ticks == 5:
+				_teleport(lever.global_transform * stand, NORTH)
+			elif ticks == 30:
+				_mem["reach"] = lever.reaches(body.global_position)
+				_mem["ready"] = lever.ready_to_use()
+				_mem["lever_from"] = lever.global_position
+				lever.host_set_holding(1, true)
+				lever.host_step(dt, func(_id: int) -> Variant: return body.global_position)
+				lever.host_set_holding(1, false)
+				_mem["started"] = crane.running
+			elif ticks > 30:
+				lever.host_step(dt, func(_id: int) -> Variant: return body.global_position)
+				if crane.moving():
+					_mem["locked"] = not lever.ready_to_use()
+					_mem["part_%d" % crane.part_now()] = true,
+		"done": func(): return _mem.get("ticks", 0) > 40 and not _crane().moving(),
+		"check": func():
+			var crane := _crane()
+			var lever := _lever()
+			var p := body.global_position
+			var off := lever.global_transform.affine_inverse() * p
+			var want: Vector3 = S.MAST + Basis(Vector3.UP, deg_to_rad(crane.turns[crane.stop_now()])) * (Vector3(_mem.lever_from) - S.MAST)
+			_expect(_mem.get("reach", false) and _mem.get("ready", false), "standing in the cab, the lever is in reach and ready")
+			_expect(_mem.get("started", false), "one press sets the crane off")
+			_expect(_mem.get("locked", false), "the lever is locked while the crane moves")
+			_expect(_mem.has("part_0") and _mem.has("part_1") and _mem.has("part_2"), "it hoists, then turns, then lowers")
+			_expect(crane.stop_now() == crane.route[1] and lever.global_position.distance_to(want) < 0.05 and want.distance_to(_mem.lever_from) > 1.0,
+				"the cab has gone round to the next stop (%.0f degrees; the lever moved %.1f m)" % [crane.turns[crane.stop_now()], lever.global_position.distance_to(_mem.lever_from)])
+			_expect(off.distance_to(stand) < 0.3 and body.is_on_floor(), "and took its operator with it (%.2f m from where they stood, after %.1f s)" % [off.distance_to(stand), _time]),
+	}
+
+
+## Stand on the slab at the tower and ride it to a stop in the yard. `pulls` is how
+## many times the lever has been pulled before.
+func _slab_run(pulls: int, where: String) -> Dictionary:
+	return {
+		"name": "crane: ride the slab from the tower's steel to the %s yard" % where,
+		"start": Vector3(0, 0.05, 0), "max_time": 30.0,
+		"drive": func(_dt):
+			var crane := _crane()
+			var hook := crane.get_node(crane.hook) as Node3D
+			var ticks: int = _mem.get("ticks", 0)
+			_mem["ticks"] = ticks + 1
+			input.move = Vector2.ZERO
+			if ticks == 0:
+				_set_crane(pulls)
+			elif ticks == 5:
+				_mem["from"] = hook.global_position
+				_teleport(hook.global_position + Vector3(0, 0.05, 0), NORTH)
+			elif ticks == 30:
+				crane.host_start()
+			elif ticks > 30 and crane.moving():
+				_mem["top"] = maxf(_mem.get("top", 0.0), body.global_position.y),
+		"done": func(): return _mem.get("ticks", 0) > 40 and not _crane().moving(),
+		"check": func():
+			var crane := _crane()
+			var hook := crane.get_node(crane.hook) as Node3D
+			var p := body.global_position
+			var stop := crane.stop_now()
+			var want: Vector3 = S.MAST + Basis(Vector3.UP, deg_to_rad(crane.turns[stop])) * (Vector3(_mem.from) - S.MAST)
+			want.y = _mem.from.y + crane.heights[stop]
+			_expect(stop != 0 and hook.global_position.distance_to(want) < 0.05, "the slab has come down in the yard at (%.1f, %.1f, %.1f)" % [want.x, want.y, want.z])
+			_expect(p.distance_to(want) < 0.4 and body.is_on_floor(), "with its rider still on it (%.2f m from its middle, carried up to %.1f m on the way, %.1f s)" % [p.distance_to(want), _mem.get("top", 0.0), _time]),
 	}

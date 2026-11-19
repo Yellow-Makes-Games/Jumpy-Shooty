@@ -6,35 +6,58 @@ extends Node3D
 
 const VIEW_SHADER := "res://game/player/robot/viewmodel.gdshader"
 const VISOR_ENERGY := 1.6
+const GUN_GLOW_ENERGY := 1.4   ## a gun's glowing strips and cells ("<gun>.glow"), as bright as the melee weapons' edges
 const GOLD := Color(1.0, 0.76, 0.22)   ## the Golden Gun
 ## Left out of the body you see in first person: the camera sits inside the head,
 ## and the arms and gun are drawn by ViewModel.
 const VIEW_HIDDEN := ["head", "upper_arm_l", "forearm_l", "hand_l", "grapple", "upper_arm_r",
-	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "pistol_l", "pistol_l_slide", "pistol_l_mag"]
+	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 
 ## What a surface's material kind (see material_kind) means for a character:
-const PAINTED := ["armor", "extra"]          ## takes the body paint and the team colour
-const SKINNED := ["skin", "flesh"]           ## takes the skin tone
+## which of a character's colours it takes (CustomCharacter.BODY_COLORS: 0 the main
+## colour, which is also what a team's colour repaints; 1 the second colour; 2 the
+## detail colour; 3 the skin tone). A robot's own materials are read through
+## Characters.material_role first ("joint" is "trim_joint").
+const CHANNELS := {"armor": 0, "extra": 0, "trim": 1, "mark": 2, "hair": 2, "skin": 3, "flesh": 3}
+const NO_COLORS: Array[Color] = [Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0), Color(0, 0, 0, 0)]
 ## ...and for measuring a body for its accessories: a head's shell (not its ears, horns
 ## or antennas), its eyes, and what to leave out of the chest and the waist.
 const SHELL := ["armor", "steel", "cloth", "mail", "visor", "skin", "hair", "shell"]
 const EYES := ["visor", "eye"]
 const UNMEASURED := ["visor", "extra", "flesh"]
 ## The first-person arms: these bones' triangles (a kit's are thinned: Characters.KIT_FP_SLIM).
-const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r"]
-const SLIM_BONES := {"forearm_l": -1.0, "hand_l": -1.0, "forearm_r": 1.0, "hand_r": 1.0}
+const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
+const SLIM_BONES := {"forearm_l": -1.0, "forearm_r": 1.0}   # (not the hands: their fingers have to meet a gun's grip)
 const ARM_X := 0.215                         ## how far out the arms hang (rig.py: forearm_l)
+## A custom character's cape and tail have bones of their own (see Accessories.RIGGED),
+## added after the body's, in this order, on these bones. settle_sway() poses them.
+const SWAY := ["cape", "tail"]
+const SWAY_PARENT := {"cape": "hips", "tail": "hips"}
+const CAPE_BAND := 0.08       ## the cape bends over this far either side of its bone
+const CAPE_LEAN := deg_to_rad(30.0)   ## the most a cape's hem leans out from hanging straight down
+const SWAY_FLOOR := 0.04      ## the lowest a cape's hem or a tail's tip goes (above the feet)
+const CAPE_STREAM := deg_to_rad(72.0)   ## streaming behind a body on a rope, a cape's hem leans out this far at most...
+const TAIL_STREAM := deg_to_rad(38.0)   ## ...and a tail's tip turns this far toward the way it streams
 
 static var _view_meshes := {}     # body mesh -> the mesh without VIEW_HIDDEN
 static var _gun_meshes := {}      # [model file, gun] -> [the mesh with only that gun, which surface of the full mesh each surface was]
 static var _custom_meshes := {}   # custom character's parts + gun -> its mesh (see _custom_mesh)
 static var _sources := {}         # model file -> [its full mesh, its skin]
-static var _skin_parts := {}    # "part id|region" -> whether it shows bare skin
+static var _shown := {}           # "part id|region|channel" -> whether that part has anything of that colour
+static var _roles := {}           # [material, role name] -> the material under its role's name
 static var _arm_meshes := {}      # kit + gun -> a kit's first-person arms (see _kit_arms_mesh)
 
 ## The gun this robot holds (an id from WeaponData). Every model file holds every
 ## gun; their surfaces' materials are named "<gun>.<kind>", and the others are left out.
 var weapon := ""
+## The clip this character stands still in: its torso's own idle ("idle_<torso>", with
+## that robot's habit in it: see animations.py), or the plain "idle" if it has none.
+var idle := "idle"
 var rig: RobotRig
 var skeleton: Skeleton3D
 var mesh: MeshInstance3D
@@ -44,7 +67,9 @@ var melee: Node3D                 ## the sword, hammer or dagger in the fist (se
 var melee_left: Node3D            ## the left fist's brass knuckles, if any
 
 var _glow_materials: Array = []   # [material, is_shader]
+var _gun_glow: Array = []         # [material, its colour]: the gun's lit parts (see set_gun_glow)
 var _glow_color := Color.WHITE
+var _sway: Array = []             # {bone, parent, rest (its rest, on the parent), tip, kind}: see settle_sway
 
 
 ## The colour used on a robot's trim and visor: the player colour, made more vivid.
@@ -60,11 +85,13 @@ func build(character: String, player_color: Color, viewmodel: bool = false, gun:
 		team_paint: Color = Color(0, 0, 0, 0)) -> RobotModel:
 	var custom: CustomCharacter = CustomCharacter.parse(character) if Characters.is_custom(character) else null
 	var path := Characters.arms(character) if arms else Characters.body(character)
-	var paint := CustomCharacter.paint_color(custom.paint) if custom else Color(0, 0, 0, 0)
-	var skin := CustomCharacter.skin_color(custom.skin) if custom else Color(0, 0, 0, 0)
+	var colors: Array[Color] = custom.channel_colors() if custom else NO_COLORS.duplicate()
 	if team_paint.a > 0.0:
-		paint = team_paint
-	return _setup(path, player_color, viewmodel, gun, custom, paint, skin, arms)
+		colors[0] = team_paint
+	_setup(path, player_color, viewmodel, gun, custom, colors, arms)
+	var habit := "idle_" + (custom.torso if custom else Characters.valid(character))
+	idle = habit if rig.has_clip(habit) else "idle"
+	return self
 
 
 ## viewmodel: draw with the first-person shader (own field of view, never clips into walls).
@@ -74,11 +101,11 @@ func setup(path: String, player_color: Color, viewmodel: bool = false, gun: Stri
 
 
 ## custom: a custom character to put together (`path` is its base robot's file: the
-## skeleton, the animations and the guns); paint: the colour of its shell ("armor"),
-## skin: of its bare skin; alpha 0 leaves either as built. arms: `path` is the
-## first-person arms' file.
+## skeleton, the animations and the guns); colors: its main, second and detail
+## colours and its skin tone (see CHANNELS; alpha 0 leaves one as built). arms: `path`
+## is the first-person arms' file.
 func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, custom: CustomCharacter = null,
-		paint: Color = Color(0, 0, 0, 0), skin: Color = Color(0, 0, 0, 0), arms: bool = false) -> RobotModel:
+		colors: Array[Color] = NO_COLORS, arms: bool = false) -> RobotModel:
 	rig = RobotRig.open(path)
 	var node := rig.scene.instantiate()
 	add_child(node)
@@ -95,6 +122,7 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 	var golden := weapon != "none" and WeaponData.by_id(weapon).golden
 	if custom and not arms:
 		mesh.mesh = _custom_mesh(custom, path, mesh.skin, shown_gun)
+		_add_sway(mesh.mesh.get_meta("sway", []))
 	elif custom and Characters.is_kit(custom.torso):
 		mesh.mesh = _kit_arms_mesh(custom.torso, path, mesh, shown_gun)   # a robot's guns in the kit's own hands
 	else:
@@ -104,13 +132,20 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 		melee = MeleeModel.attach(self, weapon, trim, viewmodel)
 		melee_left = MeleeModel.attach_left(self, weapon, trim, viewmodel)
 	_glow_color = trim
+	# A mesh straight from a robot's file still has the robot's own material names (a
+	# custom character's body was renamed as it was put together, and a kit's arms
+	# already go by role).
+	var plain := "" if custom and (not arms or Characters.is_kit(custom.torso)) else path.get_file().get_basename().trim_suffix("_arms")
 	for i in mesh.mesh.get_surface_count():
 		var base: StandardMaterial3D = mesh.mesh.surface_get_material(i)
-		var kind := material_kind(base.resource_name)
-		var color := trim if kind == "accent" else base.albedo_color
-		var painted := (kind in PAINTED and paint.a > 0.0) or (kind in SKINNED and skin.a > 0.0)
+		var kind := material_kind(Characters.material_role(plain, base.resource_name) if plain != "" else base.resource_name)
+		var gun_glow := kind == "glow" and "." in base.resource_name   # a gun's lit parts, in the player's trim colour
+		var lit := kind in Accessories.LIGHTS   # an accessory's lights: the player's trim colour, like the visor
+		var color := Color(trim, base.albedo_color.a) if kind == "accent" or gun_glow or lit else base.albedo_color
+		var channel: int = CHANNELS.get(kind, -1)
+		var painted := channel >= 0 and colors[channel].a > 0.0
 		if painted:
-			color = paint if kind in PAINTED else skin
+			color = colors[channel]
 		var gilded := golden and base.resource_name.begins_with(shown_gun + ".")   # the gun's own surfaces
 		if gilded:
 			color = GOLD if kind != "accent" else GOLD.darkened(0.25)
@@ -120,13 +155,18 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 			sm.set_shader_parameter("albedo", color)
 			sm.set_shader_parameter("roughness", 0.25 if gilded else base.roughness)
 			sm.set_shader_parameter("metallic", 0.9 if gilded else base.metallic)
-			if kind == "visor":
+			if kind == "visor" or lit:
 				sm.set_shader_parameter("emission", trim * VISOR_ENERGY)
 				_glow_materials.append([sm, true])
+			elif gun_glow:
+				sm.set_shader_parameter("emission", color * GUN_GLOW_ENERGY)
+				_gun_glow.append([sm, color])
 			mesh.set_surface_override_material(i, sm)
-		elif kind == "accent" or kind == "visor" or painted or gilded:
+		elif kind == "accent" or kind == "visor" or gun_glow or painted or gilded or lit:
 			var m: StandardMaterial3D = base.duplicate()
-			if kind == "visor":
+			if lit:
+				m.albedo_color = color
+			if kind == "visor" or lit:
 				m.emission_enabled = true
 				m.emission = trim
 				m.emission_energy_multiplier = VISOR_ENERGY
@@ -136,6 +176,11 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 				if gilded:
 					m.metallic = 0.9
 					m.roughness = 0.25
+				if gun_glow:
+					m.emission_enabled = true
+					m.emission = color
+					m.emission_energy_multiplier = GUN_GLOW_ENERGY
+					_gun_glow.append([m, color])
 			mesh.set_surface_override_material(i, m)
 	if viewmodel:
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -143,30 +188,48 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 	return self
 
 
-## Whether any of this character's parts shows bare skin (so a skin tone would change it).
-static func shows_skin(c: CustomCharacter) -> bool:
+## Whether any of this character's parts has something of this colour (a CHANNELS
+## number): bare skin for a skin tone, a second colour to paint...
+static func shows(c: CustomCharacter, channel: int) -> bool:
 	for part in ["legs", "torso", "head"]:
 		var id := c.part(part)
-		var key := "%s|%s" % [id, part]
-		if not _skin_parts.has(key):
-			_skin_parts[key] = false
+		var key := "%s|%s|%d" % [id, part, channel]
+		if not _shown.has(key):
+			_shown[key] = false
 			var path := Characters.part_file(id)
 			var source: Mesh = _source(path)[0]
 			var names := _bind_list(_source(path)[1])
 			for s in source.get_surface_count():
 				var mat := source.surface_get_material(s)
-				if mat == null or material_kind(mat.resource_name) not in SKINNED:
+				if mat == null or CHANNELS.get(material_kind(Characters.material_role(id, mat.resource_name)), -1) != channel:
 					continue
 				var arrays := source.surface_get_arrays(s)
 				var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
 				var per := bones.size() / (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 				for v in range(0, bones.size(), per):
 					if CustomCharacter.region_of(names[bones[v]]) == part:
-						_skin_parts[key] = true
+						_shown[key] = true
 						break
-		if _skin_parts[key]:
+		if _shown[key]:
 			return true
 	return false
+
+
+static func shows_skin(c: CustomCharacter) -> bool:
+	return shows(c, 3)
+
+
+## A material under the name of its role (see Characters.material_role), so the
+## colours find it: the same material, renamed, made once.
+static func _in_role(mat: Material, role: String) -> Material:
+	if mat == null or mat.resource_name == role:
+		return mat
+	var key := [mat, role]
+	if not _roles.has(key):
+		var copy: Material = mat.duplicate()
+		copy.resource_name = role
+		_roles[key] = copy
+	return _roles[key]
 
 
 ## A custom character's mesh: each body region's triangles from the body it comes
@@ -177,7 +240,7 @@ static func shows_skin(c: CustomCharacter) -> bool:
 static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: String) -> Mesh:
 	var picked := []
 	for slot in CustomCharacter.SLOTS:
-		picked.append(c.accessories.get(slot, ""))
+		picked.append("%s.%s" % [c.accessories.get(slot, ""), c.color_of(slot)])
 	var key := "%s|%s|%s|%s|%s" % [c.legs, c.torso, c.head, ",".join(picked), gun]
 	if _custom_meshes.has(key):
 		return _custom_meshes[key]
@@ -188,6 +251,9 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 	var chest := AABB()
 	var waist := AABB()
 	var seen := {"shell": false, "visor": false, "chest": false, "waist": false}
+	# What the accessories take the place of (the thin bits on a head under a hat,
+	# a tail under a tail): left out, and not measured.
+	var hidden := Accessories.hidden(c.accessories, c.head, c.legs)
 	for part in ["legs", "torso", "head"]:
 		var path := Characters.part_file(c.part(part))
 		var source: Mesh = _source(path)[0]
@@ -213,6 +279,9 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 				var bone_name: String = names[bones[v * per + best]]
 				if CustomCharacter.region_of(bone_name) != part:
 					continue
+				if not (hidden.get(part, []) as Array).is_empty() and mat and Accessories.hides(hidden[part], mat.resource_name,
+						(verts[index[t]] + verts[index[t + 1]] + verts[index[t + 2]]) / 3.0):
+					continue
 				kept.append_array([index[t], index[t + 1], index[t + 2]])
 				# Measure the head, chest and waist, for fitting the accessories.
 				for corner in 3:
@@ -235,7 +304,7 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 			arrays[Mesh.ARRAY_BONES] = _rebind(bones, names, bind_of)
 			var flags := Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if per == 8 else 0
 			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
-			out.surface_set_material(out.get_surface_count() - 1, mat)
+			out.surface_set_material(out.get_surface_count() - 1, _in_role(mat, Characters.material_role(c.part(part), mat.resource_name)) if mat else mat)
 	_add_gun(out, host, gun, bind_of)
 	if not seen.shell:
 		head_shell = AABB(Vector3(-0.12, 1.5, -0.14), Vector3(0.24, 0.3, 0.27))
@@ -263,7 +332,22 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 				collar = verts[i].z if not collar_set else minf(collar, verts[i].z)
 				collar_set = true
 	var fit := Accessories.fit(head_shell, visor, chest, collar, waist)
-	for piece in Accessories.build(c.accessories, fit):
+	# The cape's and the tail's own bones: skin binds after the body's, in SWAY's order.
+	var rigged := {}   # accessory bone -> true
+	for slot in CustomCharacter.SLOTS:
+		var id: String = c.accessories.get(slot, "")
+		if id != "":
+			rigged["tail" if slot == "tail" else Accessories.RIGGED.get(id, "")] = true
+	var sway := []   # {name, parent, pivot, tip}: see _add_sway
+	for bone in SWAY:
+		if rigged.has(bone):
+			bind_of[bone] = skin.get_bind_count() + sway.size()
+			sway.append({"name": bone, "parent": SWAY_PARENT[bone], "pivot": Accessories.pivot(bone, fit), "tip": Vector3.ZERO})
+	var tints := {}
+	for slot in CustomCharacter.SLOTS:
+		if c.color_of(slot) != "":
+			tints[slot] = CustomCharacter.paint_color(c.color_of(slot))
+	for piece in Accessories.build(c.accessories, fit, tints, c.head):
 		var pts: PackedVector3Array = piece.points
 		if pts.is_empty():
 			continue
@@ -274,6 +358,10 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 		var weights := PackedFloat32Array()
 		weights.resize(pts.size() * 4)
 		var bind: int = bind_of.get(piece.bone, 0)
+		var rig_of: Dictionary = {}   # the cape's or the tail's entry in `sway`
+		for entry in sway:
+			if entry.name == piece.bone:
+				rig_of = entry
 		for t in range(0, pts.size(), 3):
 			# Godot's front faces wind clockwise: the triangles come out counter-clockwise.
 			var a := pts[t]
@@ -285,6 +373,21 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 		for i in pts.size():
 			bones[i * 4] = bind
 			weights[i * 4] = 1.0
+			if piece.bone == "skirt":
+				_skirt_weights(pts[i], fit, bind_of, bones, weights, i * 4)
+			elif piece.bone == "cape":
+				# The top on the chest, the bottom on the cape's bone, bending between.
+				var low := clampf((rig_of.pivot.y + CAPE_BAND - pts[i].y) / (2.0 * CAPE_BAND), 0.0, 1.0)
+				bones[i * 4] = bind_of["chest"]
+				weights[i * 4] = 1.0 - low
+				bones[i * 4 + 1] = bind
+				weights[i * 4 + 1] = low
+			if not rig_of.is_empty():
+				# The point furthest from the bone (a cape's hem, a tail's tip): what
+				# settle_sway keeps off the floor.
+				var off: Vector3 = pts[i] - rig_of.pivot
+				if off.length_squared() > (rig_of.tip as Vector3).length_squared() and (piece.bone != "cape" or off.y < 0.0):
+					rig_of.tip = off
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = pts
@@ -292,11 +395,98 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 		arrays[Mesh.ARRAY_BONES] = bones
 		arrays[Mesh.ARRAY_WEIGHTS] = weights
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		out.surface_set_material(out.get_surface_count() - 1, Accessories.material(piece.material))
+		out.surface_set_material(out.get_surface_count() - 1, Accessories.material(piece.material, piece.get("tint", Color(0, 0, 0, 0))))
+	if not sway.is_empty():
+		out.set_meta("sway", sway)
 	if _custom_meshes.size() > 64:
 		_custom_meshes.clear()
 	_custom_meshes[key] = out
 	return out
+
+
+## A skirt (Accessories.RIGGED): on the hips at the waist, more and more on the thigh
+## on its side further down (half on each in the middle), so the legs carry it with
+## them instead of going through it.
+static func _skirt_weights(p: Vector3, fit: Dictionary, bind_of: Dictionary, bones: PackedInt32Array,
+		weights: PackedFloat32Array, at: int) -> void:
+	var down := clampf((fit.waist_y - 0.02 - p.y) / 0.2, 0.0, 1.0) * 0.9
+	var right := clampf(0.5 + p.x / (maxf(fit.waist_w, 0.1) * 1.2), 0.0, 1.0)   # thigh_r is on +x
+	bones[at] = bind_of["hips"]
+	weights[at] = 1.0 - down
+	bones[at + 1] = bind_of["thigh_r"]
+	weights[at + 1] = down * right
+	bones[at + 2] = bind_of["thigh_l"]
+	weights[at + 2] = down * (1.0 - right)
+
+
+## The cape's and the tail's bones (see SWAY), on this model's own skeleton and skin.
+func _add_sway(list: Array) -> void:
+	if list.is_empty():
+		return
+	var skin: Skin = mesh.skin.duplicate()
+	for entry in list:
+		var parent := skeleton.find_bone(entry.parent)
+		var i := skeleton.get_bone_count()
+		skeleton.add_bone(entry.name)
+		skeleton.set_bone_parent(i, parent)
+		var rest := skeleton.get_bone_global_rest(parent).affine_inverse() * Transform3D(Basis.IDENTITY, entry.pivot)
+		skeleton.set_bone_rest(i, rest)
+		skeleton.set_bone_pose_position(i, rest.origin)
+		skeleton.set_bone_pose_rotation(i, rest.basis.get_rotation_quaternion())
+		skin.add_named_bind(entry.name, Transform3D(Basis.IDENTITY, -entry.pivot))
+		_sway.append({"bone": i, "parent": parent, "rest": rest, "tip": entry.tip, "kind": entry.name})
+	mesh.skin = skin
+
+
+## Poses the cape's and the tail's bones for the pose the body is in now (call after
+## posing the skeleton): a cape hangs from the small of the back, leaning out no more
+## than CAPE_LEAN, and neither a cape's hem nor a tail's tip goes below SWAY_FLOOR.
+## stream: on a rope (RopeSwing), the way everything loose streams out behind the body,
+## in the model's space, as long as it is strong (0..1): the cape and the tail go with it.
+func settle_sway(stream: Vector3 = Vector3.ZERO) -> void:
+	var blow := minf(stream.length(), 1.0)
+	var blown := stream / stream.length() if blow > 0.001 else Vector3.DOWN
+	for s in _sway:
+		var parent := skeleton.get_bone_global_pose(s.parent) * (s.rest as Transform3D)
+		var turn := parent.basis.get_rotation_quaternion()
+		var tip: Vector3 = turn * (s.tip as Vector3)
+		var q := Quaternion.IDENTITY   # the turn to make, in the skeleton's space
+		# The way the body faces, level, and its left-right axis.
+		var ahead := turn * Vector3.FORWARD
+		ahead.y = 0.0
+		ahead = ahead.normalized() if ahead.length_squared() > 1e-6 else Vector3.FORWARD
+		var side := Vector3.UP.cross(ahead).normalized()
+		if s.kind == "cape" and tip.length_squared() > 1e-6:
+			# Hang: never forward of straight down (under the body, through the legs),
+			# and leaning back out no more than CAPE_LEAN.
+			var d := tip.normalized()
+			if blow > 0.001 and d.dot(blown) > -0.99:
+				d = d.slerp(blown, blow * 0.85)
+			var fwd := d.dot(ahead)
+			if fwd > 0.0:
+				d = (d - ahead * fwd).normalized() if (d - ahead * fwd).length_squared() > 1e-6 else Vector3.DOWN
+			var lean := d.angle_to(Vector3.DOWN)
+			var most := lerpf(CAPE_LEAN, CAPE_STREAM, blow)
+			if lean > most:
+				var axis := d.cross(Vector3.DOWN)
+				if axis.length_squared() > 1e-8:
+					d = Quaternion(axis.normalized(), lean - most) * d
+			q = Quaternion(tip.normalized(), d)
+		elif blow > 0.001 and tip.length_squared() > 1e-6:
+			# A tail: its tip turns toward the way it streams.
+			var d := tip.normalized()
+			var axis := d.cross(blown)
+			if axis.length_squared() > 1e-8:
+				q = Quaternion(axis.normalized(), minf(d.angle_to(blown), TAIL_STREAM * blow))
+		if parent.origin.y + (q * tip).y < SWAY_FLOOR:
+			# Swung back and up, about the left-right axis, just far enough.
+			var back := 1.0 if (Quaternion(side, 0.1) * (q * tip)).dot(ahead) < (q * tip).dot(ahead) else -1.0
+			for k in range(1, 19):
+				var r := Quaternion(side, back * k * PI / 36.0) * q
+				q = r
+				if parent.origin.y + (r * tip).y >= SWAY_FLOOR:
+					break
+		skeleton.set_bone_pose_rotation(s.bone, (s.rest as Transform3D).basis.get_rotation_quaternion() * turn.inverse() * q * turn)
 
 
 ## The first-person arms of a character whose torso is a kit: the kit's own arms
@@ -447,6 +637,16 @@ func set_power(power: float) -> void:
 			(entry[0] as ShaderMaterial).set_shader_parameter("emission", _glow_color * VISOR_ENERGY * power)
 		else:
 			(entry[0] as StandardMaterial3D).emission_energy_multiplier = VISOR_ENERGY * power
+
+
+## How brightly the gun's glowing parts shine: 1 = as at rest. (Nothing drives this
+## yet: it is here for the reloads to use.)
+func set_gun_glow(amount: float) -> void:
+	for entry in _gun_glow:
+		if entry[0] is ShaderMaterial:
+			(entry[0] as ShaderMaterial).set_shader_parameter("emission", (entry[1] as Color) * GUN_GLOW_ENERGY * amount)
+		else:
+			(entry[0] as StandardMaterial3D).emission_energy_multiplier = GUN_GLOW_ENERGY * amount
 
 
 func set_layer(layer: int) -> void:

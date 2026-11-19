@@ -12,7 +12,9 @@ extends SceneTree
 ## aiming: {"puppet": {"state": 0, "velocity": [x,y,z], "pitch": 20, "flags": 0,
 ##   "crouched": false, "grapple": [x,y,z], "alive": true, "seconds": 1.0,
 ##   "fire_at": 0.9, "fire_left_at": 0.9 (akimbo), "wind": 0.5, "side": 0 (a melee swing wound up for 0.5 s then
-##   let go, a tap from the right), "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
+##   let go, a tap from the right), "feet": [0.15, 0.0] (the ground under the left and right foot, above the floor: see
+##   RobotAnimInput.feet), "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
+## A shot can also draw plain boxes, for steps and ledges: "blocks": [{"pos": [x, y, z], "size": [x, y, z]}].
 ## A puppet can hold any weapon: "weapon": "akimbo" (next to "puppet").
 ## A puppet with "first_person": {"pitch": -40, "eye": 1.6, "fov": 95} is seen through
 ## its own eyes (the shot's camera is ignored): the body as you see it in first person.
@@ -110,6 +112,17 @@ func _set_up(shot: Dictionary) -> void:
 	else:
 		_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 		_camera.fov = cam.get("fov", 40.0)
+	for block in shot.get("blocks", []):   # plain boxes: {"pos": [x, y, z] (its middle), "size": [x, y, z]}
+		var box_mesh := MeshInstance3D.new()
+		var shape := BoxMesh.new()
+		shape.size = _v(block.size)
+		var block_mat := StandardMaterial3D.new()
+		block_mat.albedo_color = Color(0.42, 0.45, 0.50)
+		block_mat.roughness = 0.9
+		shape.material = block_mat
+		box_mesh.mesh = shape
+		box_mesh.position = _v(block.pos)
+		_root.add_child(box_mesh)
 	for item in shot.items:
 		if item.has("puppet"):
 			_puppet(item)
@@ -172,6 +185,8 @@ func _puppet(item: Dictionary) -> void:
 		inp.flags = int(step.get("flags", inp.flags))
 		inp.alive = step.get("alive", inp.alive)
 		inp.grapple_on = step.has("grapple")
+		if step.has("feet"):   # the ground under the left and the right foot, above (+) or below (-) the floor
+			inp.feet = Vector2(step.feet[0], step.feet[1])
 		if step.has("grapple"):
 			inp.grapple_anchor = robot.global_transform * _v(step.grapple)
 		var t := 0.0

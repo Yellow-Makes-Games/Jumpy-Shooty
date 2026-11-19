@@ -10,8 +10,11 @@ extends SceneTree
 ## body still leaves the head (and so a hat) out. The creatures (a person, a
 ## goblin, a frog...: Characters.KITS) are parts like the robots': they mix with
 ## them, take the paint, the team colour and a skin tone, borrow the default
-## robot's skeleton and guns, and have first-person arms of their own. The
-## creator's rows step through and list every choice.
+## robot's skeleton and guns, and have first-person arms of their own. A body has
+## a main, a second and a detail colour (the Templar's plate, surcoat and cross; a
+## frog's back, belly and spots) and each accessory a colour of its own. The
+## creator's rows step through and list every choice, and its colour buttons open
+## a palette.
 
 var failures := 0
 var _done := false
@@ -91,12 +94,13 @@ func _checks() -> void:
 				one.head = torso
 				one.accessories[slot] = a.id
 				var model := RobotModel.new().build(one.to_id(), Color.RED)
+				var bone: String = "tail" if slot == "tail" else Accessories.SLOT_BONE[slot]   # a tail has a bone of its own
 				var extra := 0
 				for s in model.mesh.mesh.get_surface_count():
 					var m := model.mesh.mesh.surface_get_material(s)
-					if m and m.resource_name in Accessories.MATERIALS and _surface_bone(model, s) == Accessories.SLOT_BONE[slot] and not _from_robot(model, s):
+					if m and m.resource_name in Accessories.MATERIALS and _surface_bone(model, s) == bone and not _from_robot(model, s):
 						extra += model.mesh.mesh.surface_get_array_len(s) / 3
-				_expect("%s (%s) on %s: %d triangles on the %s" % [a.name, slot, torso, extra, Accessories.SLOT_BONE[slot]], extra >= 8)
+				_expect("%s (%s) on %s: %d triangles on the %s" % [a.name, slot, torso, extra, bone], extra >= 8)
 				_free(model)
 	# A hat is on the head bone, so the first-person body (no head) leaves it out.
 	var hatted := CustomCharacter.parse(id)
@@ -106,6 +110,9 @@ func _checks() -> void:
 	_expect("first person: the cape and chain are still on the chest", _bone_triangles(m, "chest", "view") > _bone_triangles(
 		RobotModel.new().setup(Characters.body("templar"), Color.RED), "chest", ""))
 	_free(m)
+
+	print("Fitting")
+	_fitting()
 
 	print("Creatures")
 	var k := CustomCharacter.new()
@@ -155,6 +162,76 @@ func _checks() -> void:
 			parts[0] > 20 and parts[1] > 20 and parts[2] > 4 and armed and own > 40 and arms_gun)
 	_expect("the default robot's own arms are untouched (%d triangles)" % host_arms, host_arms > 100)
 
+	print("Colours")
+	var t := CustomCharacter.new()
+	t.name = "Sir Red"
+	t.legs = "templar"
+	t.torso = "templar"
+	t.head = "templar"
+	t.paint = "red"
+	t.paint2 = "gold"
+	t.paint3 = "black"
+	t.accessories.hat = "top_hat"
+	t.accessories.back = "cape"
+	t.colors = {"hat": "purple", "neck": "green"}   # nothing round the neck: that colour is dropped
+	var tid := t.to_id()
+	var tback := CustomCharacter.parse(Characters.valid(tid))
+	_expect("second, detail and accessory colours read back the same", Characters.valid(tid) == tid and tback.paint2 == "gold"
+		and tback.paint3 == "black" and tback.color_of("hat") == "purple" and tback.color_of("back") == "" and not "green" in tid)
+	var odd := CustomCharacter.parse(Characters.valid("custom:n=x|l=templar|t=templar|h=templar|p2=plaid|p3=gold|hat=top_hat.plaid|face=.red|neck=tie.red.blue"))
+	_expect("made-up colours are dropped", odd.paint2 == "" and odd.paint3 == "gold" and odd.accessories.hat == "top_hat"
+		and odd.color_of("hat") == "" and odd.accessories.face == "" and Characters.valid(odd.to_id()) == odd.to_id())
+	var knight := RobotModel.new().build(tid, Color.RED)
+	_expect("the Templar's plate takes the main colour", _has_color(knight, "armor", CustomCharacter.paint_color("red")))
+	_expect("its surcoat the second and its cross the detail colour", _has_color(knight, "trim", CustomCharacter.paint_color("gold"))
+		and _has_color(knight, "mark", CustomCharacter.paint_color("black")))
+	_expect("the hat is purple and the cape is as it comes", _tinted(knight, CustomCharacter.paint_color("purple")) == 1 and _tints(knight) == 1)
+	_free(knight)
+	var knight_team := RobotModel.new().build(tid, Color.RED, false, "pistol", false, Color(0.9, 0.1, 0.1))
+	_expect("a team's colour replaces the main colour only", _has_color(knight_team, "armor", Color(0.9, 0.1, 0.1))
+		and not _has_color(knight_team, "armor", CustomCharacter.paint_color("red")) and _has_color(knight_team, "trim", CustomCharacter.paint_color("gold")))
+	_free(knight_team)
+	var plain_team := RobotModel.new().build("templar", Color.RED, false, "pistol", false, Color(0.9, 0.1, 0.1))
+	_expect("the plain Templar wears its team's colour too", _painted(plain_team, Color(0.9, 0.1, 0.1)))
+	_free(plain_team)
+	for robot in Characters.ids():
+		var two := CustomCharacter.new()
+		two.legs = robot
+		two.torso = robot
+		two.head = robot
+		two.paint = "red"
+		two.paint2 = "lime"
+		var built := RobotModel.new().build(two.to_id(), Color.RED)
+		var arms := RobotModel.new().build(two.to_id(), Color.RED, false, "pistol", true)
+		_expect("%s takes a main and a second colour, in first person too" % robot, _has_color(built, "armor", CustomCharacter.paint_color("red"))
+			and _has_color(built, "trim", CustomCharacter.paint_color("lime")) and _painted(arms, CustomCharacter.paint_color("red"))
+			and (_painted(arms, CustomCharacter.paint_color("lime")) or robot == "templar"))   # (its arms are all plate and mail)
+		_free(built)
+		_free(arms)
+	var spotty := CustomCharacter.new()
+	spotty.legs = "frog"
+	spotty.torso = "frog"
+	spotty.head = "frog"
+	spotty.paint2 = "pink"
+	spotty.paint3 = "navy"
+	var frog := RobotModel.new().build(spotty.to_id(), Color.RED)
+	_expect("a frog's belly takes the second colour and its spots the detail", _has_color(frog, "trim", CustomCharacter.paint_color("pink"))
+		and _has_color(frog, "mark", CustomCharacter.paint_color("navy")) and RobotModel.shows(spotty, 1) and RobotModel.shows(spotty, 2))
+	_free(frog)
+	for slot in CustomCharacter.SLOTS:
+		var missed := []
+		for a in CustomCharacter.ACCESSORIES[slot]:
+			if a.id == "":
+				continue
+			var one := CustomCharacter.new()
+			one.accessories[slot] = a.id
+			one.colors[slot] = "hotpink"
+			var model := RobotModel.new().build(one.to_id(), Color.RED)
+			if _tinted(model, CustomCharacter.paint_color("hotpink")) != 1:
+				missed.append(a.id)
+			_free(model)
+		_expect("every %s accessory takes a colour %s" % [slot, missed], missed.is_empty())
+
 	print("Creator")
 	# Loaded here, not named: the creator uses the autoloads, which a test script can't.
 	var creator: Node = load("res://game/ui/character_creator.gd").new("")
@@ -175,11 +252,120 @@ func _checks() -> void:
 	list.index_pressed.emit(3)
 	_expect("and picking one sets it", creator.current.accessories.hat == CustomCharacter.ACCESSORIES.hat[3].id)
 	list.hide()
-	creator.find_child("skin_deep", true, false).pressed.emit()
-	creator.find_child("paint_gold", true, false).pressed.emit()
-	_expect("the colour grids set the skin and the paint", creator.current.skin == "deep" and creator.current.paint == "gold")
+	creator.open_palette("p")
+	_expect("a colour button opens the palette (%d paints)" % creator._palette_grid.get_child_count(), creator._palette_grid.get_child_count() == CustomCharacter.PAINTS.size())
+	creator._palette_grid.find_child("pick_gold", false, false).pressed.emit()
+	creator.pick_color("s", "deep")
+	creator.pick_color("p2", "teal")
+	_expect("and picking sets the paint, the skin and the second colour", creator.current.paint == "gold" and creator.current.skin == "deep"
+		and creator.current.paint2 == "teal" and not creator._palette.visible)
+	creator.pick_color("hat", "red")
+	_expect("an accessory's colour button sets its colour", creator.current.color_of("hat") == "red" and ".red" in creator.current.to_id())
+	creator.set_part("hat", "")
+	creator.set_part("hat", "crown")
+	_expect("taking the hat off forgets its colour", creator.current.color_of("hat") == "")
+	_expect("with no neckwear its colour button is off", (creator.find_child("color_neck", true, false) as Button).disabled
+		and not (creator.find_child("color_hat", true, false) as Button).disabled)
 	_expect("what the creator made is a valid character", Characters.valid(creator.current.to_id()) == creator.current.to_id())
 	creator.queue_free()
+
+
+## Accessories fitted to the body they are on: two on one bone in one material both
+## show; a hat takes the place of the thin bits on top of the head (not a halo), an
+## ear hat of the head's own ears, a covering hat of the hair on top; a tail of the
+## legs' own tail; the cape and the tails on bones of their own keep off the floor.
+func _fitting() -> void:
+	var top_hat := _accessory_triangles("vanguard", {"hat": "top_hat"})
+	var mask := _accessory_triangles("vanguard", {"face": "bandit_mask"})
+	_expect("a top hat and a bandit mask (both silk, both on the head): both of them (%d + %d triangles)" % [top_hat, mask],
+		_accessory_triangles("vanguard", {"hat": "top_hat", "face": "bandit_mask"}) == top_hat + mask)
+	var needle := _body_triangles("needle", {})
+	_expect("a hat hides Needle's antenna", _body_triangles("needle", {"hat": "top_hat"}) < needle)
+	_expect("a halo doesn't", _body_triangles("needle", {"hat": "halo"}) == needle)
+	var goblin := _body_triangles("goblin", {"hat": "crown"})
+	_expect("cat ears hide the Goblin's own ears", _body_triangles("goblin", {"hat": "cat_ears"}) < goblin)
+	var dude := _body_triangles("human", {"hat": "crown"})
+	_expect("a top hat tucks the Dude's hair in; a crown doesn't", _body_triangles("human", {"hat": "top_hat"}) < dude
+		and _body_triangles("human", {"hat": "fez"}) == dude)
+	_expect("a tail takes the place of a cat's own", _body_triangles("cat", {"tail": "fox_tail"}) < _body_triangles("cat", {}))
+	var f := Accessories.fit(AABB(Vector3(-0.02, 1.5, -0.14), Vector3(0.04, 0.28, 0.28)), AABB(), AABB(Vector3(-0.2, 1.18, -0.14), Vector3(0.4, 0.32, 0.28)), -0.14)
+	var hat := Accessories.measured_for("hat", f, "")
+	_expect("a hat on the slimmest head is still hat-sized", hat.w >= Accessories.HAT_HALF.x and hat.d <= Accessories.HAT_HALF.y)
+	_expect("Rivet's hats sit on its hard hat", Accessories.measured_for("hat", f, "rivet").top > 1.8)
+	_expect("a duck's mustache goes over its beak", Accessories.measured_for("face", f, "duck").mouth_z < -0.13)
+	# Sliding: the cape trails and the dino tail stays up, above the floor.
+	for what in [{"back": "cape"}, {"tail": "dino_tail"}]:
+		var one := CustomCharacter.new()
+		one.accessories = what.duplicate()
+		var model := RobotModel.new().build(one.to_id(), Color.RED)
+		root.add_child(model)
+		var bone: String = "cape" if what.has("back") else "tail"
+		var i := model.skeleton.find_bone(bone)
+		var pose: RobotPose = model.rig.new_pose()
+		var low := INF
+		for k in 4:
+			model.rig.sample(pose, "slide", model.rig.length("slide") * k / 4.0)
+			pose.apply(model.skeleton)
+			model.settle_sway()
+			low = minf(low, _lowest(model, bone))
+		_expect("%s: a bone of its own (%d), above the floor in a slide (lowest %.2f)" % [what.values()[0], i, low], i >= 0 and low > 0.0)
+		_free(model)
+
+
+## The model's lowest point following `bone` (most strongly), as posed.
+func _lowest(model: RobotModel, bone: String) -> float:
+	var low := INF
+	var skin := model.mesh.skin
+	for s in model.mesh.mesh.get_surface_count():
+		var arrays := model.mesh.mesh.surface_get_arrays(s)
+		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var per := bones.size() / verts.size()
+		for v in verts.size():
+			var b := bones[v * per]
+			if weights[v * per + 1] > weights[v * per]:
+				b = bones[v * per + 1]
+			if String(skin.get_bind_name(b)) != bone:
+				continue
+			var at := model.skeleton.get_bone_global_pose(model.skeleton.find_bone(bone)) * skin.get_bind_pose(b) * verts[v]
+			low = minf(low, at.y)
+	return low
+
+
+## A Vanguard with this head (or a whole creature) wearing these: its body's own
+## triangles (not the accessories').
+func _body_triangles(part: String, wearing: Dictionary) -> int:
+	var one := CustomCharacter.new()
+	one.legs = part
+	one.torso = part
+	one.head = part
+	one.accessories = wearing.duplicate()
+	var model := RobotModel.new().build(one.to_id(), Color.RED)
+	var n := 0
+	for s in model.mesh.mesh.get_surface_count():
+		if _from_robot(model, s):
+			n += (model.mesh.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+	_free(model)
+	return n
+
+
+## The accessories' triangles on a robot wearing these.
+func _accessory_triangles(robot: String, wearing: Dictionary) -> int:
+	var one := CustomCharacter.new()
+	one.legs = robot
+	one.torso = robot
+	one.head = robot
+	one.accessories = wearing.duplicate()
+	var model := RobotModel.new().build(one.to_id(), Color.RED)
+	var n := 0
+	for s in model.mesh.mesh.get_surface_count():
+		if not _from_robot(model, s):
+			var m := model.mesh.mesh.surface_get_material(s)
+			if m and not "." in m.resource_name:
+				n += model.mesh.mesh.surface_get_array_len(s) / 3
+	_free(model)
+	return n
 
 
 func _has_gun(model: RobotModel, gun: String) -> bool:
@@ -233,6 +419,34 @@ func _has_color(model: RobotModel, kind: String, color: Color) -> bool:
 		if o is StandardMaterial3D and RobotModel.material_kind(o.resource_name) == kind and o.albedo_color.is_equal_approx(color):
 			return true
 	return false
+
+
+## Whether any surface is repainted this colour, whatever it is called.
+func _painted(model: RobotModel, color: Color) -> bool:
+	for s in model.mesh.mesh.get_surface_count():
+		var o := model.mesh.get_surface_override_material(s)
+		if o is StandardMaterial3D and o.albedo_color.is_equal_approx(color):
+			return true
+	return false
+
+
+## Surfaces painted an accessory's own colour (all of them, or those of `color`).
+func _tints(model: RobotModel) -> int:
+	var n := 0
+	for s in model.mesh.mesh.get_surface_count():
+		var mat := model.mesh.mesh.surface_get_material(s)
+		if mat and mat.resource_name == "tint":
+			n += 1
+	return n
+
+
+func _tinted(model: RobotModel, color: Color) -> int:
+	var n := 0
+	for s in model.mesh.mesh.get_surface_count():
+		var mat := model.mesh.mesh.surface_get_material(s) as StandardMaterial3D
+		if mat and mat.resource_name == "tint" and Color(mat.albedo_color, 1.0).is_equal_approx(color):
+			n += 1
+	return n
 
 
 ## Let go of the materials first (headless Godot grumbles otherwise), then free.

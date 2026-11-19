@@ -11,10 +11,12 @@ extends Node3D
 ##  - MapGrapplePoint nodes: glowing spots the grappling hook snaps to when you aim
 ##    near them (any map, any mode).
 ##  - MapItemSpawn nodes (under "ItemSpawns"): Deathmatch power-ups (health, damage).
-##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish),
-##    MapHazard blocks (touch one and you go back to your checkpoint), MapMover
+##  - MapHazard blocks: touch one and, in a race, you go back to your checkpoint; in
+##    an arena it is a death, the same as falling out of the map.
+##  - Race maps only: MapCheckpoint gates (numbered, the last one the finish), MapMover
 ##    groups (blocks that slide or spin) and, under "BotRoute", the MapRoutePoint
 ##    steps bots follow round the course.
+##  - MapGravityZone volumes: places with their own gravity (see WorldGravity).
 ##  - MapSpinner groups: scenery that turns (drawn, never solid); MapTerminal consoles
 ##    players press interact at, and the MapEvent (GravityEvent, LayoutEvent) each one
 ##    sets off.
@@ -58,6 +60,20 @@ extends Node3D
 		show_invisible_blocks = v
 		_palette_changed()
 
+@export_group("Drawing")
+## Do blocks that are drawn only (not solid: decoration) cast shadows? Off saves drawing
+## them again for every shadow, and thin things make shadows that shimmer. For a map
+## with a great deal of decoration.
+@export var decor_shadows := true
+## Drawn-only blocks no bigger than Detail Size are small decoration. From farther than
+## this many metres they are not drawn (0: always drawn, as on most maps).
+@export var detail_range := 0.0
+## The biggest a block can be (its longest side, metres) and still count as small.
+@export var detail_size := 1.5
+## The small decoration's meshes are cut into cubes this many metres across, and it is
+## each cube's middle that Detail Range is measured to.
+@export var detail_chunk := 30.0
+
 @export_group("Rules")
 ## Falling below this height counts as falling out of the map.
 @export var kill_height := -25.0
@@ -74,6 +90,9 @@ extends Node3D
 ## open sky between them, crossed at MapJumpLinks): every bot then carries the grapple
 ## here, whatever tool it was dealt.
 @export var bots_grapple := false
+## Gravity wherever no MapGravityZone covers, as a share of normal (see WorldGravity).
+## 1 = normal. Empyrean Tower: 0.4, with a zone of 1.0 filling the tower.
+@export_range(0.05, 2.0) var gravity_outside := 1.0
 ## A high point near the middle that scripted test players swing from.
 @export var swing_point := Vector3(0, 5.5, 0):
 	set(v):
@@ -100,6 +119,8 @@ var movers: Array = []
 var route: Array = []
 ## The map's MapSpinner nodes (scenery that turns), filled in by build().
 var spinners: Array = []
+## The map's MapGravityZone volumes, as WorldGravity takes them; filled in by build().
+var gravity_zones: Array = []
 ## The map's MapSpan walkways (they extend and retract), filled in by build():
 ## {node: MapSpan, base: Transform3D (in its mover's frame, or the map's), mover: int}.
 var spans: Array = []
@@ -173,6 +194,11 @@ static func of(node: Node) -> MapRoot:
 ## Makes the playable level: collision for every solid block and (unless
 ## `with_meshes` is false, as in the movement tests) one mesh per kind.
 func build(with_meshes: bool = true) -> void:
+	# The player's ambient occlusion and glow picks (Settings is missing in tools and tests).
+	var tree := Engine.get_main_loop() as SceneTree
+	var settings := tree.root.get_node_or_null("Settings") if tree else null
+	if settings:
+		GraphicsQuality.apply_environments(self, settings.graphics())
 	var pieces := []
 	spawns = []
 	checkpoints = []
@@ -183,10 +209,14 @@ func build(with_meshes: bool = true) -> void:
 	item_spawns = []
 	spinners = []
 	spans = []
+	gravity_zones = []
 	_riders = []
 	_nav_poses = []
 	_trail = []
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
+	# Gravity by place (none on most maps: then it is 1.0 everywhere, whatever the
+	# last map said).
+	WorldGravity.set_zones(gravity_zones, gravity_outside)
 	for s in spinners:
 		(s as MapSpinner).build(self, with_meshes)
 	checkpoints.sort_custom(func(a, b): return a.number < b.number)
@@ -201,12 +231,15 @@ func build(with_meshes: bool = true) -> void:
 		pieces = destruction.setup(self, pieces, spawns)
 	for i in movers.size():
 		_build_mover(i, with_meshes)   # (after the breakables: a mover's own ride on it)
+	if movers.is_empty():
+		remove_from_group(MapReplay.GROUP)
+	else:
+		add_to_group(MapReplay.GROUP)   # killcams replay where they were (see MapReplay)
 	for s in spans:
 		var on: Node3D = movers[s.mover].body if s.mover >= 0 else self
 		(s.node as MapSpan).build(self, on, s.base, with_meshes)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
-	add_child(body)
 	for piece in pieces:
 		if piece.solid:
 			for lump in collision_shapes(piece):
@@ -214,15 +247,49 @@ func build(with_meshes: bool = true) -> void:
 				shape.shape = lump
 				shape.transform = piece.xf
 				body.add_child(shape)
+	# (Into the world only once it has all its shapes: added one at a time to a body that
+	# is already there, each makes the physics engine put the whole body together again,
+	# which on a map of thousands of solid blocks took ten seconds.)
+	add_child(body)
 	if not with_meshes:
 		return
-	var meshes := MapMesher.build(pieces, face_shade)
-	for kind in meshes:
-		var mesh := MeshInstance3D.new()
-		mesh.name = "Mesh_%s" % kind
-		mesh.mesh = meshes[kind]
-		mesh.material_override = material_for(kind)
-		add_child(mesh)
+	# One mesh for each kind. A big map can say more (see Drawing): its decoration (the
+	# blocks that are drawn only) apart from its structure, so that it casts no shadow,
+	# and its small decoration cut into cubes, so that the far ones are left out.
+	var lots := {}      # [cube, 0 structure / 1 decoration / 2 small decoration] -> pieces
+	for piece in pieces:
+		if piece.get("hidden", false):
+			continue
+		var size: Vector3 = piece.size
+		var lot := 0
+		var cube := Vector3i.ZERO
+		if not piece.solid and detail_range > 0.0 and maxf(size.x, maxf(size.y, size.z)) <= detail_size:
+			lot = 2
+			cube = Vector3i(((piece.xf as Transform3D).origin / maxf(detail_chunk, 1.0)).floor())
+		elif not piece.solid and not decor_shadows:
+			lot = 1
+		var key := [cube, lot]
+		if not lots.has(key):
+			lots[key] = []
+		lots[key].append(piece)
+	for key: Array in lots:
+		var meshes := MapMesher.build(lots[key], face_shade)
+		for kind in meshes:
+			var mesh := MeshInstance3D.new()
+			mesh.name = ["Mesh_%s", "Mesh_%s_decor", "Mesh_%s_detail"][key[1]] % kind
+			if key[1] == 2:
+				mesh.name = "Mesh_%s_detail_%d_%d_%d" % [kind, key[0].x, key[0].y, key[0].z]
+				mesh.visibility_range_end = detail_range
+				mesh.visibility_range_end_margin = detail_range * 0.1
+			if key[1] > 0 and not decor_shadows:
+				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mesh.mesh = meshes[kind]
+			mesh.material_override = material_for(kind)
+			# Glass lets the sun through: a see-through kind casts no shadow.
+			var base := mesh.material_override as BaseMaterial3D
+			if base and base.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+				mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			add_child(mesh)
 
 
 const SURFACE_BUCKET := 4.0
@@ -368,6 +435,12 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			if not (child as Node3D).visible:
 				continue   # hidden in the editor: left out of the game
 			at = xf * (child as Node3D).transform
+		if child is MapGravityZone:
+			if mover < 0 and not gravity_zones.any(func(z): return z.node == child):
+				var zone := (child as MapGravityZone).to_zone(at)
+				zone["node"] = child
+				gravity_zones.append(zone)
+			continue
 		if child is MapSpinner:
 			if not spinners.has(child):
 				spinners.append(child)   # scenery that turns: it draws its own blocks, none of them solid
@@ -673,10 +746,11 @@ func doomed_at(point: Vector3) -> bool:
 
 
 ## A spawn point at `point`: 1 if it is on an island that is up and staying up, -1 if on
-## one that is down, on its way or about to go, 0 if it is on no island at all.
+## one that is down, on its way or about to go, 0 if it is on no island at all (or beside
+## an island marked Over Ground: a crane, a haunted wardrobe, which is no island).
 func spawn_open(point: Vector3) -> int:
 	var island := island_at(point)
-	if island == null:
+	if island == null or island.over_ground:
 		return 0
 	return 1 if island.up and not island.doomed else -1
 
@@ -702,6 +776,102 @@ func open_spawns() -> Array:
 func _physics_process(delta: float) -> void:
 	if not Engine.is_editor_hint() and not movers.is_empty():
 		update_movers(delta)
+
+
+func _exit_tree() -> void:
+	replay_clear()
+	# The map's gravity zones go with it (the next map sets its own in build()).
+	if not Engine.is_editor_hint() and current == self:
+		WorldGravity.clear_zones()
+
+
+# ---------------------------------------------------------------------------
+# Killcams (see MapReplay): the moving parts as they were. A replay draws each
+# mover's meshes, and the signs and lamps riding it, where the recording says, and
+# leaves the bodies themselves (what people stand on) where the match has them.
+
+var _replay_poses: Array = []    # per mover: where a replay draws it (in the map's frame), or null
+var _replay_drawn: Array = []    # per mover: what is drawn riding it
+var _replay_frames := 0
+
+
+## Where every mover is: one Transform3D each (in the map's frame), in `movers` order,
+## then which of them are not drawn (bits: a parked island).
+func replay_capture() -> Variant:
+	var out := []
+	var hidden := 0
+	for i in movers.size():
+		var body: Node3D = movers[i].body
+		out.append(body.transform if body else movers[i].base)
+		if body and not body.visible and i < 62:
+			hidden |= 1 << i
+	out.append(hidden)
+	return out
+
+
+func replay_show(state: Variant, next: Variant, u: float, _holder: Node3D) -> void:
+	if not state is Array:
+		return
+	if _replay_poses.is_empty():
+		_replay_frames = 0
+		RenderingServer.frame_pre_draw.connect(_replay_draw)
+	if _replay_frames % 10 == 0:   # (now and then: a wall riding it may have been rebuilt)
+		_replay_drawn = []
+		for m in movers:
+			_replay_drawn.append(_riding_drawn(m))
+	_replay_frames += 1
+	_replay_poses = []
+	var hidden := int(state[-1]) if (state as Array).size() > movers.size() and state[-1] is int else 0
+	for i in movers.size():
+		var a = state[i] if i < (state as Array).size() else null
+		var b = next[i] if next is Array and i < (next as Array).size() else null
+		_replay_poses.append((a as Transform3D).interpolate_with(b, u) if a is Transform3D and b is Transform3D else a)
+		var body: Node3D = movers[i].body
+		if body and i < 62:
+			body.visible = hidden & (1 << i) == 0   # (only drawn or not: a parked island's collision is off anyway)
+	_replay_draw()
+
+
+func replay_clear() -> void:
+	if _replay_poses.is_empty():
+		return
+	_replay_poses = []
+	for m in movers:
+		if m.body and is_instance_valid(m.body):
+			(m.body as Node3D).visible = not (m.node is MapIsland and (m.node as MapIsland).is_parked())
+	if RenderingServer.frame_pre_draw.is_connected(_replay_draw):
+		RenderingServer.frame_pre_draw.disconnect(_replay_draw)
+	for list in _replay_drawn:
+		for v in list:
+			MapReplay.draw_live(v)
+	_replay_drawn = []
+
+
+## What is drawn riding mover `m`: its body's meshes (and its walls'), and, when the
+## scene's own node goes along with it, the signs and lamps in that.
+func _riding_drawn(m: Dictionary) -> Array:
+	var out := []
+	if m.body and is_instance_valid(m.body):
+		out.append_array(MapReplay.drawn_under(m.body))
+	if m.moves_node and is_instance_valid(m.node):
+		out.append_array(MapReplay.drawn_under(m.node))
+	return out
+
+
+## Draws each mover's riders where the replay has it, just before the frame is drawn
+## (after anything this frame moved them back).
+func _replay_draw() -> void:
+	if not is_inside_tree():
+		return
+	for i in mini(_replay_poses.size(), mini(movers.size(), _replay_drawn.size())):
+		var pose = _replay_poses[i]
+		var body: Node3D = movers[i].body
+		if not pose is Transform3D or body == null or not is_instance_valid(body):
+			continue
+		var shift: Transform3D = (global_transform * (pose as Transform3D)) * body.global_transform.affine_inverse()
+		for v in _replay_drawn[i]:
+			if is_instance_valid(v):
+				MapReplay.draw_at(v, shift * (v as Node3D).global_transform)
 
 
 ## Where a hazard is right now (it may be riding a mover).
@@ -730,6 +900,13 @@ func hazard_at(point: Vector3, margin: float = 0.0, at: float = -INF) -> bool:
 		elif Vector2(local.x, local.z).length() <= half.x:
 			return true
 	return false
+
+
+## Is a player standing at `feet` touching a hazard? (Feet, middle and head, as a
+## race checks its racers.)
+func body_in_hazard(feet: Vector3) -> bool:
+	return hazard_at(feet + Vector3(0, 0.25, 0), 0.05) or hazard_at(feet + Vector3(0, 0.9, 0), 0.0) \
+		or hazard_at(feet + Vector3(0, 1.5, 0), 0.0)
 
 
 ## Will a moving part be there to stand on at `point` at map clock `at`? -1 if no

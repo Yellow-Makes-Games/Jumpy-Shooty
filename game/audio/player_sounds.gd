@@ -7,18 +7,21 @@ extends RefCounted
 ## you, for bots and for other players (whose movement arrives in snapshots): it
 ## listens for changes (started a slide, landed, the reload began) rather than being
 ## told. Your own sounds play in your head; everyone else's are placed on their body.
+## A killcam's replayed players (see KillcamView) use it too: `player` is then just
+## the body's node, and `map` the replay's copy of the map.
 
 const S := MovementController.State
 
-var player: Player
+var player: Node3D   ## the body (a Player, or a killcam's replayed body)
+var map: MapRoot     ## where to look up what is underfoot; null: the match's map
 var own := false          ## your own player: sounds in your head, not placed in the world
 var weapon_id := "pistol"
 
 var _started := false
 var _state := 0
 var _crouched := false
-var _grapple := false
 var _wall_jumps := 0
+var _replay_stage := HookLine.OFF   # a killcam's replayed hook, as replayed_hook last saw it
 var _alive := true
 var _fall := 0.0             # fastest downward speed since leaving the ground
 var _stride := 0.0           # metres walked since the last footstep
@@ -26,13 +29,15 @@ var _reloading := false
 var _reload_t := -1.0
 var _reload_next := 0
 var _fire_t := -1.0
+var _end_t := -1.0           # into the flourish that ends a shell-at-a-time reload (SfxList.RELOAD_END_STEPS)
+var _end_next := 0
+var _since_shot := 99.0
 var _fire_next := 0
-var _grapple_pending := -1.0   # attach clack, a moment after the hook flies
 var _quiet := 0.0              # seconds of silence left (just spawned: no landing thud)
 var _glide_voice: Node         # the wind of a glide while it plays, so it can be faded when the glide ends
 
 
-func _init(p: Player, is_own: bool, gun: String) -> void:
+func _init(p: Node3D, is_own: bool, gun: String) -> void:
 	player = p
 	own = is_own
 	weapon_id = gun
@@ -54,6 +59,8 @@ func _play_gun(sound: String) -> void:
 
 ## This player's gun just fired.
 func fired() -> void:
+	_since_shot = 0.0
+	_end_t = -1.0
 	if SfxList.FIRE_STEPS.has(WeaponData.look_of(weapon_id)):
 		_fire_t = 0.0
 		_fire_next = 0
@@ -67,9 +74,50 @@ func respawned() -> void:
 		Sound.play("equip_" + weapon_id)
 
 
-## The player missed with the grapple (nothing in range).
+## A mobility tool found nothing in range (the grapple's whoosh of a miss).
 func grapple_missed() -> void:
 	_play("grapple_miss")
+
+
+## The grappling hook (see HookLine's stages): its hook has gone from doing `was` to
+## doing `now`, at `at`. The launcher fires as the hook leaves; the hook clacks where it
+## bites; the rope thrums as it pulls tight; let go, it reels back (with nothing
+## caught, the whoosh of a miss).
+func hook_stage(was: int, now: int, at: Vector3) -> void:
+	if not _alive:
+		return
+	match now:
+		HookLine.FLYING:
+			_play("grapple_fire")
+		HookLine.BITING:
+			_hook_bite(at)
+		HookLine.TAUT:
+			if was == HookLine.FLYING or was == HookLine.OFF:
+				_hook_bite(at)   # (bitten and tight between two frames)
+			_play("grapple_taut")
+		HookLine.RETRACT:
+			_play("grapple_miss" if was == HookLine.FLYING else "grapple_release", "move", -3.0 if was == HookLine.FLYING else 0.0)
+
+
+## A killcam's replayed hook (Player.shown_state: [hook, slack, seconds since the
+## shot, seconds since it pulled tight], or null): the same sounds as hook_stage, for
+## as much of the stage as the recording keeps (out, tight, gone).
+func replayed_hook(look) -> void:
+	var now := HookLine.OFF if look == null else (HookLine.TAUT if float(look[3]) >= 0.0 else HookLine.FLYING)
+	if now == _replay_stage:
+		return
+	var was := _replay_stage
+	_replay_stage = now
+	if now == HookLine.OFF:
+		now = HookLine.RETRACT   # (gone: it was let go)
+	hook_stage(was, now, look[0] if look != null else player.global_position)
+
+
+func _hook_bite(at: Vector3) -> void:
+	if own:
+		Sound.play("grapple_attach", 0.0, 0.05)
+	else:
+		Sound.play_at("grapple_attach", at, "move", 0.0, 0.05)
 
 
 ## Called every frame with what the body is doing. `shown`: false while another
@@ -95,13 +143,11 @@ func _reset(a: RobotAnimInput) -> void:
 	_reloading = a.reloading() and a.alive
 	_reload_t = -1.0
 	_fire_t = -1.0
-	_grapple_pending = -1.0
 
 
 func _reset_movement(a: RobotAnimInput) -> void:
 	_state = a.state
 	_crouched = a.crouched
-	_grapple = a.grapple_on
 	_wall_jumps = a.wall_jumps()
 	_fall = 0.0
 	_stride = 0.0
@@ -110,7 +156,7 @@ func _reset_movement(a: RobotAnimInput) -> void:
 func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 	var state: int = a.state
 	var grounded_states := [S.GROUND, S.CROUCH, S.SLIDE, S.ROLL, S.BELLY_SLIDE]
-	var was_air: bool = not (_state in grounded_states) and _state != S.MANTLE and _state != S.WALL_RUN
+	var was_air: bool = not (_state in grounded_states) and _state not in [S.MANTLE, S.WALL_RUN, S.WALL_SIT]
 	if state in [S.AIR, S.DIVE, S.FLIP, S.GRAPPLE]:
 		_fall = minf(_fall, a.velocity.y)
 	elif state == S.GLIDE:
@@ -134,29 +180,15 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 		# Landing (a slide, roll or belly slide out of the air brings its own sound).
 		if was_air and state in [S.GROUND, S.CROUCH]:
 			_land()
-		if state in grounded_states or state == S.WALL_RUN:
+		if state in grounded_states or state == S.WALL_RUN or state == S.WALL_SIT:
 			_fall = 0.0
 	if a.wall_jumps() != _wall_jumps:
 		_play("wall_jump")
 	if a.crouched != _crouched and state in [S.GROUND, S.CROUCH]:
 		_play("crouch" if a.crouched else "stand")
-	if a.grapple_on != _grapple:
-		if a.grapple_on:
-			_play("grapple_fire")
-			_grapple_pending = clampf(player.global_position.distance_to(a.grapple_anchor) / 120.0, 0.03, 0.25)
-		else:
-			_play("grapple_release")
-	if _grapple_pending >= 0.0:
-		_grapple_pending -= delta
-		if _grapple_pending < 0.0 and a.grapple_on:
-			if own:
-				Sound.play("grapple_attach", 0.0, 0.05)
-			else:
-				Sound.play_at("grapple_attach", a.grapple_anchor, "move", 0.0, 0.05)
 	_steps(a, state, speed, delta)
 	_state = state
 	_crouched = a.crouched
-	_grapple = a.grapple_on
 	_wall_jumps = a.wall_jumps()
 
 
@@ -231,10 +263,10 @@ func _steps(a: RobotAnimInput, state: int, speed: float, delta: float) -> void:
 
 ## What this player is standing on (a BlockMaterials name).
 func surface() -> String:
-	var map := MapRoot.current
-	if map == null or not is_instance_valid(map):
+	var on := map if map and is_instance_valid(map) else MapRoot.current
+	if on == null or not is_instance_valid(on):
 		return BlockMaterials.DEFAULT
-	return map.material_at(player.global_position)
+	return on.material_at(player.global_position)
 
 
 func _gun(a: RobotAnimInput, delta: float) -> void:
@@ -244,7 +276,19 @@ func _gun(a: RobotAnimInput, delta: float) -> void:
 		_reload_next = 0
 		_fire_t = -1.0   # the reload takes over from the pump or bolt
 	elif not reloading:
+		if _reloading and _since_shot > 0.2 and SfxList.RELOAD_END_STEPS.has(WeaponData.look_of(weapon_id)):
+			_end_t = 0.0   # full, and not stopped by a shot: the gun is racked with a flourish
+			_end_next = 0
 		_reload_t = -1.0
+	_since_shot += delta
+	if _end_t >= 0.0:
+		var ends: Array = SfxList.RELOAD_END_STEPS.get(WeaponData.look_of(weapon_id), [])
+		_end_t += delta
+		while _end_next < ends.size() and _end_t >= ends[_end_next][0]:
+			_play_gun(ends[_end_next][1])
+			_end_next += 1
+		if _end_next >= ends.size() or reloading:
+			_end_t = -1.0
 	_reloading = reloading
 	if _reload_t >= 0.0:
 		var steps: Array = SfxList.RELOAD_STEPS.get(WeaponData.look_of(weapon_id), [])

@@ -42,11 +42,13 @@ var _segments: Array = []   # {body, meshes: Node3D, lights: [MeshInstance3D], z
 var _shown_extent := -1.0
 var _time := 0.0
 var _map: MapRoot
+var _replay_extent := -1.0   # a killcam playing: how far out it draws it (see MapReplay), or -1
 
 
 func _ready() -> void:
 	if not Engine.is_editor_hint():
 		add_to_group(GROUP)
+		add_to_group(MapReplay.GROUP)
 
 
 ## Its blocks as pieces in its own frame (a fresh list: MapRoot.collect_pieces places them).
@@ -138,14 +140,10 @@ func _collect(node: Node, xf: Transform3D, pieces: Array) -> void:
 func _apply() -> void:
 	_shown_extent = extent
 	var n := _segments.size()
+	_draw(_replay_extent if _replay_extent >= 0.0 else extent)
 	for i in n:
 		var seg: Dictionary = _segments[i]
 		var out := clampf(extent * n - i, 0.0, 1.0)
-		var holder: Node3D = seg.meshes
-		holder.visible = out > 0.02
-		# Drawn back toward the fixed end: squeezed along the span from its near edge.
-		var z0: float = seg.z0
-		holder.transform = Transform3D(Basis.from_scale(Vector3(1, 1, maxf(out, 0.02))), Vector3(0, 0, z0 * (1.0 - maxf(out, 0.02))))
 		var solid := out >= SOLID_FROM
 		if solid != seg.solid:
 			seg.solid = solid
@@ -156,6 +154,44 @@ func _apply() -> void:
 			body.collision_layer = 1 if solid else 0
 			if solid:
 				_lift_players(seg)
+
+
+## Draws it `amount` (0..1) of the way out: each segment drawn back toward the fixed
+## end, squeezed along the span from its near edge.
+func _draw(amount: float) -> void:
+	var n := _segments.size()
+	for i in n:
+		var seg: Dictionary = _segments[i]
+		var out := clampf(amount * n - i, 0.0, 1.0)
+		var holder: Node3D = seg.meshes
+		holder.visible = out > 0.02
+		var z0: float = seg.z0
+		holder.transform = Transform3D(Basis.from_scale(Vector3(1, 1, maxf(out, 0.02))), Vector3(0, 0, z0 * (1.0 - maxf(out, 0.02))))
+
+
+# Killcams (see MapReplay): drawn as far out as it was (only drawn: whoever stands on
+# it in the live match still does).
+func replay_capture() -> Variant:
+	return extent
+
+
+func replay_show(state: Variant, next: Variant, u: float, _holder: Node3D) -> void:
+	if not (state is float or state is int):
+		return
+	var e := float(state)
+	if next is float or next is int:
+		e = lerpf(e, float(next), u)
+	if is_equal_approx(e, _replay_extent):
+		return
+	_replay_extent = e
+	_draw(e)
+
+
+func replay_clear() -> void:
+	if _replay_extent < 0.0:
+		return
+	_replay_extent = -1.0
+	_draw(extent)
 
 
 ## A segment has just turned solid: anyone standing in it is stood on it.

@@ -8,12 +8,18 @@ extends CanvasLayer
 ## kill confirmation, the death screen and the Tab scoreboard.
 ## Drawn in code; see HudArcs and HudClean for the layouts and HudStyle for the look.
 ##
+## Settings → HUD tunes it (see HudConfig): the scale and opacity apply to everything
+## you see while playing (the crosshair has its own size and stays opaque), drawn as
+## if the screen were smaller (or bigger) and scaled to fit, so the middle stays in
+## the middle and the corners in the corners. The full-screen pages (the killcam,
+## the death screen, the Tab scoreboard) are never scaled or faded.
+##
 ## While you wait to respawn the screen has two columns that cannot overlap: who got
 ## you, the countdown and the weapons to come back with on the left, the scoreboard
 ## on the right.
 
 const FEED_LIFETIME := 6.0
-const FEED_MAX := 5
+const FEED_MAX := 8   ## the most the kill feed keeps; Settings → HUD picks how many show (see _age)
 const HIT_TIME := 0.2
 const KILL_HIT_TIME := 0.4
 const NUMBER_TIME := 0.8
@@ -55,7 +61,7 @@ class View:
 	var melee := false          ## a sword, hammer or dagger: no ammo, a swing that recharges
 	var swing := 1.0            ## melee: 0..1, ready to swing again at 1
 
-enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON }
+enum { GRAPPLE_NO_TARGET, GRAPPLE_IN_RANGE, GRAPPLE_COOLING, GRAPPLE_ON, GRAPPLE_FLYING }
 
 var view := View.new()
 var style := "arcs"
@@ -75,12 +81,14 @@ var _root: Control
 var _flash: ColorRect
 var _vignette: TextureRect
 var _layout: Control
-var _overlay: Control
+var _screens: Control           ## the killcam, the death screen, world markers: never scaled or faded
+var _overlay: Control           ## the rest of the HUD: scaled and faded with the layout
+var _cross: Control             ## the crosshair, on top: never faded
 var _scoreboard: PanelContainer
 var _score_rows: VBoxContainer
 var _score_title: Label
 
-var _feed: Array = []           # {killer, victim, head, age}
+var _feed: Array = []           # {killer, victim, head, age, gun (HudStyle.kill_icon), wall (into a wall), how}
 var _numbers: Array = []        # {value, head, age, x}
 var _arrows: Array = []         # {from: Vector3, age}
 var _hit_time := 0.0
@@ -94,7 +102,9 @@ var _killer := 0
 var _killer_hp := 0.0
 var _killer_dist := -1.0
 var _killed_by_head := false
+var _killed_how := ""            # how they got you, for the death screen (see death_how)
 var _killer_view: RobotPreview   # the robot that got you, on the death screen
+var _movement_tag: Label   # "Movement: Variant B" in a corner while the A/B variant is on
 var _respawn_left := 0.0
 var _screen_age := 0.0          # how long the death screen has been up (not the killcam)
 var _asked := false             # asked to respawn (Match.request_respawn)
@@ -126,12 +136,24 @@ func _ready() -> void:
 	_vignette.modulate.a = 0.0
 	_layout = _full_rect(Control.new())
 	_layout.draw.connect(_draw_layout)
+	_screens = _full_rect(Control.new())
+	_screens.draw.connect(_draw_screens)
 	_overlay = _full_rect(Control.new())
 	_overlay.draw.connect(_draw_overlay)
+	_cross = _full_rect(Control.new())
+	_cross.draw.connect(_draw_cross)
 	_killer_view = RobotPreview.new(Vector2(150, 190), 1.15)
 	_killer_view.turn = false
 	_killer_view.visible = false
 	_root.add_child(_killer_view)
+	_movement_tag = Label.new()
+	_movement_tag.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	_movement_tag.position = Vector2(12, 8)
+	_movement_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_movement_tag.add_theme_font_size_override("font_size", 14)
+	_movement_tag.add_theme_color_override("font_color", UiKit.TEXT_DIM)
+	_movement_tag.visible = false
+	_root.add_child(_movement_tag)
 	_build_scoreboard()
 	_race = HudRace.new()
 	_teams = HudTeams.new()
@@ -187,6 +209,9 @@ func set_players(_players: Dictionary) -> void:
 
 func update_local(p: Player) -> void:
 	var delta := get_process_delta_time()
+	var variant := p.motor.tuning.variant if p.motor else MovementTuning.DEFAULT_VARIANT
+	_movement_tag.visible = variant != MovementTuning.DEFAULT_VARIANT   # testers always know which one they are on
+	_movement_tag.text = "Movement: " + MovementTuning.variant_name(variant)
 	var me := p.peer_id
 	style = Settings.hud_style()
 	_pulse += delta
@@ -233,10 +258,12 @@ func update_local(p: Player) -> void:
 		portals_up = [Net.arena.portals.get_portal(p.peer_id, 0) != null, Net.arena.portals.get_portal(p.peer_id, 1) != null]
 	if p.jetpack:
 		jet_fuel = p.jetpack.fuel
-	if mobility != Mobility.GRAPPLE:
+	if not Mobility.is_grapple(mobility):
 		grapple = GRAPPLE_NO_TARGET
 	elif g.attached:
 		grapple = GRAPPLE_ON
+	elif g.busy():
+		grapple = GRAPPLE_FLYING   # the hook is on its way, or the slack is coming in
 	elif g.cooldown_left > 0.0:
 		grapple = GRAPPLE_COOLING
 		grapple_cooldown = g.cooldown_left / p.motor.tuning.grapple_cooldown
@@ -244,14 +271,18 @@ func update_local(p: Player) -> void:
 		grapple = GRAPPLE_IN_RANGE
 	else:
 		grapple = GRAPPLE_NO_TARGET
-	v.moves = [
-		[mobility.to_upper(), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON],
-		["DIVE", "Q", p.motor.dive_readiness(), false],
-		["FLIP", "SPACE", p.motor.flip_readiness(), false],
-		["GLIDE", "SHIFT", p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE],
-		["SLIDE", "C", p.motor.slide_boost_readiness(), false],
-		["BOOST", "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3],
-	]
+	var mt := p.motor.tuning
+	v.moves = [[Mobility.hud_label(mobility), "RMB", p.mobility_readiness(), grapple == GRAPPLE_ON or grapple == GRAPPLE_FLYING]]
+	if mt.ctrl_moves:   # Variant B: Ctrl dives forward and slides backward
+		v.moves.append(["DIVE", "CTRL", p.motor.dive_readiness(), false])
+	else:
+		v.moves.append(["DIVE", "Q", p.motor.dive_readiness(), false])
+	if mt.flips_on and not mt.space_boost:
+		v.moves.append(["FLIP", "SPACE", p.motor.flip_readiness(), false])
+	if mt.glides_on:
+		v.moves.append(["GLIDE", "SHIFT", p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE])
+	v.moves.append(["SLIDE", "CTRL" if mt.ctrl_moves else "C", p.motor.slide_boost_readiness(), false])
+	v.moves.append(["BOOST", "SPACE" if mt.space_boost else "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3])
 	if not Race.active:
 		v.moves.append(["KICK", "F", p.kick_readiness(), p.flying_kick()])
 		if p.weapon and p.weapon.data.is_melee():
@@ -282,7 +313,16 @@ func update_local(p: Player) -> void:
 	_vignette.modulate.a = move_toward(_vignette.modulate.a, pulse if low else 0.0, delta * 3.0)
 	_layout.visible = not _dead and not _scoreboard.visible
 	_layout.queue_redraw()
+	_redraw()
+
+
+## Redraws everything but the layout, at the opacity Settings → HUD asks for.
+func _redraw() -> void:
+	_layout.modulate.a = Settings.hud.opacity
+	_overlay.modulate.a = Settings.hud.opacity
+	_screens.queue_redraw()
 	_overlay.queue_redraw()
+	_cross.queue_redraw()
 
 
 ## Spectating: called every frame instead of update_local.
@@ -293,7 +333,7 @@ func set_spectating(on: bool) -> void:
 	_vignette.modulate.a = 0.0
 	_flash.color.a = 0.0
 	_layout.visible = not on
-	_overlay.queue_redraw()
+	_redraw()
 
 
 func update_spectator() -> void:
@@ -308,7 +348,7 @@ func update_spectator() -> void:
 			_board_age = 0.0
 			_refresh_scoreboard()
 	_layout.visible = false
-	_overlay.queue_redraw()
+	_redraw()
 
 
 func _draw_spectating(ci: CanvasItem, size: Vector2) -> void:
@@ -371,6 +411,8 @@ func _age(delta: float) -> void:
 		for e in list:
 			e.age += delta
 	_feed = _feed.filter(func(e): return e.age < FEED_LIFETIME)
+	while _feed.size() > Settings.hud.feed_lines:   # how many lines Settings → HUD shows
+		_feed.pop_front()
 	_numbers = _numbers.filter(func(e): return e.age < NUMBER_TIME)
 	_arrows = _arrows.filter(func(e): return e.age < ARROW_TIME)
 	if not _confirm.is_empty():
@@ -446,11 +488,20 @@ func _on_kill_scored(info: Dictionary) -> void:
 
 func _on_died(victim: int, killer: int) -> void:
 	var me := Net.my_id()
-	var head: bool = killer != 0 and _last_head.get(victim, false)
+	var head: bool = killer != 0 and _was_headshot(victim)
 	if killer == victim:
 		killer = 0   # crashed into a wall on their own
-	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": Net.player_weapon(killer),
-		"how": {"slam": "crashed", "bomb": "blown up"}.get(Match.death_cause.get(victim, ""), "fell")})
+	# What did it, as the host saw it (an older host doesn't say: the gun they hold).
+	var cause: String = Match.death_cause.get(victim, "")
+	var told := str((Match.death_fx.get(victim, {}) as Dictionary).get("with", ""))
+	var with := told
+	if with == "" and killer != 0:
+		with = Net.player_weapon(killer)
+	var wall := cause == "slam" and killer != 0   # shoved into a wall: what shoved them, then the wall
+	_feed.append({"killer": killer, "victim": victim, "head": head, "age": 0.0, "gun": with, "wall": wall,
+		"how": {"slam": "crashed", "bomb": "blown up"}.get(cause, "fell")})
+	if DevArgs.sync_log:
+		print("FEED %d %d %d %s%s" % [me, killer, victim, with if killer != 0 else _feed.back().how, " wall" if wall else ""])
 	while _feed.size() > FEED_MAX:
 		_feed.pop_front()
 	if killer == me and victim != me:
@@ -461,7 +512,8 @@ func _on_died(victim: int, killer: int) -> void:
 		_dead = true
 		_killer = killer if killer != victim else 0
 		_killer_hp = Match.health.get(killer, 0.0)
-		_killed_by_head = _last_head.get(me, false)
+		_killed_by_head = _was_headshot(me)
+		_killed_how = death_how(told if cause == "slam" else with, cause)   # (not told what threw you: just the wall)
 		_killer_dist = -1.0
 		var mine: Player = Net.arena.get_player(me) if Net.arena else null
 		var theirs: Player = Net.arena.get_player(_killer) if Net.arena and _killer != 0 else null
@@ -476,6 +528,13 @@ func _on_died(victim: int, killer: int) -> void:
 		_arrows.clear()
 		_numbers.clear()
 		_refresh_scoreboard()
+
+
+## Was `victim`'s death a headshot: the host's word on the killing blow (Match.death_fx),
+## or, with none (an older host), whether the last hit on them was one.
+func _was_headshot(victim: int) -> bool:
+	var fx: Dictionary = Match.death_fx.get(victim, {})
+	return bool(fx.head) if fx.has("head") else bool(_last_head.get(victim, false))
 
 
 ## Dead: Jump or Fire brings you back once the wait is over (you can change your
@@ -514,17 +573,48 @@ func _on_respawned(id: int, _spawn_index: int) -> void:
 # ---------------------------------------------------------------------------
 # Drawing
 
+## HUD scale (Settings → HUD): from here on `ci` draws as if the screen were
+## `size / s`, scaled up by `s` from the top-left corner, so the middle stays in the
+## middle and each corner in its corner. Returns that size.
+static func scaled(ci: CanvasItem, size: Vector2, s: float) -> Vector2:
+	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2(s, s))
+	return size / s
+
+
 func _draw_layout() -> void:
-	var c := _layout.size * 0.5
+	var c := scaled(_layout, _layout.size, Settings.hud.scale) * 0.5
 	if style == "clean":
 		HudClean.draw(_layout, c, view)
 	else:
 		HudArcs.draw(_layout, c, view)
 
 
+## Full-screen pages under the rest of the HUD, at the screen's own size: the killcam,
+## the death screen, who you watch when out for the round; and the team modes'
+## markers, which sit on spots in the world.
+func _draw_screens() -> void:
+	var ci := _screens
+	var size := ci.size
+	if spectating or Race.active:
+		return
+	if _dead and Killcam.watching():
+		var back := "RESPAWN IN %.1f S" % _respawn_left if _respawn_left > 0.0 else ""
+		KillcamOverlay.draw(ci, Rect2(Vector2.ZERO, size), Killcam.view, "KILLCAM",
+			("%s  SKIP" % Settings.action_text("jump").to_upper() + ("   ·   " + back if back != "" else "")) if Killcam.can_skip() else back)
+	elif _dead and follow_name != "":
+		_draw_following(ci, size)
+	elif _dead:
+		_draw_death(ci, size)
+	if _dead and Teams.active() and not Killcam.watching():
+		_teams.draw_banner(ci, size)
+	if not _dead and not _scoreboard.visible and Teams.active():
+		_teams.draw_play(ci, size)
+
+
 func _draw_overlay() -> void:
 	var ci := _overlay
-	var size := ci.size
+	var cfg := Settings.hud
+	var size := scaled(ci, ci.size, cfg.scale)
 	var c := size * 0.5
 	if spectating:
 		if not _scoreboard.visible:
@@ -536,26 +626,13 @@ func _draw_overlay() -> void:
 		if not _scoreboard.visible:
 			_race.draw(ci, size, self)
 	else:
-		if _dead and Killcam.watching():
-			var back := "RESPAWN IN %.1f S" % _respawn_left if _respawn_left > 0.0 else ""
-			KillcamOverlay.draw(ci, Rect2(Vector2.ZERO, size), Killcam.view, "KILLCAM",
-				("%s  SKIP" % Settings.action_text("jump").to_upper() + ("   ·   " + back if back != "" else "")) if Killcam.can_skip() else back)
-		elif _dead and follow_name != "":
-			_draw_following(ci, size)
-		elif _dead:
-			_draw_death(ci, size)
 		if Teams.active():
 			_teams.draw_bar(ci, size, self)
 		else:
 			_draw_score_bar(ci, size)
 		_draw_feed(ci, size)
-	if _dead and Teams.active() and not Killcam.watching():
-		_teams.draw_banner(ci, size)
 	if _dead or _scoreboard.visible:
 		return
-	if Teams.active():
-		_teams.draw_play(ci, size)
-	_draw_crosshair(ci, c)
 	_draw_arrows(ci, c)
 	if not _promo.is_empty():
 		var pa := clampf((2.2 - _promo.age) / 0.4, 0.0, 1.0) * clampf(_promo.age / 0.08, 0.0, 1.0)
@@ -567,7 +644,7 @@ func _draw_overlay() -> void:
 		if boost > 0.0:
 			HudStyle.text(ci, Vector2(c.x, size.y - 104.0), "2× DAMAGE  %d" % ceili(boost), 16,
 				Color(1.0, 0.3, 0.35), HORIZONTAL_ALIGNMENT_CENTER)
-	for n in _numbers:
+	for n in (_numbers if cfg.damage_numbers else []):
 		var t: float = n.age / NUMBER_TIME
 		var col: Color = HudStyle.YELLOW if n.head else HudStyle.WHITE
 		col.a = 1.0 - t * t
@@ -581,7 +658,7 @@ func _draw_overlay() -> void:
 		HudStyle.text(ci, Vector2(c.x - w * 0.5 + w1, y), _confirm.name, 20, Color(1, 1, 1, a))
 	if grapple == GRAPPLE_ON and tether > 0.0:
 		HudStyle.text(ci, c + Vector2(40, 34), "%d m" % roundi(tether), 13, Color(1.0, 0.7, 0.45))
-	if not _points.is_empty():
+	if not _points.is_empty() and cfg.killcam_points:
 		_draw_points(ci, c)
 
 
@@ -610,13 +687,19 @@ func _draw_points(ci: CanvasItem, c: Vector2) -> void:
 			HudStyle.text(ci, Vector2(x + nw + gap, y), p[0], 15, Color(1, 1, 1, 0.9 * a), HORIZONTAL_ALIGNMENT_LEFT, false)
 	# Bottom left: all of it, to look over.
 	var fade := clampf((POINTS_TIME - age) / 0.5, 0.0, 1.0) * clampf(age / 0.2, 0.0, 1.0)
+	draw_points_list(ci, c.y * 2.0, int(_points.total), parts, fade)
+
+
+## The killcam score's whole list, bottom left on a screen `height` tall (also the
+## HUD preview's in Settings).
+static func draw_points_list(ci: CanvasItem, height: float, total: int, parts: Array, fade: float) -> void:
 	var lx := HudClean.MARGIN
 	var col := 0.0   # the words line up after the widest "+100"
 	for p in parts:
 		col = maxf(col, HudStyle.text_width("+%d" % p[1], 14) + 10.0)
-	var ly: float = _overlay.size.y - POINTS_LIST_BOTTOM - (parts.size() - 1) * 19.0
+	var ly: float = height - POINTS_LIST_BOTTOM - (parts.size() - 1) * 19.0
 	var hw := HudStyle.label(ci, Vector2(lx, ly - 28.0), "KILLCAM SCORE", 10, Color(1, 1, 1, 0.7 * fade))
-	HudStyle.text(ci, Vector2(lx + hw + 10.0, ly - 29.0), str(int(_points.total)), 20, Color(HudStyle.ORANGE, fade))
+	HudStyle.text(ci, Vector2(lx + hw + 10.0, ly - 29.0), str(total), 20, Color(HudStyle.ORANGE, fade))
 	for i in parts.size():
 		var p: Array = parts[i]
 		HudStyle.text(ci, Vector2(lx, ly), "+%d" % p[1], 14, Color(_points_color(p, i), fade))
@@ -625,7 +708,7 @@ func _draw_points(ci: CanvasItem, c: Vector2) -> void:
 
 
 ## Gold for the parts that make a highlight (a headshot, a flick, a multikill).
-func _points_color(part: Array, i: int) -> Color:
+static func _points_color(part: Array, i: int) -> Color:
 	var words := str(part[0])
 	var gold := words == "HEADSHOT" or words.begins_with("TRICKSHOT") or words.begins_with("FLICK") or (words.ends_with(" KILL") and i > 0)
 	return HudStyle.YELLOW if gold else HudStyle.WHITE
@@ -663,55 +746,44 @@ func _draw_mobility_marks(ci: CanvasItem, c: Vector2, ring: float) -> void:
 					HudStyle.arc(ci, at, 7.5, 0, 360, Color(1, 1, 1, 0.8), 1.5)
 
 
+func _draw_cross() -> void:
+	if spectating or _dead or _scoreboard.visible:
+		return
+	_draw_crosshair(_cross, _cross.size * 0.5)
+
+
+## The grapple ring and the marks under it grow with the HUD scale; the crosshair
+## and hit markers keep their own size (Settings → HUD → Crosshair).
 func _draw_crosshair(ci: CanvasItem, c: Vector2) -> void:
+	var cfg := Settings.hud
+	var hud_scale := Transform2D(0.0, Vector2(cfg.scale, cfg.scale), 0.0, c * (1.0 - cfg.scale))   # about the middle
+	ci.draw_set_transform_matrix(hud_scale)
 	var ring := 30.0 if style == "arcs" else 22.0
 	match grapple:
 		GRAPPLE_IN_RANGE:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(HudStyle.CYAN, 0.9), 2.0)
 		GRAPPLE_ON:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(HudStyle.ORANGE, 0.95), 3.0)
+		GRAPPLE_FLYING:   # a broken ring, turning: the hook is out but not pulling yet
+			var spin := fmod(Time.get_ticks_msec() * 0.5, 360.0)
+			for k in 4:
+				HudStyle.arc(ci, c, ring, spin + k * 90.0, spin + k * 90.0 + 52.0, Color(HudStyle.ORANGE, 0.8), 2.0)
 		GRAPPLE_COOLING:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(1, 1, 1, 0.15), 2.0)
 			HudStyle.arc(ci, c, ring, -90, -90 + 360.0 * (1.0 - grapple_cooldown), Color(1, 1, 1, 0.6), 2.0)
 		_:
 			HudStyle.arc(ci, c, ring, 0, 360, Color(1, 1, 1, 0.12), 1.5)
 	_draw_mobility_marks(ci, c, ring)
-	match view.crosshair:
-		"spread":   # the shotgun: four brackets on the edge of its cone
-			var r := maxf(view.spread_px, 12.0)
-			for i in 4:
-				var a := 45.0 + i * 90.0
-				HudStyle.arc(ci, c, r, a - 16.0, a + 16.0, Color(0, 0, 0, 0.5), 4.0)
-				HudStyle.arc(ci, c, r, a - 15.0, a + 15.0, HudStyle.WHITE, 2.0)
-		"ring":     # rockets and grenades: a circle where it will land, with a gap at the bottom
-			HudStyle.arc(ci, c, 11.0, 110.0, 430.0, Color(0, 0, 0, 0.5), 4.0)
-			HudStyle.arc(ci, c, 11.0, 110.0, 430.0, HudStyle.WHITE, 2.0)
-			ci.draw_line(c + Vector2(0, 14.0), c + Vector2(0, 22.0), HudStyle.WHITE, 2.0)
-		"dot":      # the sniper rifle: short ticks well clear of a precise dot
-			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
-				ci.draw_line(c + d * 9.0, c + d * 15.0, Color(0, 0, 0, 0.55), 4.0)
-				ci.draw_line(c + d * 9.0, c + d * 15.0, HudStyle.WHITE, 2.0)
-		_:
-			var gap := 5.0 + view.spread_px * 0.6
-			for d in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
-				ci.draw_line(c + d * gap, c + d * (gap + 8.0), Color(0, 0, 0, 0.55), 4.0)
-				ci.draw_line(c + d * gap, c + d * (gap + 8.0), HudStyle.WHITE, 2.0)
-	ci.draw_circle(c, 2.0 if view.crosshair == "dot" else 1.5, Color(0, 0, 0, 0.5) if view.crosshair == "dot" else HudStyle.WHITE)
-	if view.crosshair == "dot":
-		ci.draw_circle(c, 1.4, HudStyle.WHITE)
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+	HudStyle.crosshair(ci, c, view.crosshair, view.spread_px, cfg)
+	ci.draw_set_transform_matrix(hud_scale)
 	if view.ready < 1.0:   # working the pump or bolt: a small bar fills under the crosshair
 		var bar := Rect2(c + Vector2(-14.0, 20.0), Vector2(28.0, 3.0))
 		ci.draw_rect(bar, Color(1, 1, 1, 0.2))
 		ci.draw_rect(Rect2(bar.position, Vector2(bar.size.x * view.ready, bar.size.y)), Color(1, 1, 1, 0.8))
-	if _hit_time > 0.0:
-		var kill := _hit_kind == "kill"
-		var col := HudStyle.RED if kill else (HudStyle.YELLOW if _hit_kind == "head" else Color.WHITE)
-		var reach := 24.0 if kill else (20.0 if _hit_kind == "head" else 17.0)
-		var w := 4.0 if kill else 3.0
-		for d in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:
-			var n: Vector2 = d.normalized()
-			ci.draw_line(c + n * 9.0, c + n * reach, Color(0, 0, 0, 0.5), w + 2.0)
-			ci.draw_line(c + n * 9.0, c + n * reach, col, w)
+	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+	if _hit_time > 0.0 and cfg.hit_markers:
+		HudStyle.hit_marker(ci, c, _hit_kind)
 
 
 ## Red chevrons around the crosshair pointing at whoever just hit you.
@@ -791,6 +863,11 @@ func pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> fl
 
 
 func _pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> float:
+	return draw_pill(ci, at, s, size, color)
+
+
+## The score bar's plate (also the HUD preview's in Settings).
+static func draw_pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> float:
 	var w := HudStyle.text_width(s, size) + 32.0
 	var h := size + 14.0
 	var r := Rect2(at.x - w * 0.5, at.y - h * 0.5, w, h)
@@ -802,10 +879,11 @@ func _pill(ci: CanvasItem, at: Vector2, s: String, size: int, color: Color) -> f
 	return w
 
 
-## Top right: the latest knockouts, newest at the bottom. Yours are orange.
+## Top right (or top left: Settings → HUD): the latest knockouts, newest at the
+## bottom. Yours are orange.
 func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 	var me := Net.my_id()
-	var right := size.x - 22.0
+	var left := Settings.hud.feed_corner == "left" and not _dead   # (out of the killcam's and death screen's way)
 	var y := 34.0
 	for e in _feed:
 		var alpha := clampf((FEED_LIFETIME - e.age) / 0.6, 0.0, 1.0)
@@ -817,15 +895,22 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 		else:
 			parts = [[victim, Net.player_color(e.victim)]]
 			if e.head:
-				parts.append(["HEAD", HudStyle.YELLOW])
+				parts.append(["@head", Color.WHITE])   # the headshot icon, between the gun and the victim
+			if e.get("wall", false):   # (an entry from before the wall icon has none)
+				parts.append(["@wall", Color.WHITE])
 			parts.append(["@gun", Color.WHITE])
 			parts.append([Net.player_name(e.killer), Net.player_color(e.killer)])
 		var widths: Array = []
 		var total := 0.0
 		for part in parts:
-			var w := _gun_width(e.gun) if part[0] == "@gun" else HudStyle.text_width(part[0], 16 if part[0] != "HEAD" else 11)
+			var w := _gun_width(e.gun) if part[0] == "@gun" else HudStyle.text_width(part[0], 16)
+			if part[0] == "@head":
+				w = HudStyle.headshot_width()
+			elif part[0] == "@wall":
+				w = HudStyle.WALL_W
 			widths.append(w)
 			total += w + 8.0
+		var right := feed_right(size.x, total, left)
 		var plate := Rect2(right - total - 16.0, y - 14.0, total + 16.0 + 8.0, 28.0)
 		HudStyle.plate(ci, plate, 3.0, Color(HudStyle.ORANGE, 0.28 * alpha) if mine else Color(HudStyle.PANEL, HudStyle.PANEL.a * alpha))
 		if mine:
@@ -836,15 +921,51 @@ func _draw_feed(ci: CanvasItem, size: Vector2) -> void:
 			var col: Color = part[1]
 			col = Color(col.lightened(0.25), col.a * alpha)
 			if part[0] == "@gun":
-				HudStyle.weapon_icon(ci, e.gun, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
+				HudStyle.kill_icon(ci, e.gun, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
+			elif part[0] == "@head":   # (16 tall: centred on the line)
+				HudStyle.headshot_icon(ci, Vector2(x - widths[i], y - 8.0), Color(1, 1, 1, 0.9 * alpha))
+			elif part[0] == "@wall":
+				HudStyle.wall_impact(ci, Vector2(x - widths[i], y - 4.0), Color(1, 1, 1, 0.9 * alpha), 1.1)
 			else:
-				HudStyle.text(ci, Vector2(x, y), part[0], 16 if part[0] != "HEAD" else 11, col, HORIZONTAL_ALIGNMENT_RIGHT)
+				HudStyle.text(ci, Vector2(x, y), part[0], 16, col, HORIZONTAL_ALIGNMENT_RIGHT)
 			x -= widths[i] + 8.0
 		y += 32.0
 
 
+## Where a kill feed line `total` wide ends on the right (its parts are laid out
+## leftward from there): its plate 14 px in from the right edge of a screen
+## `width` across, or from the left edge.
+static func feed_right(width: float, total: float, left: bool) -> float:
+	return total + 30.0 if left else width - 22.0
+
+
 func _gun_width(gun: String) -> float:
-	return HudStyle.weapon_width(gun)
+	return HudStyle.kill_icon_width(gun)   # (a weapon, or the kick or rope that did a kill)
+
+
+## How a player got you, for the line under their name on the death screen: `with`
+## and `cause` as in Match.death_fx and Match.death_cause ("Kick", "Kicked into a wall",
+## "Rocket Launcher into a wall", "Shotgun").
+static func death_how(with: String, cause: String) -> String:
+	if cause == "slam":
+		match with:
+			"kick", "flying_kick":
+				return "Kicked into a wall"
+			"rope":
+				return "Reeled into a wall"
+			"", "none":
+				return "Smashed into a wall"
+		return "%s into a wall" % WeaponData.name_of(with)   # shoved by a blast or a shot
+	match with:
+		"kick":
+			return "Kick"
+		"flying_kick":
+			return "Flying kick"
+		"rope":
+			return "Reeled in"
+		"none":
+			return "Bare feet"
+	return WeaponData.name_of(with)
 
 
 ## Where the death screen's left column starts: it and the scoreboard sit side by
@@ -872,22 +993,25 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	if _killer != 0:
 		_killer_view.position = card.position + Vector2(18, -26)
 		HudStyle.label(ci, Vector2(x, y + 30), "ELIMINATED BY", 12, HudStyle.RED)
-		HudStyle.text(ci, Vector2(x, y + 62), Net.player_name(_killer), 34, stripe.lightened(0.3))
-		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), (WeaponData.name_of(Net.player_weapon(_killer)) if Net.player_weapon(_killer) != "none" else "Bare feet")]
-		HudStyle.text(ci, Vector2(x, y + 92), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+		# Their calling card, with their name on it.
+		CallingCard.draw(ci, Rect2(x - 10, y + 39, card.end.x - x - 6, 44), Net.player_card(_killer), Net.player_icon(_killer), 0.7)
+		HudStyle.text(ci, Vector2(x + 40, y + 61), Net.player_name(_killer), 30, stripe.lightened(0.45))
+		var with := "%s  ·  %s" % [Characters.name_of(Net.player_character(_killer)), _killed_how]
+		HudStyle.text(ci, Vector2(x, y + 97), with, 15, Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
 		var chips: Array = ["%d HP LEFT" % ceili(_killer_hp)]
 		if _killed_by_head:
 			chips.append("HEADSHOT")
-		if Match.death_cause.get(Net.my_id(), "") == "slam":
-			chips.append("SMASHED INTO A WALL")
 		if _killer_dist >= 0.0:
 			chips.append("%d M AWAY" % roundi(_killer_dist))
 		var cx := x
 		for chip in chips:
-			var cw := HudStyle.text_width(chip, 12) + 18.0
+			var icon := HudStyle.headshot_width() * 0.8 + 5.0 if chip == "HEADSHOT" else 0.0   # the icon before the word
+			var cw := HudStyle.text_width(chip, 12) + 18.0 + icon
 			var col: Color = HudStyle.YELLOW if chip == "HEADSHOT" else Color(1, 1, 1, 0.85)
 			HudStyle.plate(ci, Rect2(cx, y + 112, cw, 24), 6.0, Color(1, 1, 1, 0.09))
-			HudStyle.text(ci, Vector2(cx + 9, y + 124), chip, 12, col)
+			if icon > 0.0:
+				HudStyle.headshot_icon(ci, Vector2(cx + 9, y + 124 - 8.0 * 0.8), Color(1, 1, 1, 0.9), 0.8)   # white, like the feed's
+			HudStyle.text(ci, Vector2(cx + 9 + icon, y + 124), chip, 12, col)
 			cx += cw + 6.0
 	else:
 		var crashed: bool = Match.death_cause.get(Net.my_id(), "") == "slam"

@@ -10,21 +10,27 @@ The guns are in weapons.py: every robot holds all of them, and the game shows on
 """
 import math
 import numpy as np
-from kit import Mesh, Part, loft, rect, ngon, box, prism, ball
+from kit import Mesh, Part, loft, rect, ngon, box, prism, ball, bead, face, plug
+import hands
 import weapons
 
-MATERIALS = {
-    "armor": {"color": (0.90, 0.91, 0.93), "metallic": 0.1, "roughness": 0.55},
-    "accent": {"color": (0.95, 0.35, 0.25), "metallic": 0.1, "roughness": 0.5},
-    "joint": {"color": (0.12, 0.13, 0.15), "metallic": 0.3, "roughness": 0.6},
-    "detail": {"color": (0.36, 0.38, 0.42), "metallic": 0.3, "roughness": 0.5},
-    "visor": {"color": (0.05, 0.05, 0.06), "metallic": 0.0, "roughness": 0.3, "emission": (0.95, 0.35, 0.25)},
+# Colours are written the way the game's own code writes them (sRGB) and turned into what
+# a model file holds (linear) below. Surfaces are satin: only the glowing parts shine.
+_LOOKS = {
+    "armor": {"color": (0.90, 0.91, 0.93), "metallic": 0.05, "roughness": 0.72},
+    "accent": {"color": (0.95, 0.35, 0.25), "metallic": 0.05, "roughness": 0.65},
+    "joint": {"color": (0.38, 0.40, 0.43), "metallic": 0.15, "roughness": 0.72},
+    "detail": {"color": (0.63, 0.65, 0.68), "metallic": 0.2, "roughness": 0.65},
+    "visor": {"color": (0.25, 0.25, 0.27), "metallic": 0.0, "roughness": 0.3, "emission": (0.95, 0.35, 0.25)},
     # The Templar's own surfaces (the game leaves any kind but accent and visor as built).
-    "steel": {"color": (0.66, 0.68, 0.71), "metallic": 0.75, "roughness": 0.32},
-    "mail": {"color": (0.40, 0.41, 0.43), "metallic": 0.6, "roughness": 0.6},
-    "cloth": {"color": (0.93, 0.91, 0.86), "metallic": 0.0, "roughness": 0.9},
-    "cross": {"color": (0.70, 0.06, 0.07), "metallic": 0.0, "roughness": 0.8},
+    # (Darker than they were: with less metal in them they reflect less and show more of
+    # their own colour, and these keep the Templar as dark on screen as it was.)
+    "steel": {"color": (0.66, 0.67, 0.69), "metallic": 0.4, "roughness": 0.55},
+    "mail": {"color": (0.57, 0.58, 0.59), "metallic": 0.3, "roughness": 0.7},
+    "cloth": {"color": (0.969, 0.959, 0.936), "metallic": 0.0, "roughness": 0.9},
+    "cross": {"color": (0.854, 0.272, 0.293), "metallic": 0.0, "roughness": 0.8},
 }
+MATERIALS = {k: dict(v, color=weapons._lin(*v["color"])) for k, v in _LOOKS.items()}
 MATERIALS.update(weapons.materials())   # "<gun>.<kind>": each gun's own surfaces (see weapons.py)
 
 
@@ -38,7 +44,7 @@ def vanguard():
     with one wide visor band."""
     m = Mesh()
     # Head
-    m.add(prism(6, 0.055, 0.10).move(0, 1.47, 0), "joint", "head")
+    m.add(bead(0.06, 6).move(0, 1.50, 0), "joint", "head")   # the neck's core
     m.add(loft([rect(0.18, 0.20, 1.485, 0.045, cz=-0.01), rect(0.24, 0.26, 1.57, 0.06, cz=-0.015),
                 rect(0.24, 0.26, 1.70, 0.06, cz=-0.015), rect(0.16, 0.18, 1.785, 0.045, cz=0.0)]), "armor", "head")
     m.add(loft([rect(0.225, 0.06, 1.585, 0.02, cz=-0.13), rect(0.225, 0.06, 1.67, 0.02, cz=-0.13)]), "visor", "head")
@@ -56,28 +62,30 @@ def vanguard():
     m.add(box(0.11, 0.075, 0.02).move(0, 0.955, -0.105), "accent", "hips")
 
     # Arms (left, mirrored to the right)
-    m.add_pair(ball(0.068).move(-0.215, 1.40, 0), "joint", "upper_arm_l")
+    m.add_pair(bead(0.068).move(-0.215, 1.40, 0), "joint", "upper_arm_l")
     m.add_pair(loft([rect(0.14, 0.17, 1.37, 0.04, cx=-0.25), rect(0.16, 0.19, 1.44, 0.045, cx=-0.255),
                      rect(0.10, 0.13, 1.495, 0.03, cx=-0.24)]), "accent", "upper_arm_l")
-    m.add_pair(loft([rect(0.10, 0.105, 1.36, 0.025, cx=-0.22), rect(0.085, 0.09, 1.17, 0.022, cx=-0.215)]), "armor", "upper_arm_l")
-    m.add_pair(ball(0.052).move(-0.215, 1.13, 0), "joint", "forearm_l")
-    m.add_pair(loft([rect(0.085, 0.095, 1.10, 0.022, cx=-0.215), rect(0.12, 0.135, 0.99, 0.03, cx=-0.215),
-                     rect(0.10, 0.11, 0.90, 0.025, cx=-0.215)]), "armor", "forearm_l")
+    _sleeve(m, [rect(0.10, 0.105, 1.36, 0.025, cx=-0.22), rect(0.086, 0.091, 1.19, 0.022, cx=-0.215),
+                rect(0.085, 0.09, ELBOW_UP, 0.022, cx=-0.215)], "upper_arm_l", {-1: ELBOW})
+    _hinge(m, 0.038, ELBOW, "forearm_l")
+    _sleeve(m, [rect(0.085, 0.095, ELBOW_DOWN, 0.022, cx=-0.215), rect(0.12, 0.135, 0.99, 0.03, cx=-0.215),
+                rect(0.10, 0.11, WRIST_UP, 0.025, cx=-0.215)], "forearm_l", {0: ELBOW, -1: WRIST})
     m.add_pair(box(0.125, 0.032, 0.14, 0.03).move(-0.215, 0.95, 0), "accent", "forearm_l")
-    m.add_pair(box(0.06, 0.10, 0.095, 0.015).move(-0.215, 0.835, 0), "joint", "hand_l")
+    _wrist(m, 1.0)
+    hands.add(m, 1.0)
     # Grapple launcher on the outside of the left forearm
     m.add(box(0.05, 0.16, 0.07, 0.012).move(-0.295, 0.985, 0), "detail", "forearm_l")
     m.add(prism(6, 0.02, 0.035).move(-0.295, 0.895, 0), "accent", "forearm_l")
 
     # Legs
-    m.add_pair(ball(0.07).move(-0.10, 0.90, 0), "joint", "thigh_l")
-    m.add_pair(loft([rect(0.14, 0.155, 0.875, 0.035, cx=-0.11), rect(0.14, 0.155, 0.71, 0.035, cx=-0.11),
-                     rect(0.105, 0.115, 0.545, 0.028, cx=-0.10)]), "armor", "thigh_l")
-    m.add_pair(ball(0.057).move(-0.10, 0.50, 0), "joint", "shin_l")
+    m.add_pair(bead(0.07).move(-0.10, 0.90, 0), "joint", "thigh_l")
+    _sleeve(m, [rect(0.14, 0.155, 0.875, 0.035, cx=-0.11), rect(0.14, 0.155, 0.71, 0.035, cx=-0.11),
+                rect(0.105, 0.115, KNEE_UP, 0.028, cx=-0.10)], "thigh_l", {-1: KNEE})
+    _hinge(m, 0.046, KNEE, "shin_l")
     m.add_pair(box(0.095, 0.10, 0.035, 0.025).move(-0.10, 0.50, -0.06), "accent", "shin_l")
-    m.add_pair(loft([rect(0.10, 0.11, 0.455, 0.028, cx=-0.10), rect(0.135, 0.16, 0.33, 0.035, cx=-0.10, cz=0.012),
-                     rect(0.095, 0.105, 0.14, 0.025, cx=-0.10)]), "armor", "shin_l")
-    m.add_pair(ball(0.047).move(-0.10, 0.10, 0), "joint", "foot_l")
+    _sleeve(m, [rect(0.10, 0.11, KNEE_DOWN, 0.028, cx=-0.10), rect(0.135, 0.16, 0.33, 0.035, cx=-0.10, cz=0.012),
+                rect(0.095, 0.105, ANKLE_UP, 0.025, cx=-0.10)], "shin_l", {0: KNEE, -1: ANKLE})
+    _ankle(m, 0.043)
     foot = _along_z(loft([rect(0.11, 0.085, -0.085, 0.018, cz=0.0425), rect(0.125, 0.09, 0.07, 0.018, cz=0.045),
                           rect(0.10, 0.045, 0.185, 0.012, cz=0.0225)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
@@ -116,7 +124,7 @@ def brick():
     m.add_pair(loft([rect(0.10, 0.10, 1.10, 0.03, cx=-0.215), rect(0.16, 0.17, 1.02, 0.04, cx=-0.22),
                      rect(0.16, 0.17, 0.90, 0.04, cx=-0.22)]), "armor", "forearm_l")
     m.add_pair(box(0.165, 0.035, 0.175, 0.04).move(-0.22, 0.915, 0), "accent", "forearm_l")
-    m.add_pair(box(0.085, 0.11, 0.13, 0.025).move(-0.215, 0.83, 0), "joint", "hand_l")
+    hands.add(m, 1.35)
     m.add(box(0.05, 0.13, 0.08, 0.012).move(-0.32, 0.975, 0), "detail", "forearm_l")
     m.add(prism(6, 0.022, 0.035).move(-0.32, 0.895, 0), "accent", "forearm_l")
 
@@ -135,12 +143,67 @@ def brick():
     return m
 
 
+# ---------------------------------------------------------------------------
+# Joints. A limb's two halves are stiff pieces that turn about the joint's own point
+# (the bone's place in rig.BODY), so whatever fills a joint has to be centred there: a
+# dark core (kit.bead) that both halves reach. Each half ends in a sleeve, a little
+# wider than the core and stopping just short of the joint's point, its open end faced
+# dark. Straight, a slim band of core shows between the two sleeves; bent, the sleeves
+# slide over the core, and nothing opens up.
+
+SEAM = 0.009           # a sleeve's rim, from the joint's point
+
+
+def _oct(rx, rz, y, cx=0.0, cz=0.0):
+    """An eight-sided ring (half-widths rx, rz) with its points in rect8's order, so
+    the two loft together."""
+    return rect(2 * rx, 2 * rz, y, min(rx, rz) * 0.59, cx, cz)
+
+
+def _sleeve(m, rings, bone, joints, material="armor", pair=True):
+    """A limb's piece, lofted through `rings`. joints: {0 or -1: the joint's point} for
+    each end (the first ring, the last) that is a sleeve's open rim."""
+    part = loft(rings, cap_start=0 not in joints, cap_end=-1 not in joints)
+    add = m.add_pair if pair else m.add
+    add(part, material, bone)
+    for end, point in joints.items():
+        add(face(rings[end], point), "joint", bone)
+
+
+def _hinge(m, r, at, bone, wide=1.2, core="joint", pin="detail"):
+    """An elbow's or knee's core: a bead lying across the limb, its ends just proud of
+    the sleeves, with the pin through it."""
+    m.add_pair(bead(r, squash=wide).rot(roll=90).move(*at), core, bone)
+    m.add_pair(prism(6, r * 0.26, r * 1.88 * wide + 0.008).rot(roll=90).move(*at), pin, bone)
+
+
+# Where the joints are (the left side's; rig.BODY), and the cores every design shares.
+ELBOW, WRIST = (-0.215, 1.13, 0.0), (-0.215, 0.88, 0.0)
+KNEE, ANKLE = (-0.10, 0.50, 0.0), (-0.10, 0.10, 0.0)
+ELBOW_UP, ELBOW_DOWN, WRIST_UP = ELBOW[1] + SEAM, ELBOW[1] - SEAM, WRIST[1] + SEAM   # the sleeves' rims
+KNEE_UP, KNEE_DOWN, ANKLE_UP = KNEE[1] + SEAM, KNEE[1] - SEAM, ANKLE[1] + SEAM + 0.004
+
+
+def _wrist(m, bulk, material="joint"):
+    """The wrist's core, sized to the hand (hands.add's bulk), not to the forearm's cuff."""
+    m.add_pair(bead(0.019 + 0.01 * bulk, 6).move(*WRIST), material, "hand_l")
+
+
+def _ankle(m, r, collar=None, material="joint", shell="armor"):
+    """The ankle's core. collar: the top of a low foot, which then gets a sleeve of its
+    own up round the core (a tall foot reaches the core by itself)."""
+    m.add_pair(bead(r, 6).move(*ANKLE), material, "foot_l")
+    if collar is not None:
+        _sleeve(m, [_oct(r * 1.05, r * 1.3, collar - 0.01, cx=ANKLE[0], cz=-0.004),
+                    _oct(r * 1.12, r * 1.24, ANKLE[1] - SEAM - 0.006, cx=ANKLE[0])], "foot_l", {-1: ANKLE}, shell)
+
+
 def needle():
     """Design C: a slim, sleek frame. Round sensor head with one big eye, thin
-    struts with ball joints, blade-like forearms and shins."""
+    struts between socketed joints, blade-like forearms and shins."""
     m = Mesh()
     # Head: a pod with one eye and an antenna
-    m.add(prism(6, 0.03, 0.10).move(0, 1.47, 0), "joint", "head")
+    m.add(bead(0.046, 6).move(0, 1.50, 0), "joint", "head")   # the neck's core, half in the head and half in the chest
     m.add(loft([ngon(8, 0.06, 1.50, 0.07, cz=-0.01), ngon(8, 0.115, 1.56, 0.135, cz=-0.015),
                 ngon(8, 0.125, 1.65, 0.145, cz=-0.015), ngon(8, 0.105, 1.73, 0.12, cz=-0.01),
                 ngon(8, 0.05, 1.78, 0.06, cz=0.0)]), "armor", "head")
@@ -155,31 +218,54 @@ def needle():
                 ngon(8, 0.10, 1.50, 0.08)]), "armor", "chest")
     m.add(prism(6, 0.04, 0.03).rot(pitch=90).move(0, 1.37, -0.108), "visor", "chest")
     m.add(loft([ngon(8, 0.186, 1.415, 0.116), ngon(8, 0.17, 1.455, 0.11)]), "accent", "chest")
-    m.add(prism(6, 0.04, 0.20).move(0, 1.11, 0), "joint", "spine")
-    m.add(ball(0.055).move(0, 1.06, 0), "joint", "spine")
+    m.add(loft([ngon(8, 0.058, 1.155, 0.05), ngon(8, 0.058, 1.18, 0.05)]), "joint", "chest")   # the socket the spine runs up into
+    m.add(loft([ngon(6, 0.038, 1.02), ngon(6, 0.034, 1.21)]), "joint", "spine")
+    m.add(bead(0.054).move(0, 1.06, 0), "joint", "spine")
     m.add(loft([ngon(8, 0.08, 0.85, 0.07), ngon(8, 0.15, 0.93, 0.10), ngon(8, 0.08, 1.03, 0.07)]), "armor", "hips")
 
-    # Arms: struts and blades
-    m.add_pair(ball(0.058).move(-0.215, 1.40, 0), "accent", "upper_arm_l")
-    m.add_pair(prism(6, 0.03, 0.27).move(-0.215, 1.265, 0), "joint", "upper_arm_l")
-    m.add_pair(ball(0.042).move(-0.215, 1.13, 0), "joint", "forearm_l")
-    m.add_pair(loft([rect(0.05, 0.055, 1.10, 0.015, cx=-0.215), rect(0.075, 0.095, 0.99, 0.02, cx=-0.215),
-                     rect(0.05, 0.06, 0.90, 0.015, cx=-0.215)]), "armor", "forearm_l")
-    m.add_pair(box(0.045, 0.09, 0.075, 0.012).move(-0.215, 0.835, 0), "joint", "hand_l")
+    # Arms: a strut from the ball at the shoulder to a sleeve at the elbow, then a blade
+    ax = -0.215
+    elbow, wrist = (ax, 1.13, 0), (ax, 0.88, 0)
+    m.add_pair(ball(0.058).move(ax, 1.40, 0), "accent", "upper_arm_l")
+    m.add_pair(loft([ngon(6, 0.027, 1.16, cx=ax), ngon(6, 0.031, 1.38, cx=ax)]), "joint", "upper_arm_l")
+    # The arm's own sleeve under the shoulder: one sleek taper, from just wider than the
+    # strut where it leaves the ball (narrow enough there not to cut through the ball's
+    # faces) down to the strut's own width. No bulge: a swelling under the ball read as
+    # a second ball.
+    # (It ends a hair wider than the strut is there, or the strut's corners show through.)
+    m.add_pair(loft([_oct(0.035, 0.037, 1.366, cx=ax), _oct(0.035, 0.037, 1.338, cx=ax), _oct(0.031, 0.031, 1.268, cx=ax)]),
+               "armor", "upper_arm_l")
+    _sleeve(m, [_oct(0.029, 0.029, 1.225, cx=ax), _oct(0.041, 0.044, 1.185, cx=ax), _oct(0.043, 0.046, 1.13 + SEAM, cx=ax)],
+            "upper_arm_l", {-1: elbow})
+    _hinge(m, 0.038, elbow, "forearm_l")
+    _sleeve(m, [_oct(0.043, 0.046, 1.13 - SEAM, cx=ax), rect8(0.058, 0.064, 1.075, 0.017, cx=ax),
+                rect8(0.075, 0.095, 0.99, 0.02, cx=ax), rect8(0.052, 0.060, 0.918, 0.015, cx=ax),
+                rect8(0.060, 0.066, 0.88 + SEAM, 0.017, cx=ax)], "forearm_l", {0: elbow, -1: wrist})
+    m.add_pair(bead(0.027, 6).move(*wrist), "joint", "hand_l")   # the wrist's core
+    hands.add(m, 0.8)
     m.add(box(0.035, 0.13, 0.05, 0.008).move(-0.268, 0.985, 0), "detail", "forearm_l")
     m.add(prism(6, 0.016, 0.03).move(-0.268, 0.905, 0), "accent", "forearm_l")
 
-    # Legs
-    m.add_pair(ball(0.058).move(-0.10, 0.90, 0), "accent", "thigh_l")
-    m.add_pair(prism(6, 0.036, 0.40).move(-0.10, 0.70, 0), "joint", "thigh_l")
-    m.add_pair(loft([rect(0.075, 0.03, 0.84, 0.01, cx=-0.10, cz=-0.05), rect(0.065, 0.03, 0.58, 0.01, cx=-0.10, cz=-0.045)]), "armor", "thigh_l")
-    m.add_pair(ball(0.046).move(-0.10, 0.50, 0), "joint", "shin_l")
-    m.add_pair(loft([rect(0.06, 0.07, 0.46, 0.015, cx=-0.10), rect(0.08, 0.12, 0.33, 0.02, cx=-0.10, cz=0.012),
-                     rect(0.045, 0.05, 0.12, 0.012, cx=-0.10)]), "armor", "shin_l")
-    m.add_pair(ball(0.036).move(-0.10, 0.10, 0), "joint", "foot_l")
+    # Legs: the same, with a slim fairing down the front of the thigh
+    lx = -0.10
+    knee, ankle = (lx, 0.50, 0), (lx, 0.10, 0)
+    m.add_pair(ball(0.058).move(lx, 0.90, 0), "accent", "thigh_l")
+    m.add_pair(loft([ngon(6, 0.032, 0.53, cx=lx), ngon(6, 0.036, 0.87, cx=lx)]), "joint", "thigh_l")
+    m.add_pair(loft([rect8(0.044, 0.022, 0.845, 0.008, cx=lx, cz=-0.046), rect8(0.074, 0.034, 0.80, 0.012, cx=lx, cz=-0.046),
+                     rect8(0.076, 0.036, 0.70, 0.012, cx=lx, cz=-0.045), rect8(0.056, 0.026, 0.60, 0.009, cx=lx, cz=-0.04)]),
+               "armor", "thigh_l")
+    _sleeve(m, [_oct(0.034, 0.034, 0.605, cx=lx), _oct(0.045, 0.048, 0.565, cx=lx), _oct(0.047, 0.050, 0.50 + SEAM, cx=lx)],
+            "thigh_l", {-1: knee})
+    _hinge(m, 0.042, knee, "shin_l")
+    _sleeve(m, [_oct(0.047, 0.050, 0.50 - SEAM, cx=lx), rect8(0.062, 0.072, 0.44, 0.017, cx=lx),
+                rect8(0.08, 0.12, 0.33, 0.02, cx=lx, cz=0.012), rect8(0.046, 0.052, 0.14, 0.012, cx=lx),
+                rect8(0.058, 0.064, 0.10 + SEAM + 0.004, 0.016, cx=lx)], "shin_l", {0: knee, -1: ankle})
+    m.add_pair(bead(0.034, 6).move(*ankle), "joint", "foot_l")   # the ankle's core
     foot = _along_z(loft([rect(0.07, 0.06, -0.06, 0.012, cz=0.03), rect(0.08, 0.065, 0.06, 0.012, cz=0.0325),
                           rect(0.05, 0.03, 0.19, 0.008, cz=0.015)]))
-    m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
+    m.add_pair(foot.move(lx, 0, 0), "armor", "foot_l")
+    _sleeve(m, [_oct(0.036, 0.046, 0.05, cx=lx, cz=-0.004), _oct(0.039, 0.043, 0.10 - SEAM - 0.006, cx=lx)],
+            "foot_l", {-1: ankle})   # the foot's own sleeve, round the ankle
     weapons.add_all(m)
     return m
 
@@ -215,7 +301,7 @@ def kestrel():
     crest fins, twin back thrusters, talon feet with heel spurs."""
     m = Mesh()
     # Head: a forward-pointing wedge
-    m.add(prism(6, 0.045, 0.10).move(0, 1.47, 0), "joint", "head")
+    m.add(bead(0.05, 6).move(0, 1.50, 0), "joint", "head")   # the neck's core
     m.add(loft([rect8(0.14, 0.17, 1.49, 0.04, cz=0.01), rect8(0.20, 0.27, 1.56, 0.05, cz=-0.025),
                 rect8(0.20, 0.30, 1.655, 0.05, cz=-0.02), rect8(0.13, 0.24, 1.745, 0.04, cz=0.02)]), "armor", "head")
     m.add(loft([rect8(0.06, 0.06, 1.54, 0.01, cz=-0.17), rect8(0.10, 0.04, 1.60, 0.012, cz=-0.175)]), "armor", "head")  # beak
@@ -243,28 +329,30 @@ def kestrel():
     m.add(loft([rect8(0.10, 0.02, 0.96, 0.0, cz=-0.098), rect8(0.04, 0.02, 0.88, 0.0, cz=-0.08)]), "accent", "hips")
 
     # Arms: slim with swept shoulder blades and forearm fins
-    m.add_pair(ball(0.058).move(-0.215, 1.40, 0), "joint", "upper_arm_l")
+    m.add_pair(bead(0.058).move(-0.215, 1.40, 0), "joint", "upper_arm_l")
     m.add_pair(loft([rect8(0.10, 0.16, 1.37, 0.03, cx=-0.24, cz=0.01), rect8(0.12, 0.20, 1.445, 0.035, cx=-0.245, cz=0.03),
                      rect8(0.06, 0.16, 1.49, 0.02, cx=-0.235, cz=0.06)]), "accent", "upper_arm_l")
-    m.add_pair(loft([rect8(0.08, 0.085, 1.36, 0.02, cx=-0.217), rect8(0.065, 0.07, 1.17, 0.018, cx=-0.215)]), "armor", "upper_arm_l")
-    m.add_pair(ball(0.045).move(-0.215, 1.13, 0), "joint", "forearm_l")
-    m.add_pair(loft([rect8(0.07, 0.075, 1.10, 0.018, cx=-0.215), rect8(0.095, 0.11, 0.99, 0.025, cx=-0.215),
-                     rect8(0.075, 0.08, 0.90, 0.02, cx=-0.215)]), "armor", "forearm_l")
+    _sleeve(m, [rect8(0.08, 0.085, 1.36, 0.02, cx=-0.217), rect8(0.068, 0.073, 1.19, 0.018, cx=-0.215),
+                rect8(0.068, 0.073, ELBOW_UP, 0.018, cx=-0.215)], "upper_arm_l", {-1: ELBOW})
+    _hinge(m, 0.031, ELBOW, "forearm_l")
+    _sleeve(m, [rect8(0.07, 0.075, ELBOW_DOWN, 0.018, cx=-0.215), rect8(0.095, 0.11, 0.99, 0.025, cx=-0.215),
+                rect8(0.075, 0.08, WRIST_UP, 0.02, cx=-0.215)], "forearm_l", {0: ELBOW, -1: WRIST})
     m.add_pair(loft([rect8(0.012, 0.03, 0.93, 0.0, cx=-0.215, cz=0.05), rect8(0.012, 0.06, 1.05, 0.0, cx=-0.215, cz=0.075),
                      rect8(0.008, 0.02, 1.15, 0.0, cx=-0.215, cz=0.10)]), "accent", "forearm_l")
-    m.add_pair(box(0.05, 0.095, 0.08, 0.012).move(-0.215, 0.835, 0), "joint", "hand_l")
+    _wrist(m, 0.88)
+    hands.add(m, 0.88)
     _arms_common(m, -0.275)
 
     # Legs: lean thighs, swept-back calves, talon feet
-    m.add_pair(ball(0.062).move(-0.10, 0.90, 0), "joint", "thigh_l")
-    m.add_pair(loft([rect8(0.12, 0.14, 0.87, 0.03, cx=-0.11), rect8(0.12, 0.14, 0.72, 0.03, cx=-0.11),
-                     rect8(0.085, 0.10, 0.55, 0.022, cx=-0.10)]), "armor", "thigh_l")
-    m.add_pair(ball(0.05).move(-0.10, 0.50, 0), "joint", "shin_l")
+    m.add_pair(bead(0.062).move(-0.10, 0.90, 0), "joint", "thigh_l")
+    _sleeve(m, [rect8(0.12, 0.14, 0.87, 0.03, cx=-0.11), rect8(0.12, 0.14, 0.72, 0.03, cx=-0.11),
+                rect8(0.085, 0.10, KNEE_UP, 0.022, cx=-0.10)], "thigh_l", {-1: KNEE})
+    _hinge(m, 0.037, KNEE, "shin_l")
     m.add_pair(loft([rect8(0.06, 0.02, 0.56, 0.0, cx=-0.10, cz=-0.05), rect8(0.08, 0.05, 0.49, 0.01, cx=-0.10, cz=-0.08),
                      rect8(0.05, 0.02, 0.42, 0.0, cx=-0.10, cz=-0.06)]), "accent", "shin_l")  # knee spike
-    m.add_pair(loft([rect8(0.08, 0.10, 0.46, 0.022, cx=-0.10), rect8(0.11, 0.17, 0.32, 0.03, cx=-0.10, cz=0.035),
-                     rect8(0.07, 0.08, 0.14, 0.02, cx=-0.10, cz=0.0)]), "armor", "shin_l")
-    m.add_pair(ball(0.04).move(-0.10, 0.10, 0), "joint", "foot_l")
+    _sleeve(m, [rect8(0.082, 0.10, KNEE_DOWN, 0.022, cx=-0.10), rect8(0.11, 0.17, 0.32, 0.03, cx=-0.10, cz=0.035),
+                rect8(0.07, 0.08, ANKLE_UP, 0.02, cx=-0.10, cz=0.0)], "shin_l", {0: KNEE, -1: ANKLE})
+    _ankle(m, 0.032, collar=0.07)
     foot = _along_z(loft([rect8(0.09, 0.07, -0.07, 0.015, cz=0.035), rect8(0.10, 0.07, 0.07, 0.015, cz=0.035),
                           rect8(0.05, 0.025, 0.21, 0.006, cz=0.012)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
@@ -280,7 +368,7 @@ def bulwark():
     three eyes, barrel chest with a grille, big round pauldrons, piston legs."""
     m = Mesh()
     # Head: low and wide, sunk into the collar
-    m.add(prism(8, 0.06, 0.08).move(0, 1.47, 0), "joint", "head")
+    m.add(bead(0.07).move(0, 1.50, 0), "joint", "head")   # the neck's core
     m.add(loft([ngon(8, 0.10, 1.49, 0.10, phase=math.pi / 8), ngon(8, 0.13, 1.54, 0.13, phase=math.pi / 8),
                 ngon(8, 0.13, 1.63, 0.13, phase=math.pi / 8), ngon(8, 0.09, 1.69, 0.09, phase=math.pi / 8)]), "armor", "head")
     m.add(loft([rect8(0.24, 0.07, 1.625, 0.015, cz=-0.11), rect8(0.25, 0.08, 1.665, 0.02, cz=-0.105)]), "accent", "head")  # brow
@@ -302,27 +390,29 @@ def bulwark():
     m.add_pair(box(0.10, 0.12, 0.17, 0.02).rot(roll=12).move(-0.20, 0.88, 0), "accent", "hips")  # side plates
 
     # Arms: dome pauldrons, thick limbs, heavy gauntlets
-    m.add_pair(ball(0.075).move(-0.22, 1.40, 0), "joint", "upper_arm_l")
+    m.add_pair(bead(0.075).move(-0.22, 1.40, 0), "joint", "upper_arm_l")
     m.add_pair(loft([ngon(8, 0.09, 1.30, 0.11, cx=-0.27), ngon(8, 0.125, 1.39, 0.145, cx=-0.285),
                      ngon(8, 0.10, 1.48, 0.12, cx=-0.27), ngon(8, 0.04, 1.52, 0.05, cx=-0.25)]), "accent", "upper_arm_l")
-    m.add_pair(loft([rect8(0.11, 0.115, 1.30, 0.03, cx=-0.215), rect8(0.095, 0.10, 1.17, 0.025, cx=-0.215)]), "armor", "upper_arm_l")
-    m.add_pair(ball(0.058).move(-0.215, 1.13, 0), "joint", "forearm_l")
-    m.add_pair(loft([rect8(0.10, 0.11, 1.10, 0.025, cx=-0.215), rect8(0.15, 0.16, 1.01, 0.04, cx=-0.215),
-                     rect8(0.14, 0.15, 0.90, 0.035, cx=-0.215)]), "armor", "forearm_l")
+    _sleeve(m, [rect8(0.11, 0.115, 1.30, 0.03, cx=-0.215), rect8(0.098, 0.103, 1.19, 0.025, cx=-0.215),
+                rect8(0.098, 0.103, ELBOW_UP, 0.025, cx=-0.215)], "upper_arm_l", {-1: ELBOW})
+    _hinge(m, 0.044, ELBOW, "forearm_l")
+    _sleeve(m, [rect8(0.10, 0.11, ELBOW_DOWN, 0.025, cx=-0.215), rect8(0.15, 0.16, 1.01, 0.04, cx=-0.215),
+                rect8(0.14, 0.15, WRIST_UP, 0.035, cx=-0.215)], "forearm_l", {0: ELBOW, -1: WRIST})
     m.add_pair(box(0.155, 0.03, 0.165, 0.035).move(-0.215, 1.03, 0), "detail", "forearm_l")
-    m.add_pair(box(0.075, 0.11, 0.11, 0.02).move(-0.215, 0.83, 0), "joint", "hand_l")
+    _wrist(m, 1.25)
+    hands.add(m, 1.25)
     _arms_common(m, -0.315)
 
     # Legs: thick thighs, knee guards, piston shins, wide feet
-    m.add_pair(ball(0.075).move(-0.105, 0.90, 0), "joint", "thigh_l")
-    m.add_pair(loft([rect8(0.16, 0.17, 0.87, 0.04, cx=-0.115), rect8(0.16, 0.17, 0.70, 0.04, cx=-0.115),
-                     rect8(0.12, 0.13, 0.55, 0.03, cx=-0.105)]), "armor", "thigh_l")
-    m.add_pair(ball(0.062).move(-0.10, 0.50, 0), "joint", "shin_l")
+    m.add_pair(bead(0.075).move(-0.105, 0.90, 0), "joint", "thigh_l")
+    _sleeve(m, [rect8(0.16, 0.17, 0.87, 0.04, cx=-0.115), rect8(0.16, 0.17, 0.70, 0.04, cx=-0.115),
+                rect8(0.12, 0.13, KNEE_UP, 0.03, cx=-0.10)], "thigh_l", {-1: KNEE})
+    _hinge(m, 0.054, KNEE, "shin_l")
     m.add_pair(loft([rect8(0.12, 0.03, 0.57, 0.01, cx=-0.10, cz=-0.075), rect8(0.13, 0.04, 0.46, 0.012, cx=-0.10, cz=-0.08)]), "accent", "shin_l")
-    m.add_pair(loft([rect8(0.12, 0.13, 0.45, 0.03, cx=-0.10), rect8(0.15, 0.17, 0.32, 0.04, cx=-0.10),
-                     rect8(0.14, 0.15, 0.15, 0.035, cx=-0.10)]), "armor", "shin_l")
+    _sleeve(m, [rect8(0.12, 0.13, KNEE_DOWN, 0.03, cx=-0.10), rect8(0.15, 0.17, 0.32, 0.04, cx=-0.10),
+                rect8(0.14, 0.15, ANKLE_UP, 0.035, cx=-0.10)], "shin_l", {0: KNEE, -1: ANKLE})
     m.add_pair(prism(6, 0.02, 0.26).move(-0.10, 0.31, 0.10), "detail", "shin_l")  # piston behind the calf
-    m.add_pair(ball(0.05).move(-0.10, 0.10, 0), "joint", "foot_l")
+    _ankle(m, 0.06)
     foot = _along_z(loft([rect8(0.15, 0.10, -0.09, 0.025, cz=0.05), rect8(0.16, 0.10, 0.08, 0.025, cz=0.05),
                           rect8(0.15, 0.06, 0.19, 0.02, cz=0.03)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
@@ -337,7 +427,7 @@ def rivet():
     stripes, a tank backpack with exhaust pipes, knee pads and work boots."""
     m = Mesh()
     # Head: a rounded box under a hard hat
-    m.add(prism(6, 0.05, 0.10).move(0, 1.47, 0), "joint", "head")
+    m.add(bead(0.056, 6).move(0, 1.50, 0), "joint", "head")   # the neck's core
     m.add(loft([rect8(0.18, 0.18, 1.49, 0.05), rect8(0.22, 0.22, 1.54, 0.06), rect8(0.22, 0.22, 1.68, 0.06)]), "armor", "head")
     m.add(loft([ngon(10, 0.17, 1.675, 0.175, cz=-0.02), ngon(10, 0.17, 1.695, 0.175, cz=-0.02)]), "accent", "head")  # brim
     m.add(loft([ngon(10, 0.13, 1.69, 0.13), ngon(10, 0.125, 1.76, 0.125), ngon(10, 0.085, 1.81, 0.085),
@@ -366,26 +456,35 @@ def rivet():
     m.add(box(0.07, 0.045, 0.02).move(0, 0.985, -0.122), "accent", "hips")
 
     # Arms: rounded shoulders, work gloves
-    m.add_pair(ball(0.065).move(-0.215, 1.40, 0), "joint", "upper_arm_l")
+    m.add_pair(bead(0.065).move(-0.215, 1.40, 0), "joint", "upper_arm_l")
     m.add_pair(loft([ngon(8, 0.07, 1.35, 0.08, cx=-0.24), ngon(8, 0.09, 1.42, 0.10, cx=-0.245),
                      ngon(8, 0.05, 1.49, 0.06, cx=-0.235)]), "armor", "upper_arm_l")
-    m.add_pair(prism(6, 0.04, 0.22).move(-0.215, 1.24, 0), "joint", "upper_arm_l")
-    m.add_pair(ball(0.05).move(-0.215, 1.13, 0), "joint", "forearm_l")
-    m.add_pair(loft([rect8(0.085, 0.09, 1.10, 0.02, cx=-0.215), rect8(0.11, 0.12, 1.00, 0.028, cx=-0.215),
-                     rect8(0.10, 0.11, 0.91, 0.025, cx=-0.215)]), "armor", "forearm_l")
-    m.add_pair(box(0.12, 0.05, 0.13, 0.025).move(-0.215, 0.905, 0), "accent", "forearm_l")  # glove cuff
-    m.add_pair(box(0.065, 0.105, 0.10, 0.02).move(-0.215, 0.835, 0), "joint", "hand_l")
+    m.add_pair(prism(6, 0.04, 0.22).move(-0.215, 1.25, 0), "joint", "upper_arm_l")
+    # (a sleek taper where the strut leaves the shoulder, and a sleeve at the elbow)
+    m.add_pair(loft([_oct(0.047, 0.049, 1.36, cx=-0.215), _oct(0.047, 0.049, 1.335, cx=-0.215), _oct(0.0435, 0.0435, 1.275, cx=-0.215)]),
+               "armor", "upper_arm_l")
+    _sleeve(m, [_oct(0.0435, 0.0435, 1.225, cx=-0.215), _oct(0.047, 0.05, 1.19, cx=-0.215), _oct(0.047, 0.05, ELBOW_UP, cx=-0.215)],
+            "upper_arm_l", {-1: ELBOW})
+    _hinge(m, 0.042, ELBOW, "forearm_l")
+    _sleeve(m, [rect8(0.094, 0.10, ELBOW_DOWN, 0.024, cx=-0.215), rect8(0.11, 0.12, 1.00, 0.028, cx=-0.215),
+                rect8(0.10, 0.11, 0.91, 0.025, cx=-0.215)], "forearm_l", {0: ELBOW})
+    m.add_pair(box(0.12, 0.042, 0.13, 0.025).move(-0.215, 0.91, 0), "accent", "forearm_l")  # glove cuff
+    m.add_pair(face(rect8(0.10, 0.11, WRIST_UP, 0.025, cx=-0.215), WRIST), "joint", "forearm_l")
+    _wrist(m, 1.1)
+    hands.add(m, 1.1)
     _arms_common(m, -0.29)
 
     # Legs: knee pads and chunky work boots with toe caps
-    m.add_pair(ball(0.068).move(-0.10, 0.90, 0), "joint", "thigh_l")
-    m.add_pair(loft([rect8(0.13, 0.14, 0.86, 0.03, cx=-0.105), rect8(0.13, 0.14, 0.70, 0.03, cx=-0.105),
-                     rect8(0.10, 0.11, 0.55, 0.025, cx=-0.10)]), "armor", "thigh_l")
-    m.add_pair(ball(0.055).move(-0.10, 0.50, 0), "joint", "shin_l")
+    m.add_pair(bead(0.068).move(-0.10, 0.90, 0), "joint", "thigh_l")
+    _sleeve(m, [rect8(0.13, 0.14, 0.86, 0.03, cx=-0.105), rect8(0.13, 0.14, 0.70, 0.03, cx=-0.105),
+                rect8(0.10, 0.11, KNEE_UP, 0.025, cx=-0.10)], "thigh_l", {-1: KNEE})
+    _hinge(m, 0.045, KNEE, "shin_l")
     m.add_pair(box(0.11, 0.11, 0.04, 0.02).move(-0.10, 0.50, -0.065), "accent", "shin_l")
-    m.add_pair(loft([rect8(0.10, 0.11, 0.45, 0.025, cx=-0.10), rect8(0.12, 0.14, 0.33, 0.03, cx=-0.10),
-                     rect8(0.11, 0.12, 0.22, 0.03, cx=-0.10)]), "armor", "shin_l")
-    m.add_pair(loft([rect8(0.14, 0.16, 0.10, 0.035, cx=-0.10, cz=-0.01), rect8(0.14, 0.16, 0.24, 0.035, cx=-0.10)]), "detail", "shin_l")
+    _sleeve(m, [rect8(0.10, 0.11, KNEE_DOWN, 0.025, cx=-0.10), rect8(0.12, 0.14, 0.33, 0.03, cx=-0.10),
+                rect8(0.11, 0.12, 0.22, 0.03, cx=-0.10)], "shin_l", {0: KNEE})
+    _sleeve(m, [rect8(0.14, 0.16, 0.24, 0.035, cx=-0.10), rect8(0.14, 0.16, ANKLE_UP, 0.035, cx=-0.10, cz=-0.01)],
+            "shin_l", {-1: ANKLE}, "detail")   # the boot's leg
+    _ankle(m, 0.062)
     foot = _along_z(loft([rect8(0.15, 0.10, -0.09, 0.025, cz=0.05), rect8(0.15, 0.10, 0.10, 0.025, cz=0.05),
                           rect8(0.14, 0.08, 0.19, 0.03, cz=0.04)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
@@ -401,7 +500,7 @@ def specter():
     trailing off the collar, blade fins along the forearms and calves."""
     m = Mesh()
     # Head: a hood with a pointed peak and a dark face plate
-    m.add(prism(6, 0.035, 0.10).move(0, 1.47, 0), "joint", "head")
+    m.add(bead(0.046, 6).move(0, 1.50, 0), "joint", "head")   # the neck's core
     m.add(loft([ngon(6, 0.085, 1.49, 0.10, phase=math.pi / 2, cz=0.01), ngon(6, 0.125, 1.56, 0.14, phase=math.pi / 2),
                 ngon(6, 0.13, 1.66, 0.15, phase=math.pi / 2, cz=0.0), ngon(6, 0.07, 1.76, 0.10, phase=math.pi / 2, cz=0.03),
                 ngon(6, 0.01, 1.81, 0.02, phase=math.pi / 2, cz=0.07)]), "armor", "head")
@@ -422,30 +521,38 @@ def specter():
     m.add_pair(loft([rect8(0.03, 0.15, 0.0, 0.01), rect8(0.02, 0.13, -0.15, 0.01)]).rot(roll=-10).move(-0.16, 0.95, 0), "detail", "hips")
 
     # Arms: thin, with long blade fins sweeping back past the elbow
-    m.add_pair(ball(0.055).move(-0.215, 1.40, 0), "joint", "upper_arm_l")
+    m.add_pair(bead(0.055).move(-0.215, 1.40, 0), "joint", "upper_arm_l")
     m.add_pair(loft([rect8(0.08, 0.13, 1.36, 0.02, cx=-0.235), rect8(0.10, 0.15, 1.44, 0.03, cx=-0.245),
                      rect8(0.03, 0.10, 1.50, 0.0, cx=-0.23)]), "armor", "upper_arm_l")
     m.add_pair(prism(6, 0.032, 0.24).move(-0.215, 1.25, 0), "joint", "upper_arm_l")
-    m.add_pair(ball(0.042).move(-0.215, 1.13, 0), "joint", "forearm_l")
-    m.add_pair(loft([rect8(0.055, 0.06, 1.10, 0.015, cx=-0.215), rect8(0.08, 0.09, 0.99, 0.02, cx=-0.215),
-                     rect8(0.06, 0.065, 0.90, 0.015, cx=-0.215)]), "armor", "forearm_l")
+    # (a sleek taper where the strut leaves the shoulder, and a sleeve at the elbow)
+    m.add_pair(loft([_oct(0.037, 0.039, 1.366, cx=-0.215), _oct(0.037, 0.039, 1.338, cx=-0.215), _oct(0.035, 0.035, 1.275, cx=-0.215)]),
+               "armor", "upper_arm_l")
+    _sleeve(m, [_oct(0.035, 0.035, 1.225, cx=-0.215), _oct(0.041, 0.044, 1.185, cx=-0.215), _oct(0.042, 0.045, ELBOW_UP, cx=-0.215)],
+            "upper_arm_l", {-1: ELBOW})
+    _hinge(m, 0.037, ELBOW, "forearm_l")
+    _sleeve(m, [_oct(0.042, 0.045, ELBOW_DOWN, cx=-0.215), rect8(0.058, 0.064, 1.075, 0.017, cx=-0.215),
+                rect8(0.08, 0.09, 0.99, 0.02, cx=-0.215), rect8(0.06, 0.065, WRIST_UP, 0.015, cx=-0.215)],
+            "forearm_l", {0: ELBOW, -1: WRIST})
     m.add_pair(loft([rect8(0.01, 0.03, 0.92, 0.0, cx=-0.215, cz=0.04), rect8(0.01, 0.05, 1.08, 0.0, cx=-0.215, cz=0.06),
                      rect8(0.006, 0.01, 1.22, 0.0, cx=-0.215, cz=0.09)]), "accent", "forearm_l")
-    m.add_pair(box(0.045, 0.09, 0.075, 0.012).move(-0.215, 0.835, 0), "joint", "hand_l")
+    _wrist(m, 0.8)
+    hands.add(m, 0.8)
     _arms_common(m, -0.265)
 
     # Legs: slender, pointed knees, calf fins, pointed feet
-    m.add_pair(ball(0.055).move(-0.10, 0.90, 0), "joint", "thigh_l")
-    m.add_pair(loft([rect8(0.10, 0.12, 0.86, 0.025, cx=-0.105), rect8(0.10, 0.12, 0.70, 0.025, cx=-0.105),
-                     rect8(0.07, 0.08, 0.55, 0.02, cx=-0.10)]), "armor", "thigh_l")
-    m.add_pair(ball(0.045).move(-0.10, 0.50, 0), "joint", "shin_l")
+    m.add_pair(bead(0.055).move(-0.10, 0.90, 0), "joint", "thigh_l")
+    _sleeve(m, [rect8(0.10, 0.12, 0.86, 0.025, cx=-0.105), rect8(0.10, 0.12, 0.70, 0.025, cx=-0.105),
+                rect8(0.074, 0.084, KNEE_UP, 0.02, cx=-0.10)], "thigh_l", {-1: KNEE})
+    _hinge(m, 0.034, KNEE, "shin_l")
     m.add_pair(loft([rect8(0.05, 0.02, 0.60, 0.0, cx=-0.10, cz=-0.04), rect8(0.07, 0.05, 0.50, 0.01, cx=-0.10, cz=-0.065),
                      rect8(0.05, 0.02, 0.42, 0.0, cx=-0.10, cz=-0.045)]), "detail", "shin_l")
-    m.add_pair(loft([rect8(0.065, 0.075, 0.46, 0.015, cx=-0.10), rect8(0.09, 0.12, 0.32, 0.02, cx=-0.10, cz=0.01),
-                     rect8(0.05, 0.06, 0.13, 0.012, cx=-0.10)]), "armor", "shin_l")
+    _sleeve(m, [rect8(0.074, 0.084, KNEE_DOWN, 0.02, cx=-0.10), rect8(0.09, 0.12, 0.32, 0.02, cx=-0.10, cz=0.01),
+                rect8(0.05, 0.06, 0.14, 0.012, cx=-0.10), rect8(0.058, 0.064, ANKLE_UP, 0.016, cx=-0.10)],
+            "shin_l", {0: KNEE, -1: ANKLE})
     m.add_pair(loft([rect8(0.01, 0.03, 0.18, 0.0, cx=-0.10, cz=0.04), rect8(0.01, 0.05, 0.32, 0.0, cx=-0.10, cz=0.08),
                      rect8(0.006, 0.01, 0.45, 0.0, cx=-0.10, cz=0.12)]), "accent", "shin_l")
-    m.add_pair(ball(0.035).move(-0.10, 0.10, 0), "joint", "foot_l")
+    _ankle(m, 0.031, collar=0.06)
     foot = _along_z(loft([rect8(0.07, 0.06, -0.06, 0.012, cz=0.03), rect8(0.08, 0.06, 0.07, 0.012, cz=0.03),
                           rect8(0.01, 0.01, 0.22, 0.0, cz=0.008)]))
     m.add_pair(foot.move(-0.10, 0, 0), "armor", "foot_l")
@@ -459,7 +566,7 @@ def orbit():
     chest core, ring shoulders and tapered hover-style legs."""
     m = Mesh()
     # Head: the orb (player-colour glow) inside a vertical ring and a tilted halo
-    m.add(prism(8, 0.04, 0.08).move(0, 1.48, 0), "joint", "head")
+    m.add(bead(0.05).move(0, 1.50, 0), "joint", "head")   # the neck's core
     m.add(loft([ngon(8, 0.07, 1.505, 0.07), ngon(8, 0.05, 1.53, 0.05)]), "detail", "head")
     m.add(ball(0.088).move(0, 1.635, 0), "visor", "head")
     m.add(_ring(0.125, 0.026, 0.035, n=14).rot(yaw=90).move(0, 1.635, 0), "armor", "head")
@@ -481,24 +588,25 @@ def orbit():
     # Arms: ringed shoulders, tapered limbs
     m.add_pair(ball(0.06).move(-0.215, 1.40, 0), "accent", "upper_arm_l")
     m.add_pair(_ring(0.08, 0.02, 0.03, n=10).rot(yaw=90).move(-0.225, 1.40, 0), "armor", "upper_arm_l")
-    m.add_pair(loft([ngon(6, 0.035, 1.34, 0.035, cx=-0.215), ngon(6, 0.045, 1.24, 0.045, cx=-0.215),
-                     ngon(6, 0.03, 1.16, 0.03, cx=-0.215)]), "armor", "upper_arm_l")
-    m.add_pair(ball(0.045).move(-0.215, 1.13, 0), "joint", "forearm_l")
-    m.add_pair(loft([ngon(8, 0.035, 1.10, 0.035, cx=-0.215), ngon(8, 0.06, 1.00, 0.06, cx=-0.215),
-                     ngon(8, 0.045, 0.90, 0.045, cx=-0.215)]), "armor", "forearm_l")
+    _sleeve(m, [ngon(8, 0.035, 1.34, 0.035, cx=-0.215), ngon(8, 0.046, 1.24, 0.046, cx=-0.215),
+                ngon(8, 0.041, ELBOW_UP, 0.041, cx=-0.215)], "upper_arm_l", {-1: ELBOW})
+    _hinge(m, 0.036, ELBOW, "forearm_l")
+    _sleeve(m, [ngon(8, 0.041, ELBOW_DOWN, 0.041, cx=-0.215), ngon(8, 0.06, 1.00, 0.06, cx=-0.215),
+                ngon(8, 0.045, WRIST_UP, 0.045, cx=-0.215)], "forearm_l", {0: ELBOW, -1: WRIST})
     m.add_pair(prism(8, 0.062, 0.02).move(-0.215, 1.00, 0), "accent", "forearm_l")
-    m.add_pair(box(0.05, 0.09, 0.08, 0.015).move(-0.215, 0.835, 0), "joint", "hand_l")
+    _wrist(m, 0.88)
+    hands.add(m, 0.88)
     _arms_common(m, -0.28)
 
     # Legs: tapered, ringed knees, small glowing soles
-    m.add_pair(ball(0.06).move(-0.10, 0.90, 0), "joint", "thigh_l")
-    m.add_pair(loft([ngon(8, 0.07, 0.86, 0.07, cx=-0.10), ngon(8, 0.075, 0.72, 0.075, cx=-0.10),
-                     ngon(8, 0.045, 0.56, 0.045, cx=-0.10)]), "armor", "thigh_l")
-    m.add_pair(ball(0.05).move(-0.10, 0.50, 0), "accent", "shin_l")
-    m.add_pair(loft([ngon(8, 0.045, 0.46, 0.045, cx=-0.10), ngon(8, 0.07, 0.34, 0.075, cx=-0.10),
-                     ngon(8, 0.04, 0.14, 0.04, cx=-0.10)]), "armor", "shin_l")
+    m.add_pair(bead(0.06).move(-0.10, 0.90, 0), "joint", "thigh_l")
+    _sleeve(m, [ngon(8, 0.07, 0.86, 0.07, cx=-0.10), ngon(8, 0.075, 0.72, 0.075, cx=-0.10),
+                ngon(8, 0.05, KNEE_UP, 0.05, cx=-0.10)], "thigh_l", {-1: KNEE})
+    _hinge(m, 0.044, KNEE, "shin_l", core="accent")   # (the knee stays in the player's colour)
+    _sleeve(m, [ngon(8, 0.05, KNEE_DOWN, 0.05, cx=-0.10), ngon(8, 0.07, 0.34, 0.075, cx=-0.10),
+                ngon(8, 0.04, 0.15, 0.04, cx=-0.10), ngon(8, 0.045, ANKLE_UP, 0.045, cx=-0.10)], "shin_l", {0: KNEE, -1: ANKLE})
     m.add_pair(prism(8, 0.074, 0.02).move(-0.10, 0.32, 0), "accent", "shin_l")
-    m.add_pair(ball(0.037).move(-0.10, 0.10, 0), "joint", "foot_l")
+    _ankle(m, 0.039)
     foot = _along_z(loft([rect8(0.08, 0.07, -0.07, 0.02, cz=0.04), rect8(0.09, 0.07, 0.06, 0.02, cz=0.04),
                           rect8(0.06, 0.035, 0.17, 0.012, cz=0.025)]))
     m.add_pair(foot.move(-0.10, 0.012, 0), "armor", "foot_l")
@@ -515,7 +623,7 @@ def templar():
     helm's cross, the belt, the shoulder bands and the hems."""
     m = Mesh()
     # Head: the great helm, flat-fronted with chamfered sides and a flat top
-    m.add(prism(8, 0.055, 0.10).move(0, 1.47, 0), "mail", "head")
+    m.add(bead(0.06).move(0, 1.50, 0), "mail", "head")   # the neck's core
     m.add(loft([rect8(0.26, 0.28, 1.485, 0.05), rect8(0.25, 0.27, 1.53, 0.05), rect8(0.245, 0.265, 1.76, 0.05),
                 rect8(0.225, 0.245, 1.785, 0.045), rect8(0.19, 0.21, 1.80, 0.04)]), "steel", "head")
     m.add(loft([rect8(0.265, 0.285, 1.485, 0.05), rect8(0.265, 0.285, 1.51, 0.05)]), "detail", "head")  # lower rim
@@ -548,31 +656,34 @@ def templar():
     m.add(loft([rect8(0.36, 0.25, 0.96, 0.06), rect8(0.40, 0.29, 0.78, 0.07)], cap_start=False), "cloth", "hips")
 
     # Arms: mail sleeves, round steel shoulder plates, elbow cops, plated gauntlets
-    m.add_pair(ball(0.068).move(-0.215, 1.40, 0), "mail", "upper_arm_l")
+    m.add_pair(bead(0.068).move(-0.215, 1.40, 0), "mail", "upper_arm_l")
     m.add_pair(loft([ngon(10, 0.075, 1.33, 0.085, cx=-0.245), ngon(10, 0.10, 1.40, 0.11, cx=-0.255),
                      ngon(10, 0.085, 1.47, 0.095, cx=-0.245), ngon(10, 0.04, 1.51, 0.05, cx=-0.235)]), "steel", "upper_arm_l")
     m.add_pair(loft([ngon(10, 0.101, 1.385, 0.111, cx=-0.255), ngon(10, 0.101, 1.40, 0.111, cx=-0.255)]), "accent", "upper_arm_l")
-    m.add_pair(loft([rect8(0.10, 0.105, 1.35, 0.03, cx=-0.217), rect8(0.09, 0.095, 1.17, 0.028, cx=-0.215)]), "mail", "upper_arm_l")
-    m.add_pair(ball(0.058).move(-0.215, 1.13, 0.0), "steel", "forearm_l")  # elbow cop
-    m.add_pair(loft([rect8(0.085, 0.09, 1.10, 0.025, cx=-0.215), rect8(0.09, 0.095, 0.99, 0.026, cx=-0.215)]), "mail", "forearm_l")
-    m.add_pair(loft([rect8(0.13, 0.14, 1.01, 0.035, cx=-0.215), rect8(0.10, 0.11, 0.90, 0.028, cx=-0.215)]), "steel", "forearm_l")  # gauntlet cuff
-    m.add_pair(box(0.062, 0.10, 0.095, 0.018).move(-0.215, 0.835, 0), "steel", "hand_l")
-    m.add_pair(box(0.066, 0.03, 0.10, 0.012).move(-0.215, 0.81, 0), "joint", "hand_l")  # knuckle plate
+    _sleeve(m, [rect8(0.10, 0.105, 1.35, 0.03, cx=-0.217), rect8(0.09, 0.095, 1.19, 0.028, cx=-0.215),
+                rect8(0.09, 0.095, ELBOW_UP, 0.028, cx=-0.215)], "upper_arm_l", {-1: ELBOW}, "mail")
+    m.add_pair(bead(0.058).move(*ELBOW), "steel", "forearm_l")  # elbow cop: it is the joint's core, and covers the sleeves' rims
+    _sleeve(m, [rect8(0.085, 0.09, ELBOW_DOWN, 0.025, cx=-0.215), rect8(0.09, 0.095, 0.99, 0.026, cx=-0.215)],
+            "forearm_l", {0: ELBOW}, "mail")
+    _sleeve(m, [rect8(0.13, 0.14, 1.01, 0.035, cx=-0.215), rect8(0.10, 0.11, WRIST_UP, 0.028, cx=-0.215)],
+            "forearm_l", {-1: WRIST}, "steel")  # gauntlet cuff
+    _wrist(m, 1.05, "mail")
+    hands.add(m, 1.05, body="steel", plate="steel", trim="joint")   # gauntlets
     _arms_common(m, -0.30)
 
     # Legs: mail chausses, a knee plate, steel sabatons
-    m.add_pair(ball(0.07).move(-0.10, 0.90, 0), "mail", "thigh_l")
-    m.add_pair(loft([rect8(0.14, 0.15, 0.87, 0.035, cx=-0.11), rect8(0.13, 0.145, 0.70, 0.035, cx=-0.11),
-                     rect8(0.10, 0.11, 0.55, 0.028, cx=-0.10)]), "mail", "thigh_l")
+    m.add_pair(bead(0.07).move(-0.10, 0.90, 0), "mail", "thigh_l")
+    _sleeve(m, [rect8(0.14, 0.15, 0.87, 0.035, cx=-0.11), rect8(0.13, 0.145, 0.70, 0.035, cx=-0.11),
+                rect8(0.10, 0.11, KNEE_UP, 0.028, cx=-0.10)], "thigh_l", {-1: KNEE}, "mail")
     m.add_pair(loft([rect8(0.17, 0.18, 0.82, 0.04, cx=-0.11), rect8(0.19, 0.20, 0.59, 0.05, cx=-0.113)], cap_start=False),
                "cloth", "thigh_l")  # the skirt's split panel
     m.add_pair(loft([rect8(0.195, 0.205, 0.605, 0.05, cx=-0.113), rect8(0.195, 0.205, 0.585, 0.05, cx=-0.113)]), "accent", "thigh_l")
-    m.add_pair(ball(0.055).move(-0.10, 0.50, 0), "mail", "shin_l")
+    _hinge(m, 0.045, KNEE, "shin_l", core="mail", pin="steel")
     m.add_pair(loft([rect8(0.10, 0.02, 0.58, 0.0, cx=-0.10, cz=-0.06), rect8(0.12, 0.05, 0.50, 0.012, cx=-0.10, cz=-0.075),
                      rect8(0.09, 0.02, 0.43, 0.0, cx=-0.10, cz=-0.06)]), "steel", "shin_l")  # poleyn
-    m.add_pair(loft([rect8(0.10, 0.11, 0.46, 0.025, cx=-0.10), rect8(0.12, 0.14, 0.33, 0.03, cx=-0.10, cz=0.01),
-                     rect8(0.095, 0.105, 0.15, 0.025, cx=-0.10)]), "mail", "shin_l")
-    m.add_pair(ball(0.047).move(-0.10, 0.10, 0), "mail", "foot_l")
+    _sleeve(m, [rect8(0.10, 0.11, KNEE_DOWN, 0.025, cx=-0.10), rect8(0.12, 0.14, 0.33, 0.03, cx=-0.10, cz=0.01),
+                rect8(0.095, 0.105, ANKLE_UP, 0.025, cx=-0.10)], "shin_l", {0: KNEE, -1: ANKLE}, "mail")
+    _ankle(m, 0.043, material="mail")
     foot = _along_z(loft([rect8(0.12, 0.09, -0.085, 0.02, cz=0.045), rect8(0.13, 0.095, 0.07, 0.022, cz=0.047),
                           rect8(0.09, 0.05, 0.19, 0.015, cz=0.025), rect8(0.04, 0.025, 0.225, 0.006, cz=0.012)]))
     m.add_pair(foot.move(-0.10, 0, 0), "steel", "foot_l")
@@ -582,10 +693,26 @@ def templar():
 
 
 ARM_BONES = ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
-             "pistol", "pistol_slide", "pistol_mag", "pistol_l", "pistol_l_slide", "pistol_l_mag")  # what the first-person view shows (every gun rides on the last three)
+             "index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+             "index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2",
+             "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent")  # what the first-person view shows (every gun rides on the gun bones)
+
+WAIST = (0.0, 1.06, 0.0)   # the spine's own point (rig.BODY): where a torso turns on its legs
+
+
+def waist(mesh):
+    """The waist's core (see kit.plug): every torso has one, so it closes on any legs."""
+    plug(mesh, "spine", WAIST, 0.97, 1.105, 0.075)
+    return mesh
+
+
+def _closed(build):
+    return lambda: waist(build())
+
 
 DESIGNS = {"vanguard": vanguard, "brick": brick, "needle": needle, "kestrel": kestrel, "bulwark": bulwark,
            "rivet": rivet, "specter": specter, "orbit": orbit, "templar": templar}
+DESIGNS = {k: (f if k == "brick" else _closed(f)) for k, f in DESIGNS.items()}   # (Brick: the unused draft, left as it was)
 PLAYABLE = ("needle", "vanguard", "kestrel", "bulwark", "rivet", "specter", "orbit", "templar")
 # First-person arms only: thin a design's forearms and hands by this factor, so bulky
 # gauntlets held up to the camera do not fill the view or push through each other.

@@ -27,7 +27,7 @@ const GROUPS := [
 	["Marksman", ["lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel", "harpoon_gun"]],
 	["Explosives", ["rocket_launcher", "grenade_launcher", "mortar", "plasma_cannon"]],
 	["Melee", ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-		"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]],
+		"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]],
 ]
 ## Every weapon a player can pick, in the order the pickers show them.
 const IDS := ["pistol", "revolver", "machine_pistol", "akimbo", "derringer", "flare_gun", "plasma_pistol",
@@ -36,9 +36,9 @@ const IDS := ["pistol", "revolver", "machine_pistol", "akimbo", "derringer", "fl
 	"lever_action", "bolt_action", "sniper", "railgun", "crossbow", "anti_materiel", "harpoon_gun",
 	"rocket_launcher", "grenade_launcher", "mortar", "plasma_cannon",
 	"sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-	"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]
+	"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
 const MELEE := ["sword", "hammer", "dagger", "brass_knuckles", "spear", "axe", "bat",
-	"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]
+	"katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws", "karate"]
 const GUNS := ["pistol", "revolver", "machine_pistol", "akimbo", "derringer", "flare_gun", "plasma_pistol",
 	"shotgun", "break_action", "auto_shotgun", "slug_shotgun", "air_cannon",
 	"smg", "rifle", "burst_rifle", "lmg", "minigun", "battle_rifle", "laser_rifle", "nail_gun",
@@ -791,6 +791,7 @@ static func _make(weapon_id: String) -> WeaponData:
 		"wrench": return wrench()
 		"energy_sword": return energy_sword()
 		"claws": return claws()
+		"karate": return karate()
 	return pistol()
 
 
@@ -1341,4 +1342,28 @@ static func claws() -> WeaponData:
 	w.backstab_multiplier = 2.0
 	w.kick = 0.6
 	w.move_bonus = 1.16
+	return w
+
+
+## Karate: no weapon at all, just fists and feet. Every swing is the next blow of a
+## combo of six (a jab, a cross, a roundhouse kick, a hook, a spinning back fist and a
+## spinning hook kick; see MeleeSwing), a full wind-up is a hopping tornado kick, and in
+## mid-air it is a helicopter kick. The spinning blows take longer, so the combo has a rhythm.
+static func karate() -> WeaponData:
+	var w := _melee("karate", "Karate")
+	w.blurb = "No weapon, all style: every swing is the next move of a six-hit combo of punches, kicks and spinning kicks. Wind up for a tornado kick."
+	w.damage = 11.0
+	w.charge_damage = 36.0
+	w.fire_interval = 0.28
+	w.windup = 0.05
+	w.charge_time = 0.42
+	w.max_range = 2.5
+	w.arc_degrees = 55.0
+	w.lunge = 4.5
+	w.knockback = 3.0
+	w.knockback_up = 1.0
+	w.charge_knockback = 26.0
+	w.charge_knockback_up = 6.0
+	w.kick = 0.7
+	w.move_bonus = 1.12
 	return w

@@ -10,7 +10,8 @@ extends RefCounted
 ## ("max_players"), the Killcam mode's points to win and time limit
 ## ("killcam_points", "killcam_minutes"; see KillcamMode), a random map and the maps
 ## it may pick from ("random_map", "map_pool"), and the song the lobby plays ("song";
-## see Music).
+## see Music), and the movement variant everyone plays with ("movement"; see
+## MovementTuning.VARIANTS, for A/B testing how movement feels).
 ##
 ## To add a setting: give it a key and a default in DEFAULTS, make clean() keep only
 ## sensible values for it, put its rules here, and add a control for the host in the
@@ -30,9 +31,11 @@ extends RefCounted
 ##   means every one. Only the ones for the game set up count (see pool_for).
 ## song: the song (a name from Music.song_names) the lobby plays, over and over, until
 ##   the host picks another; "" shuffles them as usual.
+## movement: the movement variant (an id from MovementTuning.VARIANTS) every player
+##   runs, in every kind of game; it takes effect when the match starts.
 const DEFAULTS := {"weapons": [], "mobility": [], "max_players": 16,
 	"killcam_points": KillcamMode.POINTS_TO_WIN, "killcam_minutes": KillcamMode.MINUTES,
-	"random_map": false, "map_pool": [], "song": ""}
+	"random_map": false, "map_pool": [], "song": "", "movement": MovementTuning.DEFAULT_VARIANT}
 const MIN_PLAYERS := 2
 const MAX_PLAYERS := 16   ## the same as Net.MAX_PLAYERS (Net builds its settings with clean(), before it is there to ask)
 
@@ -52,6 +55,7 @@ static func clean(settings: Dictionary) -> Dictionary:
 	s["random_map"] = s.get("random_map") is bool and s.random_map
 	s["map_pool"] = normalized_pool(s.get("map_pool", []))
 	s["song"] = str(s.song) if s.get("song") is String else ""
+	s["movement"] = MovementTuning.valid_variant(s.get("movement"))
 	return s
 
 
@@ -153,8 +157,11 @@ static func weapons_summary(ids) -> String:
 # Allowed mobility tools. They apply to every fight (shoot-out, Gun Game, Deathmatch,
 # Killcam): a race ignores them, because it always uses the grapple.
 
-## A list of mobility ids as stored: known ids only, in Mobility.IDS order; [] for all.
+## A list of mobility ids as stored: known ids only (an old id as it is called now:
+## Mobility.RENAMED), in Mobility.IDS order; [] for all.
 static func normalized_mobility(ids) -> Array:
+	if ids is Array:
+		ids = ids.map(func(m): return Mobility.canonical(str(m)))
 	return _normalized(ids, Mobility.IDS)
 
 
@@ -203,6 +210,15 @@ static func mobility_summary(ids) -> String:
 	if allowed.size() == 1:
 		return "Everyone has the %s" % Mobility.name_of(allowed[0])
 	return ", ".join(allowed.map(func(m): return Mobility.short_name(m)))
+
+
+# ---------------------------------------------------------------------------
+# Movement variant (A/B testing): everyone in the match moves the same way. Each copy
+# builds its own players' and bots' movement from it as they spawn (see Player).
+
+## The movement variant the match is set up with.
+static func movement() -> String:
+	return MovementTuning.valid_variant(Net.match_settings.get("movement"))
 
 
 # ---------------------------------------------------------------------------

@@ -44,9 +44,23 @@ const MELEE_REST_VIEW := {
 	"wrench": Vector3(0.1, -0.06, 0.0),
 	"energy_sword": Vector3(0.12, -0.06, 0.0),
 	"claws": Vector3(0.0, -0.04, 0.0),
+	"karate": Vector3(0.0, -0.04, 0.0),
 }
 ## A blow is tipped up this much (radians), so it sweeps across the crosshair and not under it.
 const MELEE_CUT_TILT := 0.22
+## On the grappling hook's rope (RopeSwing) your arms go with the body everyone else sees:
+## the gun hangs low and off to the right, still in view, until you shoot (it drops
+## this far about the shoulder, and tips out this far: radians), a blade is let down
+## (by this much, and tipped this far forward), and the whole view rocks with the
+## body's lean (this much of it) and is jerked along the rope by the jolt.
+const ROPE_GUN_DROP := 0.03
+const ROPE_GUN_OUT := 0.05
+const ROPE_GUN_CANT := 0.32            ## ...and the gun rolls over in the hand this far (a loose wrist)
+const ROPE_GUN_TRAIL := 0.2            ## the lowered gun trails behind the swing: this much of how far the body's gun arm does
+const ROPE_BLADE_DOWN := Vector3(0.05, -0.15, 0.05)
+const ROPE_BLADE_TIP := -0.3
+const ROPE_SWAY := 0.22
+const ROPE_LUNGE := 0.6
 ## In these the hands are busy (climbing, tucked): the weapon is not held up.
 const MELEE_BUSY := ["fp_mantle", "fp_tuck", "fp_dive"]
 
@@ -66,6 +80,9 @@ var _recoil_l := 0.0      # akimbo: the left gun's kick (_recoil is the right's)
 var _kick_side := 0.0     # akimbo: which way the last shot rolls the view (+1 right gun, -1 left)
 var _since_fire := 99.0
 var _reload_w := 0.0
+var _fx_t := -1.0         # how far into the reload the gun's effects were last frame (ReloadFx)
+var _end_t := -1.0        # a shell-at-a-time reload's last flourish ("fp_reload_end"), once the gun is full
+var _was_reloading := false
 var _raise_t := -1.0
 var _bob := 0.0
 var _bob_w := 0.0
@@ -90,6 +107,8 @@ var _rest := 1.0                  # how much the blade is in its resting lean (0
 var _airborne := false            # in a plain fall, flip or glide: a melee wind-up takes its mid-air form
 var _was_slam := false            # in a ground slam last frame
 var _cut := 0.0                   # in a blow: the cut is tipped up to cross the middle of the view
+var _low := 0.0                   # on the rope with the gun (or blade) down at your side, 0..1
+var _own_rope := RopeSwing.new()  # for arms with no body of their own (the killcam's: see hang)
 
 
 func setup(player: Player, color: Color) -> void:
@@ -132,6 +151,7 @@ func fire(left: bool = false) -> void:
 	else:
 		_recoil = _data.kick
 	_since_fire = 0.0
+	_low = 0.0   # on the rope the gun was down at your side: it is up for this shot, not on its way
 	if rig.has_clip("fp_fire_" + _weapon):
 		_fire_t = 0.0
 
@@ -183,6 +203,18 @@ func respawn() -> void:
 	_last_pitch = _player.input.pitch
 
 
+## How the body hangs on the rope: the body's own (RobotAnimator), so the
+## arms move with what everyone else sees.
+func rope() -> RopeSwing:
+	return _player.animator.rope if _player.animator != null else _own_rope
+
+
+## Arms with no body of their own (the killcam's): what the rope is doing, each frame
+## before update().
+func hang(delta: float, inp: RobotAnimInput, feet: Vector3) -> void:
+	_own_rope.update(delta, inp, feet)
+
+
 ## A marker bone ("muzzle", "grapple") as a world position that lines up on screen
 ## with where the arms are drawn (they use their own field of view).
 func marker(bone: String) -> Vector3:
@@ -204,6 +236,7 @@ func update(delta: float) -> void:
 	_since_fire += delta
 
 	# --- Arm pose for what the body is doing
+	var swing := rope()
 	var key := clip(_pick(motor, speed, reloading))
 	if key != source:
 		_from.copy(_base)
@@ -225,6 +258,20 @@ func update(delta: float) -> void:
 		var rclip := clip("fp_reload")
 		rig.sample(_tmp, rclip, _player.weapon.round_progress() * rig.length(rclip) if reloading else 0.0)
 		_pose.blend(_tmp, _reload_w)
+	# A shell-at-a-time reload that ran until the gun was full (not stopped by a shot) ends with a flourish.
+	if _was_reloading and not reloading and _data.reload_per_round and _since_fire > 0.2 and _player.weapon != null \
+			and _player.weapon.ammo >= _data.magazine and rig.has_clip(clip("fp_reload_end")):
+		_end_t = 0.0
+	_was_reloading = reloading
+	if _end_t >= 0.0:
+		var eclip := clip("fp_reload_end")
+		var elen := rig.length(eclip)
+		if _end_t >= elen or reloading or _since_fire < _end_t:
+			_end_t = -1.0
+		else:
+			rig.sample(_tmp, eclip, _end_t)
+			_pose.blend(_tmp, clampf((elen - _end_t) / 0.12, 0.0, 1.0) * (1.0 - _grapple_w))
+			_end_t += delta
 	# Working the pump or the bolt after a shot
 	if _fire_t >= 0.0:
 		var fclip := "fp_fire_" + _weapon
@@ -244,17 +291,31 @@ func update(delta: float) -> void:
 		else:
 			_raise_t = -1.0
 
+	# --- On the rope: the gun hangs low, off to the right, until it is used
+	var in_use := _since_fire < RobotAnimator.ROPE_AIM_HOLD or reloading or _end_t >= 0.0 or _fire_t >= 0.0 \
+		or (_data.is_melee() and _swing.active())
+	_low = move_toward(_low, 1.0 if swing.w > 0.0 and motor.state == S.GRAPPLE and not in_use else 0.0, delta * RobotAnimator.ROPE_AIM_DROP)
+	var low := smoothstep(0.0, 1.0, _low)
+	if low > 0.0 and not _data.is_melee():
+		var trail := swing.arm(_player.input.yaw)   # (the way the body's gun arm hangs: x right, z back)
+		var up_r: int = rig.bones["upper_arm_r"]
+		_pose.rot[up_r] = Quaternion(Vector3.RIGHT, -(ROPE_GUN_DROP + trail.z * ROPE_GUN_TRAIL) * low) \
+			* Quaternion(Vector3.BACK, (ROPE_GUN_OUT + trail.x * ROPE_GUN_TRAIL) * low) * _pose.rot[up_r]
+		var hand_r: int = rig.bones["hand_r"]
+		_pose.rot[hand_r] = _pose.rot[hand_r] * Quaternion(Vector3.UP, ROPE_GUN_CANT * low)
+
 	# --- The left arm points its launcher at the grapple anchor
-	_grapple_w = move_toward(_grapple_w, 1.0 if motor.grapple.attached else 0.0, delta * 10.0)
+	_grapple_w = move_toward(_grapple_w, 1.0 if motor.grapple.rope_out() else 0.0, delta * 10.0)
 	if _grapple_w > 0.0:
 		var up_l: int = rig.bones["upper_arm_l"]
 		var shoulder := model.global_transform * (rig.rest_pos[rig.bones["hips"]] + rig.rest_pos[rig.bones["spine"]] \
 			+ rig.rest_pos[rig.bones["chest"]] + rig.rest_pos[up_l])
-		var dir := model.global_transform.basis.inverse() * (motor.grapple.anchor - shoulder).normalized()
+		var dir := model.global_transform.basis.inverse() * (motor.grapple.rope_end() - shoulder).normalized()
 		# Keep the arm in view: mostly forward, a little toward where the rope goes.
 		dir = (Vector3(-0.25, -0.1, -1.0).normalized() * 1.2 + dir).normalized()
 		_pose.rot[up_l] = _pose.rot[up_l].slerp(Quaternion(Vector3.DOWN, dir), _grapple_w)
-		_pose.rot[rig.bones["forearm_l"]] = _pose.rot[rig.bones["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.1), _grapple_w)
+		# (The jolt as the rope pulls tight straightens the arm right out.)
+		_pose.rot[rig.bones["forearm_l"]] = _pose.rot[rig.bones["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.1 * (1.0 - clampf(swing.lunged(), 0.0, 1.0) * swing.w)), _grapple_w)
 		_pose.rot[rig.bones["hand_l"]] = _pose.rot[rig.bones["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
 
 	if _data.is_melee():
@@ -269,13 +330,13 @@ func update(delta: float) -> void:
 			_swing.slam_land(1.0)
 		_was_slam = slam
 		var k := _swing.sample(delta)
-		var shift := MELEE_SHIFT
+		var shift := MELEE_SHIFT + ROPE_BLADE_DOWN * low   # (on the rope the blade is let down, off to the side)
 		_rest = move_toward(_rest, 0.0 if _swing.active() else 1.0, delta * (12.0 if _swing.active() else 5.0))
 		_hold = move_toward(_hold, 0.0 if key in MELEE_BUSY and not _swing.active() else 1.0, delta * 9.0)
 		var chest: int = rig.bones["chest"]
 		_pose.rot[chest] = Quaternion(Vector3.UP, k[MeleeSwing.TURN] * MELEE_TURN * _hold) * _pose.rot[chest]
 		_cut = move_toward(_cut, 1.0 if _swing.active() and not _swing.winding() else 0.0, delta * 14.0)
-		MeleeSwing.hold(_pose, rig, k, _swing.two_handed, MELEE_CUT_TILT * _cut, _hold, _hold * (1.0 - _grapple_w), shift,
+		MeleeSwing.hold(_pose, rig, k, _swing.two_handed, MELEE_CUT_TILT * _cut + ROPE_BLADE_TIP * low, _hold, _hold * (1.0 - _grapple_w), shift,
 			_swing.other_fist(), _swing.left_fist())
 		_swing_view = Vector2(k[MeleeSwing.TURN] * 0.4, k[MeleeSwing.LEAN]) * _hold
 		if model.melee:
@@ -288,6 +349,7 @@ func update(delta: float) -> void:
 	if _weapon == "pistol" or _data.is_akimbo():
 		_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
 	if _data.is_akimbo():
+		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
 		# Each gun flips up in its own hand, and its slide snaps back.
 		_pose.pos[rig.bones["pistol_l_slide"]] += Vector3(0.0, 0.04 * _recoil_l, 0.0)
 		for side in [["upper_arm_r", _recoil], ["upper_arm_l", _recoil_l]]:
@@ -297,6 +359,11 @@ func update(delta: float) -> void:
 			var b: int = rig.bones[side[0]]
 			_pose.rot[b] = Quaternion(Vector3.RIGHT, minf(side[1], 1.6) * 0.25) * _pose.rot[b]
 	_pose.apply(model.skeleton)
+	# The reload's own effects: the gun's glow, the spent cell thrown clear.
+	var fx_t := _player.weapon.round_progress() * rig.length(clip("fp_reload")) if reloading else -1.0
+	var in_view: bool = _player.rig != null and _player.rig.first_person_amount() > 0.0   # (in third person the body throws it)
+	ReloadFx.update(model, WeaponData.look_of(_weapon), _fx_t, fx_t, _player.get_parent().get_parent() if in_view else null, vel, _on_screen)
+	_fx_t = fx_t
 
 	# --- Whole-view movement: sway, bob, landing dip, recoil
 	var yaw := _player.input.yaw
@@ -344,9 +411,19 @@ func update(delta: float) -> void:
 		# go round it, sweeping through the view once a turn.
 		if _swing.spin() != 0.0:
 			basis = Basis(_swing.spin_axis(), _swing.spin()) * basis
+	# On the rope the arms rock with the body's lean, and the jolt jerks them along the rope.
+	if swing.w > 0.0:
+		var lean := swing.tilt(yaw)
+		if not lean.is_equal_approx(Quaternion.IDENTITY):
+			var rock := lean.get_axis() * lean.get_angle() * ROPE_SWAY * swing.w
+			rotation.x += rock.x * 0.3   # (less up and down than side to side: the gun stays in view)
+			rotation.z += rock.z
+		position += Basis(Vector3.RIGHT, -pitch) * swing.lunge(yaw) * ROPE_LUNGE * swing.w
 
 
 func _pick(motor: MovementController, speed: float, reloading: bool) -> String:
+	if motor.state == S.AIR and rope().flip() >= 0.0 and not rope().flip_hurried():
+		return "fp_tuck"   # rolling off the rope: the arms are tucked in
 	match motor.state:
 		S.GROUND:
 			if speed > 9.0 and _since_fire > 0.7 and not reloading and _player.input.sprint:

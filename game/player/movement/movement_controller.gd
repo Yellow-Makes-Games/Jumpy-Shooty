@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ##   GROUND    running and sprinting
 ##   AIR       jumping and falling (bunny-hops and air-strafing live here)
-##   GRAPPLE   reeled in and swinging on the rope (see grapple.gd)
+##   GRAPPLE   reeled in and swinging on the rope, once the hook has flown there,
+##             bitten and pulled tight (see grapple.gd)
 ##   CROUCH    crouched on the ground: lower and slower
 ##   SLIDE     crouch while moving fast: keeps momentum, speeds up downhill
 ##   WALL_RUN  run along a wall with little gravity; jump to kick off it
@@ -29,6 +30,15 @@ extends RefCounted
 ##             the glide off the way you press instead (see _glide_boost).
 ##   SLAM      a ground slam (melee): you drive straight down and nothing stops it
 ##             but the floor (see start_slam; Player decides when, GroundSlam what it does)
+##   WALL_SIT  (tuning.wall_sit_time > 0, Variant B) push into a wall in mid-air: you
+##             stick to it for wall_sit_time, then slide slowly down it while you keep
+##             pushing. Let go to drop off; jump to kick off it (a wall jump).
+##
+## MovementTuning's mechanic switches change some of this (Variant B, for A/B testing):
+## no glides; Space held in the air flies the jetpack (see space_jet); legs tucked in
+## the air without a key; Ctrl (or Q) dives forward, slides on your back going
+## backward, and crouches otherwise; a stronger brake in the air; a sideways speed
+## limit. (space_boost, mid-air Space firing the rocket boots, is there but off.)
 ## Winding a melee swing up in a plain fall hangs you in the air for a moment (see
 ## _hang): hang_time seconds per time in the air, refilled like the glide.
 ##
@@ -45,7 +55,7 @@ const TUCK_SETTLE_SPEED := 3.0   ## metres per second
 const BELLY_SLOPE := 0.985       ## floor normal's y below this (about 10 degrees): a belly slide never slows to a crawl
 
 ## New states go on the end: the numbers travel in snapshots (Player.make_pose).
-enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE, GLIDE, SLAM }
+enum State { GROUND, AIR, GRAPPLE, CROUCH, SLIDE, WALL_RUN, MANTLE, DIVE, ROLL, FLIP, BELLY_SLIDE, GLIDE, SLAM, WALL_SIT }
 
 var tuning: MovementTuning
 var state: State = State.AIR
@@ -71,6 +81,18 @@ var impact_point := Vector3.ZERO
 ## Rocket-boot bursts so far (for the flame and sound others see), and seconds since the last.
 var boosts := 0
 var since_boost := 99.0
+
+## This body's gravity right now, as a share of normal: the map-wide WorldGravity.scale
+## (a map event) times the gravity of the zone it is in (see MapGravityZone), which
+## eases from one zone's to the next over WorldGravity.BLEND_TIME. Worked out at the
+## start of every step; everything here that uses gravity multiplies by it.
+var gravity_scale := 1.0
+## The zone's share on its own (1.0 on a map with no zones), eased.
+var zone_scale := 1.0
+
+var _zone_from := 1.0
+var _zone_to := -1.0         # the zone it is easing to (below 0: not known yet, take the first one as it is)
+var _zone_t := 1.0
 
 var _knock := Vector3.ZERO   # knockback waiting to be added on the next step
 ## Set when the body was just moved somewhere new (blink, a portal): the next step
@@ -101,6 +123,13 @@ var _slam_used := false       # a ground slam has been done this time in the air
 var _slam_time := 0.0         # seconds this slam has lasted
 var _slam_from := 0.0         # the height it started at
 var _slam_landing := -1.0     # a slam just landed, from this many metres up (taken by take_slam_landing), or -1
+var has_jetpack := false      ## set every step by the player (tuning.space_boost: a held Space flies it)
+var space_jet := false        ## tuning.space_boost: Space is held in the air for the jetpack (Player flies it)
+var _space_tap := -1.0        # with the jetpack: seconds a mid-air Space press has been held (a tap boosts), or -1
+var _jump_held_for := 0.0     # seconds Space has been held since it was pressed
+var _auto_tuck := false       # tuning.always_tuck: tucked by itself this step (not by the crouch key)
+var _sit_left := 0.0          # seconds of sticking left on this wall sit (then it slides)
+var _sat_wall := Vector3.ZERO # the last wall sat on this time in the air (one sit per wall)
 
 
 func _init(t: MovementTuning = null) -> void:
@@ -112,6 +141,7 @@ func _init(t: MovementTuning = null) -> void:
 func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var t := tuning
 	_bind_shape(body)
+	_update_gravity(body, delta)
 	var vel := body.velocity
 	var grounded := body.is_on_floor() and not warped
 	warped = false
@@ -125,18 +155,23 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		_glide_left = t.glide_time
 		_hang_left = t.hang_time
 		_slam_used = false
+		_sat_wall = Vector3.ZERO
 	else:
 		_since_ground += delta
 	hanging = false
 	if input.jump_pressed:
 		_jump_buffer = t.jump_buffer
+		_jump_held_for = 0.0
 	else:
 		_jump_buffer = max(_jump_buffer - delta, 0.0)
+		_jump_held_for = _jump_held_for + delta if input.jump_held else 0.0
+	space_jet = t.space_jetpack and has_jetpack and input.jump_held and not grounded and _jump_held_for >= t.space_hold_time
 	_since_slide_boost += delta
 	_since_wall += delta
 	_since_dive += delta
 	_flip_left = max(_flip_left - delta, 0.0)
 	since_boost += delta
+	grapple.held = input.grapple
 	grapple.update(delta)
 	grapple.follow_target(body, delta)
 
@@ -153,20 +188,38 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var wish_speed: float = (t.sprint_speed if input.sprint else t.run_speed) * min(input.move.length(), 1.0)
 	var forward := input.move.y > 0.3
 
+	# The crouch and dive keys. With tuning.ctrl_moves (Variant B) either key is one
+	# key: pressed going forward it dives (held, it lands you on your belly and you
+	# crawl once the slide runs out); pressed going backward it slides you on your back
+	# (a crouch once it runs out); otherwise it crouches. It never starts a crouch-slide.
+	var crouch_held := input.crouch
+	var crouch_pressed := input.crouch_pressed
+	var dive_held := input.dive
+	var dive_pressed := input.dive_pressed
+	var back_slide := false
+	if t.ctrl_moves:
+		var ctrl := input.crouch or input.dive
+		var ctrl_pressed := input.crouch_pressed or input.dive_pressed
+		crouch_held = ctrl
+		crouch_pressed = false
+		dive_held = ctrl
+		dive_pressed = ctrl_pressed and forward
+		back_slide = ctrl_pressed and input.move.y < -0.3 and grounded
+
 	# --- Grapple: hold to stay on the rope, let go to fly off with your momentum,
 	# or jump to let go with an upward kick.
-	var hooked_now := false
 	if input.grapple_pressed and not grapple.attached:
-		hooked_now = grapple.try_attach(body, input)
-	if grapple.attached and not input.grapple:
-		grapple.release()
+		grapple.fire(body, input)
+	var hooked_now := grapple.take_hooked()   # fired a moment ago, its rope has just pulled tight
+	if (grapple.attached or grapple.busy()) and not input.grapple:
+		grapple.release()   # (a hook still in flight is called back)
 	var rope_jump := false
 	if grapple.attached and _jump_buffer > 0.0 and not grounded:
 		grapple.release()
 		_jump_buffer = 0.0
 		rope_jump = true
 
-	if grapple.attached or state == State.WALL_RUN:
+	if grapple.attached or state == State.WALL_RUN or state == State.WALL_SIT:
 		_flip_used = false   # swinging or wall-running gives your flip back
 		_glide_left = t.glide_time  # ...and refills your glide
 		_hang_left = t.hang_time    # ...and your hang
@@ -190,11 +243,11 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 	# --- Dive (and the roll when you land from one)
 	var diving_now := false
-	if input.dive_pressed and _can_dive(grounded):
+	if dive_pressed and _can_dive(grounded):
 		vel = _start_dive(vel, input, grounded)
 		diving_now = true
 	if state == State.DIVE and grounded and not diving_now:
-		if input.dive:
+		if dive_held:
 			vel = _start_belly_slide(vel)   # still holding dive: land on your belly
 		else:
 			state = State.ROLL
@@ -207,18 +260,22 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			state = State.AIR   # rolled off an edge
 		elif _roll_left <= 0.0:
 			state = State.GROUND
-			if input.crouch and Vector2(vel.x, vel.z).length() >= t.slide_start_speed:
+			if crouch_held and not t.ctrl_moves and Vector2(vel.x, vel.z).length() >= t.slide_start_speed:
 				vel = _start_slide(vel)   # roll straight into a slide
 	var low_move := state in [State.DIVE, State.ROLL, State.BELLY_SLIDE]
 
 	# --- Crouch (or tuck your legs in the air). Diving and rolling are low too, and
 	# a belly slide is lower still. Let go of dive (or jump) to get up from your belly.
-	var want_prone := state == State.BELLY_SLIDE and input.dive and _jump_buffer <= 0.0
-	_update_crouch(body, input.crouch or low_move, want_prone, grounded, delta)
+	# With tuning.always_tuck the legs tuck by themselves a moment after you leave the
+	# floor (not on a wall, where they come down to run or sit).
+	var want_prone := state == State.BELLY_SLIDE and dive_held and _jump_buffer <= 0.0
+	_auto_tuck = t.always_tuck and not grounded and _since_ground > t.coyote_time and not crouch_held \
+		and state not in [State.WALL_RUN, State.WALL_SIT, State.MANTLE]
+	_update_crouch(body, crouch_held or low_move or _auto_tuck, want_prone, grounded, delta)
 	if state == State.BELLY_SLIDE and not prone:
 		state = State.GROUND   # up on your feet (or crouched, if there is no room to stand)
 		low_move = false
-		if input.crouch and Vector2(vel.x, vel.z).length() >= t.slide_start_speed:
+		if crouch_held and not t.ctrl_moves and Vector2(vel.x, vel.z).length() >= t.slide_start_speed:
 			vel = _start_slide(vel)   # up from your belly straight into a slide
 
 	# --- Vault over low obstacles; grab and climb higher ledges while in the air
@@ -238,43 +295,54 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 			_since_wall = 0.0
 	if state == State.WALL_RUN and not _keep_wall_running(wall, vel, forward, grounded):
 		_end_wall_run()
+	if state == State.WALL_SIT and not _keep_wall_sitting(wall, wish, grounded):
+		_end_wall_sit()
 
 	var jumping := _jump_buffer > 0.0 and _since_ground <= t.coyote_time and not prone
 	var wall_jump := false
 	if not jumping and _jump_buffer > 0.0 and not grounded and not grapple.attached:
 		var kick := wall if wall != Vector3.ZERO else (_recent_wall if _since_wall <= t.wall_jump_grace else Vector3.ZERO)
-		if kick != Vector3.ZERO and (state == State.WALL_RUN or _wall_is_fresh(kick)):
+		if kick != Vector3.ZERO and (state == State.WALL_RUN or state == State.WALL_SIT or _wall_is_fresh(kick)):
 			wall_jump = true
 			_jump_buffer = 0.0
 			vel = _wall_jump(vel, kick)
 
-	if not wall_jump and state != State.WALL_RUN and _can_start_wall_run(body, wall, vel, forward, grounded):
+	if not wall_jump and state != State.WALL_RUN and state != State.WALL_SIT and _can_start_wall_run(body, wall, vel, forward, grounded):
 		_start_wall_run(wall)
 		vel.y = clamp(vel.y, -1.0, t.wall_run_max_rise)
+	elif not wall_jump and state != State.WALL_RUN and state != State.WALL_SIT:
+		var sit_on := _wall_to_sit_on(body, wall, wish, vel, grounded)
+		if sit_on != Vector3.ZERO:
+			_start_wall_sit(sit_on)
 
 	# A mid-air jump that isn't a wall jump is a flip: a small burst toward your
 	# WASD direction, once per jump. Pressed close above the floor, it is kept
 	# as a buffered jump for when you land instead (so bunny-hops still work).
+	# With tuning.space_boost it fires the rocket boots instead (see _space_boost).
+	var mid_air_jump: bool = input.jump_pressed and not jumping and not wall_jump and not rope_jump and not grounded \
+			and not grapple.attached and state != State.MANTLE \
+			and not SurfaceProbe.floor_within(body, max(1.0, -vel.y * t.jump_buffer + 0.3))
 	var flipping := false
-	if input.jump_pressed and not jumping and not wall_jump and not rope_jump and not grounded \
-			and not grapple.attached and not _flip_used and state != State.MANTLE \
-			and not SurfaceProbe.floor_within(body, max(1.0, -vel.y * t.jump_buffer + 0.3)):
+	if mid_air_jump and t.flips_on and not t.space_boost and not _flip_used:
 		flipping = true
 		_flip_used = true
 		_jump_buffer = 0.0
+	var space_boost := _space_boost(mid_air_jump, input, grounded, delta)
 
 	var hspeed := Vector2(vel.x, vel.z).length()
 	if wall_jump:
 		state = State.AIR
-		vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+		vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 	elif state == State.WALL_RUN:
 		vel = _wall_run(vel, delta)
+	elif state == State.WALL_SIT:
+		vel = _wall_sit(vel, delta)
 	elif state == State.GLIDE:
 		vel = _glide(vel, delta)
 	elif state == State.DIVE:
 		if not diving_now:
 			vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.dive_air_accel, delta)
-			vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+			vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 	elif state == State.ROLL:
 		vel = _roll(vel, wish, delta)
 	elif state == State.BELLY_SLIDE:
@@ -284,13 +352,15 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# the rope removes any motion that would stretch it.
 		state = State.GRAPPLE
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.grapple_air_accel, delta)
-		vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+		vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 	elif grounded and not jumping:
 		var just_landed := state not in [State.GROUND, State.CROUCH, State.SLIDE]
 		if state == State.SLIDE and (not crouched or hspeed < t.slide_end_speed):
 			state = State.GROUND
-		elif state != State.SLIDE and crouched and hspeed >= t.slide_start_speed and (input.crouch_pressed or just_landed):
+		elif state != State.SLIDE and crouched and not t.ctrl_moves and hspeed >= t.slide_start_speed and (crouch_pressed or just_landed):
 			vel = _start_slide(vel)
+		elif back_slide and crouched and hspeed >= t.slide_end_speed:
+			vel = _start_slide(vel)   # Variant B: onto your back (too slow for that, it is just a crouch)
 		if state == State.SLIDE:
 			vel = _slide(body, vel, wish, delta)
 		else:
@@ -305,12 +375,14 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		# your speed (bunny-hopping). Air steering can add speed when you strafe
 		# and turn together (air-strafing), but never takes speed away.
 		state = State.FLIP if _flip_left > 0.0 else State.AIR
+		if not grounded:
+			vel = _air_brake(vel, wish, delta)
 		vel = _accelerate(vel, wish, min(wish_speed, t.air_speed), t.air_accel, delta)
 		if not grounded:
 			if hang and state == State.AIR and _hang_left > 0.0 and since_boost > 0.3 and not jumping:
 				vel = _hang(vel, delta)
 			else:
-				vel.y = max(vel.y - t.gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+				vel.y = max(vel.y - t.gravity * gravity_scale * delta, -t.max_fall_speed)
 
 	if jumping:
 		vel.y = t.jump_velocity
@@ -322,6 +394,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		state = State.AIR
 	if flipping:
 		vel = _flip(vel, wish, input)
+	if space_boost and since_boost >= t.boost_cooldown:
+		vel = _boost(vel, input, grounded, false)
 
 	if grapple.attached:
 		# Reel in: a yank when the hook catches, then a steady pull toward it.
@@ -347,11 +421,14 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 				state = State.AIR   # a real shove knocks you out of a glide
 			else:
 				_knock.y = 0.0      # a nudge (a bullet, your own lunge) pushes you along, no lift
+		if state == State.WALL_SIT and _knock.length() > 2.0:
+			_end_wall_sit()   # shoved off the wall
 		vel += _knock
 		if _knock.y > 0.5 and state in [State.GROUND, State.CROUCH, State.SLIDE, State.ROLL, State.BELLY_SLIDE]:
 			state = State.AIR   # knocked off your feet
 			_since_ground = t.coyote_time + 1.0
 		_knock = Vector3.ZERO
+	vel = _cap_speed(vel)
 	body.velocity = vel
 	body.move_and_slide()
 	_measure_impact(body, vel)
@@ -361,7 +438,8 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 
 
 ## Rocket boots: a burst toward where you push (see the top of this file).
-func _boost(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
+## tip_up: holding jump tips it upward (not for a burst fired by the jump key itself).
+func _boost(vel: Vector3, input: PlayerInput, grounded: bool, tip_up: bool = true) -> Vector3:
 	var t := tuning
 	if state == State.GLIDE:
 		return _glide_boost(vel, input)
@@ -369,7 +447,7 @@ func _boost(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
 	if dir == Vector3.ZERO:
 		var look := Basis.from_euler(Vector3(input.pitch, input.yaw, 0.0))
 		dir = look * Vector3(input.move.x, 0.0, -input.move.y) if input.move.length() > 0.2 else look * Vector3.FORWARD
-		if input.jump_held:
+		if input.jump_held and tip_up:
 			dir += Vector3.UP * 0.6   # holding jump tips the burst upward
 	if dir.length_squared() < 0.0001:
 		return vel
@@ -381,9 +459,8 @@ func _boost(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
 	vel += dir * t.boost_speed
 	since_boost = 0.0
 	boosts += 1
-	if state in [State.MANTLE, State.ROLL, State.BELLY_SLIDE, State.WALL_RUN]:
-		if state == State.WALL_RUN:
-			_end_wall_run()
+	if state in [State.MANTLE, State.ROLL, State.BELLY_SLIDE, State.WALL_RUN, State.WALL_SIT]:
+		_leave_wall()
 		state = State.AIR
 	if grounded:
 		vel.y = maxf(vel.y, t.boost_ground_lift)   # off the floor, so friction doesn't eat it
@@ -428,8 +505,29 @@ func is_low() -> bool:
 
 
 ## Forget everything in progress (respawn, teleport).
+## The body's gravity for this step: the zone it stands in, eased over a second
+## when that changes (walking out through a doorway), times the map event's.
+## After reset() (a respawn, a teleport) the zone it finds itself in counts at once.
+func _update_gravity(body: Node3D, delta: float) -> void:
+	var here := WorldGravity.zone_at(body.global_position + Vector3(0, tuning.stand_height * 0.5, 0))
+	if _zone_to < 0.0:
+		_zone_from = here
+		_zone_to = here
+		_zone_t = 1.0
+	elif not is_equal_approx(here, _zone_to):
+		_zone_from = zone_scale
+		_zone_to = here
+		_zone_t = 0.0
+	if _zone_t < 1.0:
+		_zone_t = minf(_zone_t + delta / WorldGravity.BLEND_TIME, 1.0)
+	zone_scale = lerpf(_zone_from, _zone_to, smoothstep(0.0, 1.0, _zone_t))
+	gravity_scale = WorldGravity.scale * zone_scale
+	grapple.gravity_scale = gravity_scale
+
+
 func reset() -> void:
 	grapple.reset()
+	_zone_to = -1.0
 	_knock = Vector3.ZERO
 	impact_speed = 0.0
 	state = State.AIR
@@ -451,6 +549,12 @@ func reset() -> void:
 	_hang_left = tuning.hang_time
 	_slam_used = false
 	_slam_landing = -1.0
+	space_jet = false
+	_space_tap = -1.0
+	_jump_held_for = 0.0
+	_auto_tuck = false
+	_sit_left = 0.0
+	_sat_wall = Vector3.ZERO
 	if crouched and _shape:
 		_set_height(tuning.stand_height)
 	crouched = false
@@ -551,7 +655,7 @@ func _slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, delta: float) ->
 	var t := tuning
 	var n := body.get_floor_normal()
 	# Gravity along the floor: zero on flat ground, speeds you up downhill.
-	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
+	var downhill := Vector3(0, -t.gravity * gravity_scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
 	var h := Vector3(vel.x, 0, vel.z)
@@ -586,7 +690,7 @@ func _wall_is_fresh(n: Vector3) -> bool:
 
 func _can_start_wall_run(body: CharacterBody3D, wall: Vector3, vel: Vector3, forward: bool, grounded: bool) -> bool:
 	var t := tuning
-	if grounded or wall == Vector3.ZERO or not forward or grapple.attached or crouched:
+	if grounded or wall == Vector3.ZERO or not forward or grapple.attached or (crouched and not t.always_tuck):
 		return false
 	if not _wall_is_fresh(wall):
 		return false
@@ -604,7 +708,7 @@ func _start_wall_run(wall: Vector3) -> void:
 
 
 func _keep_wall_running(wall: Vector3, vel: Vector3, forward: bool, grounded: bool) -> bool:
-	if grounded or not forward or grapple.attached or crouched:
+	if grounded or not forward or grapple.attached or (crouched and not tuning.always_tuck):
 		return false
 	if wall == Vector3.ZERO or wall.dot(wall_normal) < 0.7:
 		return false
@@ -631,14 +735,13 @@ func _wall_run(vel: Vector3, delta: float) -> Vector3:
 	if speed < t.wall_run_speed:
 		speed = min(speed + t.wall_run_accel * delta, t.wall_run_speed)
 	h = dir * speed - n * t.wall_stick
-	var y: float = max(vel.y - t.wall_run_gravity * WorldGravity.scale * delta, -t.max_fall_speed)
+	var y: float = max(vel.y - t.wall_run_gravity * gravity_scale * delta, -t.max_fall_speed)
 	return Vector3(h.x, y, h.z)
 
 
 func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 	var t := tuning
-	if state == State.WALL_RUN:
-		_end_wall_run()
+	_leave_wall()
 	_used_wall = n
 	kick_wall = n
 	wall_jumps += 1
@@ -655,6 +758,87 @@ func _wall_jump(vel: Vector3, n: Vector3) -> Vector3:
 		h += along / speed * (faster - speed)
 	h += n * t.wall_jump_push
 	return Vector3(h.x, max(vel.y, t.wall_jump_up), h.z)
+
+
+## Off a wall run or a wall sit, whichever you are on (a move taking over from it).
+func _leave_wall() -> void:
+	if state == State.WALL_RUN:
+		_end_wall_run()
+	elif state == State.WALL_SIT:
+		_end_wall_sit()
+
+
+## Wall sit (tuning.wall_sit_time > 0): in a plain fall or near the top of a jump,
+## pushing into a wall you have not sat on yet this time in the air, high enough up.
+## Returns that wall's normal, or ZERO for no sit.
+func _wall_to_sit_on(body: CharacterBody3D, wall: Vector3, wish: Vector3, vel: Vector3, grounded: bool) -> Vector3:
+	var t := tuning
+	if t.wall_sit_time <= 0.0 or grounded or grapple.attached or wish == Vector3.ZERO or vel.y > 1.0:
+		return Vector3.ZERO
+	if state not in [State.AIR, State.FLIP, State.GLIDE]:
+		return Vector3.ZERO
+	if wall == Vector3.ZERO:
+		# Stopped against it, you have no speed to look along: look the way you push.
+		wall = SurfaceProbe.find_wall(body, wish, Vector3.ZERO, eye_height - 0.6, t.wall_reach)
+	if wall == Vector3.ZERO or wish.dot(-wall) < 0.5:
+		return Vector3.ZERO
+	if _sat_wall != Vector3.ZERO and wall.dot(_sat_wall) > 0.9:
+		return Vector3.ZERO   # one sit per wall until you land
+	if SurfaceProbe.floor_within(body, t.wall_run_min_height):
+		return Vector3.ZERO
+	return wall
+
+
+func _start_wall_sit(wall: Vector3) -> void:
+	state = State.WALL_SIT
+	wall_normal = wall
+	_sat_wall = wall
+	_sit_left = tuning.wall_sit_time
+
+
+func _keep_wall_sitting(wall: Vector3, wish: Vector3, grounded: bool) -> bool:
+	if grounded or grapple.attached:
+		return false
+	if wall == Vector3.ZERO or wall.dot(wall_normal) < 0.7:
+		return false
+	return wish.dot(-wall_normal) >= 0.3   # still pushing into it
+
+
+func _end_wall_sit() -> void:
+	wall_normal = Vector3.ZERO
+	state = State.AIR
+
+
+## Stuck to the wall for wall_sit_time, then sliding slowly down it.
+func _wall_sit(vel: Vector3, delta: float) -> Vector3:
+	var t := tuning
+	_sit_left = maxf(_sit_left - delta, 0.0)
+	var y := 0.0 if _sit_left > 0.0 else -t.wall_sit_slide_speed * WorldGravity.scale
+	return -wall_normal * t.wall_stick + Vector3(0.0, y, 0.0)
+
+
+## tuning.space_boost: does Space fire the rocket boots this step? A mid-air press
+## does at once; with tuning.space_jetpack and the jetpack, only a tap does (let go
+## within space_hold_time, still in the air), since holding it flies the jetpack (space_jet).
+func _space_boost(mid_air_jump: bool, input: PlayerInput, grounded: bool, delta: float) -> bool:
+	var t := tuning
+	if not t.space_boost:
+		return false
+	var fire := false
+	if _space_tap >= 0.0:
+		_space_tap += delta
+		if not input.jump_held:
+			fire = not grounded and _space_tap <= t.space_hold_time
+			_space_tap = -1.0
+		elif _space_tap > t.space_hold_time:
+			_space_tap = -1.0   # a hold: the jetpack's
+	if mid_air_jump:
+		_jump_buffer = 0.0
+		if has_jetpack and t.space_jetpack:
+			_space_tap = 0.0
+		else:
+			fire = true
+	return fire
 
 
 # ---------------------------------------------------------------------------
@@ -691,7 +875,7 @@ func _hang(vel: Vector3, delta: float) -> Vector3:
 	_hang_left = maxf(_hang_left - delta, 0.0)
 	hanging = true
 	if vel.y > -t.hang_fall_speed:
-		vel.y = maxf(vel.y - t.gravity * t.hang_gravity * WorldGravity.scale * delta, -t.hang_fall_speed)
+		vel.y = maxf(vel.y - t.gravity * t.hang_gravity * gravity_scale * delta, -t.hang_fall_speed)
 	else:
 		vel.y = minf(vel.y + t.hang_brake * delta, -t.hang_fall_speed)
 	return vel
@@ -712,10 +896,9 @@ func can_slam(body: CharacterBody3D) -> bool:
 
 ## Drive straight down (see _step_slam). Nothing stops it but the floor.
 func start_slam(body: CharacterBody3D) -> void:
-	if grapple.attached:
+	if grapple.attached or grapple.busy():
 		grapple.release()
-	if state == State.WALL_RUN:
-		_end_wall_run()
+	_leave_wall()
 	state = State.SLAM
 	_slam_used = true
 	_slam_time = 0.0
@@ -771,8 +954,7 @@ func _can_dive(grounded: bool) -> bool:
 
 func _start_dive(vel: Vector3, input: PlayerInput, grounded: bool) -> Vector3:
 	var t := tuning
-	if state == State.WALL_RUN:
-		_end_wall_run()
+	_leave_wall()
 	var dir := _facing(input)
 	var h := Vector3(vel.x, 0, vel.z)
 	var along := h.dot(dir)
@@ -826,7 +1008,7 @@ func _belly_slide(body: CharacterBody3D, vel: Vector3, wish: Vector3, input: Pla
 		vel = _apply_friction(vel, top, delta)
 		vel = _accelerate(vel, wish, top, t.ground_accel, delta)
 		return Vector3(vel.x, min(vel.y, 0.0), vel.z)
-	var downhill := Vector3(0, -t.gravity * WorldGravity.scale, 0)
+	var downhill := Vector3(0, -t.gravity * gravity_scale, 0)
 	downhill -= n * downhill.dot(n)
 	vel += downhill * delta
 	h = Vector3(vel.x, 0, vel.z)
@@ -853,7 +1035,7 @@ func _flip(vel: Vector3, wish: Vector3, input: PlayerInput) -> Vector3:
 # Glide
 
 func _can_glide(body: CharacterBody3D, grounded: bool) -> bool:
-	if grounded or _glide_left <= 0.0 or grapple.attached or state == State.WALL_RUN:
+	if not tuning.glides_on or grounded or _glide_left <= 0.0 or grapple.attached or state == State.WALL_RUN:
 		return false
 	# Shift pressed as you leave or reach the floor is a sprint, not a glide.
 	return not SurfaceProbe.floor_within(body, tuning.glide_min_height)
@@ -881,7 +1063,7 @@ func _glide(vel: Vector3, delta: float) -> Vector3:
 	var speed := h.length()
 	if speed > t.glide_drift_speed:
 		h *= (t.glide_drift_speed + (speed - t.glide_drift_speed) * exp(-t.glide_drag * delta)) / speed
-	return Vector3(h.x, -t.glide_fall_speed * used * WorldGravity.scale, h.y)
+	return Vector3(h.x, -t.glide_fall_speed * used * gravity_scale, h.y)
 
 
 ## Rocket boots while gliding: the burst turns the whole glide the way you press
@@ -926,8 +1108,7 @@ func _start_mantle(ledge: Dictionary, grounded: bool, vel: Vector3) -> bool:
 		"time": 0.0,
 		"vault": vault,
 	}
-	if state == State.WALL_RUN:
-		_end_wall_run()
+	_leave_wall()
 	state = State.MANTLE
 	return true
 
@@ -957,6 +1138,39 @@ func _wish_dir(input: PlayerInput) -> Vector3:
 	var m := input.move.limit_length(1.0)
 	var local := Vector3(m.x, 0.0, -m.y)
 	return local.rotated(Vector3.UP, input.yaw).normalized() if local.length_squared() > 0.0001 else Vector3.ZERO
+
+
+## tuning.max_speed (Variant B): sideways speed never goes past it, whatever got you
+## there (boosts, swings, knockback, portals, the jetpack). Falling is not limited here.
+func _cap_speed(vel: Vector3) -> Vector3:
+	var top := tuning.max_speed
+	if top <= 0.0:
+		return vel
+	var h := Vector2(vel.x, vel.z)
+	if h.length() <= top:
+		return vel
+	h = h.normalized() * top
+	return Vector3(h.x, vel.y, h.y)
+
+
+## True while the legs are tucked by tuning.always_tuck rather than by the crouch key
+## (your own first-person body does not show that tuck).
+func auto_tucked() -> bool:
+	return _auto_tuck and crouched and not prone
+
+
+## tuning.air_brake (Variant B): pressing against the way you are moving in a jump or
+## fall brakes that motion this much harder, down to a stop and never past it (from
+## there, air steering takes you the other way as usual).
+func _air_brake(vel: Vector3, wish: Vector3, delta: float) -> Vector3:
+	if tuning.air_brake <= 0.0 or wish == Vector3.ZERO:
+		return vel
+	var h := Vector3(vel.x, 0.0, vel.z)
+	var speed := h.length()
+	if speed < 0.01 or h.dot(wish) > -0.5 * speed:
+		return vel   # not pressing against it (within 60 degrees of straight back)
+	var against := -h.dot(wish)   # the speed you are pushing back on
+	return vel + wish * minf(tuning.air_brake * delta, against)
 
 
 ## Speed up toward wish_speed along wish, never cutting speed you already have.

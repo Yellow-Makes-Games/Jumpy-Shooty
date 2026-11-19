@@ -22,7 +22,8 @@ const BOT_ID_BASE := 9001
 const MAX_PLAYERS := 16
 ## Spectators do not take a player's place; this many can watch on top of a full lobby.
 const MAX_SPECTATORS := 8
-## One colour per player, all different (the first five are the originals).
+## One colour per player, all different (the first five are the originals). You get
+## the first free one unless you picked one (see set_my_color).
 const PLAYER_COLORS := [
 	Color(0.95, 0.35, 0.25), Color(0.25, 0.65, 0.95), Color(0.40, 0.85, 0.35),
 	Color(0.95, 0.80, 0.25), Color(0.75, 0.40, 0.95), Color(0.20, 0.90, 0.85),
@@ -32,8 +33,12 @@ const PLAYER_COLORS := [
 	Color(0.70, 0.50, 0.30),
 ]
 
+const PLAYER_COLOR_NAMES := ["Red", "Blue", "Green", "Yellow", "Purple", "Cyan", "Pink", "Orange", "Lime", "Indigo",
+	"White", "Maroon", "Sage", "Lemon", "Grey", "Brown"]
+
 ## peer id -> { "name": String, "color": int, "character": String (see Characters),
-##   "weapon": String (see WeaponData), "mobility": String (see Mobility) },
+##   "weapon": String (see WeaponData), "mobility": String (see Mobility),
+##   "card" and "icon": String (see CallingCard), "level": int (see PlayerLevel) },
 ## plus "bot": true and "difficulty" for computer players (ids from BOT_ID_BASE up), which the host simulates.
 var players: Dictionary = {}
 ## Spectators: connected peers who watch with a free-flying camera instead of playing.
@@ -85,6 +90,7 @@ func _ready() -> void:
 	multiplayer.server_disconnected.connect(_on_server_disconnected)
 	_setup_version_check()
 	(func(): Match.player_died.connect(_on_player_died)).call_deferred()   # Match is the next autoload
+	(func(): Achievements.progressed.connect(_on_progress)).call_deferred()
 
 
 static func now() -> float:
@@ -114,7 +120,9 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	_wear(1, Settings.calling_card, Settings.icon)
+	players[1]["level"] = my_level()
 	is_online = false
 	players_changed.emit()
 
@@ -130,7 +138,9 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_character = Characters.valid(character)
 	_local_weapon = WeaponData.valid(weapon)
 	_local_mobility = Mobility.valid(mobility)
-	players = {1: {"name": player_name, "color": 0, "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
+	_wear(1, Settings.calling_card, Settings.icon)
+	players[1]["level"] = my_level()
 	is_online = true
 	players_changed.emit()
 	joined_lobby.emit()
@@ -276,7 +286,9 @@ static func _is_private(ip: String) -> bool:
 
 func _on_connected_to_server() -> void:
 	_tune_link(1)
-	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility, _join_spectating)
+	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility, _join_spectating, Settings.player_color)
+	_choose_card.rpc_id(1, Settings.calling_card, Settings.icon)   # (after _register: they arrive in order)
+	_choose_level.rpc_id(1, my_level())
 
 
 func _on_connection_failed() -> void:
@@ -400,7 +412,7 @@ func _broadcast_players() -> void:
 # Lobby
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register(player_name: String, character: String, weapon: String, mobility: String = "", spectate: bool = false) -> void:
+func _register(player_name: String, character: String, weapon: String, mobility: String = "", spectate: bool = false, color: int = -1) -> void:
 	if not is_host():
 		return
 	var id := multiplayer.get_remote_sender_id()
@@ -415,7 +427,7 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 	if spectate:
 		host_add_spectator(id, player_name)
 	else:
-		host_add_player(id, player_name, character, weapon, mobility)
+		host_add_player(id, player_name, character, weapon, mobility, color)
 	_sync_settings.rpc_id(id, match_settings)
 	_sync_spectators.rpc(spectators)
 	_sync_players.rpc(players)
@@ -424,10 +436,12 @@ func _register(player_name: String, character: String, weapon: String, mobility:
 
 
 ## Host: put a player who has just connected in the list. Their weapon must be one the
-## lobby allows (see LobbySettings); if not, they get one that is.
-func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "") -> void:
+## lobby allows (see LobbySettings); if not, they get one that is. color: the colour
+## they would like (see set_my_color), theirs if nobody has it.
+func host_add_player(id: int, player_name: String, character: String, weapon: String, mobility: String = "", color: int = -1) -> void:
 	players[id] = {"name": _unique_name(player_name.strip_edges().left(20)), "color": _free_color(),
 		"character": Characters.valid(character), "weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)), "mobility": LobbySettings.fit_mobility(Mobility.valid(mobility))}
+	_take_color(id, color)
 	if in_match and Teams.active():
 		players[id]["team"] = Teams.smaller_team()   # joining a team match: onto the smaller team
 	print("[net] %d joined as %s (%s, %s)" % [id, players[id].name, players[id].character, players[id].weapon])
@@ -550,6 +564,10 @@ func confirm_my_character() -> void:
 		set_my_weapon(_local_weapon)   # the host gives you an allowed one if this one is not
 	if players.has(my_id()) and player_loadout_mobility(my_id()) != LobbySettings.fit_mobility(_local_mobility):
 		set_my_mobility(_local_mobility)
+	if players.has(my_id()) and (player_card(my_id()) != Settings.calling_card or player_icon(my_id()) != Settings.icon):
+		set_my_card(Settings.calling_card, Settings.icon)
+	if players.has(my_id()) and Settings.player_color >= 0 and color_index(my_id()) != Settings.player_color and not color_taken(Settings.player_color):
+		set_my_color(Settings.player_color)   # the colour you like is free again
 
 
 ## Pause menu "Loadout": change robot and/or weapon mid-match. It takes effect when
@@ -600,6 +618,157 @@ func _apply_character(id: int, character: String) -> void:
 		_sync_players.rpc(players)
 	else:
 		players_changed.emit()
+
+
+## Show this calling card and icon with your name (ids from CallingCard). Any time.
+func set_my_card(card: String, icon: String) -> void:
+	if is_host():
+		_apply_card(my_id(), card, icon)
+	else:
+		_choose_card.rpc_id(1, card, icon)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_card(card: String, icon: String) -> void:
+	if is_host():
+		_apply_card(multiplayer.get_remote_sender_id(), card, icon)
+
+
+func _apply_card(id: int, card: String, icon: String) -> void:
+	if not _wear(id, card, icon):
+		return
+	print("[net] %d wears %s / %s" % [id, players[id].card, players[id].icon])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Put a card and an icon on a player: real ones only (anything made up becomes the
+## default). Returns whether anything changed.
+func _wear(id: int, card: String, icon: String) -> bool:
+	card = CallingCard.valid_card(card)
+	icon = CallingCard.valid_icon(icon)
+	if not players.has(id) or (players[id].get("card", "") == card and players[id].get("icon", "") == icon):
+		return false
+	players[id]["card"] = card
+	players[id]["icon"] = icon
+	return true
+
+
+## Your level (from your experience: see PlayerLevel).
+static func my_level() -> int:
+	return PlayerLevel.of(Achievements.stat("xp")).level
+
+
+## A player's level, or 0 if they have none to show (a bot, or an older copy).
+func player_level(id: int) -> int:
+	return int(players[id].get("level", 0)) if players.has(id) else 0
+
+
+## Experience came in (a kill, a match's end, a sync from your account): tell the
+## lobby if it took you up a level. Not mid-match (the lobby asks again when it opens).
+func send_my_level() -> void:
+	_on_progress()
+
+
+func _on_progress() -> void:
+	var id := my_id()
+	if in_match or not players.has(id) or player_level(id) == my_level():
+		return
+	if is_host():
+		_apply_level(id, my_level())
+	else:
+		_choose_level.rpc_id(1, my_level())
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_level(level: int) -> void:
+	if is_host():
+		_apply_level(multiplayer.get_remote_sender_id(), level)
+
+
+func _apply_level(id: int, level: int) -> void:
+	level = clampi(level, 1, 9999)
+	if not players.has(id) or player_level(id) == level:
+		return
+	players[id]["level"] = level
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## A player's calling card and icon (the defaults for anyone who has not said).
+func player_card(id: int) -> String:
+	return CallingCard.valid_card(str(players[id].get("card", ""))) if players.has(id) else CallingCard.DEFAULT_CARD
+
+
+func player_icon(id: int) -> String:
+	return CallingCard.valid_icon(str(players[id].get("icon", ""))) if players.has(id) else CallingCard.DEFAULT_ICON
+
+
+## Pick your colour (a number in PLAYER_COLORS): your robot's trim and visor, your
+## name and your stripes in a free-for-all (a team mode dresses you in your team's).
+## Works in the lobby, for a colour no other player has; a bot hands its colour over.
+func set_my_color(index: int) -> void:
+	if is_host():
+		_apply_color(my_id(), index)
+	else:
+		_choose_color.rpc_id(1, index)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_color(index: int) -> void:
+	if is_host():
+		_apply_color(multiplayer.get_remote_sender_id(), index)
+
+
+func _apply_color(id: int, index: int) -> void:
+	if in_match or not _take_color(id, index):
+		return   # (in a match everything is already drawn in the colour you have)
+	print("[net] %d took colour %d" % [id, index])
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## Host: give a player the colour they asked for, if no other player has it. A bot
+## that has it takes theirs instead, but not mid-match, when it is already drawn.
+func _take_color(id: int, index: int) -> bool:
+	if not players.has(id) or index < 0 or index >= PLAYER_COLORS.size() or players[id].color == index:
+		return false
+	for other in players:
+		if other != id and players[other].color == index:
+			if not is_bot(other) or in_match:
+				return false
+			players[other]["color"] = players[id].color
+	players[id]["color"] = index
+	return true
+
+
+## The number of a player's colour in PLAYER_COLORS (-1: no such player).
+func color_index(id: int) -> int:
+	return int(players[id].color) if players.has(id) else -1
+
+
+## Whether another player (not a bot) already has this colour.
+func color_taken(index: int) -> bool:
+	for id in players:
+		if id != my_id() and players[id].color == index and not is_bot(id):
+			return true
+	return false
+
+
+## The colour you chose in the menus (Settings.player_color), or the first one.
+func _wanted_color() -> int:
+	return Settings.player_color if Settings.player_color >= 0 and Settings.player_color < PLAYER_COLORS.size() else 0
+
+
+## The colour the menus show you in before there is a lobby.
+func menu_color() -> Color:
+	return PLAYER_COLORS[_wanted_color()]
 
 
 ## Pick the weapon you take into the match (an id from WeaponData). Works in the lobby,
@@ -702,6 +871,7 @@ func _sync_settings(settings: Dictionary) -> void:
 		print("LOBBY_MOBILITY %d mobility=%s" % [my_id(), ",".join(LobbySettings.allowed_mobility())])
 		print("LOBBY_MAP %d map=%s random=%s pool=%s song=%s" % [my_id(), map_id(), match_settings.random_map,
 			",".join(LobbySettings.map_pool()), match_settings.song])
+		print("LOBBY_MOVEMENT %d movement=%s" % [my_id(), LobbySettings.movement()])
 	if is_host() and not in_match:
 		host_fit_loadouts()   # weapons no longer allowed are swapped (everyone is told)
 	elif players.has(my_id()) and not in_match:
@@ -893,6 +1063,7 @@ func add_bot(difficulty: int, weapon: String = "", mobility: String = "") -> int
 	players[id] = {
 		"name": "%s (%s)" % [BOT_NAMES[index % BOT_NAMES.size()], BotDifficulty.NAMES[difficulty]],
 		"color": _free_color(), "bot": true, "difficulty": difficulty,
+		"card": CallingCard.CARDS[randi() % CallingCard.CARDS.size()].id, "icon": CallingCard.ICONS[randi() % CallingCard.ICONS.size()].id,
 		"character": character,
 		"weapon": LobbySettings.fit_weapon(WeaponData.valid(weapon)) if weapon != "" else guns[randi() % guns.size()],
 		"mobility": LobbySettings.fit_mobility(Mobility.valid(mobility)) if mobility != "" else tools[randi() % tools.size()],
@@ -1238,7 +1409,8 @@ func _map_state_request() -> void:
 			for slot in 2:
 				var p: Portal = arena.portals.get_portal(owner, slot)
 				if p:
-					_portal_from_host.rpc_id(to, owner, slot, p.frame.origin, p.normal, p.frame.basis.y)
+					var on: Array = arena.portals.carrier_of(p, arena)
+					_portal_from_host.rpc_id(to, owner, slot, p.frame.origin, p.normal, p.frame.basis.y, on[0], on[1])
 
 
 # ---------------------------------------------------------------------------
@@ -1246,28 +1418,33 @@ func _map_state_request() -> void:
 # host for a bot) places their portals and tells everyone; each copy moves its own
 # players through them. They go on every copy by itself when their owner dies.
 
-## The local player `owner` (you, or one of the host's bots) put a portal up.
+## The local player `owner` (you, or one of the host's bots) put a portal up. One on a
+## moving part of the map rides it (see Portal.follow): the message says which part and
+## where on it, so it lands on the same spot of it on every copy, wherever the part has
+## got to by the time the message arrives.
 func place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+	var on: Array = ["", Transform3D.IDENTITY]
 	if arena and is_instance_valid(arena) and arena.portals:
 		arena.portals.place(owner, slot, at, normal, up)
+		on = arena.portals.carrier_of(arena.portals.get_portal(owner, slot), arena)
 	if is_online:
-		_place_portal.rpc(owner, slot, at, normal, up)
+		_place_portal.rpc(owner, slot, at, normal, up, on[0], on[1])
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+func _place_portal(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3, on_path: String, on_frame: Transform3D) -> void:
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != owner and not (sender == host_id() and is_bot(owner)):
 		return   # only a player's own copy places their portals
 	if arena and is_instance_valid(arena) and arena.portals and Match.is_alive(owner):
-		arena.portals.place(owner, slot, at, normal, up)
+		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame)
 
 
 ## Host to a copy that has just joined: a portal that is already up.
 @rpc("authority", "call_remote", "reliable")
-func _portal_from_host(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3) -> void:
+func _portal_from_host(owner: int, slot: int, at: Vector3, normal: Vector3, up: Vector3, on_path: String, on_frame: Transform3D) -> void:
 	if arena and is_instance_valid(arena) and arena.portals:
-		arena.portals.place(owner, slot, at, normal, up)
+		arena.portals.place_on(owner, slot, at, normal, up, arena, on_path, on_frame)
 
 
 # ---------------------------------------------------------------------------

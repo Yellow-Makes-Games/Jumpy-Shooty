@@ -115,6 +115,35 @@ const SURFACES := {
 	"thatch": {"style": 17, "wall_cell": Vector2(1, 0.6), "floor_cell": Vector2(1, 0.6), "seam_shade": 0.8, "vary": 0.08, "detail": 0.0},
 	# Tree trunks and rough posts.
 	"bark": {"style": 18, "seam_shade": 0.72, "vary": 0.06},
+	# A wizard's tower (Empyrean Tower). Masonry: stone in courses of four heights, every
+	# stone its own length and tone, worn at the edges; "_runes" has a rune cut into a few
+	# of them that glows gold. On a floor it is flagstones in rows.
+	"masonry": {"style": 19, "wall_cell": Vector2(1.4, 0.62), "floor_cell": Vector2(1.2, 0.8), "seam": 0.015, "seam_shade": 0.64, "vary": 0.085},
+	"masonry_small": {"style": 19, "wall_cell": Vector2(0.85, 0.4), "floor_cell": Vector2(0.8, 0.55), "seam": 0.012, "seam_shade": 0.68, "vary": 0.07},
+	"masonry_runes": {"style": 19, "wall_cell": Vector2(1.4, 0.62), "floor_cell": Vector2(1.2, 0.8), "seam": 0.015, "seam_shade": 0.64, "vary": 0.085,
+		"detail": 0.05, "lit": Color(1.0, 0.78, 0.36), "lit_power": 1.8},
+	# Ring flags: a round floor laid in courses round the middle of the map (x = 0, z = 0),
+	# with a brass line inlaid every fourth course; its walls and edges are masonry. The
+	# coloured ones have a glowing rune on some flags ("_stars": many, small and pale).
+	"ring_flags": {"style": 20, "wall_cell": Vector2(1.1, 0.5), "floor_cell": Vector2(1.3, 0.85), "seam": 0.015, "seam_shade": 0.66, "vary": 0.075,
+		"inlay": 4.0, "accent_a": Color(0.8, 0.6, 0.26)},
+	"ring_flags_cyan": {"style": 20, "wall_cell": Vector2(1.1, 0.5), "floor_cell": Vector2(1.3, 0.85), "seam": 0.015, "seam_shade": 0.66, "vary": 0.075,
+		"inlay": 4.0, "accent_a": Color(0.8, 0.6, 0.26), "detail": 0.07, "lit": Color(0.3, 0.9, 1.0), "lit_power": 1.6},
+	"ring_flags_green": {"style": 20, "wall_cell": Vector2(1.1, 0.5), "floor_cell": Vector2(1.3, 0.85), "seam": 0.015, "seam_shade": 0.66, "vary": 0.075,
+		"inlay": 4.0, "accent_a": Color(0.8, 0.6, 0.26), "detail": 0.06, "lit": Color(0.4, 1.0, 0.45), "lit_power": 1.4},
+	"ring_flags_teal": {"style": 20, "wall_cell": Vector2(1.1, 0.5), "floor_cell": Vector2(1.3, 0.85), "seam": 0.018, "seam_shade": 0.6, "vary": 0.1,
+		"inlay": 4.0, "accent_a": Color(0.8, 0.6, 0.26), "detail": 0.05, "lit": Color(0.25, 0.9, 0.75), "lit_power": 1.4},
+	"ring_flags_violet": {"style": 20, "wall_cell": Vector2(1.1, 0.5), "floor_cell": Vector2(1.3, 0.85), "seam": 0.015, "seam_shade": 0.66, "vary": 0.075,
+		"inlay": 3.0, "accent_a": Color(0.8, 0.6, 0.26), "detail": 0.14, "lit": Color(0.7, 0.45, 1.0), "lit_power": 1.8},
+	# Arcane plate: the tower's metal half. Riveted plates with a line of brass inlaid round
+	# each, a rune in a ring glowing on some.
+	"arcane_plates": {"style": 21, "wall_cell": Vector2(2.2, 1.7), "floor_cell": Vector2(1.6, 1.6), "seam": 0.018, "seam_shade": 0.64, "vary": 0.04,
+		"accent_a": Color(0.8, 0.6, 0.26), "detail": 0.14, "lit": Color(0.4, 0.9, 1.0), "lit_power": 1.5},
+	# A haunted house's wallpaper: upright stripes with a damask lozenge, stained and
+	# peeling; on a ceiling, stained plaster.
+	"wallpaper": {"style": 22, "wall_cell": Vector2(0.36, 1.0), "floor_cell": Vector2(3, 3), "seam_shade": 0.9, "vary": 0.07},
+	"ring_flags_stars": {"style": 20, "wall_cell": Vector2(1.1, 0.5), "floor_cell": Vector2(0.9, 0.6), "seam": 0.012, "seam_shade": 0.74, "vary": 0.06,
+		"inlay": 5.0, "accent_a": Color(0.85, 0.72, 0.4), "detail": 0.2, "lit": Color(1.0, 0.92, 0.7), "lit_power": 1.5},
 }
 
 

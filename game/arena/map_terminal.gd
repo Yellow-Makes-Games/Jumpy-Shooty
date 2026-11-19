@@ -40,8 +40,13 @@ const RING_RADIUS := 1.4
 	set(v):
 		range = v
 		_refresh_ghost()
+## The colour of its ring of light (ready, filling, set off).
+@export var light := Color(0.2, 0.55, 1.0)
 ## The event it fires: a MapEvent node in this map (a GravityEvent).
 @export_node_path("Node") var event: NodePath
+## Bots walk up to it and use it now and then. Untick it for one they cannot walk to
+## (a lever in a crane's cab), or they would stand about under it.
+@export var bots := true
 
 var phase := Phase.READY
 ## Who is holding it (a peer id), while phase is CHANNEL.
@@ -265,6 +270,8 @@ func _build_screen() -> void:
 	shader.code = SCREEN_SHADER
 	_material = ShaderMaterial.new()
 	_material.shader = shader
+	_material.set_shader_parameter("lit", Vector3(light.r, light.g, light.b))
+	_material.set_shader_parameter("track", Vector3(light.r, light.g, light.b) * 0.2)
 	_ring = MeshInstance3D.new()
 	_ring.name = "Ring"
 	_ring.mesh = _band(RING_RADIUS, RING_RADIUS, 0.0, 0.5)   # an upright band, seen from every side

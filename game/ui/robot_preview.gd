@@ -90,32 +90,41 @@ func _add(id: String, player_color: Color, at: Vector3, phase: float, gun: Strin
 	var robot := RobotModel.new().build(id, player_color, false, gun)
 	robot.position = at
 	_stage.add_child(robot)
-	var pose := robot.rig.new_pose()
-	var entry := {"robot": robot, "pose": pose, "phase": phase, "hold": null}
+	var entry := posed(robot, gun, phase)
+	_robots.append(entry)
+	pose_at(entry, phase)
+
+
+## What pose_at needs to keep a robot idling with `gun` in its hands:
+## {robot, pose, phase, hold}. (Also used by the main menu's CharacterShowcase.)
+static func posed(robot: RobotModel, gun: String, phase: float = 0.0) -> Dictionary:
+	var entry := {"robot": robot, "pose": robot.rig.new_pose(), "phase": phase, "hold": null}
 	# A long gun: hold it the way the game does (its aim pose on the arms, chest turned).
 	if robot.rig.has_clip("aim_" + gun):
 		var hold := robot.rig.new_pose()
 		robot.rig.sample(hold, "aim_" + gun, 0.0)
 		entry.hold = hold
-	_robots.append(entry)
-	_pose(entry, phase)
+	return entry
 
 
-func _pose(r: Dictionary, t: float) -> void:
+## Pose a robot (an entry from posed) at `t` seconds into its idle.
+static func pose_at(r: Dictionary, t: float) -> void:
 	var robot: RobotModel = r.robot
 	var pose: RobotPose = r.pose
-	robot.rig.sample(pose, "idle", fmod(t, robot.rig.length("idle")))
+	robot.rig.sample(pose, robot.idle, fmod(t, robot.rig.length(robot.idle)))   # (its torso's own idle: see RobotModel.idle)
 	if r.hold:
 		var hold: RobotPose = r.hold
 		var rig := robot.rig
 		var arms := PackedInt32Array()
-		for n in ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag"]:
+		for n in ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent",
+				"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2", "index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]:
 			arms.append(rig.bones[n])
 		pose.blend_bones(hold, 1.0, arms)
 		var chest: int = rig.bones["chest"]
 		pose.rot[chest] = pose.rot[chest] * hold.rot[chest]
 		pose.rot[rig.bones["head"]] = hold.rot[chest].inverse() * pose.rot[rig.bones["head"]]
 	pose.apply(robot.skeleton)
+	robot.settle_sway()
 
 
 func _process(delta: float) -> void:
@@ -124,7 +133,7 @@ func _process(delta: float) -> void:
 	_time += delta
 	for r in _robots:
 		var robot: RobotModel = r.robot
-		_pose(r, _time + r.phase)
+		pose_at(r, _time + r.phase)
 		if _lineup:   # each turned a little toward the middle of the row
 			robot.rotation.y = PI + 0.15 - clampf(robot.position.x * 0.4, -0.5, 0.5)
 	if not _lineup:
@@ -139,13 +148,17 @@ func _exit_tree() -> void:
 
 func _drop_robots() -> void:
 	for r in _robots:
-		var robot: RobotModel = r.robot
-		if not is_instance_valid(robot):
-			continue
-		# Let go of the per-player materials first; headless Godot (used by the tests)
-		# prints an error when a robot inside the preview's own 3D world is freed with them.
-		for i in robot.mesh.mesh.get_surface_count():
-			robot.mesh.set_surface_override_material(i, null)
-		robot.queue_free()
+		release(r.robot)
 	_robots.clear()
 	_stage.rotation.y = 0.0
+
+
+## Free a robot shown in a preview's own 3D world.
+static func release(robot: RobotModel) -> void:
+	if not is_instance_valid(robot):
+		return
+	# Let go of the per-player materials first; headless Godot (used by the tests)
+	# prints an error when a robot inside the preview's own 3D world is freed with them.
+	for i in robot.mesh.mesh.get_surface_count():
+		robot.mesh.set_surface_override_material(i, null)
+	robot.queue_free()

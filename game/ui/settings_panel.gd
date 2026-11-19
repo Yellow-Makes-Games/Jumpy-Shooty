@@ -3,15 +3,18 @@ extends VBoxContainer
 ## Settings, used from the main menu and the in-game pause menu. Built in a
 ## MenuFrame: the title and tabs stay at the top and Back at the bottom while the
 ## tab's own controls scroll between them if the window is short.
-## Four tabs (Controls, Camera & HUD, Audio, Graphics); every change applies at once
+## Five tabs (Controls, Camera, HUD, Audio, Graphics); every change applies at once
 ## (Controls also rebinds keys: click one, then press the new key or mouse button)
-## and is saved when you leave, except the display settings on the Graphics tab: those
+## and is saved when you leave, except the display and quality settings on the Graphics tab: those
 ## wait for Apply, and a new resolution or screen mode puts itself back after a few
 ## seconds unless you press Keep (in case the new one is unusable).
+## HUD has its own tab because of its preview (HudPreview), which sits in the header
+## under the tabs so it stays in view while the HUD options scroll under it.
 
 signal closed
 
-const TABS := ["Controls", "Camera & HUD", "Audio", "Graphics"]
+const TABS := ["Controls", "Camera", "HUD", "Audio", "Graphics"]
+const HUD_TAB := 2
 ## The short controls list on the pause menu: [action, description]. Keys come from
 ## the current bindings.
 const CHEAT_SHEET := [
@@ -24,12 +27,16 @@ const CHEAT_SHEET := [
 	["debug_menu", "Debug menu (Practice and Vs Bots)"],
 ]
 
-const DISPLAY_KEYS := ["fullscreen", "vsync", "resolution", "frame_rate"]
+const DISPLAY_KEYS := ["fullscreen", "vsync", "resolution", "frame_rate", "quality",
+	"msaa", "screen_aa", "render_scale", "fsr_sharpness", "shadows", "ao", "glow"]
 const CONFIRM_SECONDS := 15
 
 static var _last_tab := 0
+static var _preview_third := false   # the HUD preview showed the third-person layout last
+static var _advanced_open := false   # the Graphics tab's advanced settings were showing last
 
 var _frame: MenuFrame
+var _preview: HudPreview   # HUD tab, in the frame's header
 var _page: VBoxContainer
 var _pending := {}       # display settings picked on the Graphics tab, not applied yet
 var _revert_to := {}     # what Revert (or running out of time) puts back
@@ -41,6 +48,10 @@ var _confirm_label: Label
 var _listen: Array = []      # [action, slot] waiting for a key or mouse button (Controls tab)
 var _binds_box: VBoxContainer
 var _bind_note: Label
+var _into: Control       # where _row, _switch, _option and _slider put things (null: the page)
+var _quality_btn: OptionButton
+var _advanced: VBoxContainer
+var _last_option: OptionButton   # the drop-down _option made last
 
 
 ## `frame`: the page this panel is built in. The title and the tabs go in its header
@@ -61,6 +72,7 @@ func _ready() -> void:
 	_timer.wait_time = 1.0
 	_timer.timeout.connect(_tick)
 	add_child(_timer)
+	_preview_third = Settings.third_person   # the HUD preview starts on the view you play in
 	_show_tab(_last_tab)
 	if _frame:
 		_frame.back_button("Back", _on_back)
@@ -73,6 +85,11 @@ func _show_tab(i: int) -> void:
 	_stop_listening()
 	_on_keep()   # leaving the tab while asked to keep new display settings keeps them
 	UiKit.clear(_page)
+	if is_instance_valid(_preview):
+		_preview_third = _preview.third_person
+		if _preview.get_parent():
+			_preview.get_parent().remove_child(_preview)
+		_preview.queue_free()
 	match i:
 		0:
 			UiKit.section(_page, "Mouse")
@@ -83,18 +100,40 @@ func _show_tab(i: int) -> void:
 			UiKit.section(_page, "Camera")
 			_slider("Field of view", 70.0, 120.0, 1.0, Settings.field_of_view, func(v): Settings.field_of_view = v)
 			_switch("Third-person camera (V switches in game)", Settings.third_person, func(v): Settings.third_person = v)
-			UiKit.section(_page, "HUD")
-			_option("In first person", Settings.HUD_STYLES, Settings.hud_first_person, func(v): Settings.hud_first_person = v)
-			_option("In third person", Settings.HUD_STYLES, Settings.hud_third_person, func(v): Settings.hud_third_person = v)
-			UiKit.label(_page, "Twin arcs keeps health, ammo and move cooldowns round the crosshair. Clean puts them in the bottom corners.", true, 15)
 			_switch("Killcam when you are knocked out (Space skips it)", Settings.killcam, func(v): Settings.killcam = v)
-		2:
+		HUD_TAB:
+			_build_hud()
+		3:
 			UiKit.section(_page, "Volume")
 			_slider("Master", 0.0, 1.0, 0.05, Settings.master_volume, func(v): Settings.master_volume = v, true)
 			_slider("Music", 0.0, 1.0, 0.05, Settings.music_volume, func(v): Settings.music_volume = v, true)
 			_slider("Effects", 0.0, 1.0, 0.05, Settings.sfx_volume, func(v): Settings.sfx_volume = v, true)
-		3:
+		4:
 			_build_display()
+			UiKit.section(_page, "Effects")
+			_option("Knocked-out robots", Settings.GORE, Settings.gore, func(v): Settings.gore = v)
+			UiKit.label(_page, "A knocked-out robot falls as a ragdoll, and one that is blown up or hit far harder than it needed bursts into pieces. Either burns away after a few seconds.", true, 15)
+			_build_benchmark()
+
+
+## Graphics tab: the benchmark (see Benchmark). Menus only: it leaves the match screen.
+func _build_benchmark() -> void:
+	UiKit.section(_page, "Benchmark")
+	UiKit.label(_page, "Flies a camera over %s for about %d seconds each and times every frame, at your window size and settings (vsync and the frame-rate cap are off while it runs). It saves a report you can open afterwards. Esc stops it." % [
+		", ".join(Benchmark.MAPS.map(Maps.name_of)), roundi(Benchmark.WARMUP + Benchmark.ORBIT_TIME + Benchmark.STOPS * Benchmark.STOP_TIME)], true, 15)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	_page.add_child(row)
+	var run := UiKit.button(row, "Run benchmark", func():
+		_on_back()
+		Game.start_benchmark())
+	run.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UiKit.button(row, "Open reports folder", func():
+		DirAccess.make_dir_recursive_absolute(Benchmark.FOLDER)
+		OS.shell_open(Benchmark.folder()))
+	if Net.in_match:
+		run.disabled = true
+		UiKit.label(_page, "Leave the match to run the benchmark.", true, 15)
 
 
 func _on_back() -> void:
@@ -120,6 +159,45 @@ static func cheat_sheet() -> Array:
 			keys = Settings.action_text(c[0])
 		rows.append([keys, c[1]])
 	return rows
+
+
+# ---------------------------------------------------------------------------
+# HUD tab: the layout for each view, then tuning on top of it (see HudConfig), with
+# a live preview in the header.
+
+func _build_hud() -> void:
+	var hud := Settings.hud
+	_preview = HudPreview.new(_preview_third)
+	(_frame.header if _frame else _page).add_child(_preview)
+	UiKit.section(_page, "Layout")
+	_option("In first person", Settings.HUD_STYLES, Settings.hud_first_person, func(v): Settings.hud_first_person = v)
+	_option("In third person", Settings.HUD_STYLES, Settings.hud_third_person, func(v): Settings.hud_third_person = v)
+	UiKit.label(_page, "Twin arcs keeps health, ammo and move cooldowns round the crosshair. Clean puts them in the bottom corners.", true, 15)
+	UiKit.section(_page, "Size and opacity")
+	_slider("HUD scale", HudConfig.SPEC.scale[1], HudConfig.SPEC.scale[2], 0.05, hud.scale, func(v): hud.scale = v, true)
+	_slider("HUD opacity", HudConfig.SPEC.opacity[1], HudConfig.SPEC.opacity[2], 0.05, hud.opacity, func(v): hud.opacity = v, true)
+	UiKit.label(_page, "Scale and opacity cover everything you see while playing; the crosshair has its own size below and never fades. The killcam, death screen and scoreboard stay as they are.", true, 15)
+	UiKit.section(_page, "Crosshair")
+	_option("Style", HudConfig.CROSSHAIRS, hud.crosshair, func(v): hud.crosshair = v)
+	_option("Colour", HudConfig.COLOR_NAMES, hud.crosshair_color, func(v): hud.crosshair_color = v)
+	_slider("Size", HudConfig.SPEC.crosshair_size[1], HudConfig.SPEC.crosshair_size[2], 0.05, hud.crosshair_size, func(v): hud.crosshair_size = v, true)
+	_slider("Gap", HudConfig.SPEC.crosshair_gap[1], HudConfig.SPEC.crosshair_gap[2], 1.0, hud.crosshair_gap, func(v): hud.crosshair_gap = v)
+	_slider("Thickness", HudConfig.SPEC.crosshair_thickness[1], HudConfig.SPEC.crosshair_thickness[2], 1.0, hud.crosshair_thickness,
+		func(v): hud.crosshair_thickness = v)
+	_switch("Dark outline", hud.crosshair_outline, func(v): hud.crosshair_outline = v)
+	_switch("Centre dot", hud.crosshair_dot, func(v): hud.crosshair_dot = v)
+	UiKit.label(_page, "Weapon's own changes with the weapon: a cross, the shotgun's brackets, a ring for launchers, ticks round a dot for snipers.", true, 15)
+	UiKit.section(_page, "Show")
+	_switch("Hit markers", hud.hit_markers, func(v): hud.hit_markers = v)
+	_switch("Damage numbers", hud.damage_numbers, func(v): hud.damage_numbers = v)
+	_switch("Speed and what you are doing", hud.speed, func(v): hud.speed = v)
+	_switch("Killcam score when you get a kill", hud.killcam_points, func(v): hud.killcam_points = v)
+	_option("Moves", HudConfig.MOVES, hud.moves, func(v): hud.moves = v)
+	_option("Kill feed", HudConfig.FEED_CORNERS, hud.feed_corner, func(v): hud.feed_corner = v)
+	_slider("Kill feed lines", HudConfig.SPEC.feed_lines[1], HudConfig.SPEC.feed_lines[2], 1.0, hud.feed_lines, func(v): hud.feed_lines = int(v))
+	UiKit.button(_page, "Reset HUD", func():
+		Settings.reset_hud()
+		_show_tab(HUD_TAB))
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +327,7 @@ func _note(text: String) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Graphics tab: display settings wait for Apply.
+# Graphics tab: display and quality settings wait for Apply.
 
 func _build_display() -> void:
 	_pending = _current_display()
@@ -259,6 +337,7 @@ func _build_display() -> void:
 	_option("Resolution", Settings.resolution_choices(), _pending.resolution, func(v): _pick("resolution", v), false)
 	_option("Frame rate", Settings.frame_rate_choices(), _pending.frame_rate, func(v): _pick("frame_rate", v), false)
 	UiKit.label(_page, "Windowed, Resolution sets the window size. In fullscreen it sets how sharp the 3D world is drawn (you'll see it in a match, not in menus). Frame rate caps how fast the game draws; your monitor's refresh rate is set in your computer's display settings.", true, 15)
+	_build_quality()
 	if Engine.is_embedded_in_editor():
 		var note := UiKit.label(_page, "You're running the game inside the Godot editor, which keeps it in its own panel, so window size and fullscreen won't change here. They work in the exported game, or after turning off \"Embed Game on Next Play\" in the editor's Game tab.", false, 15)
 		note.add_theme_color_override("font_color", UiKit.ACCENT)
@@ -277,6 +356,72 @@ func _build_display() -> void:
 	UiKit.button(_confirm_row, "Revert", _on_revert).custom_minimum_size.x = 120
 	_confirm_row.visible = false
 	_update_apply()
+
+
+## Quality: a preset, and under it the advanced settings it stands for (changing one of
+## those makes the preset Custom).
+func _build_quality() -> void:
+	UiKit.section(_page, "Quality")
+	_option("Quality", GraphicsQuality.QUALITY_NAMES, _pending.quality, _pick_quality, false)
+	_quality_btn = _last_option
+	UiKit.label(_page, "High suits a gaming PC; Low keeps laptops and built-in graphics smooth. Run the benchmark below to see how your computer does.", true, 15)
+	var open := Button.new()
+	open.theme_type_variation = "Chip"
+	open.focus_mode = Control.FOCUS_NONE
+	open.custom_minimum_size = Vector2(0, 38)
+	open.text = "Advanced  ▾" if _advanced_open else "Advanced  ▸"
+	open.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_page.add_child(open)
+	_advanced = VBoxContainer.new()
+	_advanced.add_theme_constant_override("separation", 12)
+	_advanced.visible = _advanced_open
+	_page.add_child(_advanced)
+	open.pressed.connect(func():
+		_advanced_open = not _advanced_open
+		_advanced.visible = _advanced_open
+		open.text = "Advanced  ▾" if _advanced_open else "Advanced  ▸")
+	_fill_advanced()
+
+
+func _fill_advanced() -> void:
+	if not is_instance_valid(_advanced):
+		return
+	UiKit.clear(_advanced)
+	_into = _advanced
+	_option("MSAA", GraphicsQuality.MSAA_NAMES, _pending.msaa, func(v): _pick_advanced("msaa", v), false)
+	_option("Screen-space AA", GraphicsQuality.SCREEN_AA_NAMES, _pending.screen_aa, func(v): _pick_advanced("screen_aa", v), false)
+	UiKit.label(_advanced, "MSAA smooths the edges of models and the map. Screen-space AA catches the rest: glowing effects and edges inside surfaces.", true, 15)
+	_slider("Render scale", 0.5, 1.0, 0.05, _pending.render_scale, func(v): _pick_advanced("render_scale", v), true, false)
+	_slider("Sharpening", 0.0, 2.0, 0.1, 2.0 - _pending.fsr_sharpness, func(v): _pick_advanced("fsr_sharpness", 2.0 - v), false, false)
+	UiKit.label(_advanced, "Below 100%, the 3D world is drawn smaller and stretched to fit with AMD FSR 1, which sharpens as it stretches. Menus and the HUD stay sharp. Sharpening only matters below 100%.", true, 15)
+	_option("Shadows", GraphicsQuality.SHADOW_NAMES, _pending.shadows, func(v): _pick_advanced("shadows", v), false)
+	_option("Ambient occlusion", GraphicsQuality.AO_NAMES, _pending.ao, func(v): _pick_advanced("ao", v), false)
+	_switch("Glow", _pending.glow, func(v): _pick_advanced("glow", v), false)
+	UiKit.label(_advanced, "Ambient occlusion darkens corners and the ground under things; High adds a little coloured light bouncing off nearby surfaces.", true, 15)
+	_into = null
+
+
+func _pick_quality(id: String) -> void:
+	if GraphicsQuality.PRESETS.has(id):
+		var picks := GraphicsQuality.preset(id)
+		for k in picks:
+			_pending[k] = picks[k]
+	_pending.quality = GraphicsQuality.matching(_pending)
+	_select(_quality_btn, GraphicsQuality.QUALITY_NAMES, _pending.quality)
+	_fill_advanced()
+	_update_apply()
+
+
+func _pick_advanced(key: String, value) -> void:
+	_pending[key] = value
+	_pending.quality = GraphicsQuality.matching(_pending)
+	_select(_quality_btn, GraphicsQuality.QUALITY_NAMES, _pending.quality)
+	_update_apply()
+
+
+static func _select(o: OptionButton, choices: Dictionary, value) -> void:
+	if is_instance_valid(o):
+		o.selected = maxi(choices.keys().find(value), 0)
 
 
 func _current_display() -> Dictionary:
@@ -357,14 +502,15 @@ func _on_revert() -> void:
 func _row(text: String) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
-	_page.add_child(row)
+	(_into if _into else _page).add_child(row)
 	var l := UiKit.label(row, text, false, 18)
 	l.custom_minimum_size = Vector2(200, 0)
 	l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	return row
 
 
-func _slider(text: String, lo: float, hi: float, step: float, value: float, setter: Callable, percent: bool = false) -> void:
+## `live`: apply the change at once (otherwise the caller decides when).
+func _slider(text: String, lo: float, hi: float, step: float, value: float, setter: Callable, percent: bool = false, live: bool = true) -> void:
 	var row := _row(text)
 	var s := HSlider.new()
 	s.min_value = lo
@@ -381,7 +527,8 @@ func _slider(text: String, lo: float, hi: float, step: float, value: float, sett
 	s.value_changed.connect(func(x):
 		setter.call(x)
 		v.text = _fmt(x, step, percent)
-		Settings.apply())
+		if live:
+			Settings.apply())
 
 
 ## `live`: apply the change at once (otherwise the caller decides when).
@@ -394,7 +541,7 @@ func _switch(text: String, value: bool, setter: Callable, live: bool = true) -> 
 		setter.call(x)
 		if live:
 			Settings.apply())
-	_page.add_child(c)
+	(_into if _into else _page).add_child(c)
 
 
 ## A drop-down. `choices` maps each stored value to the text shown for it.
@@ -413,6 +560,7 @@ func _option(text: String, choices: Dictionary, value: Variant, setter: Callable
 		if live:
 			Settings.apply())
 	row.add_child(o)
+	_last_option = o
 
 
 func _fmt(x: float, step: float, percent: bool) -> String:
