@@ -22,15 +22,20 @@ const ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const BODY_BONES := ["root", "hips", "spine", "chest", "head", "upper_arm_l", "forearm_l", "hand_l",
 	"upper_arm_r", "forearm_r", "hand_r", "thigh_l", "shin_l", "foot_l", "thigh_r", "shin_r",
-	"foot_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper",
-	"pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo", "muzzle_akimbo_l"]
+	"foot_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple", "muzzle_shotgun", "muzzle_rifle", "muzzle_sniper",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent", "muzzle_akimbo", "muzzle_akimbo_l",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 const LONG_GUNS := ["shotgun", "rifle", "sniper"]
 ## Each long gun's own versions of these (e.g. "aim_rifle"); the pump and bolt guns also have "fire".
 const GUN_BODY_CLIPS := ["aim", "carry", "reload", "respawn"]
 const GUN_ARM_CLIPS := ["fp_idle", "fp_one_hand", "fp_sprint", "fp_slide", "fp_wall_l", "fp_wall_r",
 	"fp_dive", "fp_tuck", "fp_mantle", "fp_raise", "fp_reload"]
 const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
-	"pistol", "pistol_slide", "pistol_mag", "muzzle", "grapple", "pistol_l", "pistol_l_slide", "pistol_l_mag", "muzzle_akimbo_l"]
+	"pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle", "grapple",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent", "muzzle_akimbo_l",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 ## Akimbo (a pistol in each hand) has its own aim and reload, and first-person poses.
 const AKIMBO_BODY_CLIPS := ["aim_akimbo", "reload_akimbo"]
 const AKIMBO_ARM_CLIPS := ["fp_idle_akimbo", "fp_sprint_akimbo", "fp_one_hand_akimbo", "fp_wall_r_akimbo",
@@ -131,9 +136,9 @@ func _check_akimbo() -> void:
 	_fresh()
 	var reloading := _input(S.GROUND, Vector3.ZERO, 0.0)
 	reloading.flags = RobotAnimInput.make_flags(false, false, true, 0, 0)
-	_run(reloading, 0.6)
-	_expect("reloading: both magazines drop out", robot.marker("pistol_l_mag").distance_to(robot.marker("pistol_l")) > 0.3
-		and robot.marker("pistol_mag").distance_to(robot.marker("pistol")) > 0.3)
+	_run(reloading, 0.4)
+	_expect("reloading: both cells are out of their guns", robot.marker("pistol_l_mag").distance_to(robot.marker("pistol_l")) > 0.15
+		and robot.marker("pistol_mag").distance_to(robot.marker("pistol")) > 0.15)
 	_weapon = "pistol"
 
 

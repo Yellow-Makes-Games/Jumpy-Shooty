@@ -11,6 +11,7 @@ The guns are in weapons.py: every robot holds all of them, and the game shows on
 import math
 import numpy as np
 from kit import Mesh, Part, loft, rect, ngon, box, prism, ball
+import hands
 import weapons
 
 MATERIALS = {
@@ -64,7 +65,7 @@ def vanguard():
     m.add_pair(loft([rect(0.085, 0.095, 1.10, 0.022, cx=-0.215), rect(0.12, 0.135, 0.99, 0.03, cx=-0.215),
                      rect(0.10, 0.11, 0.90, 0.025, cx=-0.215)]), "armor", "forearm_l")
     m.add_pair(box(0.125, 0.032, 0.14, 0.03).move(-0.215, 0.95, 0), "accent", "forearm_l")
-    m.add_pair(box(0.06, 0.10, 0.095, 0.015).move(-0.215, 0.835, 0), "joint", "hand_l")
+    hands.add(m, 1.0)
     # Grapple launcher on the outside of the left forearm
     m.add(box(0.05, 0.16, 0.07, 0.012).move(-0.295, 0.985, 0), "detail", "forearm_l")
     m.add(prism(6, 0.02, 0.035).move(-0.295, 0.895, 0), "accent", "forearm_l")
@@ -116,7 +117,7 @@ def brick():
     m.add_pair(loft([rect(0.10, 0.10, 1.10, 0.03, cx=-0.215), rect(0.16, 0.17, 1.02, 0.04, cx=-0.22),
                      rect(0.16, 0.17, 0.90, 0.04, cx=-0.22)]), "armor", "forearm_l")
     m.add_pair(box(0.165, 0.035, 0.175, 0.04).move(-0.22, 0.915, 0), "accent", "forearm_l")
-    m.add_pair(box(0.085, 0.11, 0.13, 0.025).move(-0.215, 0.83, 0), "joint", "hand_l")
+    hands.add(m, 1.35)
     m.add(box(0.05, 0.13, 0.08, 0.012).move(-0.32, 0.975, 0), "detail", "forearm_l")
     m.add(prism(6, 0.022, 0.035).move(-0.32, 0.895, 0), "accent", "forearm_l")
 
@@ -165,7 +166,7 @@ def needle():
     m.add_pair(ball(0.042).move(-0.215, 1.13, 0), "joint", "forearm_l")
     m.add_pair(loft([rect(0.05, 0.055, 1.10, 0.015, cx=-0.215), rect(0.075, 0.095, 0.99, 0.02, cx=-0.215),
                      rect(0.05, 0.06, 0.90, 0.015, cx=-0.215)]), "armor", "forearm_l")
-    m.add_pair(box(0.045, 0.09, 0.075, 0.012).move(-0.215, 0.835, 0), "joint", "hand_l")
+    hands.add(m, 0.8)
     m.add(box(0.035, 0.13, 0.05, 0.008).move(-0.268, 0.985, 0), "detail", "forearm_l")
     m.add(prism(6, 0.016, 0.03).move(-0.268, 0.905, 0), "accent", "forearm_l")
 
@@ -252,7 +253,7 @@ def kestrel():
                      rect8(0.075, 0.08, 0.90, 0.02, cx=-0.215)]), "armor", "forearm_l")
     m.add_pair(loft([rect8(0.012, 0.03, 0.93, 0.0, cx=-0.215, cz=0.05), rect8(0.012, 0.06, 1.05, 0.0, cx=-0.215, cz=0.075),
                      rect8(0.008, 0.02, 1.15, 0.0, cx=-0.215, cz=0.10)]), "accent", "forearm_l")
-    m.add_pair(box(0.05, 0.095, 0.08, 0.012).move(-0.215, 0.835, 0), "joint", "hand_l")
+    hands.add(m, 0.88)
     _arms_common(m, -0.275)
 
     # Legs: lean thighs, swept-back calves, talon feet
@@ -310,7 +311,7 @@ def bulwark():
     m.add_pair(loft([rect8(0.10, 0.11, 1.10, 0.025, cx=-0.215), rect8(0.15, 0.16, 1.01, 0.04, cx=-0.215),
                      rect8(0.14, 0.15, 0.90, 0.035, cx=-0.215)]), "armor", "forearm_l")
     m.add_pair(box(0.155, 0.03, 0.165, 0.035).move(-0.215, 1.03, 0), "detail", "forearm_l")
-    m.add_pair(box(0.075, 0.11, 0.11, 0.02).move(-0.215, 0.83, 0), "joint", "hand_l")
+    hands.add(m, 1.25)
     _arms_common(m, -0.315)
 
     # Legs: thick thighs, knee guards, piston shins, wide feet
@@ -374,7 +375,7 @@ def rivet():
     m.add_pair(loft([rect8(0.085, 0.09, 1.10, 0.02, cx=-0.215), rect8(0.11, 0.12, 1.00, 0.028, cx=-0.215),
                      rect8(0.10, 0.11, 0.91, 0.025, cx=-0.215)]), "armor", "forearm_l")
     m.add_pair(box(0.12, 0.05, 0.13, 0.025).move(-0.215, 0.905, 0), "accent", "forearm_l")  # glove cuff
-    m.add_pair(box(0.065, 0.105, 0.10, 0.02).move(-0.215, 0.835, 0), "joint", "hand_l")
+    hands.add(m, 1.1)
     _arms_common(m, -0.29)
 
     # Legs: knee pads and chunky work boots with toe caps
@@ -431,7 +432,7 @@ def specter():
                      rect8(0.06, 0.065, 0.90, 0.015, cx=-0.215)]), "armor", "forearm_l")
     m.add_pair(loft([rect8(0.01, 0.03, 0.92, 0.0, cx=-0.215, cz=0.04), rect8(0.01, 0.05, 1.08, 0.0, cx=-0.215, cz=0.06),
                      rect8(0.006, 0.01, 1.22, 0.0, cx=-0.215, cz=0.09)]), "accent", "forearm_l")
-    m.add_pair(box(0.045, 0.09, 0.075, 0.012).move(-0.215, 0.835, 0), "joint", "hand_l")
+    hands.add(m, 0.8)
     _arms_common(m, -0.265)
 
     # Legs: slender, pointed knees, calf fins, pointed feet
@@ -487,7 +488,7 @@ def orbit():
     m.add_pair(loft([ngon(8, 0.035, 1.10, 0.035, cx=-0.215), ngon(8, 0.06, 1.00, 0.06, cx=-0.215),
                      ngon(8, 0.045, 0.90, 0.045, cx=-0.215)]), "armor", "forearm_l")
     m.add_pair(prism(8, 0.062, 0.02).move(-0.215, 1.00, 0), "accent", "forearm_l")
-    m.add_pair(box(0.05, 0.09, 0.08, 0.015).move(-0.215, 0.835, 0), "joint", "hand_l")
+    hands.add(m, 0.88)
     _arms_common(m, -0.28)
 
     # Legs: tapered, ringed knees, small glowing soles
@@ -556,8 +557,7 @@ def templar():
     m.add_pair(ball(0.058).move(-0.215, 1.13, 0.0), "steel", "forearm_l")  # elbow cop
     m.add_pair(loft([rect8(0.085, 0.09, 1.10, 0.025, cx=-0.215), rect8(0.09, 0.095, 0.99, 0.026, cx=-0.215)]), "mail", "forearm_l")
     m.add_pair(loft([rect8(0.13, 0.14, 1.01, 0.035, cx=-0.215), rect8(0.10, 0.11, 0.90, 0.028, cx=-0.215)]), "steel", "forearm_l")  # gauntlet cuff
-    m.add_pair(box(0.062, 0.10, 0.095, 0.018).move(-0.215, 0.835, 0), "steel", "hand_l")
-    m.add_pair(box(0.066, 0.03, 0.10, 0.012).move(-0.215, 0.81, 0), "joint", "hand_l")  # knuckle plate
+    hands.add(m, 1.05, body="steel", plate="steel", trim="joint")   # gauntlets
     _arms_common(m, -0.30)
 
     # Legs: mail chausses, a knee plate, steel sabatons
@@ -582,7 +582,9 @@ def templar():
 
 
 ARM_BONES = ("upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
-             "pistol", "pistol_slide", "pistol_mag", "pistol_l", "pistol_l_slide", "pistol_l_mag")  # what the first-person view shows (every gun rides on the last three)
+             "index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+             "index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2",
+             "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent")  # what the first-person view shows (every gun rides on the gun bones)
 
 DESIGNS = {"vanguard": vanguard, "brick": brick, "needle": needle, "kestrel": kestrel, "bulwark": bulwark,
            "rivet": rivet, "specter": specter, "orbit": orbit, "templar": templar}

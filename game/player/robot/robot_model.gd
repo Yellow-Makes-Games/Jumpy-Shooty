@@ -6,11 +6,15 @@ extends Node3D
 
 const VIEW_SHADER := "res://game/player/robot/viewmodel.gdshader"
 const VISOR_ENERGY := 1.6
+const GUN_GLOW_ENERGY := 1.4   ## a gun's glowing strips and cells ("<gun>.glow"), as bright as the melee weapons' edges
 const GOLD := Color(1.0, 0.76, 0.22)   ## the Golden Gun
 ## Left out of the body you see in first person: the camera sits inside the head,
 ## and the arms and gun are drawn by ViewModel.
 const VIEW_HIDDEN := ["head", "upper_arm_l", "forearm_l", "hand_l", "grapple", "upper_arm_r",
-	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "muzzle", "pistol_l", "pistol_l_slide", "pistol_l_mag"]
+	"forearm_r", "hand_r", "pistol", "pistol_slide", "pistol_mag", "pistol_vent", "muzzle",
+	"pistol_l", "pistol_l_slide", "pistol_l_mag", "pistol_l_vent",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 
 ## What a surface's material kind (see material_kind) means for a character:
 ## which of a character's colours it takes (CustomCharacter.BODY_COLORS: 0 the main
@@ -25,7 +29,9 @@ const SHELL := ["armor", "steel", "cloth", "mail", "visor", "skin", "hair", "she
 const EYES := ["visor", "eye"]
 const UNMEASURED := ["visor", "extra", "flesh"]
 ## The first-person arms: these bones' triangles (a kit's are thinned: Characters.KIT_FP_SLIM).
-const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r"]
+const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forearm_r", "hand_r",
+	"index_l", "index_l2", "fingers_l", "fingers_l2", "thumb_l", "thumb_l2",
+	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 const SLIM_BONES := {"forearm_l": -1.0, "hand_l": -1.0, "forearm_r": 1.0, "hand_r": 1.0}
 const ARM_X := 0.215                         ## how far out the arms hang (rig.py: forearm_l)
 
@@ -49,6 +55,7 @@ var melee: Node3D                 ## the sword, hammer or dagger in the fist (se
 var melee_left: Node3D            ## the left fist's brass knuckles, if any
 
 var _glow_materials: Array = []   # [material, is_shader]
+var _gun_glow: Array = []         # [material, its colour]: the gun's lit parts (see set_gun_glow)
 var _glow_color := Color.WHITE
 
 
@@ -115,7 +122,8 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 	for i in mesh.mesh.get_surface_count():
 		var base: StandardMaterial3D = mesh.mesh.surface_get_material(i)
 		var kind := material_kind(Characters.material_role(plain, base.resource_name) if plain != "" else base.resource_name)
-		var color := trim if kind == "accent" else base.albedo_color
+		var gun_glow := kind == "glow" and "." in base.resource_name   # a gun's lit parts, in the player's trim colour
+		var color := trim if kind == "accent" or gun_glow else base.albedo_color
 		var channel: int = CHANNELS.get(kind, -1)
 		var painted := channel >= 0 and colors[channel].a > 0.0
 		if painted:
@@ -132,8 +140,11 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 			if kind == "visor":
 				sm.set_shader_parameter("emission", trim * VISOR_ENERGY)
 				_glow_materials.append([sm, true])
+			elif gun_glow:
+				sm.set_shader_parameter("emission", color * GUN_GLOW_ENERGY)
+				_gun_glow.append([sm, color])
 			mesh.set_surface_override_material(i, sm)
-		elif kind == "accent" or kind == "visor" or painted or gilded:
+		elif kind == "accent" or kind == "visor" or gun_glow or painted or gilded:
 			var m: StandardMaterial3D = base.duplicate()
 			if kind == "visor":
 				m.emission_enabled = true
@@ -145,6 +156,11 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 				if gilded:
 					m.metallic = 0.9
 					m.roughness = 0.25
+				if gun_glow:
+					m.emission_enabled = true
+					m.emission = color
+					m.emission_energy_multiplier = GUN_GLOW_ENERGY
+					_gun_glow.append([m, color])
 			mesh.set_surface_override_material(i, m)
 	if viewmodel:
 		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -478,6 +494,16 @@ func set_power(power: float) -> void:
 			(entry[0] as ShaderMaterial).set_shader_parameter("emission", _glow_color * VISOR_ENERGY * power)
 		else:
 			(entry[0] as StandardMaterial3D).emission_energy_multiplier = VISOR_ENERGY * power
+
+
+## How brightly the gun's glowing parts shine: 1 = as at rest. (Nothing drives this
+## yet: it is here for the reloads to use.)
+func set_gun_glow(amount: float) -> void:
+	for entry in _gun_glow:
+		if entry[0] is ShaderMaterial:
+			(entry[0] as ShaderMaterial).set_shader_parameter("emission", (entry[1] as Color) * GUN_GLOW_ENERGY * amount)
+		else:
+			(entry[0] as StandardMaterial3D).emission_energy_multiplier = GUN_GLOW_ENERGY * amount
 
 
 func set_layer(layer: int) -> void:

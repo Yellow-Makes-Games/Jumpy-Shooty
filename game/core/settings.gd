@@ -66,7 +66,15 @@ var custom_characters: Array = []
 const MAX_CUSTOM := 12
 ## Achievements you track (up to Achievements.MAX_TRACKED ids): the Profile page shows them first.
 var tracked_achievements: Array = []
+## When the profile (name, characters, card, picks, tracked achievements) last changed
+## here (unix seconds): an account's cloud save keeps whichever copy is newer (see CloudSave).
+var profile_updated_at := 0.0
+var _profile_key := ""
 var last_address: String = ""   # the lobby code (or address) you last joined (filled in on the Join box next time)
+
+
+## The settings were written (Account syncs a signed-in player's profile from this).
+signal saved
 
 
 func _ready() -> void:
@@ -117,6 +125,8 @@ func load_settings() -> void:
 		for id in tracked:
 			if not str(id) in tracked_achievements:
 				tracked_achievements.append(str(id))
+	profile_updated_at = float(cfg.get_value("profile", "updated_at", 0.0))
+	_profile_key = profile_key()
 	_load_bindings(cfg)
 
 
@@ -148,8 +158,25 @@ func save_settings() -> void:
 	cfg.set_value("profile", "mobility", mobility)
 	cfg.set_value("network", "last_address", last_address)
 	cfg.set_value("profile", "tracked", tracked_achievements)
+	if profile_key() != _profile_key:
+		_profile_key = profile_key()
+		profile_updated_at = Time.get_unix_time_from_system()
+	cfg.set_value("profile", "updated_at", profile_updated_at)
 	_save_bindings(cfg)
 	cfg.save(SAVE_PATH)
+	saved.emit()
+
+
+## The profile's fields in one string, to tell when one of them changed.
+func profile_key() -> String:
+	return var_to_str([player_name, character, player_color, calling_card, icon, weapon, mobility,
+		custom_characters, tracked_achievements])
+
+
+## Take a profile from the cloud (see CloudSave) without marking it as changed here.
+func adopt_profile(updated_at: float) -> void:
+	_profile_key = profile_key()
+	profile_updated_at = updated_at
 
 
 ## Keep a custom character (replacing one with the same name). Returns its id.

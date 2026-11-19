@@ -66,6 +66,9 @@ var _recoil_l := 0.0      # akimbo: the left gun's kick (_recoil is the right's)
 var _kick_side := 0.0     # akimbo: which way the last shot rolls the view (+1 right gun, -1 left)
 var _since_fire := 99.0
 var _reload_w := 0.0
+var _fx_t := -1.0         # how far into the reload the gun's effects were last frame (ReloadFx)
+var _end_t := -1.0        # a shell-at-a-time reload's last flourish ("fp_reload_end"), once the gun is full
+var _was_reloading := false
 var _raise_t := -1.0
 var _bob := 0.0
 var _bob_w := 0.0
@@ -225,6 +228,20 @@ func update(delta: float) -> void:
 		var rclip := clip("fp_reload")
 		rig.sample(_tmp, rclip, _player.weapon.round_progress() * rig.length(rclip) if reloading else 0.0)
 		_pose.blend(_tmp, _reload_w)
+	# A shell-at-a-time reload that ran until the gun was full (not stopped by a shot) ends with a flourish.
+	if _was_reloading and not reloading and _data.reload_per_round and _since_fire > 0.2 and _player.weapon != null \
+			and _player.weapon.ammo >= _data.magazine and rig.has_clip(clip("fp_reload_end")):
+		_end_t = 0.0
+	_was_reloading = reloading
+	if _end_t >= 0.0:
+		var eclip := clip("fp_reload_end")
+		var elen := rig.length(eclip)
+		if _end_t >= elen or reloading or _since_fire < _end_t:
+			_end_t = -1.0
+		else:
+			rig.sample(_tmp, eclip, _end_t)
+			_pose.blend(_tmp, clampf((elen - _end_t) / 0.12, 0.0, 1.0) * (1.0 - _grapple_w))
+			_end_t += delta
 	# Working the pump or the bolt after a shot
 	if _fire_t >= 0.0:
 		var fclip := "fp_fire_" + _weapon
@@ -288,6 +305,7 @@ func update(delta: float) -> void:
 	if _weapon == "pistol" or _data.is_akimbo():
 		_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
 	if _data.is_akimbo():
+		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
 		# Each gun flips up in its own hand, and its slide snaps back.
 		_pose.pos[rig.bones["pistol_l_slide"]] += Vector3(0.0, 0.04 * _recoil_l, 0.0)
 		for side in [["upper_arm_r", _recoil], ["upper_arm_l", _recoil_l]]:
@@ -297,6 +315,11 @@ func update(delta: float) -> void:
 			var b: int = rig.bones[side[0]]
 			_pose.rot[b] = Quaternion(Vector3.RIGHT, minf(side[1], 1.6) * 0.25) * _pose.rot[b]
 	_pose.apply(model.skeleton)
+	# The reload's own effects: the gun's glow, the spent cell thrown clear.
+	var fx_t := _player.weapon.round_progress() * rig.length(clip("fp_reload")) if reloading else -1.0
+	var in_view: bool = _player.rig != null and _player.rig.first_person_amount() > 0.0   # (in third person the body throws it)
+	ReloadFx.update(model, WeaponData.look_of(_weapon), _fx_t, fx_t, _player.get_parent().get_parent() if in_view else null, vel, _on_screen)
+	_fx_t = fx_t
 
 	# --- Whole-view movement: sway, bob, landing dip, recoil
 	var yaw := _player.input.yaw

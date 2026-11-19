@@ -1478,9 +1478,10 @@ python3 with numpy):
 | --- | --- |
 | `designs.py` | Each robot's shape, and the materials. `PLAYABLE` lists the ones built for the game (Needle, Vanguard, Kestrel, Bulwark, Rivet, Specter, Orbit, Templar); the unused draft, Brick, is kept |
 | `creatures.py` | The Character Creator's creatures (a person, a goblin, a frog...): each one's shape, modelled round the same skeleton, and their materials. `KITS` lists them |
-| `rig.py` | The skeleton (bone names and positions) and the pose solver |
+| `rig.py` | The skeleton (bone names and positions), the hand poses (`HANDS`) and the pose solver |
+| `hands.py` | The robots' hands: one hand (palm, trigger finger, three fingers that move as one, thumb), which each design takes at its own bulk and in its own materials |
 | `animations.py` | Every animation, written as key poses: body clips and first-person arm clips |
-| `weapons.py` | The four guns' shapes and materials (pistol, shotgun, rifle, sniper), and where the left hand holds each long gun |
+| `weapons.py` | Every gun's shape and materials, and where the left hand holds each long gun |
 | `weapon_anims.py` | The long guns' own clips: how each is held, carried when sprinting, fired (pump, bolt), reloaded, and the first-person arm poses for each |
 | `build.py` | Writes, for each playable robot, `game/player/robot/NAME.glb` (full body) and `NAME_arms.glb` (first-person arms and guns), and for each creature `game/player/robot/kits/NAME.glb` (its mesh only: no guns, no animations). `--kits` writes only the creatures (a few seconds) |
 
@@ -1609,6 +1610,56 @@ its `color` and `accent`, the plate's colour (`back`) and `shape`, and if it sho
 stand out the rim's metal (`rim`: `BRONZE` or `GOLD`) and `rays`.
 It is free unless an achievement's `rewards` name it (`"card:<id>"`, `"icon:<id>"`).
 The picker, the lobby and the test read the tables.
+
+**Hands** have fingers: a trigger finger, three more that move as one, and a thumb, two
+bones each (`rig.py`: where the knuckles are, from the middle of the fist). How a hand is
+held is a pose in `rig.HANDS` (open, flat, relaxed, fist, gun, trigger, handle, support,
+foregrip, pinch): eight numbers that blend. A clip's pose can say `"fingers_l"` /
+`"fingers_r"`; left out, the right hand is round a gun's grip and the left is under a long
+gun or relaxed. The left hand under a fore-end is cupped, palm up (`weapon_anims.CUPPED`),
+so a gun's `weapons.SUPPORT` point is 2 cm above the fore-end's underside; a gun with an
+upright handle there says `"upright"` and it is held like a second grip. What the clips
+cannot know, the game sets (`game/player/robot/hands.gd`, from the one-frame `hand_...`
+clips): a blade's handle in the fist (`MeleeSwing.hold`), the akimbo pair's left gun. The
+Character Creator's other bodies keep their own one-piece hands. To look at the hands on
+every robot (open, a fist, on a pistol, a sword, under a rifle):
+`python3 tools/robot/hand_sheet.py OUT.png`.
+
+**Guns** share the melee weapons' look (gunmetal frame, armour-plate panels, steel
+barrels, lit parts in the player's trim colour: the `glow` kind, which
+`RobotModel.set_gun_glow` can dim and brighten). Each is built round fixed points: the
+barrel line and muzzle (`rig.py`), where the hands go (`weapons.SUPPORT`, and the bolts,
+handles and magazines in `weapon_anims.py`). Keep those where they are when reshaping
+one. Each gun's vents are added with `_vent()`, on a bone of their own (`pistol_vent`) that a
+reload opens: a flap or louvres on most, the barrels themselves on a break-open gun. To
+look at guns on their own: `tools/combat/gun_preview.sh OUT_DIR
+--guns=pistol,rifle`; for before/after sheets of every gun by family:
+`python3 tools/combat/gun_sheet.py OUT_DIR BEFORE.glb`.
+
+**Reloads** are clips like the rest (`reload_<gun>`, `fp_reload_<gun>`), each as long as
+the gun's reload time: the pistol's in `animations.py`, the other sidearms' in
+`sidearm_anims.py`, the long guns' in `long_reloads.py` (family by family: each gun's own
+flourish is described at the top of its function). A long gun is held relaxed and low,
+off to the right in first person (`weapon_anims.HOLD`, `FP_HOLD`), and each is fitted so
+the left hand reaches its fore-end with the elbow bent (`_fit`). A gun loaded a round at
+a time has a one-round clip that loops and a `reload_end_<gun>` clip (`long_reloads.ENDS`)
+that the animators play once the gun is full and the reload was not cut short by a shot:
+the gun can already fire, and firing cuts it short. A clip with a part that spins about
+its own middle is baked at 60 frames a second (`long_reloads.FPS`), or the part wobbles. A pistol is held in both hands, the left wrapped round the right
+(`animations.wrap_l`); in first person only the arms are drawn, so the clip puts the
+shoulders where both hands can reach a gun held off to the right (`FP_BODY`). A reload
+is written as the right arm's poses, the left hand's (places on the gun are worked out
+from where the gun is: `View.fist_on`, `View.palm_on`), the fingers (`rig.HANDS`) and
+the gun's parts, including whatever the left hand carries to it. What a clip cannot do
+is the game's: `game/combat/reload_fx.gd` throws the spent cell or casings (`SpentCell`:
+looks only, each copy of the game throws its own), dims and surges the gun's lit parts,
+hides the gun's own cell while the new one is out of sight, and puffs steam and smoke
+(`ReloadPuff`). Its table is timed to each clip's keys, and so are the sounds
+(`RELOAD_STEPS` and `RELOAD_END_STEPS` in `game/audio/sfx_list.gd`): change a clip and
+change both. To check that no hand is asked to reach further than its arm, solve the clip
+and compare each wrist with where its pose wants it (every reload was checked this way). To film one
+without opening the game: `tools/combat/reload_preview.sh revolver OUT_DIR --speed=0.5
+--close` (add `--cut=0.5` to see it cut short half way).
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted
