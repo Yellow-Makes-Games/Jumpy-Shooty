@@ -9,6 +9,10 @@ extends SceneTree
 ## hook called back in flight catch nothing. The rope drawn is longer than the straight
 ## line while there is slack, and straight once tight.
 ##
+## Let go, the hook comes back to the wrist, and while the button is held it catches
+## the first surface in its way (after a miss, or pressed again as it comes back; not
+## after a jump off the rope). In first person the rope starts on the arm as drawn.
+##
 ## The rope lines up for everyone: the shot is rebuilt from the snapshots a player
 ## sends (any one of them, with packets lost and all of them late) and must put the
 ## hook, the slack and the rope where the player's own game had them at every moment;

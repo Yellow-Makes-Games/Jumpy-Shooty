@@ -77,10 +77,7 @@ func _process(delta: float) -> void:
 	var target: float = 1.0 if Settings.third_person else 0.0
 	var before := _blend
 	_blend = move_toward(_blend, target, delta / BLEND_TIME)
-	var s := smoothstep(0.0, 1.0, _blend)
-	var fp := pivot.global_transform
-	var tp := tp_anchor.global_transform
-	camera.global_transform = fp.interpolate_with(tp, s)
+	place()
 	# Hide our own body while the camera is inside or near it.
 	camera.set_cull_mask_value(BODY_LAYER, _blend > BODY_SWAP)
 	# (The player placed the first-person body for last frame's blend, so wait for both.)
@@ -89,6 +86,19 @@ func _process(delta: float) -> void:
 	if _kick > 0.0:
 		_kick = maxf(_kick - delta * 3.5, 0.0)
 		camera.fov = Settings.field_of_view * (1.0 - KICK_ZOOM * _kick * _kick)
+
+
+## Puts the camera where this frame's view is. The rig does it every frame, but
+## after the player's own frame work (it is the player's child): the player calls
+## this as soon as it has set the view, so that what it places afterwards from the
+## camera (the first-person arms hang off it; ropes and tracers start at them) is
+## where this frame is drawn, not where the last one was. A frame behind, a rope
+## starts beside the wrist it leaves as soon as you move or turn.
+func place() -> void:
+	if not camera:
+		return
+	var s := smoothstep(0.0, 1.0, _blend)
+	camera.global_transform = pivot.global_transform.interpolate_with(tp_anchor.global_transform, s)
 
 
 ## The view punches in for a moment and eases back (`amount` 0..1): the landing of a ground slam.

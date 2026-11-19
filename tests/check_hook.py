@@ -25,7 +25,9 @@ Two checks for every viewer and every other player:
     took within WINDOW of that moment. Frames where the
     viewer itself stalled (frame_dt > 50 ms) are skipped. A shot hooked on a player
     is left out of this check: every copy ends that rope on the player as it draws
-    them, on purpose (see Player._hook_anchor).
+    them, on purpose (see Player._hook_anchor). For the same reason both logs take
+    the rope's near end as the chest: a hook on its way back is on its way to the
+    wrist of the body as each copy poses it.
 
 Usage: python3 tests/check_hook.py tests/out/hook_*.log
 Exit code 0 = pass, 1 = fail.
