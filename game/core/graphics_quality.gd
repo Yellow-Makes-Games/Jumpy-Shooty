@@ -116,9 +116,10 @@ static func apply_global(picks: Dictionary) -> void:
 	RenderingServer.positional_soft_shadow_filter_set_quality(shadow[1])
 	RenderingServer.screen_space_roughness_limiter_set_active(true, ROUGHNESS_LIMIT_AMOUNT, ROUGHNESS_LIMIT)
 	var high := str(picks.ao) == "high"
+	# Full resolution: at half size the shading steps into blocks along edges.
 	RenderingServer.environment_set_ssao_quality(
-		RenderingServer.ENV_SSAO_QUALITY_HIGH if high else RenderingServer.ENV_SSAO_QUALITY_MEDIUM, true, 0.5, 2, 50.0, 300.0)
-	RenderingServer.environment_set_ssil_quality(RenderingServer.ENV_SSIL_QUALITY_MEDIUM, true, 0.5, 4, 50.0, 300.0)
+		RenderingServer.ENV_SSAO_QUALITY_HIGH if high else RenderingServer.ENV_SSAO_QUALITY_MEDIUM, false, 0.5, 3, 50.0, 300.0)
+	RenderingServer.environment_set_ssil_quality(RenderingServer.ENV_SSIL_QUALITY_MEDIUM, false, 0.5, 4, 50.0, 300.0)
 
 
 ## A map's Environment with these picks: what the map has, minus what the picks turn off.
