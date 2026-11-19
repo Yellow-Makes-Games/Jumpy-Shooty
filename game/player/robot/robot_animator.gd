@@ -619,6 +619,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	if _akimbo:
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
 	_pose.apply(model.skeleton)
+	model.settle_sway()   # a custom character's cape and tail
 	# The reload's own effects: the gun's glow, the spent cell thrown clear. (In first
 	# person the arms you see are ViewModel's, and it throws the cell.)
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0

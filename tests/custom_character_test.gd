@@ -94,12 +94,13 @@ func _checks() -> void:
 				one.head = torso
 				one.accessories[slot] = a.id
 				var model := RobotModel.new().build(one.to_id(), Color.RED)
+				var bone: String = "tail" if slot == "tail" else Accessories.SLOT_BONE[slot]   # a tail has a bone of its own
 				var extra := 0
 				for s in model.mesh.mesh.get_surface_count():
 					var m := model.mesh.mesh.surface_get_material(s)
-					if m and m.resource_name in Accessories.MATERIALS and _surface_bone(model, s) == Accessories.SLOT_BONE[slot] and not _from_robot(model, s):
+					if m and m.resource_name in Accessories.MATERIALS and _surface_bone(model, s) == bone and not _from_robot(model, s):
 						extra += model.mesh.mesh.surface_get_array_len(s) / 3
-				_expect("%s (%s) on %s: %d triangles on the %s" % [a.name, slot, torso, extra, Accessories.SLOT_BONE[slot]], extra >= 8)
+				_expect("%s (%s) on %s: %d triangles on the %s" % [a.name, slot, torso, extra, bone], extra >= 8)
 				_free(model)
 	# A hat is on the head bone, so the first-person body (no head) leaves it out.
 	var hatted := CustomCharacter.parse(id)
@@ -109,6 +110,9 @@ func _checks() -> void:
 	_expect("first person: the cape and chain are still on the chest", _bone_triangles(m, "chest", "view") > _bone_triangles(
 		RobotModel.new().setup(Characters.body("templar"), Color.RED), "chest", ""))
 	_free(m)
+
+	print("Fitting")
+	_fitting()
 
 	print("Creatures")
 	var k := CustomCharacter.new()
@@ -264,6 +268,104 @@ func _checks() -> void:
 		and not (creator.find_child("color_hat", true, false) as Button).disabled)
 	_expect("what the creator made is a valid character", Characters.valid(creator.current.to_id()) == creator.current.to_id())
 	creator.queue_free()
+
+
+## Accessories fitted to the body they are on: two on one bone in one material both
+## show; a hat takes the place of the thin bits on top of the head (not a halo), an
+## ear hat of the head's own ears, a covering hat of the hair on top; a tail of the
+## legs' own tail; the cape and the tails on bones of their own keep off the floor.
+func _fitting() -> void:
+	var top_hat := _accessory_triangles("vanguard", {"hat": "top_hat"})
+	var mask := _accessory_triangles("vanguard", {"face": "bandit_mask"})
+	_expect("a top hat and a bandit mask (both silk, both on the head): both of them (%d + %d triangles)" % [top_hat, mask],
+		_accessory_triangles("vanguard", {"hat": "top_hat", "face": "bandit_mask"}) == top_hat + mask)
+	var needle := _body_triangles("needle", {})
+	_expect("a hat hides Needle's antenna", _body_triangles("needle", {"hat": "top_hat"}) < needle)
+	_expect("a halo doesn't", _body_triangles("needle", {"hat": "halo"}) == needle)
+	var goblin := _body_triangles("goblin", {"hat": "crown"})
+	_expect("cat ears hide the Goblin's own ears", _body_triangles("goblin", {"hat": "cat_ears"}) < goblin)
+	var dude := _body_triangles("human", {"hat": "crown"})
+	_expect("a top hat tucks the Dude's hair in; a crown doesn't", _body_triangles("human", {"hat": "top_hat"}) < dude
+		and _body_triangles("human", {"hat": "fez"}) == dude)
+	_expect("a tail takes the place of a cat's own", _body_triangles("cat", {"tail": "fox_tail"}) < _body_triangles("cat", {}))
+	var f := Accessories.fit(AABB(Vector3(-0.02, 1.5, -0.14), Vector3(0.04, 0.28, 0.28)), AABB(), AABB(Vector3(-0.2, 1.18, -0.14), Vector3(0.4, 0.32, 0.28)), -0.14)
+	var hat := Accessories.measured_for("hat", f, "")
+	_expect("a hat on the slimmest head is still hat-sized", hat.w >= Accessories.HAT_HALF.x and hat.d <= Accessories.HAT_HALF.y)
+	_expect("Rivet's hats sit on its hard hat", Accessories.measured_for("hat", f, "rivet").top > 1.8)
+	_expect("a duck's mustache goes over its beak", Accessories.measured_for("face", f, "duck").mouth_z < -0.13)
+	# Sliding: the cape trails and the dino tail stays up, above the floor.
+	for what in [{"back": "cape"}, {"tail": "dino_tail"}]:
+		var one := CustomCharacter.new()
+		one.accessories = what.duplicate()
+		var model := RobotModel.new().build(one.to_id(), Color.RED)
+		root.add_child(model)
+		var bone: String = "cape" if what.has("back") else "tail"
+		var i := model.skeleton.find_bone(bone)
+		var pose: RobotPose = model.rig.new_pose()
+		var low := INF
+		for k in 4:
+			model.rig.sample(pose, "slide", model.rig.length("slide") * k / 4.0)
+			pose.apply(model.skeleton)
+			model.settle_sway()
+			low = minf(low, _lowest(model, bone))
+		_expect("%s: a bone of its own (%d), above the floor in a slide (lowest %.2f)" % [what.values()[0], i, low], i >= 0 and low > 0.0)
+		_free(model)
+
+
+## The model's lowest point following `bone` (most strongly), as posed.
+func _lowest(model: RobotModel, bone: String) -> float:
+	var low := INF
+	var skin := model.mesh.skin
+	for s in model.mesh.mesh.get_surface_count():
+		var arrays := model.mesh.mesh.surface_get_arrays(s)
+		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var per := bones.size() / verts.size()
+		for v in verts.size():
+			var b := bones[v * per]
+			if weights[v * per + 1] > weights[v * per]:
+				b = bones[v * per + 1]
+			if String(skin.get_bind_name(b)) != bone:
+				continue
+			var at := model.skeleton.get_bone_global_pose(model.skeleton.find_bone(bone)) * skin.get_bind_pose(b) * verts[v]
+			low = minf(low, at.y)
+	return low
+
+
+## A Vanguard with this head (or a whole creature) wearing these: its body's own
+## triangles (not the accessories').
+func _body_triangles(part: String, wearing: Dictionary) -> int:
+	var one := CustomCharacter.new()
+	one.legs = part
+	one.torso = part
+	one.head = part
+	one.accessories = wearing.duplicate()
+	var model := RobotModel.new().build(one.to_id(), Color.RED)
+	var n := 0
+	for s in model.mesh.mesh.get_surface_count():
+		if _from_robot(model, s):
+			n += (model.mesh.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+	_free(model)
+	return n
+
+
+## The accessories' triangles on a robot wearing these.
+func _accessory_triangles(robot: String, wearing: Dictionary) -> int:
+	var one := CustomCharacter.new()
+	one.legs = robot
+	one.torso = robot
+	one.head = robot
+	one.accessories = wearing.duplicate()
+	var model := RobotModel.new().build(one.to_id(), Color.RED)
+	var n := 0
+	for s in model.mesh.mesh.get_surface_count():
+		if not _from_robot(model, s):
+			var m := model.mesh.mesh.surface_get_material(s)
+			if m and not "." in m.resource_name:
+				n += model.mesh.mesh.surface_get_array_len(s) / 3
+	_free(model)
+	return n
 
 
 func _has_gun(model: RobotModel, gun: String) -> bool:

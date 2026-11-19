@@ -124,6 +124,7 @@ static func pose_at(r: Dictionary, t: float) -> void:
 		pose.rot[chest] = pose.rot[chest] * hold.rot[chest]
 		pose.rot[rig.bones["head"]] = hold.rot[chest].inverse() * pose.rot[rig.bones["head"]]
 	pose.apply(robot.skeleton)
+	robot.settle_sway()
 
 
 func _process(delta: float) -> void:

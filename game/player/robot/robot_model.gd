@@ -34,6 +34,13 @@ const ARM_BONES := ["upper_arm_l", "forearm_l", "hand_l", "upper_arm_r", "forear
 	"index_r", "index_r2", "fingers_r", "fingers_r2", "thumb_r", "thumb_r2"]
 const SLIM_BONES := {"forearm_l": -1.0, "forearm_r": 1.0}   # (not the hands: their fingers have to meet a gun's grip)
 const ARM_X := 0.215                         ## how far out the arms hang (rig.py: forearm_l)
+## A custom character's cape and tail have bones of their own (see Accessories.RIGGED),
+## added after the body's, in this order, on these bones. settle_sway() poses them.
+const SWAY := ["cape", "tail"]
+const SWAY_PARENT := {"cape": "hips", "tail": "hips"}
+const CAPE_BAND := 0.08       ## the cape bends over this far either side of its bone
+const CAPE_LEAN := deg_to_rad(30.0)   ## the most a cape's hem leans out from hanging straight down
+const SWAY_FLOOR := 0.04      ## the lowest a cape's hem or a tail's tip goes (above the feet)
 
 static var _view_meshes := {}     # body mesh -> the mesh without VIEW_HIDDEN
 static var _gun_meshes := {}      # [model file, gun] -> [the mesh with only that gun, which surface of the full mesh each surface was]
@@ -57,6 +64,7 @@ var melee_left: Node3D            ## the left fist's brass knuckles, if any
 var _glow_materials: Array = []   # [material, is_shader]
 var _gun_glow: Array = []         # [material, its colour]: the gun's lit parts (see set_gun_glow)
 var _glow_color := Color.WHITE
+var _sway: Array = []             # {bone, parent, rest (its rest, on the parent), tip, kind}: see settle_sway
 
 
 ## The colour used on a robot's trim and visor: the player colour, made more vivid.
@@ -106,6 +114,7 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 	var golden := weapon != "none" and WeaponData.by_id(weapon).golden
 	if custom and not arms:
 		mesh.mesh = _custom_mesh(custom, path, mesh.skin, shown_gun)
+		_add_sway(mesh.mesh.get_meta("sway", []))
 	elif custom and Characters.is_kit(custom.torso):
 		mesh.mesh = _kit_arms_mesh(custom.torso, path, mesh, shown_gun)   # a robot's guns in the kit's own hands
 	else:
@@ -231,6 +240,9 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 	var chest := AABB()
 	var waist := AABB()
 	var seen := {"shell": false, "visor": false, "chest": false, "waist": false}
+	# What the accessories take the place of (the thin bits on a head under a hat,
+	# a tail under a tail): left out, and not measured.
+	var hidden := Accessories.hidden(c.accessories, c.head, c.legs)
 	for part in ["legs", "torso", "head"]:
 		var path := Characters.part_file(c.part(part))
 		var source: Mesh = _source(path)[0]
@@ -255,6 +267,9 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 						best = k
 				var bone_name: String = names[bones[v * per + best]]
 				if CustomCharacter.region_of(bone_name) != part:
+					continue
+				if not (hidden.get(part, []) as Array).is_empty() and mat and Accessories.hides(hidden[part], mat.resource_name,
+						(verts[index[t]] + verts[index[t + 1]] + verts[index[t + 2]]) / 3.0):
 					continue
 				kept.append_array([index[t], index[t + 1], index[t + 2]])
 				# Measure the head, chest and waist, for fitting the accessories.
@@ -306,11 +321,22 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 				collar = verts[i].z if not collar_set else minf(collar, verts[i].z)
 				collar_set = true
 	var fit := Accessories.fit(head_shell, visor, chest, collar, waist)
+	# The cape's and the tail's own bones: skin binds after the body's, in SWAY's order.
+	var rigged := {}   # accessory bone -> true
+	for slot in CustomCharacter.SLOTS:
+		var id: String = c.accessories.get(slot, "")
+		if id != "":
+			rigged["tail" if slot == "tail" else Accessories.RIGGED.get(id, "")] = true
+	var sway := []   # {name, parent, pivot, tip}: see _add_sway
+	for bone in SWAY:
+		if rigged.has(bone):
+			bind_of[bone] = skin.get_bind_count() + sway.size()
+			sway.append({"name": bone, "parent": SWAY_PARENT[bone], "pivot": Accessories.pivot(bone, fit), "tip": Vector3.ZERO})
 	var tints := {}
 	for slot in CustomCharacter.SLOTS:
 		if c.color_of(slot) != "":
 			tints[slot] = CustomCharacter.paint_color(c.color_of(slot))
-	for piece in Accessories.build(c.accessories, fit, tints):
+	for piece in Accessories.build(c.accessories, fit, tints, c.head):
 		var pts: PackedVector3Array = piece.points
 		if pts.is_empty():
 			continue
@@ -321,6 +347,10 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 		var weights := PackedFloat32Array()
 		weights.resize(pts.size() * 4)
 		var bind: int = bind_of.get(piece.bone, 0)
+		var rig_of: Dictionary = {}   # the cape's or the tail's entry in `sway`
+		for entry in sway:
+			if entry.name == piece.bone:
+				rig_of = entry
 		for t in range(0, pts.size(), 3):
 			# Godot's front faces wind clockwise: the triangles come out counter-clockwise.
 			var a := pts[t]
@@ -332,6 +362,21 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 		for i in pts.size():
 			bones[i * 4] = bind
 			weights[i * 4] = 1.0
+			if piece.bone == "skirt":
+				_skirt_weights(pts[i], fit, bind_of, bones, weights, i * 4)
+			elif piece.bone == "cape":
+				# The top on the chest, the bottom on the cape's bone, bending between.
+				var low := clampf((rig_of.pivot.y + CAPE_BAND - pts[i].y) / (2.0 * CAPE_BAND), 0.0, 1.0)
+				bones[i * 4] = bind_of["chest"]
+				weights[i * 4] = 1.0 - low
+				bones[i * 4 + 1] = bind
+				weights[i * 4 + 1] = low
+			if not rig_of.is_empty():
+				# The point furthest from the bone (a cape's hem, a tail's tip): what
+				# settle_sway keeps off the floor.
+				var off: Vector3 = pts[i] - rig_of.pivot
+				if off.length_squared() > (rig_of.tip as Vector3).length_squared() and (piece.bone != "cape" or off.y < 0.0):
+					rig_of.tip = off
 		var arrays := []
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = pts
@@ -340,10 +385,84 @@ static func _custom_mesh(c: CustomCharacter, host: String, skin: Skin, gun: Stri
 		arrays[Mesh.ARRAY_WEIGHTS] = weights
 		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		out.surface_set_material(out.get_surface_count() - 1, Accessories.material(piece.material, piece.get("tint", Color(0, 0, 0, 0))))
+	if not sway.is_empty():
+		out.set_meta("sway", sway)
 	if _custom_meshes.size() > 64:
 		_custom_meshes.clear()
 	_custom_meshes[key] = out
 	return out
+
+
+## A skirt (Accessories.RIGGED): on the hips at the waist, more and more on the thigh
+## on its side further down (half on each in the middle), so the legs carry it with
+## them instead of going through it.
+static func _skirt_weights(p: Vector3, fit: Dictionary, bind_of: Dictionary, bones: PackedInt32Array,
+		weights: PackedFloat32Array, at: int) -> void:
+	var down := clampf((fit.waist_y - 0.02 - p.y) / 0.2, 0.0, 1.0) * 0.9
+	var right := clampf(0.5 + p.x / (maxf(fit.waist_w, 0.1) * 1.2), 0.0, 1.0)   # thigh_r is on +x
+	bones[at] = bind_of["hips"]
+	weights[at] = 1.0 - down
+	bones[at + 1] = bind_of["thigh_r"]
+	weights[at + 1] = down * right
+	bones[at + 2] = bind_of["thigh_l"]
+	weights[at + 2] = down * (1.0 - right)
+
+
+## The cape's and the tail's bones (see SWAY), on this model's own skeleton and skin.
+func _add_sway(list: Array) -> void:
+	if list.is_empty():
+		return
+	var skin: Skin = mesh.skin.duplicate()
+	for entry in list:
+		var parent := skeleton.find_bone(entry.parent)
+		var i := skeleton.get_bone_count()
+		skeleton.add_bone(entry.name)
+		skeleton.set_bone_parent(i, parent)
+		var rest := skeleton.get_bone_global_rest(parent).affine_inverse() * Transform3D(Basis.IDENTITY, entry.pivot)
+		skeleton.set_bone_rest(i, rest)
+		skeleton.set_bone_pose_position(i, rest.origin)
+		skeleton.set_bone_pose_rotation(i, rest.basis.get_rotation_quaternion())
+		skin.add_named_bind(entry.name, Transform3D(Basis.IDENTITY, -entry.pivot))
+		_sway.append({"bone": i, "parent": parent, "rest": rest, "tip": entry.tip, "kind": entry.name})
+	mesh.skin = skin
+
+
+## Poses the cape's and the tail's bones for the pose the body is in now (call after
+## posing the skeleton): a cape hangs from the small of the back, leaning out no more
+## than CAPE_LEAN, and neither a cape's hem nor a tail's tip goes below SWAY_FLOOR.
+func settle_sway() -> void:
+	for s in _sway:
+		var parent := skeleton.get_bone_global_pose(s.parent) * (s.rest as Transform3D)
+		var turn := parent.basis.get_rotation_quaternion()
+		var tip: Vector3 = turn * (s.tip as Vector3)
+		var q := Quaternion.IDENTITY   # the turn to make, in the skeleton's space
+		# The way the body faces, level, and its left-right axis.
+		var ahead := turn * Vector3.FORWARD
+		ahead.y = 0.0
+		ahead = ahead.normalized() if ahead.length_squared() > 1e-6 else Vector3.FORWARD
+		var side := Vector3.UP.cross(ahead).normalized()
+		if s.kind == "cape" and tip.length_squared() > 1e-6:
+			# Hang: never forward of straight down (under the body, through the legs),
+			# and leaning back out no more than CAPE_LEAN.
+			var d := tip.normalized()
+			var fwd := d.dot(ahead)
+			if fwd > 0.0:
+				d = (d - ahead * fwd).normalized() if (d - ahead * fwd).length_squared() > 1e-6 else Vector3.DOWN
+			var lean := d.angle_to(Vector3.DOWN)
+			if lean > CAPE_LEAN:
+				var axis := d.cross(Vector3.DOWN)
+				if axis.length_squared() > 1e-8:
+					d = Quaternion(axis.normalized(), lean - CAPE_LEAN) * d
+			q = Quaternion(tip.normalized(), d)
+		if parent.origin.y + (q * tip).y < SWAY_FLOOR:
+			# Swung back and up, about the left-right axis, just far enough.
+			var back := 1.0 if (Quaternion(side, 0.1) * (q * tip)).dot(ahead) < (q * tip).dot(ahead) else -1.0
+			for k in range(1, 19):
+				var r := Quaternion(side, back * k * PI / 36.0) * q
+				q = r
+				if parent.origin.y + (r * tip).y >= SWAY_FLOOR:
+					break
+		skeleton.set_bone_pose_rotation(s.bone, (s.rest as Transform3D).basis.get_rotation_quaternion() * turn.inverse() * q * turn)
 
 
 ## The first-person arms of a character whose torso is a kit: the kit's own arms
