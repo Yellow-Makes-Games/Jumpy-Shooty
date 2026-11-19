@@ -290,6 +290,12 @@ func _apply_graphics() -> void:
 		GraphicsQuality.apply_environments(root, picks)
 
 
+## How much of the screen's resolution 3D is drawn at before the render scale (the
+## fullscreen Resolution setting; 1 in a window).
+func resolution_scale() -> float:
+	return _resolution_scale
+
+
 ## The advanced graphics settings, as GraphicsQuality takes them.
 func graphics() -> Dictionary:
 	var picks := {}

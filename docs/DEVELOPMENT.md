@@ -90,7 +90,8 @@ Quick checks:
   for exists;
 - the portrait banner (`tests/portrait_test.gd`, with `--fixed-fps 60`): the 3D is drawn
   at the screen's own size (twice that on High) with your anti-aliasing picks, whatever
-  the render scale; every character's head and the ring under it fit the frame at three
+  the render scale (the results screen's killcam fills the window's pixels at the game's
+  own render scale); every character's head and the ring under it fit the frame at three
   shapes, and the name ends short of the head; every weapon goes through its three holds
   and its flourish; a drag turns the character and it turns back the short way; another
   character builds in, a new gun or colour does not;
