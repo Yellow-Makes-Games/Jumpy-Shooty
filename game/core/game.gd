@@ -17,7 +17,8 @@ const MAX_TEAM_BOTS := 7
 var mode: Mode = Mode.NONE
 ## A message to show on the main menu (for example "The host left").
 var pending_notice := ""
-## The last bot match's settings, for a rematch. "bots": how many bots (1 is a 1v1).
+## The last bot match's settings, for a rematch and the next Vs Bots lobby. "bots": how
+## many bots (1 is a 1v1); "levels": each one's difficulty (else all "difficulty").
 ## "game": "ffa", "dm" or "race" (one the map can host).
 var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.default_id(), "bots": 1, "game": "ffa"}
 ## The map and kind of game last picked for practice.
@@ -206,7 +207,9 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 	if DevArgs.points_target > 0:
 		killcam_points = KillcamMode.clean_points(DevArgs.points_target)
 	var killcam_minutes := KillcamMode.clean_minutes(killcam.get("killcam_minutes", last_bot.get("killcam_minutes")))
-	last_bot = {"difficulty": difficulty, "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
+	var levels_before := bot_levels()   # (each bot's level, kept for a rematch with the same bots)
+	var same_bots := levels_before.size() == bots and difficulty == int(last_bot.get("difficulty", -1))
+	last_bot = {"difficulty": difficulty, "levels": levels_before if same_bots else [], "kills": kills_to_win, "map": picked, "bots": bots, "game": _game_for(picked, game),
 		"rules": rules, "weapons": LobbySettings.normalized_weapons(weapons), "mobility": LobbySettings.normalized_mobility(mobility),
 		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes}
 	if picked != Maps.RANDOM:
@@ -216,9 +219,60 @@ func start_bot(difficulty: int, kills_to_win: int, map: String = "", bots: int =
 		"weapons": last_bot.weapons, "mobility": last_bot.mobility,
 		"killcam_points": killcam_points, "killcam_minutes": killcam_minutes, "movement": movement_choice()},
 		_map_choice(last_bot.map), DevArgs.game if DevArgs.game != "" else last_bot.game)
+	var levels := bot_levels()
 	for i in bots:
-		Net.add_bot(difficulty, DevArgs.bot_weapon, DevArgs.bot_mobility)
+		Net.add_bot(int(levels[i]) if i < levels.size() else difficulty, DevArgs.bot_weapon, DevArgs.bot_mobility)
 	Net.host_start_match()
+
+
+## Each bot's difficulty in the last bot match (or lobby).
+func bot_levels() -> Array:
+	var levels = last_bot.get("levels", [])
+	if not levels is Array or (levels as Array).size() != int(last_bot.get("bots", 1)):
+		levels = []
+		for i in int(last_bot.get("bots", 1)):
+			levels.append(int(last_bot.get("difficulty", 1)))
+	return levels
+
+
+## Vs Bots: the lobby (see LobbyMenu), offline, set up as last time: you and your bots on
+## the left, the match in the middle, your loadout on the right. Start plays it
+## (start_bot_lobby).
+func open_bot_lobby() -> void:
+	mode = Mode.BOT
+	Net.start_offline(local_name(), local_character(), local_weapon(), local_mobility())
+	Net.match_settings = with_map({"mode": str(last_bot.get("rules", "kills")), "kills": int(last_bot.get("kills", 10)),
+		"minutes": 8, "race_minutes": 10, "weapons": last_bot.get("weapons", []), "mobility": last_bot.get("mobility", []),
+		"killcam_points": KillcamMode.clean_points(last_bot.get("killcam_points")),
+		"killcam_minutes": KillcamMode.clean_minutes(last_bot.get("killcam_minutes")), "movement": movement_choice()},
+		_map_choice(str(last_bot.get("map", Maps.default_id()))), str(last_bot.get("game", "ffa")))
+	for d in bot_levels():
+		Net.add_bot(int(d), DevArgs.bot_weapon, DevArgs.bot_mobility)
+	goto_lobby()
+
+
+## The Vs Bots lobby's Start: remember how it is set up (for a rematch and next time),
+## then play.
+func start_bot_lobby() -> void:
+	remember_bot_lobby()
+	Net.host_start_match()
+
+
+func remember_bot_lobby() -> void:
+	var s := Net.match_settings
+	var levels: Array = Net.bot_ids().map(func(id): return int(Net.players[id].get("difficulty", 1)))
+	var random := bool(s.get("random_map", false))
+	last_bot = {"difficulty": int(levels[0]) if not levels.is_empty() else int(last_bot.get("difficulty", 1)),
+		"levels": levels, "bots": maxi(levels.size(), 1), "kills": int(s.get("kills", 10)),
+		"map": Maps.RANDOM if random else str(s.get("map", Maps.default_id())), "game": str(s.get("game", "ffa")),
+		"rules": str(s.get("mode", "kills")), "weapons": LobbySettings.normalized_weapons(s.get("weapons", [])),
+		"mobility": LobbySettings.normalized_mobility(s.get("mobility", [])),
+		"killcam_points": KillcamMode.clean_points(s.get("killcam_points")), "killcam_minutes": KillcamMode.clean_minutes(s.get("killcam_minutes"))}
+	if random:
+		last_map_pool = s.get("map_pool", [])
+	elif Maps.has(str(last_bot.map)):
+		last_map[last_bot.game] = last_bot.map
+	last_movement = str(s.get("movement", last_movement))
 
 
 ## The most bots an offline match with these rules can have.
@@ -279,6 +333,9 @@ func host_online() -> Error:
 		if DevArgs.song != "":
 			s["song"] = DevArgs.song
 		Net.set_match_settings(s)
+	if err == OK:
+		for i in DevArgs.host_bots:   # tests: bots in an online lobby
+			Net.add_bot(DevArgs.bot_level, DevArgs.bot_weapon, DevArgs.bot_mobility)
 	return err
 
 

@@ -299,6 +299,8 @@ func _physics_process(delta: float) -> void:
 		var now := Net.now()
 		if not is_bot:
 			Net.send_snapshot(now, make_snapshot())
+		else:
+			Net.send_bot_snapshot(peer_id, now, make_snapshot())   # (online: the host sends for its bots)
 		buffer.push(now, now, _sent_position(), velocity, input.yaw, input.pitch, _my_pose(), _my_anim_flags())
 	if DevArgs.sync_log:
 		var sp := _sent_position()  # without the leg tuck, which is a pose, not movement

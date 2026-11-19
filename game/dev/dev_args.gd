@@ -43,6 +43,7 @@ extends Node
 ## --autopilot          Your own racer runs the course like a bot would (race tests and screenshots).
 ## --bot-level=LEVEL    With --autopilot: run the course at this bot difficulty (default 3, Expert).
 ## --bot=LEVEL          Skip the menus and start a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert).
+## --host-bots=N        With --host: the lobby starts with N bots (at --bot-level), run by the host.
 ## --bots=N             With --bot: play against N bots (1 to 4; up to 7 in the team modes) in a free-for-all (or team match) instead of one.
 ## --scripted-input     The local player moves on its own (for sync tests).
 ## --sync-log           Print position samples used by tests/check_sync.py.
@@ -124,6 +125,7 @@ var race := false
 var game := ""   ## --game=dm: a Deathmatch (on an arena map)
 var autopilot := false
 var bot_level := 3
+var host_bots := 0
 var bot := -1
 var bots := 1
 var scripted_input := false
@@ -264,6 +266,7 @@ func _ready() -> void:
 					push_warning("Unknown game: %s (games: %s)" % [value, ", ".join(Maps.GAMES)])
 			"--autopilot": autopilot = true
 			"--bot-level": bot_level = clampi(int(value), 0, 3)
+			"--host-bots": host_bots = clampi(int(value), 0, 15)
 			"--bot": bot = clampi(int(value), 0, 3)
 			"--bots": bots = clampi(int(value), 1, 7)   # (more than 4 only in the team modes: see Game.max_bots)
 			"--scripted-input": scripted_input = true
