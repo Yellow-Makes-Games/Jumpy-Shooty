@@ -57,7 +57,7 @@ var _applied_fullscreen := false
 var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
 var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
-var mobility: String = Mobility.default_id()       # the tool on the mobility button: grapple, portal gun or blink (see Mobility)
+var mobility: String = Mobility.default_id()       # the tool on the mobility button: a grappling hook, the portal gun, blink or the jetpack (see Mobility)
 var player_color := -1   # your colour in a free-for-all: a number in Net.PLAYER_COLORS, or -1 for the first free one
 var calling_card: String = CallingCard.DEFAULT_CARD   # the banner behind your name (see CallingCard)
 var icon: String = CallingCard.DEFAULT_ICON           # the badge beside it
@@ -297,7 +297,7 @@ const ACTIONS := [
 	["kick", "Kick", ["key:%d" % KEY_F]],
 	["boost", "Rocket boots", ["key:%d" % KEY_E]],
 	["interact", "Interact", ["key:%d" % KEY_G]],
-	["grapple", "Mobility (grapple, portal, blink)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
+	["grapple", "Mobility (grapple, portal, blink, jetpack)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
 	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
 	["weapon_1", "Weapon slot 1", ["key:%d" % KEY_1]],

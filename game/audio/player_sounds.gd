@@ -72,6 +72,33 @@ func grapple_missed() -> void:
 	_play("grapple_miss")
 
 
+## Grappling Hook 2 (see HookLine's stages): its hook has gone from doing `was` to
+## doing `now`, at `at`. The launcher fires as the hook leaves; the hook clacks where it
+## bites; the rope thrums as it pulls tight; let go, it reels back (with nothing
+## caught, the whoosh of a miss).
+func hook_stage(was: int, now: int, at: Vector3) -> void:
+	if not _alive:
+		return
+	match now:
+		HookLine.FLYING:
+			_play("grapple_fire")
+		HookLine.BITING:
+			_hook_bite(at)
+		HookLine.TAUT:
+			if was == HookLine.FLYING or was == HookLine.OFF:
+				_hook_bite(at)   # (bitten and tight between two frames)
+			_play("grapple_taut")
+		HookLine.RETRACT:
+			_play("grapple_miss" if was == HookLine.FLYING else "grapple_release", "move", -3.0 if was == HookLine.FLYING else 0.0)
+
+
+func _hook_bite(at: Vector3) -> void:
+	if own:
+		Sound.play("grapple_attach", 0.0, 0.05)
+	else:
+		Sound.play_at("grapple_attach", at, "move", 0.0, 0.05)
+
+
 ## Called every frame with what the body is doing. `shown`: false while another
 ## player is hidden (waiting to reappear after a respawn).
 func update(delta: float, a: RobotAnimInput, shown: bool) -> void:
@@ -140,7 +167,7 @@ func _movement(a: RobotAnimInput, speed: float, delta: float) -> void:
 		_play("wall_jump")
 	if a.crouched != _crouched and state in [S.GROUND, S.CROUCH]:
 		_play("crouch" if a.crouched else "stand")
-	if a.grapple_on != _grapple:
+	if a.grapple_on != _grapple and not a.hook2:
 		if a.grapple_on:
 			_play("grapple_fire")
 			_grapple_pending = clampf(player.global_position.distance_to(a.grapple_anchor) / 120.0, 0.03, 0.25)

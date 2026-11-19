@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ##   GROUND    running and sprinting
 ##   AIR       jumping and falling (bunny-hops and air-strafing live here)
-##   GRAPPLE   reeled in and swinging on the rope (see grapple.gd)
+##   GRAPPLE   reeled in and swinging on the rope (see grapple.gd; Grappling Hook 2,
+##             hook_shot.gd, is the same rope once its hook has flown there and bitten)
 ##   CROUCH    crouched on the ground: lower and slower
 ##   SLIDE     crouch while moving fast: keeps momentum, speeds up downhill
 ##   WALL_RUN  run along a wall with little gravity; jump to kick off it
@@ -209,8 +210,10 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 	var hooked_now := false
 	if input.grapple_pressed and not grapple.attached:
 		hooked_now = grapple.try_attach(body, input)
-	if grapple.attached and not input.grapple:
-		grapple.release()
+	if grapple.take_hooked():
+		hooked_now = true   # Grappling Hook 2: fired a moment ago, its rope has just pulled tight (see HookShot)
+	if (grapple.attached or grapple.busy()) and not input.grapple:
+		grapple.release()   # (a hook still in flight is called back)
 	var rope_jump := false
 	if grapple.attached and _jump_buffer > 0.0 and not grounded:
 		grapple.release()
@@ -894,7 +897,7 @@ func can_slam(body: CharacterBody3D) -> bool:
 
 ## Drive straight down (see _step_slam). Nothing stops it but the floor.
 func start_slam(body: CharacterBody3D) -> void:
-	if grapple.attached:
+	if grapple.attached or grapple.busy():
 		grapple.release()
 	_leave_wall()
 	state = State.SLAM

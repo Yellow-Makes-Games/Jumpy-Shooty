@@ -18,7 +18,7 @@ extends RefCounted
 class Track:
 	var times := PackedFloat64Array()
 	## Each frame: see Player.shown_state() (feet, velocity, yaw, pitch, pose, flags,
-	## rope on, rope anchor, alive, drawn, eye height, weapon).
+	## rope on, rope anchor, alive, drawn, eye height, weapon, Grappling Hook 2's rope).
 	var frames: Array = []
 	var character := ""
 	var color := Color.WHITE
@@ -94,7 +94,21 @@ class Track:
 		out[3] = lerpf(float(a[3]), float(b[3]), u)
 		out[7] = (a[7] as Vector3).lerp(b[7], u) if a[6] and b[6] else a[7]
 		out[10] = lerpf(float(a[10]), float(b[10]), u)
+		if a.size() > 12 and b.size() > 12 and a[12] != null and b[12] != null:
+			out[12] = _blend_hook(a[12], b[12], u, span)
 		return out
+
+	## Grappling Hook 2's rope between two frames `span` seconds apart (each [hook,
+	## slack, seconds since the shot, seconds since it pulled tight]). The hook and the
+	## slack blend; the two clocks run on from the earlier frame, so the rope's ripples
+	## and its twang move as smoothly in a replay as they did in the match, and a rope
+	## that pulled tight between the two frames twangs from the moment it did.
+	static func _blend_hook(a: Array, b: Array, u: float, span: float) -> Array:
+		if float(b[2]) < float(a[2]):
+			return a if u < 0.5 else b   # a new shot: no blending across it
+		var twang := float(b[3]) - (1.0 - u) * span if float(b[3]) >= 0.0 else -1.0
+		return [(a[0] as Vector3).lerp(b[0], u), lerpf(float(a[1]), float(b[1]), u), lerpf(float(a[2]), float(b[2]), u),
+			twang if twang >= 0.0 else -1.0]
 
 	func first_time() -> float:
 		return times[0] if not times.is_empty() else INF

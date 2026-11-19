@@ -53,6 +53,7 @@ CHECKS=(
   "killcam|--script tests/killcam_test.gd"
   "killcam_remains|--fixed-fps 60 --script tests/killcam_remains_test.gd"
   "mobility|--fixed-fps 60 --script tests/mobility_test.gd"
+  "hook_shot|--fixed-fps 60 --script tests/hook_shot_test.gd"
   "lobby_settings|--script tests/lobby_settings_test.gd"
   "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
@@ -92,6 +93,8 @@ if ! printf '%s\n' "${CHECKS[@]}" | xargs -d '\n' -P "${JOBS:-4}" -I{} bash -c '
 fi
 echo "== Sync: 3 players, bad network (100 ms latency, 60 ms jitter, 10% loss) (Construction Site)"
 MAP=construction_site tests/run_sync_test.sh 3 "100,60,10"
+echo "== Grappling Hook 2 online: 3 players, bad network (80 ms latency, 30 ms jitter, 5% loss); every copy draws every hook and rope where its owner had them"
+tests/run_hook_sync_test.sh 3 "80,30,5"
 echo "== Match: 3 players, laggy network, two matches back to back, sounds (Construction Site)"
 MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
 echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword bot, sounds (Construction Site)"

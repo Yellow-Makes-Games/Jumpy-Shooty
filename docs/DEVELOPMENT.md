@@ -150,7 +150,21 @@ Quick checks:
   through the safety net (alive, hidden over a second, snapshots coming: shown anyway);
 - the game boots into practice mode on every map without script errors.
 
+- Grappling Hook 2 (`tests/hook_shot_test.gd`), in a real Practice match: nothing pulls
+  while the hook flies, it takes the distance at its speed to arrive, bites with slack,
+  the winch takes it in, the rope pulls tight with a harder yank than the first hook's and
+  then pulls the same; a miss, a hook called back, hooking a bot; the rope drawn is as
+  long as the rope out; a copy rebuilt from snapshots (every one, a third lost, two
+  thirds lost and late) draws the hook, slack and rope exactly where the player's own
+  game had them; a killcam replay between its frames; a race keeps the first hook;
+
 Networked and bot runs (real time):
+
+- Grappling Hook 2 online (`tests/run_hook_sync_test.sh [PLAYERS] [NET_SIM]`): every copy
+  fires it on its own on a bad network; every other copy must see each launch, bite,
+  pull-tight and release within 30 ms of when it happened and draw the hook within
+  15 cm of where its owner's game had it (95% of frames; never 40 cm), in the same
+  stage (`tests/check_hook.py`);
 
 - sync (`tests/run_sync_test.sh`): 3 copies on a simulated bad network (100 ms latency,
   60 ms jitter, 10% loss) move on their own; every copy must draw every other player

@@ -948,6 +948,21 @@ def grapple_miss():
                       (metal_clack(rng, 0.95, 0.6, 0.5) * 0.5, 0.45)))
 
 
+def grapple_taut():
+    """Grappling Hook 2: the slack rope snapping tight. A steel cable taking the load
+    all at once: a hard low thrum (a plucked string, dropping a little as it settles),
+    the winch biting, and a short creak of tension."""
+    rng = np.random.default_rng(9650)
+    t = tt(0.34)
+    f = 118 + 26 * np.exp(-t / 0.03)
+    ph = 2 * math.pi * np.cumsum(f) / SR
+    thrum = (np.sin(ph) + 0.45 * np.sin(2.01 * ph) + 0.22 * np.sin(3.03 * ph) + 0.1 * np.sin(4.07 * ph)) * env(0.34, 0.085, 0.0015)
+    snap = bp(noise(rng, 0.05), 1700, 1.4) * env(0.05, 0.008, 0.0002) * 0.7
+    creak = sweep_bp(noise(rng, 0.2), 420, 250, 5.0) * env(0.2, 0.07, 0.01) * 0.3
+    return finish(mix(click(rng, 0.006, 0.0004, 2800) * 0.5, snap, sat(thrum, 1.6) * 0.8,
+                      metal_clack(rng, 0.8, 0.8, 0.9) * 0.45, (creak, 0.02), servo(rng, 0.12, 900, 380, 0.22)))
+
+
 def blink():
     """Blink: a short teleport. A bright zip of air rushing up and away, a soft
     electric snap at the start and a low thump as you arrive."""
@@ -1758,6 +1773,7 @@ def recipes():
     r["grapple_attach"] = grapple_attach
     r["grapple_release"] = grapple_release
     r["grapple_miss"] = grapple_miss
+    r["grapple_taut"] = grapple_taut
     r["blink"] = blink
     r["portal_open"] = portal_open
     r["portal_through"] = portal_through

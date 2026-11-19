@@ -86,6 +86,27 @@ func ready_to_fire() -> bool:
 	return not attached and cooldown_left <= 0.0
 
 
+## Fired but not pulling yet. Never, for this hook: it catches the instant it is
+## fired. Grappling Hook 2's flies there first (see HookShot).
+func busy() -> bool:
+	return false
+
+
+## Is there rope out of the launcher (the arm points along it), and where does it end?
+func rope_out() -> bool:
+	return attached
+
+
+func rope_end() -> Vector3:
+	return anchor
+
+
+## Has the rope pulled tight since the last call, some time after it was fired?
+## (HookShot. This hook says so from try_attach.)
+func take_hooked() -> bool:
+	return false
+
+
 ## Where the rope meets the player's body (around the chest).
 func rope_origin(body: Node3D) -> Vector3:
 	return body.global_position + Vector3(0, tuning.grapple_attach_height, 0)
