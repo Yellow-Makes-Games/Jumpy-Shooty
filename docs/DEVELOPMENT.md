@@ -72,6 +72,13 @@ Quick checks:
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- the body on Grappling Hook 2's rope (`tests/rope_swing_test.gd`, with `--fixed-fps 60`):
+  the first hook and the slack phase are untouched; tight, the body leans along the rope
+  with the legs trailing and the gun down; the jolt grows with the slack; the legs follow
+  the hips after a change of direction; a shot brings the gun up at once; the hips face
+  the swing and the chest the aim; steering works the legs; letting go on the way up
+  rolls the body (whichever news arrives first, and a shot hurries it); your own body
+  leans less; a blade hangs point down, a cape streams; killcam bodies are told the rope;
 - ragdolls (`tests/ragdoll_test.gd`, with `--fixed-fps 60`), for every robot and two
   custom characters: thrown over a floor they settle above it, at rest, with elbows and
   knees bent the right way; each lasts 10 s and dissolves, a respawn or the player
@@ -1723,6 +1730,36 @@ dummy, taps once and then lets go a full wind-up (add `--speed=0.25` for slow mo
 `tests/weapon_test.gd` checks every blow: the left hand stays on the handle, the blow
 ends back at ready, the taps take turns, a mid-air move's turn ends as it lands, and what a
 ground slam does at each distance. `tests/movement_test.gd` checks the hang and the slam's fall.
+
+**On Grappling Hook 2's rope** the body has no clip either, once the rope has pulled
+tight: `game/player/robot/rope_swing.gd` (RopeSwing) hangs it from the left arm. The hips
+lean toward the line of the rope, the legs trail further along it, and the chest and head
+stay nearer upright, on your aim. Each part follows where it should hang on a spring of
+its own (the hips, then the thighs, then the shins, and the gun arm), so the legs swing a
+beat after the body when the rope changes direction; the numbers at the top of the file
+say how far each leans, how fast it follows and how soon it settles. The moment the rope
+pulls tight the body takes a jolt, harder the more slack the winch took in. The hips face
+along the swing while the waist turns to keep the chest on the aim, steering along the
+swing works the legs (a flag in the movement snapshot, so everyone sees it), a cape and a
+tail stream behind (`RobotModel.settle_sway`), and letting go on the way up, fast, rolls
+the body forward once (`FLIP_RISE`, `FLIP_SPEED`; a shot or a swing hurries it). The gun
+hangs at your side until you shoot: a shot brings it up at once, and it drops again
+`ROPE_AIM_HOLD` seconds after the last (`robot_animator.gd`); a blade hangs point down.
+`RobotAnimator` lays all this over its own steps and `ViewModel` moves your arms in first
+person with the same springs (the gun low and canted but still in view: `ROPE_GUN_...`
+in `view_model.gd`). It is looks only: nothing in it moves the player, and it is worked
+out from what every copy of the game knows about a player (`RobotAnimInput.hook_taut`,
+`hook_slack`), so other players and killcams hang the same way. The first grappling hook
+and the slack before the rope is tight are as they were. To film it:
+
+```
+tools/robot/rope_preview.sh OUT_DIR --scene=swing --step=0.0083333   # a test stage, from the side and behind, half speed: OUT_DIR/rope.mp4
+tools/robot/rope_preview.sh OUT_DIR --scene=player --weapon=sword    # reeled in to a hooked player; also under (round a hook, steering), turn (aiming off to the side)
+tools/robot/rope_film.sh OUT_DIR swing third                         # the real game, played by a script on the Testing Grounds: OUT_DIR/swing_third.mp4
+tools/robot/rope_film.sh OUT_DIR player first --weapon=hammer        # scenes: swing, pump, player; first or third person
+```
+
+`tests/rope_swing_test.gd` checks each of those things on a body driven by made-up movement.
 
 ## Sound effects
 

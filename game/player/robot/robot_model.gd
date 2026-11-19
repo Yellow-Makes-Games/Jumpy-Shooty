@@ -41,6 +41,8 @@ const SWAY_PARENT := {"cape": "hips", "tail": "hips"}
 const CAPE_BAND := 0.08       ## the cape bends over this far either side of its bone
 const CAPE_LEAN := deg_to_rad(30.0)   ## the most a cape's hem leans out from hanging straight down
 const SWAY_FLOOR := 0.04      ## the lowest a cape's hem or a tail's tip goes (above the feet)
+const CAPE_STREAM := deg_to_rad(72.0)   ## streaming behind a body on a rope, a cape's hem leans out this far at most...
+const TAIL_STREAM := deg_to_rad(38.0)   ## ...and a tail's tip turns this far toward the way it streams
 
 static var _view_meshes := {}     # body mesh -> the mesh without VIEW_HIDDEN
 static var _gun_meshes := {}      # [model file, gun] -> [the mesh with only that gun, which surface of the full mesh each surface was]
@@ -433,7 +435,11 @@ func _add_sway(list: Array) -> void:
 ## Poses the cape's and the tail's bones for the pose the body is in now (call after
 ## posing the skeleton): a cape hangs from the small of the back, leaning out no more
 ## than CAPE_LEAN, and neither a cape's hem nor a tail's tip goes below SWAY_FLOOR.
-func settle_sway() -> void:
+## stream: on a rope (RopeSwing), the way everything loose streams out behind the body,
+## in the model's space, as long as it is strong (0..1): the cape and the tail go with it.
+func settle_sway(stream: Vector3 = Vector3.ZERO) -> void:
+	var blow := minf(stream.length(), 1.0)
+	var blown := stream / stream.length() if blow > 0.001 else Vector3.DOWN
 	for s in _sway:
 		var parent := skeleton.get_bone_global_pose(s.parent) * (s.rest as Transform3D)
 		var turn := parent.basis.get_rotation_quaternion()
@@ -448,15 +454,24 @@ func settle_sway() -> void:
 			# Hang: never forward of straight down (under the body, through the legs),
 			# and leaning back out no more than CAPE_LEAN.
 			var d := tip.normalized()
+			if blow > 0.001 and d.dot(blown) > -0.99:
+				d = d.slerp(blown, blow * 0.85)
 			var fwd := d.dot(ahead)
 			if fwd > 0.0:
 				d = (d - ahead * fwd).normalized() if (d - ahead * fwd).length_squared() > 1e-6 else Vector3.DOWN
 			var lean := d.angle_to(Vector3.DOWN)
-			if lean > CAPE_LEAN:
+			var most := lerpf(CAPE_LEAN, CAPE_STREAM, blow)
+			if lean > most:
 				var axis := d.cross(Vector3.DOWN)
 				if axis.length_squared() > 1e-8:
-					d = Quaternion(axis.normalized(), lean - CAPE_LEAN) * d
+					d = Quaternion(axis.normalized(), lean - most) * d
 			q = Quaternion(tip.normalized(), d)
+		elif blow > 0.001 and tip.length_squared() > 1e-6:
+			# A tail: its tip turns toward the way it streams.
+			var d := tip.normalized()
+			var axis := d.cross(blown)
+			if axis.length_squared() > 1e-8:
+				q = Quaternion(axis.normalized(), minf(d.angle_to(blown), TAIL_STREAM * blow))
 		if parent.origin.y + (q * tip).y < SWAY_FLOOR:
 			# Swung back and up, about the left-right axis, just far enough.
 			var back := 1.0 if (Quaternion(side, 0.1) * (q * tip)).dot(ahead) < (q * tip).dot(ahead) else -1.0

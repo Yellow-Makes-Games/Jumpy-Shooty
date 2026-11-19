@@ -337,6 +337,8 @@ func _process(delta: float) -> void:
 		_anim.grapple_on = g.rope_out()
 		_anim.grapple_anchor = g.rope_end()
 		_anim.hook2 = hook2 != null
+		# (What the body needs of that rope to hang on it: see RopeSwing.)
+		_anim.set_hook(hook2.line.look(hook2.clock, hook2.rope_origin(self), hook2.rope_origin(self)) if hook2 and alive else [])
 		_watch_swings(delta)
 		_watch_kicks()
 		_animate(delta)
@@ -390,6 +392,8 @@ func _process(delta: float) -> void:
 	else:
 		_anim.grapple_on = _rope_on
 		_anim.grapple_anchor = _rope_anchor
+	var rope_at := global_position + Vector3(0, HookLine.ATTACH_HEIGHT, 0)
+	_anim.set_hook(shot.look(rt, rope_at, rope_at, hook_anchor) if shot and alive else [])
 	_watch_swings(delta)
 	_watch_kicks()
 	_animate(delta)
@@ -1645,7 +1649,8 @@ func _my_anim_flags() -> int:
 		flip = RobotAnimInput.FLIP_FRONT
 	return RobotAnimInput.make_flags(wall.dot(right) < 0.0, motor.is_vaulting(),
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
-		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive, _swing_side)
+		_kicks, _fly_kick > 0.0, motor.boosts, _charge >= 0.0 and alive, jetpack != null and jetpack.on and alive, _swing_side,
+		motor.state == MovementController.State.GRAPPLE and input.move.length() > 0.3)
 
 
 ## Turns the body to face its yaw and plays its animation.

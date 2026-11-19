@@ -20,6 +20,7 @@ CHECKS=(
   "movement_b|--fixed-fps 60 --script tests/movement_b_test.gd"
   "grapple_points|--script tests/grapple_point_test.gd"
   "robot|--fixed-fps 60 --script tests/robot_test.gd"
+  "rope_swing|--fixed-fps 60 --script tests/rope_swing_test.gd"
   "ragdoll|--fixed-fps 60 --script tests/ragdoll_test.gd"
   "custom_character|--script tests/custom_character_test.gd"
   "gibs|--fixed-fps 60 --script tests/gibs_test.gd"
