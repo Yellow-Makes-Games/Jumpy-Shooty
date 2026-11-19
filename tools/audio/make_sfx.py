@@ -1007,6 +1007,42 @@ def portal_through():
     return finish(mix(whoomp, drop, air))
 
 
+def portal_shot():
+    """The portal gun firing: a short, round "thoomp" from the launcher on the wrist (a
+    pressurised charge let go), with a bright zip of the bolt leaving."""
+    rng = np.random.default_rng(9810)
+    thoomp = sine_sweep(0.16, 420, 120, 0.03) * env(0.16, 0.045, 0.001) * 0.9
+    puff = lp(noise(rng, 0.09), 1800) * env(0.09, 0.02, 0.0008) * 0.5
+    zip_ = sweep_bp(noise(rng, 0.14), 1400, 5200, 3.0, 0.7) * env(0.14, 0.05, 0.002) * 0.35
+    ring = np.sin(2 * math.pi * 660.0 * tt(0.2)) * env(0.2, 0.06, 0.002) * 0.12
+    return finish(mix(thoomp, puff, zip_, ring))
+
+
+def portal_close():
+    """A portal snapping shut: the hum pulled down and inward in a quarter of a second,
+    a breath of air drawn in after it and a soft pop as it goes."""
+    rng = np.random.default_rng(9820)
+    seconds = 0.3
+    t = tt(seconds)
+    p = np.clip(t / seconds, 0.0, 1.0)
+    f = 360.0 * (1.0 - 0.72 * p ** 1.5)
+    ph = 2 * math.pi * np.cumsum(f) / SR
+    hum = (np.sin(ph) + 0.35 * np.sin(1.5 * ph)) * (1.0 - p) ** 1.2 * np.clip(t / 0.01, 0.0, 1.0) * 0.4
+    suck = sweep_bp(noise(rng, 0.26), 2600, 420, 2.4, 0.8) * bell_env(0.26, 0.55, 1.6) * 0.5
+    pop = mix(lp(noise(rng, 0.04), 1300) * env(0.04, 0.008, 0.0005), sine_sweep(0.07, 200, 90, 0.012) * env(0.07, 0.018) * 0.8)
+    return finish(mix(hum, suck, (pop, 0.24, 0.7)))
+
+
+def portal_fizzle():
+    """A portal shot that does not take: the bolt spatters on the surface and dies. A
+    dull crackle falling away, no hum."""
+    rng = np.random.default_rng(9830)
+    crackle = hp(noise(rng, 0.22), 1800) * env(0.22, 0.05, 0.001) * (0.5 + 0.5 * np.sign(np.sin(2 * math.pi * 55.0 * tt(0.22) ** 0.8)))
+    drop = sweep_bp(noise(rng, 0.25), 1800, 300, 2.2, 0.7) * env(0.25, 0.07, 0.002) * 0.55
+    thud = sine_sweep(0.09, 170, 80, 0.02) * env(0.09, 0.022) * 0.45
+    return finish(mix(crackle * 0.45, drop, thud))
+
+
 # ---------------------------------------------------------------------------
 # Menus and match flow
 
@@ -1882,6 +1918,9 @@ def recipes():
     r["blink"] = blink
     r["portal_open"] = portal_open
     r["portal_through"] = portal_through
+    r["portal_shot"] = portal_shot
+    r["portal_close"] = portal_close
+    r["portal_fizzle"] = portal_fizzle
     for u in ["ui_hover", "ui_click", "ui_confirm", "ui_back", "ui_toggle", "ui_tick", "ui_select"]:
         r[u] = lambda u=u: ui(u)
     r["match_start"] = match_start

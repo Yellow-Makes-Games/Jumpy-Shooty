@@ -1670,9 +1670,9 @@ func _portal(delta: float, visible: bool) -> void:
 		var dir := (spot + Vector3(0, -0.3, 0) - eye).normalized()
 		var found := PortalGun.find_spot(me, eye, dir)
 		var floor_needed := _portal_step == 1   # its own one goes on the floor, to walk into
-		if found.is_empty() or (floor_needed and (found.normal as Vector3).y < 0.7) or (found.at as Vector3).distance_to(spot) > (6.0 if _portal_step == 0 else 3.5):
+		if not found.has("at") or (floor_needed and (found.normal as Vector3).y < 0.7) or (found.at as Vector3).distance_to(spot) > (6.0 if _portal_step == 0 else 3.5):
 			if DevArgs.sync_log:
-				print("BOT_PORTAL_SKIP %d step %d %s" % [me.peer_id, _portal_step, "none" if found.is_empty() else "%.2f %.1f" % [(found.normal as Vector3).y, (found.at as Vector3).distance_to(spot)]])
+				print("BOT_PORTAL_SKIP %d step %d %s" % [me.peer_id, _portal_step, "none" if not found.has("at") else "%.2f %.1f" % [(found.normal as Vector3).y, (found.at as Vector3).distance_to(spot)]])
 			_portal_plan = 0.0   # no floor there to take a portal
 			return
 		gun.next_slot = _portal_step   # far one blue, near one orange

@@ -14,6 +14,7 @@ const BODY_SWAP := 0.35   ## how far toward third person the view switches to th
 const VIEW_BODY_UNTIL := 0.03  ## the first-person body goes as soon as the camera pulls out (it has no head)
 
 const KICK_ZOOM := 0.09   ## how far a full kick() narrows the field of view, as a share of it
+const RUSH_WIDEN := 0.06  ## how far a full rush() widens it
 
 var pivot: Node3D
 var arm: SpringArm3D
@@ -22,6 +23,11 @@ var camera: Camera3D
 
 var _blend := 0.0   # 0 = first person, 1 = third person
 var _kick := 0.0    # the view punched in by a heavy landing (see kick), easing back
+var _rush := 0.0    # the view widened by a burst of speed (see rush), easing back
+## The first-person view is this far (a world offset) from the eyes: coming out of a
+## portal it starts where the eyes would be had you walked through, and the player
+## eases this to nothing (Player.view_carried).
+var shift := Vector3.ZERO
 
 
 func _init() -> void:
@@ -83,9 +89,10 @@ func _process(delta: float) -> void:
 	# (The player placed the first-person body for last frame's blend, so wait for both.)
 	camera.set_cull_mask_value(VIEW_BODY_LAYER, maxf(_blend, before) <= VIEW_BODY_UNTIL)
 	camera.set_cull_mask_value(Player.VIEWMODEL_LAYER, _blend <= BODY_SWAP)
-	if _kick > 0.0:
+	if _kick > 0.0 or _rush > 0.0:
 		_kick = maxf(_kick - delta * 3.5, 0.0)
-		camera.fov = Settings.field_of_view * (1.0 - KICK_ZOOM * _kick * _kick)
+		_rush = maxf(_rush - delta * 3.0, 0.0)
+		camera.fov = Settings.field_of_view * (1.0 - KICK_ZOOM * _kick * _kick) * (1.0 + RUSH_WIDEN * _rush * _rush)
 
 
 ## Puts the camera where this frame's view is. The rig does it every frame, but
@@ -99,11 +106,18 @@ func place() -> void:
 		return
 	var s := smoothstep(0.0, 1.0, _blend)
 	camera.global_transform = pivot.global_transform.interpolate_with(tp_anchor.global_transform, s)
+	if shift != Vector3.ZERO:
+		camera.global_position += shift * (1.0 - s)
 
 
 ## The view punches in for a moment and eases back (`amount` 0..1): the landing of a ground slam.
 func kick(amount: float) -> void:
 	_kick = clampf(maxf(_kick, amount), 0.0, 1.0)
+
+
+## The view widens for a moment and eases back (`amount` 0..1): shot out of a portal.
+func rush(amount: float) -> void:
+	_rush = clampf(maxf(_rush, amount), 0.0, 1.0)
 
 
 func _on_settings_changed() -> void:

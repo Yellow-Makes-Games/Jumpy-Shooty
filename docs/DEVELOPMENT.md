@@ -176,6 +176,16 @@ Quick checks:
   for the whole way and a tracer through both, a rocket (host and look) does too, a lone
   portal or one from behind lets shots on, and a portal on a moving part rides it, lands on
   the same spot from a message, and closes when the part goes;
+- the portal gun (`tests/portal_gun_test.gd`), in a real Practice match on the Construction
+  Site: where portals go (flat on a flat wall; on the ribs of a container, on a beam, with
+  nothing through the face and a collar behind; moved in from an edge and a corner, off a
+  crate, clear of the floor; none on a post too narrow, which fizzles), opening and
+  closing (springs open, the replaced one closes and is gone), and going through (a 45 m/s
+  fall comes out at full speed, the same spot on the other oval, the look carried up and
+  down, on your feet wall to wall, straight back in, drawn onto a floor portal, shots
+  ripple it); and online (`tests/run_portal_sync_test.sh`: a host and two clients on a
+  bad network all shooting portals; every copy has every portal in the same place with
+  the same collar, and sees the others' guns fire);
 - see-through portals (`tests/portal_view_test.gd`): looking at a point on one portal shows
   what lies straight on through the other (wall to wall, wall to floor, from the side and
   above), a portal behind you, seen from behind its wall or without its partner opens no
@@ -752,6 +762,7 @@ The scripts behind this:
 | `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
 | `game/arena/map_replay.gd` | How killcams record the map's moving parts and draw them as they were (see "Moving parts in killcams") |
 | `game/arena/map_spinner.gd` | Scenery that turns (never solid) |
+| `game/arena/portals.gd`, `portal.gd`, `portal_fit.gd`, `portal_window.gdshader`, `portal_rim.gdshader` | The portal gun's portals: who has which and moving players through (`Portals`), one portal's look and animations (`Portal`), and fitting a portal to the surface it is shot at (`PortalFit`: moved off edges and obstacles, stood on what sticks out). Blocks that are drawn but not solid (ribs, signs, rails) count through `MapRoot.decor_relief`, so decoration on a map needs nothing special to keep out of portals |
 | `game/arena/map_gravity_zone.gd`, `map_lift_well.gd`, `map_ring_gate.gd`, `portal_surge_event.gd`, `orbit_event.gd`, `map_drone.gd` | Places with their own gravity, tractor-beam lifts, ring gates and the Portal Surge, orbiting islands, scenery drones (Empyrean Tower; any map can use them) |
 | `game/arena/haunt_prop.gd`, `haunt_event.gd`, `map_ghost.gd` | Furniture that floats, shifts and vanishes, doorways that come and go, the clock that moves them, and the ghosts (Haunted House; any map can use them) |
 | `game/arena/map_surface.gdshader` | The patterns a palette's Surface list draws on a kind (panel seams, tiles, grating, hazard stripes...) |
@@ -1819,6 +1830,10 @@ godot --headless --path . --import
 Cirrus's clock has six sounds of its own (`clock_tick`, `clock_tock`, `bell_toll`,
 `layout_rise`, `island_move`, `bridge_lock`), played by its LayoutEvent. The tick is the
 quietest sound in the game on purpose.
+
+The portal gun has five (`portal_open`, `portal_through`, and `portal_shot` for the bolt
+leaving the gun, `portal_close` as a portal snaps shut, `portal_fizzle` for a shot at a
+surface that takes no portal).
 
 Empyrean Tower's Portal Surge has three (`surge_open`, `surge_close`, and `gate_hum`,
 which loops and is played by each open MapRingGate). Each of its tiers has a quiet loop

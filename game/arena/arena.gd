@@ -257,6 +257,8 @@ func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit
 	if p:
 		p.show_shot()
 	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
+	if portals:
+		portals.shots_through(vias)
 	Sound.shot_landed(p.muzzle_position() if p else muzzle, ends, hits, false)
 
 
