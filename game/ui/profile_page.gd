@@ -23,6 +23,13 @@ var _account: VBoxContainer
 func _init() -> void:
 	add_theme_constant_override("separation", 14)
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_build()
+	if Account.available():
+		Account.changed.connect(_on_account_changed)
+
+
+## Everything on the page, from what is saved now (built again after a sync).
+func _build() -> void:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 30)
 	add_child(top)
@@ -79,7 +86,6 @@ func _init() -> void:
 		_account.add_theme_constant_override("separation", 6)
 		right.add_child(_account)
 		_show_account()
-		Account.changed.connect(_on_account_changed)
 
 	var rule := ColorRect.new()
 	rule.color = Color(UiKit.LINE, 0.12)
@@ -288,11 +294,15 @@ func _on_name(text: String) -> void:
 func _on_account_changed() -> void:
 	if not is_inside_tree():
 		return
-	_show_account()
-	# A sync may have brought a profile from another computer.
-	if _name_edit and not _name_edit.has_focus() and _name_edit.text != Settings.player_name:
-		_name_edit.text = Settings.player_name
-	_card.show_card(Settings.calling_card, Settings.icon, Game.local_name())
+	# A sync may have brought progress or a profile from another computer: build the
+	# page again (unless you are typing your name, which would lose your place).
+	if Account.busy == "" and not (_name_edit and _name_edit.has_focus()):
+		for child in get_children():
+			remove_child(child)
+			child.queue_free()
+		_build()
+	else:
+		_show_account()
 
 
 ## Signed out: a button for each sign-in provider. Signed in: who as, the sync's

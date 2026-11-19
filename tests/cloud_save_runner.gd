@@ -46,6 +46,7 @@ func run() -> void:
 		Settings.tracked_achievements.duplicate(), Settings.profile_updated_at, Settings.calling_card, Settings.icon]
 	Achievements.reset_for_test()
 	Settings.custom_characters.clear()   # (this computer's own characters would join in)
+	Settings.adopt_profile(0.0)   # (and its own profile, if changed lately, would be the newer)
 	Achievements.add("kills", 3)
 	Achievements._toasts.clear()
 	var toasts := Achievements._toasts.size()

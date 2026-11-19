@@ -31,7 +31,8 @@ What's kept (see `game/online/cloud_save.gd`):
 
    The game listens there for a moment while you sign in (`Account.REDIRECT_PORT`).
 5. **Point the game at the project.** Copy `game/online/supabase.example.cfg` to
-   `game/online/supabase.cfg` and fill in the Project URL and the **anon** (public)
+   `game/online/supabase.cfg` and fill in the Project URL and the **anon** or **publishable**
+   (`sb_publishable_...`, public)
    key from Project Settings > API. List the providers you turned on.
    - The anon key is meant to ship inside the game. Row-level security protects the
      data.
