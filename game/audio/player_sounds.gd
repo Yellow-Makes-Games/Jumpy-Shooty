@@ -7,10 +7,13 @@ extends RefCounted
 ## you, for bots and for other players (whose movement arrives in snapshots): it
 ## listens for changes (started a slide, landed, the reload began) rather than being
 ## told. Your own sounds play in your head; everyone else's are placed on their body.
+## A killcam's replayed players (see KillcamView) use it too: `player` is then just
+## the body's node, and `map` the replay's copy of the map.
 
 const S := MovementController.State
 
-var player: Player
+var player: Node3D   ## the body (a Player, or a killcam's replayed body)
+var map: MapRoot     ## where to look up what is underfoot; null: the match's map
 var own := false          ## your own player: sounds in your head, not placed in the world
 var weapon_id := "pistol"
 
@@ -35,7 +38,7 @@ var _quiet := 0.0              # seconds of silence left (just spawned: no landi
 var _glide_voice: Node         # the wind of a glide while it plays, so it can be faded when the glide ends
 
 
-func _init(p: Player, is_own: bool, gun: String) -> void:
+func _init(p: Node3D, is_own: bool, gun: String) -> void:
 	player = p
 	own = is_own
 	weapon_id = gun
@@ -263,10 +266,10 @@ func _steps(a: RobotAnimInput, state: int, speed: float, delta: float) -> void:
 
 ## What this player is standing on (a BlockMaterials name).
 func surface() -> String:
-	var map := MapRoot.current
-	if map == null or not is_instance_valid(map):
+	var on := map if map and is_instance_valid(map) else MapRoot.current
+	if on == null or not is_instance_valid(on):
 		return BlockMaterials.DEFAULT
-	return map.material_at(player.global_position)
+	return on.material_at(player.global_position)
 
 
 func _gun(a: RobotAnimInput, delta: float) -> void:
