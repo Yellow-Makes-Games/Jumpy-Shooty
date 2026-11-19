@@ -44,14 +44,35 @@ const MATERIALS := {
 	"pearl": {"color": Color(0.97, 0.95, 0.92), "metallic": 0.3, "roughness": 0.2},
 	"redlens": {"color": Color(0.90, 0.12, 0.12), "metallic": 0.2, "roughness": 0.1},
 	"bluelens": {"color": Color(0.10, 0.62, 0.92), "metallic": 0.2, "roughness": 0.1},
+	# The sci-fi pieces' own: bright and dark metal, bone, a hooded robe's cloth, a
+	# tinted lens, and their lights (LIGHTS: the player's trim colour on the body;
+	# "hardlight" is see-through, for shields, blades and wings of light).
+	"chrome": {"color": Color(0.80, 0.82, 0.86), "metallic": 0.45, "roughness": 0.18, "emission": Color(0.12, 0.13, 0.15), "energy": 0.3},
+	"carbon": {"color": Color(0.13, 0.14, 0.16), "metallic": 0.25, "roughness": 0.45},
+	"bone": {"color": Color(0.88, 0.84, 0.72), "metallic": 0.0, "roughness": 0.65},
+	"robe": {"color": Color(0.34, 0.07, 0.07), "metallic": 0.0, "roughness": 0.85},
+	"smoke": {"color": Color(0.08, 0.10, 0.14, 0.62), "metallic": 0.4, "roughness": 0.08, "alpha": true},
+	"energy": {"color": Color(0.4, 0.85, 1.0), "metallic": 0.0, "roughness": 0.4, "emission": Color(0.4, 0.85, 1.0)},
+	"hardlight": {"color": Color(0.4, 0.85, 1.0, 0.42), "metallic": 0.0, "roughness": 0.3, "emission": Color(0.4, 0.85, 1.0), "energy": 0.8, "alpha": true},
 }
+## Materials that light up in the player's trim colour (RobotModel), like the visors.
+const LIGHTS := ["energy", "hardlight"]
 
 ## Which bone each slot's pieces follow.
 const SLOT_BONE := {"hat": "head", "face": "head", "neck": "chest", "shoulder": "chest", "back": "chest", "waist": "hips", "tail": "hips"}
 
 ## The material an accessory's colour paints, where it is not simply the one most of
 ## it is made of.
-const MAIN := {"jester": "purple", "shield": "accent", "drone": "steel"}
+const MAIN := {"jester": "purple", "shield": "accent", "drone": "steel",
+	# The sci-fi pieces: the colour paints the body, never the lights.
+	"cog_halo": "steel", "machine_cowl": "robe", "void_crest": "chrome", "netrunner_rig": "carbon",
+	"plasma_mohawk": "steel", "warlord_crest": "steel", "blade_halo": "chrome", "skull_crown": "chrome",
+	"hud_eyepiece": "carbon", "rebreather": "carbon", "holo_visor": "carbon", "optic_cluster": "carbon",
+	"power_collar": "carbon", "comm_torque": "chrome", "cable_bundle": "carbon",
+	"servo_skull": "bone", "mech_arm": "steel", "missile_pod": "steel", "sentinel": "chrome",
+	"energy_wings": "steel", "space_cape": "silk", "antenna_mast": "steel", "gyro_ring": "steel",
+	"cell_belt": "carbon", "thruster_skirt": "steel", "shield_belt": "steel",
+	"robo_tail": "steel", "light_streamer": "chrome"}
 
 ## Accessories that do not simply follow their slot's bone (RobotModel rigs them):
 ##   cape:  the top on the chest, the bottom on a bone of its own that hangs from the
@@ -60,13 +81,15 @@ const MAIN := {"jester": "purple", "shield": "accent", "drone": "steel"}
 ##   skirt: on the hips at the waist, more and more on each thigh further down, so
 ##          the legs do not go through it.
 const CAPE_BOTTOM := 0.68   ## how far down a cape hangs (its hem's height)
-const RIGGED := {"cape": "cape", "tutu": "skirt", "grass_skirt": "skirt"}
+const RIGGED := {"cape": "cape", "space_cape": "cape", "tutu": "skirt", "grass_skirt": "skirt", "thruster_skirt": "skirt"}
 
 ## Hats that put something on the head but leave the crown bare: hair stays under
 ## these. The ear and horn hats also take the place of the head's own ears or horns.
 const EAR_HATS := ["devil_horns", "antlers", "bunny_ears", "cat_ears", "unicorn"]
 const OPEN_HATS := ["crown", "party", "halo", "headphones", "fez", "flower_crown",
-	"devil_horns", "antlers", "bunny_ears", "cat_ears", "unicorn"]
+	"devil_horns", "antlers", "bunny_ears", "cat_ears", "unicorn", "cog_halo", "blade_halo", "skull_crown", "netrunner_rig"]
+## Hats that float clear of the head (above it, or behind): its thin bits stay.
+const FLOATING_HATS := ["halo", "cog_halo", "blade_halo"]
 ## How wide and deep (half of each) a hat is fitted, whatever the head: a hat on the
 ## slimmest head is not a thimble, nor on the widest a tent.
 const HAT_HALF := Vector2(0.1, 0.175)
@@ -237,7 +260,7 @@ static func hidden(picked: Dictionary, head: String, legs: String) -> Dictionary
 	var out := {"head": [], "legs": []}
 	var hat: String = picked.get("hat", "")
 	var own: Dictionary = HEADS.get(head, {})
-	if hat != "" and hat != "halo":
+	if hat != "" and hat not in FLOATING_HATS:
 		out.head.append_array(own.get("thin", []))
 	if hat != "" and hat not in OPEN_HATS:
 		out.head.append_array(own.get("hair", []))
@@ -1403,7 +1426,9 @@ func _stethoscope() -> void:
 # ---------------------------------------------------------------------------
 # Back pieces. On the chest bone, behind the shoulders.
 
-func _cape() -> void:
+## A cape's cloth, from the shoulders down to CAPE_BOTTOM: rows of points, `top` and
+## `hem` how wide it is there (times the chest's half width), `ripple` how much it folds.
+func _cape_grid(top: float = 0.85, hem: float = 1.35, ripple: float = 0.02) -> Array:
 	var top_y: float = f.neck_y - 0.01
 	var back: float = maxf(f.chest_back, 0.1)
 	var sw: float = f.chest_w
@@ -1413,14 +1438,21 @@ func _cape() -> void:
 	for i in rows + 1:
 		var t := i / float(rows)
 		var y := lerpf(top_y, CAPE_BOTTOM, t)
-		var half := lerpf(sw * 0.85, sw * 1.35, t)
+		var half := lerpf(sw * top, sw * hem, t)
 		var z := lerpf(back * 0.55, back + 0.17, t * t * 0.7 + t * 0.3)
 		var row: Array = []
 		for j in cols + 1:
 			var u := j / float(cols) * 2.0 - 1.0
-			row.append(Vector3(u * half, y - 0.015 * (1.0 - u * u) * t, z + 0.05 * (1.0 - u * u) + 0.02 * sin(u * 6.0) * t))
+			row.append(Vector3(u * half, y - 0.015 * (1.0 - u * u) * t, z + 0.05 * (1.0 - u * u) + ripple * sin(u * 6.0) * t))
 		grid.append(row)
-	_sheet("accent", grid, 0.012, Vector3.FORWARD)
+	return grid
+
+
+func _cape() -> void:
+	var top_y: float = f.neck_y - 0.01
+	var back: float = maxf(f.chest_back, 0.1)
+	var sw: float = f.chest_w
+	_sheet("accent", _cape_grid(), 0.012, Vector3.FORWARD)
 	for side: float in [-1.0, 1.0]:
 		_ball("gold", Vector3(side * sw * 0.7, top_y - 0.01, f.collar_front + 0.02), 0.024, Vector3(1, 1, 0.6), 7, 4)
 		_segment("accent", Vector3(side * sw * 0.7, top_y - 0.01, f.collar_front + 0.02), Vector3(side * sw * 0.85, top_y, back * 0.55), 0.03, Vector3.UP)
@@ -1939,3 +1971,585 @@ func _power_cord() -> void:
 	_box("joint", end + dir * 0.03, Vector3(0.05, 0.05, 0.06), _along(dir) * Basis.from_euler(Vector3(PI * 0.5, 0, 0)))
 	for side: float in [-1.0, 1.0]:
 		_segment("steel", end + dir * 0.06 + Vector3(side * 0.012, 0, 0), end + dir * 0.1 + Vector3(side * 0.012, 0, 0), 0.008)
+
+
+# ---------------------------------------------------------------------------
+# The sci-fi pieces: robot-tech and space opera, with grim cathedral-tech, sleek
+# alien armour and street-level cyberware in the mix. Their lights ("energy",
+# "hardlight") shine in the player's trim colour; a colour picked for one paints
+# its body (MAIN).
+
+# Hats.
+
+## A great spiked gear standing up behind the head, a lit core in its hub, chains
+## hanging from it.
+func _cog_halo() -> void:
+	var c := Vector3(0, f.top - 0.05, f.cz + f.d + 0.07)
+	var facing := Basis.from_euler(Vector3(PI * 0.5, 0, 0))   # its face to the back
+	var r := 0.17
+	_torus("steel", c, r, 0.035, 24, facing)
+	for k in 16:   # the teeth
+		var a := k * TAU / 16
+		var out := Vector3(cos(a), sin(a), 0)
+		_box("steel", c + out * (r + 0.03), Vector3(0.03, 0.03, 0.022), Basis(Vector3.BACK, a))
+		if k % 4 == 0:
+			_cone("gold", c + out * (r + 0.045), c + out * (r + 0.1), 0.014, 4)
+	for k in 6:   # spokes
+		var a := k * TAU / 6 + 0.26
+		_segment("carbon", c + Vector3(cos(a), sin(a), 0) * 0.05, c + Vector3(cos(a), sin(a), 0) * (r - 0.01), 0.018, Vector3.BACK)
+	_torus("energy", c, 0.12, 0.01, 20, facing)
+	_cyl("gold", c, 0.055, 0.055, 0.03, 12, facing)
+	_cyl("energy", c + Vector3(0, 0, 0.018), 0.036, 0.036, 0.01, 12, facing)
+	for side: float in [-1.0, 1.0]:   # chain links hanging from the rim
+		var top := c + Vector3(side * 0.09, -0.14, 0)
+		for k in 4:
+			var p := top + Vector3(0, -0.03 * k, 0)
+			_torus("carbon", p, 0.011, 0.005, 6, Basis.from_euler(Vector3(0, PI * 0.5 * (k % 2), PI * 0.5)))
+		_cone("gold", top + Vector3(0, -0.125, 0), top + Vector3(0, -0.16, 0), 0.014, 4)
+
+
+## A deep hood, three lit optics staring out of its shadow, cables down the back.
+func _machine_cowl() -> void:
+	var w: float = f.w * 1.25
+	var d: float = f.d * 1.25
+	var cz: float = f.cz
+	var top: float = f.top + 0.05
+	var low: float = f.bottom - 0.03
+	var rows: Array = []
+	for i in 7:
+		var t := i / 6.0
+		var y := lerpf(top, low, t)
+		var s := clampf(sqrt((top - y) / 0.09), 0.45, 1.0)   # rounds over the crown, then straight down: never inside the head
+		var open := lerpf(0.1, 0.85, smoothstep(0.1, 0.55, t))   # the face's opening, widening down
+		var row: Array = []
+		for j in 15:
+			var a := lerpf(-PI * 0.5 + open, PI * 1.5 - open, j / 14.0)
+			var lip := 0.03 * (1.0 - t) * pow(maxf(-sin(a), 0.0), 2.0)   # a peak over the brow
+			row.append(Vector3(w * s * cos(a), y, cz + d * s * sin(a) - lip))
+		rows.append(row)
+	_sheet("robe", rows, 0.014, Vector3.UP)
+	_dome("robe", w * 0.52, d * 0.52, top - 0.004, 0.025, cz, 12, 3)
+	var eye_y: float = f.get("eye_y", lerpf(f.bottom, f.top, 0.5))
+	var front: float = minf(f.eye_z, f.front) - 0.012
+	for k in 3:   # the optics: a triangle of them
+		var p := Vector3([-0.04, 0.04, 0.0][k], eye_y + [0.012, 0.012, -0.035][k], front)
+		_cyl("carbon", p + Vector3(0, 0, 0.004), 0.022, 0.018, 0.018, 8, Basis.from_euler(Vector3(PI * 0.5, 0, 0)))
+		_ball("energy", p - Vector3(0, 0, 0.006), 0.013, Vector3(1, 1, 0.6), 6, 3)
+	for side: float in [-1.0, 1.0]:   # cables from the back of the hood
+		var a := Vector3(side * 0.05, low + 0.04, cz + d * 0.85)
+		_tube("carbon", [a, a + Vector3(side * 0.02, -0.06, 0.03), a + Vector3(side * 0.03, -0.15, 0.02)], 0.012, 0.01, 5)
+		_cyl("energy", a + Vector3(side * 0.03, -0.155, 0.02), 0.014, 0.014, 0.02, 6)
+
+
+## Chrome swept back over the head into two blade horns, lit seams along it.
+func _void_crest() -> void:
+	var y: float = _rim(0.07)
+	var w: float = f.w * 1.06
+	var d: float = f.d * 1.08
+	var cz: float = f.cz
+	_dome("chrome", w, d, y, 0.1, cz, 16, 6)
+	_band("carbon", w, d, y + 0.012, 0.026, 0.006, cz, 16)
+	# A brow point out over the face.
+	_plate("chrome", [Vector3(-0.05, y + 0.06, cz - d * 0.92), Vector3(0, y + 0.03, cz - d - 0.06), Vector3(0.05, y + 0.06, cz - d * 0.92),
+		Vector3(0, y + 0.095, cz - d * 0.7)], 0.012, Vector3.UP)
+	for side: float in [-1.0, 1.0]:
+		# A horn: a blade from the temple, sweeping back and up.
+		var root := Vector3(side * w * 0.8, y + 0.05, cz - d * 0.2)
+		var blade := [root + Vector3(0, 0.035, -0.04), root + Vector3(side * 0.035, 0.075, 0.12), root + Vector3(side * 0.06, 0.13, 0.34),
+			root + Vector3(side * 0.035, 0.035, 0.2), root + Vector3(0, -0.01, 0.05)]
+		_plate("chrome", blade, 0.014, Vector3(side, 0.6, 0))
+		_segment("energy", root + Vector3(side * 0.012, 0.04, -0.03), root + Vector3(side * 0.07, 0.13, 0.34), 0.008)
+		_segment("energy", Vector3(side * w * 0.45, y + 0.075, cz - d * 0.75), Vector3(side * w * 0.5, y + 0.09, cz + d * 0.6), 0.007)
+	_segment("energy", Vector3(0, y + 0.1, cz - d * 0.6), Vector3(0, y + 0.1, cz + d * 0.6), 0.008)
+
+
+## A harness round the head: pods at the temples with cables to the back of the
+## neck, a flip-down smoked visor, a little cooling fan.
+func _netrunner_rig() -> void:
+	var eye_y: float = f.get("eye_y", lerpf(f.bottom, f.top, 0.5))
+	var y: float = lerpf(eye_y, f.top, 0.55)
+	var w: float = f.w + 0.012
+	var d: float = f.d + 0.012
+	_torus("carbon", Vector3(0, y, f.cz), w, 0.016, 18, Basis.IDENTITY, d)
+	_segment("carbon", Vector3(-w * 0.6, y, f.cz), Vector3(-w * 0.2, f.top + 0.006, f.cz), 0.014)
+	_segment("carbon", Vector3(-w * 0.2, f.top + 0.006, f.cz), Vector3(w * 0.6, y, f.cz), 0.014)
+	for side: float in [-1.0, 1.0]:
+		var pod := Vector3(side * (w + 0.012), eye_y + 0.02, f.cz - 0.01)
+		_box("carbon", pod, Vector3(0.03, 0.07, 0.07))
+		_box("energy", pod + Vector3(side * 0.016, 0.012, -0.01), Vector3(0.004, 0.012, 0.04))
+		var back := Vector3(side * 0.05, f.bottom - 0.03, f.cz + d)
+		_tube("joint", [pod + Vector3(0, -0.03, 0.03), pod + Vector3(side * 0.01, -0.08, 0.09), back], 0.009, 0.009, 5)
+		_tube("energy", [pod + Vector3(0, -0.02, 0.035), pod + Vector3(side * 0.012, -0.06, 0.1), back + Vector3(0, 0.02, -0.01)], 0.004, 0.004, 4)
+		# The visor's arms, down from the pods.
+		_segment("carbon", pod + Vector3(0, 0.025, -0.03), Vector3(side * w * 0.95, eye_y + 0.035, f.front + 0.01), 0.01)
+	var vz: float = minf(f.eye_z, f.front) - 0.03
+	var rows: Array = []
+	for row in 2:
+		var r: Array = []
+		for k in 7:
+			var u := k / 6.0 * 2.0 - 1.0
+			r.append(Vector3(u * w * 0.95, eye_y + 0.035 - row * 0.05, vz + 0.035 * u * u + row * 0.012))
+		rows.append(r)
+	_sheet("smoke", rows, 0.006, Vector3.BACK)
+	_segment("energy", Vector3(-w * 0.9, eye_y + 0.037, vz + 0.03), Vector3(w * 0.9, eye_y + 0.037, vz + 0.03), 0.005)
+	var fan := Vector3(w + 0.03, eye_y + 0.02, f.cz - 0.01)
+	var sideways := Basis.from_euler(Vector3(0, 0, PI * 0.5))
+	_cyl("steel", fan, 0.026, 0.026, 0.012, 10, sideways)
+	for k in 4:
+		_box("joint", fan + Vector3(0.008, 0, 0), Vector3(0.004, 0.044, 0.008), Basis(Vector3.RIGHT, k * PI / 4))
+
+
+## A blade of hard light down the middle of the head, on a steel spine.
+func _plasma_mohawk() -> void:
+	var y: float = f.top + 0.004
+	var spine: Array = []
+	for k in 7:
+		var t := k / 6.0
+		var a := lerpf(-1.2, 1.25, t)
+		spine.append(Vector3(0, y - 0.05 * (1.0 - cos(a)) * 1.6, f.cz + f.d * 0.95 * sin(a)))
+	for k in 6:
+		_segment("steel", spine[k], spine[k + 1], 0.026)
+		_box("energy", (spine[k] + spine[k + 1]) * 0.5 + Vector3(0, 0.014, 0), Vector3(0.03, 0.004, 0.01))
+	var blade: Array = []
+	for k in 7:
+		var t := k / 6.0
+		blade.append(spine[k] + Vector3(0, 0.03 + 0.12 * sin(t * PI * 0.8) + 0.04 * t, 0.02 * t))
+	_plate("hardlight", [spine[0]] + blade + [spine[6]] + [spine[3]], 0.01, Vector3.RIGHT)
+	for k in 6:
+		_segment("energy", blade[k], blade[k + 1], 0.008)
+
+
+## An armoured half-helm with a tall bristle crest from brow to nape.
+func _warlord_crest() -> void:
+	var y: float = _rim(0.06)
+	var w: float = f.w * 1.07
+	var d: float = f.d * 1.07
+	var cz: float = f.cz
+	_dome("steel", w, d, y, 0.095, cz, 16, 6)
+	_band("gold", w, d, y + 0.01, 0.022, 0.006, cz, 16)
+	_band("energy", w, d, y + 0.03, 0.006, 0.008, cz, 16)
+	# The ridge, then the crest along it.
+	var ridge: Array = []
+	for k in 9:
+		var a := lerpf(-1.25, 1.25, k / 8.0)
+		ridge.append(Vector3(0, y + 0.095 * cos(a * 0.8) + 0.004, cz + d * sin(a)))
+	for k in 8:
+		_segment("gold", ridge[k], ridge[k + 1], 0.024)
+	for k in 17:
+		var t := k / 16.0
+		var base: Vector3 = (ridge[int(t * 8.0 - 0.001)] as Vector3).lerp(ridge[mini(int(t * 8.0) + 1, 8)], fmod(t * 8.0, 1.0))
+		var tall := 0.15 * sin(lerpf(0.25, 2.9, t)) + 0.03
+		var lean := lerpf(-0.03, 0.09, t)
+		_cone("red", base - Vector3(0, 0.01, 0), base + Vector3(0, tall, lean), 0.022, 4, 0.35)
+
+
+## A ring of floating blades above the head, round a thin ring of light.
+func _blade_halo() -> void:
+	var c := Vector3(0, f.top + 0.045, f.cz)
+	var r: float = maxf(f.w, f.d) * 1.1
+	_torus("energy", c, r * 0.8, 0.009, 24)
+	for k in 10:
+		var a := k * TAU / 10 + PI * 0.1
+		var out := Vector3(cos(a), 0, sin(a))
+		var side := out.cross(Vector3.UP)
+		var base := c + out * r * 0.85
+		var tip := base + out * 0.09 + Vector3(0, 0.13, 0)
+		var lean := (tip - base).normalized()
+		_plate("chrome", [base + side * 0.022, base + lean * 0.08 + side * 0.016, tip, base + lean * 0.08 - side * 0.012, base - side * 0.022], 0.008, -out)
+		_box("carbon", base, Vector3(0.026, 0.016, 0.026), Basis(Vector3.UP, -a))
+
+
+## A chrome skull on the brow, its eyes lit, on a spiked band.
+func _skull_crown() -> void:
+	var y: float = _rim(0.035)
+	var w: float = f.w + 0.006
+	var d: float = f.d + 0.006
+	var cz: float = f.cz
+	_band("carbon", w, d, y, 0.03, 0.006, cz, 18)
+	for k in 12:
+		var a := k * TAU / 12 + PI * 0.5
+		if absf(sin(a) + 1.0) < 0.2:
+			continue   # the skull sits at the front
+		var p := Vector3(w * 1.02 * cos(a), y + 0.012, cz + d * 1.02 * sin(a))
+		_cone("chrome", p, p + Vector3(0, 0.075, 0), 0.014, 4)
+	var s := Vector3(0, y + 0.06, cz - d - 0.016)
+	_ball("chrome", s, 1.0, Vector3(0.058, 0.055, 0.05), 9, 5)
+	_box("chrome", s + Vector3(0, -0.055, -0.01), Vector3(0.056, 0.03, 0.042))
+	for side: float in [-1.0, 1.0]:
+		_ball("carbon", s + Vector3(side * 0.022, -0.006, -0.039), 1.0, Vector3(0.018, 0.017, 0.012), 6, 3)
+		_ball("energy", s + Vector3(side * 0.022, -0.006, -0.045), 0.009, Vector3.ONE, 5, 3)
+	for k in 4:
+		_box("carbon", s + Vector3(-0.021 + k * 0.014, -0.062, -0.031), Vector3(0.006, 0.018, 0.004))
+	_cone("carbon", s + Vector3(0, -0.026, -0.046), s + Vector3(0, -0.04, -0.049), 0.009, 3)
+
+
+# Faces.
+
+## An eyepiece on an arm from the temple, a lit reticle on its screen.
+func _hud_eyepiece() -> void:
+	var x := _lens_x()
+	var y: float = f.eye_y
+	var z: float = f.eye_z - 0.03
+	var temple := Vector3(-(f.w + 0.01), y + 0.01, f.cz)
+	_box("carbon", temple, Vector3(0.02, 0.05, 0.06))
+	_cyl("energy", temple + Vector3(-0.011, 0, 0), 0.01, 0.01, 0.004, 6, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
+	var corner := Vector3(-(f.w + 0.012), y + 0.012, f.front + 0.005)
+	_segment("carbon", temple + Vector3(0, 0, -0.03), corner, 0.012)
+	_segment("carbon", corner, Vector3(-x - 0.03, y + 0.01, z), 0.012)
+	var facing := Basis.from_euler(Vector3(PI * 0.5, 0, 0))
+	var lens := Vector3(-x, y, z)
+	_box("carbon", lens + Vector3(0, 0, 0.004), Vector3(0.062, 0.05, 0.01))
+	_cyl("hardlight", lens - Vector3(0, 0, 0.003), 0.024, 0.024, 0.004, 12, facing)
+	_torus("energy", lens - Vector3(0, 0, 0.006), 0.016, 0.003, 12, facing)
+	_box("energy", lens - Vector3(0, 0, 0.007), Vector3(0.03, 0.002, 0.002))
+	_box("energy", lens - Vector3(0, 0, 0.007), Vector3(0.002, 0.03, 0.002))
+
+
+## A mask over the mouth: vents, two canisters, lit tubes back round the head.
+func _rebreather() -> void:
+	var y: float = f.mouth_y + 0.005
+	var z: float = f.mouth_z - 0.022
+	var facing := Basis.from_euler(Vector3(PI * 0.5, 0, 0))
+	_ball("carbon", Vector3(0, y, z + 0.012), 1.0, Vector3(0.065, 0.048, 0.032), 10, 5)
+	_cyl("steel", Vector3(0, y - 0.004, z - 0.016), 0.03, 0.026, 0.02, 10, facing)
+	for k in 3:
+		_box("energy", Vector3(0, y - 0.016 + k * 0.012, z - 0.027), Vector3(0.034, 0.004, 0.003))
+	for side: float in [-1.0, 1.0]:
+		var can := Vector3(side * 0.06, y - 0.018, z + 0.02)
+		_cyl("steel", can, 0.019, 0.019, 0.06, 8, Basis.from_euler(Vector3(0.35, 0, -side * 0.5)))
+		_cyl("energy", can + Vector3(side * 0.012, -0.024, -0.008), 0.012, 0.012, 0.008, 8, Basis.from_euler(Vector3(0.35, 0, -side * 0.5)))
+		var ear := Vector3(side * (f.w + 0.008), y + 0.02, f.cz)
+		_tube("joint", [Vector3(side * 0.05, y + 0.01, z + 0.02), Vector3(side * (f.w * 0.9), y + 0.016, f.front + 0.02), ear], 0.008, 0.008, 5)
+		_segment("energy", Vector3(side * (f.w * 0.9), y + 0.026, f.front + 0.02), ear + Vector3(0, 0.01, 0), 0.004)
+	_torus("joint", Vector3(0, y + 0.02, f.cz), f.w + 0.006, 0.01, 16, Basis.IDENTITY, f.d + 0.008)
+
+
+## A see-through shield of light across the eyes, on a band round the head.
+func _holo_visor() -> void:
+	var y: float = f.eye_y
+	var w: float = f.w + 0.014
+	var z: float = minf(f.eye_z, f.front) - 0.026
+	_torus("carbon", Vector3(0, y + 0.012, f.cz), w, 0.012, 18, Basis.IDENTITY, f.d + 0.014)
+	for side: float in [-1.0, 1.0]:
+		_cyl("steel", Vector3(side * w, y + 0.006, f.front + 0.012), 0.016, 0.016, 0.014, 8, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
+	var rows: Array = []
+	for row in 2:
+		var r: Array = []
+		for k in 9:
+			var u := k / 8.0 * 2.0 - 1.0
+			r.append(Vector3(u * w, y + 0.035 - row * 0.065 + 0.012 * u * u * row, z + 0.04 * u * u))
+		rows.append(r)
+	_sheet("hardlight", rows, 0.004, Vector3.BACK)
+	for row in 2:
+		for k in 8:
+			_segment("energy", rows[row][k] - Vector3(0, 0, 0.002), rows[row][k + 1] - Vector3(0, 0, 0.002), 0.004)
+
+
+## Three little camera lenses over one eye, in a housing strapped to the head.
+func _optic_cluster() -> void:
+	var x := _lens_x()
+	var y: float = f.eye_y
+	var z: float = f.eye_z - 0.02
+	var facing := Basis.from_euler(Vector3(PI * 0.5, 0, 0))
+	var c := Vector3(x, y, z)
+	_box("carbon", c + Vector3(0.004, 0, 0.004), Vector3(0.075, 0.07, 0.022))
+	var lenses := [[Vector3(-0.012, 0.01, 0), 0.022, 0.045], [Vector3(0.022, 0.018, 0), 0.012, 0.03], [Vector3(0.018, -0.022, 0), 0.01, 0.025]]
+	for l in lenses:
+		var p: Vector3 = c + (l[0] as Vector3) - Vector3(0, 0, l[2] * 0.5)
+		_cyl("steel", p, l[1] + 0.006, l[1] + 0.004, l[2], 10, facing)
+		_cyl("energy", p - Vector3(0, 0, l[2] * 0.5 + 0.001), l[1], l[1], 0.003, 10, facing)
+	_torus("carbon", Vector3(0, y + 0.01, f.cz), f.w + 0.006, 0.01, 16, Basis.IDENTITY, f.d + 0.008)
+	_box("energy", c + Vector3(-0.03, -0.028, -0.012), Vector3(0.008, 0.006, 0.003))
+
+
+# Neckwear.
+
+## A thick collar with lit core segments round the front.
+func _power_collar() -> void:
+	var rz: float = maxf(0.11, -f.collar_front + 0.01)
+	var c := Vector3(0, f.neck_y - 0.005, 0)
+	_torus("carbon", c, 0.13, 0.05, 18, Basis.IDENTITY, rz)
+	_torus("steel", c + Vector3(0, 0.026, 0), 0.128, 0.016, 18, Basis.IDENTITY, rz)
+	for k in 7:
+		var a := -PI * 0.5 + (k - 3) * 0.42
+		var p := Vector3(0.155 * cos(a), c.y, (rz + 0.025) * sin(a))
+		_box("energy", p, Vector3(0.026, 0.028, 0.012), Basis(Vector3.UP, -a - PI * 0.5))
+		_box("steel", p + Vector3(0, 0.022, 0), Vector3(0.03, 0.008, 0.016), Basis(Vector3.UP, -a - PI * 0.5))
+
+
+## A sleek ring round the neck with a comm badge at the throat.
+func _comm_torque() -> void:
+	var rz: float = maxf(0.11, -f.collar_front + 0.01)
+	_torus("chrome", Vector3(0, f.neck_y - 0.015, 0), 0.128, 0.026, 20, Basis.IDENTITY, rz)
+	_torus("energy", Vector3(0, f.neck_y - 0.002, 0), 0.128, 0.006, 20, Basis.IDENTITY, rz)
+	var b := _collar() + Vector3(0, -0.02, -0.008)
+	var hexagon: Array = []
+	for k in 6:
+		hexagon.append(b + Vector3(cos(k * TAU / 6) * 0.034, sin(k * TAU / 6) * 0.034, 0))
+	_plate("chrome", hexagon, 0.01, Vector3.BACK)
+	_cyl("energy", b + Vector3(0, 0, -0.004), 0.016, 0.016, 0.006, 10, Basis.from_euler(Vector3(PI * 0.5, 0, 0)))
+	for side: float in [-1.0, 1.0]:
+		_segment("energy", b + Vector3(side * 0.03, 0.01, -0.004), b + Vector3(side * 0.075, 0.03, 0.01), 0.005)
+
+
+## Cables from the back of the neck, over the shoulders, into sockets on the chest.
+func _cable_bundle() -> void:
+	var front: float = minf(f.collar_front, f.chest_front + 0.05)
+	var y: float = f.neck_y - 0.03
+	_box("carbon", Vector3(0, y, 0.085), Vector3(0.16, 0.05, 0.05))
+	_box("energy", Vector3(0, y + 0.005, 0.111), Vector3(0.1, 0.008, 0.002))
+	for k in 4:
+		var side := -1.0 if k < 2 else 1.0
+		var lane := 0.0 if k % 3 == 0 else 1.0   # inner or outer
+		var start := Vector3(side * (0.03 + 0.03 * lane), y, 0.08)
+		var round := Vector3(side * (0.115 + 0.025 * lane), y - 0.01, 0.0)
+		var plug := Vector3(side * (0.04 + 0.04 * lane), f.neck_y - 0.14 - 0.02 * lane, front - 0.012)
+		_tube("joint" if k % 2 == 0 else "carbon", [start, round + Vector3(0, 0.012, 0.04), round, round.lerp(plug, 0.5) + Vector3(0, 0.01, -0.012), plug], 0.012, 0.012, 5)
+		_cyl("steel", plug + Vector3(0, -0.008, 0.004), 0.018, 0.018, 0.026, 8)
+		_torus("energy", plug + Vector3(0, -0.02, 0.004), 0.017, 0.004, 8)
+
+
+# Shoulder pieces.
+
+## A floating skull drone by the shoulder, one great lit eye, a grav ring under it.
+func _servo_skull() -> void:
+	var c := _shoulder(1.0) + Vector3(0.06, 0.27, 0.05)
+	_ball("bone", c, 1.0, Vector3(0.055, 0.05, 0.06), 9, 5)
+	_box("bone", c + Vector3(0, -0.05, -0.02), Vector3(0.05, 0.03, 0.04))
+	for k in 4:
+		_box("carbon", c + Vector3(-0.018 + k * 0.012, -0.058, -0.041), Vector3(0.006, 0.014, 0.004))
+	var facing := Basis.from_euler(Vector3(PI * 0.5, 0, 0))
+	_cyl("carbon", c + Vector3(0.02, 0.004, -0.05), 0.024, 0.02, 0.03, 10, facing)
+	_cyl("energy", c + Vector3(0.02, 0.004, -0.066), 0.016, 0.016, 0.004, 10, facing)
+	_ball("carbon", c + Vector3(-0.022, 0.004, -0.048), 1.0, Vector3(0.014, 0.013, 0.008), 6, 3)
+	_box("steel", c + Vector3(0, 0.03, 0.03), Vector3(0.05, 0.025, 0.04))
+	_torus("energy", c + Vector3(0, -0.09, 0), 0.035, 0.006, 14)
+	_torus("steel", c + Vector3(0, -0.075, 0), 0.025, 0.008, 10)
+	_tube("joint", [c + Vector3(0, -0.06, 0.03), c + Vector3(0.01, -0.12, 0.04), c + Vector3(-0.01, -0.17, 0.03)], 0.005, 0.003, 4)
+
+
+## An articulated arm rising over the shoulder, a claw at its end.
+func _mech_arm() -> void:
+	var s := _shoulder(1.0) + Vector3(-0.02, 0.03, 0.05)
+	_box("steel", s, Vector3(0.09, 0.05, 0.1))
+	_box("hazard", s + Vector3(0, 0.026, 0.03), Vector3(0.09, 0.004, 0.02))
+	var j1 := s + Vector3(0.02, 0.2, 0.09)
+	var j2 := j1 + Vector3(-0.03, 0.09, -0.2)
+	var tip := j2 + Vector3(0.0, -0.06, -0.08)
+	_segment("steel", s + Vector3(0, 0.02, 0), j1, 0.04)
+	_segment("joint", s + Vector3(0.02, 0.02, 0.03), j1 + Vector3(0.02, -0.04, 0), 0.014)
+	_segment("steel", j1, j2, 0.034)
+	_segment("steel", j2, tip, 0.028)
+	for j in [j1, j2, tip]:
+		_ball("carbon", j, 0.03, Vector3.ONE, 8, 4)
+		_torus("energy", j, 0.031, 0.005, 10, Basis.from_euler(Vector3(0, 0, PI * 0.5)))
+	var dir := (tip - j2).normalized()
+	for k in 3:
+		var a := k * TAU / 3
+		var out := Vector3(cos(a), sin(a) * 0.6, 0) * 0.025
+		_cone("chrome", tip + out, tip + dir * 0.07 + out * 0.3, 0.01, 4)
+
+
+## A rack of missiles on the shoulder, their tips lit.
+func _missile_pod() -> void:
+	var s := _shoulder(1.0) + Vector3(0.02, 0.12, 0.03)
+	var tilt := Basis.from_euler(Vector3(0.15, 0, 0))
+	_box("steel", s + Vector3(0, -0.07, 0.0), Vector3(0.05, 0.06, 0.06))
+	_box("steel", s, Vector3(0.13, 0.1, 0.2), tilt)
+	_box("hazard", s + tilt * Vector3(0, 0.051, 0.04), Vector3(0.13, 0.004, 0.03), tilt)
+	var facing := tilt * Basis.from_euler(Vector3(PI * 0.5, 0, 0))
+	for row in 2:
+		for col in 3:
+			var p := s + tilt * Vector3(-0.038 + col * 0.038, -0.02 + row * 0.04, -0.1)
+			_cyl("carbon", p, 0.016, 0.016, 0.01, 8, facing)
+			_cone("energy", p + tilt * Vector3(0, 0, 0.004), p + tilt * Vector3(0, 0, -0.02), 0.011, 6)
+	_box("carbon", s + tilt * Vector3(0.068, 0, 0.03), Vector3(0.012, 0.06, 0.1), tilt)
+
+
+## A floating companion: a chrome orb with three fins, a lit eye and a halo under it.
+func _sentinel() -> void:
+	var c := _shoulder(-1.0) + Vector3(-0.07, 0.28, 0.05)
+	_ball("chrome", c, 1.0, Vector3(0.045, 0.05, 0.045), 10, 6)
+	_torus("energy", c + Vector3(0, 0.0, 0), 0.047, 0.006, 16, Basis.from_euler(Vector3(PI * 0.5, 0, 0)))
+	_ball("energy", c + Vector3(0, 0.008, -0.044), 1.0, Vector3(0.016, 0.01, 0.008), 6, 3)
+	for k in 3:
+		var a := k * TAU / 3 + PI * 0.5
+		var out := Vector3(cos(a), 0, sin(a))
+		var root := c + out * 0.04
+		_plate("carbon", [root + Vector3(0, 0.03, 0), root + out * 0.07 + Vector3(0, 0.07, 0), root + out * 0.045 + Vector3(0, -0.02, 0), root + Vector3(0, -0.03, 0)],
+			0.008, out.cross(Vector3.UP))
+	_torus("hardlight", c + Vector3(0, -0.075, 0), 0.04, 0.01, 16)
+
+
+# Back pieces.
+
+## Blades of hard light fanned out from two emitters between the shoulders.
+func _energy_wings() -> void:
+	var back: float = maxf(f.chest_back, 0.1)
+	var root_y: float = f.neck_y - 0.1
+	for side: float in [-1.0, 1.0]:
+		var root := Vector3(side * 0.06, root_y, back + 0.02)
+		_box("steel", root, Vector3(0.05, 0.12, 0.04))
+		_box("energy", root + Vector3(0, 0, 0.021), Vector3(0.012, 0.09, 0.002))
+		for k in 3:
+			var a := lerpf(0.55, 1.35, k / 2.0)
+			var length: float = [0.66, 0.52, 0.38][k]
+			var dir := Vector3(side * sin(a), cos(a) * 0.9 - 0.05, 0.3).normalized()
+			var tip := root + dir * length
+			var across := dir.cross(Vector3.BACK).normalized() * 0.06
+			_plate("hardlight", [root + across * 0.4, root.lerp(tip, 0.55) + across, tip, root.lerp(tip, 0.6) - across * 0.5, root - across * 0.3], 0.008, Vector3.BACK)
+			_segment("energy", root + across * 0.4, root.lerp(tip, 0.55) + across, 0.007)
+			_segment("energy", root.lerp(tip, 0.55) + across, tip, 0.007)
+
+
+## A short, sleek cape with armoured shoulder plates and lit trim (a cape: its own bone).
+func _space_cape() -> void:
+	var grid := _cape_grid(0.82, 1.15, 0.12)
+	_sheet("silk", grid, 0.012, Vector3.FORWARD)
+	var cols: int = grid[0].size()
+	for i in grid.size() - 1:   # lit trim down both edges and along the hem
+		for e in [0, cols - 1]:
+			_segment("energy", grid[i][e] + Vector3(0, 0, 0.008), grid[i + 1][e] + Vector3(0, 0, 0.008), 0.008)
+	for j in cols - 1:
+		_segment("energy", grid[-1][j] + Vector3(0, 0, 0.008), grid[-1][j + 1] + Vector3(0, 0, 0.008), 0.008)
+	var top_y: float = f.neck_y - 0.01
+	var sw: float = f.chest_w
+	for side: float in [-1.0, 1.0]:
+		var s := Vector3(side * sw * 0.72, top_y + 0.01, 0.0)
+		var tilt := Basis.from_euler(Vector3(0, 0, -side * 0.35))
+		var rings: Array = []
+		for k in 3:
+			var a := k / 2.0 * PI * 0.5
+			rings.append(_ellipse(10, 0.085 * cos(a) + 0.004, 0.11 * cos(a) + 0.004, 0.05 * sin(a)).map(func(p): return s + tilt * p))
+		_loft("chrome", rings)
+		_ball("energy", Vector3(side * sw * 0.7, top_y - 0.01, f.collar_front + 0.02), 0.018, Vector3(1, 1, 0.6), 6, 3)
+
+
+## A tall comms mast from a box on the back: crossbars, a little dish, a lit tip.
+func _antenna_mast() -> void:
+	var back: float = maxf(f.chest_back, 0.08)
+	var base := Vector3(-0.07, f.neck_y - 0.12, back + 0.04)
+	_box("steel", base, Vector3(0.09, 0.14, 0.06))
+	_box("energy", base + Vector3(0, 0.03, 0.031), Vector3(0.05, 0.008, 0.002))
+	var top := base + Vector3(-0.03, 0.62, 0.05)
+	_segment("carbon", base + Vector3(0, 0.07, 0), top, 0.018)
+	for k in 3:
+		var p := base.lerp(top, 0.45 + k * 0.17)
+		_segment("steel", p + Vector3(-0.05 + k * 0.012, 0, 0), p + Vector3(0.05 - k * 0.012, 0, 0), 0.01)
+	_ball("energy", top + Vector3(0, 0.015, 0), 0.016, Vector3.ONE, 6, 4)
+	var dish := base.lerp(top, 0.3) + Vector3(0.05, 0, 0.02)
+	_segment("steel", base.lerp(top, 0.3), dish, 0.01)
+	_cyl("steel", dish + Vector3(0.012, 0, 0), 0.045, 0.012, 0.02, 10, Basis.from_euler(Vector3(0, 0, -PI * 0.5)) * Basis.from_euler(Vector3(0.4, 0, 0)))
+	_ball("energy", dish + Vector3(0.03, 0, 0), 0.008, Vector3.ONE, 5, 3)
+
+
+## A great ring standing behind the back on two struts, lit inside, with nodes round it.
+func _gyro_ring() -> void:
+	var back: float = maxf(f.chest_back, 0.08)
+	var c := Vector3(0, f.neck_y - 0.16, back + 0.1)
+	var facing := Basis.from_euler(Vector3(PI * 0.5, 0, 0))
+	_torus("steel", c, 0.3, 0.04, 28, facing)
+	_torus("energy", c, 0.27, 0.01, 28, facing)
+	for k in 4:
+		var a := k * TAU / 4 + PI * 0.25
+		var p := c + Vector3(cos(a), sin(a), 0) * 0.3
+		_box("carbon", p, Vector3(0.06, 0.06, 0.06), Basis(Vector3.BACK, a))
+		_box("energy", p + Vector3(0, 0, 0.031), Vector3(0.026, 0.026, 0.002), Basis(Vector3.BACK, a))
+	for side: float in [-1.0, 1.0]:
+		var on := Vector3(side * 0.07, c.y, back + 0.01)
+		_segment("carbon", on, c + Vector3(side * 0.27, 0, 0), 0.03)
+		_box("steel", on, Vector3(0.05, 0.08, 0.03))
+
+
+# Waist pieces.
+
+## A belt of lit power cells in steel holders.
+func _cell_belt() -> void:
+	_band("carbon", f.waist_w, f.waist_d, f.waist_y, 0.05, 0.008, f.waist_cz)
+	for k in 9:
+		var a := -PI * 0.5 + (k - 4) * 0.62
+		if k == 4:
+			continue
+		var p := _waist_point(a, 0.026, -0.004)
+		var turn := Basis.from_euler(Vector3(0, -a - PI * 0.5, 0))
+		_box("steel", p, Vector3(0.034, 0.07, 0.03), turn)
+		_cyl("energy", p + turn * Vector3(0, 0, -0.012), 0.011, 0.011, 0.056, 8)
+	var c := _waist_point(-PI * 0.5, 0.014)
+	var hexagon: Array = []
+	for k in 6:
+		hexagon.append(c + Vector3(cos(k * TAU / 6) * 0.04, sin(k * TAU / 6) * 0.04, 0))
+	_plate("steel", hexagon, 0.014, Vector3.BACK)
+	_cyl("energy", c + Vector3(0, 0, -0.008), 0.018, 0.018, 0.004, 6, Basis.from_euler(Vector3(PI * 0.5, 0, 0)))
+
+
+## Armoured plates hanging over the hips (a skirt: they move with the thighs) and
+## two little thruster nozzles at the back.
+func _thruster_skirt() -> void:
+	_band("carbon", f.waist_w, f.waist_d, f.waist_y, 0.04, 0.01, f.waist_cz)
+	for k in 6:
+		var a := -PI * 0.5 + (k - 2.5) * 0.62
+		var top := _waist_point(a, 0.02, -0.02)
+		var bottom := _waist_point(a, 0.055, -0.2)
+		var across := Vector3(-sin(a), 0, cos(a)) * 0.05
+		_plate("steel", [top - across, top + across, bottom + across * 0.8, bottom - across * 0.8], 0.012, Vector3(cos(a), 0.1, sin(a)))
+		_segment("energy", bottom - across * 0.7 + Vector3(cos(a), 0, sin(a)) * 0.008, bottom + across * 0.7 + Vector3(cos(a), 0, sin(a)) * 0.008, 0.006)
+	for side: float in [-1.0, 1.0]:
+		var n := _waist_point(PI * 0.5 + side * 0.55, 0.04, -0.06)
+		var down := Basis.from_euler(Vector3(PI + 0.4, 0, 0))
+		_cyl("steel", n, 0.03, 0.022, 0.06, 10, down)
+		_cyl("energy", n + Vector3(0, -0.028, 0.012), 0.017, 0.017, 0.006, 10, down)
+
+
+## A steel belt with a shield emitter at the front and a ring of hard light round it.
+func _shield_belt() -> void:
+	_band("steel", f.waist_w, f.waist_d, f.waist_y, 0.045, 0.008, f.waist_cz)
+	var facing := Basis.from_euler(Vector3(PI * 0.5, 0, 0))
+	var c := _waist_point(-PI * 0.5, 0.016)
+	_cyl("chrome", c, 0.042, 0.038, 0.02, 12, facing)
+	_cyl("energy", c + Vector3(0, 0, -0.011), 0.024, 0.024, 0.004, 12, facing)
+	for k in 4:
+		var a := k * TAU / 4 + PI * 0.25
+		_box("carbon", c + Vector3(cos(a), sin(a), 0) * 0.042 + Vector3(0, 0, -0.004), Vector3(0.01, 0.01, 0.012))
+	_torus("hardlight", Vector3(0, f.waist_y - 0.005, f.waist_cz), f.waist_w + 0.11, 0.012, 28, Basis.from_euler(Vector3(0.12, 0, 0)), f.waist_d + 0.11)
+	for side: float in [-1.0, 1.0]:
+		_box("steel", _waist_point(PI * 0.5 + side * PI * 0.5, 0.012), Vector3(0.02, 0.04, 0.05))
+
+
+# Tails.
+
+## A tail of steel segments with lit joints, a blade at its tip.
+func _robo_tail() -> void:
+	var r := _tail_root()
+	var path: Array = []
+	for k in 9:
+		var t := k / 8.0
+		var a := t * 2.2
+		path.append(r + Vector3(0.02 * sin(t * 4.0), -0.06 * sin(t * PI) + 0.34 * (1.0 - cos(a)) * 0.6, 0.04 + 0.3 * sin(a)))
+	for k in 8:
+		var a: Vector3 = path[k]
+		var b: Vector3 = path[k + 1]
+		var rad := lerpf(0.032, 0.016, k / 7.0)
+		_cyl("steel", a.lerp(b, 0.5), rad, rad * 0.9, a.distance_to(b) * 0.82, 8, _along(b - a))
+		_torus("energy", b, rad * 0.85, 0.005, 8, _along(b - a))
+	var tip: Vector3 = path[8]
+	var dir: Vector3 = ((path[8] as Vector3) - (path[7] as Vector3)).normalized()
+	_plate("chrome", [tip + Vector3(0.0, 0.02, 0), tip + dir * 0.09, tip + Vector3(0.0, -0.02, 0), tip - dir * 0.01], 0.01, Vector3.RIGHT)
+	_ball("carbon", r + Vector3(0, 0, 0.03), 0.035, Vector3.ONE, 8, 4)
+
+
+## A tapered ribbon of hard light flowing back from a little emitter.
+func _light_streamer() -> void:
+	var r := _tail_root()
+	_cyl("chrome", r + Vector3(0, 0, 0.03), 0.03, 0.026, 0.05, 10, Basis.from_euler(Vector3(PI * 0.5, 0, 0)))
+	_torus("energy", r + Vector3(0, 0, 0.056), 0.022, 0.005, 10, Basis.from_euler(Vector3(PI * 0.5, 0, 0)))
+	var rows: Array = [[], []]
+	for k in 10:
+		var t := k / 9.0
+		var spine := r + Vector3(0.07 * sin(t * 5.0) * t, -0.12 * t + 0.1 * sin(t * PI * 1.6) * t, 0.06 + 0.66 * t)
+		var half := lerpf(0.065, 0.008, t)
+		rows[0].append(spine + Vector3(-half, 0, 0))
+		rows[1].append(spine + Vector3(half, 0, 0))
+	_sheet("hardlight", rows, 0.006, Vector3.UP)
+	for k in 9:
+		for e in 2:
+			_segment("energy", rows[e][k], rows[e][k + 1], 0.005)

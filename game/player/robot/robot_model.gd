@@ -132,7 +132,8 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 		var base: StandardMaterial3D = mesh.mesh.surface_get_material(i)
 		var kind := material_kind(Characters.material_role(plain, base.resource_name) if plain != "" else base.resource_name)
 		var gun_glow := kind == "glow" and "." in base.resource_name   # a gun's lit parts, in the player's trim colour
-		var color := trim if kind == "accent" or gun_glow else base.albedo_color
+		var lit := kind in Accessories.LIGHTS   # an accessory's lights: the player's trim colour, like the visor
+		var color := Color(trim, base.albedo_color.a) if kind == "accent" or gun_glow or lit else base.albedo_color
 		var channel: int = CHANNELS.get(kind, -1)
 		var painted := channel >= 0 and colors[channel].a > 0.0
 		if painted:
@@ -146,16 +147,18 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 			sm.set_shader_parameter("albedo", color)
 			sm.set_shader_parameter("roughness", 0.25 if gilded else base.roughness)
 			sm.set_shader_parameter("metallic", 0.9 if gilded else base.metallic)
-			if kind == "visor":
+			if kind == "visor" or lit:
 				sm.set_shader_parameter("emission", trim * VISOR_ENERGY)
 				_glow_materials.append([sm, true])
 			elif gun_glow:
 				sm.set_shader_parameter("emission", color * GUN_GLOW_ENERGY)
 				_gun_glow.append([sm, color])
 			mesh.set_surface_override_material(i, sm)
-		elif kind == "accent" or kind == "visor" or gun_glow or painted or gilded:
+		elif kind == "accent" or kind == "visor" or gun_glow or painted or gilded or lit:
 			var m: StandardMaterial3D = base.duplicate()
-			if kind == "visor":
+			if lit:
+				m.albedo_color = color
+			if kind == "visor" or lit:
 				m.emission_enabled = true
 				m.emission = trim
 				m.emission_energy_multiplier = VISOR_ENERGY
