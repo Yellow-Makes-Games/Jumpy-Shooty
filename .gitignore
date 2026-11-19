@@ -11,3 +11,5 @@ tests/out/
 # Python
 __pycache__/
 __pycache__/
+# Supabase project settings (see docs/ACCOUNTS.md)
+game/online/supabase.cfg

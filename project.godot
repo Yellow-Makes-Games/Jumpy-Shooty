@@ -28,6 +28,7 @@ Killcam="*res://game/match/killcam.gd"
 Game="*res://game/core/game.gd"
 Sound="*res://game/audio/sound.gd"
 Music="*res://game/audio/music.gd"
+Account="*res://game/online/account.gd"
 
 [display]
 
