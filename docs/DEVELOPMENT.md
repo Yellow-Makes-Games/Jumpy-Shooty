@@ -1547,7 +1547,10 @@ dark band shows between the sleeves; bent, they slide over the core and nothing 
 Keep a core no smaller than the sleeves' inside, and do not go back to `ball()` for a
 joint: its flat faces sit well inside its radius, which is where the old gaps came from
 (it is still fine for a shoulder or hip ball sunk into the torso, and for ornaments).
-Needle is the first robot built this way; the rest still have the old ball joints.
+All eight robots are built this way (`_wrist` and `_ankle` are the cores every design
+shares; a thin strut under a shoulder gets one sleek taper where it leaves the ball, no
+bulge). The Templar's elbow cop is its elbow's core, and Orbit's knee keeps the player's
+colour as its core. The creatures in `creatures.py` still have the old joints.
 
 **Colours and finish.** `designs.py` writes colours the way the game's code does (sRGB)
 and turns them into what a model file holds, as `weapons.py` and `creatures.py` do, so
