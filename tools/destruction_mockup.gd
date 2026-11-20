@@ -21,6 +21,17 @@ var sim := false         # a scene that runs physics and films it (out = a folde
 var measure := false     # ...or only times it (no pictures)
 var sim_seconds := 9.0
 var variant := 0
+# Two players (see "between players" below)
+var record_path := ""    # the host: write where every piece is, every frame, to this file
+var follow_path := ""    # player 2: run the same collapse and compare with that file
+var correct := "none"    # what the host sends player 2 during the fall: none | big | all | mixed
+var lag := 0.1           # how old the host's news is when it arrives (seconds)
+var jitter := 1.0        # how far player 2's pieces start out of place (millimetres)
+var overlay := false     # draw the host's pieces in red on player 2's screen
+var gain := 0.6           # how much of the difference each correction takes out
+var big_hz := 10.0       # corrections a second for big pieces
+var small_hz := 2.0      # ...and for small ones (--correct=mixed)
+var settle := -1.0       # when player 2's pieces slide to where the host's came to rest
 
 
 func _initialize() -> void:
@@ -38,6 +49,26 @@ func _initialize() -> void:
 			sim_seconds = float(arg.substr(10))
 		elif arg.begins_with("--variant="):
 			variant = int(arg.substr(10))
+		elif arg.begins_with("--record="):
+			record_path = arg.substr(9)
+		elif arg.begins_with("--follow="):
+			follow_path = arg.substr(9)
+		elif arg.begins_with("--correct="):
+			correct = arg.substr(10)
+		elif arg.begins_with("--lag="):
+			lag = float(arg.substr(6))
+		elif arg.begins_with("--jitter="):
+			jitter = float(arg.substr(9))
+		elif arg.begins_with("--gain="):
+			gain = float(arg.substr(7))
+		elif arg.begins_with("--big-hz="):
+			big_hz = float(arg.substr(9))
+		elif arg.begins_with("--small-hz="):
+			small_hz = float(arg.substr(11))
+		elif arg.begins_with("--settle="):
+			settle = float(arg.substr(9))
+		elif arg == "--overlay":
+			overlay = true
 		elif arg.begins_with("--cam="):
 			cam_override = arg.substr(6)
 		elif arg.begins_with("--size="):
@@ -776,11 +807,12 @@ func prism(kind: String, poly: PackedVector2Array, origin: Vector3, u: Vector3, 
 ## and bits of blocks, smaller the nearer the blast at `mid`. [{poly, mid}]
 func masonry_cells(w: float, h: float, mid: Vector2, lr: RandomNumberGenerator, course: float = 0.4) -> Array:
 	var cells := []
-	var rows := roundi(h / course)
+	var rows := ceili(h / course - 0.01)
 	for j in rows:
+		var top := minf((j + 1) * course, h)   # the last row stops at the top of the wall
 		var x := -lr.randf() * 0.4
 		while x < w:
-			var cy := (j + 0.5) * course
+			var cy := (j * course + top) * 0.5
 			var d := Vector2(x + 0.3 - mid.x, cy - mid.y).length()
 			var length := lerpf(0.34, 0.8, clampf(d / 2.2, 0.0, 1.0)) * lr.randf_range(0.8, 1.2)
 			var x0 := maxf(x, 0.0)
@@ -788,7 +820,7 @@ func masonry_cells(w: float, h: float, mid: Vector2, lr: RandomNumberGenerator, 
 			x += length
 			if x1 - x0 < 0.02:
 				continue
-			var rect := PackedVector2Array([Vector2(x0, j * course), Vector2(x1, j * course), Vector2(x1, (j + 1) * course), Vector2(x0, (j + 1) * course)])
+			var rect := PackedVector2Array([Vector2(x0, j * course), Vector2(x1, j * course), Vector2(x1, top), Vector2(x0, top)])
 			var parts := [rect]
 			if d < 2.0 and lr.randf() < 0.6:
 				# snapped across
@@ -1220,48 +1252,105 @@ func scene_sim() -> void:
 	look(Vector3(-33.0, 13.0, -37.0), Vector3(-10.5, 8.8, -10.5), 46.0)
 
 
-## The solid concrete, blockwork and planks inside `region`, clipped to it: [{kind, box, path}]
+## Everything cut_region() is about to take out of `region`, as map pieces (clipped to
+## the region where it cuts): [{piece, box (aligned boxes only), path}]. Each comes
+## back as a loose piece that looks exactly as it did, in the same place.
 func take_region(region: AABB) -> Array:
 	var list := []
 	for b: MapBlock in blocks():
 		var path := str(map.get_path_to(b))
-		if not path.begins_with("Tower/"):
-			continue
-		if not b.solid or b.shape != MapBlock.Shape.BOX or not ["concrete", "block", "plank"].has(b.kind):
+		if not (path.begins_with("Tower") or path.begins_with("TowerCover")):
 			continue
 		var xf := xf_of(b)
-		if not aligned(xf.basis):
+		var piece := b.to_piece(xf)
+		if piece.get("hidden", false):
 			continue
-		var box := AABB(xf.origin - b.size * 0.5, b.size).intersection(region)
-		if box.size.x > 0.05 and box.size.y > 0.05 and box.size.z > 0.05:
-			list.append({"kind": b.kind, "box": box, "path": path})
+		if b.shape == MapBlock.Shape.BOX and aligned(xf.basis):
+			var whole := AABB(xf.origin - b.size * 0.5, b.size)
+			if not whole.intersects(region):
+				continue
+			var box := whole.intersection(region)
+			if box.size.x < 0.004 or box.size.y < 0.004 or box.size.z < 0.004:
+				continue
+			piece.xf = Transform3D(Basis(), box.get_center())
+			piece.size = box.size
+			list.append({"piece": piece, "box": box, "path": path})
+		elif region.has_point(xf.origin):
+			list.append({"piece": piece, "path": path})
 	return list
 
+
+## A map piece drawn as the map draws it, where the map has it (for a loose piece: its
+## pattern is laid out from where it stood, so nothing shifts when it is swapped in).
+func _piece_mesh(piece: Dictionary, moves: bool) -> MeshInstance3D:
+	var meshes := MapMesher.build([piece], map.face_shade)
+	var mi := MeshInstance3D.new()
+	var mesh: ArrayMesh = meshes[piece.kind]
+	mi.mesh = MapMesher.riding(mesh) if moves else mesh
+	mi.material_override = map.material_for(piece.kind)
+	var base := mi.material_override as BaseMaterial3D
+	if base and base.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
+
+
+var _ghosts: Array = []   # {node, at}: drawn until then, gone after (paint on a floor that breaks)
 
 func _make_bodies(taken: Array, regions: Array, corners: Array) -> void:
 	var lr := RandomNumberGenerator.new()
 	lr.seed = 2
 	var region: AABB = regions[0]
 	for t in taken:
+		var piece: Dictionary = t.piece
+		var kind: String = piece.kind
+		var tint: Color = piece.get("tint", Color.WHITE)
+		var structural: bool = t.has("box") and piece.solid and (t.path as String).begins_with("Tower/") and ["concrete", "block", "plank"].has(kind)
+		if not structural:
+			var centre: Vector3 = (piece.xf as Transform3D).origin
+			if not piece.solid:
+				# paint and trim: there until the floor under it goes
+				var mi := _piece_mesh(piece, false)
+				extras.add_child(mi)
+				_ghosts.append({"node": mi, "at": _when(centre, corners)})
+				continue
+			# a prop: one loose box
+			var body := _new_body()
+			var cs := CollisionShape3D.new()
+			var shape := BoxShape3D.new()
+			shape.size = (piece.size as Vector3).max(Vector3(0.03, 0.03, 0.03))
+			cs.shape = shape
+			cs.transform = piece.xf
+			body.add_child(cs)
+			body.add_child(_piece_mesh(piece, true))
+			var size: Vector3 = piece.size
+			body.mass = clampf(size.x * size.y * size.z * 500.0, 1.0, 2000.0)
+			body.set_meta("c", centre)
+			body.set_meta("big", false)
+			_bodies.append({"body": body, "at": _when(centre, corners), "push": Vector3.ZERO, "last": Vector3.ZERO})
+			continue
 		var box: AABB = t.box
 		var s := box.size
-		if t.kind != "block" and s.y <= 0.6 and s.x * s.z > 0.5:
+		if kind != "block" and s.y <= 0.6 and s.x * s.z > 0.5:
 			# a floor slab: irregular pieces, about one per 5 square metres
 			var seeds := []
 			var count := maxi(2, roundi(s.x * s.z / 5.0))
 			for i in count:
 				seeds.append(Vector2(lr.randf_range(0.2, s.x - 0.2), lr.randf_range(0.2, s.z - 0.2)))
 			for c in voronoi(s.x, s.z, seeds):
-				var poly: PackedVector2Array = inset(c.poly, 0.02)
-				var m := poly_mid(poly)
+				var m := poly_mid(c.poly)
 				var centre := Vector3(box.position.x + m.x, box.get_center().y, box.position.z + m.y)
-				var local := PackedVector3Array()
-				var shift := Vector3(1.5, 0.75, 1.5)
-				for p in poly:
-					local.append(shift + Vector3(p.x - m.x, -s.y * 0.5, p.y - m.y))
-					local.append(shift + Vector3(p.x - m.x, s.y * 0.5, p.y - m.y))
-				var body := _body(t.kind, local, Transform3D(Basis(), centre - shift), 2400.0 if t.kind == "concrete" else 600.0, true)
-				_schedule(body, centre, corners)
+				var drawn := PackedVector3Array()
+				var solid := PackedVector3Array()
+				var tight: PackedVector2Array = inset(c.poly, 0.02)
+				for i in (c.poly as PackedVector2Array).size():
+					var p: Vector2 = c.poly[i]
+					var q: Vector2 = tight[i]
+					drawn.append(Vector3(box.position.x + p.x, box.position.y, box.position.z + p.y))
+					drawn.append(Vector3(box.position.x + p.x, box.end.y, box.position.z + p.y))
+					solid.append(Vector3(box.position.x + q.x, box.position.y + 0.01, box.position.z + q.y))
+					solid.append(Vector3(box.position.x + q.x, box.end.y - 0.01, box.position.z + q.y))
+				var body := _fragment(kind, drawn, solid, tint, 2400.0 if kind == "concrete" else 600.0)
+				_bodies.append({"body": body, "at": _when(centre, corners), "push": Vector3.ZERO, "last": Vector3.ZERO})
 				# Bars: a piece on the edge that still stands stays tied to it at two points.
 				var on_x := absf(box.end.x - region.end.x) < 0.05
 				var on_z := absf(box.end.z - region.end.z) < 0.05
@@ -1269,64 +1358,73 @@ func _make_bodies(taken: Array, regions: Array, corners: Array) -> void:
 				for p in c.poly:
 					if (on_x and p.x > s.x - 0.01) or (on_z and p.y > s.z - 0.01):
 						ties.append(Vector3(box.position.x + p.x, box.get_center().y, box.position.z + p.y))
-				if ties.size() >= 2 and lr.randf() < 0.75 and t.kind == "concrete":
+				if ties.size() >= 2 and lr.randf() < 0.75 and kind == "concrete":
 					_bodies[-1]["pins"] = [(ties[0] as Vector3).lerp(ties[1], 0.15), (ties[1] as Vector3).lerp(ties[0], 0.15)]
-		elif t.kind == "concrete":
+		elif kind == "concrete":
 			# a column: lengths of about 2 m. The foot of the one under attack is blown to bits.
+			var attacked := false
+			for c: Vector3 in corners:
+				attacked = attacked or Vector2(box.get_center().x - c.x, box.get_center().z - c.z).length() < 0.5
 			var y := box.position.y
-			while y < box.end.y - 0.1:
+			if attacked and y < 0.5:
+				var foot_top := minf(3.4, box.end.y)
+				var foot := piece.duplicate()
+				foot.xf = Transform3D(Basis(), Vector3(box.get_center().x, (y + foot_top) * 0.5, box.get_center().z))
+				foot.size = Vector3(s.x, foot_top - y, s.z)
+				var whole := _piece_mesh(foot, false)
+				extras.add_child(whole)
+				_ghosts.append({"node": whole, "at": T_BLAST})
+				for i in 12:
+					var bit := lump_pts(Vector3(lr.randf_range(0.25, 0.5), lr.randf_range(0.25, 0.5), lr.randf_range(0.25, 0.5)), 3)
+					var at := Vector3(box.get_center().x + lr.randf_range(-0.25, 0.25), lr.randf_range(y + 0.2, foot_top - 0.2), box.get_center().z + lr.randf_range(-0.25, 0.25))
+					var xf := Transform3D(rand_basis(), at)
+					var world := PackedVector3Array()
+					for p in bit:
+						world.append(xf * p)
+					var b := _fragment("concrete", world, world, tint, 2400.0)
+					b.visible = false
+					var away := Vector3(lr.randf_range(-1, 1), lr.randf_range(0.0, 0.5), lr.randf_range(-1, 1)).normalized()
+					_bodies.append({"body": b, "at": T_BLAST, "push": away * lr.randf_range(3.0, 9.0), "last": Vector3.ZERO})
+				y = foot_top
+			while y < box.end.y - 0.05:
 				var h := minf(lr.randf_range(1.6, 2.4), box.end.y - y)
+				if box.end.y - (y + h) < 0.6:
+					h = box.end.y - y
 				var centre := Vector3(box.get_center().x, y + h * 0.5, box.get_center().z)
-				if y < 3.4:
-					for i in 10:
-						var bit := lump_pts(Vector3(lr.randf_range(0.25, 0.5), lr.randf_range(0.25, 0.5), lr.randf_range(0.25, 0.5)), 3)
-						var at := Vector3(centre.x + lr.randf_range(-0.25, 0.25), y + lr.randf_range(0.2, h - 0.2), centre.z + lr.randf_range(-0.25, 0.25))
-						var b := _body("concrete", bit, Transform3D(rand_basis(), at), 2400.0, false)
-						var away := Vector3(lr.randf_range(-1, 1), lr.randf_range(0.0, 0.5), lr.randf_range(-1, 1)).normalized()
-						_bodies.append({"body": b, "at": T_BLAST, "push": away * lr.randf_range(3.0, 9.0), "last": Vector3.ZERO})
-				else:
-					var body := _body("concrete", box_pts(Vector3(s.x - 0.03, h - 0.03, s.z - 0.03)), Transform3D(Basis(), centre), 2400.0, false, 0.97)
-					_schedule(body, centre, corners)
+				var body := _fragment("concrete", box_pts(Vector3(s.x, h, s.z), centre), box_pts(Vector3(s.x - 0.03, h - 0.03, s.z - 0.03), centre), tint, 2400.0)
+				_bodies.append({"body": body, "at": _when(centre, corners), "push": Vector3.ZERO, "last": Vector3.ZERO})
 				y += h
-		elif t.kind == "block":
+		else:
 			# blockwork: lumps two courses high, breaking along the courses
 			var along_x := s.x > s.z
 			var w := s.x if along_x else s.z
 			var u := Vector3(1, 0, 0) if along_x else Vector3(0, 0, 1)
 			var n := Vector3(0, 0, 1) if along_x else Vector3(1, 0, 0)
 			var thick := s.z if along_x else s.x
-			for c in masonry_cells(w, s.y, Vector2(-50, -50), lr, 0.8):
-				var poly: PackedVector2Array = inset(c.poly, 0.012)
-				var m := poly_mid(poly)
+			for c in masonry_cells(w, s.y, Vector2(-50, -50), lr, 0.8 if s.y >= 1.6 else 0.4):
+				var m := poly_mid(c.poly)
 				var centre := box.position + u * m.x + Vector3(0, m.y, 0) + n * thick * 0.5
-				var local := PackedVector3Array()
-				var shift := Vector3(0.4, 0.2, 0.4)
-				for p in poly:
-					local.append(shift + u * (p.x - m.x) + Vector3(0, p.y - m.y, 0) - n * (thick * 0.5 - 0.01))
-					local.append(shift + u * (p.x - m.x) + Vector3(0, p.y - m.y, 0) + n * (thick * 0.5 - 0.01))
-				var body := _body("block", local, Transform3D(Basis(), centre - shift), 1400.0, true)
-				_schedule(body, centre, corners)
-	print("BODIES ", _bodies.size())
+				var tight: PackedVector2Array = inset(c.poly, 0.012)
+				var drawn := PackedVector3Array()
+				var solid := PackedVector3Array()
+				for i in (c.poly as PackedVector2Array).size():
+					var p: Vector2 = c.poly[i]
+					var q: Vector2 = tight[i]
+					drawn.append(box.position + u * p.x + Vector3(0, p.y, 0))
+					drawn.append(box.position + u * p.x + Vector3(0, p.y, 0) + n * thick)
+					solid.append(box.position + u * q.x + Vector3(0, q.y, 0) + n * 0.01)
+					solid.append(box.position + u * q.x + Vector3(0, q.y, 0) + n * (thick - 0.01))
+				var body := _fragment("block", drawn, solid, tint, 1400.0)
+				_bodies.append({"body": body, "at": _when(centre, corners), "push": Vector3.ZERO, "last": Vector3.ZERO})
+	print("BODIES ", _bodies.size(), "  GHOSTS ", _ghosts.size())
 
 
 var _body_count := 0
 
-func _body(kind: String, local: PackedVector3Array, xf: Transform3D, density: float, patterned: bool, mul := 1.0) -> RigidBody3D:
+func _new_body() -> RigidBody3D:
 	var body := RigidBody3D.new()
 	_body_count += 1
 	body.name = "Piece%d" % _body_count
-	var shape := ConvexPolygonShape3D.new()
-	shape.points = local
-	var cs := CollisionShape3D.new()
-	cs.shape = shape
-	body.add_child(cs)
-	var lo := local[0]
-	var hi := local[0]
-	for p in local:
-		lo = lo.min(p)
-		hi = hi.max(p)
-	var size := hi - lo
-	body.mass = clampf(size.x * size.y * size.z * 0.7 * density, 15.0, 30000.0)
 	var material := PhysicsMaterial.new()
 	material.friction = 0.9
 	material.bounce = 0.02
@@ -1334,22 +1432,50 @@ func _body(kind: String, local: PackedVector3Array, xf: Transform3D, density: fl
 	body.angular_damp = 0.3
 	body.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 	body.freeze = true
-	body.transform = xf
-	var mi := hull(kind, local, Transform3D(), mul, patterned, Color.WHITE, true)
-	extras.remove_child(mi)
-	body.add_child(mi)
 	extras.add_child(body)
 	return body
 
 
+## A broken-off piece of the structure, given where it stands in the map: `drawn` is
+## the shape you see (it meets its neighbours exactly, so the wall looks whole until it
+## lets go), `solid` the slightly smaller shape that collides.
+func _fragment(kind: String, drawn: PackedVector3Array, solid: PackedVector3Array, tint: Color, density: float) -> RigidBody3D:
+	var body := _new_body()
+	var shape := ConvexPolygonShape3D.new()
+	shape.points = solid
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	body.add_child(cs)
+	var lo := solid[0]
+	var hi := solid[0]
+	for p in solid:
+		lo = lo.min(p)
+		hi = hi.max(p)
+	var size := hi - lo
+	body.mass = clampf(size.x * size.y * size.z * 0.7 * density, 15.0, 30000.0)
+	var mi := hull(kind, drawn, Transform3D(), 1.0, true, tint, true)
+	extras.remove_child(mi)
+	body.add_child(mi)
+	body.set_meta("c", (lo + hi) * 0.5)
+	body.set_meta("big", size.x * size.y * size.z > 0.5)
+	return body
+
+
+## Where a piece is now (its middle; the body itself sits at the map's origin).
+func _where(body: RigidBody3D) -> Vector3:
+	return body.transform * (body.get_meta("c", Vector3.ZERO) as Vector3)
+
+
 ## When a piece is let go: the nearer the lost column, the sooner (the failure runs
 ## outward from it at about 25 m a second).
-func _schedule(body: RigidBody3D, centre: Vector3, corners: Array) -> void:
+func _when(centre: Vector3, corners: Array) -> float:
 	var nearest := 1e9
 	for c: Vector3 in corners:
 		nearest = minf(nearest, Vector2(centre.x - c.x, centre.z - c.z).length())
-	_bodies.append({"body": body, "at": T_BLAST + 0.35 + nearest / 25.0, "push": Vector3.ZERO, "last": Vector3.ZERO})
+	return T_BLAST + 0.35 + nearest / 25.0
 
+
+var _dust_rng := RandomNumberGenerator.new()
 
 func _puff(at: Vector3, size: float, alpha: float, life: float, color := Color(0.74, 0.73, 0.69)) -> void:
 	if _puffs.size() > 420 or measure:
@@ -1371,7 +1497,7 @@ func _puff(at: Vector3, size: float, alpha: float, life: float, color := Color(0
 	mi.scale = Vector3.ONE * size
 	extras.add_child(mi)
 	_puffs.append({"node": mi, "mat": m, "age": 0.0, "life": life, "size": size, "alpha": alpha,
-		"drift": Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(0.2, 0.9), rng.randf_range(-0.6, 0.6))})
+		"drift": Vector3(_dust_rng.randf_range(-0.6, 0.6), _dust_rng.randf_range(0.2, 0.9), _dust_rng.randf_range(-0.6, 0.6))})
 
 
 func _sim_process(delta: float) -> bool:
@@ -1385,29 +1511,39 @@ func _sim_process(delta: float) -> bool:
 		_active.append(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS))
 	_last_usec = now
 	_sim_time += delta
+	for g in _ghosts:
+		if _sim_time >= g.at:
+			(g.node as Node3D).visible = false
 	for b in _bodies:
 		var body: RigidBody3D = b.body
 		if body.freeze and _sim_time >= b.at:
 			body.freeze = false
+			body.visible = true
 			for at: Vector3 in b.get("pins", []):
 				var pin := PinJoint3D.new()
 				extras.add_child(pin)
 				pin.global_position = at
 				pin.node_a = pin.get_path_to(body)
+			if follow_path != "" and jitter > 0.0:
+				var off := Vector3(_jit.randf_range(-1, 1), _jit.randf_range(-1, 1), _jit.randf_range(-1, 1)) * jitter * 0.001
+				PhysicsServer3D.body_set_state(body.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, Transform3D(Basis(), off))
 			if b.push != Vector3.ZERO:
 				body.linear_velocity = b.push
 				body.angular_velocity = Vector3(rng.randf_range(-6, 6), rng.randf_range(-6, 6), rng.randf_range(-6, 6))
 				if rng.randf() < 0.5:
-					_puff(body.position, rng.randf_range(1.5, 2.6), 0.5, 2.2)
+					_puff(_where(body), rng.randf_range(1.5, 2.6), 0.5, 2.2)
 			elif body.mass > 400.0 and rng.randf() < 0.5:
-				_puff(body.position, rng.randf_range(1.5, 3.0), 0.3, 2.0)   # dust shaken out as it tears free
+				_puff(_where(body), rng.randf_range(1.5, 3.0), 0.3, 2.0)   # dust shaken out as it tears free
 		elif not body.freeze:
 			# dust where something heavy stops short
 			var v := body.linear_velocity
 			var last: Vector3 = b.last
 			if last.y < -3.5 and v.y > last.y * 0.5 and body.mass > 100.0:
-				_puff(body.position + Vector3(rng.randf_range(-1, 1), 0.3, rng.randf_range(-1, 1)), rng.randf_range(3.0, 6.0), 0.42, rng.randf_range(3.0, 5.5))
+				_puff(_where(body) + Vector3(rng.randf_range(-1, 1), 0.3, rng.randf_range(-1, 1)), rng.randf_range(3.0, 6.0), 0.42, rng.randf_range(3.0, 5.5))
 			b.last = v
+	_keep()
+	if follow_path != "":
+		_follow(delta)
 	for p in _puffs:
 		p.age += delta
 		var k: float = clampf(p.age / p.life, 0.0, 1.0)
@@ -1430,17 +1566,298 @@ func _sim_process(delta: float) -> bool:
 		var body: RigidBody3D = b.body
 		if body.sleeping:
 			asleep += 1
-		lines.append("%.2f %.2f %.2f" % [body.position.x, body.position.y, body.position.z])
+		var at := _where(body)
+		lines.append("%.2f %.2f %.2f" % [at.x, at.y, at.z])
 	print("FRAMES %d  BODIES %d  ASLEEP_AT_END %d  FRAME_MS mean %.2f  p95 %.2f  max %.2f  PEAK_ACTIVE %d" % [_sim_frame, _bodies.size(), asleep, total / maxf(_step_ms.size(), 1), sorted[int(sorted.size() * 0.95)], sorted[-1], _active.max()])
 	var pinned := 0
 	var hanging := 0
 	for b in _bodies:
 		if b.has("pins"):
 			pinned += 1
-			if (b.body as RigidBody3D).position.y > 3.0:
+			if _where(b.body).y > 3.0:
 				hanging += 1
 	print("PINNED %d  STILL_UP %d  JOINTS %d" % [pinned, hanging, extras.find_children("*", "PinJoint3D", true, false).size()])
 	var f := FileAccess.open(out + "/rest.txt", FileAccess.WRITE)
 	if f:
 		f.store_string("\n".join(lines))
+	if record_path != "":
+		var r := FileAccess.open(record_path, FileAccess.WRITE)
+		r.store_32(_bodies.size())
+		r.store_32(_sim_frame)
+		r.store_buffer(_hist.to_byte_array())
+	if follow_path != "":
+		_follow_report(delta)
 	return true
+
+
+# ================================================================ between players
+#
+# The same collapse on two machines. The host runs first and writes down where every
+# piece was each frame (--record). Player 2 then runs it again (--follow) with every
+# piece starting up to a millimetre out of place, which stands for everything that
+# differs between two real machines (another processor, a player brushing a piece).
+# What is measured is how far player 2's pieces are from the host's, with and without
+# the host sending corrections during the fall.
+
+const REC := 14   # numbers kept for a piece each frame: place 3, turn 4, speed 3, spin 3, state 1
+var _hist := PackedFloat32Array()   # this machine's own pieces, every frame
+var _host := PackedFloat32Array()   # the host's
+var _host_frames := 0
+var _jit := RandomNumberGenerator.new()
+var _shadows: Array = []
+var _drift: Array = []      # per frame: [time, mean, p95, max (all pieces), mean, p95, max (big ones), awake on host]
+var _sent: Array = []       # bytes the host sent this frame
+var _slide_from: Array = []
+var _fps := 60.0
+var _last_sent: Array = []  # per piece: the frame of the host's last news about it
+
+
+func _keep() -> void:
+	for b in _bodies:
+		var body: RigidBody3D = b.body
+		var xf := body.transform
+		var q := xf.basis.get_rotation_quaternion()
+		var lin := body.linear_velocity
+		var ang := body.angular_velocity
+		_hist.append_array(PackedFloat32Array([xf.origin.x, xf.origin.y, xf.origin.z, q.x, q.y, q.z, q.w,
+			lin.x, lin.y, lin.z, ang.x, ang.y, ang.z, 0.0 if body.freeze else (2.0 if body.sleeping else 1.0)]))
+
+
+## One piece on one frame: {xf, lin, ang, state (0 not let go yet, 1 moving, 2 at rest)}.
+func _state(buf: PackedFloat32Array, frame: int, i: int) -> Dictionary:
+	var o := (frame * _bodies.size() + i) * REC
+	return {
+		"xf": Transform3D(Basis(Quaternion(buf[o + 3], buf[o + 4], buf[o + 5], buf[o + 6]).normalized()), Vector3(buf[o], buf[o + 1], buf[o + 2])),
+		"lin": Vector3(buf[o + 7], buf[o + 8], buf[o + 9]), "ang": Vector3(buf[o + 10], buf[o + 11], buf[o + 12]),
+		"state": int(buf[o + 13]),
+	}
+
+
+func _put(frame: int, i: int, xf: Transform3D, lin: Vector3, ang: Vector3) -> void:
+	var o := (frame * _bodies.size() + i) * REC
+	var q := xf.basis.get_rotation_quaternion()
+	var v := [xf.origin.x, xf.origin.y, xf.origin.z, q.x, q.y, q.z, q.w, lin.x, lin.y, lin.z, ang.x, ang.y, ang.z]
+	for k in 13:
+		_hist[o + k] = v[k]
+
+
+## What the host's news looks like after it is packed small: places to the centimetre,
+## speeds to a centimetre a second.
+func _packed(st: Dictionary) -> Dictionary:
+	var xf: Transform3D = st.xf
+	var q := xf.basis.get_rotation_quaternion()
+	q = Quaternion(snappedf(q.x, 0.002), snappedf(q.y, 0.002), snappedf(q.z, 0.002), snappedf(q.w, 0.002)).normalized()
+	return {"xf": xf, "q": q, "lin": (st.lin as Vector3).snappedf(0.01), "ang": (st.ang as Vector3).snappedf(0.02), "state": st.state}
+
+
+func _follow(delta: float) -> void:
+	if _host.is_empty():
+		var r := FileAccess.open(follow_path, FileAccess.READ)
+		var n := r.get_32()
+		_host_frames = r.get_32()
+		_host = r.get_buffer(r.get_length() - 8).to_float32_array()
+		assert(n == _bodies.size())
+		_jit.seed = 99
+		_last_sent.resize(n)
+		_last_sent.fill(-1)
+		if overlay:
+			var red := StandardMaterial3D.new()
+			red.albedo_color = Color(1.0, 0.12, 0.08, 0.62)
+			red.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			red.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			for b in _bodies:
+				var twin := MeshInstance3D.new()
+				for c in (b.body as Node).get_children():
+					if c is MeshInstance3D:
+						twin.mesh = (c as MeshInstance3D).mesh
+						twin.transform = (c as MeshInstance3D).transform
+				twin.material_override = red
+				twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				var holder := Node3D.new()
+				holder.add_child(twin)
+				holder.visible = false
+				extras.add_child(holder)
+				_shadows.append(holder)
+	var f := mini(_sim_frame, _host_frames - 1)
+	var every_big := maxi(1, roundi(1.0 / big_hz / delta))
+	var every_small := maxi(1, roundi(1.0 / small_hz / delta))
+	var back := maxi(1, roundi(lag / delta))
+	_fps = 1.0 / delta
+	var sliding := settle >= 0.0 and _sim_time >= settle
+	if sliding and _slide_from.is_empty():
+		for b in _bodies:
+			(b.body as RigidBody3D).freeze = true
+			_slide_from.append((b.body as RigidBody3D).transform)
+	var gaps := []
+	var gaps_big := []
+	var bytes := 0
+	var awake := 0
+	for i in _bodies.size():
+		var body: RigidBody3D = _bodies[i].body
+		var c: Vector3 = body.get_meta("c")
+		var host := _state(_host, f, i)
+		var hxf: Transform3D = host.xf
+		if overlay:
+			var sh: Node3D = _shadows[i]
+			# only where the two players are far enough apart to notice (10 cm)
+			sh.visible = host.state != 0 and body.visible and (hxf * c).distance_to(body.transform * c) > 0.1
+			# a touch smaller, so it hides inside player 2's own piece when the two agree
+			sh.transform = hxf * Transform3D(Basis(), c) * Transform3D(Basis().scaled(Vector3.ONE * 0.97), Vector3.ZERO) * Transform3D(Basis(), -c)
+		if host.state == 0:
+			continue
+		if host.state == 1:
+			awake += 1
+		if sliding:
+			var a := smoothstep(0.0, 1.0, clampf((_sim_time - settle) / 0.6, 0.0, 1.0))
+			var from: Transform3D = _slide_from[i]
+			var basis := from.basis.orthonormalized().slerp(hxf.basis.orthonormalized(), a)
+			var centre := (from * c).lerp(hxf * c, a)
+			body.transform = Transform3D(basis, centre - basis * c)
+			continue
+		var gap := (hxf * c).distance_to(body.transform * c)
+		gaps.append(gap)
+		var big: bool = body.get_meta("big")
+		if big:
+			gaps_big.append(gap)
+		var every := 0
+		match correct:
+			"big": every = every_big if big else 0
+			"all": every = every_big
+			"mixed": every = every_big if big else every_small
+		if every == 0 or (f + i) % every != 0 or f - back < 0 or body.freeze:
+			continue
+		var then := _packed(_state(_host, f - back, i))
+		if then.state == 0:
+			continue
+		var mine := _state(_hist, f - back, i)
+		if then.state == 1:
+			var prev: int = _last_sent[i]
+			if prev >= 0:
+				var was := _packed(_state(_host, prev, i))
+				if ((was.xf as Transform3D) * c).distance_to((then.xf as Transform3D) * c) < 0.02 and _angle((was.q as Quaternion) * (then.q as Quaternion).inverse()) < 0.03:
+					# it has hardly moved since the last news, so the host sends nothing and
+					# player 2 takes the piece to be where it was last told
+					was.state = 2
+					_correct(i, body, c, was, mine, f)
+					continue
+			bytes += 22   # which piece 2, place 6, turn 4, speed 6, spin 4
+			_last_sent[i] = f - back
+		elif f - back - every >= 0 and _state(_host, f - back - every, i).state == 1:
+			bytes += 12   # "it has stopped here": piece, place, turn
+		_correct(i, body, c, then, mine, f)
+	_sent.append(bytes)
+	if not sliding:
+		gaps.sort()
+		gaps_big.sort()
+		_drift.append([_sim_time, _mean(gaps), _pct(gaps, 0.95), _pct(gaps, 1.0), _mean(gaps_big), _pct(gaps_big, 0.95), _pct(gaps_big, 1.0), awake])
+
+
+## Moves one of player 2's pieces toward where the host has it. The host's news is
+## `lag` old, so it is compared with where this machine had the piece at that same
+## moment, and the difference is taken out of where the piece is now.
+func _correct(i: int, body: RigidBody3D, c: Vector3, then: Dictionary, mine: Dictionary, f: int) -> void:
+	var txf: Transform3D = then.xf
+	var mxf: Transform3D = mine.xf
+	var cur := body.transform
+	var e: Vector3
+	var qe: Quaternion
+	var lin := body.linear_velocity
+	var ang := body.angular_velocity
+	if then.state == 2:
+		# at rest on the host: head for exactly that spot and stop there
+		e = txf * c - cur * c
+		qe = (then.q as Quaternion) * cur.basis.get_rotation_quaternion().inverse()
+		if e.length() < 0.01 and absf(_angle(qe)) < 0.01:
+			return
+		lin *= 0.4
+		ang *= 0.4
+	else:
+		e = txf * c - mxf * c
+		qe = (then.q as Quaternion) * mxf.basis.get_rotation_quaternion().inverse()
+		var dl: Vector3 = (then.lin as Vector3) - (mine.lin as Vector3)
+		var da: Vector3 = (then.ang as Vector3) - (mine.ang as Vector3)
+		if e.length() < 0.015 and absf(_angle(qe)) < 0.02 and dl.length() < 0.08 and da.length() < 0.15:
+			return
+		lin += dl * 0.8
+		ang += da * 0.8
+	var k := gain
+	var basis := (Basis(Quaternion().slerp(qe.normalized(), k)) * cur.basis).orthonormalized()
+	var centre := cur * c + e * k
+	var xf := Transform3D(basis, centre - basis * c)
+	PhysicsServer3D.body_set_state(body.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, xf)
+	# What this machine remembers of the piece since the news was made moves by the same
+	# amount, so the next news is not answered twice.
+	var turn := Basis(Quaternion().slerp(qe.normalized(), k))
+	var dlin := lin - body.linear_velocity
+	var dang := ang - body.angular_velocity
+	if then.state != 2:
+		for g in range(maxi(0, f - maxi(1, roundi(lag * _fps)) + 1), f):
+			var old := _state(_hist, g, i)
+			var oxf: Transform3D = old.xf
+			var ob := (turn * oxf.basis).orthonormalized()
+			_put(g, i, Transform3D(ob, oxf * c + e * k - ob * c), (old.lin as Vector3) + dlin, (old.ang as Vector3) + dang)
+	body.linear_velocity = lin
+	body.angular_velocity = ang
+	_put(f, i, xf, lin, ang)
+
+
+func _angle(q: Quaternion) -> float:
+	return 2.0 * acos(clampf(absf(q.w), 0.0, 1.0))
+
+
+func _mean(list: Array) -> float:
+	var total := 0.0
+	for v in list:
+		total += v
+	return total / maxf(list.size(), 1)
+
+
+func _pct(sorted: Array, p: float) -> float:
+	return 0.0 if sorted.is_empty() else sorted[mini(int(sorted.size() * p), sorted.size() - 1)]
+
+
+func _follow_report(delta: float) -> void:
+	# "the fall": from the blast until nine in ten of the host's pieces have stopped
+	var fall := []
+	var most := 0
+	for d in _drift:
+		most = maxi(most, d[7])
+	var started := false
+	var fall_end := 0.0
+	for k in _drift.size():
+		var d: Array = _drift[k]
+		if d[7] > 0:
+			started = true
+		if started and d[7] > most * 0.1:
+			fall.append(k)
+			fall_end = d[0]
+	var col := func(j: int, how: String) -> float:
+		var vals := []
+		for k in fall:
+			vals.append(_drift[k][j])
+		vals.sort()
+		return _mean(vals) if how == "mean" else _pct(vals, 1.0)
+	var bigs := 0
+	for b in _bodies:
+		if (b.body as Node).get_meta("big"):
+			bigs += 1
+	print("SYNC correct=%s lag=%.2f jitter=%.1fmm  fall %.1f s  big pieces %d of %d" % [correct, lag, jitter, fall_end - T_BLAST, bigs, _bodies.size()])
+	print("SYNC FALL  all: mean %.3f  p95 %.3f  worst %.2f   big: mean %.3f  p95 %.3f  worst %.2f" % [col.call(1, "mean"), col.call(2, "mean"), col.call(3, "max"), col.call(4, "mean"), col.call(5, "mean"), col.call(6, "max")])
+	var last: Array = _drift[-1]
+	print("SYNC REST  all: mean %.3f  p95 %.3f  worst %.2f   big: mean %.3f  p95 %.3f  worst %.2f  (before the final slide, at %.1f s)" % [last[1], last[2], last[3], last[4], last[5], last[6], last[0]])
+	var total := 0
+	var peak := 0
+	var window := roundi(1.0 / delta)
+	for k in _sent.size():
+		total += _sent[k]
+		var run := 0
+		for j in range(maxi(0, k - window + 1), k + 1):
+			run += _sent[j]
+		peak = maxi(peak, run)
+	print("SYNC NET   total %.1f KB   mean %.1f KB/s over the fall   peak %.1f KB in one second" % [total / 1024.0, total / 1024.0 / maxf(fall_end - T_BLAST, 0.1), peak / 1024.0])
+	var out_file := FileAccess.open(out + "/drift.csv", FileAccess.WRITE)
+	if out_file:
+		out_file.store_line("t,mean,p95,max,mean_big,p95_big,max_big,awake,bytes")
+		for k in _drift.size():
+			var d: Array = _drift[k]
+			out_file.store_line("%.3f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%d,%d" % [d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], _sent[k]])
