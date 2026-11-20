@@ -52,6 +52,8 @@ const FLIP_RIGHT := 3
 ## bits 20-21 dived into the rope it is on and not there yet (MovementController.dove_in;
 ##           the body zips along it: see RopeSwing): 0 no, 1 yes, 2 yes and steering
 ##           left as it pulled tight, 3 yes and steering right
+## bit 22    zoomed in (the zoom button: see CameraRig.zoom), for killcams
+const ZOOMED_BIT := 1 << 22
 static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int, swings: int = 0,
 		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false, jetpack: bool = false, step: int = 0,
 		pumping: bool = false, zip: int = 0) -> int:
@@ -77,6 +79,11 @@ func set_hook(look: Array) -> void:
 ## Which blow of the melee combo the last swing (or the wind-up under way) is.
 static func step_of(f: int) -> int:
 	return (f >> 16) & 7
+
+
+## Zoomed in (bit 22: added to make_flags' number by the player).
+static func zoomed_of(f: int) -> bool:
+	return f & ZOOMED_BIT != 0
 
 
 ## The jetpack is firing.
