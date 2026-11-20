@@ -18,6 +18,7 @@ extends SceneTree
 ## A puppet can hold any weapon: "weapon": "akimbo" (next to "puppet"), carry others put
 ## away on its body: "stowed": ["rifle"] (see StowedWeapon), and take its weapon out
 ## part-way through a step: "draw_at": 0.9 in the step (see WeaponDraw).
+## A puppet can be shown arriving (see SpawnIn): "spawn_in": 0.5 (next to "puppet": how far through, 0..1).
 ## Its free hand (see FreeHand), at a point in its own space: "reach": [x,y,z] (out to a
 ## pickup), "grab": [x,y,z] (snatching it, as the step starts), "touch": [x,y,z] (on a
 ## terminal), "hold": [x,y,z] with "low": true (working at something by its feet: a bomb).
@@ -242,6 +243,10 @@ func _puppet(item: Dictionary) -> void:
 		_camera.global_transform = holder.global_transform * Transform3D(
 			Basis.from_euler(Vector3(deg_to_rad(first.get("pitch", 0.0)), 0.0, deg_to_rad(first.get("roll", 0.0)))),
 			Vector3(0.0, first.get("eye", 1.6), 0.0))
+	if item.has("spawn_in"):   # arriving (see SpawnIn): this far through, 0..1
+		var arriving := SpawnIn.start(RobotModel.trim_color(Color(c[0], c[1], c[2])))
+		arriving.t = float(item.spawn_in) * SpawnIn.TIME
+		arriving.update(0.0, robot, robot.global_position.y)
 	if item.has("label"):
 		var tag := Label3D.new()
 		tag.text = item.label

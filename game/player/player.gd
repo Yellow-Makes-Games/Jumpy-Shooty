@@ -104,6 +104,7 @@ var stowed: Array = []
 ## What the hand without the gun is doing with a pickup, a terminal, the bomb (see
 ## FreeHand). It is this player's, not the animator's: that is made anew with every weapon.
 var hand := FreeHand.new()
+var _spawn_fx: SpawnIn       # arriving: put together out of light (see SpawnIn), while it goes
 var _snatched := ""          # a weapon just snatched off a pad...
 var _snatched_at := 0        # ...and when (Time.get_ticks_msec)
 var _stow_props := {}             # weapon id -> its StowedWeapon on `robot`
@@ -1495,6 +1496,7 @@ func respawn_at(pos: Vector3, yaw: float, life: int = -1) -> void:
 	sounds.respawned()
 	if view:
 		view.respawn()
+	spawn_in()
 	if weapon:
 		weapon.reset()
 	_strike_left = -1.0
@@ -1652,6 +1654,7 @@ func _show_respawned(how: String) -> void:
 	visual.visible = true
 	collision_layer = 1 << 1
 	animator.respawn()
+	spawn_in()
 	if DevArgs.sync_log:
 		print("RESPAWN_SHOW %d %d %s" % [Net.my_id(), peer_id, how])
 
@@ -1847,6 +1850,9 @@ func _animate(delta: float) -> void:
 	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
 	_anim.feet = _feet_ground()
 	_feed_hand(delta)
+	if _spawn_fx != null and (not alive or not _spawn_fx.update(delta, robot, global_position.y, view.model if view != null and view.visible else null)):
+		_spawn_fx.stop()
+		_spawn_fx = null
 	var wall := _rope_wall()
 	_anim.wall_at = wall[0] if not wall.is_empty() else Vector3.ZERO
 	_anim.wall_normal = wall[1] if not wall.is_empty() else Vector3.ZERO
@@ -1893,6 +1899,25 @@ func _feet_ground() -> Vector2:
 		if not hit.is_empty():
 			out[i] = (hit.position as Vector3).y - floor_y
 	return out
+
+
+## This body arrives (a spawn, a respawn): it is put together out of light in its trim
+## colour from the feet up, with a ring and a column of light on the ground (`ground`:
+## not for a body this copy does not know the place of yet) and a hum (see SpawnIn).
+## Looks only: it can move, shoot and be shot the whole time. Not in a race, where being
+## sent back is meant to be instant.
+func spawn_in(ground: bool = true) -> void:
+	if racing or Race.active or not is_inside_tree() or robot == null:
+		return
+	var color := RobotModel.trim_color(Net.player_color(peer_id))
+	if _spawn_fx != null:
+		_spawn_fx.stop()
+	_spawn_fx = SpawnIn.start(color)
+	_spawn_fx.update(0.0, robot, global_position.y, view.model if view != null and view.visible else null)   # (from this frame: never a frame of the bare body first)
+	if ground:
+		SpawnIn.ground(get_parent().get_parent(), global_position, color)
+		if sounds:
+			sounds.draw_cue("power_on")
 
 
 # ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ extends Node3D
 
 const S := MovementController.State
 const EYE := Vector3(0.0, 1.60, 0.0)   ## where the camera sits inside the arms model
-const VIEW_FOV := 70.0                 ## must match view_fov in viewmodel.gdshader
+const VIEW_FOV := 70.0                 ## must match view_fov in viewmodel.gdshader (and SpawnIn.VIEW_FOV)
 const FADE := 0.13
 const CRAWL_PERIOD := 0.9              ## seconds for one crawl cycle at crawling speed (matches belly_crawl)
 const LOOK_DOWN_FROM := 35.0            ## degrees of down pitch where the arms start moving out of the way...

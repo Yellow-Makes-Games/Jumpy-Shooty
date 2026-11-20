@@ -104,6 +104,9 @@ const ROPE_AIM_DROP := 4.0
 const ROPE_CHEST := 0.45        ## how much of the hips' lean the chest gives back while the gun is down (aiming: all of it)
 const ROPE_VIEW := 0.55         ## your own body in first person leans this much of what everyone else sees
 const RECOIL_HEAD := 0.8        ## a shot rocks the chest: the head gives this much of it back (it stays on the aim)
+const RESPAWN_STILL := 1.0      ## m/s: faster than this (or off the ground, or shooting), the boot-up kneel is dropped
+const RESPAWN_JUMP := 2.0       ## ...off the ground meaning rising this fast (m/s), or still in the air...
+const RESPAWN_SETTLE := 0.2     ## ...this long after arriving (a body arrives a little above the floor and drops onto it)
 const FREE_HAND_KEYS := ["loco", "crouch", "slide", "air", "tuck", "wall_l", "wall_r", "glide"]   ## the hand without the gun is free in these (see FreeHand)
 const FREE_HAND_BOW := 1.0      ## radians the body bends at the waist to reach something by its feet (planting, defusing)
 const FLIP_KEYS := ["flip_front", "flip_back", "flip_left", "flip_right"]   ## a reload goes on through these, the arms held in
@@ -188,6 +191,8 @@ var _fx_t := -1.0         # how far into the reload the gun's effects were last 
 ## Where a reload's spent cell is put (the arena). Null: none is thrown.
 var fx_parent: Node = null
 var _respawn_t := -1.0
+var _respawn_w := 1.0     # how much of the boot-up kneel still shows (moving off, jumping or shooting drops it)
+var _respawn_cut := false
 var _kick_t := -1.0
 var _kick_right := false
 var _wall_jumps := -1
@@ -445,6 +450,8 @@ func flinched(way: Vector3, damage: float, headshot: bool = false, blunt: bool =
 
 func respawn() -> void:
 	_respawn_t = 0.0
+	_respawn_w = 1.0
+	_respawn_cut = false
 	recoil.stop()
 	flinch.stop()
 	draw.start(model.weapon)   # the weapon comes out as you do
@@ -517,9 +524,15 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_kick_t = -1.0
 	if _respawn_t >= 0.0:
 		var rclip := clip("respawn")
-		if rig.has_clip(rclip) and _respawn_t < rig.length(rclip) and inp.alive:
+		# Moving off, jumping or shooting: the kneel is dropped at once (it never holds a body
+		# that is being played), and stays dropped.
+		# (A body arrives a hand's breadth off the floor: those first frames in the air are not a jump.)
+		var off_floor := key not in ["loco", "crouch"] and (inp.velocity.y > RESPAWN_JUMP or _respawn_t > RESPAWN_SETTLE)
+		_respawn_cut = _respawn_cut or speed > RESPAWN_STILL or off_floor or _since_fire < 0.2
+		_respawn_w = move_toward(_respawn_w, 0.0 if _respawn_cut else 1.0, delta * 14.0)
+		if rig.has_clip(rclip) and _respawn_t < rig.length(rclip) and inp.alive and _respawn_w > 0.0:
 			rig.sample(_tmp, rclip, _respawn_t)
-			_pose.blend(_tmp, 1.0 - smoothstep(0.3, 1.0, _respawn_t / rig.length(rclip)))
+			_pose.blend(_tmp, (1.0 - smoothstep(0.3, 1.0, _respawn_t / rig.length(rclip))) * _respawn_w)
 			_respawn_t += delta
 		else:
 			_respawn_t = -1.0

@@ -67,6 +67,15 @@ Quick checks:
   leaves nothing behind; a shot cuts it short; its beats use bones the robots have and
   sounds the game has; every weapon has a place on the body, two never share one, and a
   cape sends long ones to the side; a weapon let go breaks up and is gone;
+- arriving (`tests/spawn_in_test.gd`, with `--fixed-fps 60`): from its first frame every
+  mesh of the body has the layer of light on, all light; the line climbs for
+  `SpawnIn.TIME` and follows the feet; a mesh that turns up part of the way through is
+  taken in and one with a layer of its own is left alone; every layer is off again when
+  it is over or cut short; the kneel plays for a body that stands where it arrives and is
+  dropped at once by one that runs off, jumps or shoots. (Headless only: after a body is
+  made anew, putting the layer on it prints `Parameter "material" is null` from the dummy
+  renderer, as in `tests/respawn_visible_test.gd`. It is not either layer, which are
+  alive, and nothing is wrong in the game);
 - the free hand (`tests/free_hand_test.gd`, with `--fixed-fps 60`): left alone it does
   nothing; a reach brings the arm out and lets it go; a snatch shuts the fist, pulls in
   to the chest and flashes the pickup's colour; a press lasts as long as asked and
@@ -2060,6 +2069,28 @@ show the same. Target dummies do not flinch. `tests/hit_reaction_test.gd` checks
 film it in the real game, the hits made up by a script on the Testing Grounds:
 `tools/robot/hit_film.sh OUT_DIR all front` (scenes: small, medium, big, head, melee,
 rapid, air, or all; views: first, third, side, front, back).
+
+**Arriving** (`game/player/robot/spawn_in.gd`, `SpawnIn`): a body that spawns or
+respawns is put together out of light in its trim colour, from the feet up, in `TIME`
+seconds. It is looks only (no protection, no delay), so the body is never hidden or
+see-through: every mesh under the robot gets a layer over its own materials
+(`material_overlay`, on `spawn_in.gdshader`) that is solid light at first, and a line of
+brighter light climbs it and leaves the robot below. The layer is drawn a hair nearer the
+eye than the mesh it lies on (at the same depth it is lost). Meshes that turn up part of
+the way through (a weapon, what is carried on the back) are taken in each frame, and
+your own first-person arms get a layer with `viewmodel.gdshader`'s vertex code, the line
+running out from the eye. `SpawnIn.ground` adds a ring of light spreading over the floor
+and a short column of light (`spawn_light.gdshader`), and the power-on hum plays there.
+`Player.spawn_in` starts it: from `respawn_at` (you, and the host's bots), from
+`_show_respawned` (someone else's body, once it is shown again) and from `Arena._spawn`
+(the first spawn), never in a race, where being sent back is meant to be instant. The
+boot-up kneel under it is the `respawn` clip as before, now dropped at once if the body
+moves off, jumps or shoots (`RobotAnimator._respawn_cut`; the first frames a body spends
+dropping onto the floor do not count). A killcam's stand-in body that comes back inside
+the clip arrives the same way. `tests/spawn_in_test.gd` checks it; `tools/robot/preview.sh`
+puppets take `"spawn_in": 0.5` (stills of a moment of it), and
+`tools/robot/spawn_film.sh OUT_DIR side` films two respawns in the real game (views:
+first, side).
 
 **The free hand** (`game/player/robot/free_hand.gd`, `FreeHand`) is what the hand
 without the gun does with pickups and things to work, and is looks only: what is taken,

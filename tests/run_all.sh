@@ -32,6 +32,7 @@ CHECKS=(
   "hit_reaction|--script tests/hit_reaction_test.gd"
   "midair_reload|--fixed-fps 60 --script tests/midair_reload_test.gd"
   "free_hand|--fixed-fps 60 --script tests/free_hand_test.gd"
+  "spawn_in|--fixed-fps 60 --script tests/spawn_in_test.gd"
   "new_weapons|--script tests/new_weapons_test.gd"
   "audio|--script tests/audio_test.gd"
   "maps|--script tests/map_scene_test.gd"
