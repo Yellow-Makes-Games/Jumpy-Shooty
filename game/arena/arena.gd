@@ -434,6 +434,7 @@ func _spawn(id: int) -> void:
 		if not bot:
 			local_player = p
 		_respawn(p)
+	p.spawn_in(local)   # (someone else's: the light on the body alone, wherever their first snapshot puts it)
 
 
 func _respawn(p: Player) -> void:

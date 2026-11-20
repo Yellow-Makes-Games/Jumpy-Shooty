@@ -93,6 +93,8 @@ class Ghost:
 	var seen := {}
 	var akimbo_shots := 0
 	var hand := FreeHand.new()   # the snatch of a pickup, as it was (see FreeHand)
+	var spawn: SpawnIn           # arriving in the clip (see SpawnIn), while it goes
+	var was_alive := true
 
 
 func setup(watch: KillClip, slow: bool = false) -> KillcamView:
@@ -434,6 +436,15 @@ func _play_ghost(id: int, delta: float) -> void:
 	_watch(a.flags, g.weapon, g.seen, g)
 	g.hand.update(delta, g.visual.global_transform)
 	g.animator.free = g.hand
+	# Back from the dead inside the clip: put together out of light, as they were (see SpawnIn).
+	if a.alive and not g.was_alive and g.root.visible:
+		var trim := RobotModel.trim_color(Net.player_color(id))
+		g.spawn = SpawnIn.start(trim)
+		g.animator.respawn()
+		SpawnIn.ground(_fx, g.root.global_position, trim)
+	g.was_alive = a.alive
+	if g.spawn != null and not g.spawn.update(delta, g.robot, g.root.global_position.y):
+		g.spawn = null
 	g.robot.set_tint(g.hand.pulse_color, g.hand.pulse)
 	g.animator.update(delta, a, g.visual.global_transform)
 	if world_sound:
