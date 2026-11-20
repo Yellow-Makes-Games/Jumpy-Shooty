@@ -69,6 +69,7 @@ var _hook_rope: HookRope     # the killer's grappling hook rope
 var _seen := {}              # killer: swing/kick counters last seen (see _watch)
 var _akimbo_shots := 0
 var _was_reloading := false
+var _zoom := 0.0             # first person: the killer's zoom (0 out, 1 in), eased as their own view was
 var _killer_body := Node3D.new()   # where the killer's feet are (their movement sounds come from here)
 var _killer_anim := RobotAnimInput.new()
 var _killer_sounds: PlayerSounds
@@ -255,6 +256,10 @@ func _play_killer(delta: float) -> void:
 			p.weapon.reset()
 		p.weapon.update(delta)
 	_was_reloading = reloading
+	# Zoomed in, as they were (the match's zoom, off the field of view you watch with).
+	var zoom_to := 1.0 if RobotAnimInput.zoomed_of(int(f[5])) and p.alive else 0.0
+	_zoom = move_toward(_zoom, zoom_to, delta / CameraRig.ZOOM_TIME) if delta > 0.0 else zoom_to
+	camera.fov = lerpf(Settings.field_of_view, CameraRig.zoom_fov(), smoothstep(0.0, 1.0, _zoom))
 	_watch(int(f[5]), weapon, _seen, null)
 	# Their footsteps, jumps and landings, as your own.
 	_killer_body.global_position = feet
