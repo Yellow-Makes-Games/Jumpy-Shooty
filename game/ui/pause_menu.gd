@@ -24,6 +24,12 @@ func _on_shown() -> void:
 		_: _show_main()
 
 
+## Open straight on the Loadout page (the death screen's Loadout button).
+func open_loadout() -> void:
+	visible = true
+	_show_loadout()
+
+
 func _show_main() -> void:
 	_frame.clear(1080)
 	_frame.title("Paused", "%s  ·  the match keeps going" % Maps.name_of(Net.map_id()))
