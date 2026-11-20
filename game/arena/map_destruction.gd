@@ -59,10 +59,10 @@ const FINE_HEALTH := 0.3     ## fine: a cell's health, as a share of its kind's 
 ## damage a round still has on the far side; wear: the share of a round's damage the
 ## wall takes when the round goes through (one that stops in it does all of it).
 const FINE_STYLES := {
-	"concrete": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.3, 0.3), "armour": 60.0, "stop": 90.0, "keep": 0.4, "wear": 0.6},
-	"masonry": {"cell": Vector2(0.4, 0.4), "jitter": Vector2(0.1, 0.0), "armour": 0.0, "stop": 50.0, "keep": 0.5, "wear": 0.3},
-	"wood": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.38, 0.12), "armour": 0.0, "stop": 8.0, "keep": 0.7, "wear": 0.5},
-	"sheet": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.26, 0.26), "armour": 0.0, "stop": 5.0, "keep": 0.85, "wear": 0.5},
+	"concrete": {"name": "concrete", "cell": Vector2(0.5, 0.5), "jitter": Vector2(0.3, 0.3), "armour": 60.0, "stop": 90.0, "keep": 0.4, "wear": 0.6},
+	"masonry": {"name": "masonry", "cell": Vector2(0.4, 0.4), "jitter": Vector2(0.1, 0.0), "armour": 0.0, "stop": 50.0, "keep": 0.5, "wear": 0.3},
+	"wood": {"name": "wood", "cell": Vector2(0.5, 0.5), "jitter": Vector2(0.38, 0.12), "armour": 0.0, "stop": 8.0, "keep": 0.7, "wear": 0.5},
+	"sheet": {"name": "sheet", "cell": Vector2(0.5, 0.5), "jitter": Vector2(0.26, 0.26), "armour": 0.0, "stop": 5.0, "keep": 0.85, "wear": 0.5},
 }
 const GLASS_KEEP := 0.9       ## fine: ...and through a pane of glass (any round goes through one)
 const MAX_PIERCE := 2         ## fine: how many walls one round can go through
@@ -251,7 +251,7 @@ func _add_panel(piece: Dictionary, toughness: float, whole: bool = false, frame:
 		"skins": [], "body": null, "meshes": null, "whole": whole, "piece": piece, "material": mat, "frame": frame,
 		"fine": not style.is_empty(), "armour": style.get("armour", 0.0), "jitter": style.get("jitter", Vector2.ZERO),
 		"stop": style.get("stop", 0.0 if fine and mat == "glass" else INF),
-		"keep": style.get("keep", GLASS_KEEP), "wear": style.get("wear", 1.0)}
+		"keep": style.get("keep", GLASS_KEEP), "wear": style.get("wear", 1.0), "style": style.get("name", "")}
 	# The two axes across its face, how many cells along each, and how far apart their
 	# numbers are in `cells`.
 	var u := (thin + 1) % 3
@@ -574,6 +574,8 @@ func blast(at: Vector3, weapon: WeaponData, body: Object, normal: Vector3) -> vo
 	var amount := weapon.damage * weapon.structure_damage
 	if fine and weapon.explosive:
 		damage_area(at, weapon.splash_radius * BLAST_REACH, amount)
+		if root.collapse:
+			root.collapse.blast(at, weapon.splash_radius * BLAST_REACH, amount)   # (the columns of a building that can come down)
 	elif body:
 		damage(cell_at(body, at - normal * 0.05, normal), amount)
 
@@ -582,10 +584,26 @@ func blast(at: Vector3, weapon: WeaponData, body: Object, normal: Vector3) -> vo
 ## the cells within `reach` metres; else just the piece it landed on.
 func blow(body: Object, at: Vector3, normal: Vector3, amount: float, reach: float = BLOW_REACH) -> void:
 	var c := cell_at(body, at, normal)
+	if c < 0:
+		struck(at, minf(amount, 400.0))   # (a column takes a blow as a blow, however hard: a slam that goes through any floor is still one swing)
 	if c >= 0 and panels[cells[c].panel].fine and reach > 0.0:
 		damage_area(at - normal * 0.03, reach, amount)
 	else:
 		damage(c, amount)
+
+
+## Host: a round or a blow of `amount` landed at `point` on something that is not a
+## breakable wall: a column of a building that can come down takes it (see MapCollapse).
+func struck(point: Vector3, amount: float) -> void:
+	if root.collapse:
+		root.collapse.hit(point, amount)
+
+
+## Host: who is doing the damage that follows, and what with (a collapse's kills are theirs).
+func cause(who: int, weapon_id: String) -> void:
+	if root.collapse:
+		root.collapse.by = who
+		root.collapse.with = weapon_id
 
 
 ## Host: a blast or a heavy blow at `at`: every cell within `radius` metres takes
@@ -1200,6 +1218,9 @@ func replay_show(state: Variant, _next: Variant, _u: float, _holder: Node3D) -> 
 	for i in mini(ids.size(), stages.size()):
 		if ids[i] >= 0 and ids[i] < cells.size():
 			want[ids[i]] = int(stages[i])
+	for c in _damaged:
+		if int(_damaged[c]) == FALLEN:
+			want[c] = FALLEN   # (what came down with a building stays down: its pieces are not replayed)
 	var before := _replay if _replaying else _live_damage()
 	var touched := {}
 	var broke := PackedInt32Array()

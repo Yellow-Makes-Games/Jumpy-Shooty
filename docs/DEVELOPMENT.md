@@ -122,6 +122,7 @@ Quick checks:
   the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
 - breakable walls and floors (`tests/destruction_test.gd`);
+- a building coming down (`tests/collapse_test.gd`);
 - flicker (`tests/map_flicker_test.gd`), on the Castle, Castle 2, Rail Yard, Lost Temple, Neon
   Arcade and Sky Island: no two surfaces of different colours share a plane where both can be seen,
   and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
@@ -293,7 +294,22 @@ The sync, match and bot tests take a map and a player count, for example
   online (`tests/run_break_test.sh`, laggy network) the host shoots the floor out from
   under itself and falls through, a client breaks a wall, a player joining mid-match is
   shown what is broken and every copy agrees; the match test also checks every copy
-  ends each match with the same broken pieces;
+  ends each match with the same broken pieces; on the Construction Site (fine
+  destruction) also that a rifle round stops in blockwork and a sniper's goes through
+  with half its damage, marks appear on both faces and are capped, and rubble flies
+  away from a blast, lands and stays;
+- a building coming down (`tests/collapse_test.gd`): four copies of the Construction
+  Site, each in a world of its own, stand for the host, a player who hears its news a
+  tenth of a second late, one who hears none and one who joins half way down, with
+  every copy's pieces started a hair apart. Small arms do nothing to a column and
+  three rockets blow a storey out; the corner bay falls, all its floors, and nothing
+  changes until it lets go; the player with the news stays within a few centimetres of
+  the host on average (a metre without); every copy ends with the very same heap;
+  someone under it is crushed and the kill is credited; the host's news stays under
+  28 KB a second; a player joining afterwards finds the same heap; online
+  (`tests/run_collapse_test.sh`, laggy network) the host blows out the corner column
+  (`--blow-column`), one spectator joins during the fall and one after, and all four
+  copies end with the same heap and the same walls and floors gone;
 - Halcyon (`tests/halcyon_test.gd`): 16 or more spawn points, each clear, none in the
   Control Room or in sight of the terminal's dais; the pickups (the heavy weapons up
   high, none in the Control Room); the terminal on its dais and its event; on the bots'
@@ -463,6 +479,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--race` | With `--practice`, `--bot` or `--host` and no `--map`: race on the first race map (a race map in `--map` makes it a race anyway) |
 | `--game=dm` | With `--practice`, `--bot` or `--host`: a Deathmatch (an arena map: `construction_site`, `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`...) |
 | `--map-event=SEC` | Start the map's events (Halcyon's low gravity, Empyrean Tower's Portal Surge) after SEC seconds, as if a terminal had fired them: for tests and screenshots |
+| `--blow-column=SEC:X,Z,STOREY` | Host: after SEC seconds blow out a storey of a column of the map's building (see "A building that can come down"), as three rockets would. X and Z count the frame's lines from 0, STOREY 0 is the ground's. `--blow-column=8:0,0,0` brings down the Construction Site tower's north-west corner bay: for tests and screenshots |
 | `--eager-terminal` | Bots go for a map terminal whenever one is ready and they have nobody to fight (normally they only try now and then) |
 | `--autopilot` | Your own racer runs the course the way a bot does (race tests and screenshots) |
 | `--bot-level=LEVEL` | With `--autopilot`: at this bot difficulty (default 3, Expert) |
@@ -766,6 +783,67 @@ ceiling under a floor, a rug, a lamp strip, frosting on glass) break along with 
 whole block only keeps the spawn rule. The bots' navigation mesh is not rebuilt when
 something breaks. The code is `game/arena/map_destruction.gd`.
 
+**Fine destruction (the Construction Site, for now).** Tick **Fine Destruction** on a
+map's root and its breakable blocks break small in place of the 2 m squares; nothing
+else about making the map changes. What that turns on, a layer at a time:
+
+- *Fine fracture* (`map_destruction.gd`, `FINE_STYLES`). The same panels are cut into
+  pieces about half a metre across (blockwork and brickwork along their courses), so a
+  hole is the size of what made it, with a ragged edge every copy draws alike. Each
+  material has a row: how big a piece is, the `armour` a hit must beat to do anything
+  (small arms only mark concrete), and how rounds go through it. A blast or a heavy
+  blow damages everything within reach.
+- *Rounds that go through* (`MapDestruction.pierce`). A round stronger than the
+  material's `stop` carries on with the `keep` share of its damage, through at most
+  `MAX_PIERCE` walls; the wall takes the `wear` share. The player's own copy and the
+  host work a shot out the same way, so what you see is what the host decides.
+- *Marks* (`bullet_marks.gd`): pocks, through-holes on both faces, scorches and dents,
+  and the cracks of a damaged piece, all drawn from one picture in two batches. The
+  newest 300 marks are kept. They are looks only: nothing is sent for them.
+- *Rubble* (`map_debris.gd`): a piece that breaks throws chunks of its own material,
+  away from the shot or blast that broke it, with bits and dust; chunks land, lie where
+  they fell and fall again if the floor under them goes. At most 120 in the air and
+  160 lying. Looks only as well: each copy throws its own.
+- *Buildings that fall* (`map_collapse.gd`, below).
+
+**A building that can come down.** Add a **MapFrame** node (`map_frame.gd`) to a map
+with fine destruction, at the map's origin, and tell it where the building's frame is:
+
+- **Parts**: the nodes whose blocks are the building. Only blocks under these can fall.
+- **Lines X**, **Lines Z**: where the lines of columns are. **Floor Tops**: the top of
+  each floor, lowest first (not the ground). **Overhang**, **Slab**: how far the floors
+  reach past the outer columns, and how deep a floor is.
+- **Column Kind**: tall upright blocks of this kind standing on the lines are the
+  columns. **Column Health** (600) and **Column Armour** (60): the damage one storey of
+  a column takes before it is blown out, and the weakest hit that does it any.
+- **Core**: a box that always stands (a lift core). The bay it is in never falls.
+
+The square of floor between four columns is a *bay*. Blow out a storey of a bay's
+outside corner column, or of any two of its columns, and that floor of the bay falls
+with every floor above it: about three rockets or two mortar rounds for a storey;
+rifles and pistols do nothing. A column storey with nothing left round it falls too.
+Columns show cracks at a third and two thirds of the way there.
+
+A fall is simulated, not played back. The host decides it and tells everyone which
+floors of which bay, and a number to cut them up by. For a second and a half nothing
+changes but dust and a shake (each copy uses the time to build the pieces, hidden, a
+few milliseconds a frame); then the walls and floors of those bays are swapped for
+loose pieces that look exactly like them, which let go from the lost column outward.
+Slab pieces on an edge next to a bay that still stands mostly hang there by their
+bars. Every copy runs the physics itself. While it falls the host sends where its own
+pieces are (at most 25 KB a second for each player, the big pieces first); a copy
+compares that with where it had the piece at the same moment of its own fall and takes
+the difference out, so nothing snaps back in time. When the host's pile is still it
+sends where every piece ended, every copy slides its pieces there over half a second,
+and the pile becomes one fixed body: part of the level, the same for everyone, with
+the bots' navigation laid over it. A player who joins during or after a fall is sent
+the same. Someone under a big piece coming down fast is killed, and the kill goes to
+whoever blew the column. Nobody spawns in or under a bay that has come down. A killcam
+shows what fell as already fallen.
+
+Not done yet: only the Construction Site's concrete tower has a frame (its steel,
+scaffolds and hoist stand whatever happens), and a killcam does not replay a fall.
+
 **Materials.** A block's **Material Type** (concrete, metal, wood, glass, dirt, rubber)
 sets the footsteps on it and the crash, rubble and dust when it breaks. Left blank, it
 comes from the palette's **Material** list (kind -> material), else from the kind's name
@@ -811,6 +889,8 @@ The scripts behind this:
 | `game/arena/map_root.gd`, `map_block.gd`, `map_spawn.gd`, `map_palette.gd` | The node types above; `MapRoot.build()` turns the blocks into collision and meshes |
 | `game/arena/map_mesher.gd`, `map_scenery.gd` | One merged mesh per kind, the materials, the navigation mesh |
 | `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
+| `game/arena/bullet_marks.gd`, `map_debris.gd` | Fine destruction's looks: bullet holes, scorches and cracks; rubble that flies, lands and stays |
+| `game/arena/map_frame.gd`, `map_collapse.gd` | A building that can come down: where its frame is, and the fall (pieces, the host's corrections, the heap) |
 | `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
 | `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
 | `game/arena/map_replay.gd` | How killcams record the map's moving parts and draw them as they were (see "Moving parts in killcams") |

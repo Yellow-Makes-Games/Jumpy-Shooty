@@ -133,7 +133,7 @@ func broke(cells: PackedInt32Array) -> void:
 		if n % every == 0:
 			_bits(panel, centre, thrown if thrown != Vector3.ZERO else face * (1.5 if randf() < 0.5 else -1.5))
 		if n % puff_every == 0:
-			_dust(centre, panel.material, thrown)
+			dust(centre, panel.material, thrown)
 
 
 ## How big one chunk of a cell (`box`, in its panel's frame) is: lumps of blockwork and
@@ -220,8 +220,23 @@ func _bits(panel: Dictionary, at: Vector3, thrown: Vector3) -> void:
 	get_tree().create_timer(1.6).timeout.connect(p.queue_free)
 
 
+## Something solid blown to bits (a column storey): chunks out of `box` every way, and dust.
+func burst(box: AABB, kind: String, mat: String) -> void:
+	if DisplayServer.get_name() == "headless" and not headless_too:
+		return
+	for n in 14:
+		var size := Vector3(randf_range(0.18, 0.4), randf_range(0.18, 0.4), randf_range(0.18, 0.4)).min(box.size * 0.6)
+		var at := box.position + Vector3(randf(), randf(), randf()) * box.size
+		var away := (at - box.get_center()) * Vector3(1, 0.3, 1)
+		away = away.normalized() if away.length() > 0.01 else Vector3.RIGHT
+		_fly(kind, Color.WHITE, size, Transform3D(Basis.from_euler(Vector3(randf() * TAU, randf() * TAU, randf() * TAU)), to_global(at)),
+			away * randf_range(2.0, 6.0) + Vector3(0, randf_range(0.0, 2.5), 0), Vector3(randf_range(-6, 6), randf_range(-6, 6), randf_range(-6, 6)))
+	for n in 4:
+		dust(to_global(box.position + Vector3(randf(), randf(), randf()) * box.size), mat, Vector3.ZERO)
+
+
 ## Dust: a few soft clouds that drift the way the pieces went, spread and thin out.
-func _dust(at: Vector3, mat: String, thrown: Vector3) -> void:
+func dust(at: Vector3, mat: String, thrown: Vector3) -> void:
 	var p := CPUParticles3D.new()
 	var quad := QuadMesh.new()
 	quad.size = Vector2(1.1, 1.1)

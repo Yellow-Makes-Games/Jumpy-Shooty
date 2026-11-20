@@ -30,6 +30,7 @@ var _marks: MultiMesh
 var _cracks: MultiMesh
 var _next := 0
 var _mark_cell := PackedInt32Array()   # per mark: the cell it is on, or -1
+var _mark_at := PackedVector3Array()   # per mark: where it is
 var _shown := PackedByteArray()        # per mark: 1 while it is drawn
 var _by_cell := {}                     # cell -> [marks on it]
 var _next_crack := 0
@@ -47,6 +48,7 @@ func setup(map: MapRoot) -> void:
 	_mark_cell.resize(MAX_MARKS)
 	_mark_cell.fill(-1)
 	_shown.resize(MAX_MARKS)
+	_mark_at.resize(MAX_MARKS)
 	_crack_of.resize(MAX_CRACKS)
 	_crack_of.fill(-1)
 	if map.destruction:
@@ -91,6 +93,7 @@ func mark(at: Vector3, normal: Vector3, picture: int, size: float, cell: int = -
 	_marks.set_instance_custom_data(slot, Color(picture, strength, 0, 0))
 	_marks.set_instance_color(slot, Color.WHITE)
 	_mark_cell[slot] = cell
+	_mark_at[slot] = at
 	_shown[slot] = 1
 	if cell >= 0:
 		if not _by_cell.has(cell):
@@ -222,7 +225,7 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 		if pair < 0:
 			pair = _next_crack
 			_next_crack = (_next_crack + 1) % MAX_CRACKS
-			if _crack_of[pair] >= 0:
+			if _crack_of[pair] != -1:
 				_crack_at.erase(_crack_of[pair])
 			_crack_of[pair] = c
 			_crack_at[c] = pair
@@ -259,6 +262,57 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 			_cracks.set_instance_custom_data(pair * 2 + side, Color(picture, 1.0, 0, 0))
 			_cracks.set_instance_color(pair * 2 + side, Color.WHITE)
 		made += 1
+
+
+## Every mark in `box` goes (what it was on has gone).
+func clear_in(box: AABB) -> void:
+	for slot in MAX_MARKS:
+		if _shown[slot] == 1 and box.has_point(_mark_at[slot]):
+			_marks.set_instance_transform(slot, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+			_forget(slot)
+			_shown[slot] = 0
+
+
+## The cracks of something solid that is not a breakable wall (a column storey): `box`,
+## upright, at `stage` (0: none). `key`: a number of its own, to change or clear them by.
+func cracks_on(key: int, box: AABB, stage: int) -> void:
+	var squares := 0
+	for side in 4:
+		var out: Vector3 = [Vector3.RIGHT, Vector3.BACK, Vector3.LEFT, Vector3.FORWARD][side]
+		var along := Vector3.UP.cross(out)
+		var wide := absf(box.size.dot(along))
+		var high := wide
+		var count := maxi(1, int(box.size.y / high))
+		for n in count:
+			var id := -2 - (key * 64 + squares)
+			squares += 1
+			if squares > 32:
+				return
+			# (cracked: every other square; badly: all of them)
+			if stage <= 0 or (stage == 1 and (n + side) % 2 == 1):
+				_uncrack(id)
+				continue
+			var pair: int = _crack_at.get(id, -1)
+			if pair < 0:
+				pair = _next_crack
+				_next_crack = (_next_crack + 1) % MAX_CRACKS
+				if _crack_of[pair] != -1:
+					_crack_at.erase(_crack_of[pair])
+					_uncrack_pair(pair)
+				_crack_of[pair] = id
+				_crack_at[id] = pair
+			var centre := box.get_center() + out * (absf(box.size.dot(out)) * 0.5 + OFF)
+			centre.y = box.position.y + (n + 0.5) * box.size.y / count
+			var picture := (CRACK if stage == 1 else CRACK_BAD) + (hash(id) & 1)
+			_cracks.set_instance_transform(pair * 2, Transform3D(Basis(along * wide, Vector3.UP * (box.size.y / count), out), centre))
+			_cracks.set_instance_custom_data(pair * 2, Color(picture, 1.0, 0, 0))
+			_cracks.set_instance_color(pair * 2, Color.WHITE)
+			_cracks.set_instance_transform(pair * 2 + 1, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+
+
+func _uncrack_pair(pair: int) -> void:
+	for side in 2:
+		_cracks.set_instance_transform(pair * 2 + side, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
 
 
 func _uncrack(cell: int) -> void:

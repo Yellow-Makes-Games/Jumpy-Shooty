@@ -42,6 +42,7 @@ CHECKS=(
   "graphics_settings|--script tests/graphics_settings_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
   "destruction|--fixed-fps 60 --script tests/destruction_test.gd"
+  "collapse|--fixed-fps 60 --script tests/collapse_test.gd"
   "block_settings|--script tests/block_settings_test.gd"
   "map_tools|--script tests/map_tools_test.gd"
   "arena_maps|--script tests/arena_maps_test.gd"
@@ -114,6 +115,8 @@ echo "== Portal gun online: 3 players, bad network (80 ms latency, 30 ms jitter,
 tests/run_portal_sync_test.sh 3 "80,30,5"
 echo "== Match: 3 players, laggy network, two matches back to back, sounds (Construction Site)"
 MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
+echo "== A building coming down online: laggy network, one spectator joins during the fall and one after; every copy ends with the same heap"
+tests/run_collapse_test.sh "100,30,5"
 echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword bot, sounds (Construction Site)"
 MAP=construction_site tests/run_bot_test.sh
 echo "== Bots in an online lobby: run by the host, seen moving by a client, kills and results agree"

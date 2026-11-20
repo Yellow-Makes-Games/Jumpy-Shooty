@@ -46,6 +46,11 @@ func _ready() -> void:
 	layout.build()
 	if layout.destruction:
 		layout.destruction.cells_changed.connect(_on_cells_changed)
+	if layout.collapse:
+		layout.collapse.changed.connect(_level_gone)
+		layout.collapse.news_out.connect(Match.collapse_news)
+		layout.collapse.rest_out.connect(Match.collapse_rest)
+		layout.collapse.settled.connect(Match.collapse_settled)
 	layout.parts_moving.connect(_on_parts_moving)
 	layout.parts_settled.connect(_on_parts_settled)
 	if Race.active:
@@ -466,6 +471,13 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 	for i in cells.size():
 		if stages[i] >= MapDestruction.BROKEN:
 			gone.append(layout.destruction.cell_box(cells[i]).grow(0.15))
+	_level_gone(gone)
+
+
+## Parts of the level went (`gone`: their boxes), or changed for good (a building that
+## came down, and its pile where it came to rest): portals on them close, grapples let
+## go, and the bots' navigation is laid again.
+func _level_gone(gone: Array) -> void:
 	if gone.is_empty():
 		return
 	portals.remove_in(gone)
