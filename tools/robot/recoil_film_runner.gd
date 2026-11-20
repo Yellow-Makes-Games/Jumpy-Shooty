@@ -51,13 +51,15 @@ func run(scene: String, view: String) -> void:
 
 
 ## Four shots one at a time, then the trigger held (or pulled as fast as the gun allows).
+## A slow gun (a bolt, a pump, a launcher) fires three and leaves it at that.
 func _shots(strafing: bool) -> void:
 	var data := _me.weapon.data
 	var gap := maxi(int((data.fire_interval + 0.3) * STEP), int(0.75 * STEP))
 	await _physics(50)
 	if strafing:
 		_key("move_right", true)
-	for i in 4:
+	var slow := not data.automatic and data.fire_interval >= 0.6   # (a slow gun: three shots show all there is)
+	for i in (3 if slow else 4):
 		await _shot()
 		await _physics(gap)
 		if strafing and i == 1:
@@ -69,7 +71,7 @@ func _shots(strafing: bool) -> void:
 		_key("fire", true)
 		await _physics(int(1.6 * STEP))
 		_key("fire", false)
-	else:
+	elif not slow:
 		var each := maxi(int(data.fire_interval * STEP) + 2, 4)
 		for i in clampi(int(1.6 / maxf(data.fire_interval, 0.05)), 2, 8):
 			await _shot()
