@@ -19,7 +19,7 @@ var third_person: bool = false
 var camera_shake: float = 1.0
 
 # HUD: which layout to show in each camera view (see HUD_STYLES)
-const HUD_STYLES := {"arcs": "Twin arcs (around the crosshair)", "clean": "Clean (corners)"}
+const HUD_STYLES := {"arcs": "Twin arcs", "clean": "Clean"}
 var hud_first_person: String = "arcs"
 var hud_third_person: String = "clean"
 ## Scale, opacity, crosshair and which parts of the HUD show (see HudConfig).

@@ -60,7 +60,7 @@ func _init(frame: MenuFrame = null) -> void:
 func _ready() -> void:
 	add_theme_constant_override("separation", 14)
 	var top: Node = _frame.header if _frame else self
-	UiKit.title(top, "Settings", 38, false, "Options")
+	UiKit.title(top, "Settings", 38, false)
 	UiKit.segmented(top, TABS, _last_tab, _show_tab)
 	_page = VBoxContainer.new()
 	_page.add_theme_constant_override("separation", 12)
@@ -92,14 +92,14 @@ func _show_tab(i: int) -> void:
 			UiKit.section(_page, "Mouse")
 			_slider("Sensitivity", 0.02, 0.5, 0.01, Settings.mouse_sensitivity, func(v): Settings.mouse_sensitivity = v)
 			_switch("Invert mouse Y", Settings.invert_y, func(v): Settings.invert_y = v)
-			_switch("Zoom toggles (off: hold to zoom)", Settings.zoom_toggle, func(v): Settings.zoom_toggle = v)
+			_switch("Toggle zoom", Settings.zoom_toggle, func(v): Settings.zoom_toggle = v)
 			_build_bindings()
 		1:
 			UiKit.section(_page, "Camera")
 			_slider("Field of view", 70.0, 120.0, 1.0, Settings.field_of_view, func(v): Settings.field_of_view = v)
 			_slider("Camera shake", 0.0, 1.0, 0.05, Settings.camera_shake, func(v): Settings.camera_shake = v, true)
-			_switch("Third-person camera (V switches in game)", Settings.third_person, func(v): Settings.third_person = v)
-			_switch("Killcam when you are knocked out (Space skips it)", Settings.killcam, func(v): Settings.killcam = v)
+			_switch("Third-person camera", Settings.third_person, func(v): Settings.third_person = v)
+			_switch("Killcam", Settings.killcam, func(v): Settings.killcam = v)
 		HUD_TAB:
 			_build_hud()
 		3:
@@ -111,15 +111,12 @@ func _show_tab(i: int) -> void:
 			_build_display()
 			UiKit.section(_page, "Effects")
 			_option("Knocked-out robots", Settings.GORE, Settings.gore, func(v): Settings.gore = v)
-			UiKit.label(_page, "A knocked-out robot falls as a ragdoll, and one that is blown up or hit far harder than it needed bursts into pieces. Either burns away after a few seconds.", true, 15)
 			_build_benchmark()
 
 
 ## Graphics tab: the benchmark (see Benchmark). Menus only: it leaves the match screen.
 func _build_benchmark() -> void:
 	UiKit.section(_page, "Benchmark")
-	UiKit.label(_page, "Flies a camera over %s for about %d seconds each and times every frame, at your window size and settings (vsync and the frame-rate cap are off while it runs). It saves a report you can open afterwards. Esc stops it." % [
-		", ".join(Benchmark.MAPS.map(Maps.name_of)), roundi(Benchmark.WARMUP + Benchmark.ORBIT_TIME + Benchmark.STOPS * Benchmark.STOP_TIME)], true, 15)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	_page.add_child(row)
@@ -132,7 +129,7 @@ func _build_benchmark() -> void:
 		OS.shell_open(Benchmark.folder()))
 	if Net.in_match:
 		run.disabled = true
-		UiKit.label(_page, "Leave the match to run the benchmark.", true, 15)
+		run.tooltip_text = "Leave the match to run the benchmark"
 
 
 func _on_back() -> void:
@@ -171,11 +168,9 @@ func _build_hud() -> void:
 	UiKit.section(_page, "Layout")
 	_option("In first person", Settings.HUD_STYLES, Settings.hud_first_person, func(v): Settings.hud_first_person = v)
 	_option("In third person", Settings.HUD_STYLES, Settings.hud_third_person, func(v): Settings.hud_third_person = v)
-	UiKit.label(_page, "Twin arcs keeps health, ammo and move cooldowns round the crosshair. Clean puts them in the bottom corners.", true, 15)
 	UiKit.section(_page, "Size and opacity")
 	_slider("HUD scale", HudConfig.SPEC.scale[1], HudConfig.SPEC.scale[2], 0.05, hud.scale, func(v): hud.scale = v, true)
 	_slider("HUD opacity", HudConfig.SPEC.opacity[1], HudConfig.SPEC.opacity[2], 0.05, hud.opacity, func(v): hud.opacity = v, true)
-	UiKit.label(_page, "Scale and opacity cover everything you see while playing; the crosshair has its own size below and never fades. The killcam, death screen and scoreboard stay as they are.", true, 15)
 	UiKit.section(_page, "Crosshair")
 	_option("Style", HudConfig.CROSSHAIRS, hud.crosshair, func(v): hud.crosshair = v)
 	_option("Colour", HudConfig.COLOR_NAMES, hud.crosshair_color, func(v): hud.crosshair_color = v)
@@ -185,12 +180,11 @@ func _build_hud() -> void:
 		func(v): hud.crosshair_thickness = v)
 	_switch("Dark outline", hud.crosshair_outline, func(v): hud.crosshair_outline = v)
 	_switch("Centre dot", hud.crosshair_dot, func(v): hud.crosshair_dot = v)
-	UiKit.label(_page, "Weapon's own changes with the weapon: a cross, the shotgun's brackets, a ring for launchers, ticks round a dot for snipers.", true, 15)
 	UiKit.section(_page, "Show")
 	_switch("Hit markers", hud.hit_markers, func(v): hud.hit_markers = v)
 	_switch("Damage numbers", hud.damage_numbers, func(v): hud.damage_numbers = v)
-	_switch("Speed and what you are doing", hud.speed, func(v): hud.speed = v)
-	_switch("Killcam score when you get a kill", hud.killcam_points, func(v): hud.killcam_points = v)
+	_switch("Speed", hud.speed, func(v): hud.speed = v)
+	_switch("Kill score", hud.killcam_points, func(v): hud.killcam_points = v)
 	_option("Moves", HudConfig.MOVES, hud.moves, func(v): hud.moves = v)
 	_option("Kill feed", HudConfig.FEED_CORNERS, hud.feed_corner, func(v): hud.feed_corner = v)
 	_slider("Kill feed lines", HudConfig.SPEC.feed_lines[1], HudConfig.SPEC.feed_lines[2], 1.0, hud.feed_lines, func(v): hud.feed_lines = int(v))
@@ -204,7 +198,6 @@ func _build_hud() -> void:
 
 func _build_bindings() -> void:
 	UiKit.section(_page, "Keys")
-	UiKit.label(_page, "Click a key, then press the new key or mouse button. Esc cancels, Backspace clears it. A key already used elsewhere moves here.", true, 15)
 	_bind_note = UiKit.label(_page, "", false, 15)
 	_bind_note.add_theme_color_override("font_color", UiKit.ACCENT)
 	_bind_note.visible = false
@@ -335,7 +328,6 @@ func _build_display() -> void:
 	_switch("V-Sync", _pending.vsync, func(v): _pick("vsync", v), false)
 	_option("Resolution", Settings.resolution_choices(), _pending.resolution, func(v): _pick("resolution", v), false)
 	_option("Frame rate", Settings.frame_rate_choices(), _pending.frame_rate, func(v): _pick("frame_rate", v), false)
-	UiKit.label(_page, "Windowed, Resolution sets the window size. In fullscreen it sets how sharp the 3D world is drawn (you'll see it in a match, not in menus). Frame rate caps how fast the game draws; your monitor's refresh rate is set in your computer's display settings.", true, 15)
 	_build_quality()
 	if Engine.is_embedded_in_editor():
 		var note := UiKit.label(_page, "You're running the game inside the Godot editor, which keeps it in its own panel, so window size and fullscreen won't change here. They work in the exported game, or after turning off \"Embed Game on Next Play\" in the editor's Game tab.", false, 15)
@@ -363,7 +355,6 @@ func _build_quality() -> void:
 	UiKit.section(_page, "Quality")
 	_option("Quality", GraphicsQuality.QUALITY_NAMES, _pending.quality, _pick_quality, false)
 	_quality_btn = _last_option
-	UiKit.label(_page, "High suits a gaming PC; Low keeps laptops and built-in graphics smooth. Run the benchmark below to see how your computer does.", true, 15)
 	var open := Button.new()
 	open.theme_type_variation = "Chip"
 	open.focus_mode = Control.FOCUS_NONE
@@ -389,14 +380,11 @@ func _fill_advanced() -> void:
 	_into = _advanced
 	_option("MSAA", GraphicsQuality.MSAA_NAMES, _pending.msaa, func(v): _pick_advanced("msaa", v), false)
 	_option("Screen-space AA", GraphicsQuality.SCREEN_AA_NAMES, _pending.screen_aa, func(v): _pick_advanced("screen_aa", v), false)
-	UiKit.label(_advanced, "MSAA smooths the edges of models and the map. Screen-space AA catches the rest: glowing effects and edges inside surfaces.", true, 15)
 	_slider("Render scale", 0.5, 1.0, 0.05, _pending.render_scale, func(v): _pick_advanced("render_scale", v), true, false)
 	_slider("Sharpening", 0.0, 2.0, 0.1, 2.0 - _pending.fsr_sharpness, func(v): _pick_advanced("fsr_sharpness", 2.0 - v), false, false)
-	UiKit.label(_advanced, "Below 100%, the 3D world is drawn smaller and stretched to fit with AMD FSR 1, which sharpens as it stretches. Menus and the HUD stay sharp. Sharpening only matters below 100%.", true, 15)
 	_option("Shadows", GraphicsQuality.SHADOW_NAMES, _pending.shadows, func(v): _pick_advanced("shadows", v), false)
 	_option("Ambient occlusion", GraphicsQuality.AO_NAMES, _pending.ao, func(v): _pick_advanced("ao", v), false)
 	_switch("Glow", _pending.glow, func(v): _pick_advanced("glow", v), false)
-	UiKit.label(_advanced, "Ambient occlusion darkens corners and the ground under things; High adds a little coloured light bouncing off nearby surfaces.", true, 15)
 	_into = null
 
 

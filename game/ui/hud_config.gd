@@ -7,7 +7,7 @@ extends RefCounted
 
 ## Crosshair styles: the weapon's own (each gun's: a cross, the shotgun's brackets,
 ## a launcher's ring, the sniper's ticks) or one shape for every weapon.
-const CROSSHAIRS := {"weapon": "Weapon's own", "cross": "Cross", "t": "T (no top arm)", "point": "Dot", "circle": "Circle"}
+const CROSSHAIRS := {"weapon": "Weapon's own", "cross": "Cross", "t": "T", "point": "Dot", "circle": "Circle"}
 const COLOR_NAMES := {"white": "White", "green": "Green", "yellow": "Yellow", "cyan": "Cyan", "pink": "Pink", "red": "Red"}
 const COLORS := {
 	"white": HudStyle.WHITE, "green": Color(0.35, 1.0, 0.45, 0.95), "yellow": Color(1.0, 0.92, 0.3, 0.95),
