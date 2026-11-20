@@ -135,6 +135,7 @@ var sound_log := false
 var scripted_fire := false
 var eager_terminal := false
 var map_event_at := -1.0     # --map-event: seconds after start (-1 = never)
+var blow_column: Array = []  # --blow-column=SECONDS:X,Z,STOREY: [seconds, Vector2i, storey] (host: see Match.dev_blow_column)
 ## With --scripted-input: also hook the nearest opponent now and then and flying-kick
 ## them, kick anyone close, and fire the rocket boots every few seconds (tests).
 var scripted_kicks := false
@@ -276,6 +277,10 @@ func _ready() -> void:
 			"--scripted-fire": scripted_fire = true
 			"--eager-terminal": eager_terminal = true
 			"--map-event": map_event_at = float(value)
+			"--blow-column":
+				var b := value.get_slice(":", 1).split(",")
+				if b.size() == 3:
+					blow_column.append([float(value.get_slice(":", 0)), Vector2i(int(b[0]), int(b[1])), int(b[2])])
 			"--scripted-kicks": scripted_kicks = true
 			"--auto-return": auto_return = true
 			"--menu": menu = value
@@ -379,6 +384,10 @@ func _process(delta: float) -> void:
 		map_event_at = -1.0
 		for e in get_tree().get_nodes_in_group(MapEvent.GROUP):
 			(e as MapEvent).host_start()
+	for blow in blow_column.duplicate():
+		if elapsed >= blow[0] and Net.arena and Match.running:
+			blow_column.erase(blow)
+			Match.dev_blow_column(blow[1], blow[2], multiplayer.get_unique_id())
 	if fall_at >= 0.0 and elapsed >= fall_at and Net.arena and Net.arena.local_player:
 		fall_at = -1.0
 		Net.arena.local_player.report_fell_once()

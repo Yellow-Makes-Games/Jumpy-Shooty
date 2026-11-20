@@ -82,6 +82,10 @@ extends Node3D
 	set(v):
 		bounds = v
 		update_gizmos()
+## Breakable walls and floors break fine (see MapDestruction): into pieces about half a
+## metre across in place of 2 m squares, with ragged edges, so a hole is the size of
+## what made it. Off, the map breaks the old way.
+@export var fine_destruction := false
 ## Tick this if a walkable floor winds up over itself, like a spiral stair in a tower
 ## (Cirrus's clock tower): the bots' navigation mesh is then cut up a way that keeps
 ## such a stair. Leave it off otherwise: the usual way makes tidier paths in the open.
@@ -156,6 +160,12 @@ var clock_source: Callable
 ## (arena matches; never races). Then `destruction` holds them (see MapDestruction).
 var destructible := false
 var destruction: MapDestruction
+## The marks shots and blasts leave on the map (a map with fine destruction; else null).
+var marks: BulletMarks
+## ...and the rubble its walls leave (see MapDebris).
+var debris: MapDebris
+## ...and its building that can come down, if it has a MapFrame (see MapCollapse).
+var collapse: MapCollapse
 ## build() made meshes (false in the movement tests).
 var has_meshes := true
 
@@ -213,6 +223,16 @@ func build(with_meshes: bool = true) -> void:
 	_riders = []
 	_nav_poses = []
 	_trail = []
+	_framed = []
+	_framing = 0
+	var building: MapFrame = null
+	for child in get_children():
+		if child is MapFrame and building == null:
+			building = child
+			for path in building.parts:
+				var part := building.get_node_or_null(path)
+				if part:
+					_framed.append(part)
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
 	# Gravity by place (none on most maps: then it is 1.0 everywhere, whatever the
 	# last map said).
@@ -228,8 +248,20 @@ func build(with_meshes: bool = true) -> void:
 	current = self
 	if destructible:
 		destruction = MapDestruction.new()
+		destruction.fine = fine_destruction
 		add_child(destruction)
 		pieces = destruction.setup(self, pieces, spawns)
+		if fine_destruction and with_meshes:
+			marks = BulletMarks.new()
+			add_child(marks)
+			marks.setup(self)
+			debris = MapDebris.new()
+			add_child(debris)
+			debris.setup(self, destruction)
+		if fine_destruction and building:
+			collapse = MapCollapse.new()
+			add_child(collapse)
+			pieces = collapse.setup(self, building, pieces)
 	for i in movers.size():
 		_build_mover(i, with_meshes)   # (after the breakables: a mover's own ride on it)
 	if movers.is_empty():
@@ -299,6 +331,8 @@ const SURFACE_BUCKET := 4.0
 ## like footsteps. Null between matches.
 static var current: MapRoot
 
+var _framed: Array = []   # build(): the nodes whose blocks are a MapFrame's building
+var _framing := 0
 var _surfaces := {}   # Vector2i bucket -> [{inv: Transform3D, half: Vector3, round: bool, top: float, material}]
 
 
@@ -540,8 +574,13 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			movers.append(m)
 			_collect(child, Transform3D.IDENTITY, m.pieces, spawn_list, movers.size() - 1)
 			continue
+		var in_frame := mover < 0 and _framed.has(child)
+		if in_frame:
+			_framing += 1
 		if child is MapBlock:
 			pieces.append((child as MapBlock).to_piece(at))
+			if _framing > 0:
+				pieces[pieces.size() - 1]["framed"] = true   # part of a building that can come down (see MapFrame)
 			if child is MapHazard:
 				var b := child as MapBlock
 				hazards.append({"xf": Transform3D(at.basis.orthonormalized(), at.origin), "size": b.size * at.basis.get_scale().abs(),
@@ -569,6 +608,8 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			var r := child as MapRoutePoint
 			route.append({"pos": at.origin, "action": r.action, "aim": r.aim, "radius": r.radius, "boost": r.boost})
 		_collect(child, at, pieces, spawn_list, mover)
+		if in_frame:
+			_framing -= 1
 
 
 ## A mover's blocks as one moving body (collision for the solid ones) and meshes.
@@ -842,6 +883,10 @@ func spawn_open(point: Vector3) -> int:
 ## that, all of them.
 func open_spawns() -> Array:
 	if movers.is_empty():
+		if collapse:
+			var standing := spawns.filter(func(s: Array) -> bool: return not collapse.blocked(s[0]))
+			if not standing.is_empty():
+				return standing   # (not in or under a bay that has come down)
 		return spawns
 	var on_islands := []
 	var fixed := []

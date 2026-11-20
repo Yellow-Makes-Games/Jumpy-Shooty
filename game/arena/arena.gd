@@ -46,6 +46,11 @@ func _ready() -> void:
 	layout.build()
 	if layout.destruction:
 		layout.destruction.cells_changed.connect(_on_cells_changed)
+	if layout.collapse:
+		layout.collapse.changed.connect(_level_gone)
+		layout.collapse.news_out.connect(Match.collapse_news)
+		layout.collapse.rest_out.connect(Match.collapse_rest)
+		layout.collapse.settled.connect(Match.collapse_settled)
 	layout.parts_moving.connect(_on_parts_moving)
 	layout.parts_settled.connect(_on_parts_settled)
 	if Race.active:
@@ -243,6 +248,10 @@ func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
 	Sound.play_at(ShotFx.landed_sound(w), at, "fire", 0.0, 0.05)
 	if not w.explosive:
 		return   # a nail or a bolt: no blast, no shake
+	if layout.marks:
+		layout.marks.scorch(at, w.splash_radius)
+	if layout.debris:
+		layout.debris.push_blast(at, w.splash_radius)
 	var d := at.distance_to(Sound.listener_position())
 	if d > 40.0 and d < INF:
 		Sound.play_at("explosion_far", at, "far", 0.0, 0.05)
@@ -257,6 +266,7 @@ func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit
 	if p:
 		p.show_shot()
 	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
+	BulletMarks.shots(p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
 	hit_sparks(muzzle, ends, hits)
 	if portals:
 		portals.shots_through(vias)
@@ -495,6 +505,13 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 	for i in cells.size():
 		if stages[i] >= MapDestruction.BROKEN:
 			gone.append(layout.destruction.cell_box(cells[i]).grow(0.15))
+	_level_gone(gone)
+
+
+## Parts of the level went (`gone`: their boxes), or changed for good (a building that
+## came down, and its pile where it came to rest): portals on them close, grapples let
+## go, and the bots' navigation is laid again.
+func _level_gone(gone: Array) -> void:
 	if gone.is_empty():
 		return
 	portals.remove_in(gone)

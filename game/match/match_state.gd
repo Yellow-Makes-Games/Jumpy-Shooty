@@ -469,6 +469,8 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 	var space := (Net.arena as Node3D).get_world_3d().direct_space_state
 	var bodies := _rewound_bodies(shooter, view_times)   # [id, feet, height, facing yaw]
 	var breaks := _breakables()
+	if breaks:
+		breaks.cause(shooter, weapon.id)
 
 	var pull := -1.0 if weapon.pull else 1.0   # the harpoon reels them in instead of pushing them away
 	var damage := {}   # target id -> total damage of this shot
@@ -487,13 +489,14 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		var legs: Array = portals.shot_path(space, origin, direction, weapon.max_range, 1) if portals \
 			else [{"a": origin, "b": origin + direction * weapon.max_range, "dir": direction,
 				"hit": space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * weapon.max_range, 1))}]   # layer 1: level only
+		# ...and through the walls it is strong enough to go through (a map that breaks
+		# fine): more legs, each with the share of its damage the round has left (`keep`).
+		# Every leg that ends on a breakable wall has its `cell`.
+		if breaks:
+			breaks.pierce(space, legs, weapon, portals)
 		var last: Dictionary = legs[legs.size() - 1]
-		var world_hit: Dictionary = last.hit
 		var end: Vector3 = last.b
 		vias.append(Portals.path_bends(legs))
-		var wall_cell := -1
-		if world_hit and breaks:
-			wall_cell = breaks.cell_at(world_hit.collider, world_hit.position, world_hit.normal)
 		var travelled := 0.0   # along the legs before this one (damage falls off with the whole way)
 		if weapon.pierce:   # the railgun: everyone along the line
 			for leg in legs:
@@ -503,7 +506,8 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 					if hit.is_empty():
 						continue
 					hit_mask |= 1 << i
-					var dmg := weapon.damage_at(travelled + hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0)
+					var dmg := weapon.damage_at(travelled + hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0) \
+						* float(leg.get("keep", 1.0))
 					damage[bb[0]] = damage.get(bb[0], 0.0) + dmg
 					shove[bb[0]] = shove.get(bb[0], Vector3.ZERO) \
 						+ Vector3(dir.x, 0.0, dir.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
@@ -512,8 +516,10 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 					if DevArgs.sync_log:
 						log.append("hit %d at %.2f m%s" % [bb[0], hit.height, " head" if hit.head else ""])
 				travelled += (leg.a as Vector3).distance_to(leg.b)
-			if wall_cell >= 0:
-				breaks.damage(wall_cell, weapon.damage_at(travelled) * weapon.structure_damage)
+				if int(leg.get("cell", -1)) >= 0:
+					breaks.damage(leg.cell, weapon.damage_at(travelled) * weapon.structure_damage * float(leg.keep) * float(leg.wear))
+				elif breaks and not (leg.hit as Dictionary).is_empty():
+					breaks.struck(leg.b, weapon.damage_at(travelled) * weapon.structure_damage * float(leg.keep))
 			ends.append(end)
 			continue
 		# The nearest opponent the pellet passes through, leg by leg.
@@ -523,6 +529,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		var best_head := false
 		var best_height := 0.0
 		var best_dir := direction
+		var best_keep := 1.0
 		for leg in legs:
 			var la: Vector3 = leg.a
 			var lb: Vector3 = leg.b
@@ -542,23 +549,28 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 						best_height = pts[0].y - feet.y
 						best_head = best_height >= height - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
 						best_dir = leg.dir
+						best_keep = leg.get("keep", 1.0)
 			if best_target != 0:
 				# Hit on this leg: the path stops here (the portals after it are not reached).
 				var cut := legs.find(leg)
 				vias[i] = Portals.path_bends(legs.slice(0, cut + 1))
 				break
 			travelled += la.distance_to(lb)
+			# It got to the end of this leg: the wall there takes the hit (whether the
+			# round stops in it or goes on through).
+			if int(leg.get("cell", -1)) >= 0:
+				breaks.damage(leg.cell, weapon.damage_at(travelled) * weapon.structure_damage * float(leg.keep) * float(leg.wear))
+			elif breaks and not (leg.hit as Dictionary).is_empty():
+				breaks.struck(leg.b, weapon.damage_at(travelled) * weapon.structure_damage * float(leg.keep))   # (a column, maybe)
 		if best_target != 0:
 			end = best_point
 			hit_mask |= 1 << i
-			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0)
+			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0) * best_keep
 			damage[best_target] = damage.get(best_target, 0.0) + dmg
 			shove[best_target] = shove.get(best_target, Vector3.ZERO) \
 				+ Vector3(best_dir.x, 0.0, best_dir.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
 			heads[best_target] = heads.get(best_target, false) or best_head
 			dirs[best_target] = best_dir
-		elif wall_cell >= 0:
-			breaks.damage(wall_cell, weapon.damage_at(travelled) * weapon.structure_damage)
 		ends.append(end)
 		if DevArgs.sync_log:
 			log.append(("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss")
@@ -645,6 +657,8 @@ func _projectile_spawn(id: int, shooter: int, weapon_id: String, origin: Vector3
 
 
 func _physics_process(delta: float) -> void:
+	if running and Net.arena != null and Net.is_host() and Engine.get_physics_frames() % 6 == 0:
+		_host_crush()
 	if _projectiles.is_empty() or not Net.is_host():
 		return
 	if not running or Net.arena == null:
@@ -746,8 +760,9 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 	if DevArgs.sync_log:
 		print("BOOM %d %s %d hit %d" % [shooter, w.id, direct, hits.size()])
 	var breaks := _breakables()
-	if breaks and collider:
-		breaks.damage(breaks.cell_at(collider, at - normal * 0.05, normal), w.damage * w.structure_damage)
+	if breaks and (collider or breaks.fine):
+		breaks.cause(shooter, w.id)
+		breaks.blast(at, w, collider, normal)
 		_flush_breaks()
 	for h in hits:
 		if is_dummy(h[0]):
@@ -861,7 +876,8 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 	if breaks:
 		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * (weapon.max_range + 0.5), 1))
 		if wall:
-			breaks.damage(breaks.cell_at(wall.collider, wall.position, wall.normal), blow * weapon.structure_damage)
+			breaks.cause(attacker, weapon.id)
+			breaks.blow(wall.collider, wall.position, wall.normal, blow * weapon.structure_damage)
 			_flush_breaks()
 	for h in hits:
 		if is_dummy(h[0]):
@@ -940,7 +956,7 @@ func _host_ground_slam(attacker: int, at: Vector3, view_times: Dictionary, charg
 	if breaks and GroundSlam.breaks_floor(weapon, charge):
 		var floor_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3(0, 0.5, 0), at - Vector3(0, 0.6, 0), 1))
 		if floor_hit:
-			breaks.damage(breaks.cell_at(floor_hit.collider, floor_hit.position, floor_hit.normal), 100000.0)
+			breaks.blow(floor_hit.collider, floor_hit.position, floor_hit.normal, 100000.0, MapDestruction.SLAM_REACH)
 			_flush_breaks()
 	for h in hits:
 		if is_dummy(h[0]):
@@ -1111,6 +1127,7 @@ func _flush_breaks() -> void:
 	var d := _breakables()
 	if d == null:
 		return
+	_flush_collapse(d)
 	var changed := d.flush()
 	if changed.is_empty():
 		return
@@ -1144,6 +1161,118 @@ func _breaks_request() -> void:
 	if Net.is_host() and d:
 		var all := d.snapshot()
 		_breaks.rpc_id(multiplayer.get_remote_sender_id(), all[0], all[1])
+		if d.root.collapse:   # (after what is broken: what came down is made of the cells marked fallen)
+			_collapse_state.rpc_id(multiplayer.get_remote_sender_id(), d.root.collapse.state())
+
+
+# ---------------------------------------------------------------------------
+# A building that can come down (see MapCollapse). The host damages its columns and
+# decides what falls; every copy runs the fall, and the host tells the others where its
+# pieces are as they go and where they came to rest.
+
+func _collapsing() -> MapCollapse:
+	var d := _breakables()
+	return d.root.collapse if d else null
+
+
+func _flush_collapse(d: MapDestruction) -> void:
+	var c := d.root.collapse
+	if c == null:
+		return
+	var out := c.flush()
+	if out.is_empty():
+		return
+	_columns.rpc(out.columns[0], out.columns[1])
+	for event: Dictionary in out.events:
+		_collapse.rpc(event)
+		if DevArgs.sync_log:
+			print("COLLAPSE %d units by %d" % [(event.units as PackedInt32Array).size(), int(event.by)])
+
+
+@rpc("authority", "call_local", "reliable")
+func _columns(ids: PackedInt32Array, stages: PackedByteArray) -> void:
+	var c := _collapsing()
+	if c:
+		c.apply_columns(ids, stages)
+
+
+@rpc("authority", "call_local", "reliable")
+func _collapse(event: Dictionary) -> void:
+	var c := _collapsing()
+	if c:
+		c.start(event)
+		if Net.is_host():
+			c.host(int(event.id))
+
+
+## Host (from MapCollapse.news_out): where its pieces are, for everyone else.
+func collapse_news(id: int, age: float, data: PackedByteArray) -> void:
+	if Net.is_host():
+		_collapse_news.rpc(id, age, data)
+
+
+@rpc("authority", "call_remote", "unreliable")
+func _collapse_news(id: int, age: float, data: PackedByteArray) -> void:
+	var c := _collapsing()
+	if c:
+		c.news(id, age, data)
+
+
+## Host (from MapCollapse.rest_out): where its pieces came to rest. That is final.
+func collapse_rest(id: int, data: PackedByteArray) -> void:
+	if Net.is_host():
+		_collapse_rest.rpc(id, data)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _collapse_rest(id: int, data: PackedByteArray) -> void:
+	var c := _collapsing()
+	if c:
+		c.rest(id, data)
+
+
+## Everyone (from MapCollapse.settled): a collapse is down, and this is its pile.
+func collapse_settled(id: int, key: String) -> void:
+	if DevArgs.sync_log:
+		var d := _breakables()
+		print("COLLAPSE_DOWN %d heap %s walls %s" % [id, key, d.state_key() if d else ""])
+
+
+## Host (tests: --blow-column): blows out a storey of a column of the map's building, as
+## three rockets from player `by` would.
+func dev_blow_column(column: Vector2i, storey: int, by: int) -> void:
+	var d := _breakables()
+	var c := _collapsing()
+	if not Net.is_host() or c == null or not c.has_column(column, storey):
+		return
+	d.cause(by, "rocket_launcher")
+	for n in 3:
+		c.blast(c.column_box(column, storey).get_center(), 1.0, 262.0)
+	_flush_breaks()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _collapse_state(state: Dictionary) -> void:
+	var c := _collapsing()
+	if c:
+		c.restore(state)
+
+
+## Host: anyone under a big piece of a building coming down is killed by it; the kill
+## goes to whoever brought it down.
+func _host_crush() -> void:
+	var c := _collapsing()
+	if c == null or not c.falling():
+		return
+	for b in _live_bodies():
+		var under := c.crushes(b[1], b[2])
+		if under.is_empty():
+			continue
+		var by: int = under.by if Net.players.has(under.by) else 0
+		if is_dummy(b[0]):
+			_host_dummy_damage(by, b[0], 1000.0, false)
+		else:
+			_host_damage(by, b[0], 1000.0, false, "", {"with": under.with, "push": Vector3.DOWN * 3.0, "dir": Vector3.DOWN})
 
 
 # ---------------------------------------------------------------------------

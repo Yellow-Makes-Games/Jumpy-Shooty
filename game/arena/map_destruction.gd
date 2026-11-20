@@ -28,6 +28,20 @@ extends Node3D
 ## panel's collision is the fewest boxes that cover what is left, so walking over an
 ## intact floor feels exactly like before.
 
+## Fine fracture (`fine`, set by the map: MapRoot.fine_destruction). The same panels are
+## cut much smaller (FINE_STYLES: about half a metre, blockwork along its courses), so a
+## hole is the size of what made it:
+##  - a cell's health is FINE_HEALTH of its kind's toughness, and a hit weaker than the
+##    material's `armour` does nothing at all (small arms only mark concrete);
+##  - a blast or a heavy blow damages every cell within reach (damage_area), less the
+##    further out;
+##  - the edge of a hole is drawn ragged: the corners of the cells round it are pushed
+##    about by a number worked out from the panel and the corner, so every copy of the
+##    game draws the same edge without being told it;
+##  - cracks are not darkened cells but marks (see BulletMarks), so only a break redraws
+##    the panel.
+## Collision stays boxes: the cells that are left, merged.
+
 signal cells_changed(cells: PackedInt32Array, stages: PackedByteArray)
 
 const CELL := 2.0            ## metres: about how big a piece breaks off
@@ -36,6 +50,28 @@ const MIN_AREA := 7.0        ## ...and at least this big (small landings and ste
 const ONE_PIECE_BELOW := 50.0  ## kinds weaker than this (glass) shatter as one pane
 const SPAWN_GUARD := 3.0     ## metres round a spawn point nothing breaks
 const BROKEN := 3            ## stages: 0 whole, 1 cracked, 2 badly cracked, 3 broken
+const FALLEN := 4            ## ...4 gone with what held it up (a collapse): no rubble or crash of its own
+const FINE_HEALTH := 0.3     ## fine: a cell's health, as a share of its kind's toughness
+## fine: how each sort of material breaks. cell: metres across a piece (along the panel,
+## up it); jitter: how far a corner on the edge of a hole strays, as a share of a cell
+## (along, up); armour: a hit weaker than this does nothing; stop: a round weaker than
+## this stops in it, a stronger one goes through (see pierce()); keep: the share of its
+## damage a round still has on the far side; wear: the share of a round's damage the
+## wall takes when the round goes through (one that stops in it does all of it).
+const FINE_STYLES := {
+	"concrete": {"name": "concrete", "cell": Vector2(0.5, 0.5), "jitter": Vector2(0.3, 0.3), "armour": 60.0, "stop": 90.0, "keep": 0.4, "wear": 0.6},
+	"masonry": {"name": "masonry", "cell": Vector2(0.4, 0.4), "jitter": Vector2(0.1, 0.0), "armour": 0.0, "stop": 50.0, "keep": 0.5, "wear": 0.3},
+	"wood": {"name": "wood", "cell": Vector2(0.5, 0.5), "jitter": Vector2(0.38, 0.12), "armour": 0.0, "stop": 8.0, "keep": 0.7, "wear": 0.5},
+	"sheet": {"name": "sheet", "cell": Vector2(0.5, 0.5), "jitter": Vector2(0.26, 0.26), "armour": 0.0, "stop": 5.0, "keep": 0.85, "wear": 0.5},
+}
+const GLASS_KEEP := 0.9       ## fine: ...and through a pane of glass (any round goes through one)
+const MAX_PIERCE := 2         ## fine: how many walls one round can go through
+const ARMOURED_FROM := 200.0  ## fine: a concrete kind at least this tough has concrete's armour
+const BLAST_REACH := 0.35     ## fine: a blast breaks walls out to this share of its splash radius
+const BLOW_REACH := 0.8       ## fine: metres round a melee blow that it damages
+const SLAM_REACH := 1.1       ## fine: metres round a ground slam that go through
+const HEALTH_SPREAD := 0.5    ## fine: one cell is up to this much tougher than the next (a ragged hole, not a round one)
+const CUT_SHADE := 0.7       ## fine: how dark the broken edge of a panel is drawn
 const CRACK_SHADE := [1.0, 0.8, 0.62]
 const MAX_DEBRIS := 140
 
@@ -48,7 +84,11 @@ var panels: Array = []
 ## Every cell: {panel, ijk: Vector3i, hp, max_hp, stage, protected}
 var cells: Array = []
 var root: MapRoot
+## Fine fracture (see the top): set before setup().
+var fine := false
 
+var _damaged := {}   # cell -> stage, for every cell that is not whole
+var _dirty := {}     # fine: panels whose meshes are redrawn at the end of this frame
 var _pending := {}   # host: cell -> new stage, sent by flush()
 var _debris := 0
 # Killcams (see MapReplay): what a replay draws in place of the live damage.
@@ -124,7 +164,7 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 		if not skin_of.has(k):
 			rest.append(keep[k])
 	# Whole blocks count as things resting on a floor: a floor under a crate holds.
-	_protect(rest + whole_pieces, spawn_points, first_cell)
+	_protect(rest + whole_pieces, spawn_points, first_cell, first_panel)
 	for i in range(first_panel, panels.size()):
 		_rebuild_panel(i)
 	return rest
@@ -165,29 +205,78 @@ static func health_of(piece: Dictionary, table: Dictionary) -> float:
 	return kind_health if kind_health > 0.0 else BlockBreakable.DEFAULT_HEALTH
 
 
+## fine: how a kind of this material breaks (a row of FINE_STYLES). Blockwork and
+## brickwork (kinds drawn as courses) break along their courses: a cell is half a block
+## wide and one course high.
+static func fine_style(kind: String, material: String, palette: MapPalette, toughness: float = 1000.0) -> Dictionary:
+	var surface: String = palette.surface.get(kind, "") if palette else ""
+	var drawn: Dictionary = MapScenery.SURFACES.get(surface, {})
+	if int(drawn.get("style", -1)) in [8, 9, 19]:   # bricks, blocks, masonry
+		var style: Dictionary = (FINE_STYLES.masonry as Dictionary).duplicate()
+		var course: Vector2 = drawn.get("wall_cell", Vector2(0.8, 0.4))
+		while course.y < 0.3:
+			course *= 2.0   # (thin bricks: two or four courses to a piece)
+		style.cell = Vector2(course.x * 0.5, course.y)
+		return style
+	if material == "wood":
+		return FINE_STYLES.wood
+	# (Only what is as tough as concrete shrugs off small arms: a plastic barrier is "concrete" by default.)
+	if material in ["concrete", "dirt"] and toughness >= ARMOURED_FROM:
+		return FINE_STYLES.concrete
+	return FINE_STYLES.sheet
+
+
 func _add_panel(piece: Dictionary, toughness: float, whole: bool = false, frame: Node3D = null) -> void:
 	var s: Vector3 = piece.size
 	var thin := 0
 	for a in 3:
 		if s[a] < s[thin]:
 			thin = a
-	var n := Vector3i.ONE
-	if toughness >= ONE_PIECE_BELOW and not whole:
-		for a in 3:
-			if a != thin:
-				n[a] = maxi(1, roundi(s[a] / CELL))
 	var mat: String = piece.get("material", "")
 	if not BlockMaterials.TABLE.has(mat):
 		mat = BlockMaterials.for_kind(piece.kind, root.palette)
+	var n := Vector3i.ONE
+	var cut := toughness >= ONE_PIECE_BELOW and not whole   # (else one pane, or one block)
+	var style: Dictionary = fine_style(piece.kind, mat, root.palette, toughness) if fine and cut else {}
+	if cut:
+		for a in 3:
+			if a != thin:
+				# (a wall's cells are measured along it and up it; a floor's, the first both ways)
+				var across: float = CELL if style.is_empty() else (style.cell.y if a == 1 else style.cell.x)
+				n[a] = maxi(1, roundi(s[a] / across))
+	if not style.is_empty():
+		toughness *= FINE_HEALTH
 	var panel := {"xf": piece.xf, "size": s, "kind": piece.kind, "tint": piece.get("tint", Color.WHITE),
 		"n": n, "cell": Vector3(s.x / n.x, s.y / n.y, s.z / n.z), "first": cells.size(), "thin": thin,
-		"skins": [], "body": null, "meshes": null, "whole": whole, "piece": piece, "material": mat, "frame": frame}
+		"skins": [], "body": null, "meshes": null, "whole": whole, "piece": piece, "material": mat, "frame": frame,
+		"fine": not style.is_empty(), "armour": style.get("armour", 0.0), "jitter": style.get("jitter", Vector2.ZERO),
+		"stop": style.get("stop", 0.0 if fine and mat == "glass" else INF),
+		"keep": style.get("keep", GLASS_KEEP), "wear": style.get("wear", 1.0), "style": style.get("name", "")}
+	# The two axes across its face, how many cells along each, and how far apart their
+	# numbers are in `cells`.
+	var u := (thin + 1) % 3
+	var v := (thin + 2) % 3
+	var strides := [1, n.x, n.x * n.y]
+	panel["u"] = u
+	panel["v"] = v
+	panel["nu"] = n[u]
+	panel["nv"] = n[v]
+	panel["su"] = strides[u]
+	panel["sv"] = strides[v]
+	var stray: Vector2 = panel.jitter
+	if thin == 1:   # a floor: more along its longer side (boards splinter along their length)
+		panel["jitter"] = stray if s[u] >= s[v] else Vector2(stray.y, stray.x)
+	else:           # a wall: `y` is up it
+		panel["jitter"] = Vector2(stray.y if u == 1 else stray.x, stray.y if v == 1 else stray.x)
 	var index := panels.size()
 	panels.append(panel)
 	for k in n.z:
 		for j in n.y:
 			for i in n.x:
-				cells.append({"panel": index, "ijk": Vector3i(i, j, k), "hp": toughness, "max_hp": toughness,
+				var hp := toughness
+				if panel.fine:   # (the host's own business, but the same every match: it keeps tests steady)
+					hp *= 1.0 - HEALTH_SPREAD * 0.5 + HEALTH_SPREAD * (hash(Vector2i(index, cells.size())) % 1000) / 999.0
+				cells.append({"panel": index, "ijk": Vector3i(i, j, k), "hp": hp, "max_hp": hp,
 					"stage": 0, "protected": false})
 	var body: StaticBody3D
 	if frame:
@@ -233,10 +322,13 @@ func _skin_box(panel: Dictionary, piece: Dictionary) -> AABB:
 
 
 ## Marks the cells that must not break: near spawns, and under or round other things.
-func _protect(others: Array, spawn_points: Array, first_cell: int = 0) -> void:
-	# A coarse grid of the other pieces' boxes, so each cell only checks its neighbours.
+## (Panel by panel, and for each thing only the cells it reaches: a map cut fine has
+## thousands of cells.)
+func _protect(others: Array, spawn_points: Array, first_cell: int = 0, first_panel: int = 0) -> void:
+	# A coarse grid of the other pieces' boxes, so each panel only checks its neighbours.
 	var bucket := 4.0
 	var grid := {}
+	var boxes := []
 	for p in others:
 		if p.get("hidden", false) and not p.solid:
 			continue
@@ -247,37 +339,77 @@ func _protect(others: Array, spawn_points: Array, first_cell: int = 0) -> void:
 		var hi := Vector3i((box.end / bucket).floor())
 		if Vector3(hi - lo).length() > 40.0:
 			continue   # the ground, the sky box: too big to be resting on a panel
+		var id := boxes.size()
+		boxes.append(box)
 		for x in range(lo.x, hi.x + 1):
 			for y in range(lo.y, hi.y + 1):
 				for z in range(lo.z, hi.z + 1):
 					var key := Vector3i(x, y, z)
 					if not grid.has(key):
 						grid[key] = []
-					grid[key].append(box)
-	for c in range(first_cell, cells.size()):
-		var box := _frame_box(c)
-		var cell: Dictionary = cells[c]
+					grid[key].append(id)
+	for index in range(first_panel, panels.size()):
+		var panel: Dictionary = panels[index]
+		var pxf: Transform3D = panel.xf
+		var inv := pxf.affine_inverse()
+		var pbox: AABB = pxf * AABB(-(panel.size as Vector3) * 0.5, panel.size)
+		var first: int = panel.first
+		var n: Vector3i = panel.n
 		for s in spawn_points:
 			var at: Vector3 = s[0]
-			var flat := Vector2(clampf(at.x, box.position.x, box.end.x) - at.x, clampf(at.z, box.position.z, box.end.z) - at.z)
-			if flat.length() < SPAWN_GUARD and box.end.y > at.y - 1.5 and box.position.y < at.y + 3.0:
-				cell.protected = true
-		if cell.protected or panels[cell.panel].whole:
+			var near := AABB(Vector3(at.x - SPAWN_GUARD, at.y - 1.5, at.z - SPAWN_GUARD), Vector3(SPAWN_GUARD * 2.0, 4.5, SPAWN_GUARD * 2.0))
+			if not near.intersects(pbox):
+				continue
+			var reach := _cells_in(panel, inv * near)
+			if reach.is_empty():
+				continue
+			for k in range(reach[0].z, reach[1].z + 1):
+				for j in range(reach[0].y, reach[1].y + 1):
+					for i in range(reach[0].x, reach[1].x + 1):
+						var c := first + i + n.x * (j + n.y * k)
+						var box := _frame_box(c)
+						var flat := Vector2(clampf(at.x, box.position.x, box.end.x) - at.x, clampf(at.z, box.position.z, box.end.z) - at.z)
+						if flat.length() < SPAWN_GUARD and box.end.y > at.y - 1.5 and box.position.y < at.y + 3.0:
+							cells[c].protected = true
+		if panel.whole:
 			continue   # (a whole block breaks even with things on it: they stay put)
-		var lo := Vector3i((box.position / bucket).floor())
-		var hi := Vector3i((box.end / bucket).floor())
-		var floor_panel: bool = panels[cell.panel].thin == 1
+		var floor_panel: bool = panel.thin == 1
+		var grown := pbox.grow(0.06)
+		var lo := Vector3i((grown.position / bucket).floor())
+		var hi := Vector3i((grown.end / bucket).floor())
 		var checked := {}
 		for x in range(lo.x, hi.x + 1):
 			for y in range(lo.y, hi.y + 1):
 				for z in range(lo.z, hi.z + 1):
-					for other in grid.get(Vector3i(x, y, z), []):
-						if checked.has(other):
+					for id: int in grid.get(Vector3i(x, y, z), []):
+						if checked.has(id):
 							continue
-						checked[other] = true
-						if _holds(box, other, floor_panel):
-							cell.protected = true
-							break
+						checked[id] = true
+						var other: AABB = boxes[id]
+						if not grown.intersects(other):
+							continue
+						var reach := _cells_in(panel, inv * other.grow(0.06))
+						if reach.is_empty():
+							continue
+						for k in range(reach[0].z, reach[1].z + 1):
+							for j in range(reach[0].y, reach[1].y + 1):
+								for i in range(reach[0].x, reach[1].x + 1):
+									var c := first + i + n.x * (j + n.y * k)
+									if c >= first_cell and not cells[c].protected and _holds(_frame_box(c), other, floor_panel):
+										cells[c].protected = true
+
+
+## The cells of a panel that a box (in the panel's own frame) reaches: [first ijk, last
+## ijk], or [] if it misses the panel.
+func _cells_in(panel: Dictionary, box: AABB) -> Array:
+	var half: Vector3 = panel.size * 0.5
+	if not AABB(-half, panel.size).intersects(box) and not AABB(-half, panel.size).grow(0.001).intersects(box):
+		return []
+	var step: Vector3 = panel.cell
+	var top: Vector3i = (panel.n as Vector3i) - Vector3i.ONE
+	var lo := Vector3i(((box.position + half) / step).floor()).clamp(Vector3i.ZERO, top)
+	var hi := Vector3i(((box.end + half) / step).floor()).clamp(Vector3i.ZERO, top)
+	return [lo, hi]
 
 
 ## Does `other` rest on this cell, hang from it, or go through it? (What a wall
@@ -349,6 +481,75 @@ func material_of(c: int) -> String:
 	return panels[cells[c].panel].material
 
 
+## The cell of the breakable wall or floor whose face is at `point` (a mark's place on
+## a surface facing `normal`), or -1.
+func cell_near(point: Vector3, normal: Vector3) -> int:
+	var at := point - normal * 0.05
+	for panel: Dictionary in panels:
+		var local: Vector3 = _panel_xf(panel).affine_inverse() * at
+		var half: Vector3 = panel.size * 0.5
+		if absf(local.x) > half.x or absf(local.y) > half.y or absf(local.z) > half.z:
+			continue
+		var n: Vector3i = panel.n
+		var ijk := Vector3i(((local + half) / (panel.cell as Vector3)).floor()).clamp(Vector3i.ZERO, n - Vector3i.ONE)
+		return int(panel.first) + ijk.x + n.x * (ijk.y + n.y * ijk.z)
+	return -1
+
+
+## fine: a shot's path carried on through the walls it is strong enough to go through.
+## `legs` is the path so far (Portals.shot_path: [{a, b, dir, hit}], the last one ending
+## where it hit the level); legs are added past each wall the round goes through (at
+## most MAX_PIERCE), found the same way with `portals`, `mask` and `exclude`. Every leg
+## gets `keep` (the share of the round's damage it still has along that leg), `cell`
+## (the breakable cell it ended on, or -1) and `wear` (the share of the round's damage
+## that cell takes: all of it, or less if the round went on through), and a leg that
+## starts on the far side of a wall gets `through`. Nothing is damaged here: the host and a shooter's own copy both
+## work the path out this way, and only the host acts on it.
+func pierce(space: PhysicsDirectSpaceState3D, legs: Array, weapon: WeaponData, portals: Object = null,
+		mask: int = 1, exclude: Array[RID] = []) -> void:   # (portals: the arena's Portals, or null)
+	var keep := 1.0
+	var gone := 0.0
+	var holes := 0
+	var i := 0
+	while i < legs.size():
+		var leg: Dictionary = legs[i]
+		i += 1
+		leg["keep"] = keep
+		leg["cell"] = -1
+		leg["wear"] = 1.0
+		gone += (leg.a as Vector3).distance_to(leg.b)
+		var hit: Dictionary = leg.hit
+		if hit.is_empty():
+			continue
+		var c := cell_at(hit.collider, hit.position, hit.normal)
+		leg["cell"] = c
+		if c < 0 or not fine or holes >= MAX_PIERCE or i < legs.size():
+			continue
+		var panel: Dictionary = panels[cells[c].panel]
+		if weapon.damage_at(gone) * weapon.structure_damage * keep < float(panel.stop):
+			continue
+		var dir: Vector3 = leg.dir
+		var face: Vector3 = _panel_xf(panel).basis[panel.thin].normalized()
+		var thick: float = (panel.size as Vector3)[panel.thin] / maxf(absf(dir.dot(face)), 0.2)
+		var left := weapon.max_range - gone - thick
+		if left < 0.1:
+			continue
+		var from: Vector3 = (hit.position as Vector3) + dir * (thick + 0.02)
+		leg["wear"] = float(panel.wear)
+		keep *= float(panel.keep)
+		holes += 1
+		gone += thick
+		var more: Array
+		if portals:
+			more = portals.call("shot_path", space, from, dir, left, mask, exclude)
+		else:
+			var ray := PhysicsRayQueryParameters3D.create(from, from + dir * left, mask, exclude)
+			var next := space.intersect_ray(ray)
+			more = [{"a": from, "b": from + dir * left if next.is_empty() else next.position, "dir": dir, "hit": next}]
+		more[0]["through"] = true
+		legs.append_array(more)
+
+
 # ---------------------------------------------------------------------------
 # Damage (host)
 
@@ -359,10 +560,76 @@ func damage(c: int, amount: float) -> void:
 	var cell: Dictionary = cells[c]
 	if cell.protected or cell.stage >= BROKEN:
 		return
+	if amount < float(panels[cell.panel].armour):
+		return   # too weak a hit for this material: a mark at most
 	cell.hp = maxf(cell.hp - amount, 0.0)
 	var stage := _stage_for(cell)
 	if stage != cell.stage:
 		_pending[c] = stage
+
+
+## Host: an explosion at `at` with this weapon's splash: fine, it breaks everything
+## near (see BLAST_REACH); else just the piece it landed on (`body`, `normal`: what it hit).
+func blast(at: Vector3, weapon: WeaponData, body: Object, normal: Vector3) -> void:
+	var amount := weapon.damage * weapon.structure_damage
+	if fine and weapon.explosive:
+		damage_area(at, weapon.splash_radius * BLAST_REACH, amount)
+		if root.collapse:
+			root.collapse.blast(at, weapon.splash_radius * BLAST_REACH, amount)   # (the columns of a building that can come down)
+	elif body:
+		damage(cell_at(body, at - normal * 0.05, normal), amount)
+
+
+## Host: a melee blow of `amount` that landed on `body` at `at`: fine, it also damages
+## the cells within `reach` metres; else just the piece it landed on.
+func blow(body: Object, at: Vector3, normal: Vector3, amount: float, reach: float = BLOW_REACH) -> void:
+	var c := cell_at(body, at, normal)
+	if c < 0:
+		struck(at, minf(amount, 400.0))   # (a column takes a blow as a blow, however hard: a slam that goes through any floor is still one swing)
+	if c >= 0 and panels[cells[c].panel].fine and reach > 0.0:
+		damage_area(at - normal * 0.03, reach, amount)
+	else:
+		damage(c, amount)
+
+
+## Host: a round or a blow of `amount` landed at `point` on something that is not a
+## breakable wall: a column of a building that can come down takes it (see MapCollapse).
+func struck(point: Vector3, amount: float) -> void:
+	if root.collapse:
+		root.collapse.hit(point, amount)
+
+
+## Host: who is doing the damage that follows, and what with (a collapse's kills are theirs).
+func cause(who: int, weapon_id: String) -> void:
+	if root.collapse:
+		root.collapse.by = who
+		root.collapse.with = weapon_id
+
+
+## Host: a blast or a heavy blow at `at`: every cell within `radius` metres takes
+## `amount`, less the further out (nothing at the rim). Changes go out with the next
+## flush(), like damage()'s.
+func damage_area(at: Vector3, radius: float, amount: float) -> void:
+	if radius <= 0.0 or amount <= 0.0:
+		return
+	for panel: Dictionary in panels:
+		var xf := _panel_xf(panel)
+		var local: Vector3 = xf.affine_inverse() * at
+		var half: Vector3 = panel.size * 0.5
+		var nearest := local.clamp(-half, half)
+		if nearest.distance_to(local) >= radius:
+			continue
+		var step: Vector3 = panel.cell
+		var n: Vector3i = panel.n
+		var lo := Vector3i(((local - Vector3.ONE * radius + half) / step).floor()).clamp(Vector3i.ZERO, n - Vector3i.ONE)
+		var hi := Vector3i(((local + Vector3.ONE * radius + half) / step).floor()).clamp(Vector3i.ZERO, n - Vector3i.ONE)
+		for k in range(lo.z, hi.z + 1):
+			for j in range(lo.y, hi.y + 1):
+				for i in range(lo.x, hi.x + 1):
+					var from := -half + Vector3(i, j, k) * step
+					var d := local.clamp(from, from + step).distance_to(local)
+					if d < radius:
+						damage(int(panel.first) + i + n.x * (j + n.y * k), amount * (1.0 - d / radius))
 
 
 static func _stage_for(cell: Dictionary) -> int:
@@ -387,12 +654,12 @@ func flush() -> Array:
 
 ## Host: every cell that is not whole, as [cells, stages] (for someone joining late).
 func snapshot() -> Array:
-	var ids := PackedInt32Array()
+	var ids := PackedInt32Array(_damaged.keys())
+	ids.sort()   # (the same list on every copy, whatever order the damage arrived in)
 	var stages := PackedByteArray()
-	for c in cells.size():
-		if cells[c].stage != 0:
-			ids.append(c)
-			stages.append(cells[c].stage)
+	stages.resize(ids.size())
+	for i in ids.size():
+		stages[i] = _damaged[ids[i]]
 	return [ids, stages]
 
 
@@ -412,11 +679,19 @@ func apply(ids: PackedInt32Array, stages: PackedByteArray) -> PackedInt32Array:
 		var stage := int(stages[i])
 		if stage == cell.stage:
 			continue
-		if stage >= BROKEN:
+		var was_gone: bool = cell.stage >= BROKEN
+		if stage == BROKEN and not was_gone:
 			broke.append(c)
+		if stage >= BROKEN:
 			cell.hp = 0.0
 		cell.stage = stage
-		touched[cell.panel] = true
+		if stage == 0:
+			_damaged.erase(c)
+		else:
+			_damaged[c] = stage
+		# (a fine panel draws its cracks as marks: only a break changes it)
+		if not panels[cell.panel].fine or was_gone != (stage >= BROKEN):
+			touched[cell.panel] = true
 	for p in touched:
 		_rebuild_panel(p)
 	if not touched.is_empty():
@@ -470,6 +745,23 @@ func _rebuild_panel(index: int) -> void:
 	if panel.whole:
 		_rebuild_whole(panel)
 		return
+	if panel.fine:
+		var gone := _fine_gone(panel, false)
+		for box in _merge_flat(panel.nu, panel.nv, gone, 0):
+			var shape := CollisionShape3D.new()
+			var bs := BoxShape3D.new()
+			var local := _flat_extent(panel, box)
+			bs.size = local.size
+			shape.shape = bs
+			shape.position = local.get_center()
+			body.add_child(shape)
+		# The drawing waits for the end of the frame: a burst of breaks redraws it once.
+		if is_inside_tree() and not _replaying:
+			_dirty[index] = true
+			set_process(true)
+		else:
+			_rebuild_meshes(index)
+		return
 	var solid := func(c: int) -> int: return 0 if cells[first + c].stage >= BROKEN else 1
 	for box in _merge(panel.n, solid):
 		var shape := CollisionShape3D.new()
@@ -498,7 +790,11 @@ func _rebuild_meshes(index: int) -> void:
 	for child in holder.get_children():
 		holder.remove_child(child)
 		child.free()
+	_dirty.erase(index)
 	if DisplayServer.get_name() == "headless" and not root.has_meshes:
+		return
+	if panel.fine:
+		_fine_meshes(panel)
 		return
 	var by_stage := func(c: int) -> int: return 0 if _shown(first + c) >= BROKEN else _shown(first + c) + 1
 	var pieces := []
@@ -640,6 +936,265 @@ static func _merge(n: Vector3i, key_of: Callable) -> Array:
 
 
 # ---------------------------------------------------------------------------
+# Fine fracture: a panel as cells across its face (nu x nv of them, numbered u first)
+
+func _process(_delta: float) -> void:
+	for index in _dirty.keys():
+		_rebuild_meshes(index)
+	_dirty.clear()
+	set_process(false)
+
+
+## For each cell across a fine panel's face, 1 if it is gone: as the game has it, or
+## (`drawn`) as it is drawn (a killcam draws the past).
+func _fine_gone(panel: Dictionary, drawn: bool) -> PackedByteArray:
+	var nu: int = panel.nu
+	var nv: int = panel.nv
+	var su: int = panel.su
+	var sv: int = panel.sv
+	var first: int = panel.first
+	var gone := PackedByteArray()
+	gone.resize(nu * nv)
+	var stages: Dictionary = _replay if drawn and _replaying else _damaged
+	if stages.is_empty():
+		return gone
+	for iv in nv:
+		var row := first + iv * sv
+		for iu in nu:
+			if int(stages.get(row + iu * su, 0)) >= BROKEN:
+				gone[iu + nu * iv] = 1
+	return gone
+
+
+## The cells whose key is `want`, merged into as few rectangles as a greedy pass finds:
+## [first u, first v, last u, last v] each.
+static func _merge_flat(nu: int, nv: int, keys: PackedByteArray, want: int) -> Array:
+	var used := PackedByteArray()
+	used.resize(nu * nv)
+	var boxes := []
+	for iv in nv:
+		var iu := 0
+		while iu < nu:
+			var c := iu + nu * iv
+			if keys[c] != want or used[c] == 1:
+				iu += 1
+				continue
+			var i2 := iu
+			while i2 + 1 < nu and keys[c + i2 + 1 - iu] == want and used[c + i2 + 1 - iu] == 0:
+				i2 += 1
+			var j2 := iv
+			while j2 + 1 < nv:
+				var row := nu * (j2 + 1)
+				var ok := true
+				for x in range(iu, i2 + 1):
+					if keys[row + x] != want or used[row + x] == 1:
+						ok = false
+						break
+				if not ok:
+					break
+				j2 += 1
+			for y in range(iv, j2 + 1):
+				for x in range(iu, i2 + 1):
+					used[x + nu * y] = 1
+			boxes.append([iu, iv, i2, j2])
+			iu = i2 + 1
+	return boxes
+
+
+## A rectangle of cells (see _merge_flat) as a box in the panel's frame.
+func _flat_extent(panel: Dictionary, box: Array) -> AABB:
+	var half: Vector3 = panel.size * 0.5
+	var step: Vector3 = panel.cell
+	var u: int = panel.u
+	var v: int = panel.v
+	var lo := -half
+	var size: Vector3 = panel.size
+	lo[u] += box[0] * step[u]
+	lo[v] += box[1] * step[v]
+	size[u] = (box[2] - box[0] + 1) * step[u]
+	size[v] = (box[3] - box[1] + 1) * step[v]
+	return AABB(lo, size)
+
+
+## -1..1 each way, the same on every copy of the game: how far the corner (ju, jv) of
+## the panel whose first cell is `first` strays when it is on the edge of a hole.
+static func _stray(first: int, ju: int, jv: int) -> Vector2:
+	var h := hash(Vector3i(first, ju, jv))
+	return Vector2((h & 0xffff) / 32767.5 - 1.0, ((h >> 16) & 0xffff) / 32767.5 - 1.0)
+
+
+## Draws a fine panel: what is left of it as plain boxes, except the cells round a
+## hole, which are drawn one by one with their corners on the hole pushed about, so
+## its edge is ragged. (The panel's holder is empty when this is called.)
+func _fine_meshes(panel: Dictionary) -> void:
+	var gone := _fine_gone(panel, true)
+	var nu: int = panel.nu
+	var nv: int = panel.nv
+	var u: int = panel.u
+	var v: int = panel.v
+	var t: int = panel.thin
+	var xf: Transform3D = panel.xf
+	var half: Vector3 = panel.size * 0.5
+	var step: Vector3 = panel.cell
+	var tint: Color = panel.tint
+	var keys := PackedByteArray()   # 0 gone, 1 plain, 2 on the edge of a hole
+	keys.resize(nu * nv)
+	keys.fill(1)
+	var w := nu + 1
+	var rag := PackedByteArray()    # corners with a hole on one side and panel on another
+	var lo_u := nu
+	var hi_u := -1
+	var lo_v := nv
+	var hi_v := -1
+	for iv in nv:
+		for iu in nu:
+			if gone[iu + nu * iv] == 1:
+				keys[iu + nu * iv] = 0
+				lo_u = mini(lo_u, iu)
+				hi_u = maxi(hi_u, iu)
+				lo_v = mini(lo_v, iv)
+				hi_v = maxi(hi_v, iv)
+	var pieces := []
+	var extra := {}   # kind -> [corners, normals, colours] of the ragged cells
+	MapMesher._shade = root.face_shade
+	MapMesher._shade_basis = Basis()
+	if hi_u >= 0:
+		rag.resize(w * (nv + 1))
+		for jv in range(lo_v, hi_v + 2):
+			for ju in range(lo_u, hi_u + 2):
+				var some_gone := false
+				var some_left := false
+				for dv in 2:
+					var cv := jv - dv
+					if cv < 0 or cv >= nv:
+						continue
+					for du in 2:
+						var cu := ju - du
+						if cu < 0 or cu >= nu:
+							continue
+						if gone[cu + nu * cv] == 1:
+							some_gone = true
+						else:
+							some_left = true
+				if some_gone and some_left:
+					rag[ju + w * jv] = 1
+		var stray: Vector2 = panel.jitter
+		var first: int = panel.first
+		for iv in range(maxi(lo_v - 1, 0), mini(hi_v + 2, nv)):
+			for iu in range(maxi(lo_u - 1, 0), mini(hi_u + 2, nu)):
+				var c := iu + nu * iv
+				if keys[c] == 0:
+					continue
+				if rag[iu + w * iv] == 0 and rag[iu + 1 + w * iv] == 0 and rag[iu + w * (iv + 1)] == 0 and rag[iu + 1 + w * (iv + 1)] == 0:
+					continue
+				keys[c] = 2
+				# Its four corners across the face, going round, strayed where they are on a hole.
+				var flat := PackedVector2Array()
+				for k in 4:
+					var ju: int = iu + (1 if k == 1 or k == 2 else 0)
+					var jv: int = iv + (1 if k >= 2 else 0)
+					var at := Vector2(-half[u] + ju * step[u], -half[v] + jv * step[v])
+					if rag[ju + w * jv] == 1:
+						var by := _stray(first, ju, jv)
+						if ju > 0 and ju < nu:
+							at.x += by.x * stray.x * step[u]
+						if jv > 0 and jv < nv:
+							at.y += by.y * stray.y * step[v]
+					flat.append(at)
+				# The panel itself, and any skin that covers this whole cell, as layers through it.
+				var layers := [[panel.kind, tint, -half[t], half[t]]]
+				var cell_lo := Vector2(-half[u] + iu * step[u], -half[v] + iv * step[v])
+				for skin in panel.skins:
+					var sb: AABB = skin.box
+					if sb.end[u] <= cell_lo.x or sb.position[u] >= cell_lo.x + step[u] or sb.end[v] <= cell_lo.y or sb.position[v] >= cell_lo.y + step[v]:
+						continue
+					if sb.position[u] <= cell_lo.x + 0.01 and sb.end[u] >= cell_lo.x + step[u] - 0.01 \
+							and sb.position[v] <= cell_lo.y + 0.01 and sb.end[v] >= cell_lo.y + step[v] - 0.01:
+						layers.append([skin.kind, skin.tint, sb.position[t], sb.end[t]])
+					else:   # only part of the cell: that part, square
+						var cell_box := AABB(-half, panel.size)
+						cell_box.position[u] = cell_lo.x
+						cell_box.position[v] = cell_lo.y
+						cell_box.size[u] = step[u]
+						cell_box.size[v] = step[v]
+						cell_box.position[t] = sb.position[t]
+						cell_box.size[t] = sb.size[t]
+						var part := cell_box.intersection(sb)
+						if part.has_volume():
+							pieces.append({"xf": xf * Transform3D(Basis(), part.get_center()), "size": part.size,
+								"kind": skin.kind, "shape": "box", "tint": skin.tint})
+				# Which of its four sides are open: on a hole (drawn dark, as a broken edge) or on the panel's rim.
+				var open := [0, 0, 0, 0]
+				var beside := [[iu, iv - 1], [iu + 1, iv], [iu, iv + 1], [iu - 1, iv]]
+				for k in 4:
+					var bu: int = beside[k][0]
+					var bv: int = beside[k][1]
+					if bu < 0 or bv < 0 or bu >= nu or bv >= nv:
+						open[k] = 1
+					elif gone[bu + nu * bv] == 1:
+						open[k] = 2
+				for layer: Array in layers:
+					if not extra.has(layer[0]):
+						extra[layer[0]] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray()]
+					var buf: Array = extra[layer[0]]
+					var colour: Color = layer[1]
+					var near := []
+					var far := []
+					for k in 4:
+						var a := Vector3.ZERO
+						a[u] = flat[k].x
+						a[v] = flat[k].y
+						a[t] = layer[3]
+						near.append(a)
+						a[t] = layer[2]
+						far.append(a)
+					var out := Vector3.ZERO
+					out[t] = 1.0
+					MapMesher._flat(buf, xf, near, out, colour)
+					MapMesher._flat(buf, xf, far, -out, colour)
+					for k in 4:
+						if open[k] == 0:
+							continue
+						var k2 := (k + 1) % 4
+						var along: Vector2 = flat[k2] - flat[k]
+						var side := Vector3.ZERO   # square to the edge, away from the cell
+						side[u] = along.y
+						side[v] = -along.x
+						var mid: Vector2 = (flat[0] + flat[1] + flat[2] + flat[3]) * 0.25
+						if Vector2(side[u], side[v]).dot((flat[k] + flat[k2]) * 0.5 - mid) < 0.0:
+							side = -side
+						var shade := CUT_SHADE if open[k] == 2 else 1.0
+						MapMesher._flat(buf, xf, [far[k], far[k2], near[k2], near[k]], side.normalized(),
+							Color(colour.r * shade, colour.g * shade, colour.b * shade, colour.a))
+	for box in _merge_flat(nu, nv, keys, 1):
+		var local := _flat_extent(panel, box)
+		pieces.append({"xf": xf * Transform3D(Basis(), local.get_center()), "size": local.size,
+			"kind": panel.kind, "shape": "box", "tint": tint})
+		for skin in panel.skins:
+			var clipped := _clip_skin(panel, skin.box, local)
+			if clipped.has_volume():
+				pieces.append({"xf": xf * Transform3D(Basis(), clipped.get_center()), "size": clipped.size,
+					"kind": skin.kind, "shape": "box", "tint": skin.tint})
+	var holder: Node3D = panel.meshes
+	var meshes := MapMesher.build(pieces, root.face_shade)
+	for kind in extra:
+		var buf: Array = extra[kind]
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = buf[0]
+		arrays[Mesh.ARRAY_NORMAL] = buf[1]
+		arrays[Mesh.ARRAY_COLOR] = buf[2]
+		var ragged := ArrayMesh.new()
+		ragged.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		meshes[kind + " "] = ragged   # (its own mesh beside the kind's boxes)
+	for key: String in meshes:
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = meshes[key]
+		mesh.material_override = root.material_for(key.strip_edges())
+		holder.add_child(mesh)
+
+
+# ---------------------------------------------------------------------------
 # Killcams (see MapReplay): the walls as they were. Only what is drawn changes: the
 # collision stays the live one (the match goes on round a death killcam).
 
@@ -663,17 +1218,21 @@ func replay_show(state: Variant, _next: Variant, _u: float, _holder: Node3D) -> 
 	for i in mini(ids.size(), stages.size()):
 		if ids[i] >= 0 and ids[i] < cells.size():
 			want[ids[i]] = int(stages[i])
+	for c in _damaged:
+		if int(_damaged[c]) == FALLEN:
+			want[c] = FALLEN   # (what came down with a building stays down: its pieces are not replayed)
 	var before := _replay if _replaying else _live_damage()
 	var touched := {}
 	var broke := PackedInt32Array()
 	for c in want:
 		var was := int(before.get(c, 0))
 		if int(want[c]) != was:
-			touched[cells[c].panel] = true
-			if _replaying and int(want[c]) >= BROKEN and was < BROKEN:
+			if not panels[cells[c].panel].fine or (int(want[c]) >= BROKEN) != (was >= BROKEN):
+				touched[cells[c].panel] = true
+			if _replaying and int(want[c]) == BROKEN and was < BROKEN:
 				broke.append(c)
 	for c in before:
-		if not want.has(c):
+		if not want.has(c) and (not panels[cells[c].panel].fine or int(before[c]) >= BROKEN):
 			touched[cells[c].panel] = true
 	if _replaying and touched.is_empty():
 		return
@@ -695,28 +1254,34 @@ func replay_clear() -> void:
 	_replay_of = null
 	var touched := {}
 	for c in shown:
-		if int(shown[c]) != int(cells[c].stage):
+		if int(shown[c]) != int(cells[c].stage) and _redraws(c, int(shown[c]), int(cells[c].stage)):
 			touched[cells[c].panel] = true
 	for c in _live_damage():
-		if int(shown.get(c, 0)) != int(cells[c].stage):
+		if int(shown.get(c, 0)) != int(cells[c].stage) and _redraws(c, int(shown.get(c, 0)), int(cells[c].stage)):
 			touched[cells[c].panel] = true
 	for p in touched:
 		_rebuild_meshes(p)
 
 
 func _live_damage() -> Dictionary:
-	var out := {}
-	for c in cells.size():
-		if cells[c].stage != 0:
-			out[c] = int(cells[c].stage)
-	return out
+	return _damaged.duplicate()
+
+
+## Does cell `c` look different at stage `a` and at stage `b`? (A fine panel only when
+## the cell is there in one and gone in the other.)
+func _redraws(c: int, a: int, b: int) -> bool:
+	return not panels[cells[c].panel].fine or (a >= BROKEN) != (b >= BROKEN)
 
 
 # ---------------------------------------------------------------------------
 # Rubble and sound
 
 func _break_effects(broke: PackedInt32Array) -> void:
+	var flying := PackedInt32Array()   # fine cells: their rubble is MapDebris's
 	for c in broke:
+		if root.debris and panels[cells[c].panel].fine:
+			flying.append(c)
+			continue
 		var at := cell_center(c)
 		var mat := material_of(c)
 		var sound := get_node_or_null("/root/Sound")   # (not there in map-only tests)
@@ -728,6 +1293,8 @@ func _break_effects(broke: PackedInt32Array) -> void:
 		if DisplayServer.get_name() == "headless":
 			continue
 		_rubble(c, mat)
+	if not flying.is_empty():
+		root.debris.broke(flying)
 
 
 func _rubble(c: int, mat: String) -> void:

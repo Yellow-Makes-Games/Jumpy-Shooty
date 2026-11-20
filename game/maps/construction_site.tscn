@@ -9,6 +9,7 @@
 [ext_resource type="Script" path="res://game/arena/crane_event.gd" id="6_jp40n"]
 [ext_resource type="Script" path="res://game/arena/map_weapon_spawn.gd" id="90_wpnsp"]
 [ext_resource type="Script" path="res://game/arena/map_item_spawn.gd" id="91_itmsp"]
+[ext_resource type="Script" path="res://game/arena/map_frame.gd" id="92_frame"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_cnng3"]
 sky_top_color = Color(0.22, 0.48, 0.86, 1)
@@ -35,6 +36,7 @@ script = ExtResource("1_eycu2")
 palette = ExtResource("2_rcq07")
 face_shade = Vector3(0.93, 0.84, 0.66)
 bounds = Rect2(-43, -43, 86, 86)
+fine_destruction = true
 swing_point = Vector3(0, 18, 3.2)
 metadata/breakable_migrated = true
 
@@ -30713,3 +30715,11 @@ item = "health_medium"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23, 12, -7)
 script = ExtResource("91_itmsp")
 item = "uber"
+
+[node name="Frame" type="Node3D" parent="."]
+script = ExtResource("92_frame")
+parts = Array[NodePath]([NodePath("../Tower"), NodePath("../TowerCover")])
+lines_x = PackedFloat32Array(-15.5, -5.5, 5.5, 15.5)
+lines_z = PackedFloat32Array(-15.5, -5.5, 5.5, 15.5)
+floor_tops = PackedFloat32Array(4, 8, 12, 16, 20)
+core = AABB(-3, 0, -3, 6, 24, 6)
