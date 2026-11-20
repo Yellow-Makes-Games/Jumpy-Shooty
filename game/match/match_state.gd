@@ -742,8 +742,8 @@ func _host_explode(id: int, at: Vector3, direct: int, collider: Object = null, n
 	if DevArgs.sync_log:
 		print("BOOM %d %s %d hit %d" % [shooter, w.id, direct, hits.size()])
 	var breaks := _breakables()
-	if breaks and collider:
-		breaks.damage(breaks.cell_at(collider, at - normal * 0.05, normal), w.damage * w.structure_damage)
+	if breaks and (collider or breaks.fine):
+		breaks.blast(at, w, collider, normal)
 		_flush_breaks()
 	for h in hits:
 		if is_dummy(h[0]):
@@ -857,7 +857,7 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 	if breaks:
 		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * (weapon.max_range + 0.5), 1))
 		if wall:
-			breaks.damage(breaks.cell_at(wall.collider, wall.position, wall.normal), blow * weapon.structure_damage)
+			breaks.blow(wall.collider, wall.position, wall.normal, blow * weapon.structure_damage)
 			_flush_breaks()
 	for h in hits:
 		if is_dummy(h[0]):
@@ -936,7 +936,7 @@ func _host_ground_slam(attacker: int, at: Vector3, view_times: Dictionary, charg
 	if breaks and GroundSlam.breaks_floor(weapon, charge):
 		var floor_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3(0, 0.5, 0), at - Vector3(0, 0.6, 0), 1))
 		if floor_hit:
-			breaks.damage(breaks.cell_at(floor_hit.collider, floor_hit.position, floor_hit.normal), 100000.0)
+			breaks.blow(floor_hit.collider, floor_hit.position, floor_hit.normal, 100000.0, MapDestruction.SLAM_REACH)
 			_flush_breaks()
 	for h in hits:
 		if is_dummy(h[0]):

@@ -82,6 +82,10 @@ extends Node3D
 	set(v):
 		bounds = v
 		update_gizmos()
+## Breakable walls and floors break fine (see MapDestruction): into pieces about half a
+## metre across in place of 2 m squares, with ragged edges, so a hole is the size of
+## what made it. Off, the map breaks the old way.
+@export var fine_destruction := false
 ## Tick this if a walkable floor winds up over itself, like a spiral stair in a tower
 ## (Cirrus's clock tower): the bots' navigation mesh is then cut up a way that keeps
 ## such a stair. Leave it off otherwise: the usual way makes tidier paths in the open.
@@ -228,6 +232,7 @@ func build(with_meshes: bool = true) -> void:
 	current = self
 	if destructible:
 		destruction = MapDestruction.new()
+		destruction.fine = fine_destruction
 		add_child(destruction)
 		pieces = destruction.setup(self, pieces, spawns)
 	for i in movers.size():

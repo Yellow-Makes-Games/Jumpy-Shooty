@@ -35,6 +35,7 @@ script = ExtResource("1_eycu2")
 palette = ExtResource("2_rcq07")
 face_shade = Vector3(0.93, 0.84, 0.66)
 bounds = Rect2(-43, -43, 86, 86)
+fine_destruction = true
 swing_point = Vector3(0, 18, 3.2)
 metadata/breakable_migrated = true
 
