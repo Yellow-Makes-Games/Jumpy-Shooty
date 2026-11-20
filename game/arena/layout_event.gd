@@ -411,6 +411,7 @@ func _place() -> void:
 		island.doomed = here and not there and (now_warning or now_moving)
 		island.dip = doom_dip * windup * windup if island.doomed and now_warning else (doom_dip if island.doomed else 0.0)
 		island.sputter(maxf(windup, 0.01) if island.doomed else 0.0, _doom_kinds(), doom_color, _time)
+		island.gliding = false
 		if not now_moving:
 			# At rest: up at its place, or parked below.
 			var pose := rest_pose(a, i) if here else Vector3(0.0, -down, 0.0)
@@ -425,6 +426,7 @@ func _place() -> void:
 			island.pose_b = rest_pose(b, i)
 			island.blend = smoothstep(0.0, 0.8, progress)
 			island.up = true
+			island.gliding = island.blend < 1.0 and not island.pose_a.is_equal_approx(island.pose_b)
 			island.set_parked(false)
 		elif here:
 			# It goes: straight down, faster and faster.

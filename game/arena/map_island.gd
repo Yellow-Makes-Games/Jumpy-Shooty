@@ -42,6 +42,9 @@ var blend := 0.0
 var up := true
 ## It goes down at the next move (the warning is on): get off.
 var doomed := false
+## Up, but gliding to a new place: someone put just over it would be in the air as it
+## moves into them (MapRoot.open_spawns only puts players here when nowhere else will do).
+var gliding := false
 ## Metres it sags under its pose (a doomed island's engines failing).
 var dip := 0.0
 
