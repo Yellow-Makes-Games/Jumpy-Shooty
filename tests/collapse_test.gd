@@ -108,6 +108,7 @@ func _heaps_apart(a: MapRoot, b: MapRoot) -> float:
 
 func _run() -> void:
 	await process_frame
+	seed(20261120)   # (how the host cuts the bay up: the same every run)
 	var host := _make(false)
 	var near := _make(true)    # hears the host's news, late
 	var alone := _make(true)   # hears nothing until the rest
@@ -226,8 +227,10 @@ func _run() -> void:
 			_note(map, tracks[map])
 		if _state(host) == MapCollapse.FALLING:
 			fell_for = float(_event(host).age)
-			if crushed.is_empty():
-				crushed = c.crushes(Vector3(-10.5, 0.0, -10.5), 1.8)
+			for x: float in [-13.5, -10.5, -7.5]:   # (people standing all over the ground floor of the bay)
+				for z: float in [-13.5, -10.5, -7.5]:
+					if crushed.is_empty():
+						crushed = c.crushes(Vector3(x, 0.0, z), 1.8)
 			spared = spared and c.crushes(Vector3(10.5, 0.0, 10.5), 1.8).is_empty()
 			if late == null and fell_for >= 2.0:
 				# Someone joins: they are told what is broken, and where the fall has got to.
@@ -261,7 +264,7 @@ func _run() -> void:
 	_check(_heaps_apart(host, late) >= 0.0 and _heaps_apart(host, late) < 0.002, "...and for one who joined half way down (%.4f)" % _heaps_apart(host, late))
 	_check(_event(host).pieces.is_empty() and (_event(host).heap as Node).get_node("Collision") is StaticBody3D, "the heap is one body that does not move")
 	_check(not crushed.is_empty() and int(crushed.get("by", 0)) == 7 and String(crushed.get("with", "")) == "rocket_launcher",
-		"someone standing under it is crushed, and whoever blew the column gets the kill")
+		"someone standing under the bay is crushed, and whoever blew the column gets the kill")
 	_check(spared, "someone across the site is not")
 	_check(c.blocked(Vector3(-10.5, 0.2, -10.5)) and not c.blocked(Vector3(10.5, 0.2, 10.5)) and near.collapse.blocked(Vector3(-10.5, 0.2, -10.5)),
 		"nobody spawns in or under the bay that fell")
