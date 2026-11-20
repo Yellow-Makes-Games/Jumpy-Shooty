@@ -68,6 +68,18 @@ class Memory:
 	var hist := PackedFloat32Array()
 	var next := 0
 
+## What of a pile is drawn with one material (see _gather): for each vertex where it
+## is, how it faces, its colour, and where it was and how it faced before the fall.
+class Lot:
+	var material: Material
+	var shadows := GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	var at := PackedVector3Array()
+	var facing := PackedVector3Array()
+	var colours := PackedColorArray()
+	var was_at := PackedVector3Array()
+	var was_facing := PackedVector3Array()
+
+
 var root: MapRoot
 var breaks: MapDestruction
 var frame: MapFrame
@@ -92,6 +104,8 @@ var _unit_cells := {}     # unit -> PackedInt32Array (breakable cells in it)
 var _pending := {}        # host: segment -> its new stage
 var _next_id := 1
 var _tick := 0
+var _standing: Node3D = null   # what stands, drawn (see _draw_standing)
+var _redraw := false           # ...and some of it has gone since
 
 
 # ---------------------------------------------------------------------------
@@ -144,6 +158,7 @@ func setup(map: MapRoot, f: MapFrame, pieces: Array) -> Array:
 			(bays[b].loose[level] as Array).append(piece)
 	for b in bays.size():
 		_build_bay(b)
+	_draw_standing()
 	if breaks:
 		var by_unit := {}   # unit -> [cells]
 		for panel: Dictionary in breaks.panels:
@@ -262,8 +277,6 @@ func _take_column(piece: Dictionary) -> bool:
 		shape.shape = box
 		shape.transform = part.xf
 		body.add_child(shape)
-		if root.has_meshes:
-			body.add_child(_piece_mesh(part, false))
 		add_child(body)
 		by_storey.append(segments.size())
 		segments.append({"col": col, "storey": s, "box": AABB((part.xf as Transform3D).origin - (part.size as Vector3) * 0.5, part.size),
@@ -288,55 +301,69 @@ func _piece_mesh(piece: Dictionary, moves: bool) -> Node3D:
 	return holder
 
 
-## A bay's loose things (what stands on the floors that have not fallen): one body, and
-## one mesh for each kind.
+## A bay's loose things (what stands on the floors that have not fallen): one body. They
+## are drawn with the rest of what stands (_draw_standing).
 func _build_bay(b: int) -> void:
 	var bay: Dictionary = bays[b]
 	if bay.node:
 		(bay.node as Node).queue_free()
 		bay.node = null
-	var solid := []
-	var decor := []
+	_redraw = true
+	var body := StaticBody3D.new()
+	body.name = "Bay_%d_%d" % [bay.i, bay.j]
 	for level in mini(int(bay.from), levels()):
 		for piece: Dictionary in bay.loose[level]:
-			if piece.solid:
-				solid.append(piece)
-			elif not piece.get("hidden", false):
-				decor.append(piece)
-	if solid.is_empty() and decor.is_empty():
+			if not piece.solid:
+				continue
+			for lump in root.collision_shapes(piece):
+				var shape := CollisionShape3D.new()
+				shape.shape = lump
+				shape.transform = piece.xf
+				body.add_child(shape)
+	if body.get_child_count() == 0:
+		body.free()
 		return
-	var node := Node3D.new()
-	node.name = "Bay_%d_%d" % [bay.i, bay.j]
-	var body := StaticBody3D.new()
-	body.name = "Collision"
-	for piece: Dictionary in solid:
-		for lump in root.collision_shapes(piece):
-			var shape := CollisionShape3D.new()
-			shape.shape = lump
-			shape.transform = piece.xf
-			body.add_child(shape)
-	node.add_child(body)
-	if root.has_meshes:
-		for lot in 2:
-			var drawn: Array = []
-			for piece: Dictionary in ([solid, decor][lot] as Array):
+	add_child(body)
+	bay.node = body
+
+
+## Draws what of the building stands and is not a wall or floor that breaks (its column
+## storeys, and the loose things in every bay): one mesh for each kind, like the rest of
+## the map, made again when some of it goes.
+func _draw_standing() -> void:
+	_redraw = false
+	if not root.has_meshes:
+		return
+	if _standing:
+		remove_child(_standing)
+		_standing.queue_free()
+	_standing = Node3D.new()
+	_standing.name = "Standing"
+	var solid := []
+	var decor := []
+	for seg: Dictionary in segments:
+		if seg.body != null:
+			solid.append(seg.piece)
+	for bay: Dictionary in bays:
+		for level in mini(int(bay.from), levels()):
+			for piece: Dictionary in bay.loose[level]:
 				if not piece.get("hidden", false):
-					drawn.append(piece)
-			var meshes := MapMesher.build(drawn, root.face_shade)
-			for kind in meshes:
-				var mi := MeshInstance3D.new()
-				mi.name = ("Mesh_%s" if lot == 0 else "Mesh_%s_decor") % kind
-				mi.mesh = meshes[kind]
-				mi.material_override = root.material_for(kind)
-				var base := mi.material_override as BaseMaterial3D
-				if (lot == 1 and not root.decor_shadows) or (base and base.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED):
-					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-				if lot == 1 and root.detail_range > 0.0:
-					mi.visibility_range_end = root.detail_range
-					mi.visibility_range_end_margin = root.detail_range * 0.1
-				node.add_child(mi)
-	add_child(node)
-	bay.node = node
+					(solid if piece.solid else decor).append(piece)
+	for lot in 2:
+		var meshes := MapMesher.build([solid, decor][lot], root.face_shade)
+		for kind in meshes:
+			var mi := MeshInstance3D.new()
+			mi.name = ("Mesh_%s" if lot == 0 else "Mesh_%s_decor") % kind
+			mi.mesh = meshes[kind]
+			mi.material_override = root.material_for(kind)
+			var base := mi.material_override as BaseMaterial3D
+			if (lot == 1 and not root.decor_shadows) or (base and base.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED):
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if lot == 1 and root.detail_range > 0.0:
+				mi.visibility_range_end = root.detail_range
+				mi.visibility_range_end_margin = root.detail_range * 0.1
+			_standing.add_child(mi)
+	add_child(_standing)
 
 
 # ---------------------------------------------------------------------------
@@ -450,6 +477,8 @@ func apply_columns(ids: PackedInt32Array, stages: PackedByteArray) -> void:
 			_segment_gone(i, true)
 		elif root.marks:
 			root.marks.cracks_on(i, seg.box, stage)
+	if _redraw:
+		_draw_standing()
 
 
 ## A column storey's own body and marks go. `burst`: blown out (rubble and a crash).
@@ -458,6 +487,7 @@ func _segment_gone(i: int, burst: bool) -> void:
 	if seg.body:
 		(seg.body as Node).queue_free()
 		seg.body = null
+		_redraw = true
 	var box: AABB = seg.box
 	if root.marks:
 		root.marks.cracks_on(i, box, 0)
@@ -895,6 +925,8 @@ func _let_go(e: Dictionary, quiet: bool) -> void:
 		body.visible = true
 		body.collision_layer = 1   # part of the level: you stand on it, and it stops a shot
 		body.collision_mask = 1    # ...and nobody pushes it about (the same fall for everyone)
+	if _redraw:
+		_draw_standing()
 	if root.marks:
 		for box: AABB in e.boxes:
 			root.marks.clear_in(box)
@@ -1282,6 +1314,7 @@ func _solidify(e: Dictionary) -> void:
 	e.state = DOWN
 	for joint: Node in e.get("joints", []):
 		joint.queue_free()
+	var lots := {}   # what the pieces are drawn with -> what is drawn with it (see _gather)
 	var heap := Node3D.new()
 	heap.name = "Heap_%d" % int(e.id)
 	var body := StaticBody3D.new()
@@ -1293,17 +1326,20 @@ func _solidify(e: Dictionary) -> void:
 		var from: RigidBody3D = p.body
 		var xf := from.transform
 		for child in from.get_children():
-			from.remove_child(child)
-			(child as Node3D).transform = xf * (child as Node3D).transform
 			if child is CollisionShape3D:
+				from.remove_child(child)
+				(child as Node3D).transform = xf * (child as Node3D).transform
 				body.add_child(child)
 			else:
-				heap.add_child(child)
+				for mi: MeshInstance3D in child.find_children("*", "MeshInstance3D", true, false):
+					_gather(lots, mi, xf * (child as Node3D).transform * mi.transform)
 		boxes.append((xf * (p.box as AABB)).grow(0.3))
 		from.queue_free()
 		p.body = null
 	e.pieces = []
 	e.erase("memory")
+	for lot: Lot in lots.values():
+		heap.add_child(_gathered(lot))
 	heap.add_child(body)
 	add_child(heap)
 	e["heap"] = heap
@@ -1313,6 +1349,55 @@ func _solidify(e: Dictionary) -> void:
 		var at := shape.transform.origin
 		places.append_array([roundi(at.x * 1000.0), roundi(at.y * 1000.0), roundi(at.z * 1000.0)])
 	settled.emit(int(e.id), "%d %08x" % [body.get_child_count(), hash(places)])
+
+
+## One of a fallen piece's meshes, for the pile's: the pieces of a pile do not move
+## again, so everything in it drawn the same way becomes one mesh (a pile of two
+## hundred pieces is drawn as a handful). `lots`: material -> Lot.
+func _gather(lots: Dictionary, mi: MeshInstance3D, xf: Transform3D) -> void:
+	if mi.mesh == null or mi.mesh.get_surface_count() == 0:
+		return
+	var arrays := mi.mesh.surface_get_arrays(0)
+	var at: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var facing: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	if at.is_empty():
+		return   # (nothing is drawn: a server with no screen)
+	var lot: Lot = lots.get(mi.material_override)
+	if lot == null:
+		lot = Lot.new()
+		lot.material = mi.material_override
+		lot.shadows = mi.cast_shadow
+		lots[mi.material_override] = lot
+	lot.at.append_array(xf * at)
+	lot.facing.append_array(Transform3D(xf.basis.orthonormalized(), Vector3.ZERO) * facing)
+	lot.colours.append_array(arrays[Mesh.ARRAY_COLOR])
+	lot.was_at.append_array(at)
+	lot.was_facing.append_array(facing)
+
+
+## The one mesh of a lot. Each vertex carries where it was, and how it faced, while its
+## piece was whole and in its place: the surface's pattern is still measured from there
+## (map_surface.gdshader), so nothing about a piece changes as the pile sets.
+func _gathered(lot: Lot) -> MeshInstance3D:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = lot.at
+	arrays[Mesh.ARRAY_NORMAL] = lot.facing
+	arrays[Mesh.ARRAY_COLOR] = lot.colours
+	var mark := PackedVector2Array()
+	mark.resize(lot.at.size())
+	mark.fill(Vector2(2, 0))
+	arrays[Mesh.ARRAY_TEX_UV2] = mark
+	arrays[Mesh.ARRAY_CUSTOM0] = lot.was_at.to_byte_array().to_float32_array()
+	arrays[Mesh.ARRAY_CUSTOM1] = lot.was_facing.to_byte_array().to_float32_array()
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {},
+		(Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT))
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = lot.material
+	mi.cast_shadow = lot.shadows
+	return mi
 
 
 ## Host: is someone standing here (feet, height) under a big piece coming down fast?

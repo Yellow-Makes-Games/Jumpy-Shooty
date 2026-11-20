@@ -43,7 +43,13 @@ varying vec3 map_pos;
 varying vec3 map_normal;
 
 void vertex() {
-	if (UV2.x > 0.5) {
+	if (UV2.x > 1.5) {
+		// Part of a pile of fallen pieces drawn as one mesh (MapCollapse._gathered()): each
+		// vertex says where it was, and how it faced, when its piece was whole and in its
+		// place, and the pattern is still measured from there.
+		map_pos = CUSTOM0.xyz;
+		map_normal = CUSTOM1.xyz;
+	} else if (UV2.x > 0.5) {
 		// Part of something that moves (MapMesher.riding() marked it): the pattern is
 		// measured in its own frame, so it travels with the block instead of standing
 		// still in the map while the block slides through it.

@@ -841,6 +841,14 @@ the same. Someone under a big piece coming down fast is killed, and the kill goe
 whoever blew the column. Nobody spawns in or under a bay that has come down. A killcam
 shows what fell as already fallen.
 
+What it costs to draw: the columns and everything loose in the building that still
+stands are one mesh for each kind (made again when a column or a bay goes), and a pile
+is one mesh for each material once it is still. In a pile every vertex remembers where
+it was before the fall, and `map_surface.gdshader` measures the pattern from there, so
+blockwork stays blockwork on a piece lying on its side and nothing changes as the pile
+sets. From four places round the site the map draws about a tenth more objects than
+it did before fine destruction, and no more after three bays have come down.
+
 Not done yet: only the Construction Site's concrete tower has a frame (its steel,
 scaffolds and hoist stand whatever happens), and a killcam does not replay a fall.
 
