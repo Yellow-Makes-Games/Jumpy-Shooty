@@ -25,6 +25,18 @@ func run() -> void:
 	await _frames(3)
 	_expect(buttons.visible and respawn.visible and loadout.visible, "dead: Respawn and Loadout show")
 	_expect(respawn.disabled and respawn.text.begins_with("Respawn  "), "Respawn counts down while you must wait (%s)" % respawn.text)
+	# Keys, the wheel and right mouse no longer change your loadout while you are down.
+	var me: Player = arena.local_player
+	var weapon := Net.player_weapon(Net.my_id())
+	var tool := Net.pending_mobility()
+	for action in ["weapon_1", "weapon_2", "weapon_3", "weapon_6", "weapon_next", "weapon_prev", "grapple"]:
+		var e := InputEventAction.new()
+		e.action = action
+		e.pressed = true
+		me._unhandled_input(e)
+	await _frames(2)
+	_expect(Net.player_weapon(Net.my_id()) == weapon and Net.pending_mobility() == tool,
+		"number keys, the wheel and right mouse leave your weapon and mobility tool alone (%s, %s)" % [Net.player_weapon(Net.my_id()), Net.pending_mobility()])
 	# Loadout: the pause menu, on its loadout page; the buttons step aside meanwhile.
 	loadout.pressed.emit()
 	await _frames(2)

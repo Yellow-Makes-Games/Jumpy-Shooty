@@ -497,19 +497,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		weapon.start_reload()
 	elif racing:
 		pass
-	elif not alive and event.is_action_pressed("grapple"):
-		_next_mobility()
 	elif Net.is_deathmatch():
 		if alive:
 			_switch_weapon(event)   # weapons come off the map, not from a pick while dead
-	elif not alive:
-		_pick_on_death(event)
+	# (Down, nothing here changes your loadout: only the death screen's Loadout button does,
+	# so a stray key, scroll or click never swaps your weapon or mobility tool by accident.)
 
 
-## Waiting to respawn: the mouse wheel goes through every allowed weapon, and the number
-## keys pick a group (1 sidearms, 2 shotguns... 6 melee; again goes on through the group).
-## With only some weapons allowed (see LobbySettings), the groups are those that have
-## any, numbered from 1; with a single gun there is nothing to pick.
+## --swap-on-death (tests only: players change their loadout on the Loadout page): pick
+## the weapon group `_dev_group` (or, with `event`, a number key or the wheel) as if from
+## the death screen. With only some weapons allowed (see LobbySettings), the groups are
+## those that have any; with a single gun there is nothing to pick.
 func _pick_on_death(event: InputEvent) -> void:
 	if GunGame.active() or KillcamMode.active():
 		return   # Gun Game hands out the weapons; Killcam is snipers only
@@ -529,19 +527,6 @@ func _pick_on_death(event: InputEvent) -> void:
 		Settings.save_settings()
 	Sound.play("equip_" + pick)
 	Net.set_my_weapon(pick)
-
-
-## Waiting to respawn: the mobility button goes on to the next mobility tool.
-func _next_mobility() -> void:
-	var pick := LobbySettings.next_mobility(Net.pending_mobility())   # only the tools the host allows
-	if pick == Net.pending_mobility():
-		return   # one tool for everyone
-	Settings.mobility = pick
-	Settings.save_settings()
-	Sound.play("ui_select")
-	Net.set_my_mobility(pick)
-	if DevArgs.sync_log:
-		print("MOBILITY_PICK %d %s" % [peer_id, pick])
 
 
 ## Reads keyboard and mouse into `input`. Mouse look arrives in _unhandled_input.
