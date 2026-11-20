@@ -13,6 +13,9 @@ var invert_y: bool = false
 # Camera
 var field_of_view: float = 95.0
 var third_person: bool = false
+## How much the view jolts (0..1): your gun's kick, your own blows, a ground slam, a blast
+## nearby. 0 turns them all off. Looks only: the aim never moves with them.
+var camera_shake: float = 1.0
 
 # HUD: which layout to show in each camera view (see HUD_STYLES)
 const HUD_STYLES := {"arcs": "Twin arcs (around the crosshair)", "clean": "Clean (corners)"}
@@ -106,6 +109,7 @@ func load_settings() -> void:
 	invert_y = cfg.get_value("controls", "invert_y", invert_y)
 	field_of_view = cfg.get_value("camera", "field_of_view", field_of_view)
 	third_person = cfg.get_value("camera", "third_person", third_person)
+	camera_shake = clampf(float(cfg.get_value("camera", "camera_shake", camera_shake)), 0.0, 1.0)
 	hud_first_person = _hud_style(cfg.get_value("hud", "first_person", hud_first_person))
 	hud_third_person = _hud_style(cfg.get_value("hud", "third_person", hud_third_person))
 	killcam = bool(cfg.get_value("hud", "killcam", killcam))
@@ -156,6 +160,7 @@ func save_settings() -> void:
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	cfg.set_value("controls", "invert_y", invert_y)
 	cfg.set_value("camera", "field_of_view", field_of_view)
+	cfg.set_value("camera", "camera_shake", camera_shake)
 	cfg.set_value("camera", "third_person", third_person)
 	cfg.set_value("hud", "first_person", hud_first_person)
 	cfg.set_value("hud", "third_person", hud_third_person)

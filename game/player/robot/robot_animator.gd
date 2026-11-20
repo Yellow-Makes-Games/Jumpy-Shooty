@@ -10,7 +10,8 @@ extends RefCounted
 ##  4. Aim: spine, chest, arms and head pitch so the gun points where the player aims.
 ##  5. Legs turn at the waist to face the way the robot is moving (it can strafe
 ##     and back-pedal while the upper body keeps aiming).
-##  6. Recoil, and the left arm reaching for the grapple anchor.
+##  6. Recoil (GunRecoil: the gun's kick in the hands, the body taking it, the gun's own
+##     working parts), and the left arm reaching for the grapple anchor.
 ## On the grappling hook's rope, once it has pulled tight, the body hangs from that arm
 ## instead of holding a pose (RopeSwing): tipped along the rope, the legs trailing a beat
 ## behind, the gun loose at the side until you shoot. It is laid over the steps above.
@@ -101,6 +102,8 @@ const ROPE_AIM_HOLD := 0.6
 const ROPE_AIM_DROP := 4.0
 const ROPE_CHEST := 0.45        ## how much of the hips' lean the chest gives back while the gun is down (aiming: all of it)
 const ROPE_VIEW := 0.55         ## your own body in first person leans this much of what everyone else sees
+const RECOIL_HEAD := 0.8        ## a shot rocks the chest: the head gives this much of it back (it stays on the aim)
+const RECOIL_LEGS := 1.2        ## ...and off the ground the legs swing forward this much of what the chest rocks back
 const ZIP_AIM_UP := 12.0        ## ...this fast (a second)
 const ZIP_CHEST := 0.55         ## zipping along the rope (dived into it), a shot brings the chest this much of the way back up to aim from
 const DRAG_TURN := 10.0         ## dragged along the floor on your belly by the rope, the body turns to face the hook this fast
@@ -148,8 +151,9 @@ var _land_t := 0.0        # seconds into it
 var _aim_r := 1.0
 var _aim_l := 1.0
 var _torso := 1.0
-var _recoil := 0.0
-var _recoil_l := 0.0      # akimbo: the left gun's own kick (_recoil is the right's)
+## What the gun's shots are doing to the body (see GunRecoil): the kick in the hands, the
+## body taking it, the gun's own working parts.
+var recoil := GunRecoil.new()
 var _akimbo := false      # a pistol in each hand: each arm kicks on its own shots
 var _since_fire := 99.0
 var _reload_t := -1.0
@@ -181,7 +185,6 @@ var _stance := Quaternion.IDENTITY   # the chest's turn for the gun's stance (fr
 var _carry := 0.0         # sprinting with a long gun: arms holding it across the chest
 var _carry_pose: RobotPose
 var _fire_t := -1.0       # time into the gun's fire clip (pump, bolt), or -1
-var _kick := 1.0
 var _loop_reload := false
 var _melee := false       # a melee weapon: held and swung by MeleeSwing, not by clips
 var _swing := MeleeSwing.new()
@@ -237,7 +240,7 @@ func _init(robot: RobotModel) -> void:
 func set_weapon(id: String) -> void:
 	var data := WeaponData.by_id(WeaponData.valid(id))
 	weapon = WeaponData.look_of(data.id)   # (clips go by the weapon it looks like: the Golden Gun is the revolver)
-	_kick = data.kick
+	recoil.set_weapon(data)
 	_loop_reload = data.reload_per_round
 	_melee = data.is_melee()
 	_akimbo = data.is_akimbo()
@@ -287,10 +290,7 @@ func _bones(names: Array) -> PackedInt32Array:
 
 ## A shot was fired: kick the gun (akimbo: the one in the left hand when `left`).
 func fire(left: bool = false) -> void:
-	if _akimbo and left:
-		_recoil_l = _kick
-	else:
-		_recoil = _kick
+	recoil.fire(left)
 	_since_fire = 0.0
 	rope.hurry_flip()
 	_end_glide_flip()
@@ -410,6 +410,7 @@ func cutting() -> bool:
 ## Back to life: play the boot-up over whatever the body is doing.
 func respawn() -> void:
 	_respawn_t = 0.0
+	recoil.stop()
 	_swing.stop()
 	rope.stop()
 	_dead_time = -1.0
@@ -664,11 +665,13 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var chest_rot: Quaternion = _pose.rot[_b["root"]] * _pose.rot[hips] * _pose.rot[spine] * _pose.rot[chest]
 	var chest_fwd := chest_rot * Vector3.FORWARD
 	var chest_pitch := asin(clampf(chest_fwd.y, -1.0, 1.0))
-	_recoil = _recoil * exp(-delta * 16.0)
-	_recoil_l = _recoil_l * exp(-delta * 16.0)
+	if inp.alive:
+		recoil.update(delta)
+	else:
+		recoil.stop()
 	var aim_lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7)
-	var lift := aim_lift + minf(_recoil, 1.5) * 0.2
-	var lift_l := aim_lift + minf(_recoil_l if _akimbo else _recoil, 1.5) * 0.2
+	var lift := aim_lift + recoil.arm_lift(false)
+	var lift_l := aim_lift + recoil.arm_lift(_akimbo)
 	var up_r: int = _b["upper_arm_r"]
 	var up_l: int = _b["upper_arm_l"]
 	var w_r := maxf(_aim_r, _reload_w)
@@ -676,10 +679,11 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var across := twist.inverse() * Vector3.RIGHT   # the body's left-right axis, seen from the turned chest
 	_pose.rot[up_r] = Quaternion(across, lift * w_r) * _pose.rot[up_r]
 	_pose.rot[up_l] = Quaternion(across, lift_l * w_l) * _pose.rot[up_l]
-	if _b.has("pistol_slide") and (weapon == "pistol" or _akimbo):
-		_pose.pos[_b["pistol_slide"]] += Vector3(0.0, 0.035 * _recoil, 0.0)
-	if _akimbo and _b.has("pistol_l_slide"):
-		_pose.pos[_b["pistol_l_slide"]] += Vector3(0.0, 0.035 * _recoil_l, 0.0)
+	# The body takes the shot. (After the arms are set against the chest, so that the gun
+	# goes with it instead of being held on the aim.)
+	if not _melee and recoil.busy():
+		_take_recoil(key, w_r, w_l)
+	recoil.pose_parts(_pose, _b)
 	if _melee and _hold > 0.0:
 		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
 		# (The swing's own lean is taken out in full, so a thrust stays level as the body leans into it.)
@@ -762,6 +766,38 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
 	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
 	_fx_t = fx_t
+
+
+## The body takes the gun's kick (see GunRecoil): the wrist, the chest, the spine, each as
+## much as the gun's family says. Off the ground there is nothing to brace on: the body
+## rocks further and the legs swing forward under it. Your own body in first person keeps
+## its chest where the camera has it. held_r, held_l: how much each arm has the gun up.
+func _take_recoil(key: String, held_r: float, held_l: float) -> void:
+	var air := key in AIRBORNE
+	var body := maxf(held_r, held_l) * _lean * (GunRecoil.AIR if air else 1.0)
+	var hand_r: int = _b["hand_r"]
+	_pose.rot[hand_r] = Quaternion(Vector3.RIGHT, recoil.hand_snap(false) * held_r) * _pose.rot[hand_r]
+	if _akimbo:
+		var hand_l: int = _b["hand_l"]
+		_pose.rot[hand_l] = Quaternion(Vector3.RIGHT, recoil.hand_snap(true) * held_l) * _pose.rot[hand_l]
+	if body <= 0.0:
+		return
+	var spine: int = _b["spine"]
+	var chest: int = _b["chest"]
+	var head: int = _b["head"]
+	var back := recoil.spine_rock() * body
+	var rocked := recoil.chest_rock() * body
+	var turn := -recoil.chest_turn() * body   # (the gun is at the right shoulder: that one goes back)
+	_pose.rot[spine] = Quaternion(Vector3.RIGHT, back) * _pose.rot[spine]
+	_pose.rot[chest] = Quaternion(Vector3.RIGHT, rocked) * Quaternion(Vector3.UP, turn) * _pose.rot[chest]
+	_pose.pos[chest] += Vector3(0.0, 0.0, recoil.shove() * body)
+	# The head stays on the aim: it gives most of that back.
+	_pose.rot[head] = Quaternion(Vector3.RIGHT, -(back + rocked) * RECOIL_HEAD) * Quaternion(Vector3.UP, -turn * RECOIL_HEAD) * _pose.rot[head]
+	if air and not first_person:
+		var swing := (back + rocked) * RECOIL_LEGS
+		for thigh in ["thigh_l", "thigh_r"]:
+			var t: int = _b[thigh]
+			_pose.rot[t] = Quaternion(Vector3.RIGHT, swing) * _pose.rot[t]
 
 
 ## The left arm reaches for the grappling hook (its launcher is on that wrist), from

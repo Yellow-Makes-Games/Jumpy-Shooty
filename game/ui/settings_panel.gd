@@ -99,6 +99,7 @@ func _show_tab(i: int) -> void:
 		1:
 			UiKit.section(_page, "Camera")
 			_slider("Field of view", 70.0, 120.0, 1.0, Settings.field_of_view, func(v): Settings.field_of_view = v)
+			_slider("Camera shake", 0.0, 1.0, 0.05, Settings.camera_shake, func(v): Settings.camera_shake = v, true)
 			_switch("Third-person camera (V switches in game)", Settings.third_person, func(v): Settings.third_person = v)
 			_switch("Killcam when you are knocked out (Space skips it)", Settings.killcam, func(v): Settings.killcam = v)
 		HUD_TAB:

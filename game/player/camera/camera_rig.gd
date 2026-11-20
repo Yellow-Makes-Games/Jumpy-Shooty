@@ -99,7 +99,7 @@ func _process(delta: float) -> void:
 		_kick = maxf(_kick - delta * 3.5, 0.0)
 		_rush = maxf(_rush - delta * 3.0, 0.0)
 		_widen = move_toward(_widen, widen, delta * (2.5 if widen > _widen else 1.5))
-		camera.fov = Settings.field_of_view * (1.0 - KICK_ZOOM * _kick * _kick) * (1.0 + RUSH_WIDEN * _rush * _rush) \
+		camera.fov = Settings.field_of_view * (1.0 - KICK_ZOOM * _kick * _kick * Settings.camera_shake) * (1.0 + RUSH_WIDEN * _rush * _rush) \
 			* (1.0 + GLIDE_WIDEN * smoothstep(0.0, 1.0, _widen))
 
 
