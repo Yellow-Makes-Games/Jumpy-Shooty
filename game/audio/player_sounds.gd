@@ -51,6 +51,15 @@ func _play(sound: String, kind: String = "move", volume_db: float = 0.0, jitter:
 	return Sound.play_at(sound, player.global_position + Vector3(0, 0.6, 0), kind, volume_db, jitter)
 
 
+## On the rope, the feet meet a wall (see WallBrace), `hard` 0..1; and a step along it.
+func wall_plant(hard: float) -> void:
+	_play("land", "move", lerpf(-13.0, -3.0, clampf(hard, 0.0, 1.0)))
+
+
+func wall_step() -> void:
+	_play("step", "move", -9.0)
+
+
 ## A weapon being taken out or put away (see WeaponDraw): one of its sounds.
 func draw_cue(sound: String) -> void:
 	if SfxList.VOLUME.has(sound):

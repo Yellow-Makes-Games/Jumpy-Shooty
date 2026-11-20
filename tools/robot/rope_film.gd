@@ -8,8 +8,9 @@ extends SceneTree
 ##                        dive_low: the same to a long, low hook, shooting on the way; dive_go: letting
 ##                        go part of the way along; drag: dragged along the floor on your belly;
 ##                        swing: beam to beam, shooting on the way, letting go on the way up;
-##                        pump: hanging under a beam, working the swing; player: hooking a player)
-##       [--third-person]
+##                        pump: hanging under a beam, working the swing; player: hooking a player;
+##                        wall: reeled up a wall, braced on it, aiming round, working along it, jumping off)
+##       [--third-person] [--side] (the wall scene: a camera of the film's own, along the wall)
 
 func _init() -> void:
 	_start.call_deferred()
@@ -17,12 +18,14 @@ func _init() -> void:
 
 func _start() -> void:
 	var scene := "swing"
-	var third := false
+	var view := "first"
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--scene="):
 			scene = arg.substr(8)
 		elif arg == "--third-person":
-			third = true
+			view = "third"
+		elif arg == "--side":
+			view = "side"
 	var runner: Node = load("res://tools/robot/rope_film_runner.gd").new()
 	root.add_child(runner)
-	runner.call("run", scene, third)
+	runner.call("run", scene, view)

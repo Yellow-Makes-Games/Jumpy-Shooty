@@ -89,6 +89,13 @@ Quick checks:
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- bracing against a wall on the rope (`tests/wall_brace_test.gd`): nothing away from a
+  wall, off the rope or with none found; coming in, the legs come up before the body
+  arrives and the landing is told once, as hard as it came; hanging, both feet are on
+  the wall and the pose puts the ankles there; the hips face the wall and the waist stays
+  within its turn; aimed away, the body goes side-on with one leg on the wall; worked
+  along the wall the feet step and stay on it, and going fast they come off; a jump off
+  the rope shoves off and a plain let-go does not;
 - the body on the grappling hook's rope (`tests/rope_swing_test.gd`, with `--fixed-fps 60`):
   the slack phase is untouched; tight, the body leans along the rope
   with the legs trailing and the gun down; the jolt grows with the slack; the legs follow
@@ -2011,7 +2018,27 @@ tools/robot/rope_film.sh OUT_DIR swing third                         # the real 
 tools/robot/rope_film.sh OUT_DIR player first --weapon=hammer        # scenes: swing, pump, player; first or third person
 tools/robot/rope_preview.sh OUT_DIR --scene=dive --step=0.0083333    # diving into the rope; also dive_low (a long, low hook, shooting), dive_go (letting go part of the way), dive_side
 tools/robot/rope_film.sh OUT_DIR dive third                          # the same in the real game; also dive_low, dive_go, drag (dragged on your belly)
+tools/robot/rope_film.sh OUT_DIR wall side                           # reeled up a wall and braced on it (below): first, third, or side (a camera along the wall)
 ```
+
+**At a wall** the body on the rope puts its feet on it: `game/player/robot/wall_brace.gd`
+(`WallBrace`), kept by the animator beside `RopeSwing` and laid over the legs after it.
+It is looks only. Each copy of the game finds the wall for the bodies it draws
+(`WallBrace.find_wall`, from `Player._rope_wall` and the killcam, into
+`RobotAnimInput.wall_at` and `wall_normal`, like `feet`): rays from the hips the way the
+rope goes, the way the body is going and all round, taking the nearest surface steep
+enough to be a wall (`STEEP`) that is also there at the height of the feet, and none
+with the hook in another player. The brace comes on with a tight rope, a wall within
+`REACH` and less than `SLOW` metres a second along it (`FAST` to come off again), or
+`LEAD` seconds ahead of arriving, so the legs come up first and the feet meet the wall.
+Each foot is planted on the wall in the world and steps (`STEP`, one at a time) when the
+body has left it behind; the legs are bent to reach their footholds the way
+`RobotAnimator._reach_foot` bends them. The hips face the wall (the animator's waist
+turn lets the chest keep the aim) until the aim is more than `TURN` round, then the body
+goes side-on with the leg by the wall on it. A landing drives the hips in (`COIL`) and
+`Player` plays a foot thud and a puff of dust (`WallBrace.dust`); a jump off the rope
+(a let-go that throws the body up) keeps the feet on the wall for `PUSH_TIME` as the legs
+straighten. The arms are RopeSwing's and the animator's, as on any rope.
 
 `tests/rope_swing_test.gd` checks each of those things on a body driven by made-up movement,
 and `tests/dive_rope_test.gd` the handling of a dive into the rope on a real body.
