@@ -122,6 +122,7 @@ func start_offline(player_name: String, character: String, weapon: String = "", 
 	_local_mobility = Mobility.valid(mobility)
 	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	_wear(1, Settings.calling_card, Settings.icon)
+	players[1]["victory"] = Podium.valid_choice(Settings.victory_pose)
 	players[1]["level"] = my_level()
 	is_online = false
 	players_changed.emit()
@@ -140,6 +141,7 @@ func host_direct(player_name: String, character: String, listen_port: int = DEFA
 	_local_mobility = Mobility.valid(mobility)
 	players = {1: {"name": player_name, "color": _wanted_color(), "character": _local_character, "weapon": LobbySettings.fit_weapon(_local_weapon), "mobility": LobbySettings.fit_mobility(_local_mobility)}}
 	_wear(1, Settings.calling_card, Settings.icon)
+	players[1]["victory"] = Podium.valid_choice(Settings.victory_pose)
 	players[1]["level"] = my_level()
 	is_online = true
 	players_changed.emit()
@@ -288,6 +290,7 @@ func _on_connected_to_server() -> void:
 	_tune_link(1)
 	_register.rpc_id(1, _local_name, _local_character, _local_weapon, _local_mobility, _join_spectating, Settings.player_color)
 	_choose_card.rpc_id(1, Settings.calling_card, Settings.icon)   # (after _register: they arrive in order)
+	_choose_victory.rpc_id(1, Settings.victory_pose)
 	_choose_level.rpc_id(1, my_level())
 
 
@@ -566,6 +569,8 @@ func confirm_my_character() -> void:
 		set_my_mobility(_local_mobility)
 	if players.has(my_id()) and (player_card(my_id()) != Settings.calling_card or player_icon(my_id()) != Settings.icon):
 		set_my_card(Settings.calling_card, Settings.icon)
+	if players.has(my_id()) and player_victory(my_id()) != Settings.victory_pose:
+		set_my_victory(Settings.victory_pose)
 	if players.has(my_id()) and Settings.player_color >= 0 and color_index(my_id()) != Settings.player_color and not color_taken(Settings.player_color):
 		set_my_color(Settings.player_color)   # the colour you like is free again
 
@@ -618,6 +623,36 @@ func _apply_character(id: int, character: String) -> void:
 		_sync_players.rpc(players)
 	else:
 		players_changed.emit()
+
+
+## Strike this victory pose on the results page (see Podium.valid_choice). Any time.
+func set_my_victory(pose: String) -> void:
+	if is_host():
+		_apply_victory(my_id(), pose)
+	else:
+		_choose_victory.rpc_id(1, pose)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _choose_victory(pose: String) -> void:
+	if is_host():
+		_apply_victory(multiplayer.get_remote_sender_id(), pose)
+
+
+func _apply_victory(id: int, pose: String) -> void:
+	pose = Podium.valid_choice(pose)
+	if not players.has(id) or str(players[id].get("victory", Podium.RANDOM)) == pose:
+		return
+	players[id]["victory"] = pose
+	if is_online:
+		_sync_players.rpc(players)
+	else:
+		players_changed.emit()
+
+
+## The victory pose a player chose (Podium.RANDOM: none in particular; a bot's too).
+func player_victory(id: int) -> String:
+	return Podium.valid_choice(str(players[id].get("victory", Podium.RANDOM))) if players.has(id) else Podium.RANDOM
 
 
 ## Show this calling card and icon with your name (ids from CallingCard). Any time.

@@ -33,6 +33,9 @@ signal melee_landed(attacker: int, weapon_id: String, points: PackedVector3Array
 signal ground_slammed(attacker: int, weapon_id: String, at: Vector3, power: float, points: PackedVector3Array)
 ## Someone hit a wall hard enough to hurt (for the crash sound everyone hears).
 signal slammed(id: int, where: Vector3, speed: float)
+## Someone started an emote (see Emote; aim: where they were looking, for pointing), or
+## had one cut short (emote ""). Looks only.
+signal emoted(id: int, emote: String, aim: Vector3)
 ## A rocket or grenade left `shooter`'s gun (everyone draws it: see Projectile).
 signal projectile_fired(id: int, shooter: int, weapon_id: String, origin: Vector3, direction: Vector3)
 ## ...and blew up here.
@@ -1304,6 +1307,32 @@ func _apply_shove(target: int, push: Vector3) -> void:
 		p.knock(push)
 
 
+## The local player (or a bot) starts an emote (see Emote), or has theirs cut short
+## (emote ""): everyone else is shown. Their own copy shows it straight away itself.
+func request_emote(emote: String, aim: Vector3, id: int = 0) -> void:
+	if Net.is_host():
+		_host_emote(id if id != 0 else Net.my_id(), emote, aim)
+	else:
+		_emote_request.rpc_id(1, emote, aim)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _emote_request(emote: String, aim: Vector3) -> void:
+	if Net.is_host():
+		_host_emote(multiplayer.get_remote_sender_id(), emote, aim)
+
+
+func _host_emote(id: int, emote: String, aim: Vector3) -> void:
+	if not Net.players.has(id) or (emote != "" and (not Emote.valid(emote) or not is_alive(id))):
+		return
+	_emote_show.rpc(id, emote, aim)
+
+
+@rpc("authority", "call_local", "reliable")
+func _emote_show(id: int, emote: String, aim: Vector3) -> void:
+	emoted.emit(id, emote, aim)
+
+
 ## The local player (or a bot) hit a wall at `speed` m/s.
 func request_slam(speed: float, where: Vector3, id: int = 0) -> void:
 	if Net.is_host():
@@ -1811,9 +1840,11 @@ func build_results() -> Array:
 
 
 ## How a player looks as the match ends, for the results page's stage (it may be shown
-## after they have gone): their character, their colour and the weapon they have out.
+## after they have gone): their character, their colour, the weapon they have out and
+## the victory pose they chose.
 func looks(id: int) -> Dictionary:
-	return {"character": Net.player_character(id), "color": Net.player_color(id).to_html(false), "weapon": Net.player_weapon(id)}
+	return {"character": Net.player_character(id), "color": Net.player_color(id).to_html(false), "weapon": Net.player_weapon(id),
+		"pose": Net.player_victory(id)}
 
 
 @rpc("authority", "call_local", "reliable")

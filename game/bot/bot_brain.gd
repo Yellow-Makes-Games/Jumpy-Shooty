@@ -47,6 +47,10 @@ extends RefCounted
 ## How good it is at each of these comes from BotDifficulty.
 
 const ENGAGE_RANGE := 45.0
+const GLOAT_CHANCE := 0.25     ## after a kill, this often, it emotes (see _gloating)
+const GLOAT_WAIT := 3.0        ## seconds it waits for a quiet moment to do it in, before letting it go
+const GLOAT_LONGEST := 2.4     ## seconds of one at most (a dance would go on)
+const GLOATS := ["laugh", "beckon", "thumbs_up", "wave", "salute", "dance"]   ## the ones it picks from
 ## The distances each gun likes to fight at: [closer than this it backs off a little,
 ## further than this it closes in, it does not shoot beyond this]. The shotgun rushes
 ## in, the sniper rifle keeps its distance.
@@ -105,6 +109,9 @@ var input: PlayerInput
 var _rng := RandomNumberGenerator.new()
 var _time := 0.0
 var _target: Player
+var _gloat := ""          # an emote it means to play after a kill (see _gloating)...
+var _gloat_left := 0.0    # ...seconds it still has to find a quiet moment for it
+var _gloat_for := 0.0     # seconds its emote still has to run (it stands still for it)
 var _retarget := 0.0
 var _attacker := 0               # peer id of whoever last shot it
 var _attacked_time := -99.0
@@ -200,6 +207,42 @@ func _init(player: Player, level: int) -> void:
 	_rng.randomize()
 	Match.player_hit.connect(_on_hit)
 	Match.shot_fired.connect(_on_shot)
+	Match.player_died.connect(_on_died)
+
+
+## It knocked someone out: now and then (GLOAT_CHANCE) it means to emote about it.
+func _on_died(victim: int, killer: int) -> void:
+	if killer == me.peer_id and victim != killer and me.alive and not me.racing and _rng.randf() < GLOAT_CHANCE:
+		_gloat = GLOATS[_rng.randi() % GLOATS.size()]
+		_gloat_left = GLOAT_WAIT
+
+
+## An emote after a kill (see Emote), never in a fight: only with nobody in sight, and
+## standing still for it (true: that is all it does this step). Anyone coming into
+## view ends it, and so does being hit (Player cuts the emote).
+func _gloating(delta: float) -> bool:
+	if _gloat == "" and _gloat_for <= 0.0:
+		return false
+	if not _in_view.is_empty() or not me.alive:
+		_gloat = ""
+		_gloat_for = 0.0
+		me.stop_emote()
+		return false
+	if _gloat_for > 0.0:
+		_gloat_for -= delta
+		if _gloat_for <= 0.0 or not me.emote.active():
+			_gloat_for = 0.0
+			me.stop_emote()   # (a dance goes on until it is stopped)
+			return false
+		return true
+	_gloat_left -= delta
+	if _gloat_left <= 0.0:
+		_gloat = ""   # no quiet moment came
+		return false
+	if me.try_emote(_gloat):   # (once it has come to a stop on the ground)
+		_gloat_for = minf(float(Emote.LENGTH[_gloat]), GLOAT_LONGEST) if not _gloat in Emote.LOOPS else GLOAT_LONGEST
+		_gloat = ""
+	return true
 
 
 ## Fight the way the weapon in its hands likes (Gun Game swaps it mid-match; a
@@ -248,6 +291,8 @@ func update(delta: float) -> void:
 	# goes on what it last saw; where its target is, it still reads on every step (below).
 	if _step % _sense_every == 0:
 		_sense()
+	if _gloating(delta):
+		return
 	_retarget -= delta
 	if not is_instance_valid(_target):
 		_target = null

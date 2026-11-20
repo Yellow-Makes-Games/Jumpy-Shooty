@@ -19,6 +19,8 @@ extends SceneTree
 ## away on its body: "stowed": ["rifle"] (see StowedWeapon), and take its weapon out
 ## part-way through a step: "draw_at": 0.9 in the step (see WeaponDraw).
 ## A puppet can be shown arriving (see SpawnIn): "spawn_in": 0.5 (next to "puppet": how far through, 0..1).
+## A puppet can play an emote (see Emote): "emote": "wave" in a step (it starts with the
+## step; "aim": [x,y,z] is where it looks, in its own space, for "point").
 ## Its free hand (see FreeHand), at a point in its own space: "reach": [x,y,z] (out to a
 ## pickup), "grab": [x,y,z] (snatching it, as the step starts), "touch": [x,y,z] (on a
 ## terminal), "hold": [x,y,z] with "low": true (working at something by its feet: a bomb).
@@ -171,6 +173,8 @@ func _puppet(item: Dictionary) -> void:
 	var inp := RobotAnimInput.new()
 	var free := FreeHand.new()   # the hand without the gun (see "reach", "grab", "touch", "hold" below)
 	animator.free = free
+	var emote := Emote.new()   # an emote (see "emote" below)
+	animator.emote = emote
 	if item.has("stowed"):   # weapons put away on the body (see StowedWeapon)
 		StowedWeapon.put_on(robot, item.stowed, Color(c[0], c[1], c[2]), item.get("character", Characters.default_id()))
 	var step: Dictionary = item.puppet
@@ -204,6 +208,8 @@ func _puppet(item: Dictionary) -> void:
 			free.grab(robot.global_transform * _v(step.grab))
 		if step.has("touch"):
 			free.touch(robot.global_transform * _v(step.touch), float(step.get("seconds", 1.0)) + 1.0)
+		if step.has("emote"):   # an emote started as the step starts (see Emote); "aim": where it looks, in its own space
+			emote.play(str(step.emote), robot.global_transform.basis * _v(step.get("aim", [0, 0, -1])))
 		var t := 0.0
 		var fired := false
 		var fired_left := false
@@ -230,6 +236,7 @@ func _puppet(item: Dictionary) -> void:
 			if step.has("hold"):
 				free.hold(robot.global_transform * _v(step.hold), step.get("low", false), true)
 			free.update(1.0 / 60.0, robot.global_transform)
+			emote.update(1.0 / 60.0)
 			animator.update(1.0 / 60.0, inp, robot.global_transform)
 			if not first.is_empty():
 				animator.place_for_view(1.0, first.get("eye", 1.6), deg_to_rad(first.get("pitch", 0.0)))

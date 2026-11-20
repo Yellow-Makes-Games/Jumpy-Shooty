@@ -234,6 +234,9 @@ var rope := RopeSwing.new()
 ## What the hand without the gun is doing with a pickup, a terminal, a bomb (see FreeHand):
 ## the Player's own, handed over every frame (null: nothing).
 var free: FreeHand
+## An emote being played (see Emote): its player's, like `free`.
+var emote: Emote
+var _grip := {}           # how the weapon is held, for an emote (BodyPose.grip_of)
 var _free_w := 0.0        # how much of it this body shows (none in a flip, a roll, a vault, or with that arm up the rope)
 ## On the rope at a wall: the feet on it (see WallBrace).
 var brace := WallBrace.new()
@@ -882,6 +885,11 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	_air_reload = move_toward(_air_reload, 1.0 if tucking else 0.0, delta * 5.0)
 	if _air_reload > 0.0 and key in AIRBORNE:
 		_tuck_for_reload(smoothstep(0.0, 1.0, _air_reload) * (0.6 if key == "glide" else 1.0))
+	# An emote (see Emote): the free hand and the body in a gesture, the weapon lowered.
+	if emote != null and emote.w > 0.0 and inp.alive and not first_person:
+		if _grip.is_empty():
+			_grip = BodyPose.grip_of(model.weapon)
+		emote.lay(_pose, rig, model_xform, _grip)
 	# Hit: the upper body is thrown the way the blow went. (Last, so that the arms and
 	# whatever they hold go with it; the hips and the feet stay where they are.)
 	_braced = key in ["loco", "crouch"] and speed < BRACED_SPEED
@@ -1006,14 +1014,20 @@ func _plant_feet(delta: float, inp: RobotAnimInput, key: String, speed: float) -
 	var w := smoothstep(0.0, 1.0, _feet_w) * clampf((absf(_feet.x) + absf(_feet.y)) / 0.02, 0.0, 1.0)
 	# A big hit buckles the knees: the hips drop and the feet stay where they are (see HitReaction).
 	var sink := flinch.drop() * _lean if key in ["loco", "crouch"] and inp.alive else 0.0
-	var bent := clampf(sink / 0.005, 0.0, 1.0)
+	# An emote moves the hips about over feet that stay put (a dance's bounce and sway).
+	var dancing := emote != null and emote.w > 0.0 and key in ["loco", "crouch"] and inp.alive and not first_person
+	var shift := emote.hips if dancing else Vector3.ZERO
+	var turn := emote.twist if dancing else 0.0
+	var bent := clampf(maxf(sink, shift.length() + absf(turn) * 0.05) / 0.005, 0.0, 1.0)
 	if w <= 0.001 and bent <= 0.001:
 		return
 	var root: int = _b["root"]
 	var hips: int = _b["hips"]
 	var root_at := Transform3D(Basis(_pose.rot[root]), _pose.pos[root])
 	var before := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips])
-	_pose.pos[hips] += root_at.basis.inverse() * Vector3(0.0, clampf(minf(_feet.x, _feet.y), -FEET_DROP, 0.0) * w - sink, 0.0)
+	_pose.pos[hips] += root_at.basis.inverse() * (Vector3(0.0, clampf(minf(_feet.x, _feet.y), -FEET_DROP, 0.0) * w - sink, 0.0) + shift)
+	if turn != 0.0:
+		_pose.rot[hips] = Quaternion(Vector3.UP, turn) * _pose.rot[hips]
 	var after := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips])
 	_reach_foot(before, after, "l", _feet.x * w, maxf(w, bent))
 	_reach_foot(before, after, "r", _feet.y * w, maxf(w, bent))

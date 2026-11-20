@@ -67,6 +67,13 @@ Quick checks:
   leaves nothing behind; a shot cuts it short; its beats use bones the robots have and
   sounds the game has; every weapon has a place on the body, two never share one, and a
   cape sends long ones to the side; a weapon let go breaks up and is gone;
+- emotes (`tests/emote_test.gd`, with `--fixed-fps 60`): the saved wheel is always six
+  different emotes; one may start only alive, on the ground and still; a one-shot eases
+  in, ends by itself and eases out and the dance goes on until stopped; every emote
+  with a gun, a blade, a gun in each hand, fists and nothing puts the free hand where
+  it says and keeps the weapon low; the dance moves the hips over feet that stay put;
+  the body is back as it was after; the wheel's pointer picks the nearest slot; the
+  results page's winner strikes the pose they chose;
 - victory poses (`tests/victory_pose_test.gd`, with `--fixed-fps 60`): who is on the
   results page's stage for a free-for-all, a team win, a draw, a race and a match
   nobody scored in, and that the same results give the same pose; every pose with a
@@ -503,7 +510,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | `--spawn=X,Y,Z,YAW[,PITCH]` | Start at a given spot, facing YAW (degrees). Pick a spot that is clear on the map you use: start inside something and you fall out of the map |
 | `--bot=LEVEL` | Go straight into a 1v1 against a bot (0 Easy, 1 Normal, 2 Hard, 3 Expert) |
 | `--bots=N` | With `--bot`: play a free-for-all against N bots (1 to 4) instead of one |
-| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `profile`, `creator`, `card`, `achievements` |
+| `--menu=PAGE` | Open the main menu on a page: `play`, `practice`, `bot`, `multiplayer`, `settings`, `profile`, `creator`, `card`, `emotes`, `achievements` |
 | `--showcase=N` | Start the main menu's character showcase on its Nth character (from 1), for screenshots |
 | `--settings-tab=N` | Open Settings on a tab: 0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics (with `--menu=settings`, or in the pause menu) |
 | `--pause-page=PAGE` | The pause menu opens on `loadout` or `settings` (pair with `--press=SEC:pause`) |
@@ -2101,6 +2108,35 @@ show the same. Target dummies do not flinch. `tests/hit_reaction_test.gd` checks
 film it in the real game, the hits made up by a script on the Testing Grounds:
 `tools/robot/hit_film.sh OUT_DIR all front` (scenes: small, medium, big, head, melee,
 rapid, air, or all; views: first, third, side, front, back).
+
+**Emotes** (`game/player/robot/emote.gd`, `Emote`) are gestures laid over the standing
+body, like the free hand and the hit reactions: `Player.emote` is told `play(id, aim)`
+and `stop()` and stepped each frame, and `RobotAnimator` lays it over the pose after
+everything else and before a hit's flinch (never on your own first-person body: the
+camera has pulled back to the full one, `CameraRig.emoting`). The weapon is lowered in
+the right hand and the left arm and the body are placed with `BodyPose`
+(`game/player/robot/body_pose.gd`: the chest squared up, a hand put where a key says;
+victory poses are made of the same). The dance also moves the hips (`Emote.hips`,
+`twist`), and the animator keeps the feet where they are (`_plant_feet`). Looks only:
+`Player.try_emote` starts one only alive, standing still on the ground
+(`Emote.may_start`), and `Player.stop_emote` cuts it short from `_step_emote` (moving
+off, leaving the ground, a key that does something) and wherever a shot, a swing, a
+reload, a swap or a hit is shown. The copy that runs a body decides; the others are
+told through the host (`Match.request_emote` to `Match.emoted`: an id, or "" for cut
+short), and a killcam records the same as "emote" events. `EmoteWheel`
+(`game/ui/emote_wheel.gd`, part of the Hud) is the wheel: the emote key is read each
+frame, the mouse moves its pointer instead of the view while it is up, and `release()`
+plays the picked slot of `Settings.emote_wheel` (or, on a quick tap, the last one).
+`BotBrain._gloating` has a bot play one after a kill now and then, once nobody is in
+sight, standing still for it. The Profile page's Emotes tab is `EmotePicker`, with
+`EmotePoser` showing each on the stage; the victory pose picked there
+(`Settings.victory_pose`) goes to the lobby like a calling card (`Net.set_my_victory`)
+and into the results rows (`Match.looks`: "pose"), where `Podium` uses it for whoever
+would strike a victory pose. `tests/emote_test.gd` checks the gestures and the rules;
+`tests/run_emote_test.sh` plays them in Practice and between a host and a client;
+`tools/robot/preview.sh` puppets take `"emote": "wave"` in a step, and
+`tools/robot/emote_film.sh OUT_DIR side` films the wheel and the emotes in the real
+game (views: first, side).
 
 **Victory poses** are in three parts. `Podium` (`game/match/podium.gd`) says who
 stands on the results page's stage and how, from a match's results alone (so every

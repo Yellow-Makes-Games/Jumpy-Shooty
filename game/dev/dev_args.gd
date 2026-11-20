@@ -63,7 +63,7 @@ extends Node
 ## --points=N           Host or --bot, Killcam mode: set the points to win (a lobby setting, so clients see it too).
 ## --time-limit=SECONDS Host only: override the match length (safety cap in tests).
 ## --auto-return       Leave the results screen after 2 seconds (lobby online, rematch vs a bot).
-## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, profile, creator, achievements, card.
+## --menu=PAGE          Open the main menu on this page: play, practice, bot, multiplayer, settings, profile, creator, achievements, card, emotes.
 ## --showcase=N         Start the main menu's character showcase on its Nth character (from 1; screenshots).
 ## --settings-tab=N     Open Settings on this tab (0 Controls, 1 Camera, 2 HUD, 3 Audio, 4 Graphics).
 ## --pause-page=PAGE    Open the pause menu on this page when it opens: loadout, settings (screenshots).

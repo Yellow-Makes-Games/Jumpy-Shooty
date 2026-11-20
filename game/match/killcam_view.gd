@@ -93,6 +93,7 @@ class Ghost:
 	var seen := {}
 	var akimbo_shots := 0
 	var hand := FreeHand.new()   # the snatch of a pickup, as it was (see FreeHand)
+	var emote := Emote.new()     # an emote, as it was (see Emote)
 	var spawn: SpawnIn           # arriving in the clip (see SpawnIn), while it goes
 	var was_alive := true
 
@@ -436,6 +437,10 @@ func _play_ghost(id: int, delta: float) -> void:
 	_watch(a.flags, g.weapon, g.seen, g)
 	g.hand.update(delta, g.visual.global_transform)
 	g.animator.free = g.hand
+	if not a.alive:
+		g.emote.stop()
+	g.emote.update(delta)
+	g.animator.emote = g.emote
 	# Back from the dead inside the clip: put together out of light, as they were (see SpawnIn).
 	if a.alive and not g.was_alive and g.root.visible:
 		var trim := RobotModel.trim_color(Net.player_color(id))
@@ -652,6 +657,12 @@ func _play_event(e: Dictionary) -> void:
 		"grab":
 			if _ghosts.has(who):
 				(_ghosts[who] as Ghost).hand.grab(e.at, e.color)
+		"emote":
+			if _ghosts.has(who):
+				if str(e.emote) == "":
+					(_ghosts[who] as Ghost).emote.stop()
+				else:
+					(_ghosts[who] as Ghost).emote.play(str(e.emote), e.aim)
 		"hit":
 			# The body flinches (see HitReaction), as it did.
 			var way: Vector3 = e.way

@@ -4,7 +4,7 @@ extends RefCounted
 ## match's results alone, so every copy shows the same.
 ##
 ## A free-for-all: the top three, the winner in the middle and a step forward in a
-## victory pose, second and third either side with a nod (a good sport's). A team
+## victory pose (the one they chose, if their row says: "pose"; else victory()'s), second and third either side with a nod (a good sport's). A team
 ## mode: the winning team's top three scorers, all in victory poses, the best in the
 ## middle; a draw: each team's top scorer standing easy. A race: the first three by
 ## finishing order, those who ran out of time standing easy. Nobody scored: nobody
@@ -18,6 +18,8 @@ extends RefCounted
 enum { RAISE, PUMP, HIP, PRESENT, SPORT, EASY }
 const VICTORIES := 4
 const NAMES := ["raise", "pump", "hip", "present", "sport", "easy"]
+const TITLES := ["Weapon overhead", "Fist pump", "Hand on hip", "Spin and bow"]   ## the victory poses, as a menu names them
+const RANDOM := "random"   ## a player's choice of victory pose: none of them in particular
 
 ## Where each stands: the middle, to its left as you look at it, to its right.
 enum { MIDDLE, LEFT, RIGHT }
@@ -36,7 +38,7 @@ static func lineup(results: Array) -> Array:
 		for i in mini(results.size(), MOST):
 			var row: Dictionary = results[i]
 			var done: bool = row.get("finished", false)
-			out.append(_entry(row, i, (pose if i == 0 else SPORT) if done else EASY, _ordinal(i + 1) if done else "Out of time"))
+			out.append(_entry(row, i, (_chosen(row, pose) if i == 0 else SPORT) if done else EASY, _ordinal(i + 1) if done else "Out of time"))
 		return out
 	if str(first.get("teams", "")) != "":
 		var scores: Array = first.get("scores", [0, 0])
@@ -58,12 +60,12 @@ static func lineup(results: Array) -> Array:
 			if int(row.get("team", -1)) != winner or out.size() >= MOST:
 				continue
 			var n := out.size()
-			out.append(_entry(row, n, (pose + n) % VICTORIES, "Top scorer" if n == 0 else _team_name(winner)))
+			out.append(_entry(row, n, _chosen(row, (pose + n) % VICTORIES), "Top scorer" if n == 0 else _team_name(winner)))
 		return out
 	# A free-for-all. Nobody scored at all: nobody won.
 	var scored: bool = int(first.get("kills", 0)) > 0 or int(first.get("points", 0)) > 0 or int(first.get("level", 0)) > 0
 	for i in mini(results.size(), MOST):
-		out.append(_entry(results[i], i, EASY if not scored else (pose if i == 0 else SPORT), _ordinal(i + 1)))
+		out.append(_entry(results[i], i, EASY if not scored else (_chosen(results[i], pose) if i == 0 else SPORT), _ordinal(i + 1)))
 	return out
 
 
@@ -76,6 +78,18 @@ static func victory(results: Array) -> int:
 			+ int(row.get("points", 0)) + int(roundf(float(row.get("time", 0.0)) * 100.0))
 		mix &= 0x7fffffff
 	return mix % VICTORIES
+
+
+## A player's choice of victory pose, made sure of: one of the four's names, or RANDOM.
+static func valid_choice(choice: String) -> String:
+	return choice if NAMES.find(choice) >= 0 and NAMES.find(choice) < VICTORIES else RANDOM
+
+
+## The victory pose a row's player strikes: the one they chose (the row's "pose", a
+## name), or `otherwise`.
+static func _chosen(row: Dictionary, otherwise: int) -> int:
+	var pick := NAMES.find(str(row.get("pose", "")))
+	return pick if pick >= 0 and pick < VICTORIES else otherwise
 
 
 static func _entry(row: Dictionary, n: int, pose: int, label: String) -> Dictionary:
