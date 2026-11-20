@@ -75,6 +75,8 @@ const SPIN_DOWN := 1.4       ## ...and lose in this long
 ##                                      six-sided cylinder or drum: it starts one chamber short)
 ##   "hinge", degrees, seconds, pivot:  swings about a sideways line through (up, forward) of the grip, and back
 ##   "whip", degrees, seconds, pivot:   goes right round it, once (a crank let go)
+##   "swing", degrees, seconds, crane:  swings out sideways about a line along the barrel through (right, up)
+##                                      of the grip, and back (a drum on its crane)
 ##   "open", Vector3:                   stands this far open while the gun is hot
 ##   "lift", degrees, pivot:            hinged open while the gun is hot
 ##   "spin", up:                        the minigun's barrels, about the line `up` above the grip
@@ -312,34 +314,47 @@ func pose_parts(pose: RobotPose, bones: Dictionary) -> void:
 
 func _pose_gun(pose: RobotPose, bones: Dictionary, prefix: String, t: float) -> void:
 	for part in _parts:
-		var b: int = bones.get(prefix + str(part[0]), -1)
-		if b < 0:
-			continue
-		match str(part[1]):
-			"back":
-				pose.pos[b] += REST * Vector3(0.0, 0.0, float(part[2]) * _out_and_home(t / float(part[3])))
-			"pop":
-				pose.pos[b] += REST * ((part[2] as Vector3) * _out_and_home(t / float(part[3])))
-			"turn":
-				var short := 1.0 - smoothstep(0.0, 1.0, clampf(t / float(part[3]), 0.0, 1.0))
-				if short > 0.0:
-					_turn(pose, b, Basis(Vector3.BACK, deg_to_rad(-float(part[2]) * short)), Vector3(0.0, float(part[4]), 0.0))
-			"hinge":
-				var swung := _out_and_home(t / float(part[3]))
-				if swung > 0.0:
-					_turn(pose, b, Basis(Vector3.RIGHT, deg_to_rad(float(part[2]) * swung)), _pivot(part[4]))
-			"whip":
-				var u := clampf(t / float(part[3]), 0.0, 1.0)
-				if u < 1.0:
-					_turn(pose, b, Basis(Vector3.RIGHT, deg_to_rad(float(part[2])) * (1.0 - pow(1.0 - u, 2.0))), _pivot(part[4]))
-			"open":
-				pose.pos[b] += REST * ((part[2] as Vector3) * smoothstep(0.0, 1.0, heat))
-			"lift":
-				if heat > 0.0:
-					_turn(pose, b, Basis(Vector3.RIGHT, deg_to_rad(float(part[2])) * smoothstep(0.0, 1.0, heat)), _pivot(part[3]))
-			"spin":
-				if _spin != 0.0:
-					_turn(pose, b, Basis(Vector3.BACK, _spin), Vector3(0.0, float(part[2]), 0.0))
+		pose_part(pose, bones, prefix, part, t, heat, _spin)
+
+
+## Moves one working part (an entry of PARTS) in `pose`: `t` seconds after the shot that
+## works it, `heat` 0..1 for the parts that stand open with it, `spin` radians for the
+## minigun's barrels. `prefix`: "pistol_", or "pistol_l_" for an akimbo left gun.
+## (WeaponDraw works the same parts as a gun is drawn.)
+static func pose_part(pose: RobotPose, bones: Dictionary, prefix: String, part: Array, t: float, heat_: float = 0.0, spin: float = 0.0) -> void:
+	var b: int = bones.get(prefix + str(part[0]), -1)
+	if b < 0:
+		return
+	match str(part[1]):
+		"back":
+			pose.pos[b] += REST * Vector3(0.0, 0.0, float(part[2]) * _out_and_home(t / float(part[3])))
+		"pop":
+			pose.pos[b] += REST * ((part[2] as Vector3) * _out_and_home(t / float(part[3])))
+		"turn":
+			var short := 1.0 - smoothstep(0.0, 1.0, clampf(t / float(part[3]), 0.0, 1.0))
+			if short > 0.0 and t >= 0.0:
+				_turn(pose, b, Basis(Vector3.BACK, deg_to_rad(-float(part[2]) * short)), Vector3(0.0, float(part[4]), 0.0))
+		"hinge":
+			var swung := _out_and_home(t / float(part[3]))
+			if swung > 0.0:
+				_turn(pose, b, Basis(Vector3.RIGHT, deg_to_rad(float(part[2]) * swung)), _pivot(part[4]))
+		"swing":
+			var out := _out_and_home(t / float(part[3]))
+			if out > 0.0:
+				var crane: Vector2 = part[4]
+				_turn(pose, b, Basis(Vector3.BACK, deg_to_rad(float(part[2]) * out)), Vector3(crane.x, crane.y, 0.0))
+		"whip":
+			var u := clampf(t / float(part[3]), 0.0, 1.0)
+			if u < 1.0 and t >= 0.0:
+				_turn(pose, b, Basis(Vector3.RIGHT, deg_to_rad(float(part[2])) * (1.0 - pow(1.0 - u, 2.0))), _pivot(part[4]))
+		"open":
+			pose.pos[b] += REST * ((part[2] as Vector3) * smoothstep(0.0, 1.0, heat_))
+		"lift":
+			if heat_ > 0.0:
+				_turn(pose, b, Basis(Vector3.RIGHT, deg_to_rad(float(part[2])) * smoothstep(0.0, 1.0, heat_)), _pivot(part[3]))
+		"spin":
+			if spin != 0.0:
+				_turn(pose, b, Basis(Vector3.BACK, spin), Vector3(0.0, float(part[2]), 0.0))
 
 
 ## 0..1..0 over u = 0..1: out in the first quarter, home over the rest.

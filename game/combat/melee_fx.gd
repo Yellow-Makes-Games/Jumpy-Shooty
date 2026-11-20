@@ -22,6 +22,17 @@ static func hit(parent: Node, at: Vector3, from: Vector3, color: Color, power: f
 		_ring(parent, at, away, color.lerp(Color.WHITE, 0.3), lerpf(0.35, 0.7, power))
 
 
+## A small spark at `at` (fists knocked together: see WeaponDraw): a flash and a few sparks, no more.
+## `close`: right in front of your own eyes (the flash alone: sparks that near fill the view).
+static func spark(parent: Node, at: Vector3, color: Color, close: bool = false) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
+		return
+	var hot := color.lerp(Color.WHITE, 0.55)
+	_flash(parent, at, hot, 0.04 if close else 0.07, 0.06)
+	if not close:
+		_sparks(parent, at, Vector3.UP, hot, 0.12)
+
+
 ## A ground slam landed at `at` (on the floor): a shockwave ring racing out across the
 ## floor in the attacker's colour, a flash, dust rolling out and debris thrown up.
 static func slam(parent: Node, at: Vector3, color: Color, power: float) -> void:
