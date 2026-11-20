@@ -335,10 +335,12 @@ The sync, match and bot tests take a map and a player count, for example
   tenth of a second late, one who hears none and one who joins half way down, with
   every copy's pieces started a hair apart. Small arms do nothing to a column and
   three rockets blow a storey out; the corner bay falls, all its floors, and nothing
-  changes until it lets go; the player with the news stays within a few centimetres of
+  changes until it lets go; it crumbles from the bottom up (half a second in, pieces of
+  the bottom floor are moving and none from the top half); the player with the news stays within a few centimetres of
   the host on average (a metre without); every copy ends with the very same heap;
   someone under it is crushed and the kill is credited; the host's news stays under
-  28 KB a second; a player joining afterwards finds the same heap; online
+  28 KB a second; a player joining afterwards finds the same heap; nothing is cut up in
+  the frame a column goes; steel beams and posts come away in one piece each; online
   (`tests/run_collapse_test.sh`, laggy network) the host blows out the corner column
   (`--blow-column`), one spectator joins during the fall and one after, and all four
   copies end with the same heap and the same walls and floors gone;
@@ -860,7 +862,14 @@ A fall is simulated, not played back. The host decides it and tells everyone whi
 floors of which bay, and a number to cut them up by. For a second and a half nothing
 changes but dust and a shake (each copy uses the time to build the pieces, hidden, a
 few milliseconds a frame); then the walls and floors of those bays are swapped for
-loose pieces that look exactly like them, which let go from the lost column outward.
+loose pieces that look exactly like them. They do not all let go at once: it runs out
+along the floor from where the frame was cut (`SPREAD`, 16 m a second) and up the
+building (`RISE`, 9 m a second), so a five-storey bay crumbles from the bottom floor to
+the top over about two and a half seconds, each floor dropping away from under the next.
+Steel does not break up. A girder or a steel post is one hidden solid block with its
+flanges and web drawn on it (the blocks under one group node); the drawn blocks are kept
+with the solid one they sit on, so the beam tears free of the concrete and falls as one
+piece. A breakable panel whose material is metal comes away in one piece too.
 Slab pieces on an edge next to a bay that still stands mostly hang there by their
 bars. Every copy runs the physics itself. While it falls the host sends where its own
 pieces are (at most 25 KB a second for each player, the big pieces first); a copy
@@ -873,16 +882,31 @@ the same. Someone under a big piece coming down fast is killed, and the kill goe
 whoever blew the column. Nobody spawns in or under a bay that has come down. A killcam
 shows what fell as already fallen.
 
-What it costs to draw: the columns and everything loose in the building that still
-stands are one mesh for each kind (made again when a column or a bay goes), and a pile
-is one mesh for each material once it is still. In a pile every vertex remembers where
+What it costs to draw: the columns that still stand are one mesh for each kind (made
+again when one goes, which is quick), everything loose in the building is another (made
+again when a bay goes), and a pile is one mesh for each material once it is still. In a pile every vertex remembers where
 it was before the fall, and `map_surface.gdshader` measures the pattern from there, so
 blockwork stays blockwork on a piece lying on its side and nothing changes as the pile
 sets. From four places round the site the map draws about a tenth more objects than
 it did before fine destruction, and no more after three bays have come down.
 
-Not done yet: only the Construction Site's concrete tower has a frame (its steel,
-scaffolds and hoist stand whatever happens), and a killcam does not replay a fall.
+What it costs in time: the frame in which a column goes does almost nothing (about
+2 ms here). Cutting the bay up (`_plan`) and making the pieces are spread over the
+warning, a few milliseconds a tick, and the loose things are drawn as they will be
+after the fall, hidden, before it starts (`_draw_ahead`), so the moment it lets go
+only has to mark the cells fallen and swap the drawings. A graphics card builds what it
+needs for each new sort of surface the first time one is drawn, which can hold the
+game up for a moment, so on a map with fine destruction `FxWarmup`
+(`game/arena/fx_warmup.gd`) draws one of everything a first hit would be the first to
+draw (rubble in the air and lying, bits, dust, a falling piece and a piece of a pile of
+each kind, an explosion and its light) in the first frames of the match, a couple of
+metres in front of the camera and two thousandths of life size. Anything new that is
+only drawn when something breaks should be added to it (`MapDebris.warm`,
+`MapCollapse.warm`).
+
+Not done yet: only the Construction Site's concrete tower has a frame (the scaffolds,
+the hoist and the steel that is not part of the tower stand whatever happens), and a
+killcam does not replay a fall.
 
 **Materials.** A block's **Material Type** (concrete, metal, wood, glass, dirt, rubber)
 sets the footsteps on it and the crash, rubble and dust when it breaks. Left blank, it
@@ -931,6 +955,7 @@ The scripts behind this:
 | `game/arena/map_destruction.gd` | Breakable walls and floors: which pieces break, their collision and cracks, rubble |
 | `game/arena/bullet_marks.gd`, `map_debris.gd` | Fine destruction's looks: bullet holes, scorches and cracks; rubble that flies, lands and stays |
 | `game/arena/map_frame.gd`, `map_collapse.gd` | A building that can come down: where its frame is, and the fall (pieces, the host's corrections, the heap) |
+| `game/arena/fx_warmup.gd` | Draws what a first hit would be the first to draw, once and too small to see, as the match starts (no stall at the first rocket) |
 | `game/arena/map_terminal.gd`, `map_event.gd`, `gravity_event.gd`, `world_gravity.gd` | The console players press Interact at, the event it fires, and the one gravity multiplier all movement reads |
 | `game/arena/map_lever.gd`, `crane_event.gd` | A lever (a terminal that looks like one) and the tower crane it works: a jib that turns and a load that rides with it |
 | `game/arena/map_replay.gd` | How killcams record the map's moving parts and draw them as they were (see "Moving parts in killcams") |

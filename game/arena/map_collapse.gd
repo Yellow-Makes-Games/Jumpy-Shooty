@@ -36,7 +36,8 @@ signal rest_out(id: int, data: PackedByteArray)
 signal settled(id: int, key: String)
 
 const WARNING := 1.5          ## seconds between the news of a collapse and the first piece letting go
-const SPREAD := 25.0          ## metres a second: how fast letting go runs out from the lost column
+const SPREAD := 16.0          ## metres a second: how fast letting go runs out along a floor from the lost column
+const RISE := 9.0             ## metres a second: how fast it climbs the building (a floor lets go a little after the one under it)
 const BIG := 0.5              ## cubic metres: a piece this big or bigger is "big"
 const BIG_HZ := 10.0          ## host: news of a big piece this often
 const SMALL_HZ := 5.0         ## ...and of a small one
@@ -45,9 +46,9 @@ const TURNED := 0.03          ## ...and turned less than this (radians)
 const NEWS_BYTES := 1000      ## host: about how big one message of news is
 const NEWS_RATE := 25000.0    ## host: bytes of news a second at most, for each player
 const NEWS_EVERY := 4         ## host: news goes out every this many physics steps (30 times a second)
-const REST_AFTER := 12.0      ## seconds after the first piece lets go: the host calls it over, unless something is still falling
-const REST_LATEST := 18.0     ## ...and by now whatever is going on
-const CALM_AFTER := 5.0       ## seconds after the first piece lets go: what still moves is slowed, so the pile comes to rest
+const REST_AFTER := 15.0      ## seconds after the first piece lets go: the host calls it over, unless something is still falling
+const REST_LATEST := 22.0     ## ...and by now whatever is going on
+const CALM_AFTER := 8.0       ## seconds after the first piece lets go: what still moves is slowed, so the pile comes to rest
 const SLIDE := 0.5            ## seconds every copy takes to slide its pieces to where the host's rest
 const TINY := 0.004           ## cubic metres: a loose thing smaller than this just goes
 const DESTROYED := 3          ## a column storey's stages: 0 whole, 1 cracked, 2 badly cracked, 3 gone
@@ -60,6 +61,7 @@ const PIECE_AREA := {"concrete": 5.0, "masonry": 1.6, "wood": 2.2, "sheet": 2.5}
 const DENSITY := {"concrete": 2400.0, "masonry": 1400.0, "wood": 600.0, "sheet": 300.0}
 
 enum { WAITING, FALLING, SLIDING, DOWN }
+enum { COLUMNS = 1, LOOSE = 2 }
 
 
 ## What a copy remembers of its own pieces in one collapse (see _remember).
@@ -91,7 +93,9 @@ var with := ""
 ## fallen: bool, body: StaticBody3D, piece}.
 var segments: Array = []
 ## Every bay: {i, j, x0, x1, z0, z1, fixed, corner: Vector2i (-1, -1: none), cols: [Vector2i],
-## from: the lowest level that has fallen (levels(): none), loose: [pieces, by level], node}.
+## from: the lowest level that has fallen or is about to (levels(): none), shown: the
+## lowest that has let go (its loose things are there until then),
+## loose: [pieces, by level], node}.
 var bays: Array = []
 ## Every collapse so far: see start().
 var events: Array = []
@@ -105,7 +109,9 @@ var _pending := {}        # host: segment -> its new stage
 var _next_id := 1
 var _tick := 0
 var _standing: Node3D = null   # what stands, drawn (see _draw_standing)
-var _redraw := false           # ...and some of it has gone since
+var _columns_drawn: Node3D     # ...and of its column storeys
+var _redraw := 0               # which of the two has lost something since (COLUMNS, LOOSE)
+var _drawings := 0             # how many times the loose things have been drawn
 
 
 # ---------------------------------------------------------------------------
@@ -142,22 +148,51 @@ func setup(map: MapRoot, f: MapFrame, pieces: Array) -> Array:
 				loose.append([])
 			bays.append({"i": i, "j": j, "x0": x0, "x1": x1, "z0": z0, "z1": z1, "fixed": fixed, "corner": corner,
 				"cols": [Vector2i(i, j), Vector2i(i + 1, j), Vector2i(i, j + 1), Vector2i(i + 1, j + 1)],
-				"from": levels(), "loose": loose, "node": null})
+				"from": levels(), "shown": levels(), "loose": loose, "node": null})
 	var rest := []
+	var mine := []          # the building's own loose things
+	var solid_in := {}      # group -> its solid pieces
 	for piece: Dictionary in pieces:
-		if not piece.get("framed", false) or _take_column(piece):
-			if not piece.get("framed", false):
-				rest.append(piece)
-			continue
-		var at: Vector3 = (piece.xf as Transform3D).origin
+		if not piece.get("framed", false):
+			rest.append(piece)
+		elif not _take_column(piece):
+			mine.append(piece)
+			if piece.solid and piece.has("group"):
+				(solid_in.get_or_add(piece.group, []) as Array).append(piece)
+	# What is only drawn, on a solid thing of its own group, goes with that thing: a
+	# girder is one solid block and the flanges and web drawn on it, and it falls whole.
+	var alone := []
+	for piece: Dictionary in mine:
+		var on: Dictionary = {}
+		if not piece.solid:
+			var at: Vector3 = (piece.xf as Transform3D).origin
+			for other: Dictionary in solid_in.get(piece.get("group", 0), []):
+				var local := (other.xf as Transform3D).affine_inverse() * at
+				var reach: Vector3 = (other.size as Vector3) * 0.5 + Vector3.ONE * 0.35
+				if absf(local.x) <= reach.x and absf(local.y) <= reach.y and absf(local.z) <= reach.z:
+					on = other
+					break
+		if on.is_empty():
+			alone.append(piece)
+		else:
+			(on.get_or_add("with", []) as Array).append(piece)
+	for piece: Dictionary in alone:
+		var xf: Transform3D = piece.xf
+		var size: Vector3 = piece.size
+		var at := xf.origin
+		# (Something tall belongs to the floor it stands on, not the one its middle is by.)
+		var up := 0.5 * (absf(xf.basis.x.y) * size.x + absf(xf.basis.y.y) * size.y + absf(xf.basis.z.y) * size.z)
 		var b := bay_at(at)
-		var level := level_at(at.y)
+		var level := level_at(at.y - up + 0.3 if up > 1.0 else at.y)
 		if b < 0 or level < 0 or bays[b].fixed:
 			rest.append(piece)
+			rest.append_array(piece.get("with", []))
+			piece.erase("with")
 		else:
 			(bays[b].loose[level] as Array).append(piece)
 	for b in bays.size():
 		_build_bay(b)
+	_redraw = COLUMNS | LOOSE
 	_draw_standing()
 	if breaks:
 		var by_unit := {}   # unit -> [cells]
@@ -285,11 +320,11 @@ func _take_column(piece: Dictionary) -> bool:
 	return true
 
 
-## A map piece drawn as the map draws it. `moves`: it is part of something that will
-## (its pattern is laid out from where it stands now, and goes with it).
-func _piece_mesh(piece: Dictionary, moves: bool) -> Node3D:
+## Map pieces drawn as the map draws them. `moves`: they are part of something that
+## will (its pattern is laid out from where it stands now, and goes with it).
+func _piece_mesh(pieces: Array, moves: bool) -> Node3D:
 	var holder := Node3D.new()
-	var meshes := MapMesher.build([piece], root.face_shade)
+	var meshes := MapMesher.build(pieces, root.face_shade)
 	for kind in meshes:
 		var mi := MeshInstance3D.new()
 		mi.mesh = MapMesher.riding(meshes[kind]) if moves else meshes[kind]
@@ -308,10 +343,10 @@ func _build_bay(b: int) -> void:
 	if bay.node:
 		(bay.node as Node).queue_free()
 		bay.node = null
-	_redraw = true
+	_redraw |= LOOSE
 	var body := StaticBody3D.new()
 	body.name = "Bay_%d_%d" % [bay.i, bay.j]
-	for level in mini(int(bay.from), levels()):
+	for level in mini(int(bay.shown), levels()):
 		for piece: Dictionary in bay.loose[level]:
 			if not piece.solid:
 				continue
@@ -327,28 +362,61 @@ func _build_bay(b: int) -> void:
 	bay.node = body
 
 
-## Draws what of the building stands and is not a wall or floor that breaks (its column
-## storeys, and the loose things in every bay): one mesh for each kind, like the rest of
-## the map, made again when some of it goes.
+## Draws what of the building stands and is not a wall or floor that breaks: its column
+## storeys as one lot ("Columns") and the loose things in every bay as another
+## ("Standing"), each one mesh for each kind, like the rest of the map. Whichever has
+## lost something is made again: the columns are few and quick, and a rocket that takes
+## one out must not hold the game up; the loose things only go in a collapse, which
+## makes their next drawing ahead of time (see _draw_ahead).
 func _draw_standing() -> void:
-	_redraw = false
+	var what := _redraw
+	_redraw = 0
 	if not root.has_meshes:
 		return
-	if _standing:
-		remove_child(_standing)
-		_standing.queue_free()
-	_standing = Node3D.new()
-	_standing.name = "Standing"
+	if what & COLUMNS:
+		if _columns_drawn:
+			remove_child(_columns_drawn)
+			_columns_drawn.queue_free()
+		var solid := []
+		for seg: Dictionary in segments:
+			if seg.body != null:
+				solid.append(seg.piece)
+		_columns_drawn = _standing_mesh(solid, [])
+		_columns_drawn.name = "Columns"
+		add_child(_columns_drawn)
+	if what & LOOSE:
+		_show_loose(_loose_mesh())
+
+
+## The loose things on the floors that are shown, drawn.
+func _loose_mesh() -> Node3D:
 	var solid := []
 	var decor := []
-	for seg: Dictionary in segments:
-		if seg.body != null:
-			solid.append(seg.piece)
 	for bay: Dictionary in bays:
-		for level in mini(int(bay.from), levels()):
+		for level in mini(int(bay.shown), levels()):
 			for piece: Dictionary in bay.loose[level]:
 				if not piece.get("hidden", false):
 					(solid if piece.solid else decor).append(piece)
+				for part: Dictionary in piece.get("with", []):
+					if not part.get("hidden", false):
+						decor.append(part)
+	return _standing_mesh(solid, decor)
+
+
+func _show_loose(drawn: Node3D) -> void:
+	if _standing:
+		remove_child(_standing)
+		_standing.queue_free()
+	_standing = drawn
+	_standing.name = "Standing"
+	_standing.visible = true
+	if _standing.get_parent() == null:
+		add_child(_standing)
+	_drawings += 1
+
+
+func _standing_mesh(solid: Array, decor: Array) -> Node3D:
+	var holder := Node3D.new()
 	for lot in 2:
 		var meshes := MapMesher.build([solid, decor][lot], root.face_shade)
 		for kind in meshes:
@@ -362,8 +430,27 @@ func _draw_standing() -> void:
 			if lot == 1 and root.detail_range > 0.0:
 				mi.visibility_range_end = root.detail_range
 				mi.visibility_range_end_margin = root.detail_range * 0.1
-			_standing.add_child(mi)
-	add_child(_standing)
+			holder.add_child(mi)
+	return holder
+
+
+## During a warning, once the pieces of `e` are made: draws the loose things as they
+## will be when it lets go, hidden, so that the moment itself has less to do.
+func _draw_ahead(e: Dictionary) -> void:
+	if e.has("ahead") or not root.has_meshes:
+		return
+	var kept := PackedInt32Array()
+	for bay: Dictionary in bays:
+		kept.append(int(bay.shown))
+	for unit: int in (e.units as PackedInt32Array):
+		bays[unit / 16].shown = mini(int(bays[unit / 16].shown), unit % 16)
+	var drawn := _loose_mesh()
+	for b in bays.size():
+		bays[b].shown = kept[b]
+	drawn.visible = false
+	add_child(drawn)
+	e["ahead"] = drawn
+	e["ahead_of"] = _drawings
 
 
 # ---------------------------------------------------------------------------
@@ -487,7 +574,7 @@ func _segment_gone(i: int, burst: bool) -> void:
 	if seg.body:
 		(seg.body as Node).queue_free()
 		seg.body = null
-		_redraw = true
+		_redraw |= COLUMNS
 	var box: AABB = seg.box
 	if root.marks:
 		root.marks.cracks_on(i, box, 0)
@@ -513,11 +600,14 @@ func start(event: Dictionary, restore: Dictionary = {}) -> void:
 	for other: Dictionary in events:
 		if int(other.id) == int(event.id):
 			return   # (told twice: a copy that joined as it began)
+	for other: Dictionary in events:
+		_plan(other, 0.0)   # (how one is cut depends on what stands beside it: settled before this one changes that)
 	var e := event.duplicate()
 	e["state"] = WAITING
 	e["age"] = -WARNING
 	e["pieces"] = []     # {body, c: its middle (in its own frame), big, at: when it lets go, box: AABB, ...}
-	e["specs"] = []      # the pieces still to make
+	e["specs"] = []      # the pieces to make (see _plan)
+	e["planned"] = 0     # how many of its units are in that list so far
 	e["made"] = 0
 	e["boxes"] = []
 	e["hosting"] = false
@@ -529,7 +619,11 @@ func start(event: Dictionary, restore: Dictionary = {}) -> void:
 		touched[unit / 16] = true
 		(e.boxes as Array).append(unit_box(unit))
 	e["bays"] = touched.keys()
-	e["specs"] = _specs(e)
+	var falling := {}
+	for unit: int in (e.units as PackedInt32Array):
+		falling[unit] = true
+	e["falling"] = falling
+	e["tail"] = _stranded_columns()
 	events.append(e)
 	if not restore.is_empty():
 		_let_go(e, true)
@@ -549,15 +643,21 @@ func start(event: Dictionary, restore: Dictionary = {}) -> void:
 			p.pitch_scale *= 0.45   # the frame groans
 
 
-## What collapse `e` is made of, in an order every copy agrees on: a list of pieces to
-## make ({kind: "cells" / "loose" / "column", ...}).
-func _specs(e: Dictionary) -> Array:
-	var specs := []
+## Works out what collapse `e` is made of, in an order every copy agrees on: a list of
+## pieces to make ({kind: "cells" / "loose" / "column", ...}), a unit at a time for up to
+## `budget` milliseconds (0: all of it now). Cutting a tower up is too much for the one
+## frame in which its column goes, so it is spread over the start of the warning. True
+## once the list is whole.
+func _plan(e: Dictionary, budget: float) -> bool:
+	var units: PackedInt32Array = e.units
+	if int(e.planned) > units.size():
+		return true
+	var started := Time.get_ticks_usec()
+	var specs: Array = e.specs
+	var falling: Dictionary = e.falling
 	var rng := RandomNumberGenerator.new()
-	var falling := {}
-	for unit: int in (e.units as PackedInt32Array):
-		falling[unit] = true
-	for unit: int in (e.units as PackedInt32Array):
+	while int(e.planned) < units.size():
+		var unit := units[int(e.planned)]
 		rng.seed = int(e.seed) + unit * 7919
 		# Slabs and walls: each panel's cells in this unit, cut into pieces.
 		var by_panel := {}
@@ -575,7 +675,32 @@ func _specs(e: Dictionary) -> Array:
 			var s: Vector3 = piece.size
 			if piece.solid and s.x * s.y * s.z >= TINY:
 				specs.append({"kind": "loose", "piece": piece})
-	# The column storeys with nothing left round them.
+		e.planned = int(e.planned) + 1
+		if budget > 0.0 and (Time.get_ticks_usec() - started) / 1000.0 > budget:
+			return false
+	specs.append_array(e.tail)
+	e.planned = units.size() + 1
+	# When each lets go. It crumbles from where the frame was cut: outward along the
+	# floor, and up the building a floor at a time, each letting go as the one under it
+	# drops away.
+	var low := INF   # the bottom of the lowest floor that falls
+	for unit: int in units:
+		low = minf(low, unit_box(unit).position.y)
+	var from: Vector3 = e.at
+	for spec: Dictionary in specs:
+		var at: Vector3 = spec.get("middle", Vector3.ZERO)
+		if spec.kind == "loose":
+			at = (spec.piece.xf as Transform3D).origin
+		elif spec.kind == "column":
+			at = (segments[spec.segment].box as AABB).get_center()
+		spec["at"] = Vector2(at.x - from.x, at.z - from.z).length() / SPREAD + maxf(at.y - low, 0.0) / RISE
+	return true
+
+
+## The column storeys with nothing left round them, as pieces to make: they go with the
+## collapse that has just begun.
+func _stranded_columns() -> Array:
+	var specs := []
 	var cols := _columns.keys()
 	cols.sort()
 	for col: Vector2i in cols:
@@ -594,14 +719,6 @@ func _specs(e: Dictionary) -> Array:
 			if beside > 0 and not held:
 				segments[i].fallen = true
 				specs.append({"kind": "column", "segment": i})
-	for i in specs.size():
-		var at: Vector3 = specs[i].get("middle", Vector3.ZERO)
-		if specs[i].kind == "loose":
-			at = (specs[i].piece.xf as Transform3D).origin
-		elif specs[i].kind == "column":
-			at = (segments[specs[i].segment].box as AABB).get_center()
-		var from: Vector3 = e.at
-		specs[i]["at"] = Vector2(at.x - from.x, at.z - from.z).length() / SPREAD
 	return specs
 
 
@@ -628,7 +745,8 @@ func _cut(p: int, cells: Array, rng: RandomNumberGenerator, unit: int, falling: 
 	var w: float = (hi.x - lo.x + 1) * step[u]
 	var h: float = (hi.y - lo.y + 1) * step[v]
 	var style: String = panel.style if PIECE_AREA.has(panel.style) else "sheet"
-	var count := maxi(1, roundi(w * h / float(PIECE_AREA[style])))
+	# (Metal does not break up: a rail or a sheet of it comes away in one piece.)
+	var count := 1 if String(panel.get("material", "")) == "metal" else maxi(1, roundi(w * h / float(PIECE_AREA[style])))
 	var seeds: Array = []
 	for n in count:
 		seeds.append(Vector2(rng.randf_range(0.15, 0.85) * w, rng.randf_range(0.15, 0.85) * h))
@@ -726,7 +844,11 @@ func _physics_process(delta: float) -> void:
 		match int(e.state):
 			WAITING:
 				e.age = float(e.age) + delta
-				_make_some(e, BUILD_MS)
+				if _plan(e, BUILD_MS):
+					if int(e.made) < (e.specs as Array).size():
+						_make_some(e, BUILD_MS)
+					else:
+						_draw_ahead(e)
 				_warn(e)
 				if float(e.age) >= 0.0:
 					_let_go(e, false)
@@ -804,8 +926,13 @@ func _make(spec: Dictionary) -> Dictionary:
 			for corner in 8:
 				solid.append((piece.xf as Transform3D) * Vector3(-half.x if corner & 1 == 0 else half.x, -half.y if corner & 2 == 0 else half.y,
 					-half.z if corner & 4 == 0 else half.z))
-			if root.has_meshes and not piece.get("hidden", false):
-				drawn = _piece_mesh(piece, true)
+			if root.has_meshes:
+				var seen := []
+				for part: Dictionary in [piece] + (piece.get("with", []) as Array):
+					if not part.get("hidden", false):
+						seen.append(part)
+				if not seen.is_empty():
+					drawn = _piece_mesh(seen, true)
 		"column":
 			var seg: Dictionary = segments[spec.segment]
 			if int(seg.stage) >= DESTROYED:
@@ -815,7 +942,7 @@ func _make(spec: Dictionary) -> Dictionary:
 				solid.append(box.get_center() + (box.size * 0.5 - Vector3.ONE * 0.015) * Vector3(-1.0 if corner & 1 == 0 else 1.0,
 					-1.0 if corner & 2 == 0 else 1.0, -1.0 if corner & 4 == 0 else 1.0))
 			if root.has_meshes:
-				drawn = _piece_mesh(seg.piece, true)
+				drawn = _piece_mesh([seg.piece], true)
 		_:
 			return none
 	if body == null:
@@ -874,17 +1001,17 @@ func _cells_mesh(panel: Dictionary, cells: Array) -> Node3D:
 		var ijk: Vector3i = breaks.cells[c].ijk
 		keys[(ijk[u] - lo.x) + nu * (ijk[v] - lo.y)] = 1
 	var pieces := []
-	var step: Vector3 = panel.cell
-	var half: Vector3 = (panel.size as Vector3) * 0.5
 	for box: Array in MapDestruction._merge_flat(nu, nv, keys, 1):
-		var from := -half
-		from[u] += (lo.x + int(box[0])) * step[u]
-		from[v] += (lo.y + int(box[1])) * step[v]
-		var size: Vector3 = panel.size
-		size[u] = int(box[2]) * step[u]
-		size[v] = int(box[3]) * step[v]
-		pieces.append({"xf": (panel.xf as Transform3D) * Transform3D(Basis(), from + size * 0.5), "size": size, "kind": panel.kind,
+		# (a box is its first and last cell each way, counted from the corner of these cells)
+		var local: AABB = breaks._flat_extent(panel, [lo.x + int(box[0]), lo.y + int(box[1]), lo.x + int(box[2]), lo.y + int(box[3])])
+		pieces.append({"xf": (panel.xf as Transform3D) * Transform3D(Basis(), local.get_center()), "size": local.size, "kind": panel.kind,
 			"solid": true, "shape": "box", "tint": panel.tint})
+		# What is on its face (a lamp strip, the frosting on glass) goes with it.
+		for skin: Dictionary in panel.skins:
+			var clipped: AABB = breaks._clip_skin(panel, skin.box, local)
+			if clipped.has_volume():
+				pieces.append({"xf": (panel.xf as Transform3D) * Transform3D(Basis(), clipped.get_center()), "size": clipped.size,
+					"kind": skin.kind, "solid": true, "shape": "box", "tint": skin.tint})
 	var holder := Node3D.new()
 	var meshes := MapMesher.build(pieces, root.face_shade)
 	for kind in meshes:
@@ -899,6 +1026,7 @@ func _cells_mesh(panel: Dictionary, cells: Array) -> Node3D:
 ## fall, their loose things and column storeys go) and its pieces stand in their place,
 ## each to let go when its turn comes. `quiet`: for a copy that joined later (no dust).
 func _let_go(e: Dictionary, quiet: bool) -> void:
+	_plan(e, 0.0)
 	_make_some(e, 0.0)
 	e.state = FALLING
 	e.age = 0.0
@@ -914,6 +1042,8 @@ func _let_go(e: Dictionary, quiet: bool) -> void:
 			stages.resize(ids.size())
 			stages.fill(MapDestruction.FALLEN)
 			breaks.apply(ids, stages)
+	for unit: int in (e.units as PackedInt32Array):
+		bays[unit / 16].shown = mini(int(bays[unit / 16].shown), unit % 16)
 	for b: int in e.bays:
 		_build_bay(b)
 	for p: Dictionary in e.pieces:
@@ -925,6 +1055,14 @@ func _let_go(e: Dictionary, quiet: bool) -> void:
 		body.visible = true
 		body.collision_layer = 1   # part of the level: you stand on it, and it stops a shot
 		body.collision_mask = 1    # ...and nobody pushes it about (the same fall for everyone)
+	if e.has("ahead"):
+		var ahead: Node3D = e.ahead
+		e.erase("ahead")
+		if int(e.ahead_of) == _drawings:   # (nothing else has gone since it was drawn)
+			_show_loose(ahead)
+			_redraw &= ~LOOSE
+		else:
+			ahead.queue_free()
 	if _redraw:
 		_draw_standing()
 	if root.marks:
@@ -1349,6 +1487,44 @@ func _solidify(e: Dictionary) -> void:
 		var at := shape.transform.origin
 		places.append_array([roundi(at.x * 1000.0), roundi(at.y * 1000.0), roundi(at.z * 1000.0)])
 	settled.emit(int(e.id), "%d %08x" % [body.get_child_count(), hash(places)])
+
+
+## One small piece of each kind of thing the building is made of, drawn the two ways a
+## collapse draws them (falling, and lying in a pile), under `stage`: see FxWarmup.
+func warm(stage: Node3D) -> void:
+	if not root.has_meshes:
+		return
+	var kinds := {}   # kind -> a piece of it
+	if breaks:
+		for panel: Dictionary in breaks.panels:
+			if (panel.piece as Dictionary).get("framed", false) and not kinds.has(panel.kind):
+				kinds[panel.kind] = panel.piece
+	for seg: Dictionary in segments:
+		if not kinds.has(seg.piece.kind):
+			kinds[seg.piece.kind] = seg.piece
+	for bay: Dictionary in bays:
+		for level: Array in bay.loose:
+			for piece: Dictionary in level:
+				for part: Dictionary in [piece] + (piece.get("with", []) as Array):
+					if not kinds.has(part.kind) and not part.get("hidden", false):
+						kinds[part.kind] = part
+	var small := []
+	for kind: String in kinds:
+		var piece: Dictionary = (kinds[kind] as Dictionary).duplicate()
+		piece.xf = Transform3D.IDENTITY
+		piece.size = Vector3.ONE * 0.2
+		piece.shape = "box"
+		piece.erase("with")
+		small.append(piece)
+	if small.is_empty():
+		return
+	var falling := _piece_mesh(small, true)
+	stage.add_child(falling)
+	var lots := {}
+	for mi: MeshInstance3D in falling.find_children("*", "MeshInstance3D", true, false):
+		_gather(lots, mi, Transform3D.IDENTITY)
+	for lot: Lot in lots.values():
+		stage.add_child(_gathered(lot))
 
 
 ## One of a fallen piece's meshes, for the pile's: the pieces of a pile do not move
