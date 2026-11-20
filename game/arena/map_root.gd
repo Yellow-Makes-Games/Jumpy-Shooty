@@ -581,6 +581,8 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			pieces.append((child as MapBlock).to_piece(at))
 			if _framing > 0:
 				pieces[pieces.size() - 1]["framed"] = true   # part of a building that can come down (see MapFrame)
+				if not _framed.has(node):
+					pieces[pieces.size() - 1]["group"] = node.get_instance_id()   # (the blocks of one thing, a girder say: they fall as one)
 			if child is MapHazard:
 				var b := child as MapBlock
 				hazards.append({"xf": Transform3D(at.basis.orthonormalized(), at.origin), "size": b.size * at.basis.get_scale().abs(),

@@ -51,6 +51,7 @@ func _ready() -> void:
 		layout.collapse.news_out.connect(Match.collapse_news)
 		layout.collapse.rest_out.connect(Match.collapse_rest)
 		layout.collapse.settled.connect(Match.collapse_settled)
+	FxWarmup.start(self, layout)   # (what a first hit would draw, drawn once now: no hitch at the first rocket)
 	layout.parts_moving.connect(_on_parts_moving)
 	layout.parts_settled.connect(_on_parts_settled)
 	if Race.active:

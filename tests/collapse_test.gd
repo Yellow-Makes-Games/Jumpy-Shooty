@@ -197,6 +197,10 @@ func _run() -> void:
 	var crushed := {}
 	var spared := true
 	var big := PackedInt32Array()
+	var began := {}        # piece -> where its middle was when the building let go (host)
+	var early_high := 0    # pieces from the top half that had moved half a second in
+	var early_low := 0     # ...and from the bottom floor
+	var early_checked := false
 	var started := Time.get_ticks_msec()
 	var fell_for := 0.0
 	for f in 120 * 30:
@@ -223,10 +227,24 @@ func _run() -> void:
 					fallen = fallen and int(host.destruction.cells[cell].stage) == MapDestruction.FALLEN
 				_check(untouched, "nothing changes in the walls and floors until it lets go")
 				_check(fallen and not cells.is_empty(), "...and then they are gone from the building (%d pieces fall, %d of them big)" % [pieces.size(), big.size()])
+				for i in pieces.size():
+					if pieces[i].body != null:
+						began[i] = (pieces[i].body as RigidBody3D).transform * (pieces[i].c as Vector3)
 			was[map] = state
 			_note(map, tracks[map])
 		if _state(host) == MapCollapse.FALLING:
 			fell_for = float(_event(host).age)
+			if not early_checked and fell_for >= 0.5:
+				early_checked = true
+				var pieces: Array = _event(host).pieces
+				for i: int in began:
+					var from: Vector3 = began[i]
+					var now: Vector3 = (pieces[i].body as RigidBody3D).transform * (pieces[i].c as Vector3)
+					if now.distance_to(from) > 0.02:
+						if from.y > 12.0:
+							early_high += 1
+						elif from.y < 5.0:
+							early_low += 1
 			for x: float in [-13.5, -10.5, -7.5]:   # (people standing all over the ground floor of the bay)
 				for z: float in [-13.5, -10.5, -7.5]:
 					if crushed.is_empty():
@@ -242,6 +260,8 @@ func _run() -> void:
 				and late != null and _state(late) == MapCollapse.DOWN:
 			break
 	print("  the fall took %.1f s on the host (%d ms to run four copies of it)" % [fell_for, Time.get_ticks_msec() - started])
+	_check(early_checked and early_low >= 5 and early_high == 0,
+		"it crumbles from the bottom up: half a second in, %d pieces of the bottom floor are on their way and none from the top half" % early_low)
 	_check(_state(host) == MapCollapse.DOWN and _state(near) == MapCollapse.DOWN, "it comes to rest, and becomes part of the level")
 	if _state(host) != MapCollapse.DOWN or _state(near) != MapCollapse.DOWN or _state(alone) != MapCollapse.DOWN or late == null \
 			or _state(late) != MapCollapse.DOWN:
@@ -299,6 +319,33 @@ func _run() -> void:
 		for unit: int in e.units:
 			lowest = mini(lowest, unit % 16)
 	_check(top > 0 and lowest == top, "a column blown out at floor %d brings down that floor and up, and leaves what is below" % (top + 1))
+
+	# Steel: a girder is one hidden block with its flanges and web drawn on it. It comes
+	# away whole, with all of them, and is never cut up.
+	c.apply_columns(out.columns[0], out.columns[1])
+	for e: Dictionary in out.get("events", []):
+		c.start(e)
+	var steel: Dictionary = c.events[c.events.size() - 1]
+	_check((steel.pieces as Array).is_empty() and int(steel.planned) == 0, "nothing is cut up in the frame the column goes: that is spread over the warning")
+	for f in 120 * 3:
+		await physics_frame
+		if int(steel.state) == MapCollapse.FALLING:
+			break
+	var beams := 0
+	var whole := true
+	for i in (steel.specs as Array).size():
+		var spec: Dictionary = steel.specs[i]
+		if spec.kind == "loose" and String(spec.piece.kind) == "steel":
+			beams += 1
+			whole = whole and steel.pieces[i].body != null and (spec.piece.get("with", []) as Array).size() == 3
+	var strays := 0   # steel left to stand, or to vanish, on its own
+	for square: Dictionary in c.bays:
+		for floor_things: Array in square.loose:
+			for piece: Dictionary in floor_things:
+				if String(piece.kind) == "steel" and not piece.solid:
+					strays += 1
+	_check(int(steel.state) == MapCollapse.FALLING and beams >= 3 and whole and strays == 0,
+		"the steel there comes away whole: %d beams and posts, each one piece with its flanges and web" % beams)
 
 	print("PASS" if failures == 0 else "FAILED: %d" % failures)
 	quit(1 if failures else 0)

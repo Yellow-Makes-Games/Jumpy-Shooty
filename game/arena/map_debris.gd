@@ -241,14 +241,7 @@ func dust(at: Vector3, mat: String, thrown: Vector3) -> void:
 	var quad := QuadMesh.new()
 	quad.size = Vector2(1.1, 1.1)
 	p.mesh = quad
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	m.albedo_texture = puff_texture()
-	m.vertex_color_use_as_albedo = true
-	m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
-	p.material_override = m
+	p.material_override = _dust_material()
 	p.amount = 5
 	p.one_shot = true
 	p.explosiveness = 0.85
@@ -427,6 +420,70 @@ func _material(kind: String, tint: Color) -> Material:
 		m.vertex_color_use_as_albedo = true
 		_materials[key] = m
 	return _materials[key]
+
+
+## What a cloud of dust is drawn with (one for them all).
+func _dust_material() -> Material:
+	if not _materials.has("dust"):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		m.albedo_texture = puff_texture()
+		m.vertex_color_use_as_albedo = true
+		m.depth_draw_mode = BaseMaterial3D.DEPTH_DRAW_DISABLED
+		_materials["dust"] = m
+	return _materials["dust"]
+
+
+## One of everything this draws, under `stage` (see FxWarmup): a chunk in the air, the
+## batch of chunks lying about, a scatter of bits and a cloud of dust. They are made the
+## way the real ones are, so that what the graphics card builds for these serves those.
+func warm(stage: Node3D) -> void:
+	var plain := _material("", Color.WHITE)
+	var chunk := MeshInstance3D.new()
+	chunk.mesh = chunk_mesh()
+	chunk.material_override = plain
+	stage.add_child(chunk)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = chunk_mesh()
+	mm.instance_count = 1
+	mm.set_instance_transform(0, Transform3D.IDENTITY)
+	mm.set_instance_color(0, Color.WHITE)
+	var lying := MultiMeshInstance3D.new()
+	lying.multimesh = mm
+	lying.material_override = plain
+	stage.add_child(lying)
+	for dusty in 2:
+		var p := CPUParticles3D.new()
+		if dusty:
+			var quad := QuadMesh.new()
+			quad.size = Vector2.ONE * 0.002   # (a puff always faces the camera at its own size, whatever the stage's)
+			p.mesh = quad
+			p.material_override = _dust_material()
+			p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			var fade := Gradient.new()
+			fade.set_color(0, Color(1, 1, 1, 0.5))
+			fade.set_color(1, Color(1, 1, 1, 0.0))
+			p.color_ramp = fade
+		else:
+			var bit := BoxMesh.new()
+			bit.size = Vector3(0.09, 0.063, 0.09)
+			p.mesh = bit
+			p.material_override = plain
+			p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		p.local_coords = true   # (they stay with the stage, and are as small as it is)
+		p.amount = 2
+		p.lifetime = 20.0
+		p.explosiveness = 1.0
+		p.preprocess = 1.0
+		p.gravity = Vector3.ZERO
+		p.initial_velocity_min = 0.0
+		p.initial_velocity_max = 0.0
+		stage.add_child(p)
+		p.emitting = true
 
 
 ## How many chunks there are: [in the air, lying about] (tests).
