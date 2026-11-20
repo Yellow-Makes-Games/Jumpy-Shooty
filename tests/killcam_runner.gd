@@ -35,6 +35,7 @@ func run() -> void:
 	_clips()
 	_offline_timing()
 	await _playback()
+	_zoomed()
 	await _results_page()
 	_sound_mix()
 	await _video()
@@ -307,6 +308,40 @@ func _test_clip() -> KillClip:
 	clip.events = [{"t": 1.95, "who": 1, "kind": "shot", "muzzle": Vector3(0, 1.5, 0),
 		"ends": PackedVector3Array([Vector3(0, 1.6, -10)]), "hits": [true], "weapon": "pistol"}]
 	return clip
+
+
+## The killer zoomed in partway through: the killcam's view narrows with them.
+func _zoomed() -> void:
+	print("  the killer's zoom")
+	var clip := _test_clip()
+	var killer: KillClip.Track = clip.tracks[1]
+	var zoomed := KillClip.Track.new()
+	zoomed.name = killer.name
+	for i in 91:
+		var t := i / 30.0
+		var f := _frame(Vector3(0, 0, 0), 0.0, 0.0)
+		if t >= 1.0:
+			f[5] = RobotAnimInput.ZOOMED_BIT
+		zoomed.push(t, f)
+	clip.tracks[1] = zoomed
+	var world := Node3D.new()
+	add_child(world)
+	var view := KillcamView.new().setup(clip, false)
+	view.world_sound = false
+	world.add_child(view)
+	view.set_process(false)
+	while view.time < 0.8:
+		view._process(1.0 / 60.0)
+	_expect(is_equal_approx(view.camera.fov, Settings.field_of_view), "before they zoom: your field of view (%.1f)" % view.camera.fov)
+	while view.time < 1.6:
+		view._process(1.0 / 60.0)
+	_expect(is_equal_approx(view.camera.fov, CameraRig.zoom_fov()) and CameraRig.zoom_fov() < Settings.field_of_view,
+		"zoomed in, as they were (%.1f, the match's zoom off yours)" % view.camera.fov)
+	var a := RobotAnimInput.new()
+	a.flags = RobotAnimInput.ZOOMED_BIT
+	_expect(a.wall_jumps() == 0 and a.flip() == 0 and RobotAnimInput.step_of(a.flags) == 0 and not RobotAnimInput.jetpack_of(a.flags),
+		"the zoom's bit leaves the other flags alone")
+	world.queue_free()
 
 
 func _playback() -> void:
