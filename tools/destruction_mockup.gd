@@ -17,6 +17,10 @@ var _wait := 8
 var _plain := {}
 var _puff_tex: Texture2D
 var _post: Array = []   # callables run after build
+var sim := false         # a scene that runs physics and films it (out = a folder for the frames)
+var measure := false     # ...or only times it (no pictures)
+var sim_seconds := 9.0
+var variant := 0
 
 
 func _initialize() -> void:
@@ -28,6 +32,12 @@ func _initialize() -> void:
 			stage = int(arg.substr(8))
 		elif arg.begins_with("--out="):
 			out = arg.substr(6)
+		elif arg == "--measure":
+			measure = true
+		elif arg.begins_with("--seconds="):
+			sim_seconds = float(arg.substr(10))
+		elif arg.begins_with("--variant="):
+			variant = int(arg.substr(10))
 		elif arg.begins_with("--cam="):
 			cam_override = arg.substr(6)
 		elif arg.begins_with("--size="):
@@ -55,7 +65,9 @@ func _initialize() -> void:
 		look(_v(p[0]), _v(p[1]), float(p[2]) if p.size() > 2 else 60.0)
 
 
-func _process(_delta: float) -> bool:
+func _process(delta: float) -> bool:
+	if sim:
+		return _sim_process(delta)
 	if _wait > 0:
 		_wait -= 1
 		return false
@@ -204,7 +216,7 @@ func flat(color: Color, unshaded := true, no_depth := false) -> StandardMaterial
 
 ## A convex lump: the hull of `pts` (its own frame), placed by `xf`. `patterned` draws
 ## the kind's own surface pattern, measured from the lump (a slab's joints go with it).
-func hull(kind: String, pts: PackedVector3Array, xf: Transform3D = Transform3D(), mul: float = 1.0, patterned := false, tint := Color.WHITE) -> MeshInstance3D:
+func hull(kind: String, pts: PackedVector3Array, xf: Transform3D = Transform3D(), mul: float = 1.0, patterned := false, tint := Color.WHITE, moves := false) -> MeshInstance3D:
 	var buf := [PackedVector3Array(), PackedVector3Array(), PackedColorArray()]
 	MapMesher._shade_basis = xf.basis.orthonormalized()
 	for face in MapMesher.hull_faces(pts):
@@ -219,7 +231,7 @@ func hull(kind: String, pts: PackedVector3Array, xf: Transform3D = Transform3D()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var mi := MeshInstance3D.new()
 	if patterned:
-		mi.mesh = mesh if xf == Transform3D() else MapMesher.riding(mesh)
+		mi.mesh = mesh if xf == Transform3D() and not moves else MapMesher.riding(mesh)
 		mi.material_override = map.material_for(kind)
 	else:
 		mi.mesh = mesh
@@ -1173,3 +1185,262 @@ func _support_view() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		extras.add_child(mi)
 
+
+
+
+# ================================================================ simulated collapse
+#
+# Nothing here is posed. The bay's slabs, walls and column are cut into loose pieces,
+# every piece is a rigid body in the game's own physics engine (Jolt), and all the
+# script does is (1) blow out the foot of a column and (2) let go of what that column
+# held. Where the pieces go is the physics engine's doing.
+
+var _bodies: Array = []     # {body: RigidBody3D, at: float (when it is let go), push: Vector3, last: Vector3}
+var _puffs: Array = []      # {node, mat, age, life, size, alpha}
+var _sim_time := 0.0
+var _sim_frame := 0
+var _step_ms: Array = []
+var _active: Array = []
+var _last_usec := 0
+const T_BLAST := 1.0
+
+func scene_sim() -> void:
+	sim = true
+	var corners := [CORNER]
+	var regions := [AABB(Vector3(-16.4, -0.05, -16.4), Vector3(10.35, 30.0, 10.35))]
+	if variant == 1:
+		# two columns on the west side: two bays
+		corners = [CORNER, Vector3(-15.5, 0, -5.5)]
+		regions = [AABB(Vector3(-16.4, -0.05, -16.4), Vector3(10.35, 30.0, 20.8))]
+	var taken := []
+	for region: AABB in regions:
+		taken.append_array(take_region(region))
+		cut_region(region, ["Tower", "TowerCover"])
+	_post.append(func(): _make_bodies(taken, regions, corners))
+	look(Vector3(-33.0, 13.0, -37.0), Vector3(-10.5, 8.8, -10.5), 46.0)
+
+
+## The solid concrete, blockwork and planks inside `region`, clipped to it: [{kind, box, path}]
+func take_region(region: AABB) -> Array:
+	var list := []
+	for b: MapBlock in blocks():
+		var path := str(map.get_path_to(b))
+		if not path.begins_with("Tower/"):
+			continue
+		if not b.solid or b.shape != MapBlock.Shape.BOX or not ["concrete", "block", "plank"].has(b.kind):
+			continue
+		var xf := xf_of(b)
+		if not aligned(xf.basis):
+			continue
+		var box := AABB(xf.origin - b.size * 0.5, b.size).intersection(region)
+		if box.size.x > 0.05 and box.size.y > 0.05 and box.size.z > 0.05:
+			list.append({"kind": b.kind, "box": box, "path": path})
+	return list
+
+
+func _make_bodies(taken: Array, regions: Array, corners: Array) -> void:
+	var lr := RandomNumberGenerator.new()
+	lr.seed = 2
+	var region: AABB = regions[0]
+	for t in taken:
+		var box: AABB = t.box
+		var s := box.size
+		if t.kind != "block" and s.y <= 0.6 and s.x * s.z > 0.5:
+			# a floor slab: irregular pieces, about one per 5 square metres
+			var seeds := []
+			var count := maxi(2, roundi(s.x * s.z / 5.0))
+			for i in count:
+				seeds.append(Vector2(lr.randf_range(0.2, s.x - 0.2), lr.randf_range(0.2, s.z - 0.2)))
+			for c in voronoi(s.x, s.z, seeds):
+				var poly: PackedVector2Array = inset(c.poly, 0.02)
+				var m := poly_mid(poly)
+				var centre := Vector3(box.position.x + m.x, box.get_center().y, box.position.z + m.y)
+				var local := PackedVector3Array()
+				var shift := Vector3(1.5, 0.75, 1.5)
+				for p in poly:
+					local.append(shift + Vector3(p.x - m.x, -s.y * 0.5, p.y - m.y))
+					local.append(shift + Vector3(p.x - m.x, s.y * 0.5, p.y - m.y))
+				var body := _body(t.kind, local, Transform3D(Basis(), centre - shift), 2400.0 if t.kind == "concrete" else 600.0, true)
+				_schedule(body, centre, corners)
+				# Bars: a piece on the edge that still stands stays tied to it at two points.
+				var on_x := absf(box.end.x - region.end.x) < 0.05
+				var on_z := absf(box.end.z - region.end.z) < 0.05
+				var ties := []
+				for p in c.poly:
+					if (on_x and p.x > s.x - 0.01) or (on_z and p.y > s.z - 0.01):
+						ties.append(Vector3(box.position.x + p.x, box.get_center().y, box.position.z + p.y))
+				if ties.size() >= 2 and lr.randf() < 0.75 and t.kind == "concrete":
+					_bodies[-1]["pins"] = [(ties[0] as Vector3).lerp(ties[1], 0.15), (ties[1] as Vector3).lerp(ties[0], 0.15)]
+		elif t.kind == "concrete":
+			# a column: lengths of about 2 m. The foot of the one under attack is blown to bits.
+			var y := box.position.y
+			while y < box.end.y - 0.1:
+				var h := minf(lr.randf_range(1.6, 2.4), box.end.y - y)
+				var centre := Vector3(box.get_center().x, y + h * 0.5, box.get_center().z)
+				if y < 3.4:
+					for i in 10:
+						var bit := lump_pts(Vector3(lr.randf_range(0.25, 0.5), lr.randf_range(0.25, 0.5), lr.randf_range(0.25, 0.5)), 3)
+						var at := Vector3(centre.x + lr.randf_range(-0.25, 0.25), y + lr.randf_range(0.2, h - 0.2), centre.z + lr.randf_range(-0.25, 0.25))
+						var b := _body("concrete", bit, Transform3D(rand_basis(), at), 2400.0, false)
+						var away := Vector3(lr.randf_range(-1, 1), lr.randf_range(0.0, 0.5), lr.randf_range(-1, 1)).normalized()
+						_bodies.append({"body": b, "at": T_BLAST, "push": away * lr.randf_range(3.0, 9.0), "last": Vector3.ZERO})
+				else:
+					var body := _body("concrete", box_pts(Vector3(s.x - 0.03, h - 0.03, s.z - 0.03)), Transform3D(Basis(), centre), 2400.0, false, 0.97)
+					_schedule(body, centre, corners)
+				y += h
+		elif t.kind == "block":
+			# blockwork: lumps two courses high, breaking along the courses
+			var along_x := s.x > s.z
+			var w := s.x if along_x else s.z
+			var u := Vector3(1, 0, 0) if along_x else Vector3(0, 0, 1)
+			var n := Vector3(0, 0, 1) if along_x else Vector3(1, 0, 0)
+			var thick := s.z if along_x else s.x
+			for c in masonry_cells(w, s.y, Vector2(-50, -50), lr, 0.8):
+				var poly: PackedVector2Array = inset(c.poly, 0.012)
+				var m := poly_mid(poly)
+				var centre := box.position + u * m.x + Vector3(0, m.y, 0) + n * thick * 0.5
+				var local := PackedVector3Array()
+				var shift := Vector3(0.4, 0.2, 0.4)
+				for p in poly:
+					local.append(shift + u * (p.x - m.x) + Vector3(0, p.y - m.y, 0) - n * (thick * 0.5 - 0.01))
+					local.append(shift + u * (p.x - m.x) + Vector3(0, p.y - m.y, 0) + n * (thick * 0.5 - 0.01))
+				var body := _body("block", local, Transform3D(Basis(), centre - shift), 1400.0, true)
+				_schedule(body, centre, corners)
+	print("BODIES ", _bodies.size())
+
+
+var _body_count := 0
+
+func _body(kind: String, local: PackedVector3Array, xf: Transform3D, density: float, patterned: bool, mul := 1.0) -> RigidBody3D:
+	var body := RigidBody3D.new()
+	_body_count += 1
+	body.name = "Piece%d" % _body_count
+	var shape := ConvexPolygonShape3D.new()
+	shape.points = local
+	var cs := CollisionShape3D.new()
+	cs.shape = shape
+	body.add_child(cs)
+	var lo := local[0]
+	var hi := local[0]
+	for p in local:
+		lo = lo.min(p)
+		hi = hi.max(p)
+	var size := hi - lo
+	body.mass = clampf(size.x * size.y * size.z * 0.7 * density, 15.0, 30000.0)
+	var material := PhysicsMaterial.new()
+	material.friction = 0.9
+	material.bounce = 0.02
+	body.physics_material_override = material
+	body.angular_damp = 0.3
+	body.freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
+	body.freeze = true
+	body.transform = xf
+	var mi := hull(kind, local, Transform3D(), mul, patterned, Color.WHITE, true)
+	extras.remove_child(mi)
+	body.add_child(mi)
+	extras.add_child(body)
+	return body
+
+
+## When a piece is let go: the nearer the lost column, the sooner (the failure runs
+## outward from it at about 25 m a second).
+func _schedule(body: RigidBody3D, centre: Vector3, corners: Array) -> void:
+	var nearest := 1e9
+	for c: Vector3 in corners:
+		nearest = minf(nearest, Vector2(centre.x - c.x, centre.z - c.z).length())
+	_bodies.append({"body": body, "at": T_BLAST + 0.35 + nearest / 25.0, "push": Vector3.ZERO, "last": Vector3.ZERO})
+
+
+func _puff(at: Vector3, size: float, alpha: float, life: float, color := Color(0.74, 0.73, 0.69)) -> void:
+	if _puffs.size() > 420 or measure:
+		return
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(color.r, color.g, color.b, alpha)
+	m.albedo_texture = puff_texture()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	m.billboard_keep_scale = true
+	var q := QuadMesh.new()
+	q.size = Vector2(1, 1)
+	var mi := MeshInstance3D.new()
+	mi.mesh = q
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = at
+	mi.scale = Vector3.ONE * size
+	extras.add_child(mi)
+	_puffs.append({"node": mi, "mat": m, "age": 0.0, "life": life, "size": size, "alpha": alpha,
+		"drift": Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(0.2, 0.9), rng.randf_range(-0.6, 0.6))})
+
+
+func _sim_process(delta: float) -> bool:
+	if _wait > 0:
+		_wait -= 1
+		_last_usec = Time.get_ticks_usec()
+		return false
+	var now := Time.get_ticks_usec()
+	if _sim_frame > 0:
+		_step_ms.append((now - _last_usec) / 1000.0)
+		_active.append(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS))
+	_last_usec = now
+	_sim_time += delta
+	for b in _bodies:
+		var body: RigidBody3D = b.body
+		if body.freeze and _sim_time >= b.at:
+			body.freeze = false
+			for at: Vector3 in b.get("pins", []):
+				var pin := PinJoint3D.new()
+				extras.add_child(pin)
+				pin.global_position = at
+				pin.node_a = pin.get_path_to(body)
+			if b.push != Vector3.ZERO:
+				body.linear_velocity = b.push
+				body.angular_velocity = Vector3(rng.randf_range(-6, 6), rng.randf_range(-6, 6), rng.randf_range(-6, 6))
+				if rng.randf() < 0.5:
+					_puff(body.position, rng.randf_range(1.5, 2.6), 0.5, 2.2)
+			elif body.mass > 400.0 and rng.randf() < 0.5:
+				_puff(body.position, rng.randf_range(1.5, 3.0), 0.3, 2.0)   # dust shaken out as it tears free
+		elif not body.freeze:
+			# dust where something heavy stops short
+			var v := body.linear_velocity
+			var last: Vector3 = b.last
+			if last.y < -3.5 and v.y > last.y * 0.5 and body.mass > 100.0:
+				_puff(body.position + Vector3(rng.randf_range(-1, 1), 0.3, rng.randf_range(-1, 1)), rng.randf_range(3.0, 6.0), 0.42, rng.randf_range(3.0, 5.5))
+			b.last = v
+	for p in _puffs:
+		p.age += delta
+		var k: float = clampf(p.age / p.life, 0.0, 1.0)
+		(p.node as MeshInstance3D).scale = Vector3.ONE * p.size * (1.0 + 1.6 * sqrt(k))
+		(p.node as MeshInstance3D).position += (p.drift as Vector3) * delta
+		(p.mat as StandardMaterial3D).albedo_color.a = p.alpha * (1.0 - k) * minf(1.0, p.age * 8.0)
+	if not measure:
+		root.get_texture().get_image().save_jpg("%s/f_%04d.jpg" % [out, _sim_frame], 0.93)
+	_sim_frame += 1
+	if _sim_time < sim_seconds:
+		return false
+	var sorted := _step_ms.duplicate()
+	sorted.sort()
+	var total := 0.0
+	for ms in _step_ms:
+		total += ms
+	var asleep := 0
+	var lines := PackedStringArray()
+	for b in _bodies:
+		var body: RigidBody3D = b.body
+		if body.sleeping:
+			asleep += 1
+		lines.append("%.2f %.2f %.2f" % [body.position.x, body.position.y, body.position.z])
+	print("FRAMES %d  BODIES %d  ASLEEP_AT_END %d  FRAME_MS mean %.2f  p95 %.2f  max %.2f  PEAK_ACTIVE %d" % [_sim_frame, _bodies.size(), asleep, total / maxf(_step_ms.size(), 1), sorted[int(sorted.size() * 0.95)], sorted[-1], _active.max()])
+	var pinned := 0
+	var hanging := 0
+	for b in _bodies:
+		if b.has("pins"):
+			pinned += 1
+			if (b.body as RigidBody3D).position.y > 3.0:
+				hanging += 1
+	print("PINNED %d  STILL_UP %d  JOINTS %d" % [pinned, hanging, extras.find_children("*", "PinJoint3D", true, false).size()])
+	var f := FileAccess.open(out + "/rest.txt", FileAccess.WRITE)
+	if f:
+		f.store_string("\n".join(lines))
+	return true
