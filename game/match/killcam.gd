@@ -40,12 +40,14 @@ signal started   ## the death killcam began
 signal ended     ## ...and finished, was skipped, or you respawned
 
 const RATE := 30.0              ## frames recorded per second
-const HISTORY := 7.0            ## seconds kept
+const HISTORY := 18.0           ## seconds kept (a best kill's clip can run to MAX_CLIP)
 const BEFORE := 2.5             ## the death killcam: seconds before the kill...
 const AFTER := 0.5              ## ...and after it (together: the respawn wait)
 const HIGHLIGHT_BEFORE := 3.0   ## results screen: a little more lead-in...
 const HIGHLIGHT_AFTER := 1.0    ## ...and follow-through
 const STREAK_LEAD := 1.0        ## a multikill starts this long before its first kill
+const FOLLOW_ON := 1.0          ## a best kill's clip runs on through the killer's next kill this soon after it (and the next...)
+const MAX_CLIP := 15.0          ## ...but a clip is never longer than this
 const VIEW_INTERP := 0.085      ## how far in the past a player's game typically draws others (SnapshotBuffer)
 const KEEP := 3                 ## clips kept for the results screen
 const MIN_LEAD := 1.0           ## the death killcam needs this much of the killer before the kill
@@ -273,6 +275,7 @@ func _on_kill_scored(info: Dictionary) -> void:
 	var now := _clock
 	var kill_time := now - _delay(int(info.killer))
 	_kill_times[int(info.seq)] = kill_time
+	_follow_on(int(info.killer), kill_time, now)
 	var start := kill_time - HIGHLIGHT_BEFORE
 	if int(info.streak) > 0:   # a multikill: from just before the first of them
 		for k in Match.kill_log:
@@ -281,9 +284,22 @@ func _on_kill_scored(info: Dictionary) -> void:
 				start = minf(start, float(_kill_times[int(k.seq)]) - STREAK_LEAD)
 	start = maxf(start, kill_time - HISTORY + 2.0)   # (still recorded when the clip is kept)
 	var clip := _live_clip(info, kill_time, start, kill_time + HIGHLIGHT_AFTER)
-	_pending.append({"clip": clip, "at": now + HIGHLIGHT_AFTER + 0.4})
+	_pending.append({"clip": clip, "at": now + HIGHLIGHT_AFTER + 0.4, "last": kill_time})
 	if int(info.victim) == Net.my_id() and Settings.killcam:
 		_start_death_cam(_live_clip(info, kill_time, kill_time - BEFORE, kill_time + AFTER))
+
+
+## The killer got another kill: a clip of theirs still being recorded whose last kill was
+## no more than FOLLOW_ON before this one runs on to follow this one through too (a
+## multikill plays out to its end), up to MAX_CLIP long.
+func _follow_on(killer: int, kill_time: float, now: float) -> void:
+	for entry in _pending:
+		var clip: KillClip = entry.clip
+		if clip.killer != killer or kill_time - float(entry.get("last", clip.kill_time)) > FOLLOW_ON:
+			continue
+		entry["last"] = kill_time
+		clip.end = minf(maxf(clip.end, kill_time + HIGHLIGHT_AFTER), clip.start + MAX_CLIP)
+		entry["at"] = maxf(float(entry.at), now + (clip.end - kill_time) + 0.4)
 
 
 ## A clip that reads straight from what is being recorded (it fills in as it plays).
