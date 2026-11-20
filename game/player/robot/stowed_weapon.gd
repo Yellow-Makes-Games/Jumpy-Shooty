@@ -194,6 +194,13 @@ static func break_up(parent: Node, id: String, color: Color, at: Transform3D, ve
 	prop.top_level = true
 	parent.add_child(prop)
 	prop.global_transform = at.orthonormalized()
+	# (A melee weapon's pieces wear their materials over the whole piece: onto its surfaces, where Dissolve looks.)
+	for mi in prop.find_children("*", "MeshInstance3D", true, false):
+		var piece := mi as MeshInstance3D
+		if piece.material_override != null and piece.mesh != null:
+			for i in piece.mesh.get_surface_count():
+				piece.set_surface_override_material(i, piece.material_override)
+			piece.material_override = null
 	prop._melt = Dissolve.prepare(prop, RobotModel.trim_color(color))
 	prop._melt_t = 0.0
 	prop._melt.set_progress(BREAK_FROM)

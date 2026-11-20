@@ -48,7 +48,7 @@ func _init() -> void:
 					_check(rig.bone_names[b].begins_with("pistol"), "%s: the flourish moves only the weapon's own bones (not %s)" % [id, rig.bone_names[b]])
 		_check(seconds < 1.5, "%s: it is over in a moment (%.2f s)" % [id, seconds])
 		var moves := false
-		for beat in WeaponDraw.FLOURISH[look].beats:
+		for beat in WeaponDraw.FLOURISH[look].beats + WeaponDraw.FLOURISH[look].get("view_beats", []):
 			moves = moves or str(beat[0]) in ["spin", "unspin", "toss", "nod", "part", "shut", "whirl"]
 			if str(beat[0]) == "cue":
 				_check(SfxList.VOLUME.has(str(beat[2])), "%s: its sound %s is one the game has" % [id, beat[2]])

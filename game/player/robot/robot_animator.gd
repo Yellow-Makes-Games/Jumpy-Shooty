@@ -802,7 +802,8 @@ func _take_out(up_r: int, up_l: int, across: Vector3) -> void:
 		_pose.rot[chest] = Quaternion(Vector3.UP, turn) * _pose.rot[chest]
 		_pose.rot[spine] = Quaternion(Vector3.RIGHT, dip) * _pose.rot[spine]
 		_pose.rot[head] = Quaternion(Vector3.RIGHT, -dip * RECOIL_HEAD) * Quaternion(Vector3.UP, -turn * RECOIL_HEAD) * _pose.rot[head]
-	draw.pose_weapon(_pose, _b)
+	draw.pose_arms(_pose, _b)
+	draw.pose_weapon(_pose, _b, model.skeleton)
 
 
 ## The body takes the gun's kick (see GunRecoil): the wrist, the chest, the spine, each as

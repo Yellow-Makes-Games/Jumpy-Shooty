@@ -75,6 +75,8 @@ const SPIN_DOWN := 1.4       ## ...and lose in this long
 ##                                      six-sided cylinder or drum: it starts one chamber short)
 ##   "hinge", degrees, seconds, pivot:  swings about a sideways line through (up, forward) of the grip, and back
 ##   "whip", degrees, seconds, pivot:   goes right round it, once (a crank let go)
+##   "swing", degrees, seconds, crane:  swings out sideways about a line along the barrel through (right, up)
+##                                      of the grip, and back (a drum on its crane)
 ##   "open", Vector3:                   stands this far open while the gun is hot
 ##   "lift", degrees, pivot:            hinged open while the gun is hot
 ##   "spin", up:                        the minigun's barrels, about the line `up` above the grip
@@ -336,6 +338,11 @@ static func pose_part(pose: RobotPose, bones: Dictionary, prefix: String, part: 
 			var swung := _out_and_home(t / float(part[3]))
 			if swung > 0.0:
 				_turn(pose, b, Basis(Vector3.RIGHT, deg_to_rad(float(part[2]) * swung)), _pivot(part[4]))
+		"swing":
+			var out := _out_and_home(t / float(part[3]))
+			if out > 0.0:
+				var crane: Vector2 = part[4]
+				_turn(pose, b, Basis(Vector3.BACK, deg_to_rad(float(part[2]) * out)), Vector3(crane.x, crane.y, 0.0))
 		"whip":
 			var u := clampf(t / float(part[3]), 0.0, 1.0)
 			if u < 1.0 and t >= 0.0:

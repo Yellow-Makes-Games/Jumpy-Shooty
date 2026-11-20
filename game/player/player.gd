@@ -1769,6 +1769,9 @@ func _animate(delta: float) -> void:
 	animator.update(delta, _anim, visual.global_transform)
 	for cue in animator.draw.cues():
 		sounds.draw_cue(cue)   # the weapon coming out: its flourish's own sounds
+	if animator.draw.spark_due() and visual.visible:
+		# (Fists knocked together: a small spark between them, in your trim colour.)
+		MeleeFx.spark(get_parent().get_parent(), _weapon_in_world().origin, RobotModel.trim_color(Net.player_color(peer_id)), _first_person())
 	if rig:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)
 	if DevArgs.sync_log:

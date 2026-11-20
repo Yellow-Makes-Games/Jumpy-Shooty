@@ -200,7 +200,7 @@ func _on_screen(world: Vector3) -> Vector3:
 func respawn() -> void:
 	visible = not _player.racing
 	recoil.stop()
-	draw.start(_weapon)   # the weapon comes out (a respawn, or a new one in your hands)
+	draw.start(_weapon, true)   # the weapon comes out (a respawn, or a new one in your hands)
 	_fire_t = -1.0
 	_dip = 0.0
 	_dip_vel = 0.0
@@ -371,7 +371,8 @@ func update(delta: float) -> void:
 	draw.update(delta)
 	if draw.clip_due() and rig.has_clip("fp_fire_" + _weapon):
 		_fire_t = 0.0
-	draw.pose_weapon(_pose, rig.bones)
+	draw.pose_arms(_pose, rig.bones)
+	draw.pose_weapon(_pose, rig.bones, model.skeleton)
 	_pose.apply(model.skeleton)
 	# The reload's own effects: the gun's glow, the spent cell thrown clear.
 	var fx_t := _player.weapon.round_progress() * rig.length(clip("fp_reload")) if reloading else -1.0
