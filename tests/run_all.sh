@@ -29,6 +29,7 @@ CHECKS=(
   "new_weapons|--script tests/new_weapons_test.gd"
   "audio|--script tests/audio_test.gd"
   "maps|--script tests/map_scene_test.gd"
+  "spawn_clearance|--script tests/spawn_clearance_test.gd"
   "controls|--script tests/controls_check.gd"
   "menu|--script tests/menu_mode_test.gd"
   "ui_layout|--script tests/ui_layout_test.gd"
