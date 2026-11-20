@@ -12,6 +12,10 @@ extends Node
 
 signal state_changed               ## scores, health or timer changed
 signal player_hit(shooter: int, target: int, damage: float, headshot: bool)
+## With every player_hit on a player: which way the blow was travelling (zero for one
+## from no side, a crash into the floor) and what it was (HitReaction.SHOT and so on),
+## for the flinch (see HitReaction).
+signal hit_taken(target: int, way: Vector3, damage: float, headshot: bool, blow: int)
 signal player_died(victim: int, killer: int)
 signal player_respawned(id: int, spawn_index: int)   ## spawn_index: a new number for every respawn (it numbers the life: see Player._life)
 ## A target dummy was hit (it also sends player_hit, with the dummy's id as the target).
@@ -879,7 +883,7 @@ func _host_melee(attacker: int, origin: Vector3, direction: Vector3, view_times:
 		if is_dummy(h[0]):
 			_host_dummy_damage(attacker, h[0], h[1], false)
 		else:
-			_host_damage(attacker, h[0], h[1], false, "", {"with": weapon.id, "push": h[2], "dir": h[3]})
+			_host_damage(attacker, h[0], h[1], false, "", {"with": weapon.id, "push": h[2], "dir": h[3], "heavy": charge >= HitReaction.HEAVY_CHARGE})
 			_host_shove(attacker, h[0], h[2], weapon.id)
 
 
@@ -958,7 +962,7 @@ func _host_ground_slam(attacker: int, at: Vector3, view_times: Dictionary, charg
 		if is_dummy(h[0]):
 			_host_dummy_damage(attacker, h[0], h[1], false)
 		else:
-			_host_damage(attacker, h[0], h[1], false, "", {"with": weapon.id, "push": h[2], "dir": h[3]})
+			_host_damage(attacker, h[0], h[1], false, "", {"with": weapon.id, "push": h[2], "dir": h[3], "heavy": charge >= HitReaction.HEAVY_CHARGE})
 			_host_shove(attacker, h[0], h[2], weapon.id)
 
 
@@ -1333,7 +1337,10 @@ func _host_slam(id: int, speed: float, where: Vector3) -> void:
 	if DevArgs.sync_log:
 		print("SLAM %d %.1f m/s %.0f damage by %d" % [id, speed, amount, by])
 	if amount >= 1.0:
-		_host_damage(by, id, amount, false, "slam", {"with": with})
+		# (The body is thrown back off whatever it hit: "way", for the flinch alone.)
+		var body: Player = Net.arena.get_player(id) if Net.arena else null
+		var off := body.global_position + Vector3(0.0, 0.9, 0.0) - where if body else Vector3.ZERO
+		_host_damage(by, id, amount, false, "slam", {"with": with, "way": off.normalized()})
 
 
 @rpc("authority", "call_local", "unreliable")
@@ -1361,8 +1368,8 @@ func _shot_effect(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit_m
 # ---------------------------------------------------------------------------
 # Damage, death, respawn (host decides, everyone is told)
 
-## `blow`: what the hit was, for death_fx if it kills: {with, push, dir, blast 0..1, at}
-## (all optional; see _death_fx).
+## `blow`: what the hit was, for the flinch and for death_fx if it kills: {with, push,
+## dir, blast 0..1, at, heavy, way} (all optional; see _death_fx).
 func _host_damage(shooter: int, target: int, amount: float, headshot: bool = false, cause: String = "", blow: Dictionary = {}) -> void:
 	if not is_alive(target) or Teams.same_team(shooter, target):
 		return   # (no friendly fire)
@@ -1372,7 +1379,7 @@ func _host_damage(shooter: int, target: int, amount: float, headshot: bool = fal
 		amount *= damage_multiplier(shooter)
 	var left: float = health[target]
 	health[target] = max(health[target] - amount, 0.0)
-	_hit.rpc(shooter, target, amount, health[target], headshot)
+	_hit.rpc(shooter, target, amount, health[target], headshot, blow.get("way", blow.get("dir", Vector3.ZERO)), HitReaction.kind_of(cause, blow))
 	if health[target] <= 0.0:
 		_host_kill(target, shooter, cause, headshot, _death_fx(shooter, target, cause, headshot, amount - left, blow))
 
@@ -1393,9 +1400,10 @@ func _death_fx(killer: int, victim: int, cause: String, headshot: bool, overkill
 
 
 @rpc("authority", "call_local", "reliable")
-func _hit(shooter: int, target: int, amount: float, new_health: float, headshot: bool) -> void:
+func _hit(shooter: int, target: int, amount: float, new_health: float, headshot: bool, way: Vector3 = Vector3.ZERO, blow: int = HitReaction.SHOT) -> void:
 	health[target] = new_health
 	player_hit.emit(shooter, target, amount, headshot)
+	hit_taken.emit(target, way, amount, headshot, blow)
 	state_changed.emit()
 
 

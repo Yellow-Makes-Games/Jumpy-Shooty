@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Films the grappling hook in the real game without a GPU (see rope_film.gd): writes
-# OUT_DIR/SCENE_first.mp4 or OUT_DIR/SCENE_third.mp4.
-# Usage: tools/robot/rope_film.sh OUT_DIR SCENE(swing|pump|player|dive|dive_low|dive_go|drag) first|third [more dev options, e.g. --weapon=sword --character=orbit]
+# OUT_DIR/SCENE_first.mp4, OUT_DIR/SCENE_third.mp4 or OUT_DIR/SCENE_side.mp4.
+# Usage: tools/robot/rope_film.sh OUT_DIR SCENE(swing|pump|player|dive|dive_low|dive_go|drag|wall) first|third|side [more dev options, e.g. --weapon=sword --character=orbit]
 # SIZE=WxH sets the picture size (default 1280x720).
 set -euo pipefail
 OUT="$(realpath -m "$1")"; SCENE="$2"; VIEW="$3"; shift 3
@@ -10,7 +10,7 @@ W="${SIZE%x*}"; H="${SIZE#*x}"
 mkdir -p "$OUT"
 cd "$(dirname "$0")/../.."
 NAME="${SCENE}_${VIEW}"
-THIRD=""; [ "$VIEW" = "third" ] && THIRD="--third-person"
+THIRD=""; [ "$VIEW" = "third" ] && THIRD="--third-person"; [ "$VIEW" = "side" ] && THIRD="--side"
 VK_ICD_FILENAMES="${VK_ICD_FILENAMES:-/usr/share/vulkan/icd.d/lvp_icd.json}" timeout 3000 xvfb-run -a -s "-screen 0 ${W}x${H}x24" \
   "${GODOT:-godot}" --fixed-fps 60 --write-movie "$OUT/$NAME.avi" --rendering-driver vulkan --resolution "${W}x${H}" --path . \
   --script tools/robot/rope_film.gd -- --window=0,0,"$W","$H" --scene="$SCENE" $THIRD "$@" > "$OUT/$NAME.log" 2>&1 || true

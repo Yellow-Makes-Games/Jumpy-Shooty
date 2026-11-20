@@ -89,6 +89,8 @@ func _ready() -> void:
 		_rocket_owner.erase(id))
 	Match.melee_landed.connect(func(attacker: int, weapon_id: String, points: PackedVector3Array):
 		_event({"kind": "melee", "who": attacker, "weapon": weapon_id, "points": points}))
+	Match.hit_taken.connect(func(target: int, way: Vector3, damage: float, headshot: bool, blow: int):
+		_event({"kind": "hit", "who": target, "way": way, "damage": damage, "head": headshot, "blow": blow}))
 	Match.match_over.connect(_on_match_over)
 	Match.player_respawned.connect(_on_respawned)
 

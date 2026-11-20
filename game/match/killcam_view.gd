@@ -268,6 +268,7 @@ func _play_killer(delta: float) -> void:
 	a.grapple_anchor = f[7]
 	a.alive = p.alive
 	a.set_hook_replayed(_hook_look(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
+	_find_wall(a, feet)
 	if _killer_sounds == null or _killer_sounds.weapon_id != weapon:
 		_killer_sounds = PlayerSounds.new(_killer_body, true, weapon)
 		_killer_sounds.map = map as MapRoot
@@ -327,6 +328,7 @@ func _roll(f: Array) -> float:
 
 func _build_arms(weapon: String, color: Color) -> void:
 	_weapon = weapon
+	var swapped := _view != null   # (a new weapon part-way through the replay comes out as it did; the one they start with is just there)
 	if _view:
 		_view.queue_free()
 		_view = null
@@ -339,6 +341,8 @@ func _build_arms(weapon: String, color: Color) -> void:
 	camera.add_child(_view)
 	_view.setup(_puppet, color)
 	_view.respawn()
+	if not swapped:
+		_view.draw.stop()
 	_akimbo_shots = 0
 
 
@@ -420,6 +424,7 @@ func _play_ghost(id: int, delta: float) -> void:
 	a.grapple_anchor = f[7]
 	a.alive = bool(f[8])
 	a.set_hook_replayed(_hook_look(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
+	_find_wall(a, f[0])
 	_watch(a.flags, g.weapon, g.seen, g)
 	g.animator.update(delta, a, g.visual.global_transform)
 	if world_sound:
@@ -445,6 +450,12 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 	g.robot = RobotModel.new().build(track.character, track.color, false, weapon, false, track.paint)
 	g.visual.add_child(g.robot)
 	g.animator = RobotAnimator.new(g.robot)
+	if old:
+		g.animator.draw.start(weapon)   # a new weapon part-way through the replay: it comes out as it did
+	# Deathmatch: what they carry and do not hold rides on their body. (The replay does not
+	# record it: this is what they carry now, a few seconds on.)
+	if Net.is_deathmatch() and Net.players.has(id):
+		StowedWeapon.put_on(g.robot, Net.player_weapons(id).filter(func(w): return w != weapon), track.color, track.character)
 	g.sounds = PlayerSounds.new(g.root, false, weapon)
 	g.hook_rope = HookRope.new()   # (up front, as the killer's)
 	g.root.add_child(g.hook_rope)
@@ -585,6 +596,7 @@ func _play_event(e: Dictionary) -> void:
 				g.animator.fire(left)
 				muzzle = g.robot.marker(data.muzzle_bone_left if left else data.muzzle_bone)
 			ShotFx.spawn(_fx, muzzle, e.ends, e.hits, weapon)
+			_hit_sparks(muzzle, e.ends, e.hits)
 			_fired(who)
 			if mine:
 				Sound.gun_fire(weapon, muzzle, true)
@@ -617,6 +629,41 @@ func _play_event(e: Dictionary) -> void:
 		"melee":
 			if mine and _view and str(e.weapon) not in ["kick", "flying_kick"] and not (e.points as PackedVector3Array).is_empty():
 				_view.hit_stop()
+		"hit":
+			# The body flinches (see HitReaction), as it did.
+			var way: Vector3 = e.way
+			var blunt := int(e.blow) == HitReaction.MELEE or int(e.blow) == HitReaction.HEAVY
+			var heavy := int(e.blow) == HitReaction.HEAVY
+			if mine and _view:
+				_view.flinched(Basis(Vector3.UP, camera.global_rotation.y).inverse() * way, float(e.damage), bool(e.head), blunt, heavy)
+			elif _ghosts.has(who):
+				var g: Ghost = _ghosts[who]
+				g.animator.flinched(g.visual.global_transform.basis.orthonormalized().inverse() * way, float(e.damage), bool(e.head), blunt, heavy)
+
+
+# On a tight rope at a wall, a body puts its feet on it (see WallBrace): the wall, as Player._rope_wall finds it.
+func _find_wall(a: RobotAnimInput, feet: Vector3) -> void:
+	var wall := []
+	if a.alive and a.state == MovementController.State.GRAPPLE and a.hook_taut >= 0.0 and is_inside_tree():
+		wall = WallBrace.find_wall(get_world_3d().direct_space_state, feet, a.grapple_anchor, a.velocity)
+	a.wall_at = wall[0] if not wall.is_empty() else Vector3.ZERO
+	a.wall_normal = wall[1] if not wall.is_empty() else Vector3.ZERO
+
+
+# Sparks where the bullets landed on a body, in its own trim colour (as Arena.hit_sparks).
+func _hit_sparks(muzzle: Vector3, ends: PackedVector3Array, hits: Array) -> void:
+	var done := 0
+	for i in mini(ends.size(), hits.size()):
+		if not hits[i]:
+			continue
+		for id in _ghosts:
+			var off: Vector3 = ends[i] - (_ghosts[id] as Ghost).root.global_position
+			if Vector2(off.x, off.z).length() < 1.0 and off.y > -0.4 and off.y < 2.4:
+				MeleeFx.chip(_fx, ends[i], (muzzle - ends[i]).normalized(), RobotModel.trim_color(Net.player_color(id)))
+				done += 1
+				break
+		if done >= MeleeFx.CHIPS:
+			return
 
 
 func _sound(sound: String, at: Vector3, own: bool) -> void:

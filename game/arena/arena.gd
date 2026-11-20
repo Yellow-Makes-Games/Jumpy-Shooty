@@ -267,9 +267,42 @@ func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit
 		p.show_shot()
 	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
 	BulletMarks.shots(p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
+	hit_sparks(muzzle, ends, hits)
 	if portals:
 		portals.shots_through(vias)
 	Sound.shot_landed(p.muzzle_position() if p else muzzle, ends, hits, false)
+
+
+## Sparks where a shot's bullets landed on players, each burst in the trim colour of the
+## player it hit (the first MeleeFx.CHIPS of a shotgun's pellets). Looks only.
+func hit_sparks(muzzle: Vector3, ends: PackedVector3Array, hits: Array) -> void:
+	var done := 0
+	for i in mini(ends.size(), hits.size()):
+		if not hits[i]:
+			continue
+		var who := _player_at(ends[i])
+		if who == null or (who.view != null and not who.rig.is_third_person()):
+			continue   # (a target dummy; or you, in first person: sparks that near would fill the view)
+		MeleeFx.chip(self, ends[i], (muzzle - ends[i]).normalized(), RobotModel.trim_color(Net.player_color(who.peer_id)))
+		done += 1
+		if done >= MeleeFx.CHIPS:
+			return
+
+
+# The living player whose body `at` is on (or right by), if any.
+func _player_at(at: Vector3) -> Player:
+	var found: Player = null
+	var nearest := 1.0
+	for node in players_root.get_children():
+		var p := node as Player
+		if p == null or not p.alive:
+			continue
+		var off := at - p.global_position
+		var d := Vector2(off.x, off.z).length()
+		if d < nearest and off.y > -0.4 and off.y < 2.4:
+			nearest = d
+			found = p
+	return found
 
 
 ## Team modes: where `who` comes back, on their team's side ([] otherwise).
@@ -328,6 +361,7 @@ func _sync_players() -> void:
 					p.change_weapon(Net.player_weapon(id))   # Gun Game: a kill hands you the next weapon now
 				else:
 					rebuild_player(id)   # swapped weapons while waiting to respawn: rebuilt holding the new one
+			get_player(id).show_stowed()   # Deathmatch: what they carry and do not hold rides on their body
 	for p in players_root.get_children():
 		if not Net.players.has((p as Player).peer_id):
 			if p == local_player:

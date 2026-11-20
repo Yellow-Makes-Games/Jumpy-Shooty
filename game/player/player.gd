@@ -98,6 +98,10 @@ var _slam_power := 0.0            # local: how wound up that slam is, 0..1
 var _seen_wind := -1.0            # seconds this player has been seen winding up (drives the wind-up pose), or -1
 var _slam_wait := 0.0             # local: a crash just hurt; the next can't for a moment
 var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (melee only)
+## Deathmatch: the weapons you carry that are not in your hands, put away on your body
+## where everyone can see them (see StowedWeapon). Looks only.
+var stowed: Array = []
+var _stow_props := {}             # weapon id -> its StowedWeapon on `robot`
 var _glide_fx: GlideFx            # the wind trail and speed streaks of a glide
 var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
 var _punch_roll := 0.0
@@ -223,6 +227,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		_glide_fx.set_trail_layers(1 << (CameraRig.BODY_LAYER - 1))   # (your own: not in your first-person view)
 	Match.melee_landed.connect(_on_melee_landed)
 	Match.ground_slammed.connect(_on_ground_slammed)
+	Match.hit_taken.connect(_on_hit_taken)
 
 
 # ---------------------------------------------------------------------------
@@ -645,6 +650,8 @@ func _fire_round() -> void:
 		hits.append(hit and (hit.collider is Player or hit.collider is TargetDummy))
 	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id, vias)  # into the arena, not among the players
 	BulletMarks.shots(muzzle_position(), ends, hits, weapon.data.id, vias)
+	if Net.arena:
+		Net.arena.hit_sparks(muzzle_position(), ends, hits)
 	if portals:
 		portals.shots_through(vias)
 	Sound.shot_landed(muzzle_position(), ends, hits, sounds.own)
@@ -894,6 +901,26 @@ func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Arr
 		var weight := lerpf(0.6, 2.2, _shown_power)
 		_punch += Vector2(-way.x * 0.02 + randf_range(-0.01, 0.01), way.y * 0.012 - 0.018) * weight
 		_punch_roll += (-way.x * 0.02 + randf_range(-0.01, 0.01)) * weight
+
+
+# ---------------------------------------------------------------------------
+# Being hit
+
+func _on_hit_taken(target: int, way: Vector3, damage: float, headshot: bool, blow: int) -> void:
+	if target == peer_id and alive:
+		flinch(way, damage, headshot, blow)
+
+
+## Hit: the body flinches the way the blow was travelling (`way`, in the world; zero for
+## one from no side), as hard as the damage says (see HitReaction). In first person your
+## arms jolt and the camera is knocked a little. Looks only: where you are, where you
+## are going and where you aim are untouched.
+func flinch(way: Vector3, damage: float, headshot: bool = false, blow: int = HitReaction.SHOT) -> void:
+	var blunt := blow == HitReaction.MELEE or blow == HitReaction.HEAVY
+	var heavy := blow == HitReaction.HEAVY
+	animator.flinched(visual.global_transform.basis.orthonormalized().inverse() * way, damage, headshot, blunt, heavy)
+	if view:
+		view.flinched(Basis(Vector3.UP, input.yaw).inverse() * way, damage, headshot, blunt, heavy)
 
 
 # ---------------------------------------------------------------------------
@@ -1167,6 +1194,55 @@ func equip(gun: String) -> void:
 	change_weapon(gun)
 
 
+## Deathmatch: the weapons this player carries apart from `held` (nothing in any other mode).
+func _carried_besides(held: String) -> Array:
+	if not Net.is_deathmatch() or racing:
+		return []
+	return Net.player_weapons(peer_id).filter(func(w): return w != held)
+
+
+## What you carry has changed (Arena, from what Net says): the weapons not in your hands
+## are shown put away on your body.
+func show_stowed() -> void:
+	var now := _carried_besides(robot.weapon if robot else "")
+	if now == stowed and (now.is_empty() or not _stow_props.is_empty()):
+		return
+	stowed = now
+	_show_stowed()
+
+
+func _show_stowed() -> void:
+	for id in _stow_props:
+		var prop := _stow_props[id] as StowedWeapon
+		if is_instance_valid(prop):
+			prop.get_parent().queue_free()   # (its hook on the bone, and it)
+	_stow_props = {}
+	if robot == null or stowed.is_empty():
+		return
+	_stow_props = StowedWeapon.put_on(robot, stowed, Net.player_color(peer_id), character, CameraRig.BODY_LAYER if rig else 0)
+	_stowed_visible(alive)
+
+
+func _stowed_visible(on: bool) -> void:
+	for id in _stow_props:
+		if is_instance_valid(_stow_props[id]):
+			(_stow_props[id] as StowedWeapon).visible = on
+
+
+## Where the weapon in this player's hands is in the world right now, as it is seen (in
+## your own first-person view: where it shows on screen): the weapon's own space (a
+## gun's, or a melee weapon's: see StowedWeapon.build) in the world.
+func _weapon_in_world() -> Transform3D:
+	var in_bone := Transform3D(MeleeModel.HOLD if robot != null and WeaponData.melee(robot.weapon) else GunRecoil.REST, Vector3.ZERO)
+	if _first_person() and view != null and view.visible and view.model != null and view.model.skeleton != null:
+		var sk := view.model.skeleton
+		var held := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("pistol")) * in_bone
+		return Transform3D(held.basis, view.on_screen(held.origin))
+	if robot != null and robot.skeleton != null and robot.skeleton.find_bone("pistol") >= 0:
+		return robot.skeleton.global_transform * robot.skeleton.get_bone_global_pose(robot.skeleton.find_bone("pistol")) * in_bone
+	return global_transform.translated(Vector3(0, 1.2, 0))
+
+
 ## Deathmatch: walked over a weapon: a full magazine for it, carried or in hand.
 func picked_up(gun: String) -> void:
 	_ammo[gun] = WeaponData.by_id(gun).magazine
@@ -1318,6 +1394,7 @@ func dev_swap_after_death() -> void:
 
 func set_dead() -> void:
 	alive = false
+	_stowed_visible(false)   # (what you carried falls with the body: see Ragdoll)
 	_in_remains = false
 	portal_skip = null
 	_charge = -1.0
@@ -1429,11 +1506,15 @@ func change_weapon(gun: String) -> void:
 		_ammo[weapon.data.id] = weapon.ammo
 	var color := Net.player_color(peer_id)
 	var was_visible := visual.visible
+	# The weapon leaving your hands: where it is now (it is put away from there, or breaks up there).
+	var old_gun := robot.weapon
+	var old_hand := _weapon_in_world()
 	visual.remove_child(robot)
 	robot.queue_free()
 	robot = RobotModel.new().build(character, color, false, gun, false, Teams.paint_for(peer_id))
 	visual.add_child(robot)
 	animator = RobotAnimator.new(robot)
+	animator.draw.start(gun)   # the new one comes out (looks only: it fires at once)
 	if sounds:
 		sounds.free_voices()
 	sounds = PlayerSounds.new(self, is_local and not is_bot, gun)
@@ -1464,6 +1545,17 @@ func change_weapon(gun: String) -> void:
 		view.visible = shown
 		if sounds.own and gun != "none":
 			Sound.play("equip_" + gun)
+	# What you carry and do not hold rides on your body; the weapon just put away flies to
+	# its place there, and one let go for good breaks up into light where it was.
+	_stow_props = {}
+	stowed = _carried_besides(gun)
+	_show_stowed()
+	if alive and was_visible and WeaponData.has(old_gun):
+		if _stow_props.has(old_gun):
+			(_stow_props[old_gun] as StowedWeapon).fly_from(old_hand)
+			sounds.draw_cue("holster_click")
+		else:
+			StowedWeapon.break_up(get_parent().get_parent(), old_gun, color, old_hand, velocity)   # (into the arena: only players go among the players)
 	if _trail:
 		_trail.queue_free()
 		_trail = null
@@ -1704,10 +1796,25 @@ func _animate(delta: float) -> void:
 	animator.first_person = first_person > 0.0
 	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
 	_anim.feet = _feet_ground()
+	var wall := _rope_wall()
+	_anim.wall_at = wall[0] if not wall.is_empty() else Vector3.ZERO
+	_anim.wall_normal = wall[1] if not wall.is_empty() else Vector3.ZERO
 	if animator.glide_flipping():
 		animator.glide_flip_floor_in(_floor_in())   # (the backflip out of a glide is round before the landing)
 	animator.recoil.spun = weapon.spin if is_local and weapon != null and weapon.spin > 0.0 else -1.0   # (your own minigun's barrels turn with the trigger)
 	animator.update(delta, _anim, visual.global_transform)
+	# On the rope at a wall (see WallBrace): the feet meeting it, and stepping along it.
+	var planted := animator.brace.take_landed()
+	if planted > 0.0 and is_inside_tree():
+		sounds.wall_plant(planted)
+		WallBrace.dust(get_parent().get_parent(), animator.brace.footing(), animator.brace.normal(), planted)
+	if animator.brace.take_stepped():
+		sounds.wall_step()
+	for cue in animator.draw.cues():
+		sounds.draw_cue(cue)   # the weapon coming out: its flourish's own sounds
+	if animator.draw.spark_due() and visual.visible:
+		# (Fists knocked together: a small spark between them, in your trim colour.)
+		MeleeFx.spark(get_parent().get_parent(), _weapon_in_world().origin, RobotModel.trim_color(Net.player_color(peer_id)), _first_person())
 	if rig:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)
 	if DevArgs.sync_log:
@@ -1735,6 +1842,18 @@ func _feet_ground() -> Vector2:
 		if not hit.is_empty():
 			out[i] = (hit.position as Vector3).y - floor_y
 	return out
+
+
+## The wall this body, on a tight rope, could put its feet on: [a point on it, its
+## normal], or [] (see WallBrace). Not with the hook in another player. For anyone's
+## body, as this copy of the game shows it.
+func _rope_wall() -> Array:
+	if not alive or not is_inside_tree() or _anim.state != MovementController.State.GRAPPLE or _anim.hook_taut < 0.0:
+		return []
+	for other in get_parent().get_children():
+		if other != self and other is Player and (other as Player).global_position.distance_squared_to(_anim.grapple_anchor - Vector3(0.0, 1.0, 0.0)) < 2.25:
+			return []
+	return WallBrace.find_wall(get_world_3d().direct_space_state, global_position, _anim.grapple_anchor, _anim.velocity, [get_rid()])
 
 
 ## Seconds until this body, falling as it is, reaches the floor below it (a long time

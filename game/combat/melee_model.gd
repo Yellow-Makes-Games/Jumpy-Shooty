@@ -89,6 +89,7 @@ static func build(id: String, glow: Color, viewmodel: bool = false) -> Node3D:
 			mi.extra_cull_margin = 10.0
 		holder.add_child(mi)
 	holder.set_meta("glow", lit)
+	holder.set_meta("id", id)
 	holder.set_meta("glow_color", glow)
 	var edge: Array = EDGES.get(id, EDGES.sword)
 	for i in 2:
@@ -133,6 +134,29 @@ static func set_glow(melee: Node3D, amount: float) -> void:
 			m.set_shader_parameter("emission", color * GLOW_ENERGY * amount)
 		else:
 			(m as StandardMaterial3D).emission_energy_multiplier = GLOW_ENERGY * amount
+
+
+## A weapon that comes out of the hand as it is taken out (the energy sword's blades, the
+## claws): how much of its length it has, 1 = all of it. The energy sword's lit blades
+## grow from the hilt; anything else grows whole.
+static func set_grown(melee: Node3D, amount: float) -> void:
+	var holder := melee.get_child(0) as Node3D
+	if is_equal_approx(amount, 1.0) and not holder.has_meta("grown"):
+		return
+	var lit: Array = holder.get_meta("glow", [])
+	var blades_only: bool = str(holder.get_meta("id", "")) == "energy_sword"
+	for c in holder.get_children():
+		var mi := c as MeshInstance3D
+		if mi == null or (blades_only and not mi.material_override in lit):
+			continue
+		if not mi.has_meta("rest"):
+			mi.set_meta("rest", mi.transform)
+		var rest: Transform3D = mi.get_meta("rest")
+		mi.transform = Transform3D(Basis.from_scale(Vector3(1.0, maxf(amount, 0.01), 1.0)), Vector3.ZERO) * rest
+	if is_equal_approx(amount, 1.0):
+		holder.remove_meta("grown")
+	else:
+		holder.set_meta("grown", true)
 
 
 ## The edge's base and tip in the world right now.

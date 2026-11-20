@@ -23,6 +23,11 @@ var alive := true
 ## the body stands or crouches still. Looks only, so it does not travel in snapshots:
 ## each copy of the game measures it for the bodies it draws (Player._feet_ground).
 var feet := Vector2.ZERO
+## The wall a body on the rope could put its feet on (see WallBrace): a point on it and
+## its normal (out of the wall; zero for none). Looks only and measured by each copy of
+## the game for the bodies it draws, like `feet` (WallBrace.find_wall).
+var wall_at := Vector3.ZERO
+var wall_normal := Vector3.ZERO
 
 const FLIP_FRONT := 0
 const FLIP_BACK := 1

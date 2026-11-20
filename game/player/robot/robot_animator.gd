@@ -45,6 +45,7 @@ const FADE_DEFAULT := 0.12
 const HABIT_AFTER := 2.5        ## seconds after a shot before a robot goes back to its idle habit
 const FEET_STILL := 0.6         ## m/s: standing or crouched and slower than this, each foot rests on the ground under it
 const FEET_REACH := 0.3         ## a foot goes at most this far up or down to find the ground...
+const BRACED_SPEED := 1.5       ## m/s: on its feet and slower than this, a big hit buckles the knees (see HitReaction)
 const FEET_DROP := 0.12         ## ...and the hips come down at most this far to let the lower one reach it
 const RELOAD_CUT_FADE := 0.12   ## seconds a reload that is cut short takes to ease back to the hold
 const CRAWL_SPEED := 2.0
@@ -103,6 +104,9 @@ const ROPE_AIM_DROP := 4.0
 const ROPE_CHEST := 0.45        ## how much of the hips' lean the chest gives back while the gun is down (aiming: all of it)
 const ROPE_VIEW := 0.55         ## your own body in first person leans this much of what everyone else sees
 const RECOIL_HEAD := 0.8        ## a shot rocks the chest: the head gives this much of it back (it stays on the aim)
+const FLIP_KEYS := ["flip_front", "flip_back", "flip_left", "flip_right"]   ## a reload goes on through these, the arms held in
+const AIR_RELOAD_KNEES := 0.42  ## reloading in the air: radians the knees come up...
+const AIR_RELOAD_CURL := 0.1    ## ...and the spine and the chest each curl over the gun
 const RECOIL_LEGS := 1.2        ## ...and off the ground the legs swing forward this much of what the chest rocks back
 const ZIP_AIM_UP := 12.0        ## ...this fast (a second)
 const ZIP_CHEST := 0.55         ## zipping along the rope (dived into it), a shot brings the chest this much of the way back up to aim from
@@ -154,11 +158,24 @@ var _torso := 1.0
 ## What the gun's shots are doing to the body (see GunRecoil): the kick in the hands, the
 ## body taking it, the gun's own working parts.
 var recoil := GunRecoil.new()
+## Being hit (see HitReaction): the upper body thrown the way the blow went.
+var flinch := HitReaction.new()
+var _braced := false      # on its feet and all but still (a big hit buckles its knees)
+## The weapon being taken out (see WeaponDraw): where the arms bring it from, its flourish, its glow coming on.
+var draw := WeaponDraw.new()
 var _akimbo := false      # a pistol in each hand: each arm kicks on its own shots
 var _since_fire := 99.0
 var _reload_t := -1.0
 var _reload_w := 0.0
 var _was_reloading := false
+var _busy := 0.0          # the left hand is busy (up the rope, out on a wall run): a reload is done with one hand (OneHandReload)
+var _one_w := 0.0         # how much of a one-handed reload shows...
+var _one_t := 0.0         # ...how far into it, and how long it is
+var _one_len := 1.0
+var _one_low := 0.0       # ...and how far down at the belt the gun is (the arm is not lifted to the aim there)
+var _owed := false        # akimbo: the left gun sat out a one-handed reload...
+var _catch_t := -1.0      # ...and is catching up, this many seconds in
+var _air_reload := 0.0    # reloading in the air with both hands: the knees come up, the body curls over the gun
 var _reload_from := 0.0   # a reload cut short: where in the clip it stopped...
 var _reload_out := 0.0    # ...and how much of that pose is still held (it eases back to the hold)
 var _reload_out_clip := ""   # ...and which clip it was
@@ -207,6 +224,8 @@ var _glide_lean := 0.0    # the hips' forward lean in the glide, radians (the ba
 ## How the body hangs on the rope (ViewModel reads it too, so your arms
 ## in first person move with the body everyone else sees).
 var rope := RopeSwing.new()
+## On the rope at a wall: the feet on it (see WallBrace).
+var brace := WallBrace.new()
 var _rope_low := 0.0         # on the rope with the gun (or blade) down at your side, 0..1
 var _drag := 0.0             # on your belly on the floor, dragged by the rope: the body's turn to face the hook, radians
 
@@ -262,11 +281,11 @@ func set_weapon(id: String) -> void:
 
 ## Lays the reload clip at time t over the arms, `w` of it, and adds what it turns the
 ## chest and spine by to the body's own (the shoulders go with a reload's flourish).
-func _lay_reload(rclip: String, t: float, w: float) -> void:
+func _lay_reload(rclip: String, t: float, w: float, body: bool = true) -> void:
 	rig.sample(_tmp, rclip, t)
 	_pose.blend_bones(_tmp, w, _arm_r)
 	_pose.blend_bones(_tmp, w, _arm_l)
-	if first_person or w <= 0.0:
+	if first_person or w <= 0.0 or not body:
 		return
 	for part in [["chest", _reload_chest], ["spine", _reload_spine]]:
 		var b: int = _b[part[0]]
@@ -291,6 +310,7 @@ func _bones(names: Array) -> PackedInt32Array:
 ## A shot was fired: kick the gun (akimbo: the one in the left hand when `left`).
 func fire(left: bool = false) -> void:
 	recoil.fire(left)
+	draw.cut()
 	_since_fire = 0.0
 	rope.hurry_flip()
 	_end_glide_flip()
@@ -310,6 +330,7 @@ func fire(left: bool = false) -> void:
 func wind(charge: float, side: int = 0) -> void:
 	if _melee:
 		_swing.wind(charge, side, _airborne)
+		draw.cut()
 		rope.hurry_flip()
 		_end_glide_flip()
 
@@ -318,6 +339,7 @@ func wind(charge: float, side: int = 0) -> void:
 func swing(power: float, side: int = 0) -> void:
 	if _melee:
 		_swing.swing(power, side, _airborne)
+		draw.cut()
 		_since_fire = 0.0
 		rope.hurry_flip()
 		_end_glide_flip()
@@ -408,13 +430,29 @@ func cutting() -> bool:
 
 
 ## Back to life: play the boot-up over whatever the body is doing.
+## Hit (see HitReaction). `way`: which way the blow was travelling, seen from the body
+## (x: to its right, z: to its back); `blunt`: by a melee weapon or a kick, `heavy`: a
+## full-charged one or a flying kick. Looks only.
+func flinched(way: Vector3, damage: float, headshot: bool = false, blunt: bool = false, heavy: bool = false) -> void:
+	flinch.hit(way, damage, headshot, blunt, heavy, _braced)
+
+
 func respawn() -> void:
 	_respawn_t = 0.0
 	recoil.stop()
+	flinch.stop()
+	draw.start(model.weapon)   # the weapon comes out as you do
 	_swing.stop()
 	rope.stop()
+	brace.stop()
 	_dead_time = -1.0
 	_reload_t = -1.0
+	_busy = 0.0
+	_one_w = 0.0
+	_one_low = 0.0
+	_owed = false
+	_catch_t = -1.0
+	_air_reload = 0.0
 	_land = 0.0
 	_kick_t = -1.0
 	_leg_t = -1.0
@@ -427,6 +465,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var local_vel := inp.velocity.rotated(Vector3.UP, -inp.yaw)   # x right, -z forward
 	var speed := Vector2(local_vel.x, local_vel.z).length()
 	rope.update(delta, inp, model_xform.origin)
+	brace.update(delta, inp, model_xform.origin)
 
 	# --- 1. Body
 	if source == "glide":
@@ -539,6 +578,13 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	var reloading := inp.reloading() and inp.alive
 	var rclip := clip("reload")
+	# The left hand up the rope or out on a wall run: the gun arm reloads alone (OneHandReload),
+	# and the clip, made for two hands, is left out by as much.
+	var left_busy := (_grapple_w > 0.5 or key in ["wall_l", "wall_r"]) and inp.alive
+	_busy = move_toward(_busy, 1.0 if left_busy else 0.0, delta * 8.0)
+	var two := 1.0 - smoothstep(0.0, 1.0, _busy)
+	var flipping := key in FLIP_KEYS
+	var one_handed := false
 	if reloading and not _was_reloading and rig.has_clip(rclip):
 		_reload_t = 0.0
 	_was_reloading = reloading
@@ -559,9 +605,12 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_reload_t = -1.0
 		else:
 			_reload_w = 1.0 if _loop_reload else clampf(minf(_reload_t / 0.1, (rlen - _reload_t) / 0.15), 0.0, 1.0)
-			if want[2] <= 0.0:
-				_reload_w = 0.0   # mid-flip, mid-roll: the hands are busy
-			_lay_reload(rclip, _reload_t, _reload_w)
+			if want[2] <= 0.0 and not flipping:
+				_reload_w = 0.0   # mid-roll, mid-vault: the hands are busy (a flip: they go on with it, held in)
+			_lay_reload(rclip, _reload_t, _reload_w * two, not flipping)
+			one_handed = left_busy and _reload_w > 0.0
+			_one_t = _reload_t
+			_one_len = rlen
 			_reload_t += delta
 	if _end_t >= 0.0:
 		var eclip := clip("reload_end")
@@ -570,12 +619,34 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_end_t = -1.0
 		else:
 			_reload_w = clampf((elen - _end_t) / 0.12, 0.0, 1.0)
-			_lay_reload(eclip, _end_t, _reload_w)
+			_lay_reload(eclip, _end_t, _reload_w * two)
 			_end_t += delta
 	if _reload_t < 0.0 and _end_t < 0.0 and _reload_out > 0.0:
 		_reload_out = move_toward(_reload_out, 0.0, delta / RELOAD_CUT_FADE) if rig.has_clip(_reload_out_clip) and want[2] > 0.0 else 0.0
 		if _reload_out > 0.0:
-			_lay_reload(_reload_out_clip, _reload_from, smoothstep(0.0, 1.0, _reload_out))
+			_lay_reload(_reload_out_clip, _reload_from, smoothstep(0.0, 1.0, _reload_out) * two)
+	# With one hand. (It eases out from wherever it had got to when the reload ends or the other hand comes free.)
+	_one_w = move_toward(_one_w, 1.0 if one_handed else 0.0, delta * 8.0)
+	_one_low = 0.0
+	if _one_w > 0.0 and not _melee:
+		var shown := smoothstep(0.0, 1.0, _one_w)
+		OneHandReload.lay(_pose, _b, weapon, _one_t, _one_len, _loop_reload, shown)
+		_one_low = OneHandReload.low(weapon, _one_t, _one_len, _loop_reload) * shown
+		if _akimbo and one_handed and _one_w > 0.5 and _one_t >= float(OneHandReload.beats(weapon, _one_len, _loop_reload)[1]):
+			_owed = true   # (the left gun sat it out)
+	# Akimbo: the left gun catches up once its hand is free.
+	if not _akimbo or not inp.alive:
+		_owed = false
+		_catch_t = -1.0
+	elif _owed and _busy < 0.3 and _reload_t < 0.0 and _catch_t < 0.0:
+		_owed = false
+		_catch_t = 0.0
+	if _catch_t >= 0.0:
+		if _catch_t >= OneHandReload.CATCH_UP or left_busy:
+			_catch_t = -1.0
+		else:
+			OneHandReload.lay_catch_up(_pose, _b, weapon, _catch_t, 1.0)
+			_catch_t += delta
 
 	# The pump or the bolt, after a shot (the left hand only where it is on the gun)
 	if _fire_t >= 0.0:
@@ -641,9 +712,11 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_pose.rot[root] = round * _pose.rot[root]
 			_pose.pos[root] = SPIN_PIVOT + round * (_pose.pos[root] - SPIN_PIVOT)
 		if model.melee:
-			MeleeModel.set_glow(model.melee, _swing.glow() if inp.alive else 0.0)
+			MeleeModel.set_glow(model.melee, _swing.glow() * draw.glow() if inp.alive else 0.0)
+			MeleeModel.set_grown(model.melee, draw.grown())
 		if model.melee_left:
-			MeleeModel.set_glow(model.melee_left, _swing.glow() if inp.alive else 0.0)
+			MeleeModel.set_glow(model.melee_left, _swing.glow() * draw.glow() if inp.alive else 0.0)
+			MeleeModel.set_grown(model.melee_left, draw.grown())
 	_apply_kick(delta, inp.alive)
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward
@@ -667,15 +740,22 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var chest_pitch := asin(clampf(chest_fwd.y, -1.0, 1.0))
 	if inp.alive:
 		recoil.update(delta)
+		flinch.update(delta)
+		draw.update(delta)
 	else:
 		recoil.stop()
+		flinch.stop()
+		draw.stop()
+	if draw.clip_due() and rig.has_clip("fire_" + weapon):
+		_fire_t = 0.0   # (it shows from the next frame: the flourish's bolt, lever or pump)
 	var aim_lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7)
 	var lift := aim_lift + recoil.arm_lift(false)
 	var lift_l := aim_lift + recoil.arm_lift(_akimbo)
 	var up_r: int = _b["upper_arm_r"]
 	var up_l: int = _b["upper_arm_l"]
-	var w_r := maxf(_aim_r, _reload_w)
-	var w_l := maxf(_aim_l, _reload_w)
+	var held_in := 0.0 if key in FLIP_KEYS else 1.0   # (reloading through a flip, the arms go round with the body, not to the aim)
+	var w_r := maxf(_aim_r, _reload_w * held_in) * (1.0 - _one_low)   # (down at the belt, the gun arm is not lifted to the aim)
+	var w_l := maxf(_aim_l, _reload_w * held_in)
 	var across := twist.inverse() * Vector3.RIGHT   # the body's left-right axis, seen from the turned chest
 	_pose.rot[up_r] = Quaternion(across, lift * w_r) * _pose.rot[up_r]
 	_pose.rot[up_l] = Quaternion(across, lift_l * w_l) * _pose.rot[up_l]
@@ -684,12 +764,16 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	if not _melee and recoil.busy():
 		_take_recoil(key, w_r, w_l)
 	recoil.pose_parts(_pose, _b)
+	if not _melee and draw.active():
+		_take_out(up_r, up_l, across)
 	if _melee and _hold > 0.0:
 		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
 		# (The swing's own lean is taken out in full, so a thrust stays level as the body leans into it.)
 		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed,
 			clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8 + float(_swing_key[MeleeSwing.LEAN]) * _hold * 0.2, _hold, _hold,
 			Vector3.ZERO, _swing.other_fist(), _swing.left_fist())
+		if draw.active():
+			_take_out(up_r, up_l, across)
 
 	# --- 6 (before the waist turn, which must not move the chest). Grapple arm
 	_grapple_w = move_toward(_grapple_w, 1.0 if (inp.grapple_on and inp.alive) else 0.0, delta * 10.0)
@@ -713,6 +797,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	elif hanging:
 		_reverse = false
 		twist_target = rope.twist(inp.yaw, rope.zip * _rope_low) * rope.w   # the hips face along the swing; the chest stays on your aim
+		if brace.w > 0.0:
+			twist_target = lerp_angle(twist_target, brace.twist(inp.yaw), smoothstep(0.0, 1.0, brace.w))   # braced on a wall: they face it
 	else:
 		_reverse = false
 	_twist = lerp_angle(_twist, twist_target, 1.0 - exp(-delta * 12.0))
@@ -733,6 +819,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_reach_rope(inp, model_xform)   # (the chest has moved: the hook arm finds the rope again)
 	if hanging:
 		rope.lay_legs(_pose, _b, inp.yaw)
+	if brace.w > 0.0 and key in AIRBORNE:
+		brace.lay(_pose, _b, rig, model_xform)   # at a wall: the feet on it
 	# Dragged along the floor on your belly by the rope: the whole body turns to face the
 	# hook (not the body you see from inside it, and not while you shoot: it aims again).
 	var drag_to := 0.0
@@ -757,7 +845,17 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	model.set_power(_power)
 
 	if _akimbo:
-		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
+		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w * (1.0 - smoothstep(0.0, 1.0, _busy)), true)   # the left hand has a gun of its own, whatever the arm is doing (a two-handed reload poses it itself)
+	# Reloading in the air with both hands: the knees come up and the body curls over the gun.
+	var tucking := _reload_w > 0.0 and _busy < 0.5 and key in ["air", "tuck", "glide"] and inp.alive and not first_person and not _melee
+	_air_reload = move_toward(_air_reload, 1.0 if tucking else 0.0, delta * 5.0)
+	if _air_reload > 0.0 and key in AIRBORNE:
+		_tuck_for_reload(smoothstep(0.0, 1.0, _air_reload) * (0.6 if key == "glide" else 1.0))
+	# Hit: the upper body is thrown the way the blow went. (Last, so that the arms and
+	# whatever they hold go with it; the hips and the feet stay where they are.)
+	_braced = key in ["loco", "crouch"] and speed < BRACED_SPEED
+	if flinch.busy():
+		flinch.pose_body(_pose, _b, _lean, key in AIRBORNE)
 	_plant_feet(delta, inp, key, speed)
 	_pose.apply(model.skeleton)
 	model.settle_sway(rope.stream(inp.yaw, inp.velocity) * rope.w if hanging else Vector3.ZERO)   # a custom character's cape and tail
@@ -765,7 +863,47 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	# person the arms you see are ViewModel's, and it throws the cell.)
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
 	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
+	if _one_w > 0.5 and fx_t >= 0.0 and _b.has("pistol_mag") and OneHandReload.cell_out(weapon, fx_t, _one_len, _loop_reload):
+		model.skeleton.set_bone_pose_scale(_b["pistol_mag"], Vector3.ONE * 0.001)   # (with one hand: the new cell is at the belt until the gun is slammed onto it)
 	_fx_t = fx_t
+	if draw.active() and not _melee:
+		model.set_gun_glow(draw.glow())   # it powers on as it comes up
+
+
+## A reload in the air (both hands free): the knees come up, and the spine and chest
+## curl forward over the gun; the head stays up. `k`: how much, 0..1.
+func _tuck_for_reload(k: float) -> void:
+	for side in ["l", "r"]:
+		var thigh: int = _b["thigh_" + side]
+		var shin: int = _b["shin_" + side]
+		_pose.rot[thigh] = Quaternion(Vector3.RIGHT, AIR_RELOAD_KNEES * k) * _pose.rot[thigh]
+		_pose.rot[shin] = _pose.rot[shin] * Quaternion(Vector3.RIGHT, -AIR_RELOAD_KNEES * 1.3 * k)
+	var spine: int = _b["spine"]
+	var chest: int = _b["chest"]
+	var head: int = _b["head"]
+	_pose.rot[spine] = Quaternion(Vector3.RIGHT, -AIR_RELOAD_CURL * k) * _pose.rot[spine]
+	_pose.rot[chest] = Quaternion(Vector3.RIGHT, -AIR_RELOAD_CURL * k) * _pose.rot[chest]
+	_pose.rot[head] = Quaternion(Vector3.RIGHT, AIR_RELOAD_CURL * 1.6 * k) * _pose.rot[head]
+
+
+## The weapon is being taken out (see WeaponDraw): the arms swing it in from where it was
+## carried, the chest turns with them and dips as its weight lands, and the weapon does
+## its own flourish in the hand. Your own body in first person keeps its chest where the
+## camera has it.
+func _take_out(up_r: int, up_l: int, across: Vector3) -> void:
+	_pose.rot[up_r] = Quaternion(across, draw.lift(false)) * _pose.rot[up_r]
+	_pose.rot[up_l] = Quaternion(across, draw.lift(true)) * _pose.rot[up_l]
+	if _lean > 0.0:
+		var chest: int = _b["chest"]
+		var head: int = _b["head"]
+		var spine: int = _b["spine"]
+		var turn := draw.turn() * _lean
+		var dip := 0.1 * draw.jolt() * _lean
+		_pose.rot[chest] = Quaternion(Vector3.UP, turn) * _pose.rot[chest]
+		_pose.rot[spine] = Quaternion(Vector3.RIGHT, dip) * _pose.rot[spine]
+		_pose.rot[head] = Quaternion(Vector3.RIGHT, -dip * RECOIL_HEAD) * Quaternion(Vector3.UP, -turn * RECOIL_HEAD) * _pose.rot[head]
+	draw.pose_arms(_pose, _b)
+	draw.pose_weapon(_pose, _b, model.skeleton)
 
 
 ## The body takes the gun's kick (see GunRecoil): the wrist, the chest, the spine, each as
@@ -835,20 +973,23 @@ func _plant_feet(delta: float, inp: RobotAnimInput, key: String, speed: float) -
 		_feet = _feet.lerp(want, 1.0 - exp(-delta * 10.0))
 	# (On level ground this does nothing at all: the legs are left exactly as the clip has them.)
 	var w := smoothstep(0.0, 1.0, _feet_w) * clampf((absf(_feet.x) + absf(_feet.y)) / 0.02, 0.0, 1.0)
-	if w <= 0.001:
+	# A big hit buckles the knees: the hips drop and the feet stay where they are (see HitReaction).
+	var sink := flinch.drop() * _lean if key in ["loco", "crouch"] and inp.alive else 0.0
+	var bent := clampf(sink / 0.005, 0.0, 1.0)
+	if w <= 0.001 and bent <= 0.001:
 		return
 	var root: int = _b["root"]
 	var hips: int = _b["hips"]
 	var root_at := Transform3D(Basis(_pose.rot[root]), _pose.pos[root])
 	var before := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips])
-	_pose.pos[hips] += root_at.basis.inverse() * Vector3(0.0, clampf(minf(_feet.x, _feet.y), -FEET_DROP, 0.0) * w, 0.0)
+	_pose.pos[hips] += root_at.basis.inverse() * Vector3(0.0, clampf(minf(_feet.x, _feet.y), -FEET_DROP, 0.0) * w - sink, 0.0)
 	var after := root_at * Transform3D(Basis(_pose.rot[hips]), _pose.pos[hips])
-	_reach_foot(before, after, "l", _feet.x, w)
-	_reach_foot(before, after, "r", _feet.y, w)
+	_reach_foot(before, after, "l", _feet.x * w, maxf(w, bent))
+	_reach_foot(before, after, "r", _feet.y * w, maxf(w, bent))
 
 
 ## One leg bent (or straightened) to put its ankle `rise` above where the clip has it,
-## from hips that have moved from `before` to `after`. The knee keeps the way it points,
+## from hips that have moved from `before` to `after`; `w`: how much of that shows. The knee keeps the way it points,
 ## and the foot the way it lies.
 func _reach_foot(before: Transform3D, after: Transform3D, side: String, rise: float, w: float) -> void:
 	var th: int = _b["thigh_" + side]
@@ -860,7 +1001,7 @@ func _reach_foot(before: Transform3D, after: Transform3D, side: String, rise: fl
 	var hip := after * _pose.pos[th]
 	var upper := _pose.pos[sh].length()
 	var lower := _pose.pos[ft].length()
-	var to := foot0.origin + Vector3(0.0, rise * w, 0.0) - hip
+	var to := foot0.origin + Vector3(0.0, rise, 0.0) - hip
 	if to.length_squared() < 0.000001:
 		return
 	var dist := clampf(to.length(), absf(upper - lower) + 0.01, (upper + lower) * 0.999)

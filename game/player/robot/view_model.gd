@@ -78,12 +78,19 @@ var _fade := 1.0
 var _time := 0.0
 ## What the gun's shots are doing to the arms, and to the camera (see GunRecoil).
 var recoil := GunRecoil.new()
+## Being hit (see HitReaction): the arms jolt, the camera is knocked.
+var flinch := HitReaction.new()
+## The weapon being taken out (see WeaponDraw): where the arms bring it from, its flourish, its glow coming on.
+var draw := WeaponDraw.new()
 var _since_fire := 99.0
 var _reload_w := 0.0
 var _fx_t := -1.0         # how far into the reload the gun's effects were last frame (ReloadFx)
 var _end_t := -1.0        # a shell-at-a-time reload's last flourish ("fp_reload_end"), once the gun is full
 var _was_reloading := false
-var _raise_t := -1.0
+var _busy := 0.0          # the left hand is busy (up the rope, out on a wall run): a reload is done with one hand (OneHandReload)
+var _one_w := 0.0         # how much of a one-handed reload shows...
+var _one_t := 0.0         # ...how far into it, and how long it is
+var _one_len := 1.0
 var _bob := 0.0
 var _bob_w := 0.0
 var _crawl := 0.0
@@ -144,6 +151,7 @@ func clip(base: String) -> String:
 
 func fire(left: bool = false) -> void:
 	recoil.fire(left)
+	draw.cut()
 	_since_fire = 0.0
 	_low = 0.0   # on the rope the gun was down at your side: it is up for this shot, not on its way
 	if rig.has_clip("fp_fire_" + _weapon):
@@ -154,6 +162,7 @@ func fire(left: bool = false) -> void:
 func wind(charge: float, side: int = 0) -> void:
 	if _data.is_melee():
 		_swing.wind(charge, side, _airborne)
+		draw.cut()
 		_since_fire = 0.0
 
 
@@ -161,6 +170,7 @@ func wind(charge: float, side: int = 0) -> void:
 func swing(power: float, side: int = 0) -> void:
 	if _data.is_melee():
 		_swing.swing(power, side, _airborne)
+		draw.cut()
 		_since_fire = 0.0
 
 
@@ -180,6 +190,12 @@ func edge() -> Array:
 	return [_on_screen(e[0]), _on_screen(e[1])]
 
 
+## Where a point of the arms or the weapon (in the world) shows on screen, as a world
+## position the main camera draws there.
+func on_screen(world: Vector3) -> Vector3:
+	return _on_screen(world)
+
+
 func _on_screen(world: Vector3) -> Vector3:
 	var cam := get_parent() as Camera3D
 	var p := cam.global_transform.affine_inverse() * world
@@ -190,7 +206,11 @@ func _on_screen(world: Vector3) -> Vector3:
 func respawn() -> void:
 	visible = not _player.racing
 	recoil.stop()
-	_raise_t = 0.0
+	flinch.stop()
+	_busy = 0.0
+	_one_w = 0.0
+	draw.start(_weapon, true)   # the weapon comes out (a respawn, or a new one in your hands)
+	_fire_t = -1.0
 	_dip = 0.0
 	_dip_vel = 0.0
 	_sway = Vector2.ZERO
@@ -198,10 +218,16 @@ func respawn() -> void:
 	_last_pitch = _player.input.pitch
 
 
-## The camera's own kick from the gun's shots: radians of [pitch (up), yaw, roll] to add
-## to the view (never to the aim), already scaled by the Camera shake setting.
+## The camera's own kick from the gun's shots and from being hit: radians of [pitch (up),
+## yaw, roll] to add to the view (never to the aim), already scaled by the Camera shake
+## setting.
 func camera_kick() -> Vector3:
-	return recoil.camera() * Settings.camera_shake if visible else Vector3.ZERO
+	return (recoil.camera() + flinch.camera()) * Settings.camera_shake if visible else Vector3.ZERO
+
+
+## Hit (see HitReaction, and RobotAnimator.flinched for what is what). Looks only.
+func flinched(way: Vector3, damage: float, headshot: bool = false, blunt: bool = false, heavy: bool = false) -> void:
+	flinch.hit(way, damage, headshot, blunt, heavy)
 
 
 ## How the body hangs on the rope: the body's own (RobotAnimator), so the
@@ -255,10 +281,21 @@ func update(delta: float) -> void:
 
 	# --- Reload and respawn play over the top
 	_reload_w = move_toward(_reload_w, 1.0 if reloading else 0.0, delta * 9.0)
+	# The left hand up the rope or out on a wall run: the gun hand reloads alone (OneHandReload:
+	# the whole view goes down to the belt and back), and the clip, made for two hands, is left out.
+	var left_busy := _grapple_w > 0.5 or key.begins_with("fp_wall")
+	_busy = move_toward(_busy, 1.0 if left_busy else 0.0, delta * 8.0)
+	var two := 1.0 - smoothstep(0.0, 1.0, _busy)
 	if _reload_w > 0.0:
 		var rclip := clip("fp_reload")
 		rig.sample(_tmp, rclip, _player.weapon.round_progress() * rig.length(rclip) if reloading else 0.0)
-		_pose.blend(_tmp, _reload_w)
+		_pose.blend(_tmp, _reload_w * two)
+		if reloading:
+			_one_len = rig.length(rclip)
+			_one_t = _player.weapon.round_progress() * _one_len
+	_one_w = move_toward(_one_w, 1.0 if reloading and left_busy and not _data.is_melee() else 0.0, delta * 8.0)
+	if _one_w > 0.0:
+		OneHandReload.work_part(_pose, rig.bones, WeaponData.look_of(_weapon), _one_t, _one_len, _data.reload_per_round)
 	# A shell-at-a-time reload that ran until the gun was full (not stopped by a shot) ends with a flourish.
 	if _was_reloading and not reloading and _data.reload_per_round and _since_fire > 0.2 and _player.weapon != null \
 			and _player.weapon.ammo >= _data.magazine and rig.has_clip(clip("fp_reload_end")):
@@ -271,7 +308,7 @@ func update(delta: float) -> void:
 			_end_t = -1.0
 		else:
 			rig.sample(_tmp, eclip, _end_t)
-			_pose.blend(_tmp, clampf((elen - _end_t) / 0.12, 0.0, 1.0) * (1.0 - _grapple_w))
+			_pose.blend(_tmp, clampf((elen - _end_t) / 0.12, 0.0, 1.0) * (1.0 - _grapple_w) * two)
 			_end_t += delta
 	# Working the pump or the bolt after a shot
 	if _fire_t >= 0.0:
@@ -283,15 +320,6 @@ func update(delta: float) -> void:
 			rig.sample(_tmp, fclip, _fire_t)
 			_pose.blend(_tmp, clampf(minf(_fire_t / 0.05, (flen - _fire_t) / 0.12), 0.0, 1.0) * (1.0 - _grapple_w))
 			_fire_t += delta
-	if _raise_t >= 0.0:
-		var raise := clip("fp_raise")
-		if _raise_t < rig.length(raise):
-			rig.sample(_tmp, raise, _raise_t)
-			_pose.blend(_tmp, 1.0 - smoothstep(0.6, 1.0, _raise_t / rig.length(raise)))
-			_raise_t += delta
-		else:
-			_raise_t = -1.0
-
 	# --- On the rope: the gun hangs low, off to the right, until it is used
 	var in_use := _since_fire < RobotAnimator.ROPE_AIM_HOLD or reloading or _end_t >= 0.0 or _fire_t >= 0.0 \
 		or (_data.is_melee() and _swing.active())
@@ -344,13 +372,16 @@ func update(delta: float) -> void:
 			_swing.other_fist(), _swing.left_fist())
 		_swing_view = Vector2(k[MeleeSwing.TURN] * 0.4, k[MeleeSwing.LEAN]) * _hold
 		if model.melee:
-			MeleeModel.set_glow(model.melee, _swing.glow())
+			MeleeModel.set_glow(model.melee, _swing.glow() * draw.glow())
+			MeleeModel.set_grown(model.melee, draw.grown())
 		if model.melee_left:
-			MeleeModel.set_glow(model.melee_left, _swing.glow())
+			MeleeModel.set_glow(model.melee_left, _swing.glow() * draw.glow())
+			MeleeModel.set_grown(model.melee_left, draw.grown())
 
 	# The shot (see GunRecoil): the gun's own parts work, and a sidearm flips up at the wrist.
 	recoil.spun = _player.weapon.spin if _player.weapon != null and _player.weapon.spin > 0.0 else -1.0   # (the minigun's barrels turn with the trigger; a killcam's go by its shots)
 	recoil.update(delta)
+	flinch.update(delta)
 	if _data.is_akimbo():
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
 		# Each gun flips up in its own hand.
@@ -363,12 +394,22 @@ func update(delta: float) -> void:
 		var hand_r: int = rig.bones["hand_r"]
 		_pose.rot[hand_r] = Quaternion(Vector3.RIGHT, recoil.hand_view(false)) * _pose.rot[hand_r]
 		recoil.pose_parts(_pose, rig.bones)
+	# The weapon coming out (see WeaponDraw): its flourish in the hand, its own parts.
+	draw.update(delta)
+	if draw.clip_due() and rig.has_clip("fp_fire_" + _weapon):
+		_fire_t = 0.0
+	draw.pose_arms(_pose, rig.bones)
+	draw.pose_weapon(_pose, rig.bones, model.skeleton)
 	_pose.apply(model.skeleton)
 	# The reload's own effects: the gun's glow, the spent cell thrown clear.
 	var fx_t := _player.weapon.round_progress() * rig.length(clip("fp_reload")) if reloading else -1.0
 	var in_view: bool = _player.rig != null and _player.rig.first_person_amount() > 0.0   # (in third person the body throws it)
 	ReloadFx.update(model, WeaponData.look_of(_weapon), _fx_t, fx_t, _player.get_parent().get_parent() if in_view else null, vel, _on_screen)
 	_fx_t = fx_t
+	if _one_w > 0.5 and fx_t >= 0.0 and rig.bones.has("pistol_mag") and OneHandReload.cell_out(WeaponData.look_of(_weapon), fx_t, _one_len, _data.reload_per_round):
+		model.skeleton.set_bone_pose_scale(rig.bones["pistol_mag"], Vector3.ONE * 0.001)   # (with one hand: the new cell is at the belt until the gun is slammed onto it)
+	if draw.active() and not _data.is_melee():
+		model.set_gun_glow(draw.glow())   # it powers on as it comes up
 
 	# --- Whole-view movement: sway, bob, landing dip, recoil
 	var yaw := _player.input.yaw
@@ -405,8 +446,21 @@ func update(delta: float) -> void:
 	if _data.is_melee():
 		position += MELEE_VIEW + (MELEE_REST_VIEW.get(_weapon, Vector3.ZERO) as Vector3) * smoothstep(0.0, 1.0, _rest)
 	position += LOOK_DOWN_SHIFT * smoothstep(deg_to_rad(LOOK_DOWN_FROM), deg_to_rad(LOOK_DOWN_FULL), -pitch)
+	# The weapon being taken out: the arms bring it up from where it was carried.
+	var out: Array = draw.view() if draw.active() else [Vector3.ZERO, Vector3.ZERO]
+	position += out[0] as Vector3
 	rotation = Vector3(-_sway.y * 0.5 + float(kick[2]) + _dip * 0.8 - _swing_view.y * 0.25,
 		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3 + float(kick[3]), _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2 - float(kick[4]))
+	rotation += out[1] as Vector3
+	# A reload with one hand: down to the belt and back.
+	if _one_w > 0.0:
+		var one: Array = OneHandReload.view(WeaponData.look_of(_weapon), _one_t, _one_len, _data.reload_per_round)
+		position += (one[0] as Vector3) * smoothstep(0.0, 1.0, _one_w)
+		rotation += (one[1] as Vector3) * smoothstep(0.0, 1.0, _one_w)
+	# Hit: the arms jolt the way the blow went.
+	var jolt: Array = flinch.view()
+	position += jolt[0] as Vector3
+	rotation += jolt[1] as Vector3
 	if _data.is_melee():
 		rotation.y += MELEE_VIEW_YAW
 		# A mid-air wind-up spins your body: the view stays level and the arms and weapon

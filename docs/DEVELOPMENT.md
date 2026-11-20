@@ -62,6 +62,24 @@ they play out as fast as the machine allows instead of in real time. Their logs 
 
 Quick checks:
 
+- taking weapons out and putting them away (`tests/weapon_draw_test.gd`): every weapon
+  has a draw and a flourish; a draw starts away from the hold, ends exactly on it and
+  leaves nothing behind; a shot cuts it short; its beats use bones the robots have and
+  sounds the game has; every weapon has a place on the body, two never share one, and a
+  cape sends long ones to the side; a weapon let go breaks up and is gone;
+- reloading off the ground (`tests/midair_reload_test.gd`, with `--fixed-fps 60`): every
+  gun has a one-handed reload that goes hold to hold, is at the belt as the new cell goes
+  home and has the cell out only from flick to slam; your own arms only go down for it;
+  it moves the gun arm alone; standing, a reload is the two-handed clip; on the rope and
+  a wall run the gun hand goes to the belt and the other arm stays put; in the air the
+  knees come up; a flip no longer hides it and a landing roll still does; an akimbo left
+  gun that sat one out catches up;
+- being hit (`tests/hit_reaction_test.gd`): the upper body goes the way the blow was
+  travelling, further for more damage; a headshot snaps the head and it is back in a
+  quarter of a second; a melee blow folds the body and a heavy one throws the arms wide;
+  only a big hit on a body standing still buckles the knees; a stream of hits stays
+  inside its limits, the camera's knock too; nothing is left a moment later; the hips
+  and the root never move; and what the host calls each kind of blow;
 - gun recoil (`tests/gun_recoil_test.gd`): every gun kicks and a melee weapon does not;
   nothing is left of a shot a moment later and the camera is back exactly where it was,
   however long the burst; the camera's kick stays inside its limit; a held trigger
@@ -78,6 +96,13 @@ Quick checks:
 - robots (`tests/robot_test.gd`), for every character: the model files hold every bone
   and clip, the skeletons match, each movement state plays the right animation, the
   poses fit the hitbox, and every gun has its muzzle bone and its own clips;
+- bracing against a wall on the rope (`tests/wall_brace_test.gd`): nothing away from a
+  wall, off the rope or with none found; coming in, the legs come up before the body
+  arrives and the landing is told once, as hard as it came; hanging, both feet are on
+  the wall and the pose puts the ankles there; the hips face the wall and the waist stays
+  within its turn; aimed away, the body goes side-on with one leg on the wall; worked
+  along the wall the feet step and stay on it, and going fast they come off; a jump off
+  the rope shoves off and a plain let-go does not;
 - the body on the grappling hook's rope (`tests/rope_swing_test.gd`, with `--fixed-fps 60`):
   the slack phase is untouched; tight, the body leans along the rope
   with the legs trailing and the gun down; the jolt grows with the slack; the legs follow
@@ -1933,6 +1958,31 @@ and compare each wrist with where its pose wants it (every reload was checked th
 without opening the game: `tools/combat/reload_preview.sh revolver OUT_DIR --speed=0.5
 --close` (add `--cut=0.5` to see it cut short half way).
 
+**Reloading off the ground** changes how a reload looks, never how long it takes or
+what it loads. With the left hand busy (up the rope, or on a wall run: `_busy` in
+`RobotAnimator` and `ViewModel`) the two-handed clip is left out and the gun arm does it
+alone: `game/combat/one_hand_reload.gd` (`OneHandReload`) cocks the gun up, flicks the
+empty out, brings it down and slams it onto a fresh one at the belt, and brings it back
+up with its slide or charging handle going home. There is one such reload per family
+(`KINDS`, by `WeaponData.GROUPS`: three arm poses each), not per gun; what makes it a
+gun's own is its timing, taken from that gun's row of `ReloadFx.GUNS` (the flick at its
+`eject`, the slam at its `seat`), so the cell is thrown, the gun goes dark and it surges
+back when it always did, and its own part from `GunRecoil.PARTS`. A gun fed a round at a
+time dips to the belt for each round, one that overheats is held out to cool, and a long
+reload brings the gun up early and holds it ready. The gun's own cell is not drawn from
+flick to slam (`cell_out`). In first person the whole view goes down to the belt and
+back (`OneHandReload.view`: down only, never up). Akimbo: the left gun sits out a
+one-handed reload and takes a quick trip to the belt once its hand is free
+(`lay_catch_up`; third person only). In the air with both hands free the clip plays as
+ever and the body joins in: the knees come up and the spine curls over the gun
+(`RobotAnimator._tuck_for_reload`). A flip no longer hides a reload: it goes on in the
+hands, which go round with the body (`FLIP_KEYS`); a landing roll, a vault and a dive
+still keep the hands busy. `tests/midair_reload_test.gd` checks all of it; to see it,
+`tools/robot/preview.sh` puppets take `"taut": 1.0` (a tight rope) with the reload flag
+(stills), and `tools/robot/reload_film.sh OUT_DIR rifle all side` films the real game on
+the Testing Grounds (scenes: rope, jump, glide, flip, wall, or all; views: first, third,
+side).
+
 **Recoil** has no clips: `game/combat/gun_recoil.gd` (`GunRecoil`) is the game's. The
 body's animator and your own first-person arms each keep one, tell it of every shot and
 read off it where the kick has got to: the gun's jump in the hands (the snap), the body
@@ -1952,6 +2002,57 @@ is all looks: the aim, the spread and the shot are untouched. `tests/gun_recoil_
 checks every gun; to film one in the real game, played by a script on the Testing
 Grounds: `tools/robot/recoil_film.sh OUT_DIR rifle shots side` (scenes: shots, air,
 move; views: first, third, side, front, back).
+
+**Taking a weapon out** has no clips either: `game/combat/weapon_draw.gd`
+(`WeaponDraw`), kept by the body's animator and by your own first-person arms, like
+`GunRecoil`. It is looks only: `Player.change_weapon` still swaps the weapon in one
+frame, and it fires at once (a shot or a swing cuts the draw short). Where a weapon
+comes from is its family's (`KINDS`, by where it is carried: `WeaponDraw.carried`): a
+sidearm snaps up from the thigh, a long gun or blade comes over the shoulder off the
+back, a launcher is heaved off it and lands with a dip. On top of that each weapon has
+its own flourish (`FLOURISH`: a list of beats, a spin round the trigger finger, a toss,
+one of the gun's working parts from `GunRecoil.PARTS`, the body's own `fire_<gun>`
+clip, a sound), and its glow fills as it comes up. It starts on a Deathmatch switch,
+Gun Game's next weapon, a weapon picked up into your hands and a respawn. In first
+person the arms never ride up past the hold (their shoulders are just below the view).
+
+**Weapons put away** (`game/player/robot/stowed_weapon.gd`, `StowedWeapon`): in a
+Deathmatch the weapon you carry and do not hold rides on your body (`Player.stowed`,
+from `Net.player_weapons`): across the back, on the thigh or on the belt (`PLACES`), a
+second one of the same kind on the other side, and at the left side of a body that
+wears something on its back. Put away mid-match it flies there from the hand; a weapon
+let go for good (Gun Game's last one, one swapped out for a pickup) breaks up into
+light where it was (`StowedWeapon.break_up`). It falls with the ragdoll, and your own
+is not drawn in first person. `tests/weapon_draw_test.gd` checks every weapon. To see
+them: `tools/robot/preview.sh` takes `"stowed": ["rifle"]` and `"draw_at"` on a puppet
+(stills, in seconds), and `tools/robot/swap_film.sh OUT_DIR pistol rifle swap back`
+films a real Deathmatch swap (scenes: swap, hand; views: first, third, side, front,
+back).
+
+**Being hit** has no clips either: `game/combat/hit_reaction.gd` (`HitReaction`), kept
+by the body's animator and by your own first-person arms, like `GunRecoil`. The host
+sends every hit's direction and kind with its damage (`Match.hit_taken`: the way the
+blow was travelling and one of `HitReaction.SHOT`, `BLAST`, `MELEE`, `HEAVY`, `CRASH`,
+worked out in `Match._host_damage` from what it already knows of the blow), and each
+`Player` flinches at its own (`Player.flinch`). The upper body is thrown the way the
+blow went, on springs, as far as the damage says (`strength`): under `SMALL` a shoulder
+twitches, a solid hit rocks the chest, `BIG` and over staggers the upper body and
+buckles the knees of a body standing still (the hips drop and the legs are bent to keep
+the feet where they are, by the animator's own `_plant_feet`). A headshot snaps the
+head, a melee blow or a kick folds the body round it, a heavy one (wound up past
+`HEAVY_CHARGE`, or a flying kick) throws the arms wide, and off the ground the body goes
+further and the legs swing under it. Fast hits add up, to the `MOST_` limits. It is
+applied after everything else has posed, to the spine, chest, head and arms only: the
+hips, the feet, where the player is, where they are going and where they aim are never
+touched (a blow that does push you is `Match._host_shove`, as before). In first person
+the arms jolt and the camera is knocked a little the way the blow went
+(`ViewModel.camera_kick`, with the gun's own, scaled by Camera shake). A bullet that
+lands on a player strikes a few sparks in that player's trim colour (`MeleeFx.chip`,
+from `Arena.hit_sparks`, at most `MeleeFx.CHIPS` a shot). Killcams record the hits and
+show the same. Target dummies do not flinch. `tests/hit_reaction_test.gd` checks it; to
+film it in the real game, the hits made up by a script on the Testing Grounds:
+`tools/robot/hit_film.sh OUT_DIR all front` (scenes: small, medium, big, head, melee,
+rapid, air, or all; views: first, third, side, front, back).
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted
@@ -2037,7 +2138,27 @@ tools/robot/rope_film.sh OUT_DIR swing third                         # the real 
 tools/robot/rope_film.sh OUT_DIR player first --weapon=hammer        # scenes: swing, pump, player; first or third person
 tools/robot/rope_preview.sh OUT_DIR --scene=dive --step=0.0083333    # diving into the rope; also dive_low (a long, low hook, shooting), dive_go (letting go part of the way), dive_side
 tools/robot/rope_film.sh OUT_DIR dive third                          # the same in the real game; also dive_low, dive_go, drag (dragged on your belly)
+tools/robot/rope_film.sh OUT_DIR wall side                           # reeled up a wall and braced on it (below): first, third, or side (a camera along the wall)
 ```
+
+**At a wall** the body on the rope puts its feet on it: `game/player/robot/wall_brace.gd`
+(`WallBrace`), kept by the animator beside `RopeSwing` and laid over the legs after it.
+It is looks only. Each copy of the game finds the wall for the bodies it draws
+(`WallBrace.find_wall`, from `Player._rope_wall` and the killcam, into
+`RobotAnimInput.wall_at` and `wall_normal`, like `feet`): rays from the hips the way the
+rope goes, the way the body is going and all round, taking the nearest surface steep
+enough to be a wall (`STEEP`) that is also there at the height of the feet, and none
+with the hook in another player. The brace comes on with a tight rope, a wall within
+`REACH` and less than `SLOW` metres a second along it (`FAST` to come off again), or
+`LEAD` seconds ahead of arriving, so the legs come up first and the feet meet the wall.
+Each foot is planted on the wall in the world and steps (`STEP`, one at a time) when the
+body has left it behind; the legs are bent to reach their footholds the way
+`RobotAnimator._reach_foot` bends them. The hips face the wall (the animator's waist
+turn lets the chest keep the aim) until the aim is more than `TURN` round, then the body
+goes side-on with the leg by the wall on it. A landing drives the hips in (`COIL`) and
+`Player` plays a foot thud and a puff of dust (`WallBrace.dust`); a jump off the rope
+(a let-go that throws the body up) keeps the feet on the wall for `PUSH_TIME` as the legs
+straighten. The arms are RopeSwing's and the animator's, as on any rope.
 
 `tests/rope_swing_test.gd` checks each of those things on a body driven by made-up movement,
 and `tests/dive_rope_test.gd` the handling of a dive into the rope on a real body.
