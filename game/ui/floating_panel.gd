@@ -33,7 +33,8 @@ var top_of: Control
 
 
 ## side: "left" (beside the button, to its left), "right" (to its right), "below"
-## (under it) or "above" (over it: a button in the page's footer).
+## (under it), "above" (over it: a button in the page's footer) or "center" (in the
+## middle of the screen).
 func _init(side: String = "left", min_width: float = 0.0) -> void:
 	_side = side
 	visible = false
@@ -112,6 +113,8 @@ func _place() -> void:
 		at = Vector2(a.position.x + (a.size.x - s.x) * 0.5, a.end.y + GAP)
 	if _side == "above":
 		at = Vector2(a.position.x, a.position.y - GAP - s.y)
+	elif _side == "center":
+		at = view.position + (view.size - s) * 0.5
 	at.x = clampf(at.x, view.position.x + EDGE, maxf(view.end.x - s.x - EDGE, view.position.x + EDGE))
 	at.y = clampf(at.y, view.position.y + EDGE, maxf(view.end.y - s.y - EDGE, view.position.y + EDGE))
 	panel.global_position = at

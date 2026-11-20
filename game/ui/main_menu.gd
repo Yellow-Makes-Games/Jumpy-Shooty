@@ -13,10 +13,10 @@ const PROFILE_TABS := [["Profile", "_show_profile"], ["Character", "_show_creato
 const MODE_LABELS := ["Shoot-out", "Deathmatch", "Race"]
 ## Shown where the weapon cards would be, in the modes that don't use your pick.
 const NO_WEAPON_NOTES := {
-	"race": "A race has no weapons: it is you, the course and the clock.",
-	"dm": "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.",
-	"gungame": "Gun Game hands out the weapons: every kill moves you to the next one.",
-	"killcam": "Killcam is snipers only: every kill scores its killcam points.",
+	"race": "No weapons",
+	"dm": "Weapons are on the map",
+	"gungame": "Gun Game hands out the weapons",
+	"killcam": "Snipers only",
 }
 
 ## The character showcase on the front page runs top to bottom from SHOWCASE_LEFT
@@ -30,6 +30,8 @@ var _showcase: CharacterShowcase
 var _frame: MenuFrame           # every other page
 var _code_edit: LineEdit
 var _status: Label
+var _join_window: FloatingPanel   # Multiplayer: Join lobby's window (the code, then join as player or spectator)
+var _join_status: Label
 
 
 func _ready() -> void:
@@ -106,6 +108,7 @@ static func caption() -> String:
 
 ## Start a page in the frame: `width` wide, with this heading.
 func _page(width: float, heading: String = "", kicker: String = "") -> void:
+	_drop_join_window()
 	_front.visible = false
 	_frame.visible = true
 	_frame.clear(width)
@@ -113,7 +116,15 @@ func _page(width: float, heading: String = "", kicker: String = "") -> void:
 		_frame.title(heading, kicker)
 
 
+## The Multiplayer page's join window goes with the page.
+func _drop_join_window() -> void:
+	if _join_window and is_instance_valid(_join_window):
+		_join_window.queue_free()
+	_join_window = null
+
+
 func _show_main() -> void:
+	_drop_join_window()
 	_front.visible = true
 	_frame.visible = false
 	_frame.clear()
@@ -206,13 +217,13 @@ func _front_button(parent: Node, text: String, on_press: Callable) -> Button:
 # Play: three cards
 
 func _show_play() -> void:
-	_page(1000, "Play", "Choose a game")
+	_page(1000, "Play")
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	_frame.body.add_child(row)
-	_card(row, "bots", "Vs Bots", "A 1v1, or a free-for-all against up to 4 bots. Easy to Expert.", _show_bot).grab_focus()
-	_card(row, "practice", "Practice", "Free roam on your own to learn a map's routes.", _show_practice)
-	_card(row, "online", "Multiplayer", "Free-for-all with up to 15 friends.", _show_multiplayer)
+	_card(row, "bots", "Vs Bots", "", _show_bot).grab_focus()
+	_card(row, "practice", "Practice", "", _show_practice)
+	_card(row, "online", "Multiplayer", "", _show_multiplayer)
 	_frame.back_button("Back", _show_main)
 
 
@@ -247,9 +258,10 @@ func _card(parent: Node, kind: String, heading: String, blurb: String, on_press:
 	var h := UiKit.label(v, heading.to_upper(), false, 28)
 	h.add_theme_font_override("font", HudStyle.font(true))
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var d := UiKit.label(v, blurb, true, 15)
-	d.custom_minimum_size = Vector2(0, 48)
-	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if blurb != "":
+		var d := UiKit.label(v, blurb, true, 15)
+		d.custom_minimum_size = Vector2(0, 48)
+		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return b
 
 
@@ -409,21 +421,16 @@ func _keep_random(pick: OptionButton, g: String) -> String:
 
 
 func _show_practice() -> void:
-	_page(1460, "Practice", "Play  /  on your own")
+	_page(1460, "Practice", "Play")
 	var cols := _three_columns()
 	var left: VBoxContainer = cols[0]
 	var set_mode: Callable = cols[1]
-	var note := UiKit.label(left, "", true, 16)
-	note.custom_minimum_size = Vector2(0, 44)
 	var game := Game.last_practice_game if Maps.fits(Game.last_practice_map, Game.last_practice_game) or Game.last_practice_map == Maps.RANDOM \
 		else Maps.game_of(Game.last_practice_map)
 	# The map drop-down is made after the mode switch, but the switch refills it, so
 	# the callback reaches it through an array (lambdas copy plain locals when made).
 	var map_ref: Array[OptionButton] = [null]
 	var explain := func(g: String):
-		note.text = "Run a race course on your own against the clock." if g == "race" \
-			else ("Weapons float about the map: walk over one to pick it up. Carry two: 1 and 2 to switch." if g == "dm" \
-			else "Roam a map on your own to learn its routes. No opponents, no timer.")
 		set_mode.call(g)
 	explain.call(game)
 	var mode := _mode_picker(left, game, func(g: String):
@@ -442,26 +449,48 @@ func _show_bot() -> void:
 
 
 func _show_multiplayer() -> void:
-	_page(900, "Multiplayer", "Play  /  with friends")
-	var col := _frame.body
-	var who := UiKit.label(col, "Playing as %s  ·  change your name in Profile" % Game.local_name(), true, 16)
-	who.name = "PlayingAs"
+	_page(700, "Multiplayer", "Play")
 	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 16)
-	col.add_child(row)
-	var host := UiKit.inset(row)
-	UiKit.section(host, "Host")
-	UiKit.label(host, "Start a lobby. It shows a lobby code to give your friends. You pick the map and rules.", true, 15)
-	UiKit.primary_button(host, "Create lobby", _on_create)
-	var join := UiKit.inset(row)
-	UiKit.section(join, "Join")
-	UiKit.label(join, "Lobby code: type the code the host's lobby shows (an IP address works too).", true, 15)
-	_code_edit = UiKit.line_edit(join, "ABCD-EFGH", Settings.last_address)   # the last code you joined
+	_frame.body.add_child(row)
+	var create := UiKit.primary_button(row, "Create lobby", _on_create)
+	create.name = "Create"
+	var join := UiKit.button(row, "Join lobby", _open_join)
+	join.name = "Join"
+	for b in [create, join]:
+		b.custom_minimum_size = Vector2(260, 64)
+	create.grab_focus()
+	_status = UiKit.label(_frame.body, "", true, 16)
+	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# Join lobby: a window with the code, then whether you play or watch.
+	_join_window = FloatingPanel.new("center")
+	_join_window.name = "JoinWindow"
+	_frame.add_child(_join_window)
+	var c := _join_window.content
+	c.custom_minimum_size.x = 380
+	_code_edit = UiKit.line_edit(c, "Lobby code", Settings.last_address)   # the last code you joined
 	_code_edit.text_submitted.connect(func(_t: String): _on_join())
-	UiKit.button(join, "Join lobby", _on_join)
-	UiKit.button(join, "Join as spectator", func(): _on_join(true))
-	_status = UiKit.label(col, "", true, 16)
+	UiKit.section(c, "Join as")
+	var as_row := HBoxContainer.new()
+	as_row.add_theme_constant_override("separation", 10)
+	c.add_child(as_row)
+	var player := UiKit.primary_button(as_row, "Player", _on_join)
+	player.name = "Player"
+	var watch := UiKit.button(as_row, "Spectator", func(): _on_join(true))
+	watch.name = "Spectator"
+	for b in [player, watch]:
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_join_status = UiKit.label(c, "", true, 15)
+	_join_status.visible = false
 	_frame.back_button("Back", _show_main)
+
+
+func _open_join() -> void:
+	_join_status.visible = false
+	_join_window.open(_frame.body.find_child("Join", true, false))
+	_code_edit.grab_focus()
+	_code_edit.caret_column = _code_edit.text.length()
 
 
 # ---------------------------------------------------------------------------
@@ -497,7 +526,7 @@ func _profile_page(current: String, width: float = 1280) -> void:
 func _show_profile() -> void:
 	_profile_page("_show_profile")
 	_frame.body.add_child(ProfilePage.new())
-	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Main menu", _show_main).grab_focus()
 
 
 # ---------------------------------------------------------------------------
@@ -505,18 +534,15 @@ func _show_profile() -> void:
 
 func _show_creator() -> void:
 	_profile_page("_show_creator")
-	UiKit.label(_frame.header, "Robot, dude, goblin, frog: mix any head, torso and legs, then dress it up.", true, 15)
 	var start := Game.local_character()
 	if not Characters.is_custom(start) and not Settings.custom_characters.is_empty():
 		start = Settings.custom_characters[-1]
 	var creator := CharacterCreator.new(start)
 	_frame.body.add_child(creator)
-	_frame.back_button("Back", _show_main)
+	_frame.back_button("Main menu", _show_main)
 	var del := _frame.back_button("Delete", creator.delete_saved)
 	del.custom_minimum_size.x = 140
-	var keep := _frame.back_button("Save", func(): creator.save())
-	keep.custom_minimum_size.x = 160
-	var play := _frame.main_button("Save and play as this", func():
+	var play := _frame.main_button("Save", func():   # (and play as it)
 		var id := creator.save()
 		if id == "":
 			return   # it wears something still locked (the creator says what)
@@ -526,9 +552,8 @@ func _show_creator() -> void:
 	play.grab_focus()
 	# Something locked on it: it can be looked at, not saved.
 	var lock := func():
-		keep.disabled = not creator.can_save()
-		play.disabled = keep.disabled
-		play.text = "SAVE AND PLAY AS THIS" if creator.can_save() else "LOCKED: SEE ACHIEVEMENTS"
+		play.disabled = not creator.can_save()
+		play.text = "SAVE" if creator.can_save() else "LOCKED: SEE ACHIEVEMENTS"
 	creator.changed.connect(lock)
 	lock.call()
 
@@ -536,24 +561,23 @@ func _show_creator() -> void:
 # Calling Card: the banner and the badge other players see with your name.
 func _show_calling_card() -> void:
 	_profile_page("_show_calling_card")
-	UiKit.label(_frame.header, "Your banner and icon, by your name for everyone to see. Play to unlock more.", true, 15)
 	_frame.body.add_child(CallingCardPicker.new())
-	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Main menu", _show_main).grab_focus()
 
 
 # Achievements: what you have done, how far along the rest are, and what each unlocks.
 func _show_achievements() -> void:
 	var counts := Achievements.item_counts()
 	_profile_page("_show_achievements")
-	UiKit.label(_frame.header, "%d of %d done  ·  %d of %d items unlocked  ·  click one, or point at it and press T, to track it on your Profile (up to %d)" % [
-		Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1], Achievements.MAX_TRACKED], true, 15)
+	UiKit.label(_frame.header, "%d of %d done  ·  %d of %d items unlocked  ·  %s" % [
+		Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1], AchievementsPanel.TRACK_TIP], true, 15)
 	UiKit.section(_frame.body, "Race medals")
 	_frame.body.add_child(AchievementsPanel.medals())
 	UiKit.section(_frame.body, "Achievements")
 	var panel := AchievementsPanel.new()
 	_frame.body.add_child(AchievementsPanel.tabs(panel))
 	_frame.body.add_child(panel)
-	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Main menu", _show_main).grab_focus()
 
 
 func _show_settings() -> void:
@@ -574,13 +598,22 @@ func _on_join(spectate: bool = false) -> void:
 	var address := _code_edit.text.strip_edges()
 	var bad: String = LobbyCode.parse(address).error
 	if bad != "":
-		_status.text = bad
+		_say_join(bad)
 		return
 	if address != Settings.last_address:
 		Settings.last_address = address
 		Settings.save_settings()
 	var err := Game.join_online(address, spectate)
 	if err != OK:
-		_status.text = "Could not start joining (%s)." % error_string(err)
+		_say_join("Could not start joining (%s)." % error_string(err))
 	else:
-		_status.text = "Connecting..."
+		_say_join("Connecting...")
+
+
+## A line under the join window's buttons: a bad code, or that it is connecting.
+func _say_join(text: String) -> void:
+	if _join_status and is_instance_valid(_join_status):
+		_join_status.text = text
+		_join_status.visible = true
+	elif _status:
+		_status.text = text

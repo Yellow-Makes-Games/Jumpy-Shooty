@@ -191,7 +191,7 @@ func draw_play(ci: CanvasItem, size: Vector2) -> void:
 		elif p and Teams.phase == Teams.Phase.PLANTED and mine == Teams.defenders() and p.global_position.distance_to(Teams.bomb_pos) <= Teams.BOMB_REACH + 0.5:
 			HudStyle.label(ci, Vector2(c.x, c.y + 100.0), "HOLD %s TO DEFUSE" % key, 13, HudStyle.YELLOW, HORIZONTAL_ALIGNMENT_CENTER)
 		elif Teams.bomb_carrier == me and Teams.phase == Teams.Phase.LIVE:
-			HudStyle.label(ci, Vector2(c.x, size.y - 128.0), "YOU HAVE THE BOMB  ·  TAKE IT TO SITE A OR B", 11,
+			HudStyle.label(ci, Vector2(c.x, size.y - 128.0), "YOU HAVE THE BOMB", 11,
 				Color(HudStyle.RED, 0.9), HORIZONTAL_ALIGNMENT_CENTER)
 	draw_banner(ci, size)
 

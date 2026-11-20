@@ -42,7 +42,6 @@ var _palette: SwatchPalette    # the colours to pick from, for the colour button
 var _palette_grid: GridContainer
 var _list: PopupMenu    # every choice of the row whose name was clicked
 var _list_key := ""
-var _turn := 0.0        # extra turn of the stage: 0 front, PI back
 var _entrance := false  # the next character put on the stage is another one: it builds in
 
 
@@ -69,19 +68,13 @@ func _build_stage() -> void:
 	add_child(col)
 	UiKit.section(col, "Preview")
 	_stage = PortraitFrame.new(STAGE, 0.95)
-	_stage.kicker = "CUSTOM UNIT"
 	col.add_child(_stage)
 	_preview = _stage.preview
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.add_child(row)
-	var spin := UiKit.button(row, "Turn around", func():
-		_turn = PI - _turn
-		_preview.facing = _turn)
-	spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spin.set_meta("sfx", "select")
 	var dice := UiKit.button(row, "Randomize", randomize_parts)
-	dice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dice.custom_minimum_size.x = 260
 	dice.set_meta("sfx", "select")
 
 
@@ -233,7 +226,6 @@ func _stepper(parent: Node, key: String, title: String) -> HBoxContainer:
 	shown.add_theme_font_override("font", HudStyle.font(true))
 	shown.add_theme_font_size_override("font_size", 15)
 	shown.clip_text = true
-	shown.tooltip_text = "Click to see every choice"
 	shown.name = "%s_list" % key
 	shown.set_meta("sfx", "select")
 	shown.pressed.connect(open_list.bind(key))
@@ -366,7 +358,7 @@ func _refresh() -> void:
 				shown.add_theme_color_override(state, LOCKED)
 			else:
 				shown.remove_theme_color_override(state)
-		shown.tooltip_text = "Click to see every choice" if not is_locked or key == WHOLE else "Locked. %s" % Achievements.requirement(item)
+		shown.tooltip_text = "" if not is_locked or key == WHOLE else "Locked. %s" % Achievements.requirement(item)
 	# In your colour, holding the weapon you take into matches.
 	_stage.title = current.name.to_upper()
 	_preview.show_robot(current.to_id(), Net.menu_color(), Game.local_weapon(), _entrance)
@@ -406,8 +398,6 @@ func _refresh_saved() -> void:
 		return
 	UiKit.clear(_saved)
 	if Settings.custom_characters.is_empty():
-		var none := UiKit.label(_saved, "None yet: Save keeps this one.", true, 14)
-		none.autowrap_mode = TextServer.AUTOWRAP_OFF
 		return
 	for id in Settings.custom_characters:
 		var c := CustomCharacter.parse(id)

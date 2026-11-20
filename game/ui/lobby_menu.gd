@@ -271,7 +271,7 @@ func _refresh() -> void:
 	_bot_note.text = ("Full" if Net.is_online else "Up to %d bots in this mode" % _most_bots()) if room <= 0 else ""
 	var me_ready := Net.is_ready(Net.my_id())
 	_ready_button.text = "READY  ·  PRESS TO UNDO" if me_ready else "READY UP"
-	_waiting.text = "Waiting for the host to start..." if me_ready else "Ready up when you have picked your loadout."
+	_waiting.text = "Waiting for the host to start..." if me_ready else ""
 	_size_box.visible = Net.is_host() and Net.is_online
 	_updating = true
 	_size.min_value = maxi(LobbySettings.MIN_PLAYERS, Net.players.size())   # never below who is already here
@@ -282,24 +282,18 @@ func _refresh() -> void:
 	_code.text = code
 	_code.visible = code != ""
 	_copy.visible = code != ""
-	if not Net.is_online:
-		var n := Net.bot_ids().size()
-		where = "You and %d bot%s. Add bots on the left (click one's difficulty to change it), set up the match, then Start." % [n, "" if n == 1 else "s"]
-	elif Net.is_host():
-		match Net.internet_state:
-			"open":
-				where = "Friends anywhere join with the lobby code (or at %s)." % _address(Net.join_ip())
-			"checking":
-				where = "Opening your router for internet play..."
-			_:
-				where = "Your router would not open port %d, so only friends on your network can join, with the lobby code (or at %s)." % [Net.port, _address(Net.join_ip())]
-	else:
-		where = "The host picks the map and rules and starts the match."
-	_info.text = ("%d of %d players.  %s" % [Net.players.size(), LobbySettings.max_players(), where]) if Net.is_online else where
+	# Only what you need to know: the player count online, and a router that would not
+	# open the port (then only friends on your own network can get in).
+	if Net.is_online and Net.is_host() and Net.internet_state != "open" and Net.internet_state != "checking":
+		where = "Router would not open port %d: only friends on your network can join (at %s)" % [Net.port, _address(Net.join_ip())]
+	var parts: Array = []
 	if Net.spectating():
-		_info.text = "You are spectating: you will watch the match with a free camera.  " + _info.text
-		if Net.moved_by_host:
-			_info.text = "The host moved you to the spectators. Press Play to join back in when there is room.  " + _info.text
+		parts.append("Moved to spectators by the host" if Net.moved_by_host else "Spectating")
+	if Net.is_online:
+		parts.append("%d of %d players" % [Net.players.size(), LobbySettings.max_players()])
+	if where != "":
+		parts.append(where)
+	_info.text = "  ·  ".join(parts)
 	_refresh_rules()
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
@@ -381,7 +375,7 @@ func _player_row(id: int) -> PanelContainer:
 		watch.theme_type_variation = "Chip"
 		watch.custom_minimum_size = Vector2(0, 28)
 		watch.add_theme_font_size_override("font_size", 13)
-		watch.tooltip_text = "Move %s to the spectators (they can come back when there is room)" % Net.player_name(id)
+		watch.tooltip_text = "Move to spectators"
 	return card
 
 
@@ -520,9 +514,8 @@ func _pick_button(parent: Node, height: float = 44.0) -> Button:
 
 ## The Character Creator in a window of its own, from the robot window's "Make new
 ## character": a new character starts from the body of the robot you have (a blank
-## name), and "Save and play as this" saves it and makes it yours; Save keeps it for
-## later (it joins the robot list either way). Cancel, a click outside or Esc closes
-## it without saving.
+## name), and Save saves it and makes it yours (it joins the robot list too). Cancel, a
+## click outside or Esc closes it without saving.
 func _open_creator() -> void:
 	_robot_panel.close()
 	if _creator_panel:
@@ -543,11 +536,7 @@ func _open_creator() -> void:
 		if _creator_panel == panel:
 			_creator_panel = null)
 	UiKit.button(buttons, "Cancel", panel.close).custom_minimum_size = Vector2(160, 50)
-	var keep := UiKit.button(buttons, "Save", func():
-		creator.save()
-		_character.refresh_custom())
-	keep.custom_minimum_size = Vector2(160, 50)
-	var play := UiKit.primary_button(buttons, "Save and play as this", func():
+	var play := UiKit.primary_button(buttons, "Save", func():   # (and play as it)
 		var id := creator.save()
 		if id == "":
 			return   # it wears something still locked (the creator says what)
@@ -559,8 +548,7 @@ func _open_creator() -> void:
 		panel.close())
 	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var lock := func():   # something locked on it: it can be looked at, not saved
-		keep.disabled = not creator.can_save()
-		play.disabled = keep.disabled
+		play.disabled = not creator.can_save()
 	creator.changed.connect(lock)
 	lock.call()
 	panel.open(_character._name_button)
@@ -781,8 +769,6 @@ func _build_rules() -> void:
 	_zoom_ab = CheckButton.new()
 	_zoom_ab.name = "zoom_ab"
 	_zoom_ab.custom_minimum_size = Vector2(0, 44)
-	_zoom_ab.tooltip_text = "How far everyone's zoom (middle mouse) narrows their view: A %d or B %d degrees off their own field of view" \
-		% [LobbySettings.ZOOMS.a, LobbySettings.ZOOMS.b]
 	_col.add_child(_zoom_ab)
 	_zoom_ab.toggled.connect(func(on: bool):
 		if _updating:

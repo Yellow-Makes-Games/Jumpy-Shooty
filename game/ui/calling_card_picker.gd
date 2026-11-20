@@ -68,7 +68,6 @@ func _init() -> void:
 	about.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	about.alignment = BoxContainer.ALIGNMENT_CENTER
 	top.add_child(about)
-	UiKit.label(about, "This is how other players see you: in the lobby, on the results, and on their screen when you take them out.", true, 16)
 	status = UiKit.label(about, "", false, 16)
 	status.custom_minimum_size = Vector2(0, 44)
 	UiKit.section(self, "Calling card")
