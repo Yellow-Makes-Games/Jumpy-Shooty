@@ -328,9 +328,11 @@ func _follow_on() -> void:
 		"a second kill 0.8 s later: the clip follows it through (ends %.1f)" % clip.end)
 	Killcam._follow_on(2, 11.2, 11.2)
 	_expect(is_equal_approx(clip.end, 11.8), "someone else's kill doesn't stretch it")
-	Killcam._follow_on(1, 13.0, 13.0)
-	_expect(is_equal_approx(clip.end, 11.8), "nor does one more than %.0f s after the last" % Killcam.FOLLOW_ON)
-	var t := 10.8
+	Killcam._follow_on(1, 12.1, 12.1)
+	_expect(is_equal_approx(clip.end, 12.1 + Killcam.HIGHLIGHT_AFTER), "a third 1.3 s after the second still counts (ends %.1f)" % clip.end)
+	Killcam._follow_on(1, 14.0, 14.0)
+	_expect(is_equal_approx(clip.end, 13.1), "but not one more than %.1f s after the last" % Killcam.FOLLOW_ON)
+	var t := 12.1
 	for i in 30:   # a long streak, each kill 0.9 s after the last
 		t += 0.9
 		Killcam._follow_on(1, t, t)
