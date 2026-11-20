@@ -79,6 +79,7 @@ CHECKS=(
   "lobby_bots|--script tests/lobby_bots_test.gd"
   "zoom|--script tests/zoom_test.gd"
   "death_buttons|--script tests/death_buttons_test.gd"
+  "multiplayer_page|--script tests/multiplayer_page_test.gd"
   "host_controls|--script tests/host_controls_test.gd"
   "spectator|--script tests/spectator_test.gd"
   "team_modes|--script tests/team_modes_test.gd"
