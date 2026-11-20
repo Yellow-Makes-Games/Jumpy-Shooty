@@ -15,6 +15,10 @@ extends Control
 ## the main menu's showcase, has pixels enough already: see SUPERSAMPLE_PIXELS). The
 ## render scale and Resolution settings never make it smaller.
 ##
+## A picture that fills the screen like the game does (the results screen's killcam:
+## `like_game`) is drawn the way the game itself is instead: the render scale and the
+## Resolution setting shrink it as they shrink the game, and it is never drawn bigger.
+##
 ## `view` is the SubViewport to build the 3D in (its own world, clear background).
 
 const SUPERSAMPLE_FROM_MSAA := 4   ## this much MSAA or more: draw at twice the size...
@@ -23,6 +27,10 @@ const MAX_SIDE := 4096             ## the picture is never wider or taller than 
 
 var view: SubViewport
 var picture: SubViewportContainer   ## what draws `view` (give it a material to change how)
+var like_game := false:             ## drawn at the game's own render scale (see above)
+	set(v):
+		like_game = v
+		apply_graphics()
 
 var _factor := 0.0
 
@@ -58,7 +66,12 @@ func _exit_tree() -> void:
 
 ## The player's anti-aliasing picks on the picture (again when the settings change).
 func apply_graphics() -> void:
-	GraphicsQuality.apply_viewport(view, Settings.graphics(), -1.0)
+	if like_game:
+		GraphicsQuality.apply_viewport(view, Settings.graphics(), Settings.resolution_scale())
+	else:
+		GraphicsQuality.apply_viewport(view, Settings.graphics(), -1.0)
+		view.scaling_3d_scale = 1.0
+		view.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
 	fit()
 
 
@@ -74,7 +87,7 @@ func pixel_factor() -> float:
 	if is_inside_tree():
 		var s := (get_viewport().get_stretch_transform() * get_global_transform_with_canvas()).get_scale()
 		stretch = maxf(maxf(absf(s.x), absf(s.y)), 0.01)
-	var extra := supersample(Settings.graphics())
+	var extra := supersample(Settings.graphics()) if not like_game else 1.0
 	if size.x * size.y * stretch * stretch * extra * extra > SUPERSAMPLE_PIXELS:
 		extra = 1.0
 	var k := stretch * extra

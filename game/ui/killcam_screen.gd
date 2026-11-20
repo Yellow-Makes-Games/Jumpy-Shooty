@@ -18,7 +18,7 @@ var highlights: Array = []
 var index := -1           ## the kill playing, as an index into `highlights`
 var order: Array = []     ## the indexes still to play after this one
 
-var _box: SubViewportContainer
+var _box: PortraitView   # the replay, drawn at the screen's own size like the game (not the menus' canvas, stretched)
 var _view: SubViewport
 var _map: MapRoot
 var _player: KillcamView
@@ -36,16 +36,14 @@ func _init() -> void:
 	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(back)
-	_box = SubViewportContainer.new()
-	_box.stretch = true
-	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_box = PortraitView.new()
+	_box.like_game = true   # your anti-aliasing, render scale and resolution, as in a match
 	_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_box)
-	_view = SubViewport.new()
-	_view.own_world_3d = true
-	GraphicsQuality.apply_viewport(_view, Settings.graphics(), -1.0)   # your anti-aliasing picks
+	_view = _box.view
+	_view.transparent_bg = false
+	_box.picture.material = null   # (an opaque picture: plain blending)
 	_view.audio_listener_enable_3d = false   # its sounds play as your own (see KillcamView.world_sound)
-	_box.add_child(_view)
 	_overlay = Control.new()
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

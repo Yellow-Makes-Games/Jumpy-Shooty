@@ -25,7 +25,8 @@ func run() -> void:
 
 
 ## The picture has as many pixels as the screen shows it at, twice over with the High
-## preset's MSAA, and takes its anti-aliasing from the graphics picks.
+## preset's MSAA, and takes its anti-aliasing from the graphics picks. The results
+## screen's killcam fills the window's own pixels too, at the game's render scale.
 func _sharpness() -> void:
 	print("  sharpness")
 	var holder := SubViewportContainer.new()   # a window stretched to 1.5 times the menus' canvas
@@ -64,6 +65,19 @@ func _sharpness() -> void:
 	await get_tree().process_frame
 	_expect(big.view.size == Vector2i(1350, 1200), "a big picture is sharp enough at the screen's own size (%s, not 1350x1200)" % big.view.size)
 	big.queue_free()
+	var killcam := KillcamScreen.new()   # the results screen's best kills: drawn like the game
+	window.add_child(killcam)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var kv: SubViewport = killcam._view
+	_expect(kv.size == Vector2i(2400, 1350), "the killcam replay fills the window's own pixels (%s, not 2400x1350)" % kv.size)
+	Settings.render_scale = 0.5
+	Settings.changed.emit()
+	_expect(kv.size == Vector2i(2400, 1350) and is_equal_approx(kv.scaling_3d_scale, 0.5), "...and follows the render scale, like the game (%.2f)" % kv.scaling_3d_scale)
+	Settings.render_scale = 1.0
+	Settings.changed.emit()
+	_expect(is_equal_approx(kv.scaling_3d_scale, 1.0) and kv.msaa_3d == Viewport.MSAA_4X, "...and your anti-aliasing picks")
+	killcam.queue_free()
 	window.size_2d_override = Vector2i(2400, 1350)   # the window at the canvas's own size
 	await get_tree().process_frame
 	await get_tree().process_frame
