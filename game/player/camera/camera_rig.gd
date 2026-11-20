@@ -16,9 +16,16 @@ const VIEW_BODY_UNTIL := 0.03  ## the first-person body goes as soon as the came
 const KICK_ZOOM := 0.09   ## how far a full kick() narrows the field of view, as a share of it
 const RUSH_WIDEN := 0.06  ## how far a full rush() widens it
 const GLIDE_WIDEN := 0.07 ## first person: how far a fast glide widens the field of view, as a share of it
+const ZOOM_FOV := 30.0    ## zoomed in (a pseudo aim down sights): this many degrees off your field of view...
+const ZOOM_MIN_FOV := 40.0  ## ...but never narrower than this
+const ZOOM_TIME := 0.12   ## seconds to zoom in or out
 
 ## Set every frame by the player: how much a glide's speed widens the view now, 0..1.
 var glide_widen := 0.0
+## Set every frame by the player: zoomed in (the zoom button), or not. The view eases
+## to zoom_fov() and back; the player turns slower by aim_scale() as it does, so the
+## aim feels the same.
+var zoom := false
 
 var pivot: Node3D
 var arm: SpringArm3D
@@ -29,6 +36,7 @@ var _blend := 0.0   # 0 = first person, 1 = third person
 var _kick := 0.0    # the view punched in by a heavy landing (see kick), easing back
 var _rush := 0.0    # the view widened by a burst of speed (see rush), easing back
 var _widen := 0.0   # the view widened by a glide (eases toward glide_widen)
+var _zoom := 0.0    # 0 = not zoomed, 1 = zoomed (eases toward zoom)
 ## The first-person view is this far (a world offset) from the eyes: coming out of a
 ## portal it starts where the eyes would be had you walked through, and the player
 ## eases this to nothing (Player.view_carried).
@@ -95,12 +103,30 @@ func _process(delta: float) -> void:
 	camera.set_cull_mask_value(VIEW_BODY_LAYER, maxf(_blend, before) <= VIEW_BODY_UNTIL)
 	camera.set_cull_mask_value(Player.VIEWMODEL_LAYER, _blend <= BODY_SWAP)
 	var widen := glide_widen * (1.0 - _blend)   # (first person only)
-	if _kick > 0.0 or _rush > 0.0 or _widen > 0.0 or widen > 0.0:
+	var zoom_to := 1.0 if zoom else 0.0
+	if _kick > 0.0 or _rush > 0.0 or _widen > 0.0 or widen > 0.0 or _zoom != zoom_to:
 		_kick = maxf(_kick - delta * 3.5, 0.0)
 		_rush = maxf(_rush - delta * 3.0, 0.0)
 		_widen = move_toward(_widen, widen, delta * (2.5 if widen > _widen else 1.5))
-		camera.fov = Settings.field_of_view * (1.0 - KICK_ZOOM * _kick * _kick * Settings.camera_shake) * (1.0 + RUSH_WIDEN * _rush * _rush) \
+		_zoom = move_toward(_zoom, zoom_to, delta / ZOOM_TIME)
+		camera.fov = view_fov() * (1.0 - KICK_ZOOM * _kick * _kick * Settings.camera_shake) * (1.0 + RUSH_WIDEN * _rush * _rush) \
 			* (1.0 + GLIDE_WIDEN * smoothstep(0.0, 1.0, _widen))
+
+
+## The field of view when zoomed in: yours, less ZOOM_FOV.
+static func zoom_fov() -> float:
+	return maxf(Settings.field_of_view - ZOOM_FOV, minf(ZOOM_MIN_FOV, Settings.field_of_view))
+
+
+## The field of view now, before the kicks and glides: yours, or on the way to zoom_fov().
+func view_fov() -> float:
+	return lerpf(Settings.field_of_view, zoom_fov(), smoothstep(0.0, 1.0, _zoom))
+
+
+## How much slower the mouse turns the view now: as much as the view is narrower (the
+## same mouse movement moves things on screen as far, zoomed in or not).
+func aim_scale() -> float:
+	return tan(deg_to_rad(view_fov()) * 0.5) / tan(deg_to_rad(Settings.field_of_view) * 0.5)
 
 
 ## Puts the camera where this frame's view is. The rig does it every frame, but
@@ -130,4 +156,4 @@ func rush(amount: float) -> void:
 
 func _on_settings_changed() -> void:
 	if camera:
-		camera.fov = Settings.field_of_view
+		camera.fov = view_fov()

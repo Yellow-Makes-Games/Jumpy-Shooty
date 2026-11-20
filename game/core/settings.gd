@@ -9,6 +9,7 @@ const SAVE_PATH := "user://settings.cfg"
 # Controls
 var mouse_sensitivity: float = 0.12  # degrees of turn per pixel of mouse movement
 var invert_y: bool = false
+var zoom_toggle: bool = true   # the zoom button: on, it switches the zoom on and off; off, you hold it (see CameraRig.zoom)
 
 # Camera
 var field_of_view: float = 95.0
@@ -107,6 +108,7 @@ func load_settings() -> void:
 		return
 	mouse_sensitivity = cfg.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	invert_y = cfg.get_value("controls", "invert_y", invert_y)
+	zoom_toggle = bool(cfg.get_value("controls", "zoom_toggle", zoom_toggle))
 	field_of_view = cfg.get_value("camera", "field_of_view", field_of_view)
 	third_person = cfg.get_value("camera", "third_person", third_person)
 	camera_shake = clampf(float(cfg.get_value("camera", "camera_shake", camera_shake)), 0.0, 1.0)
@@ -159,6 +161,7 @@ func save_settings() -> void:
 	var cfg := ConfigFile.new()
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	cfg.set_value("controls", "invert_y", invert_y)
+	cfg.set_value("controls", "zoom_toggle", zoom_toggle)
 	cfg.set_value("camera", "field_of_view", field_of_view)
 	cfg.set_value("camera", "camera_shake", camera_shake)
 	cfg.set_value("camera", "third_person", third_person)
@@ -401,6 +404,7 @@ const ACTIONS := [
 	["interact", "Interact", ["key:%d" % KEY_G]],
 	["grapple", "Mobility (grapple, portal, blink, jetpack)", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
+	["zoom", "Zoom (aim down sights)", ["mouse:%d" % MOUSE_BUTTON_MIDDLE]],
 	["reload", "Reload (race: last checkpoint)", ["key:%d" % KEY_R]],
 	["weapon_1", "Weapon slot 1", ["key:%d" % KEY_1]],
 	["weapon_2", "Weapon slot 2", ["key:%d" % KEY_2]],

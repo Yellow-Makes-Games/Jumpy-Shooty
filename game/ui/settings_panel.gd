@@ -95,6 +95,7 @@ func _show_tab(i: int) -> void:
 			UiKit.section(_page, "Mouse")
 			_slider("Sensitivity", 0.02, 0.5, 0.01, Settings.mouse_sensitivity, func(v): Settings.mouse_sensitivity = v)
 			_switch("Invert mouse Y", Settings.invert_y, func(v): Settings.invert_y = v)
+			_switch("Zoom toggles (off: hold to zoom)", Settings.zoom_toggle, func(v): Settings.zoom_toggle = v)
 			_build_bindings()
 		1:
 			UiKit.section(_page, "Camera")

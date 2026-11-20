@@ -355,6 +355,7 @@ func _process(delta: float) -> void:
 			rig.set_view(input.yaw + jolt.y, clampf(input.pitch + jolt.x, deg_to_rad(-89.0), deg_to_rad(89.0)),
 				motor.eye_height, _roll + jolt.z + _coil_roll + _portal_roll)
 			rig.place()   # (now, not after this: the arms, and the ropes that start at them, go where this frame is drawn)
+			update_zoom()
 		var g := motor.grapple
 		_anim.state = motor.state
 		_anim.crouched = motor.crouched
@@ -441,16 +442,50 @@ func _process(delta: float) -> void:
 		print("SYNC SEEN %d %d %.4f %.4f %.4f %.4f %.4f" % [Net.my_id(), peer_id, rt, sp.x, sp.y, sp.z, delta])
 
 
+## Zoomed in (a pseudo aim down sights: see CameraRig.zoom), by the zoom button.
+var zoomed := false
+
+
+## The zoom button went down (`pressed`) or up: with Settings.zoom_toggle each press
+## switches the zoom; otherwise it is on while held.
+func zoom_input(pressed: bool) -> void:
+	if Settings.zoom_toggle:
+		if pressed:
+			zoomed = not zoomed
+	else:
+		zoomed = pressed
+	if zoomed and not can_zoom():
+		zoomed = false
+
+
+## The zoom only stays on while you are alive and playing with the mouse captured: it
+## drops when you die, while you wait to respawn, and when a menu or the pause takes the
+## mouse (so a toggled zoom never sticks).
+func can_zoom() -> bool:
+	return alive and not _awaiting_respawn and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or DisplayServer.get_name() == "headless")
+
+
+func update_zoom() -> void:
+	if zoomed and not can_zoom():
+		zoomed = false
+	if rig:
+		rig.zoom = zoomed
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_local or is_bot or DevArgs.scripted_input:
 		return  # only your own player listens to the keyboard and mouse (a bot is local too)
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		var sens := deg_to_rad(Settings.mouse_sensitivity)
+		var sens := deg_to_rad(Settings.mouse_sensitivity) * (rig.aim_scale() if rig else 1.0)   # (zoomed in: slower, see CameraRig.zoom)
 		input.yaw -= event.relative.x * sens
 		var dy: float = event.relative.y * sens * (-1.0 if Settings.invert_y else 1.0)
 		input.pitch = clamp(input.pitch - dy, deg_to_rad(-89.0), deg_to_rad(89.0))
 	elif event.is_action_pressed("toggle_camera"):
 		Settings.set_third_person(not Settings.third_person)
+	elif event.is_action_pressed("zoom"):
+		zoom_input(true)
+	elif event.is_action_released("zoom"):
+		zoom_input(false)
 	elif event.is_action_pressed("reload") and racing:
 		Race.send_back(self, "reset")   # stuck? back to your last checkpoint
 	elif event.is_action_pressed("reload") and weapon:
