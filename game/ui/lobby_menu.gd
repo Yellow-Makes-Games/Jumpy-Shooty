@@ -271,7 +271,7 @@ func _refresh() -> void:
 	_bot_note.text = ("Full" if Net.is_online else "Up to %d bots in this mode" % _most_bots()) if room <= 0 else ""
 	var me_ready := Net.is_ready(Net.my_id())
 	_ready_button.text = "READY  ·  PRESS TO UNDO" if me_ready else "READY UP"
-	_waiting.text = "Waiting for the host to start..." if me_ready else "Ready up when you have picked your loadout."
+	_waiting.text = "Waiting for the host to start..." if me_ready else ""
 	_size_box.visible = Net.is_host() and Net.is_online
 	_updating = true
 	_size.min_value = maxi(LobbySettings.MIN_PLAYERS, Net.players.size())   # never below who is already here
@@ -282,24 +282,18 @@ func _refresh() -> void:
 	_code.text = code
 	_code.visible = code != ""
 	_copy.visible = code != ""
-	if not Net.is_online:
-		var n := Net.bot_ids().size()
-		where = "You and %d bot%s. Add bots on the left (click one's difficulty to change it), set up the match, then Start." % [n, "" if n == 1 else "s"]
-	elif Net.is_host():
-		match Net.internet_state:
-			"open":
-				where = "Friends anywhere join with the lobby code (or at %s)." % _address(Net.join_ip())
-			"checking":
-				where = "Opening your router for internet play..."
-			_:
-				where = "Your router would not open port %d, so only friends on your network can join, with the lobby code (or at %s)." % [Net.port, _address(Net.join_ip())]
-	else:
-		where = "The host picks the map and rules and starts the match."
-	_info.text = ("%d of %d players.  %s" % [Net.players.size(), LobbySettings.max_players(), where]) if Net.is_online else where
+	# Only what you need to know: the player count online, and a router that would not
+	# open the port (then only friends on your own network can get in).
+	if Net.is_online and Net.is_host() and Net.internet_state != "open" and Net.internet_state != "checking":
+		where = "Router would not open port %d: only friends on your network can join (at %s)" % [Net.port, _address(Net.join_ip())]
+	var parts: Array = []
 	if Net.spectating():
-		_info.text = "You are spectating: you will watch the match with a free camera.  " + _info.text
-		if Net.moved_by_host:
-			_info.text = "The host moved you to the spectators. Press Play to join back in when there is room.  " + _info.text
+		parts.append("Moved to spectators by the host" if Net.moved_by_host else "Spectating")
+	if Net.is_online:
+		parts.append("%d of %d players" % [Net.players.size(), LobbySettings.max_players()])
+	if where != "":
+		parts.append(where)
+	_info.text = "  ·  ".join(parts)
 	_refresh_rules()
 	if Net.players.has(Net.my_id()):   # show what the host has on record for us
 		_character.select(Net.player_character(Net.my_id()))
