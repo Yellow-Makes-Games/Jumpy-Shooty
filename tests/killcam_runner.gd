@@ -338,6 +338,18 @@ func _follow_on() -> void:
 		Killcam._follow_on(1, t, t)
 	_expect(is_equal_approx(clip.end - clip.start, Killcam.MAX_CLIP), "a long streak stops at %.0f s (%.1f)" % [Killcam.MAX_CLIP, clip.end - clip.start])
 	_expect(Killcam.HISTORY >= Killcam.MAX_CLIP + 2.0, "and the recording keeps that much")
+	# ...and back: a streak plays from its first kill, whichever kill scored best.
+	var before := Killcam.HIGHLIGHT_BEFORE
+	_expect(is_equal_approx(Killcam.clip_start(10.0, [], false), 10.0 - before), "a lone kill: the usual lead-in")
+	_expect(is_equal_approx(Killcam.clip_start(10.0, [8.8, 7.5], false), 7.5 - before),
+		"kills 1.2 s and 1.3 s apart before it: from the first of them (%.1f)" % Killcam.clip_start(10.0, [8.8, 7.5], false))
+	_expect(is_equal_approx(Killcam.clip_start(10.0, [8.8, 5.0], false), 8.8 - before), "but not past a gap of more than %.1f s" % Killcam.FOLLOW_ON)
+	_expect(is_equal_approx(Killcam.clip_start(10.0, [7.0], true), 7.0 - before), "a counted multikill reaches its first kill too")
+	var chain := []
+	for i in 30:
+		chain.append(10.0 - 1.2 * (i + 1))
+	_expect(is_equal_approx(Killcam.clip_start(10.0, chain, false), 10.0 + Killcam.HIGHLIGHT_AFTER - Killcam.MAX_CLIP),
+		"a long streak before it: no more than %.0f s in all" % Killcam.MAX_CLIP)
 	Killcam._pending = saved
 
 
