@@ -37,6 +37,8 @@ const BOARD_W := 780.0          ## the scoreboard
 const DEATH_GAP := 36.0
 const DEATH_TOP := 104.0
 const RESPAWN_GRACE := 0.5      ## the death screen ignores the respawn key for this long
+const DEATH_BUTTONS_AT := 46.0   ## the death screen's Respawn and Loadout buttons: this far under the countdown bar...
+const DEATH_BUTTON_H := 58.0     ## ...and this tall
                                 ## (a press meant to skip the killcam does not respawn you too)
 
 ## Everything the layouts show about the local player, filled in once per frame.
@@ -98,6 +100,9 @@ var _promo := {}                # Gun Game: {text, sub, age}: you just moved up 
 var _points := {}               # your last kill's killcam score: {total, parts (KillScore.breakdown), age}
 var _last_head := {}            # target id -> was the last hit on them a headshot
 var _dead := false
+var _death_buttons: HBoxContainer   # the death screen's Respawn and Loadout (see _update_death_buttons)
+var _respawn_button: Button
+var _buttons_shown := false
 var _killer := 0
 var _killer_hp := 0.0
 var _killer_dist := -1.0
@@ -142,6 +147,7 @@ func _ready() -> void:
 	_overlay.draw.connect(_draw_overlay)
 	_cross = _full_rect(Control.new())
 	_cross.draw.connect(_draw_cross)
+	_build_death_buttons()
 	_killer_view = RobotPreview.new(Vector2(150, 190), 1.15)
 	_killer_view.turn = false
 	_killer_view.visible = false
@@ -298,6 +304,7 @@ func update_local(p: Player) -> void:
 		_ask_respawn()   # tests: nobody is there to press a key
 	_scoreboard.visible = Input.is_action_pressed("scoreboard") or (_dead and not watching and follow_name == "")
 	_killer_view.visible = _dead and _killer != 0 and not watching and follow_name == ""
+	_update_death_buttons()
 	if _scoreboard.visible:
 		_place_scoreboard()
 		_board_age += delta
@@ -338,6 +345,8 @@ func set_spectating(on: bool) -> void:
 
 func update_spectator() -> void:
 	var delta := get_process_delta_time()
+	_death_buttons.visible = false   # (watching: no death screen of yours)
+	_buttons_shown = false
 	_age(delta)
 	_teams.age(delta)
 	_scoreboard.visible = Input.is_action_pressed("scoreboard")
@@ -562,8 +571,64 @@ func _ask_respawn() -> void:
 	Match.request_respawn()
 
 
+## The death screen's two buttons: Respawn (once you may: the same as jump or fire) and
+## Loadout (the pause menu's loadout page, to change what you come back with first).
+func _build_death_buttons() -> void:
+	_death_buttons = HBoxContainer.new()
+	_death_buttons.name = "DeathButtons"
+	_death_buttons.add_theme_constant_override("separation", 12)
+	_death_buttons.visible = false
+	add_child(_death_buttons)
+	_death_buttons.theme = UiKit.make_theme()
+	_respawn_button = UiKit.primary_button(_death_buttons, "Respawn", func():
+		if _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE or _asked:
+			return
+		if DevArgs.sync_log:
+			print("RESPAWN BY button %.2f" % _screen_age)
+		_ask_respawn())
+	_respawn_button.name = "Respawn"
+	var loadout := UiKit.button(_death_buttons, "Loadout", open_death_loadout)
+	loadout.name = "Loadout"
+	for b in [_respawn_button, loadout]:
+		b.focus_mode = Control.FOCUS_NONE   # (jump is the respawn key: it must not press a focused button too)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size = Vector2(0, DEATH_BUTTON_H)
+
+
+## The Loadout button: the pause menu, on its loadout page.
+func open_death_loadout() -> void:
+	if Net.arena and is_instance_valid(Net.arena) and Net.arena.pause_menu:
+		Net.arena.pause_menu.open_loadout()
+
+
+## Every frame: the buttons show while the death screen is up (not during the killcam,
+## not with a menu open), under the countdown, with the mouse free to click them; the
+## Respawn button counts down until you may (where you come back on your own, as in
+## Practice, there is only Loadout).
+func _update_death_buttons() -> void:
+	var size := _screens.size
+	var menu: bool = Net.arena != null and is_instance_valid(Net.arena) and Net.arena.menu_open()
+	var show: bool = _dead and not Killcam.watching() and follow_name == "" and not spectating and not Race.active \
+		and not _asked and not Teams.no_respawn() and not menu
+	_death_buttons.visible = show
+	_respawn_button.visible = Match.respawn_needs_press(Net.my_id())   # (Practice: back on its own when the wait is over)
+	if show and not _buttons_shown and Net.arena and is_instance_valid(Net.arena):
+		Net.arena._capture_mouse(false)   # the mouse is yours to click with
+	_buttons_shown = show
+	if not show:
+		return
+	var bar_end := DEATH_TOP + 164.0 + 18.0 + 6.0   # (the card, then the countdown bar: see _draw_death)
+	_death_buttons.position = Vector2(_death_left(size), bar_end + DEATH_BUTTONS_AT)
+	_death_buttons.size = Vector2(DEATH_W, DEATH_BUTTON_H)
+	var waiting := _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE
+	_respawn_button.disabled = waiting
+	_respawn_button.text = ("Respawn  %.1f s" % _respawn_left) if _respawn_left > 0.0 else "Respawn"
+
+
 func _on_respawned(id: int, _spawn_index: int) -> void:
 	if id == Net.my_id():
+		if _buttons_shown and Net.arena and is_instance_valid(Net.arena) and not Net.arena.menu_open():
+			Net.arena._capture_mouse(true)   # back to playing
 		_dead = false
 		_killer_view.visible = false
 		_respawn_left = 0.0
@@ -1034,7 +1099,7 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	elif _asked:
 		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING...", 12, HudStyle.ORANGE)
 	elif _respawn_left > 0.0 or _screen_age < RESPAWN_GRACE:
-		var lw := HudStyle.label(ci, Vector2(bar.position.x, row), "PICK YOUR LOADOUT", 12, Color(1, 1, 1, 0.85))
+		var lw := HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWN IN", 12, Color(1, 1, 1, 0.85))
 		if _respawn_left > 0.0:
 			HudStyle.text(ci, Vector2(bar.position.x + lw + 12.0, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE)
 	else:   # ready: a pulsing call to come back
@@ -1042,41 +1107,26 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 		var keys := "%s OR %s" % [Settings.action_text("jump").to_upper(), Settings.action_text("fire").to_upper()]
 		var w1 := HudStyle.text(ci, Vector2(bar.position.x, row + 2.0), keys, 16, Color(HudStyle.ORANGE, a))
 		HudStyle.label(ci, Vector2(bar.position.x + w1 + 10.0, row + 2.0), "TO RESPAWN", 12, Color(1, 1, 1, a))
-	if Match.respawn_needs_press(Net.my_id()) and not _asked and not Teams.no_respawn():
-		HudStyle.label(ci, Vector2(bar.end.x, row + 2.0), "ESC  LOADOUT", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
-	var mid := card.position.x + w * 0.5
-	_draw_mobility_swap(ci, Vector2(mid, bar.end.y + 56.0))
+	# Under the buttons (see _update_death_buttons): what you come back with.
+	HudStyle.text(ci, Vector2(bar.position.x, bar.end.y + DEATH_BUTTONS_AT + DEATH_BUTTON_H + 26.0), _coming_back_with(), 13,
+		Color(1, 1, 1, 0.7), HORIZONTAL_ALIGNMENT_LEFT, false)
+
+
+## What you will come back with, in a line: your weapon and mobility tool, or the
+## mode's rule when the weapon isn't yours to pick.
+func _coming_back_with() -> String:
+	var me := Net.my_id()
+	var tool := Mobility.name_of(Net.pending_mobility())
+	var weapon := WeaponData.name_of(Net.player_weapon(me))
 	if Net.is_deathmatch():
-		HudStyle.label(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW), "YOU COME BACK EMPTY-HANDED  ·  FIND WEAPONS ON THE MAP", 11,
-			Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
-	else:
-		_draw_weapon_swap(ci, Vector2(mid, bar.end.y + 56.0 + MOBILITY_ROW))
-
-
-## Height of the death screen's mobility row (the weapons come below it).
-const MOBILITY_ROW := 58.0
-
-
-## While you wait to respawn: the mobility tool you come back with (the mobility
-## button, right mouse, goes on to the next).
-func _draw_mobility_swap(ci: CanvasItem, at: Vector2) -> void:
-	var mine := Net.pending_mobility()
-	var ids := LobbySettings.allowed_mobility()   # only the tools the host allows
-	var gap := 6.0
-	var total := DEATH_W
-	var cell := Vector2((total - (ids.size() - 1) * gap) / ids.size(), 25.0)
-	var x := at.x - total * 0.5
-	HudStyle.label(ci, Vector2(x, at.y - 10.0), "MOBILITY", 11, Color(1, 1, 1, 0.85))
-	var hint := "%s TO SWITCH" % Settings.action_text("grapple").get_slice(" / ", 0).to_upper() if ids.size() > 1 else "THE HOST'S RULE"
-	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), hint, 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
-	for i in ids.size():
-		var id: String = ids[i]
-		var r := Rect2(x + i * (cell.x + gap), at.y + 4.0, cell.x, cell.y)
-		var on := id == mine
-		HudStyle.plate(ci, r, 6.0, Color(HudStyle.CYAN, 0.9) if on else Color(0.04, 0.055, 0.085, 0.88))
-		var col := Color(0.03, 0.06, 0.08) if on else Color(1, 1, 1, 0.78)
-		ci.draw_string(HudStyle.font(true), r.position + Vector2(9.0, 17.0), Mobility.name_of(id).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, col)
-
+		weapon = "empty-handed (weapons are on the map)"
+	elif KillcamMode.active():
+		weapon = "a sniper (Killcam mode)"
+	elif GunGame.active():
+		weapon = "%s (Gun Game %d of %d)" % [weapon, Match.level(me) + 1, GunGame.steps()]
+	elif LobbySettings.only_weapon() != "":
+		weapon = "%s (one gun for everyone)" % weapon
+	return "Coming back with %s  ·  %s" % [weapon, tool]
 
 
 ## Deathmatch: your two weapon slots (keys 1 and 2), each with its weapon's name
@@ -1113,56 +1163,6 @@ func _draw_inventory(ci: CanvasItem, at: Vector2) -> void:
 		if p and not WeaponData.melee(id):
 			label += "  %d" % p.ammo_for(id)
 		HudStyle.text(ci, r.position + Vector2(cell.x * 0.5, 38.0), label, 11, Color(1, 1, 1, a), HORIZONTAL_ALIGNMENT_CENTER)
-
-
-## While you wait to respawn: the weapons you can come back with, in their groups
-## (a number key picks a group, again goes on through it; the wheel goes through them all).
-## In Gun Game: the weapon you come back with, and the next one.
-func _draw_weapon_swap(ci: CanvasItem, at: Vector2) -> void:
-	var mine := Net.player_weapon(Net.my_id())
-	if KillcamMode.active():
-		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), "SNIPERS ONLY", 16, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-		HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "EVERY KILL SCORES ITS KILLCAM POINTS  ·  YOU HAVE %s" % KillcamMode.format(Match.points(Net.my_id())), 12,
-			Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
-		return
-	if GunGame.active():
-		var lv := Match.level(Net.my_id())
-		var line := "WEAPON %d OF %d: %s" % [lv + 1, GunGame.steps(), WeaponData.name_of(mine).to_upper()]
-		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), line, 16, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-		if lv + 1 < GunGame.steps():
-			HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "NEXT: %s" % WeaponData.name_of(GunGame.weapon_at(lv + 1)).to_upper(), 12,
-				Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
-		return
-	var only := LobbySettings.only_weapon()
-	if only != "":   # the host set one gun for everyone
-		HudStyle.text(ci, Vector2(at.x, at.y + 4.0), "EVERYONE HAS THE %s" % WeaponData.name_of(only).to_upper(), 16, HudStyle.WHITE,
-			HORIZONTAL_ALIGNMENT_CENTER)
-		HudStyle.text(ci, Vector2(at.x, at.y + 26.0), "THE HOST'S RULE FOR THIS MATCH", 12, Color(1, 1, 1, 0.65), HORIZONTAL_ALIGNMENT_CENTER)
-		return
-	var groups := LobbySettings.weapon_groups()   # only the weapons the host allows
-	var gap := 6.0
-	var total := DEATH_W
-	var cell := Vector2((total - (groups.size() - 1) * gap) / groups.size(), 25.0)
-	var x := at.x - total * 0.5
-	HudStyle.label(ci, Vector2(x, at.y - 10.0), "COME BACK WITH", 11, Color(1, 1, 1, 0.85))
-	var keys := "PRESS 1" if groups.size() == 1 else "PRESS 1-%d" % groups.size()
-	HudStyle.label(ci, Vector2(x + total, at.y - 10.0), keys + " OR SCROLL", 10, Color(1, 1, 1, 0.6), HORIZONTAL_ALIGNMENT_RIGHT)
-	for g in groups.size():
-		var gx := x + g * (cell.x + gap)
-		var list: Array = groups[g][1]
-		var has_mine := mine in list
-		ci.draw_rect(Rect2(gx, at.y + 4.0, cell.x, 2.0), HudStyle.ORANGE if has_mine else Color(HudStyle.CYAN, 0.45))
-		HudStyle.text(ci, Vector2(gx + 2.0, at.y + 17.0), str(g + 1), 12, HudStyle.ORANGE if has_mine else Color(1, 1, 1, 0.85))
-		HudStyle.label(ci, Vector2(gx + 16.0, at.y + 17.0), String(groups[g][0]).to_upper(), 9, Color(1, 1, 1, 0.7))
-		for i in list.size():
-			var id: String = list[i]
-			var r := Rect2(gx, at.y + 28.0 + i * (cell.y + 3.0), cell.x, cell.y)
-			var on := id == mine
-			HudStyle.plate(ci, r, 6.0, Color(HudStyle.ORANGE, 0.9) if on else Color(0.04, 0.055, 0.085, 0.88))
-			var name := WeaponData.by_id(id).short_name.to_upper()
-			var col := Color(0.08, 0.06, 0.04) if on else Color(1, 1, 1, 0.78)
-			var fs := 11 if name.length() <= 11 else 10
-			ci.draw_string(HudStyle.font(true), r.position + Vector2(9.0, 17.0), name, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, col)
 
 
 # ---------------------------------------------------------------------------
