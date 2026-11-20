@@ -33,6 +33,18 @@ static func spark(parent: Node, at: Vector3, color: Color, close: bool = false) 
 		_sparks(parent, at, Vector3.UP, hot, 0.12)
 
 
+const CHIPS := 3   ## one shot strikes sparks off the bodies it hits at most this many times (a shotgun's pellets)
+
+## A bullet landed on a body at `at`: a few sparks struck off it, back the way it came
+## (`away`), in the colour of the body it hit. Small: it marks the hit and no more.
+static func chip(parent: Node, at: Vector3, away: Vector3, color: Color) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
+		return
+	var hot := color.lerp(Color.WHITE, 0.35)
+	_flash(parent, at, hot, 0.06, 0.06)
+	_sparks(parent, at, away, hot, 0.0)
+
+
 ## A ground slam landed at `at` (on the floor): a shockwave ring racing out across the
 ## floor in the attacker's colour, a flash, dust rolling out and debris thrown up.
 static func slam(parent: Node, at: Vector3, color: Color, power: float) -> void:

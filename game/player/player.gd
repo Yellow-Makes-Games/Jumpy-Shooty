@@ -227,6 +227,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 		_glide_fx.set_trail_layers(1 << (CameraRig.BODY_LAYER - 1))   # (your own: not in your first-person view)
 	Match.melee_landed.connect(_on_melee_landed)
 	Match.ground_slammed.connect(_on_ground_slammed)
+	Match.hit_taken.connect(_on_hit_taken)
 
 
 # ---------------------------------------------------------------------------
@@ -639,6 +640,8 @@ func _fire_round() -> void:
 		ends.append(end)
 		hits.append(hit and (hit.collider is Player or hit.collider is TargetDummy))
 	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id, vias)  # into the arena, not among the players
+	if Net.arena:
+		Net.arena.hit_sparks(muzzle_position(), ends, hits)
 	if portals:
 		portals.shots_through(vias)
 	Sound.shot_landed(muzzle_position(), ends, hits, sounds.own)
@@ -888,6 +891,26 @@ func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Arr
 		var weight := lerpf(0.6, 2.2, _shown_power)
 		_punch += Vector2(-way.x * 0.02 + randf_range(-0.01, 0.01), way.y * 0.012 - 0.018) * weight
 		_punch_roll += (-way.x * 0.02 + randf_range(-0.01, 0.01)) * weight
+
+
+# ---------------------------------------------------------------------------
+# Being hit
+
+func _on_hit_taken(target: int, way: Vector3, damage: float, headshot: bool, blow: int) -> void:
+	if target == peer_id and alive:
+		flinch(way, damage, headshot, blow)
+
+
+## Hit: the body flinches the way the blow was travelling (`way`, in the world; zero for
+## one from no side), as hard as the damage says (see HitReaction). In first person your
+## arms jolt and the camera is knocked a little. Looks only: where you are, where you
+## are going and where you aim are untouched.
+func flinch(way: Vector3, damage: float, headshot: bool = false, blow: int = HitReaction.SHOT) -> void:
+	var blunt := blow == HitReaction.MELEE or blow == HitReaction.HEAVY
+	var heavy := blow == HitReaction.HEAVY
+	animator.flinched(visual.global_transform.basis.orthonormalized().inverse() * way, damage, headshot, blunt, heavy)
+	if view:
+		view.flinched(Basis(Vector3.UP, input.yaw).inverse() * way, damage, headshot, blunt, heavy)
 
 
 # ---------------------------------------------------------------------------
