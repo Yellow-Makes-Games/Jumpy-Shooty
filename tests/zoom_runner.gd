@@ -11,7 +11,7 @@ func run() -> void:
 	_expect(Settings.default_bindings("zoom") == ["mouse:%d" % MOUSE_BUTTON_MIDDLE], "zoom is on middle mouse by default")
 	_expect(InputMap.has_action("zoom"), "and it is an input action (rebindable on the Controls page)")
 
-	# The camera: from your field of view, down by ZOOM_FOV, eased.
+	# The camera: from your field of view, down by the lobby's zoom (A: 30), eased.
 	Settings.field_of_view = 95.0
 	var body := CharacterBody3D.new()
 	add_child(body)
@@ -23,17 +23,25 @@ func run() -> void:
 	rig.zoom = true
 	rig._process(CameraRig.ZOOM_TIME * 0.5)
 	var halfway := rig.camera.fov
-	_expect(halfway < 95.0 and halfway > 95.0 - CameraRig.ZOOM_FOV, "it eases in (%.1f halfway)" % halfway)
+	_expect(halfway < 95.0 and halfway > 95.0 - 30.0, "it eases in (%.1f halfway)" % halfway)
 	rig._process(CameraRig.ZOOM_TIME)
-	_expect(is_equal_approx(rig.camera.fov, 95.0 - CameraRig.ZOOM_FOV), "zoomed: %d degrees less (%.1f)" % [CameraRig.ZOOM_FOV, rig.camera.fov])
+	_expect(is_equal_approx(rig.camera.fov, 95.0 - 30.0), "zoomed (A, the default): 30 degrees less (%.1f)" % rig.camera.fov)
 	var scale := rig.aim_scale()
-	var want := tan(deg_to_rad(95.0 - CameraRig.ZOOM_FOV) * 0.5) / tan(deg_to_rad(95.0) * 0.5)
+	var want := tan(deg_to_rad(95.0 - 30.0) * 0.5) / tan(deg_to_rad(95.0) * 0.5)
 	_expect(is_equal_approx(scale, want) and scale < 1.0, "the mouse turns slower by as much as the view narrows (%.2f)" % scale)
 	Settings.field_of_view = 110.0
 	Settings.changed.emit()
-	_expect(is_equal_approx(rig.camera.fov, 110.0 - CameraRig.ZOOM_FOV), "from whatever field of view you play at (%.1f)" % rig.camera.fov)
+	_expect(is_equal_approx(rig.camera.fov, 110.0 - 30.0), "from whatever field of view you play at (%.1f)" % rig.camera.fov)
+	# The lobby's Zoom B: further, for everyone.
+	var saved_settings := Net.match_settings.duplicate()
+	Net.match_settings["zoom"] = "b"
+	Settings.changed.emit()
+	_expect(is_equal_approx(rig.camera.fov, 110.0 - 45.0) and LobbySettings.zoom_degrees() == 45.0, "Zoom B: 45 degrees less (%.1f)" % rig.camera.fov)
 	Settings.field_of_view = 70.0   # (the lowest the settings go)
-	_expect(is_equal_approx(CameraRig.zoom_fov(), 70.0 - CameraRig.ZOOM_FOV), "the lowest field of view zooms just as far (%.1f)" % CameraRig.zoom_fov())
+	_expect(is_equal_approx(CameraRig.zoom_fov(), 70.0 - 45.0), "the lowest field of view zooms just as far (%.1f)" % CameraRig.zoom_fov())
+	Net.match_settings["zoom"] = "nonsense"
+	_expect(LobbySettings.zoom() == "a" and LobbySettings.clean({"zoom": "x"}).zoom == "a", "anything else is A")
+	Net.match_settings = saved_settings
 	Settings.field_of_view = 95.0
 	rig.zoom = false
 	rig._process(CameraRig.ZOOM_TIME * 2.0)

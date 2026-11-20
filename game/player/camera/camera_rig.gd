@@ -16,8 +16,8 @@ const VIEW_BODY_UNTIL := 0.03  ## the first-person body goes as soon as the came
 const KICK_ZOOM := 0.09   ## how far a full kick() narrows the field of view, as a share of it
 const RUSH_WIDEN := 0.06  ## how far a full rush() widens it
 const GLIDE_WIDEN := 0.07 ## first person: how far a fast glide widens the field of view, as a share of it
-const ZOOM_FOV := 45.0    ## zoomed in (a pseudo aim down sights): this many degrees off your field of view,
-                          ## whatever it is (the lowest setting, 70, zooms to 25)
+## Zoomed in (a pseudo aim down sights), the view narrows by the lobby's zoom (A 30 or B 45
+## degrees: LobbySettings.zoom_degrees) off your own field of view, whatever it is.
 const ZOOM_MIN_FOV := 10.0  ## (only a guard: no setting comes near it)
 const ZOOM_TIME := 0.12   ## seconds to zoom in or out
 
@@ -114,10 +114,10 @@ func _process(delta: float) -> void:
 			* (1.0 + GLIDE_WIDEN * smoothstep(0.0, 1.0, _widen))
 
 
-## The field of view when zoomed in: yours, less ZOOM_FOV (the same zoom at any field
-## of view: a low one is not held back).
+## The field of view when zoomed in: yours, less the lobby's zoom (the same zoom at any
+## field of view: a low one is not held back).
 static func zoom_fov() -> float:
-	return maxf(Settings.field_of_view - ZOOM_FOV, ZOOM_MIN_FOV)
+	return maxf(Settings.field_of_view - LobbySettings.zoom_degrees(), ZOOM_MIN_FOV)
 
 
 ## The field of view now, before the kicks and glides: yours, or on the way to zoom_fov().

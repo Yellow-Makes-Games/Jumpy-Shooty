@@ -42,6 +42,7 @@ var _killcam_points: SpinBox
 var _killcam_minutes: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
+var _zoom_ab: CheckButton    # how far everyone's zoom goes: A (off) or B (on), see LobbySettings.ZOOMS
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
 var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
@@ -776,6 +777,19 @@ func _build_rules() -> void:
 		var s := Net.match_settings.duplicate()
 		s["powerups"] = on
 		Net.set_match_settings(s))
+	# Every mode: how far the zoom button narrows everyone's view (A or B).
+	_zoom_ab = CheckButton.new()
+	_zoom_ab.name = "zoom_ab"
+	_zoom_ab.custom_minimum_size = Vector2(0, 44)
+	_zoom_ab.tooltip_text = "How far everyone's zoom (middle mouse) narrows their view: A %d or B %d degrees off their own field of view" \
+		% [LobbySettings.ZOOMS.a, LobbySettings.ZOOMS.b]
+	_col.add_child(_zoom_ab)
+	_zoom_ab.toggled.connect(func(on: bool):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["zoom"] = "b" if on else "a"
+		Net.set_match_settings(s))
 
 
 # Lobby settings (see LobbySettings): the host picks; everyone else sees them. New
@@ -894,6 +908,9 @@ func _refresh_rules() -> void:
 	_powerups.visible = Net.is_deathmatch()
 	_powerups.disabled = not Net.is_host()   # everyone else just sees the host's choice
 	_powerups.set_pressed_no_signal(Net.powerups_on())
+	_zoom_ab.disabled = not Net.is_host()
+	_zoom_ab.set_pressed_no_signal(LobbySettings.zoom() == "b")
+	_zoom_ab.text = "Zoom: %s (%d degrees)" % [LobbySettings.zoom().to_upper(), LobbySettings.zoom_degrees()]
 	if _allowed:
 		_allowed.set_value(s.get("weapons", []))
 	if _allowed_mobility:

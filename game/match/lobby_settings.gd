@@ -10,8 +10,9 @@ extends RefCounted
 ## ("max_players"), the Killcam mode's points to win and time limit
 ## ("killcam_points", "killcam_minutes"; see KillcamMode), a random map and the maps
 ## it may pick from ("random_map", "map_pool"), and the song the lobby plays ("song";
-## see Music), and the movement variant everyone plays with ("movement"; see
-## MovementTuning.VARIANTS, for A/B testing how movement feels).
+## see Music), the movement variant everyone plays with ("movement"; see
+## MovementTuning.VARIANTS, for A/B testing how movement feels), and how far everyone's
+## zoom goes ("zoom": A or B, see ZOOMS).
 ##
 ## To add a setting: give it a key and a default in DEFAULTS, make clean() keep only
 ## sensible values for it, put its rules here, and add a control for the host in the
@@ -33,9 +34,12 @@ extends RefCounted
 ##   the host picks another; "" shuffles them as usual.
 ## movement: the movement variant (an id from MovementTuning.VARIANTS) every player
 ##   runs, in every kind of game; it takes effect when the match starts.
+## zoom: how far the zoom button narrows every player's view ("a" or "b", see ZOOMS).
 const DEFAULTS := {"weapons": [], "mobility": [], "max_players": 16,
 	"killcam_points": KillcamMode.POINTS_TO_WIN, "killcam_minutes": KillcamMode.MINUTES,
-	"random_map": false, "map_pool": [], "song": "", "movement": MovementTuning.DEFAULT_VARIANT}
+	"random_map": false, "map_pool": [], "song": "", "movement": MovementTuning.DEFAULT_VARIANT, "zoom": "a"}
+## The zoom (see CameraRig.zoom), A or B: degrees off each player's own field of view.
+const ZOOMS := {"a": 30.0, "b": 45.0}
 const MIN_PLAYERS := 2
 const MAX_PLAYERS := 16   ## the same as Net.MAX_PLAYERS (Net builds its settings with clean(), before it is there to ask)
 
@@ -56,7 +60,22 @@ static func clean(settings: Dictionary) -> Dictionary:
 	s["map_pool"] = normalized_pool(s.get("map_pool", []))
 	s["song"] = str(s.song) if s.get("song") is String else ""
 	s["movement"] = MovementTuning.valid_variant(s.get("movement"))
+	s["zoom"] = valid_zoom(s.get("zoom"))
 	return s
+
+
+static func valid_zoom(value) -> String:
+	return str(value) if ZOOMS.has(str(value)) else "a"
+
+
+## The zoom the match is set up with ("a" or "b"; A where nobody has picked: Practice).
+static func zoom() -> String:
+	return valid_zoom(Net.match_settings.get("zoom"))
+
+
+## How many degrees the zoom takes off a player's field of view in this match.
+static func zoom_degrees() -> float:
+	return ZOOMS[zoom()]
 
 
 ## A list of ids from `every` as stored: known ids only, in `every`'s order; [] for all.
