@@ -288,6 +288,7 @@ func standings() -> Array:
 			dist = p.global_position.distance_to(next)
 		rows.append({"id": id, "name": Net.player_name(id), "finished": finished(id), "time": finish_time(id),
 			"cp": gates_passed(id), "resets": resets(id), "dist": dist, "kills": 0, "deaths": 0, "race": true})
+		rows[-1].merge(Match.looks(id))
 	rows.sort_custom(func(a, b):
 		if a.finished != b.finished:
 			return a.finished

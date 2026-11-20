@@ -221,6 +221,11 @@ func _process(delta: float) -> void:
 	if _robots.is_empty() or not is_visible_in_tree():
 		return
 	_time += delta
+	_step(delta)
+
+
+## Every frame there is something to show (ResultsStage has its own).
+func _step(delta: float) -> void:
 	if staged and _poser:
 		_poser.update(delta)
 	else:

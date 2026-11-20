@@ -1,12 +1,14 @@
 extends Control
 ## Match results: first the match's best kills, fullscreen from the killers' eyes
-## (KillcamScreen); then the winner's robot, the rankings and the best kills to watch
-## again or save as a video to share (KillcamExport), and a rematch or back to the lobby.
+## (KillcamScreen); then the winners on a stage in their victory poses (ResultsStage,
+## Podium), the rankings and the best kills to watch again or save as a video to share
+## (KillcamExport), and a rematch or back to the lobby.
 ## Built in a MenuFrame: with 16 players the rankings scroll and the buttons stay put.
 
 const KILLCAM_LIST_W := 420.0
 
 var _show: KillcamScreen   # the best kills playing fullscreen over the page, or null
+var _stage: ResultsStage   # the winners, in their poses
 var _next: Button
 var _saves: Array = []     # the Save buttons, one per best kill
 var _saving := false       # a video is being made (one at a time)
@@ -19,7 +21,7 @@ func _ready() -> void:
 	var results: Array = Match.last_results
 	var race: bool = not results.is_empty() and results[0].get("race", false)
 	var highlights: Array = Match.highlights if not race else []
-	var frame := MenuFrame.new(1000 if highlights.is_empty() else 1240)
+	var frame := MenuFrame.new(1100 if highlights.is_empty() else 1440)
 	add_child(frame)
 	var col := frame.body
 	var won: bool = not results.is_empty() and results[0].id == Net.my_id() and results[0].kills > 0
@@ -78,10 +80,10 @@ func _ready() -> void:
 	row.add_theme_constant_override("separation", 28)
 	col.add_child(row)
 	if not results.is_empty():
-		var winner := RobotPreview.new(Vector2(240, 300), 1.0)
-		winner.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		row.add_child(winner)
-		winner.show_robot(Net.player_character(results[0].id), Net.player_color(results[0].id))
+		_stage = ResultsStage.new()
+		_stage.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		row.add_child(_stage)
+		_stage.show_podium(Podium.lineup(results))
 	var table := VBoxContainer.new()
 	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	table.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -106,6 +108,8 @@ func _ready() -> void:
 	_next = next
 	if not highlights.is_empty():
 		watch.call_deferred([])   # the best kills first, fullscreen; then the page
+	elif _stage:
+		_stage.begin.call_deferred()
 	if DevArgs.auto_return and Game.mode == Game.Mode.ONLINE:
 		get_tree().create_timer(2.0).timeout.connect(Game.goto_lobby)
 	elif DevArgs.auto_return and Game.mode == Game.Mode.BOT:
@@ -203,6 +207,8 @@ func watch(which: Array) -> void:
 	_show.done.connect(func():
 		_show.queue_free()
 		_show = null
+		if _stage:
+			_stage.begin()   # (the first time: they come onto the stage as the page is first seen)
 		if _next and is_instance_valid(_next):
 			_next.grab_focus())
 	_show.play(Match.highlights, which)

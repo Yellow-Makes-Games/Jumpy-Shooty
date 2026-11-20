@@ -1790,6 +1790,7 @@ func build_results() -> Array:
 		rows.append({"id": id, "name": Net.player_name(id), "kills": scores[id].kills, "deaths": scores[id].deaths,
 			"level": int(scores[id].get("level", 0)), "points": points(id), "bonus": int(scores[id].get("bonus", 0)),
 			"killcam": killcam})
+		rows[-1].merge(looks(id))
 		if teams:   # team modes: which team, its score, and the mode
 			var t := Teams.team_of(id)
 			rows[-1].merge({"team": t, "team_score": Teams.score[t] if t >= 0 else 0, "team_won": t >= 0 and t == ahead,
@@ -1807,6 +1808,12 @@ func build_results() -> Array:
 			return a.kills > b.kills
 		return a.deaths < b.deaths)
 	return rows
+
+
+## How a player looks as the match ends, for the results page's stage (it may be shown
+## after they have gone): their character, their colour and the weapon they have out.
+func looks(id: int) -> Dictionary:
+	return {"character": Net.player_character(id), "color": Net.player_color(id).to_html(false), "weapon": Net.player_weapon(id)}
 
 
 @rpc("authority", "call_local", "reliable")
