@@ -67,6 +67,13 @@ Quick checks:
   leaves nothing behind; a shot cuts it short; its beats use bones the robots have and
   sounds the game has; every weapon has a place on the body, two never share one, and a
   cape sends long ones to the side; a weapon let go breaks up and is gone;
+- reloading off the ground (`tests/midair_reload_test.gd`, with `--fixed-fps 60`): every
+  gun has a one-handed reload that goes hold to hold, is at the belt as the new cell goes
+  home and has the cell out only from flick to slam; your own arms only go down for it;
+  it moves the gun arm alone; standing, a reload is the two-handed clip; on the rope and
+  a wall run the gun hand goes to the belt and the other arm stays put; in the air the
+  knees come up; a flip no longer hides it and a landing roll still does; an akimbo left
+  gun that sat one out catches up;
 - being hit (`tests/hit_reaction_test.gd`): the upper body goes the way the blow was
   travelling, further for more damage; a headshot snaps the head and it is back in a
   quarter of a second; a melee blow folds the body and a heavy one throws the arms wide;
@@ -1862,6 +1869,31 @@ change both. To check that no hand is asked to reach further than its arm, solve
 and compare each wrist with where its pose wants it (every reload was checked this way). To film one
 without opening the game: `tools/combat/reload_preview.sh revolver OUT_DIR --speed=0.5
 --close` (add `--cut=0.5` to see it cut short half way).
+
+**Reloading off the ground** changes how a reload looks, never how long it takes or
+what it loads. With the left hand busy (up the rope, or on a wall run: `_busy` in
+`RobotAnimator` and `ViewModel`) the two-handed clip is left out and the gun arm does it
+alone: `game/combat/one_hand_reload.gd` (`OneHandReload`) cocks the gun up, flicks the
+empty out, brings it down and slams it onto a fresh one at the belt, and brings it back
+up with its slide or charging handle going home. There is one such reload per family
+(`KINDS`, by `WeaponData.GROUPS`: three arm poses each), not per gun; what makes it a
+gun's own is its timing, taken from that gun's row of `ReloadFx.GUNS` (the flick at its
+`eject`, the slam at its `seat`), so the cell is thrown, the gun goes dark and it surges
+back when it always did, and its own part from `GunRecoil.PARTS`. A gun fed a round at a
+time dips to the belt for each round, one that overheats is held out to cool, and a long
+reload brings the gun up early and holds it ready. The gun's own cell is not drawn from
+flick to slam (`cell_out`). In first person the whole view goes down to the belt and
+back (`OneHandReload.view`: down only, never up). Akimbo: the left gun sits out a
+one-handed reload and takes a quick trip to the belt once its hand is free
+(`lay_catch_up`; third person only). In the air with both hands free the clip plays as
+ever and the body joins in: the knees come up and the spine curls over the gun
+(`RobotAnimator._tuck_for_reload`). A flip no longer hides a reload: it goes on in the
+hands, which go round with the body (`FLIP_KEYS`); a landing roll, a vault and a dive
+still keep the hands busy. `tests/midair_reload_test.gd` checks all of it; to see it,
+`tools/robot/preview.sh` puppets take `"taut": 1.0` (a tight rope) with the reload flag
+(stills), and `tools/robot/reload_film.sh OUT_DIR rifle all side` films the real game on
+the Testing Grounds (scenes: rope, jump, glide, flip, wall, or all; views: first, third,
+side).
 
 **Recoil** has no clips: `game/combat/gun_recoil.gd` (`GunRecoil`) is the game's. The
 body's animator and your own first-person arms each keep one, tell it of every shot and

@@ -30,6 +30,7 @@ CHECKS=(
   "gun_recoil|--script tests/gun_recoil_test.gd"
   "weapon_draw|--script tests/weapon_draw_test.gd"
   "hit_reaction|--script tests/hit_reaction_test.gd"
+  "midair_reload|--fixed-fps 60 --script tests/midair_reload_test.gd"
   "new_weapons|--script tests/new_weapons_test.gd"
   "audio|--script tests/audio_test.gd"
   "maps|--script tests/map_scene_test.gd"
