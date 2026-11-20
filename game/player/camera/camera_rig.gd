@@ -16,7 +16,7 @@ const VIEW_BODY_UNTIL := 0.03  ## the first-person body goes as soon as the came
 const KICK_ZOOM := 0.09   ## how far a full kick() narrows the field of view, as a share of it
 const RUSH_WIDEN := 0.06  ## how far a full rush() widens it
 const GLIDE_WIDEN := 0.07 ## first person: how far a fast glide widens the field of view, as a share of it
-const ZOOM_FOV := 30.0    ## zoomed in (a pseudo aim down sights): this many degrees off your field of view...
+const ZOOM_FOV := 45.0    ## zoomed in (a pseudo aim down sights): this many degrees off your field of view...
 const ZOOM_MIN_FOV := 40.0  ## ...but never narrower than this
 const ZOOM_TIME := 0.12   ## seconds to zoom in or out
 
