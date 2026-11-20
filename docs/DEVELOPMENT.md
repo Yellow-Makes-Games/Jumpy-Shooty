@@ -62,6 +62,11 @@ they play out as fast as the machine allows instead of in real time. Their logs 
 
 Quick checks:
 
+- gun recoil (`tests/gun_recoil_test.gd`): every gun kicks and a melee weapon does not;
+  nothing is left of a shot a moment later and the camera is back exactly where it was,
+  however long the burst; the camera's kick stays inside its limit; a held trigger
+  heats and cools; each akimbo gun kicks on its own shots; every gun's working parts
+  move bones the robots have and come home;
 - movement (`tests/movement_test.gd`): speeds, stopping, jump height, momentum in the air;
 - movement variants (`tests/movement_variant_test.gd`): Variant B is the only movement
   and the default (see `MovementTuning.VARIANTS`; Classic is retired and an old "classic"
@@ -1839,6 +1844,26 @@ change both. To check that no hand is asked to reach further than its arm, solve
 and compare each wrist with where its pose wants it (every reload was checked this way). To film one
 without opening the game: `tools/combat/reload_preview.sh revolver OUT_DIR --speed=0.5
 --close` (add `--cut=0.5` to see it cut short half way).
+
+**Recoil** has no clips: `game/combat/gun_recoil.gd` (`GunRecoil`) is the game's. The
+body's animator and your own first-person arms each keep one, tell it of every shot and
+read off it where the kick has got to: the gun's jump in the hands (the snap), the body
+taking it a beat later (the rock: a spring), and the heat of a held trigger (the arms
+shake and creep up). Where the rock goes is the gun's family's (`BODY`, in
+`WeaponData.GROUPS`' order: wrist, chest, shoulder, chest, the whole upper body), your
+own arms' is `VIEW`, and how hard is the gun's own `WeaponData.kick` (through
+`GunRecoil.strength`): tune one gun there. Each gun's own working parts go with the shot
+too (`PARTS`: a slide or charging handle back and home, a hammer, a cylinder coming
+round, vents standing open while it is hot, the minigun's barrels), on the gun bones the
+reloads use; a pump, bolt or lever worked by hand is still a `fire_<gun>` clip. In first
+person the camera is kicked up a little and springs straight back
+(`ViewModel.camera_kick`, added to the view in `Player._process` and in the killcam,
+never to the aim), as much as Settings → Camera → **Camera shake** asks for, which
+scales every other jolt of the view as well (your own blows, a ground slam, a blast). It
+is all looks: the aim, the spread and the shot are untouched. `tests/gun_recoil_test.gd`
+checks every gun; to film one in the real game, played by a script on the Testing
+Grounds: `tools/robot/recoil_film.sh OUT_DIR rifle shots side` (scenes: shots, air,
+move; views: first, third, side, front, back).
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted

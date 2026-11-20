@@ -342,8 +342,13 @@ func _process(delta: float) -> void:
 			_view_shift = _view_shift.lerp(Vector3.ZERO, 1.0 - exp(-delta * 22.0))
 			_portal_roll = lerpf(_portal_roll, 0.0, 1.0 - exp(-delta * 9.0))
 			rig.shift = _view_shift
-			rig.set_view(input.yaw + _punch.x, clampf(input.pitch + _punch.y, deg_to_rad(-89.0), deg_to_rad(89.0)),
-				motor.eye_height, _roll + _punch_roll + _coil_roll + _portal_roll)
+			# Jolts of the view (your own blows, a blast nearby, your gun's kick): the view only,
+			# never the aim, and as much of them as the Camera shake setting asks for.
+			var jolt := Vector3(_punch.y, _punch.x, _punch_roll) * Settings.camera_shake
+			if _first_person() and alive:
+				jolt += view.camera_kick()
+			rig.set_view(input.yaw + jolt.y, clampf(input.pitch + jolt.x, deg_to_rad(-89.0), deg_to_rad(89.0)),
+				motor.eye_height, _roll + jolt.z + _coil_roll + _portal_roll)
 			rig.place()   # (now, not after this: the arms, and the ropes that start at them, go where this frame is drawn)
 		var g := motor.grapple
 		_anim.state = motor.state
@@ -1691,6 +1696,7 @@ func _animate(delta: float) -> void:
 	_anim.feet = _feet_ground()
 	if animator.glide_flipping():
 		animator.glide_flip_floor_in(_floor_in())   # (the backflip out of a glide is round before the landing)
+	animator.recoil.spun = weapon.spin if is_local and weapon != null and weapon.spin > 0.0 else -1.0   # (your own minigun's barrels turn with the trigger)
 	animator.update(delta, _anim, visual.global_transform)
 	if rig:
 		animator.place_for_view(first_person, motor.eye_height, input.pitch)

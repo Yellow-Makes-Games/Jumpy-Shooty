@@ -76,9 +76,8 @@ var _base: RobotPose
 var _tmp: RobotPose
 var _fade := 1.0
 var _time := 0.0
-var _recoil := 0.0
-var _recoil_l := 0.0      # akimbo: the left gun's kick (_recoil is the right's)
-var _kick_side := 0.0     # akimbo: which way the last shot rolls the view (+1 right gun, -1 left)
+## What the gun's shots are doing to the arms, and to the camera (see GunRecoil).
+var recoil := GunRecoil.new()
 var _since_fire := 99.0
 var _reload_w := 0.0
 var _fx_t := -1.0         # how far into the reload the gun's effects were last frame (ReloadFx)
@@ -132,6 +131,7 @@ func setup(player: Player, color: Color) -> void:
 	_last_pitch = player.input.pitch
 	if _data.is_melee():
 		_swing.set_weapon(_weapon)
+	recoil.set_weapon(_data)
 	rig.sample(_pose, clip("fp_idle"), 0.0)
 	_pose.apply(model.skeleton)
 
@@ -143,14 +143,7 @@ func clip(base: String) -> String:
 
 
 func fire(left: bool = false) -> void:
-	if _data.is_akimbo():
-		if left:
-			_recoil_l = _data.kick
-		else:
-			_recoil = _data.kick
-		_kick_side = -1.0 if left else 1.0
-	else:
-		_recoil = _data.kick
+	recoil.fire(left)
 	_since_fire = 0.0
 	_low = 0.0   # on the rope the gun was down at your side: it is up for this shot, not on its way
 	if rig.has_clip("fp_fire_" + _weapon):
@@ -196,12 +189,19 @@ func _on_screen(world: Vector3) -> Vector3:
 
 func respawn() -> void:
 	visible = not _player.racing
+	recoil.stop()
 	_raise_t = 0.0
 	_dip = 0.0
 	_dip_vel = 0.0
 	_sway = Vector2.ZERO
 	_last_yaw = _player.input.yaw
 	_last_pitch = _player.input.pitch
+
+
+## The camera's own kick from the gun's shots: radians of [pitch (up), yaw, roll] to add
+## to the view (never to the aim), already scaled by the Camera shake setting.
+func camera_kick() -> Vector3:
+	return recoil.camera() * Settings.camera_shake if visible else Vector3.ZERO
 
 
 ## How the body hangs on the rope: the body's own (RobotAnimator), so the
@@ -348,20 +348,21 @@ func update(delta: float) -> void:
 		if model.melee_left:
 			MeleeModel.set_glow(model.melee_left, _swing.glow())
 
-	_recoil *= exp(-delta * 18.0)
-	_recoil_l *= exp(-delta * 18.0)
-	if _weapon == "pistol" or _data.is_akimbo():
-		_pose.pos[rig.bones["pistol_slide"]] += Vector3(0.0, 0.04 * _recoil, 0.0)
+	# The shot (see GunRecoil): the gun's own parts work, and a sidearm flips up at the wrist.
+	recoil.spun = _player.weapon.spin if _player.weapon != null and _player.weapon.spin > 0.0 else -1.0   # (the minigun's barrels turn with the trigger; a killcam's go by its shots)
+	recoil.update(delta)
 	if _data.is_akimbo():
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
-		# Each gun flips up in its own hand, and its slide snaps back.
-		_pose.pos[rig.bones["pistol_l_slide"]] += Vector3(0.0, 0.04 * _recoil_l, 0.0)
-		for side in [["upper_arm_r", _recoil], ["upper_arm_l", _recoil_l]]:
+		# Each gun flips up in its own hand.
+		for side in [["upper_arm_r", recoil.snap], ["upper_arm_l", recoil.snap_l]]:
 			var b: int = rig.bones[side[0]]
 			_pose.rot[b] = Quaternion(Vector3.RIGHT, minf(side[1], 1.6) * 0.13) * _pose.rot[b]
-		for side in [["hand_r", _recoil], ["hand_l", _recoil_l]]:
-			var b: int = rig.bones[side[0]]
-			_pose.rot[b] = Quaternion(Vector3.RIGHT, minf(side[1], 1.6) * 0.25) * _pose.rot[b]
+		var hand_l: int = rig.bones["hand_l"]
+		_pose.rot[hand_l] = Quaternion(Vector3.RIGHT, recoil.hand_view(true)) * _pose.rot[hand_l]
+	if not _data.is_melee():
+		var hand_r: int = rig.bones["hand_r"]
+		_pose.rot[hand_r] = Quaternion(Vector3.RIGHT, recoil.hand_view(false)) * _pose.rot[hand_r]
+		recoil.pose_parts(_pose, rig.bones)
 	_pose.apply(model.skeleton)
 	# The reload's own effects: the gun's glow, the spent cell thrown clear.
 	var fx_t := _player.weapon.round_progress() * rig.length(clip("fp_reload")) if reloading else -1.0
@@ -398,17 +399,14 @@ func update(delta: float) -> void:
 	_dip += _dip_vel * delta
 	var fall := clampf(-vel.y * 0.0012, -0.012, 0.02) if not grounded else 0.0
 
-	var kick := minf(maxf(_recoil, _recoil_l), 1.6)
-	if _data.is_akimbo():
-		kick *= 0.5   # the arms take most of it (above); the view only nudges, toward the gun that fired
-	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall, kick * 0.035)
+	# [back, down, muzzle up, aside, roll]: the gun comes back and flips up, the arms sag as the body takes it.
+	var kick: Array = recoil.view() if not _data.is_melee() else [0.0, 0.0, 0.0, 0.0, 0.0]
+	position = bob + Vector3(_sway.x * 0.10, -_sway.y * 0.08 + _dip + fall - float(kick[1]), float(kick[0]))
 	if _data.is_melee():
 		position += MELEE_VIEW + (MELEE_REST_VIEW.get(_weapon, Vector3.ZERO) as Vector3) * smoothstep(0.0, 1.0, _rest)
 	position += LOOK_DOWN_SHIFT * smoothstep(deg_to_rad(LOOK_DOWN_FROM), deg_to_rad(LOOK_DOWN_FULL), -pitch)
-	rotation = Vector3(-_sway.y * 0.5 + kick * 0.07 + _dip * 0.8 - _swing_view.y * 0.25,
-		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3, _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2)
-	if _data.is_akimbo():
-		rotation.z -= _kick_side * kick * 0.02
+	rotation = Vector3(-_sway.y * 0.5 + float(kick[2]) + _dip * 0.8 - _swing_view.y * 0.25,
+		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3 + float(kick[3]), _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2 - float(kick[4]))
 	if _data.is_melee():
 		rotation.y += MELEE_VIEW_YAW
 		# A mid-air wind-up spins your body: the view stays level and the arms and weapon

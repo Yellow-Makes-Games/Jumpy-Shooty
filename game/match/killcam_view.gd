@@ -229,7 +229,9 @@ func _play_killer(delta: float) -> void:
 		pitch = lerpf(pitch, float(fix[2]), w)
 		if fix[3] != Vector3.INF and (fix[3] as Vector3).distance_to(eye) <= KillClip.AIM_REACH:
 			eye = eye.lerp(fix[3], w)
-	camera.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, _roll(f))), eye)
+	# (The camera is kicked by their shots as it was for them: the view only, the aim stays put.)
+	var jolt := _view.camera_kick() if _view else Vector3.ZERO
+	camera.global_transform = Transform3D(Basis.from_euler(Vector3(clampf(pitch + jolt.x, deg_to_rad(-89.0), deg_to_rad(89.0)), yaw + jolt.y, _roll(f) + jolt.z)), eye)
 	# The arms follow what the killer was doing (see ViewModel).
 	var p := _puppet
 	p.alive = bool(f[8])
