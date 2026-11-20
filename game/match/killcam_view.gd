@@ -268,6 +268,7 @@ func _play_killer(delta: float) -> void:
 	a.grapple_anchor = f[7]
 	a.alive = p.alive
 	a.set_hook_replayed(_hook_look(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
+	_find_wall(a, feet)
 	if _killer_sounds == null or _killer_sounds.weapon_id != weapon:
 		_killer_sounds = PlayerSounds.new(_killer_body, true, weapon)
 		_killer_sounds.map = map as MapRoot
@@ -423,6 +424,7 @@ func _play_ghost(id: int, delta: float) -> void:
 	a.grapple_anchor = f[7]
 	a.alive = bool(f[8])
 	a.set_hook_replayed(_hook_look(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
+	_find_wall(a, f[0])
 	_watch(a.flags, g.weapon, g.seen, g)
 	g.animator.update(delta, a, g.visual.global_transform)
 	if world_sound:
@@ -637,6 +639,15 @@ func _play_event(e: Dictionary) -> void:
 			elif _ghosts.has(who):
 				var g: Ghost = _ghosts[who]
 				g.animator.flinched(g.visual.global_transform.basis.orthonormalized().inverse() * way, float(e.damage), bool(e.head), blunt, heavy)
+
+
+# On a tight rope at a wall, a body puts its feet on it (see WallBrace): the wall, as Player._rope_wall finds it.
+func _find_wall(a: RobotAnimInput, feet: Vector3) -> void:
+	var wall := []
+	if a.alive and a.state == MovementController.State.GRAPPLE and a.hook_taut >= 0.0 and is_inside_tree():
+		wall = WallBrace.find_wall(get_world_3d().direct_space_state, feet, a.grapple_anchor, a.velocity)
+	a.wall_at = wall[0] if not wall.is_empty() else Vector3.ZERO
+	a.wall_normal = wall[1] if not wall.is_empty() else Vector3.ZERO
 
 
 # Sparks where the bullets landed on a body, in its own trim colour (as Arena.hit_sparks).

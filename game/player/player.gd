@@ -1786,10 +1786,20 @@ func _animate(delta: float) -> void:
 	animator.first_person = first_person > 0.0
 	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
 	_anim.feet = _feet_ground()
+	var wall := _rope_wall()
+	_anim.wall_at = wall[0] if not wall.is_empty() else Vector3.ZERO
+	_anim.wall_normal = wall[1] if not wall.is_empty() else Vector3.ZERO
 	if animator.glide_flipping():
 		animator.glide_flip_floor_in(_floor_in())   # (the backflip out of a glide is round before the landing)
 	animator.recoil.spun = weapon.spin if is_local and weapon != null and weapon.spin > 0.0 else -1.0   # (your own minigun's barrels turn with the trigger)
 	animator.update(delta, _anim, visual.global_transform)
+	# On the rope at a wall (see WallBrace): the feet meeting it, and stepping along it.
+	var planted := animator.brace.take_landed()
+	if planted > 0.0 and is_inside_tree():
+		sounds.wall_plant(planted)
+		WallBrace.dust(get_parent().get_parent(), animator.brace.footing(), animator.brace.normal(), planted)
+	if animator.brace.take_stepped():
+		sounds.wall_step()
 	for cue in animator.draw.cues():
 		sounds.draw_cue(cue)   # the weapon coming out: its flourish's own sounds
 	if animator.draw.spark_due() and visual.visible:
@@ -1822,6 +1832,18 @@ func _feet_ground() -> Vector2:
 		if not hit.is_empty():
 			out[i] = (hit.position as Vector3).y - floor_y
 	return out
+
+
+## The wall this body, on a tight rope, could put its feet on: [a point on it, its
+## normal], or [] (see WallBrace). Not with the hook in another player. For anyone's
+## body, as this copy of the game shows it.
+func _rope_wall() -> Array:
+	if not alive or not is_inside_tree() or _anim.state != MovementController.State.GRAPPLE or _anim.hook_taut < 0.0:
+		return []
+	for other in get_parent().get_children():
+		if other != self and other is Player and (other as Player).global_position.distance_squared_to(_anim.grapple_anchor - Vector3(0.0, 1.0, 0.0)) < 2.25:
+			return []
+	return WallBrace.find_wall(get_world_3d().direct_space_state, global_position, _anim.grapple_anchor, _anim.velocity, [get_rid()])
 
 
 ## Seconds until this body, falling as it is, reaches the floor below it (a long time

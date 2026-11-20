@@ -213,6 +213,8 @@ var _glide_lean := 0.0    # the hips' forward lean in the glide, radians (the ba
 ## How the body hangs on the rope (ViewModel reads it too, so your arms
 ## in first person move with the body everyone else sees).
 var rope := RopeSwing.new()
+## On the rope at a wall: the feet on it (see WallBrace).
+var brace := WallBrace.new()
 var _rope_low := 0.0         # on the rope with the gun (or blade) down at your side, 0..1
 var _drag := 0.0             # on your belly on the floor, dragged by the rope: the body's turn to face the hook, radians
 
@@ -431,6 +433,7 @@ func respawn() -> void:
 	draw.start(model.weapon)   # the weapon comes out as you do
 	_swing.stop()
 	rope.stop()
+	brace.stop()
 	_dead_time = -1.0
 	_reload_t = -1.0
 	_land = 0.0
@@ -445,6 +448,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var local_vel := inp.velocity.rotated(Vector3.UP, -inp.yaw)   # x right, -z forward
 	var speed := Vector2(local_vel.x, local_vel.z).length()
 	rope.update(delta, inp, model_xform.origin)
+	brace.update(delta, inp, model_xform.origin)
 
 	# --- 1. Body
 	if source == "glide":
@@ -743,6 +747,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	elif hanging:
 		_reverse = false
 		twist_target = rope.twist(inp.yaw, rope.zip * _rope_low) * rope.w   # the hips face along the swing; the chest stays on your aim
+		if brace.w > 0.0:
+			twist_target = lerp_angle(twist_target, brace.twist(inp.yaw), smoothstep(0.0, 1.0, brace.w))   # braced on a wall: they face it
 	else:
 		_reverse = false
 	_twist = lerp_angle(_twist, twist_target, 1.0 - exp(-delta * 12.0))
@@ -763,6 +769,8 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_reach_rope(inp, model_xform)   # (the chest has moved: the hook arm finds the rope again)
 	if hanging:
 		rope.lay_legs(_pose, _b, inp.yaw)
+	if brace.w > 0.0 and key in AIRBORNE:
+		brace.lay(_pose, _b, rig, model_xform)   # at a wall: the feet on it
 	# Dragged along the floor on your belly by the rope: the whole body turns to face the
 	# hook (not the body you see from inside it, and not while you shoot: it aims again).
 	var drag_to := 0.0

@@ -10,11 +10,19 @@ const START := Vector3(51, 6.05, LANE_Z)
 const BEAMS := [62.0, 74.0, 86.0]   # x of each beam of the grapple lane (tests/course_test.gd)
 const BEAM_Y := 14.0
 
+const WALL_FROM := Vector3(9.5, 1.05, 0.0)   # in front of the wall at x = 17.5 (tests/run_kick_feed_test.sh)
+const WALL_AT := Vector3(17.5, 5.3, 0.0)     # ...and where on it the hook goes (it is 6 m tall)
+
 var _me: Player
 var _down := {}
+var _cam: Camera3D           # --side: a camera of its own, beside the body
+var _cam_from := Vector3.ZERO
+var _cam_at := Vector3.ZERO
 
 
-func run(scene: String, third: bool) -> void:
+## view: "first", "third", or "side" (the wall scene: a camera of the film's own, along the wall).
+func run(scene: String, view: String) -> void:
+	var third := view != "first"
 	Settings.mobility = Mobility.GRAPPLE   # (not saved: nothing here calls save_settings)
 	Settings.third_person = third
 	Game.start_practice("testing_grounds")
@@ -23,9 +31,22 @@ func run(scene: String, third: bool) -> void:
 	DevArgs.drives_keys = true
 	_me.teleport(START, EAST)
 	_me.input.pitch = 0.0
+	if scene == "wall":
+		_me.teleport(WALL_FROM, EAST)
+	if view == "side":
+		# Not the first-person body or arms.
+		_cam = Camera3D.new()
+		_cam.cull_mask &= ~(1 << (CameraRig.VIEW_BODY_LAYER - 1)) & ~(1 << (Player.VIEWMODEL_LAYER - 1))
+		_cam.fov = 42.0
+		_cam_from = Vector3(-2.2, 1.3, 4.6)   # along the wall, and out from it: the body in profile against it
+		_cam_at = Vector3(0.3, 0.9, 0.0)
+		Net.arena.add_child(_cam)
+		_cam.make_current()
+		_follow(1.0)
 	await _frames(30)
 	print("FILM START %d" % Engine.get_process_frames())
 	match scene:
+		"wall": await _wall()
 		"pump": await _pump()
 		"dive": await _dive(Vector3(BEAMS[2], BEAM_Y, LANE_Z), 0, false, 1.1)
 		"dive_low": await _dive(Vector3(BEAMS[2], 7.5, LANE_Z + 7.5), 3, false, 0.3)
@@ -214,6 +235,57 @@ func _pump() -> void:
 	await _physics(140)
 
 
+## Up a wall: the hook fired high up it from the floor in front, reeled in (the legs come
+## up and the feet meet the wall), hanging there braced; the aim taken along the wall,
+## right round away from it (side-on) and back; worked along the wall one way and the
+## other (the feet step); then a jump off (the shove).
+func _wall() -> void:
+	await _physics(50)
+	_look(WALL_AT)
+	_key("grapple", true)
+	var hook := _me.motor.grapple
+	var brace := _me.animator.brace
+	var on := 0
+	var stood := -1
+	for i in 900:
+		await _physics(1)
+		if not hook.attached:
+			continue
+		if on == 0:
+			print("FILM hooked the wall at %s, %.1f m off" % [hook.anchor, hook.anchor.distance_to(_me.global_position)])
+		on += 1
+		if brace.w > 0.0 and stood < 0 and brace.standing():
+			stood = on
+			print("FILM feet on the wall %.2f s after the rope pulled tight, at %s, going %.1f m/s" % [on / 120.0, _me.global_position, _me.velocity.length()])
+		if stood >= 0 and on - stood > 150:
+			break
+	var wall := hook.anchor
+	print("FILM hanging at %s, braced %.2f, wall %s" % [_me.global_position, brace.w, _me._anim.wall_normal])
+	# The aim: along the wall, away from it, back at it.
+	for at in [wall + Vector3(0, -3, -12), wall + Vector3(-12, -3, -6), wall + Vector3(-12, -3, 6), wall + Vector3(0, -3, 12), wall + Vector3(0, -2, 0)]:
+		for i in 110:
+			await _physics(1)
+			_look(at, 0.05)
+		print("FILM aimed %s: braced %.2f, side-on %d" % [at - wall, brace.w, brace.flank()])
+	# Along the wall, one way and the other.
+	for way in ["move_left", "move_right", "move_right", "move_left"]:
+		_key(way, true)
+		await _physics(50)
+		_key(way, false)
+		print("FILM worked %s: at %s, going %.1f m/s, braced %.2f" % [way, _me.global_position, _me.velocity.length(), brace.w])
+		await _physics(80)
+	await _physics(70)
+	# Off it.
+	await _tap("jump")
+	print("FILM jumped off: shoving %s, rising %.1f" % [brace.pushing(), _me.velocity.y])
+	_key("grapple", false)
+	for i in 400:
+		await _physics(1)
+		if _me.is_on_floor() and i > 30:
+			break
+	await _physics(60)
+
+
 ## Hooking a player (a bot standing still, up on a beam) from the start platform: reeled in to them.
 func _player() -> void:
 	Cheats.freeze_bots = true
@@ -284,6 +356,17 @@ func _release_all() -> void:
 func _physics(n: int) -> void:
 	for i in n:
 		await get_tree().physics_frame
+		_follow(0.2)
+
+
+## The camera of its own keeps beside the body (`share` of the way there each step).
+func _follow(share: float) -> void:
+	if _cam == null or not is_instance_valid(_me):
+		return
+	var feet := _me.global_position
+	var want := feet + _cam_from
+	_cam.global_position = want if share >= 1.0 else _cam.global_position.lerp(want, share)
+	_cam.look_at(feet + _cam_at)
 
 
 func _frames(n: int) -> void:
