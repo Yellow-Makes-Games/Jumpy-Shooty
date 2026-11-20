@@ -357,7 +357,18 @@ func frame_rate_choices() -> Dictionary:
 
 ## The HUD layout for the current camera view.
 func hud_style() -> String:
-	return hud_third_person if third_person else hud_first_person
+	return hud_third_person if third_person_view() else hud_first_person
+
+
+## Whether the camera is behind the shoulder now: your setting, except that scripted
+## test runs (--scripted-input) play in first person unless they ask for third
+## (--third-person). Their scripted aim points from the eyes, which only matches
+## where shots go in first person; and a test must not depend on the view you last
+## played in. Your saved setting is left as it is.
+func third_person_view() -> bool:
+	if DevArgs.scripted_input and not DevArgs.third_person:
+		return false
+	return third_person
 
 
 static func _hud_style(value) -> String:
