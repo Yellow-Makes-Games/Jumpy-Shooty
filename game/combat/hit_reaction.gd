@@ -37,8 +37,8 @@ const MOST_TWIST := 0.5
 const HEAD := 0.5            ## radians a headshot snaps the head (a body hit: WHIP of it)
 const WHIP := 0.3
 const MOST_HEAD := 0.75
-const FOLD := 0.3            ## a blow from a melee weapon or a kick: radians the chest folds forward over it...
-const FOLD_BACK := 0.6       ## ...while the spine under it goes back this much of the lean
+const FOLD := 0.45           ## a blow from a melee weapon or a kick: radians the upper body folds forward over it...
+const FOLD_LEAN := 0.4       ## ...and how much of the usual lean it keeps (it doubles up more than it is thrown)
 const WIDE := 0.55           ## a heavy blow: radians the arms are thrown out
 const BUCKLE := 0.07         ## metres the hips drop as the knees buckle (a big hit, standing still)
 const AIR := 1.5             ## off the ground there is nothing to brace on: the body goes this much further...
@@ -107,7 +107,7 @@ func hit(way: Vector3, damage: float, headshot: bool = false, blunt: bool = fals
 	var side := 1.0 if _hits % 2 == 0 else -1.0
 	var graze := damage < SMALL and not blunt
 	# The lean: little of it for a graze (that is all in the shoulder), all of it otherwise.
-	_lean_v += flat * s * LEAN * (0.35 if graze else 1.0) * _kick(LEAN_RATE, LEAN_DAMP)
+	_lean_v += flat * s * LEAN * (0.35 if graze else 1.0) * (FOLD_LEAN if blunt else 1.0) * _kick(LEAN_RATE, LEAN_DAMP)
 	# The turn: the blow catches the shoulder on the side it came from (+1: the left one),
 	# and drives it back, or forward if it came from behind.
 	var shoulder := signf(flat.x) if absf(flat.x) > 0.35 else side
@@ -206,12 +206,11 @@ func pose_body(pose: RobotPose, bones: Dictionary, amount: float, air: bool) -> 
 	var back := lean.y * k          # (+: rocked back)
 	var aside := lean.x * k         # (+: to its right)
 	var over := maxf(fold, 0.0) * FOLD * k
-	# The spine takes half of the lean (more of it under a fold: the middle is driven back as the chest comes over).
-	var low := 0.5 + FOLD_BACK * minf(maxf(fold, 0.0), 1.0) * 0.5
-	pose.rot[spine] = _thrown(back * low, aside * 0.5, 0.0) * pose.rot[spine]
-	pose.rot[chest] = _thrown(back * 0.5 - over, aside * 0.5, twist * k) * pose.rot[chest]
+	# The spine and the chest share the lean, and the fold: doubled up over a blow.
+	pose.rot[spine] = _thrown(back * 0.5 - over * 0.4, aside * 0.5, 0.0) * pose.rot[spine]
+	pose.rot[chest] = _thrown(back * 0.5 - over * 0.6, aside * 0.5, twist * k) * pose.rot[chest]
 	# The head rides what the body did, gives a little of it back, and adds its own snap.
-	pose.rot[neck] = _thrown(head.y * k - back * 0.3 + over * 0.5, -aside * 0.3, head.x * k - twist * k * 0.5) * pose.rot[neck]
+	pose.rot[neck] = _thrown(head.y * k - back * 0.3 + over * 0.35, -aside * 0.3, head.x * k - twist * k * 0.5) * pose.rot[neck]
 	if absf(wide) > 0.002:
 		var out := wide * WIDE * amount
 		var right: int = bones["upper_arm_r"]
@@ -219,8 +218,8 @@ func pose_body(pose: RobotPose, bones: Dictionary, amount: float, air: bool) -> 
 		pose.rot[right] = Quaternion(Vector3.UP, -out) * Quaternion(Vector3.BACK, out * 0.5) * pose.rot[right]
 		pose.rot[left] = Quaternion(Vector3.UP, out) * Quaternion(Vector3.BACK, -out * 0.5) * pose.rot[left]
 	if air:
-		# Nothing to stand on: the legs swing out the other way under it.
-		var under := Quaternion(Vector3.RIGHT, (back - over) * AIR_LEGS) * Quaternion(Vector3.BACK, aside * AIR_LEGS)
+		# Nothing to stand on: the legs swing out the other way under it (and come up under a fold).
+		var under := Quaternion(Vector3.RIGHT, (back + over) * AIR_LEGS) * Quaternion(Vector3.BACK, aside * AIR_LEGS)
 		for name in ["thigh_l", "thigh_r"]:
 			var thigh: int = bones[name]
 			pose.rot[thigh] = under * pose.rot[thigh]
