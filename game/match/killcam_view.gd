@@ -594,6 +594,7 @@ func _play_event(e: Dictionary) -> void:
 				g.animator.fire(left)
 				muzzle = g.robot.marker(data.muzzle_bone_left if left else data.muzzle_bone)
 			ShotFx.spawn(_fx, muzzle, e.ends, e.hits, weapon)
+			_hit_sparks(muzzle, e.ends, e.hits)
 			_fired(who)
 			if mine:
 				Sound.gun_fire(weapon, muzzle, true)
@@ -626,6 +627,32 @@ func _play_event(e: Dictionary) -> void:
 		"melee":
 			if mine and _view and str(e.weapon) not in ["kick", "flying_kick"] and not (e.points as PackedVector3Array).is_empty():
 				_view.hit_stop()
+		"hit":
+			# The body flinches (see HitReaction), as it did.
+			var way: Vector3 = e.way
+			var blunt := int(e.blow) == HitReaction.MELEE or int(e.blow) == HitReaction.HEAVY
+			var heavy := int(e.blow) == HitReaction.HEAVY
+			if mine and _view:
+				_view.flinched(Basis(Vector3.UP, camera.global_rotation.y).inverse() * way, float(e.damage), bool(e.head), blunt, heavy)
+			elif _ghosts.has(who):
+				var g: Ghost = _ghosts[who]
+				g.animator.flinched(g.visual.global_transform.basis.orthonormalized().inverse() * way, float(e.damage), bool(e.head), blunt, heavy)
+
+
+# Sparks where the bullets landed on a body, in its own trim colour (as Arena.hit_sparks).
+func _hit_sparks(muzzle: Vector3, ends: PackedVector3Array, hits: Array) -> void:
+	var done := 0
+	for i in mini(ends.size(), hits.size()):
+		if not hits[i]:
+			continue
+		for id in _ghosts:
+			var off: Vector3 = ends[i] - (_ghosts[id] as Ghost).root.global_position
+			if Vector2(off.x, off.z).length() < 1.0 and off.y > -0.4 and off.y < 2.4:
+				MeleeFx.chip(_fx, ends[i], (muzzle - ends[i]).normalized(), RobotModel.trim_color(Net.player_color(id)))
+				done += 1
+				break
+		if done >= MeleeFx.CHIPS:
+			return
 
 
 func _sound(sound: String, at: Vector3, own: bool) -> void:

@@ -78,6 +78,8 @@ var _fade := 1.0
 var _time := 0.0
 ## What the gun's shots are doing to the arms, and to the camera (see GunRecoil).
 var recoil := GunRecoil.new()
+## Being hit (see HitReaction): the arms jolt, the camera is knocked.
+var flinch := HitReaction.new()
 ## The weapon being taken out (see WeaponDraw): where the arms bring it from, its flourish, its glow coming on.
 var draw := WeaponDraw.new()
 var _since_fire := 99.0
@@ -200,6 +202,7 @@ func _on_screen(world: Vector3) -> Vector3:
 func respawn() -> void:
 	visible = not _player.racing
 	recoil.stop()
+	flinch.stop()
 	draw.start(_weapon, true)   # the weapon comes out (a respawn, or a new one in your hands)
 	_fire_t = -1.0
 	_dip = 0.0
@@ -209,10 +212,16 @@ func respawn() -> void:
 	_last_pitch = _player.input.pitch
 
 
-## The camera's own kick from the gun's shots: radians of [pitch (up), yaw, roll] to add
-## to the view (never to the aim), already scaled by the Camera shake setting.
+## The camera's own kick from the gun's shots and from being hit: radians of [pitch (up),
+## yaw, roll] to add to the view (never to the aim), already scaled by the Camera shake
+## setting.
 func camera_kick() -> Vector3:
-	return recoil.camera() * Settings.camera_shake if visible else Vector3.ZERO
+	return (recoil.camera() + flinch.camera()) * Settings.camera_shake if visible else Vector3.ZERO
+
+
+## Hit (see HitReaction, and RobotAnimator.flinched for what is what). Looks only.
+func flinched(way: Vector3, damage: float, headshot: bool = false, blunt: bool = false, heavy: bool = false) -> void:
+	flinch.hit(way, damage, headshot, blunt, heavy)
 
 
 ## How the body hangs on the rope: the body's own (RobotAnimator), so the
@@ -355,6 +364,7 @@ func update(delta: float) -> void:
 	# The shot (see GunRecoil): the gun's own parts work, and a sidearm flips up at the wrist.
 	recoil.spun = _player.weapon.spin if _player.weapon != null and _player.weapon.spin > 0.0 else -1.0   # (the minigun's barrels turn with the trigger; a killcam's go by its shots)
 	recoil.update(delta)
+	flinch.update(delta)
 	if _data.is_akimbo():
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
 		# Each gun flips up in its own hand.
@@ -423,6 +433,10 @@ func update(delta: float) -> void:
 	rotation = Vector3(-_sway.y * 0.5 + float(kick[2]) + _dip * 0.8 - _swing_view.y * 0.25,
 		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3 + float(kick[3]), _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2 - float(kick[4]))
 	rotation += out[1] as Vector3
+	# Hit: the arms jolt the way the blow went.
+	var jolt: Array = flinch.view()
+	position += jolt[0] as Vector3
+	rotation += jolt[1] as Vector3
 	if _data.is_melee():
 		rotation.y += MELEE_VIEW_YAW
 		# A mid-air wind-up spins your body: the view stays level and the arms and weapon

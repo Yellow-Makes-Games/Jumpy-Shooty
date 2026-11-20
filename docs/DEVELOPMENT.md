@@ -67,6 +67,12 @@ Quick checks:
   leaves nothing behind; a shot cuts it short; its beats use bones the robots have and
   sounds the game has; every weapon has a place on the body, two never share one, and a
   cape sends long ones to the side; a weapon let go breaks up and is gone;
+- being hit (`tests/hit_reaction_test.gd`): the upper body goes the way the blow was
+  travelling, further for more damage; a headshot snaps the head and it is back in a
+  quarter of a second; a melee blow folds the body and a heavy one throws the arms wide;
+  only a big hit on a body standing still buckles the knees; a stream of hits stays
+  inside its limits, the camera's knock too; nothing is left a moment later; the hips
+  and the root never move; and what the host calls each kind of blow;
 - gun recoil (`tests/gun_recoil_test.gd`): every gun kicks and a melee weapon does not;
   nothing is left of a shot a moment later and the camera is back exactly where it was,
   however long the burst; the camera's kick stays inside its limit; a held trigger
@@ -1895,6 +1901,31 @@ them: `tools/robot/preview.sh` takes `"stowed": ["rifle"]` and `"draw_at"` on a 
 (stills, in seconds), and `tools/robot/swap_film.sh OUT_DIR pistol rifle swap back`
 films a real Deathmatch swap (scenes: swap, hand; views: first, third, side, front,
 back).
+
+**Being hit** has no clips either: `game/combat/hit_reaction.gd` (`HitReaction`), kept
+by the body's animator and by your own first-person arms, like `GunRecoil`. The host
+sends every hit's direction and kind with its damage (`Match.hit_taken`: the way the
+blow was travelling and one of `HitReaction.SHOT`, `BLAST`, `MELEE`, `HEAVY`, `CRASH`,
+worked out in `Match._host_damage` from what it already knows of the blow), and each
+`Player` flinches at its own (`Player.flinch`). The upper body is thrown the way the
+blow went, on springs, as far as the damage says (`strength`): under `SMALL` a shoulder
+twitches, a solid hit rocks the chest, `BIG` and over staggers the upper body and
+buckles the knees of a body standing still (the hips drop and the legs are bent to keep
+the feet where they are, by the animator's own `_plant_feet`). A headshot snaps the
+head, a melee blow or a kick folds the body round it, a heavy one (wound up past
+`HEAVY_CHARGE`, or a flying kick) throws the arms wide, and off the ground the body goes
+further and the legs swing under it. Fast hits add up, to the `MOST_` limits. It is
+applied after everything else has posed, to the spine, chest, head and arms only: the
+hips, the feet, where the player is, where they are going and where they aim are never
+touched (a blow that does push you is `Match._host_shove`, as before). In first person
+the arms jolt and the camera is knocked a little the way the blow went
+(`ViewModel.camera_kick`, with the gun's own, scaled by Camera shake). A bullet that
+lands on a player strikes a few sparks in that player's trim colour (`MeleeFx.chip`,
+from `Arena.hit_sparks`, at most `MeleeFx.CHIPS` a shot). Killcams record the hits and
+show the same. Target dummies do not flinch. `tests/hit_reaction_test.gd` checks it; to
+film it in the real game, the hits made up by a script on the Testing Grounds:
+`tools/robot/hit_film.sh OUT_DIR all front` (scenes: small, medium, big, head, melee,
+rapid, air, or all; views: first, third, side, front, back).
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted
