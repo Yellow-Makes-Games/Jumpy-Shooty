@@ -67,6 +67,13 @@ Quick checks:
   leaves nothing behind; a shot cuts it short; its beats use bones the robots have and
   sounds the game has; every weapon has a place on the body, two never share one, and a
   cape sends long ones to the side; a weapon let go breaks up and is gone;
+- victory poses (`tests/victory_pose_test.gd`, with `--fixed-fps 60`): who is on the
+  results page's stage for a free-for-all, a team win, a draw, a race and a match
+  nobody scored in, and that the same results give the same pose; every pose with a
+  gun, a blade, a gun in each hand, fists, nothing, a big gun and a spear puts the
+  hands where it says; a pose is moved into after its wait, with one flourish, and
+  only the winner's comes again; the stage is empty until it begins, then everyone
+  builds in with a name under them;
 - arriving (`tests/spawn_in_test.gd`, with `--fixed-fps 60`): from its first frame every
   mesh of the body has the layer of light on, all light; the line climbs for
   `SpawnIn.TIME` and follows the feet; a mesh that turns up part of the way through is
@@ -2069,6 +2076,38 @@ show the same. Target dummies do not flinch. `tests/hit_reaction_test.gd` checks
 film it in the real game, the hits made up by a script on the Testing Grounds:
 `tools/robot/hit_film.sh OUT_DIR all front` (scenes: small, medium, big, head, melee,
 rapid, air, or all; views: first, third, side, front, back).
+
+**Victory poses** are in three parts. `Podium` (`game/match/podium.gd`) says who
+stands on the results page's stage and how, from a match's results alone (so every
+copy shows the same): `Podium.lineup(results)` gives up to three entries, the middle
+one first, each with its spot, its pose (`RAISE`, `PUMP`, `HIP`, `PRESENT`, or `SPORT`
+for a nod, or `EASY`), the words under its name, and how the player looked as the
+match ended. Those looks are in the results rows themselves (`Match.looks`: character,
+colour as html, the weapon they had out), so someone who has left since still stands
+there. `Podium.victory(results)` picks the winner's pose from the numbers in the
+results. `VictoryPoser` (`game/ui/victory_poser.gd`) is a `PortraitPoser` (the game's
+own body standing still, a `RobotAnimator`) with a pose laid over it: the chest
+squared up, the right hand placed by the same kind of key as `PortraitPoser`'s holds
+(a gun by its grip, a blade by its handle, a fist), the left by where its wrist goes.
+It waits (`wait`, while the robot builds in), moves into the pose over `IN` seconds
+with a flourish, and does that again every `BEAT_MIN` to `BEAT_MAX` seconds if it
+`repeats` (the winner). `PRESENT` turns the robot right round on the way in: add
+`spin` to its facing. `ResultsStage` (`game/ui/results_stage.gd`) is a `RobotPreview`
+on a stage with up to three robots: `show_podium(lineup)` puts them there unseen,
+`begin()` (once the best kills have played) builds them in one after another, and the
+names under their feet follow the camera. `RobotPreview._step` is what a kind of
+preview does each frame, for this to replace. To look at it without playing a match:
+
+```
+tools/results_preview.sh OUT_DIR --mode=team --players=8 --at=3.2
+tools/results_preview.sh OUT_DIR --stage=900x700 --pose=pump --weapons=sword --settle --at=0.4
+```
+
+The first draws the whole page from made-up results (`--mode` is `ffa`, `team`, `draw`,
+`race`, `late`, `practice` or `nobody`; `--kills=3` adds the best kills' column), the
+second only the stage (`--pose` picks the winner's, `--weapons` and `--characters` go
+down the rankings, `--settle` skips the building in, `--flourish` shows the flourish);
+`--frames=N` saves N pictures in a row for a clip.
 
 **Arriving** (`game/player/robot/spawn_in.gd`, `SpawnIn`): a body that spawns or
 respawns is put together out of light in its trim colour, from the feet up, in `TIME`
