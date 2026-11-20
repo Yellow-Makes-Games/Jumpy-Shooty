@@ -766,7 +766,8 @@ func _the_move() -> void:
 			mid_checked = true
 			_expect(map.shifting and not _island("Labs").up and not _island("LectureHall").up and not _island("LectureHall").is_parked(),
 				"half way through, the Labs are falling and the Lecture Hall is on its way up; neither counts as up")
-			_expect(map.open_spawns().all(func(o): return map.island_at(o[0]) == _island("Observatory")), "players are only put on the island that stayed")
+			_expect(_island("Observatory").gliding and map.open_spawns().all(func(o): return map.island_at(o[0]) == null),
+				"players are put on the quad, not over the island that stayed while it glides into them")
 	_expect(not event.moving() and event.now() == to and not map.shifting, "4 s later everything has arrived")
 	_expect(worst < 0.35, "every rider on the island that stayed was carried all the way: never more than %.2f m from where they stood on it (%s)" % [worst, worst_who])
 	_expect(airborne == 0, "and never left its floor")

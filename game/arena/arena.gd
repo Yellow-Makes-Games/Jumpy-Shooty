@@ -216,7 +216,7 @@ func _on_player_respawned(id: int, spawn_index: int) -> void:
 		var s: Array = _team_spawn(p)
 		if s.is_empty():
 			s = _safest_spawn(p)
-		p.respawn_at(s[0], s[1], spawn_index)
+		p.respawn_at(layout.clear_feet(s[0]), s[1], spawn_index)   # (never in the ground)
 	else:
 		p.expect_respawn(spawn_index)
 
@@ -400,7 +400,7 @@ func _respawn(p: Player) -> void:
 		s = team_spot   # team modes: on your team's side
 	if not DevArgs.spawn.is_empty() and not p.is_bot:
 		s = DevArgs.spawn
-	p.teleport(s[0], s[1])
+	p.teleport(layout.clear_feet(s[0]), s[1])   # (never in the ground)
 	if s.size() > 2:
 		p.input.pitch = s[2]
 

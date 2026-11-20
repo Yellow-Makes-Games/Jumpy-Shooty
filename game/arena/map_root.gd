@@ -836,22 +836,68 @@ func spawn_open(point: Vector3) -> int:
 	return 1 if island.up and not island.doomed else -1
 
 
-## The spawn points to use right now: those on islands that are up and staying; if
-## there is none, those on ground that never moves; failing that, all of them.
+## The spawn points to use right now: those on islands that are up, staying and still;
+## if there is none, those on ground that never moves; then those on islands gliding to
+## their next place (someone put over one is in the air as it moves into them); failing
+## that, all of them.
 func open_spawns() -> Array:
 	if movers.is_empty():
 		return spawns
 	var on_islands := []
 	var fixed := []
+	var gliding := []
 	for s in spawns:
 		var open := spawn_open(s[0])
 		if open > 0:
-			on_islands.append(s)
+			if island_at(s[0]).gliding:
+				gliding.append(s)
+			else:
+				on_islands.append(s)
 		elif open == 0:
 			fixed.append(s)
-	if not on_islands.is_empty():
-		return on_islands
-	return fixed if not fixed.is_empty() else spawns
+	for tier in [on_islands, fixed, gliding]:
+		if not tier.is_empty():
+			return tier
+	return spawns
+
+
+## Room for a standing player (SPAWN_RADIUS, SPAWN_HEIGHT: Player's capsule) with their
+## feet at `feet`: nothing of the level there, moving parts included.
+const SPAWN_RADIUS := 0.4
+const SPAWN_HEIGHT := 1.8
+## How far clear_feet lifts a player to get them out of the ground.
+const SPAWN_LIFT_REACH := 2.5
+
+
+func room_at(feet: Vector3) -> bool:
+	if not is_inside_tree():
+		return true
+	var cap := CapsuleShape3D.new()
+	cap.radius = SPAWN_RADIUS - 0.02   # (touching the floor is not being in it)
+	cap.height = SPAWN_HEIGHT - 0.04
+	var q := PhysicsShapeQueryParameters3D.new()
+	q.shape = cap
+	q.collision_mask = 1
+	q.transform = Transform3D(Basis.IDENTITY, feet + Vector3(0, SPAWN_HEIGHT * 0.5, 0))
+	return get_world_3d().direct_space_state.intersect_shape(q, 1).is_empty()
+
+
+## Where to put the feet of a player (re)spawning at `feet` so they are not stuck in
+## the ground: `feet` itself when there is room, or lifted (by up to SPAWN_LIFT_REACH)
+## to just over whatever it is in: a spawn point a moving part has come up through, a
+## floor raised since the marker was placed. With no room anywhere above, `feet`.
+func clear_feet(feet: Vector3) -> Vector3:
+	if room_at(feet):
+		return feet
+	var lift := 0.05
+	while lift <= SPAWN_LIFT_REACH:
+		var up := feet + Vector3(0, lift, 0)
+		if room_at(up):
+			# A little more, as a spawn point has, if there is room for it.
+			var over := up + Vector3(0, 0.1, 0)
+			return over if room_at(over) else up
+		lift += 0.05
+	return feet
 
 
 func _physics_process(delta: float) -> void:
