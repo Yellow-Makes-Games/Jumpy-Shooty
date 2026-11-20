@@ -464,7 +464,7 @@ func _show_multiplayer() -> void:
 	_status = UiKit.label(_frame.body, "", true, 16)
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# Join lobby: a window with the code, then whether you play or watch.
-	_join_window = FloatingPanel.new("below")
+	_join_window = FloatingPanel.new("center")
 	_join_window.name = "JoinWindow"
 	_frame.add_child(_join_window)
 	var c := _join_window.content
