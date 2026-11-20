@@ -104,6 +104,9 @@ const ROPE_AIM_DROP := 4.0
 const ROPE_CHEST := 0.45        ## how much of the hips' lean the chest gives back while the gun is down (aiming: all of it)
 const ROPE_VIEW := 0.55         ## your own body in first person leans this much of what everyone else sees
 const RECOIL_HEAD := 0.8        ## a shot rocks the chest: the head gives this much of it back (it stays on the aim)
+const FLIP_KEYS := ["flip_front", "flip_back", "flip_left", "flip_right"]   ## a reload goes on through these, the arms held in
+const AIR_RELOAD_KNEES := 0.42  ## reloading in the air: radians the knees come up...
+const AIR_RELOAD_CURL := 0.1    ## ...and the spine and the chest each curl over the gun
 const RECOIL_LEGS := 1.2        ## ...and off the ground the legs swing forward this much of what the chest rocks back
 const ZIP_AIM_UP := 12.0        ## ...this fast (a second)
 const ZIP_CHEST := 0.55         ## zipping along the rope (dived into it), a shot brings the chest this much of the way back up to aim from
@@ -165,6 +168,14 @@ var _since_fire := 99.0
 var _reload_t := -1.0
 var _reload_w := 0.0
 var _was_reloading := false
+var _busy := 0.0          # the left hand is busy (up the rope, out on a wall run): a reload is done with one hand (OneHandReload)
+var _one_w := 0.0         # how much of a one-handed reload shows...
+var _one_t := 0.0         # ...how far into it, and how long it is
+var _one_len := 1.0
+var _one_low := 0.0       # ...and how far down at the belt the gun is (the arm is not lifted to the aim there)
+var _owed := false        # akimbo: the left gun sat out a one-handed reload...
+var _catch_t := -1.0      # ...and is catching up, this many seconds in
+var _air_reload := 0.0    # reloading in the air with both hands: the knees come up, the body curls over the gun
 var _reload_from := 0.0   # a reload cut short: where in the clip it stopped...
 var _reload_out := 0.0    # ...and how much of that pose is still held (it eases back to the hold)
 var _reload_out_clip := ""   # ...and which clip it was
@@ -270,11 +281,11 @@ func set_weapon(id: String) -> void:
 
 ## Lays the reload clip at time t over the arms, `w` of it, and adds what it turns the
 ## chest and spine by to the body's own (the shoulders go with a reload's flourish).
-func _lay_reload(rclip: String, t: float, w: float) -> void:
+func _lay_reload(rclip: String, t: float, w: float, body: bool = true) -> void:
 	rig.sample(_tmp, rclip, t)
 	_pose.blend_bones(_tmp, w, _arm_r)
 	_pose.blend_bones(_tmp, w, _arm_l)
-	if first_person or w <= 0.0:
+	if first_person or w <= 0.0 or not body:
 		return
 	for part in [["chest", _reload_chest], ["spine", _reload_spine]]:
 		var b: int = _b[part[0]]
@@ -436,6 +447,12 @@ func respawn() -> void:
 	brace.stop()
 	_dead_time = -1.0
 	_reload_t = -1.0
+	_busy = 0.0
+	_one_w = 0.0
+	_one_low = 0.0
+	_owed = false
+	_catch_t = -1.0
+	_air_reload = 0.0
 	_land = 0.0
 	_kick_t = -1.0
 	_leg_t = -1.0
@@ -561,6 +578,13 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	var reloading := inp.reloading() and inp.alive
 	var rclip := clip("reload")
+	# The left hand up the rope or out on a wall run: the gun arm reloads alone (OneHandReload),
+	# and the clip, made for two hands, is left out by as much.
+	var left_busy := (_grapple_w > 0.5 or key in ["wall_l", "wall_r"]) and inp.alive
+	_busy = move_toward(_busy, 1.0 if left_busy else 0.0, delta * 8.0)
+	var two := 1.0 - smoothstep(0.0, 1.0, _busy)
+	var flipping := key in FLIP_KEYS
+	var one_handed := false
 	if reloading and not _was_reloading and rig.has_clip(rclip):
 		_reload_t = 0.0
 	_was_reloading = reloading
@@ -581,9 +605,12 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_reload_t = -1.0
 		else:
 			_reload_w = 1.0 if _loop_reload else clampf(minf(_reload_t / 0.1, (rlen - _reload_t) / 0.15), 0.0, 1.0)
-			if want[2] <= 0.0:
-				_reload_w = 0.0   # mid-flip, mid-roll: the hands are busy
-			_lay_reload(rclip, _reload_t, _reload_w)
+			if want[2] <= 0.0 and not flipping:
+				_reload_w = 0.0   # mid-roll, mid-vault: the hands are busy (a flip: they go on with it, held in)
+			_lay_reload(rclip, _reload_t, _reload_w * two, not flipping)
+			one_handed = left_busy and _reload_w > 0.0
+			_one_t = _reload_t
+			_one_len = rlen
 			_reload_t += delta
 	if _end_t >= 0.0:
 		var eclip := clip("reload_end")
@@ -592,12 +619,34 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_end_t = -1.0
 		else:
 			_reload_w = clampf((elen - _end_t) / 0.12, 0.0, 1.0)
-			_lay_reload(eclip, _end_t, _reload_w)
+			_lay_reload(eclip, _end_t, _reload_w * two)
 			_end_t += delta
 	if _reload_t < 0.0 and _end_t < 0.0 and _reload_out > 0.0:
 		_reload_out = move_toward(_reload_out, 0.0, delta / RELOAD_CUT_FADE) if rig.has_clip(_reload_out_clip) and want[2] > 0.0 else 0.0
 		if _reload_out > 0.0:
-			_lay_reload(_reload_out_clip, _reload_from, smoothstep(0.0, 1.0, _reload_out))
+			_lay_reload(_reload_out_clip, _reload_from, smoothstep(0.0, 1.0, _reload_out) * two)
+	# With one hand. (It eases out from wherever it had got to when the reload ends or the other hand comes free.)
+	_one_w = move_toward(_one_w, 1.0 if one_handed else 0.0, delta * 8.0)
+	_one_low = 0.0
+	if _one_w > 0.0 and not _melee:
+		var shown := smoothstep(0.0, 1.0, _one_w)
+		OneHandReload.lay(_pose, _b, weapon, _one_t, _one_len, _loop_reload, shown)
+		_one_low = OneHandReload.low(weapon, _one_t, _one_len, _loop_reload) * shown
+		if _akimbo and one_handed and _one_w > 0.5 and _one_t >= float(OneHandReload.beats(weapon, _one_len, _loop_reload)[1]):
+			_owed = true   # (the left gun sat it out)
+	# Akimbo: the left gun catches up once its hand is free.
+	if not _akimbo or not inp.alive:
+		_owed = false
+		_catch_t = -1.0
+	elif _owed and _busy < 0.3 and _reload_t < 0.0 and _catch_t < 0.0:
+		_owed = false
+		_catch_t = 0.0
+	if _catch_t >= 0.0:
+		if _catch_t >= OneHandReload.CATCH_UP or left_busy:
+			_catch_t = -1.0
+		else:
+			OneHandReload.lay_catch_up(_pose, _b, weapon, _catch_t, 1.0)
+			_catch_t += delta
 
 	# The pump or the bolt, after a shot (the left hand only where it is on the gun)
 	if _fire_t >= 0.0:
@@ -704,8 +753,9 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var lift_l := aim_lift + recoil.arm_lift(_akimbo)
 	var up_r: int = _b["upper_arm_r"]
 	var up_l: int = _b["upper_arm_l"]
-	var w_r := maxf(_aim_r, _reload_w)
-	var w_l := maxf(_aim_l, _reload_w)
+	var held_in := 0.0 if key in FLIP_KEYS else 1.0   # (reloading through a flip, the arms go round with the body, not to the aim)
+	var w_r := maxf(_aim_r, _reload_w * held_in) * (1.0 - _one_low)   # (down at the belt, the gun arm is not lifted to the aim)
+	var w_l := maxf(_aim_l, _reload_w * held_in)
 	var across := twist.inverse() * Vector3.RIGHT   # the body's left-right axis, seen from the turned chest
 	_pose.rot[up_r] = Quaternion(across, lift * w_r) * _pose.rot[up_r]
 	_pose.rot[up_l] = Quaternion(across, lift_l * w_l) * _pose.rot[up_l]
@@ -795,7 +845,12 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	model.set_power(_power)
 
 	if _akimbo:
-		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w, true)   # the left hand has a gun of its own, whatever the arm is doing (a reload poses it itself)
+		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w * (1.0 - smoothstep(0.0, 1.0, _busy)), true)   # the left hand has a gun of its own, whatever the arm is doing (a two-handed reload poses it itself)
+	# Reloading in the air with both hands: the knees come up and the body curls over the gun.
+	var tucking := _reload_w > 0.0 and _busy < 0.5 and key in ["air", "tuck", "glide"] and inp.alive and not first_person and not _melee
+	_air_reload = move_toward(_air_reload, 1.0 if tucking else 0.0, delta * 5.0)
+	if _air_reload > 0.0 and key in AIRBORNE:
+		_tuck_for_reload(smoothstep(0.0, 1.0, _air_reload) * (0.6 if key == "glide" else 1.0))
 	# Hit: the upper body is thrown the way the blow went. (Last, so that the arms and
 	# whatever they hold go with it; the hips and the feet stay where they are.)
 	_braced = key in ["loco", "crouch"] and speed < BRACED_SPEED
@@ -808,9 +863,27 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	# person the arms you see are ViewModel's, and it throws the cell.)
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
 	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
+	if _one_w > 0.5 and fx_t >= 0.0 and _b.has("pistol_mag") and OneHandReload.cell_out(weapon, fx_t, _one_len, _loop_reload):
+		model.skeleton.set_bone_pose_scale(_b["pistol_mag"], Vector3.ONE * 0.001)   # (with one hand: the new cell is at the belt until the gun is slammed onto it)
 	_fx_t = fx_t
 	if draw.active() and not _melee:
 		model.set_gun_glow(draw.glow())   # it powers on as it comes up
+
+
+## A reload in the air (both hands free): the knees come up, and the spine and chest
+## curl forward over the gun; the head stays up. `k`: how much, 0..1.
+func _tuck_for_reload(k: float) -> void:
+	for side in ["l", "r"]:
+		var thigh: int = _b["thigh_" + side]
+		var shin: int = _b["shin_" + side]
+		_pose.rot[thigh] = Quaternion(Vector3.RIGHT, AIR_RELOAD_KNEES * k) * _pose.rot[thigh]
+		_pose.rot[shin] = _pose.rot[shin] * Quaternion(Vector3.RIGHT, -AIR_RELOAD_KNEES * 1.3 * k)
+	var spine: int = _b["spine"]
+	var chest: int = _b["chest"]
+	var head: int = _b["head"]
+	_pose.rot[spine] = Quaternion(Vector3.RIGHT, -AIR_RELOAD_CURL * k) * _pose.rot[spine]
+	_pose.rot[chest] = Quaternion(Vector3.RIGHT, -AIR_RELOAD_CURL * k) * _pose.rot[chest]
+	_pose.rot[head] = Quaternion(Vector3.RIGHT, AIR_RELOAD_CURL * 1.6 * k) * _pose.rot[head]
 
 
 ## The weapon is being taken out (see WeaponDraw): the arms swing it in from where it was

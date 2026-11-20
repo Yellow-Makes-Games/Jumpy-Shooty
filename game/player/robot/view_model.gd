@@ -87,6 +87,10 @@ var _reload_w := 0.0
 var _fx_t := -1.0         # how far into the reload the gun's effects were last frame (ReloadFx)
 var _end_t := -1.0        # a shell-at-a-time reload's last flourish ("fp_reload_end"), once the gun is full
 var _was_reloading := false
+var _busy := 0.0          # the left hand is busy (up the rope, out on a wall run): a reload is done with one hand (OneHandReload)
+var _one_w := 0.0         # how much of a one-handed reload shows...
+var _one_t := 0.0         # ...how far into it, and how long it is
+var _one_len := 1.0
 var _bob := 0.0
 var _bob_w := 0.0
 var _crawl := 0.0
@@ -203,6 +207,8 @@ func respawn() -> void:
 	visible = not _player.racing
 	recoil.stop()
 	flinch.stop()
+	_busy = 0.0
+	_one_w = 0.0
 	draw.start(_weapon, true)   # the weapon comes out (a respawn, or a new one in your hands)
 	_fire_t = -1.0
 	_dip = 0.0
@@ -275,10 +281,21 @@ func update(delta: float) -> void:
 
 	# --- Reload and respawn play over the top
 	_reload_w = move_toward(_reload_w, 1.0 if reloading else 0.0, delta * 9.0)
+	# The left hand up the rope or out on a wall run: the gun hand reloads alone (OneHandReload:
+	# the whole view goes down to the belt and back), and the clip, made for two hands, is left out.
+	var left_busy := _grapple_w > 0.5 or key.begins_with("fp_wall")
+	_busy = move_toward(_busy, 1.0 if left_busy else 0.0, delta * 8.0)
+	var two := 1.0 - smoothstep(0.0, 1.0, _busy)
 	if _reload_w > 0.0:
 		var rclip := clip("fp_reload")
 		rig.sample(_tmp, rclip, _player.weapon.round_progress() * rig.length(rclip) if reloading else 0.0)
-		_pose.blend(_tmp, _reload_w)
+		_pose.blend(_tmp, _reload_w * two)
+		if reloading:
+			_one_len = rig.length(rclip)
+			_one_t = _player.weapon.round_progress() * _one_len
+	_one_w = move_toward(_one_w, 1.0 if reloading and left_busy and not _data.is_melee() else 0.0, delta * 8.0)
+	if _one_w > 0.0:
+		OneHandReload.work_part(_pose, rig.bones, WeaponData.look_of(_weapon), _one_t, _one_len, _data.reload_per_round)
 	# A shell-at-a-time reload that ran until the gun was full (not stopped by a shot) ends with a flourish.
 	if _was_reloading and not reloading and _data.reload_per_round and _since_fire > 0.2 and _player.weapon != null \
 			and _player.weapon.ammo >= _data.magazine and rig.has_clip(clip("fp_reload_end")):
@@ -291,7 +308,7 @@ func update(delta: float) -> void:
 			_end_t = -1.0
 		else:
 			rig.sample(_tmp, eclip, _end_t)
-			_pose.blend(_tmp, clampf((elen - _end_t) / 0.12, 0.0, 1.0) * (1.0 - _grapple_w))
+			_pose.blend(_tmp, clampf((elen - _end_t) / 0.12, 0.0, 1.0) * (1.0 - _grapple_w) * two)
 			_end_t += delta
 	# Working the pump or the bolt after a shot
 	if _fire_t >= 0.0:
@@ -389,6 +406,8 @@ func update(delta: float) -> void:
 	var in_view: bool = _player.rig != null and _player.rig.first_person_amount() > 0.0   # (in third person the body throws it)
 	ReloadFx.update(model, WeaponData.look_of(_weapon), _fx_t, fx_t, _player.get_parent().get_parent() if in_view else null, vel, _on_screen)
 	_fx_t = fx_t
+	if _one_w > 0.5 and fx_t >= 0.0 and rig.bones.has("pistol_mag") and OneHandReload.cell_out(WeaponData.look_of(_weapon), fx_t, _one_len, _data.reload_per_round):
+		model.skeleton.set_bone_pose_scale(rig.bones["pistol_mag"], Vector3.ONE * 0.001)   # (with one hand: the new cell is at the belt until the gun is slammed onto it)
 	if draw.active() and not _data.is_melee():
 		model.set_gun_glow(draw.glow())   # it powers on as it comes up
 
@@ -433,6 +452,11 @@ func update(delta: float) -> void:
 	rotation = Vector3(-_sway.y * 0.5 + float(kick[2]) + _dip * 0.8 - _swing_view.y * 0.25,
 		_sway.x * 0.6 + crawl * 0.03 + _swing_view.x * 0.3 + float(kick[3]), _sway.x * 0.5 - crawl * 0.05 - _swing_view.x * 0.2 - float(kick[4]))
 	rotation += out[1] as Vector3
+	# A reload with one hand: down to the belt and back.
+	if _one_w > 0.0:
+		var one: Array = OneHandReload.view(WeaponData.look_of(_weapon), _one_t, _one_len, _data.reload_per_round)
+		position += (one[0] as Vector3) * smoothstep(0.0, 1.0, _one_w)
+		rotation += (one[1] as Vector3) * smoothstep(0.0, 1.0, _one_w)
 	# Hit: the arms jolt the way the blow went.
 	var jolt: Array = flinch.view()
 	position += jolt[0] as Vector3
