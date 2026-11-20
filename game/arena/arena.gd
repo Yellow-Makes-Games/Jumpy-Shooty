@@ -245,6 +245,8 @@ func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
 		return   # a nail or a bolt: no blast, no shake
 	if layout.marks:
 		layout.marks.scorch(at, w.splash_radius)
+	if layout.debris:
+		layout.debris.push_blast(at, w.splash_radius)
 	var d := at.distance_to(Sound.listener_position())
 	if d > 40.0 and d < INF:
 		Sound.play_at("explosion_far", at, "far", 0.0, 0.05)

@@ -41,7 +41,7 @@ CHECKS=(
   "hud_settings|--script tests/hud_settings_test.gd"
   "graphics_settings|--script tests/graphics_settings_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
-  "destruction|--script tests/destruction_test.gd"
+  "destruction|--fixed-fps 60 --script tests/destruction_test.gd"
   "block_settings|--script tests/block_settings_test.gd"
   "map_tools|--script tests/map_tools_test.gd"
   "arena_maps|--script tests/arena_maps_test.gd"

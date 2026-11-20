@@ -262,6 +262,52 @@ func _through_checks(map: MapRoot, d: MapDestruction, space: PhysicsDirectSpaceS
 			left += 1
 	_check(left == 0 and not marks._by_cell.has(c), "  marks: and so does every mark on it")
 	await physics_frame
+	await _debris_checks(map, d, at + (panel.xf as Transform3D).basis[panel.u].normalized() * 5.0, normal)
+
+
+## The rubble of a blast at `at` on a block wall facing `normal`: chunks fly, land and
+## stay; there are never more than the caps; rubble on a floor that breaks falls again.
+func _debris_checks(map: MapRoot, d: MapDestruction, at: Vector3, normal: Vector3) -> void:
+	var debris := map.debris
+	_check(debris != null, "  debris: a map with fine destruction has it")
+	if debris == null:
+		return
+	MapDebris.headless_too = true
+	debris.push_blast(at + normal * 0.4, 4.5)
+	d.damage_area(at, 1.6, 260.0)
+	var change := d.flush()
+	_check(not change.is_empty(), "  debris: the blast breaks the wall")
+	if change.is_empty():
+		return
+	var broke := d.apply(change[0], change[1]).size()
+	var flying: int = debris.counts()[0]
+	print("    %d cells broke: %d chunks in the air" % [broke, flying])
+	_check(flying >= mini(broke / 3, 10) and flying <= MapDebris.BATCH_CHUNKS + 2, "  debris: chunks fly, no more than one lot's worth (%d)" % flying)
+	# They go the way the blast threw them: away from the face it went off against.
+	var away := 0
+	for f: Dictionary in debris._flying:
+		if (f.body as RigidBody3D).linear_velocity.dot(normal) < 0.0:
+			away += 1
+	_check(away * 2 > flying, "  debris: most of them away from the blast (%d of %d)" % [away, flying])
+	for n in 900:
+		await physics_frame
+		if debris.counts()[0] == 0:
+			break
+	var lying: int = debris.counts()[1]
+	_check(debris.counts()[0] == 0 and lying > 0, "  debris: they land and stay (%d lying)" % lying)
+	_check(debris.get_child_count() < 40, "  debris: and nothing is simulated once they have (%d nodes)" % debris.get_child_count())
+	# However much breaks, the caps hold.
+	for n in 6:
+		var cells := PackedInt32Array()
+		for c in d.cells.size():
+			if cells.size() < 200 and d.panels[d.cells[c].panel].fine and d.cells[c].stage == 0 and (c + n) % 7 == 0:
+				cells.append(c)
+		debris.broke(cells)
+	_check(debris.counts()[0] <= MapDebris.MAX_FLYING, "  debris: never more than %d in the air" % MapDebris.MAX_FLYING)
+	debris.clear()
+	_check(debris.counts() == [0, 0], "  debris: cleared, none is left")
+	MapDebris.headless_too = false
+	await physics_frame
 
 
 func _drawn_corners(panel: Dictionary) -> PackedVector3Array:

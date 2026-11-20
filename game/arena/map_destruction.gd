@@ -1256,7 +1256,11 @@ func _redraws(c: int, a: int, b: int) -> bool:
 # Rubble and sound
 
 func _break_effects(broke: PackedInt32Array) -> void:
+	var flying := PackedInt32Array()   # fine cells: their rubble is MapDebris's
 	for c in broke:
+		if root.debris and panels[cells[c].panel].fine:
+			flying.append(c)
+			continue
 		var at := cell_center(c)
 		var mat := material_of(c)
 		var sound := get_node_or_null("/root/Sound")   # (not there in map-only tests)
@@ -1268,6 +1272,8 @@ func _break_effects(broke: PackedInt32Array) -> void:
 		if DisplayServer.get_name() == "headless":
 			continue
 		_rubble(c, mat)
+	if not flying.is_empty():
+		root.debris.broke(flying)
 
 
 func _rubble(c: int, mat: String) -> void:

@@ -162,6 +162,8 @@ var destructible := false
 var destruction: MapDestruction
 ## The marks shots and blasts leave on the map (a map with fine destruction; else null).
 var marks: BulletMarks
+## ...and the rubble its walls leave (see MapDebris).
+var debris: MapDebris
 ## build() made meshes (false in the movement tests).
 var has_meshes := true
 
@@ -241,6 +243,9 @@ func build(with_meshes: bool = true) -> void:
 			marks = BulletMarks.new()
 			add_child(marks)
 			marks.setup(self)
+			debris = MapDebris.new()
+			add_child(debris)
+			debris.setup(self, destruction)
 	for i in movers.size():
 		_build_mover(i, with_meshes)   # (after the breakables: a mover's own ride on it)
 	if movers.is_empty():

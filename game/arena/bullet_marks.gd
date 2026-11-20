@@ -124,9 +124,13 @@ static func shots(muzzle: Vector3, ends: PackedVector3Array, hits: Array, weapon
 	var weapon := WeaponData.by_id(weapon_id)
 	if weapon.damage * weapon.structure_damage < 2.0:
 		return   # (a puff of air)
+	var debris := marks.root.debris
 	for i in ends.size():
 		var via: PackedVector3Array = vias[i] if i < vias.size() else PackedVector3Array()
-		marks.shot(via[via.size() - 1] if via.size() >= 2 else muzzle, ends[i], weapon, i < hits.size() and hits[i])
+		var from := via[via.size() - 1] if via.size() >= 2 else muzzle
+		marks.shot(from, ends[i], weapon, i < hits.size() and hits[i])
+		if debris:   # (what the round breaks flies the way it was going)
+			debris.push_shot(from, ends[i], clampf(weapon.damage * weapon.structure_damage / 60.0, 0.6, 2.0))
 
 
 ## A round's marks along the last stretch of its path, `from` (the muzzle, or where it
