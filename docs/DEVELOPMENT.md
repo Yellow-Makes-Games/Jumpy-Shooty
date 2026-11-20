@@ -67,6 +67,13 @@ Quick checks:
   leaves nothing behind; a shot cuts it short; its beats use bones the robots have and
   sounds the game has; every weapon has a place on the body, two never share one, and a
   cape sends long ones to the side; a weapon let go breaks up and is gone;
+- the free hand (`tests/free_hand_test.gd`, with `--fixed-fps 60`): left alone it does
+  nothing; a reach brings the arm out and lets it go; a snatch shuts the fist, pulls in
+  to the chest and flashes the pickup's colour; a press lasts as long as asked and
+  follows a lever; a hold stays on, bends the body to something low and strikes sparks;
+  a shot cuts it short and keeps the hand off for a moment; it moves the left arm alone
+  and puts the wrist on its target; on a body the hand goes out and the gun stays on
+  the aim, planting bends it at the waist, and none of it shows up the rope or in a flip;
 - reloading off the ground (`tests/midair_reload_test.gd`, with `--fixed-fps 60`): every
   gun has a one-handed reload that goes hold to hold, is at the belt as the new cell goes
   home and has the cell out only from flick to slam; your own arms only go down for it;
@@ -2053,6 +2060,33 @@ show the same. Target dummies do not flinch. `tests/hit_reaction_test.gd` checks
 film it in the real game, the hits made up by a script on the Testing Grounds:
 `tools/robot/hit_film.sh OUT_DIR all front` (scenes: small, medium, big, head, melee,
 rapid, air, or all; views: first, third, side, front, back).
+
+**The free hand** (`game/player/robot/free_hand.gd`, `FreeHand`) is what the hand
+without the gun does with pickups and things to work, and is looks only: what is taken,
+pressed or planted, and when, is decided where it always was. Each `Player` keeps one
+(`Player.hand`: not the animator's, which is made anew with every weapon), feeds it every
+frame (`Player._feed_hand`) and hands it to `RobotAnimator` and `ViewModel`. It is told:
+`reach` while a weapon pad or a power-up it could use is within `AHEAD` (each copy looks
+through `Arena.pickups` and `items`); `grab` when the host says it was taken
+(`Arena._on_pickup_changed`, `_on_item_changed`, and the bomb and the flags from
+`Teams.event`, through `Player.snatch`), with a power-up's colour to flash through the
+body's lights (`RobotModel.set_tint`); `touch` when a terminal or a lever is set off
+(`MapTerminal._show_hand` calls `Player.used_terminal`: a lever's knob is followed
+through its swing, `MapLever.hand_point`); and `hold` while a terminal is held, the bomb
+is planted (`Teams.holder`, down in front of the feet, with the bomb itself drawn in the
+hand by `ObjectiveProps`) or defused (at the bomb, striking sparks). The animator bends
+the left arm to the target (`FreeHand.lay`: two bones, like a leg onto a foothold), opens
+or shuts the hand, and for something low bends the body at the waist (`FREE_HAND_BOW`)
+while the gun arm is lifted back to the aim; the hips, the feet and the hitbox are where
+they were. It is not shown with that arm up the rope, in a flip, a roll, a vault or a
+dive (`FREE_HAND_KEYS`), and a shot, a reload or a swing drops it (`cut`). A weapon that
+goes on the body, not into the hands, flies to its place from that hand. `ViewModel`
+brings your own left hand into view toward the same target. A killcam records the
+snatches (`Killcam`: a "grab" event) and its stand-in bodies show them; it knows nothing
+of levers, terminals or the bomb. `tests/free_hand_test.gd`
+checks it; `tools/robot/preview.sh` puppets take `"reach"`, `"grab"`, `"touch"` and
+`"hold"` (stills), and `tools/robot/hand_film.sh OUT_DIR site side` films the real game
+(scenes: site, terminal, bomb; views: first, side).
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted

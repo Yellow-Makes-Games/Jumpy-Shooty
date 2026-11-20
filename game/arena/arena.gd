@@ -314,6 +314,11 @@ func _team_spawn(who: Player) -> Array:
 
 ## Team modes: the bomb going off (the blast, its sound and a shake).
 func _on_team_event(kind: String, _team: int, _who: int) -> void:
+	if kind == "bomb_taken" or kind == "flag_taken":
+		var taker := get_player(_who)
+		if taker:   # (looks only: the free hand scoops it up from in front of the feet)
+			taker.snatch(taker.global_position + Vector3.FORWARD.rotated(Vector3.UP, taker.visual.global_rotation.y) * 0.5
+				+ Vector3(0.0, 0.5 if kind == "bomb_taken" else 1.1, 0.0))
 	if kind != "bomb_exploded" or objectives == null:
 		return
 	var at := Teams.bomb_pos
@@ -616,6 +621,9 @@ func _on_item_changed(index: int, taken: bool, by: int) -> void:
 		return
 	var item: ItemPickup = items[index]
 	item.set_taken(taken)
+	var taker := get_player(by) if taken and by != 0 else null
+	if taker:
+		taker.snatch(item.spot, ItemPickup.INFO[item.kind][1])   # (looks only: the free hand takes it)
 	if not taken:
 		Sound.play_at("ui_click", item.spot, "move", -6.0)
 	elif by == Net.my_id():
@@ -636,6 +644,8 @@ func _on_pickup_changed(index: int, taken: bool, by: int, weapon: String) -> voi
 	if by == 0:
 		return   # just catching up on what is gone (joined mid-match)
 	var p := get_player(by)
+	if p:
+		p.snatch(pickup.spot, Color(0, 0, 0, 0), weapon)   # (looks only: the free hand takes it)
 	if p and p.is_local:
 		p.picked_up(weapon)   # a full magazine, whether it is new or one you carry
 		if p == local_player:

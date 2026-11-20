@@ -350,6 +350,23 @@ func update(delta: float) -> void:
 		_pose.rot[rig.bones["forearm_l"]] = _pose.rot[rig.bones["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, 0.1 * (1.0 - clampf(swing.lunged(), 0.0, 1.0) * swing.w)), _grapple_w)
 		_pose.rot[rig.bones["hand_l"]] = _pose.rot[rig.bones["hand_l"]].slerp(Quaternion.IDENTITY, _grapple_w)
 
+	# --- The hand without the gun: out to a pickup, on a terminal, down at a bomb (see FreeHand)
+	var free: FreeHand = _player.hand
+	if free != null and free.w > 0.0 and _grapple_w < 0.5 and not _data.is_akimbo():
+		var shown := smoothstep(0.0, 1.0, free.w) * (1.0 - _grapple_w * 2.0)
+		var up_l: int = rig.bones["upper_arm_l"]
+		var shoulder := model.global_transform * (rig.rest_pos[rig.bones["hips"]] + rig.rest_pos[rig.bones["spine"]] \
+			+ rig.rest_pos[rig.bones["chest"]] + rig.rest_pos[up_l])
+		var dir := model.global_transform.basis.inverse() * (free.target() - shoulder).normalized()
+		# Keep the hand in view: mostly forward, toward what it is after.
+		# (More so for something down by the feet, which is below the view: it shows at the bottom of it.)
+		dir = (Vector3(-0.3, -0.15, -1.0).normalized() * lerpf(0.9, 3.0, free.bow) + dir).normalized()
+		_pose.rot[up_l] = _pose.rot[up_l].slerp(Quaternion(Vector3.DOWN, dir), shown)
+		_pose.rot[rig.bones["forearm_l"]] = _pose.rot[rig.bones["forearm_l"]].slerp(Quaternion(Vector3.RIGHT, lerpf(0.2, 0.9, free.fist)), shown)
+		_pose.rot[rig.bones["hand_l"]] = _pose.rot[rig.bones["hand_l"]].slerp(Quaternion.IDENTITY, shown)
+		Hands.set_hand(_pose, rig, "open", shown * (1.0 - free.fist), true)
+		Hands.set_hand(_pose, rig, "fist", shown * free.fist, true)
+
 	if _data.is_melee():
 		# The same hold and swing as the body's, with the shoulders turning less so the
 		# weapon stays on screen: winding up draws it back to the right edge of the

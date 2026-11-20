@@ -104,6 +104,8 @@ const ROPE_AIM_DROP := 4.0
 const ROPE_CHEST := 0.45        ## how much of the hips' lean the chest gives back while the gun is down (aiming: all of it)
 const ROPE_VIEW := 0.55         ## your own body in first person leans this much of what everyone else sees
 const RECOIL_HEAD := 0.8        ## a shot rocks the chest: the head gives this much of it back (it stays on the aim)
+const FREE_HAND_KEYS := ["loco", "crouch", "slide", "air", "tuck", "wall_l", "wall_r", "glide"]   ## the hand without the gun is free in these (see FreeHand)
+const FREE_HAND_BOW := 1.0      ## radians the body bends at the waist to reach something by its feet (planting, defusing)
 const FLIP_KEYS := ["flip_front", "flip_back", "flip_left", "flip_right"]   ## a reload goes on through these, the arms held in
 const AIR_RELOAD_KNEES := 0.42  ## reloading in the air: radians the knees come up...
 const AIR_RELOAD_CURL := 0.1    ## ...and the spine and the chest each curl over the gun
@@ -224,6 +226,10 @@ var _glide_lean := 0.0    # the hips' forward lean in the glide, radians (the ba
 ## How the body hangs on the rope (ViewModel reads it too, so your arms
 ## in first person move with the body everyone else sees).
 var rope := RopeSwing.new()
+## What the hand without the gun is doing with a pickup, a terminal, a bomb (see FreeHand):
+## the Player's own, handed over every frame (null: nothing).
+var free: FreeHand
+var _free_w := 0.0        # how much of it this body shows (none in a flip, a roll, a vault, or with that arm up the rope)
 ## On the rope at a wall: the feet on it (see WallBrace).
 var brace := WallBrace.new()
 var _rope_low := 0.0         # on the rope with the gun (or blade) down at your side, 0..1
@@ -732,9 +738,14 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var head: int = _b["head"]
 	_lean = move_toward(_lean, 0.0 if first_person else 1.0, ease * 8.0)
 	var p := inp.pitch * _torso * _lean
-	_pose.rot[spine] = Quaternion(Vector3.RIGHT, p * 0.25) * _pose.rot[spine]
-	_pose.rot[chest] = Quaternion(Vector3.RIGHT, p * 0.25) * _pose.rot[chest]
-	_pose.rot[head] = Quaternion(Vector3.RIGHT, p * 0.2) * _pose.rot[head]
+	# Reaching down to something by the feet (a bomb): bent at the waist, the head still up.
+	# (The gun arm is lifted to the aim from wherever the chest ends up, below.)
+	var free_ok := free != null and inp.alive and key in FREE_HAND_KEYS and not (inp.grapple_on and _grapple_w > 0.5)
+	_free_w = move_toward(_free_w, 1.0 if free_ok else 0.0, delta * 10.0)
+	var bow := free.bow * FREE_HAND_BOW * _lean * _free_w if free != null else 0.0
+	_pose.rot[spine] = Quaternion(Vector3.RIGHT, p * 0.25 - bow * 0.5) * _pose.rot[spine]
+	_pose.rot[chest] = Quaternion(Vector3.RIGHT, p * 0.25 - bow * 0.5) * _pose.rot[chest]
+	_pose.rot[head] = Quaternion(Vector3.RIGHT, p * 0.2 + bow * 0.75) * _pose.rot[head]
 	var chest_rot: Quaternion = _pose.rot[_b["root"]] * _pose.rot[hips] * _pose.rot[spine] * _pose.rot[chest]
 	var chest_fwd := chest_rot * Vector3.FORWARD
 	var chest_pitch := asin(clampf(chest_fwd.y, -1.0, 1.0))
@@ -846,6 +857,13 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 
 	if _akimbo:
 		Hands.set_hand(_pose, rig, "gun", 1.0 - _reload_w * (1.0 - smoothstep(0.0, 1.0, _busy)), true)   # the left hand has a gun of its own, whatever the arm is doing (a two-handed reload poses it itself)
+	# The hand without the gun: out to a pickup, on a terminal, down at a bomb (see FreeHand).
+	if free != null and free.w > 0.0 and _free_w > 0.0:
+		free.lay(_pose, _b, model_xform, _free_w)
+		if not _akimbo:
+			var shown := smoothstep(0.0, 1.0, free.w) * _free_w
+			Hands.set_hand(_pose, rig, "open", shown * (1.0 - free.fist), true)
+			Hands.set_hand(_pose, rig, "fist", shown * free.fist, true)
 	# Reloading in the air with both hands: the knees come up and the body curls over the gun.
 	var tucking := _reload_w > 0.0 and _busy < 0.5 and key in ["air", "tuck", "glide"] and inp.alive and not first_person and not _melee
 	_air_reload = move_toward(_air_reload, 1.0 if tucking else 0.0, delta * 5.0)

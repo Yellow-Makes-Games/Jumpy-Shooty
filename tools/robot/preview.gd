@@ -18,6 +18,9 @@ extends SceneTree
 ## A puppet can hold any weapon: "weapon": "akimbo" (next to "puppet"), carry others put
 ## away on its body: "stowed": ["rifle"] (see StowedWeapon), and take its weapon out
 ## part-way through a step: "draw_at": 0.9 in the step (see WeaponDraw).
+## Its free hand (see FreeHand), at a point in its own space: "reach": [x,y,z] (out to a
+## pickup), "grab": [x,y,z] (snatching it, as the step starts), "touch": [x,y,z] (on a
+## terminal), "hold": [x,y,z] with "low": true (working at something by its feet: a bomb).
 ## A puppet with "first_person": {"pitch": -40, "eye": 1.6, "fov": 95} is seen through
 ## its own eyes (the shot's camera is ignored): the body as you see it in first person.
 
@@ -165,6 +168,8 @@ func _puppet(item: Dictionary) -> void:
 	robot.rotation_degrees.y = item.get("yaw", 0.0)
 	var animator := RobotAnimator.new(robot)
 	var inp := RobotAnimInput.new()
+	var free := FreeHand.new()   # the hand without the gun (see "reach", "grab", "touch", "hold" below)
+	animator.free = free
 	if item.has("stowed"):   # weapons put away on the body (see StowedWeapon)
 		StowedWeapon.put_on(robot, item.stowed, Color(c[0], c[1], c[2]), item.get("character", Characters.default_id()))
 	var step: Dictionary = item.puppet
@@ -194,6 +199,10 @@ func _puppet(item: Dictionary) -> void:
 		if step.has("grapple"):
 			inp.grapple_anchor = robot.global_transform * _v(step.grapple)
 		inp.hook_taut = float(step.get("taut", -1.0))   # the rope pulled tight this long ago (the body hangs on it: RopeSwing)
+		if step.has("grab"):
+			free.grab(robot.global_transform * _v(step.grab))
+		if step.has("touch"):
+			free.touch(robot.global_transform * _v(step.touch), float(step.get("seconds", 1.0)) + 1.0)
 		var t := 0.0
 		var fired := false
 		var fired_left := false
@@ -215,6 +224,11 @@ func _puppet(item: Dictionary) -> void:
 				elif not fired:
 					animator.swing(data.charge_of(float(step.wind)), int(step.get("side", 0)))
 					fired = true
+			if step.has("reach"):
+				free.reach(robot.global_transform * _v(step.reach))
+			if step.has("hold"):
+				free.hold(robot.global_transform * _v(step.hold), step.get("low", false), true)
+			free.update(1.0 / 60.0, robot.global_transform)
 			animator.update(1.0 / 60.0, inp, robot.global_transform)
 			if not first.is_empty():
 				animator.place_for_view(1.0, first.get("eye", 1.6), deg_to_rad(first.get("pitch", 0.0)))
