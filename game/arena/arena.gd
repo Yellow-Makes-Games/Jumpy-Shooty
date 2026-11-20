@@ -318,6 +318,7 @@ func _sync_players() -> void:
 					p.change_weapon(Net.player_weapon(id))   # Gun Game: a kill hands you the next weapon now
 				else:
 					rebuild_player(id)   # swapped weapons while waiting to respawn: rebuilt holding the new one
+			get_player(id).show_stowed()   # Deathmatch: what they carry and do not hold rides on their body
 	for p in players_root.get_children():
 		if not Net.players.has((p as Player).peer_id):
 			if p == local_player:

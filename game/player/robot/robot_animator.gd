@@ -154,6 +154,8 @@ var _torso := 1.0
 ## What the gun's shots are doing to the body (see GunRecoil): the kick in the hands, the
 ## body taking it, the gun's own working parts.
 var recoil := GunRecoil.new()
+## The weapon being taken out (see WeaponDraw): where the arms bring it from, its flourish, its glow coming on.
+var draw := WeaponDraw.new()
 var _akimbo := false      # a pistol in each hand: each arm kicks on its own shots
 var _since_fire := 99.0
 var _reload_t := -1.0
@@ -291,6 +293,7 @@ func _bones(names: Array) -> PackedInt32Array:
 ## A shot was fired: kick the gun (akimbo: the one in the left hand when `left`).
 func fire(left: bool = false) -> void:
 	recoil.fire(left)
+	draw.cut()
 	_since_fire = 0.0
 	rope.hurry_flip()
 	_end_glide_flip()
@@ -310,6 +313,7 @@ func fire(left: bool = false) -> void:
 func wind(charge: float, side: int = 0) -> void:
 	if _melee:
 		_swing.wind(charge, side, _airborne)
+		draw.cut()
 		rope.hurry_flip()
 		_end_glide_flip()
 
@@ -318,6 +322,7 @@ func wind(charge: float, side: int = 0) -> void:
 func swing(power: float, side: int = 0) -> void:
 	if _melee:
 		_swing.swing(power, side, _airborne)
+		draw.cut()
 		_since_fire = 0.0
 		rope.hurry_flip()
 		_end_glide_flip()
@@ -411,6 +416,7 @@ func cutting() -> bool:
 func respawn() -> void:
 	_respawn_t = 0.0
 	recoil.stop()
+	draw.start(model.weapon)   # the weapon comes out as you do
 	_swing.stop()
 	rope.stop()
 	_dead_time = -1.0
@@ -641,9 +647,11 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			_pose.rot[root] = round * _pose.rot[root]
 			_pose.pos[root] = SPIN_PIVOT + round * (_pose.pos[root] - SPIN_PIVOT)
 		if model.melee:
-			MeleeModel.set_glow(model.melee, _swing.glow() if inp.alive else 0.0)
+			MeleeModel.set_glow(model.melee, _swing.glow() * draw.glow() if inp.alive else 0.0)
+			MeleeModel.set_grown(model.melee, draw.grown())
 		if model.melee_left:
-			MeleeModel.set_glow(model.melee_left, _swing.glow() if inp.alive else 0.0)
+			MeleeModel.set_glow(model.melee_left, _swing.glow() * draw.glow() if inp.alive else 0.0)
+			MeleeModel.set_grown(model.melee_left, draw.grown())
 	_apply_kick(delta, inp.alive)
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward
@@ -667,8 +675,12 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var chest_pitch := asin(clampf(chest_fwd.y, -1.0, 1.0))
 	if inp.alive:
 		recoil.update(delta)
+		draw.update(delta)
 	else:
 		recoil.stop()
+		draw.stop()
+	if draw.clip_due() and rig.has_clip("fire_" + weapon):
+		_fire_t = 0.0   # (it shows from the next frame: the flourish's bolt, lever or pump)
 	var aim_lift := clampf(inp.pitch - chest_pitch, -1.7, 1.7)
 	var lift := aim_lift + recoil.arm_lift(false)
 	var lift_l := aim_lift + recoil.arm_lift(_akimbo)
@@ -684,12 +696,16 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	if not _melee and recoil.busy():
 		_take_recoil(key, w_r, w_l)
 	recoil.pose_parts(_pose, _b)
+	if not _melee and draw.active():
+		_take_out(up_r, up_l, across)
 	if _melee and _hold > 0.0:
 		# The weapon follows the aim up and down about the shoulders, a little less than a gun does.
 		# (The swing's own lean is taken out in full, so a thrust stays level as the body leans into it.)
 		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed,
 			clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8 + float(_swing_key[MeleeSwing.LEAN]) * _hold * 0.2, _hold, _hold,
 			Vector3.ZERO, _swing.other_fist(), _swing.left_fist())
+		if draw.active():
+			_take_out(up_r, up_l, across)
 
 	# --- 6 (before the waist turn, which must not move the chest). Grapple arm
 	_grapple_w = move_toward(_grapple_w, 1.0 if (inp.grapple_on and inp.alive) else 0.0, delta * 10.0)
@@ -766,6 +782,27 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	var fx_t := _reload_t if _reload_w > 0.0 and _reload_t >= 0.0 else -1.0
 	ReloadFx.update(model, weapon, _fx_t, fx_t, null if first_person else fx_parent, inp.velocity)
 	_fx_t = fx_t
+	if draw.active() and not _melee:
+		model.set_gun_glow(draw.glow())   # it powers on as it comes up
+
+
+## The weapon is being taken out (see WeaponDraw): the arms swing it in from where it was
+## carried, the chest turns with them and dips as its weight lands, and the weapon does
+## its own flourish in the hand. Your own body in first person keeps its chest where the
+## camera has it.
+func _take_out(up_r: int, up_l: int, across: Vector3) -> void:
+	_pose.rot[up_r] = Quaternion(across, draw.lift(false)) * _pose.rot[up_r]
+	_pose.rot[up_l] = Quaternion(across, draw.lift(true)) * _pose.rot[up_l]
+	if _lean > 0.0:
+		var chest: int = _b["chest"]
+		var head: int = _b["head"]
+		var spine: int = _b["spine"]
+		var turn := draw.turn() * _lean
+		var dip := 0.1 * draw.jolt() * _lean
+		_pose.rot[chest] = Quaternion(Vector3.UP, turn) * _pose.rot[chest]
+		_pose.rot[spine] = Quaternion(Vector3.RIGHT, dip) * _pose.rot[spine]
+		_pose.rot[head] = Quaternion(Vector3.RIGHT, -dip * RECOIL_HEAD) * Quaternion(Vector3.UP, -turn * RECOIL_HEAD) * _pose.rot[head]
+	draw.pose_weapon(_pose, _b)
 
 
 ## The body takes the gun's kick (see GunRecoil): the wrist, the chest, the spine, each as

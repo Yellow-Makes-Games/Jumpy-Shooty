@@ -89,6 +89,7 @@ static func spawn(p: Player, fx: Dictionary) -> Node3D:
 	Net.arena.add_child(r, true)
 	r.model.global_transform = p.robot.global_transform
 	r.model.set_power(0.0)   # powered down, like the body it replaces
+	StowedWeapon.put_on(r.model, p.stowed, color, p.character)   # what it carried falls with it
 	r._build(plan)
 	r._pose_from(p.robot.skeleton)
 	r._first = r.capture()

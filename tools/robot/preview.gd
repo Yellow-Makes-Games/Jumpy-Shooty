@@ -15,7 +15,9 @@ extends SceneTree
 ##   let go, a tap from the right), "feet": [0.15, 0.0] (the ground under the left and right foot, above the floor: see
 ##   RobotAnimInput.feet), "then": {...same keys, applied after "seconds"..., "seconds": 0.1}}}
 ## A shot can also draw plain boxes, for steps and ledges: "blocks": [{"pos": [x, y, z], "size": [x, y, z]}].
-## A puppet can hold any weapon: "weapon": "akimbo" (next to "puppet").
+## A puppet can hold any weapon: "weapon": "akimbo" (next to "puppet"), carry others put
+## away on its body: "stowed": ["rifle"] (see StowedWeapon), and take its weapon out
+## part-way through a step: "draw_at": 0.9 in the step (see WeaponDraw).
 ## A puppet with "first_person": {"pitch": -40, "eye": 1.6, "fov": 95} is seen through
 ## its own eyes (the shot's camera is ignored): the body as you see it in first person.
 
@@ -163,6 +165,8 @@ func _puppet(item: Dictionary) -> void:
 	robot.rotation_degrees.y = item.get("yaw", 0.0)
 	var animator := RobotAnimator.new(robot)
 	var inp := RobotAnimInput.new()
+	if item.has("stowed"):   # weapons put away on the body (see StowedWeapon)
+		StowedWeapon.put_on(robot, item.stowed, Color(c[0], c[1], c[2]), item.get("character", Characters.default_id()))
 	var step: Dictionary = item.puppet
 	var first: Dictionary = item.get("first_person", {})
 	var holder := Node3D.new()   # the first-person body is moved about inside this
@@ -192,7 +196,11 @@ func _puppet(item: Dictionary) -> void:
 		var t := 0.0
 		var fired := false
 		var fired_left := false
+		var drawn := false
 		while t < float(step.get("seconds", 1.0)):
+			if step.has("draw_at") and not drawn and t >= float(step.draw_at):
+				animator.draw.start(robot.weapon)   # the weapon is taken out (see WeaponDraw)
+				drawn = true
 			if step.has("fire_at") and not fired and t >= float(step.fire_at):
 				animator.fire()
 				fired = true

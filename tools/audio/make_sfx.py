@@ -623,6 +623,14 @@ def handling(name, rng):
                                   glide(0.75, 300, 1500) * np.linspace(0.0, 1.0, n(0.75)) ** 2.0 * 0.12),
         "barrel_spin": lambda: mix(lp(glide(1.4, 70, 380, "saw"), 1500) * bell_env(1.4, 0.45, 1.2) * 0.45,        # a minigun's barrels run up and down
                                    whoosh(rng, 1.4, 300, 1800, at=0.45) * 0.5),
+        # Taking a weapon out and putting it away (WeaponDraw, StowedWeapon)
+        "holster_click": lambda: mix(metal_slide(rng, 0.04, 1500, 1.2) * 0.5, (metal_clack(rng, 1.3, 0.5, 0.35), 0.03),    # a weapon seated in its place
+                                     (metal_clack(rng, 1.9, 0.35, 0.15) * 0.4, 0.05)),
+        "power_on": lambda: mix(lp(glide(0.3, 140, 520, "saw"), 1800) * bell_env(0.3, 0.6, 1.6) * 0.32,                    # a weapon's lights coming on
+                                glide(0.3, 600, 1900) * bell_env(0.3, 0.75, 2.0) * 0.14,
+                                (metal_clack(rng, 2.2, 0.3, 0.1) * 0.25, 0.24)),
+        "heavy_clack": lambda: mix(metal_clack(rng, 0.55, 1.6, 1.6), (metal_clack(rng, 0.8, 1.1, 0.9) * 0.6, 0.035),        # a big gun's weight landing in the hands
+                                   (lp(noise(rng, 0.12), 300) * env(0.12, 0.04) * 0.5, 0.0)),
     }
     return finish(s[name]())
 
@@ -1887,6 +1895,8 @@ def recipes():
         r[h] = lambda h=h, i=i: handling(h, np.random.default_rng(4600 + i))
     for i, h in enumerate(["gun_spin", "gun_toss", "vent_hiss", "charge_hum", "barrel_spin"]):
         r[h] = lambda h=h, i=i: handling(h, np.random.default_rng(4700 + i))
+    for i, h in enumerate(["holster_click", "power_on", "heavy_clack"]):
+        r[h] = lambda h=h, i=i: handling(h, np.random.default_rng(4740 + i))
     for i in range(3):
         r["cell_clink_%d" % (i + 1)] = lambda i=i: handling("cell_clink", np.random.default_rng(4720 + i))
     for i in range(4):

@@ -54,6 +54,8 @@ const VOLUME := {
 	"cover_open": -11.0, "cover_close": -9.0, "box_out": -11.0, "box_in": -10.0, "cell_out": -11.0,
 	"cell_in": -10.0, "rocket_in": -9.0, "drum_turn": -11.0, "grenade_in": -11.0, "rail_vent": -11.0,
 	"gun_spin": -14.0, "gun_toss": -17.0, "cell_clink": -15.0, "vent_hiss": -13.0, "charge_hum": -11.0, "barrel_spin": -12.0,
+	# Taking a weapon out and putting it away (WeaponDraw, StowedWeapon)
+	"holster_click": -14.0, "power_on": -15.0, "heavy_clack": -11.0,
 	# The third batch
 	"fire_derringer": -4.0, "fire_derringer_fp": -4.0, "far_derringer": -7.5, "equip_derringer": -10.0,
 	"fire_flare_gun": -5.0, "fire_flare_gun_fp": -5.0, "far_flare_gun": -8.5, "equip_flare_gun": -10.0,

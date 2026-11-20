@@ -327,6 +327,7 @@ func _roll(f: Array) -> float:
 
 func _build_arms(weapon: String, color: Color) -> void:
 	_weapon = weapon
+	var swapped := _view != null   # (a new weapon part-way through the replay comes out as it did; the one they start with is just there)
 	if _view:
 		_view.queue_free()
 		_view = null
@@ -339,6 +340,8 @@ func _build_arms(weapon: String, color: Color) -> void:
 	camera.add_child(_view)
 	_view.setup(_puppet, color)
 	_view.respawn()
+	if not swapped:
+		_view.draw.stop()
 	_akimbo_shots = 0
 
 
@@ -445,6 +448,12 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 	g.robot = RobotModel.new().build(track.character, track.color, false, weapon, false, track.paint)
 	g.visual.add_child(g.robot)
 	g.animator = RobotAnimator.new(g.robot)
+	if old:
+		g.animator.draw.start(weapon)   # a new weapon part-way through the replay: it comes out as it did
+	# Deathmatch: what they carry and do not hold rides on their body. (The replay does not
+	# record it: this is what they carry now, a few seconds on.)
+	if Net.is_deathmatch() and Net.players.has(id):
+		StowedWeapon.put_on(g.robot, Net.player_weapons(id).filter(func(w): return w != weapon), track.color, track.character)
 	g.sounds = PlayerSounds.new(g.root, false, weapon)
 	g.hook_rope = HookRope.new()   # (up front, as the killer's)
 	g.root.add_child(g.hook_rope)

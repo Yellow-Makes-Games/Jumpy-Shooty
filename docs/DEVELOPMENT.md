@@ -62,6 +62,11 @@ they play out as fast as the machine allows instead of in real time. Their logs 
 
 Quick checks:
 
+- taking weapons out and putting them away (`tests/weapon_draw_test.gd`): every weapon
+  has a draw and a flourish; a draw starts away from the hold, ends exactly on it and
+  leaves nothing behind; a shot cuts it short; its beats use bones the robots have and
+  sounds the game has; every weapon has a place on the body, two never share one, and a
+  cape sends long ones to the side; a weapon let go breaks up and is gone;
 - gun recoil (`tests/gun_recoil_test.gd`): every gun kicks and a melee weapon does not;
   nothing is left of a shot a moment later and the camera is back exactly where it was,
   however long the burst; the camera's kick stays inside its limit; a held trigger
@@ -1864,6 +1869,32 @@ is all looks: the aim, the spread and the shot are untouched. `tests/gun_recoil_
 checks every gun; to film one in the real game, played by a script on the Testing
 Grounds: `tools/robot/recoil_film.sh OUT_DIR rifle shots side` (scenes: shots, air,
 move; views: first, third, side, front, back).
+
+**Taking a weapon out** has no clips either: `game/combat/weapon_draw.gd`
+(`WeaponDraw`), kept by the body's animator and by your own first-person arms, like
+`GunRecoil`. It is looks only: `Player.change_weapon` still swaps the weapon in one
+frame, and it fires at once (a shot or a swing cuts the draw short). Where a weapon
+comes from is its family's (`KINDS`, by where it is carried: `WeaponDraw.carried`): a
+sidearm snaps up from the thigh, a long gun or blade comes over the shoulder off the
+back, a launcher is heaved off it and lands with a dip. On top of that each weapon has
+its own flourish (`FLOURISH`: a list of beats, a spin round the trigger finger, a toss,
+one of the gun's working parts from `GunRecoil.PARTS`, the body's own `fire_<gun>`
+clip, a sound), and its glow fills as it comes up. It starts on a Deathmatch switch,
+Gun Game's next weapon, a weapon picked up into your hands and a respawn. In first
+person the arms never ride up past the hold (their shoulders are just below the view).
+
+**Weapons put away** (`game/player/robot/stowed_weapon.gd`, `StowedWeapon`): in a
+Deathmatch the weapon you carry and do not hold rides on your body (`Player.stowed`,
+from `Net.player_weapons`): across the back, on the thigh or on the belt (`PLACES`), a
+second one of the same kind on the other side, and at the left side of a body that
+wears something on its back. Put away mid-match it flies there from the hand; a weapon
+let go for good (Gun Game's last one, one swapped out for a pickup) breaks up into
+light where it was (`StowedWeapon.break_up`). It falls with the ragdoll, and your own
+is not drawn in first person. `tests/weapon_draw_test.gd` checks every weapon. To see
+them: `tools/robot/preview.sh` takes `"stowed": ["rifle"]` and `"draw_at"` on a puppet
+(stills, in seconds), and `tools/robot/swap_film.sh OUT_DIR pistol rifle swap back`
+films a real Deathmatch swap (scenes: swap, hand; views: first, third, side, front,
+back).
 
 **Melee weapons** are not in the model files: `game/combat/melee_model.gd` builds each one
 from faceted shapes (`game/combat/melee_kit.gd`: plates cut from an outline, bars, lofted
