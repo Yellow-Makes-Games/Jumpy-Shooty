@@ -36,6 +36,7 @@ func run() -> void:
 	_offline_timing()
 	await _playback()
 	_zoomed()
+	_follow_on()
 	await _results_page()
 	_sound_mix()
 	await _video()
@@ -308,6 +309,48 @@ func _test_clip() -> KillClip:
 	clip.events = [{"t": 1.95, "who": 1, "kind": "shot", "muzzle": Vector3(0, 1.5, 0),
 		"ends": PackedVector3Array([Vector3(0, 1.6, -10)]), "hits": [true], "weapon": "pistol"}]
 	return clip
+
+
+## A best kill's clip runs on through the killer's next kills, each within FOLLOW_ON
+## of the last, but never past MAX_CLIP; another player's kill, or one too late, does not.
+func _follow_on() -> void:
+	print("  a multikill plays out")
+	var saved: Array = Killcam._pending.duplicate()
+	var clip := KillClip.new()
+	clip.killer = 1
+	clip.kill_time = 10.0
+	clip.start = 7.0
+	clip.end = 11.0
+	var entry := {"clip": clip, "at": 11.4, "last": 10.0}
+	Killcam._pending = [entry]
+	Killcam._follow_on(1, 10.8, 10.8)
+	_expect(is_equal_approx(clip.end, 10.8 + Killcam.HIGHLIGHT_AFTER) and float(entry.at) >= clip.end,
+		"a second kill 0.8 s later: the clip follows it through (ends %.1f)" % clip.end)
+	Killcam._follow_on(2, 11.2, 11.2)
+	_expect(is_equal_approx(clip.end, 11.8), "someone else's kill doesn't stretch it")
+	Killcam._follow_on(1, 12.1, 12.1)
+	_expect(is_equal_approx(clip.end, 12.1 + Killcam.HIGHLIGHT_AFTER), "a third 1.3 s after the second still counts (ends %.1f)" % clip.end)
+	Killcam._follow_on(1, 14.0, 14.0)
+	_expect(is_equal_approx(clip.end, 13.1), "but not one more than %.1f s after the last" % Killcam.FOLLOW_ON)
+	var t := 12.1
+	for i in 30:   # a long streak, each kill 0.9 s after the last
+		t += 0.9
+		Killcam._follow_on(1, t, t)
+	_expect(is_equal_approx(clip.end - clip.start, Killcam.MAX_CLIP), "a long streak stops at %.0f s (%.1f)" % [Killcam.MAX_CLIP, clip.end - clip.start])
+	_expect(Killcam.HISTORY >= Killcam.MAX_CLIP + 2.0, "and the recording keeps that much")
+	# ...and back: a streak plays from its first kill, whichever kill scored best.
+	var before := Killcam.HIGHLIGHT_BEFORE
+	_expect(is_equal_approx(Killcam.clip_start(10.0, [], false), 10.0 - before), "a lone kill: the usual lead-in")
+	_expect(is_equal_approx(Killcam.clip_start(10.0, [8.8, 7.5], false), 7.5 - before),
+		"kills 1.2 s and 1.3 s apart before it: from the first of them (%.1f)" % Killcam.clip_start(10.0, [8.8, 7.5], false))
+	_expect(is_equal_approx(Killcam.clip_start(10.0, [8.8, 5.0], false), 8.8 - before), "but not past a gap of more than %.1f s" % Killcam.FOLLOW_ON)
+	_expect(is_equal_approx(Killcam.clip_start(10.0, [7.0], true), 7.0 - before), "a counted multikill reaches its first kill too")
+	var chain := []
+	for i in 30:
+		chain.append(10.0 - 1.2 * (i + 1))
+	_expect(is_equal_approx(Killcam.clip_start(10.0, chain, false), 10.0 + Killcam.HIGHLIGHT_AFTER - Killcam.MAX_CLIP),
+		"a long streak before it: no more than %.0f s in all" % Killcam.MAX_CLIP)
+	Killcam._pending = saved
 
 
 ## The killer zoomed in partway through: the killcam's view narrows with them.
