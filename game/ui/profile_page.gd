@@ -109,7 +109,7 @@ func _build() -> void:
 	for a in list:
 		row.add_child(AchievementsPanel.make_card(a, true))
 	if list.is_empty():
-		UiKit.label(row, "Every achievement done. Nothing left to chase!", true, 15)
+		UiKit.label(row, "All done", true, 15)
 	var last := VBoxContainer.new()
 	last.custom_minimum_size = Vector2(SIDE, 0)
 	last.add_theme_constant_override("separation", 10)
@@ -117,7 +117,7 @@ func _build() -> void:
 	UiKit.section(last, "Most recent achievement")
 	var recent := Achievements.most_recent()
 	if recent.is_empty():
-		UiKit.label(last, "None yet: play a match to earn your first.", true, 15).name = "recent"
+		UiKit.label(last, "None yet", true, 15).name = "recent"
 	else:
 		var c := AchievementsPanel.make_card(recent, true)
 		c.name = "recent"
@@ -329,7 +329,6 @@ func _show_account() -> void:
 		sync.disabled = Account.busy != ""
 		UiKit.button(row, "Sign out", Account.sign_out).name = "sign_out"
 		return
-	UiKit.label(_account, "Optional: sign in to keep your profile and progress in the cloud.", true, 13)
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 8)
 	_account.add_child(buttons)

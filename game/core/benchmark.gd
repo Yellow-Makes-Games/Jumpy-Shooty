@@ -379,7 +379,7 @@ func _show_results(path: String) -> void:
 			var l := UiKit.label(grid, c, false, 18)
 			l.autowrap_mode = TextServer.AUTOWRAP_OFF
 	UiKit.spacer(frame.body, 6)
-	UiKit.label(frame.body, "The full report (every part of the path, this PC and your settings) and every frame as a spreadsheet are saved in:", true, 15)
+	UiKit.label(frame.body, "Saved in:", true, 15)
 	var where := UiKit.label(frame.body, path.get_base_dir(), false, 15)
 	where.add_theme_color_override("font_color", UiKit.CYAN)
 	frame.back_button("Back", func(): Game.goto_main_menu())

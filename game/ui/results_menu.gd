@@ -135,7 +135,7 @@ func _add_killcams(row: HBoxContainer, highlights: Array) -> void:
 		side.add_child(pair)
 		pair.add_child(b)
 		var save := UiKit.button(pair, "Save", func(): save_video(i))
-		save.tooltip_text = "Save this killcam as a video to share (in Videos/Jumpy Shooty)"
+		save.tooltip_text = "Save as video"
 		save.custom_minimum_size.x = 96
 		_saves.append(save)
 		var line := UiKit.label(side, "  ·  ".join(tags.slice(0, 3)) if not tags.is_empty() else "A clean kill", true, 13)

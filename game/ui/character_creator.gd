@@ -226,7 +226,6 @@ func _stepper(parent: Node, key: String, title: String) -> HBoxContainer:
 	shown.add_theme_font_override("font", HudStyle.font(true))
 	shown.add_theme_font_size_override("font_size", 15)
 	shown.clip_text = true
-	shown.tooltip_text = "Click to see every choice"
 	shown.name = "%s_list" % key
 	shown.set_meta("sfx", "select")
 	shown.pressed.connect(open_list.bind(key))
@@ -359,7 +358,7 @@ func _refresh() -> void:
 				shown.add_theme_color_override(state, LOCKED)
 			else:
 				shown.remove_theme_color_override(state)
-		shown.tooltip_text = "Click to see every choice" if not is_locked or key == WHOLE else "Locked. %s" % Achievements.requirement(item)
+		shown.tooltip_text = "" if not is_locked or key == WHOLE else "Locked. %s" % Achievements.requirement(item)
 	# In your colour, holding the weapon you take into matches.
 	_stage.title = current.name.to_upper()
 	_preview.show_robot(current.to_id(), Net.menu_color(), Game.local_weapon(), _entrance)
@@ -399,8 +398,6 @@ func _refresh_saved() -> void:
 		return
 	UiKit.clear(_saved)
 	if Settings.custom_characters.is_empty():
-		var none := UiKit.label(_saved, "None yet", true, 14)
-		none.autowrap_mode = TextServer.AUTOWRAP_OFF
 		return
 	for id in Settings.custom_characters:
 		var c := CustomCharacter.parse(id)

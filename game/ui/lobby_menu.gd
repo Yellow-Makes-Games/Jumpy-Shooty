@@ -381,7 +381,7 @@ func _player_row(id: int) -> PanelContainer:
 		watch.theme_type_variation = "Chip"
 		watch.custom_minimum_size = Vector2(0, 28)
 		watch.add_theme_font_size_override("font_size", 13)
-		watch.tooltip_text = "Move %s to the spectators (they can come back when there is room)" % Net.player_name(id)
+		watch.tooltip_text = "Move to spectators"
 	return card
 
 
@@ -775,8 +775,6 @@ func _build_rules() -> void:
 	_zoom_ab = CheckButton.new()
 	_zoom_ab.name = "zoom_ab"
 	_zoom_ab.custom_minimum_size = Vector2(0, 44)
-	_zoom_ab.tooltip_text = "How far everyone's zoom (middle mouse) narrows their view: A %d or B %d degrees off their own field of view" \
-		% [LobbySettings.ZOOMS.a, LobbySettings.ZOOMS.b]
 	_col.add_child(_zoom_ab)
 	_zoom_ab.toggled.connect(func(on: bool):
 		if _updating:

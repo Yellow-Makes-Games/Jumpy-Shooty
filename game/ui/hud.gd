@@ -1092,7 +1092,7 @@ func _draw_death(ci: CanvasItem, size: Vector2) -> void:
 	var row := bar.end.y + 18.0
 	if Teams.no_respawn():   # Search and Destroy: out for the rest of the round
 		var a := 0.8 + 0.2 * sin(_pulse * 3.0)
-		HudStyle.label(ci, Vector2(bar.position.x, row), "OUT FOR THIS ROUND  ·  BACK WHEN THE NEXT ONE STARTS", 12, Color(1, 1, 1, a))
+		HudStyle.label(ci, Vector2(bar.position.x, row), "OUT FOR THIS ROUND", 12, Color(1, 1, 1, a))
 	elif not Match.respawn_needs_press(Net.my_id()):
 		HudStyle.label(ci, Vector2(bar.position.x, row), "RESPAWNING", 12, Color(1, 1, 1, 0.85))
 		HudStyle.text(ci, Vector2(bar.end.x, row), "%.1f s" % _respawn_left, 15, HudStyle.WHITE, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -1141,7 +1141,7 @@ func _draw_inventory(ci: CanvasItem, at: Vector2) -> void:
 	var total := slots.size() * cell.x + (slots.size() - 1) * gap
 	var x := at.x - total * 0.5
 	if Net.player_weapons(me).is_empty():
-		HudStyle.text(ci, Vector2(at.x, at.y - 12.0), "UNARMED  ·  WALK OVER A WEAPON TO PICK IT UP  ·  F KICK", 12,
+		HudStyle.text(ci, Vector2(at.x, at.y - 12.0), "UNARMED", 12,
 			Color(1, 1, 1, 0.75), HORIZONTAL_ALIGNMENT_CENTER)
 	for i in slots.size():
 		var id: String = slots[i]

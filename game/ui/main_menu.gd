@@ -13,10 +13,10 @@ const PROFILE_TABS := [["Profile", "_show_profile"], ["Character", "_show_creato
 const MODE_LABELS := ["Shoot-out", "Deathmatch", "Race"]
 ## Shown where the weapon cards would be, in the modes that don't use your pick.
 const NO_WEAPON_NOTES := {
-	"race": "A race has no weapons: it is you, the course and the clock.",
-	"dm": "Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up.",
-	"gungame": "Gun Game hands out the weapons: every kill moves you to the next one.",
-	"killcam": "Killcam is snipers only: every kill scores its killcam points.",
+	"race": "No weapons",
+	"dm": "Weapons are on the map",
+	"gungame": "Gun Game hands out the weapons",
+	"killcam": "Snipers only",
 }
 
 ## The character showcase on the front page runs top to bottom from SHOWCASE_LEFT
@@ -206,13 +206,13 @@ func _front_button(parent: Node, text: String, on_press: Callable) -> Button:
 # Play: three cards
 
 func _show_play() -> void:
-	_page(1000, "Play", "Choose a game")
+	_page(1000, "Play")
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	_frame.body.add_child(row)
-	_card(row, "bots", "Vs Bots", "A 1v1, or a free-for-all against up to 4 bots. Easy to Expert.", _show_bot).grab_focus()
-	_card(row, "practice", "Practice", "Free roam on your own to learn a map's routes.", _show_practice)
-	_card(row, "online", "Multiplayer", "Free-for-all with up to 15 friends.", _show_multiplayer)
+	_card(row, "bots", "Vs Bots", "", _show_bot).grab_focus()
+	_card(row, "practice", "Practice", "", _show_practice)
+	_card(row, "online", "Multiplayer", "", _show_multiplayer)
 	_frame.back_button("Back", _show_main)
 
 
@@ -247,9 +247,10 @@ func _card(parent: Node, kind: String, heading: String, blurb: String, on_press:
 	var h := UiKit.label(v, heading.to_upper(), false, 28)
 	h.add_theme_font_override("font", HudStyle.font(true))
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var d := UiKit.label(v, blurb, true, 15)
-	d.custom_minimum_size = Vector2(0, 48)
-	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if blurb != "":
+		var d := UiKit.label(v, blurb, true, 15)
+		d.custom_minimum_size = Vector2(0, 48)
+		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return b
 
 
@@ -409,21 +410,16 @@ func _keep_random(pick: OptionButton, g: String) -> String:
 
 
 func _show_practice() -> void:
-	_page(1460, "Practice", "Play  /  on your own")
+	_page(1460, "Practice", "Play")
 	var cols := _three_columns()
 	var left: VBoxContainer = cols[0]
 	var set_mode: Callable = cols[1]
-	var note := UiKit.label(left, "", true, 16)
-	note.custom_minimum_size = Vector2(0, 44)
 	var game := Game.last_practice_game if Maps.fits(Game.last_practice_map, Game.last_practice_game) or Game.last_practice_map == Maps.RANDOM \
 		else Maps.game_of(Game.last_practice_map)
 	# The map drop-down is made after the mode switch, but the switch refills it, so
 	# the callback reaches it through an array (lambdas copy plain locals when made).
 	var map_ref: Array[OptionButton] = [null]
 	var explain := func(g: String):
-		note.text = "Run a race course on your own against the clock." if g == "race" \
-			else ("Weapons float about the map: walk over one to pick it up. Carry two: 1 and 2 to switch." if g == "dm" \
-			else "Roam a map on your own to learn its routes. No opponents, no timer.")
 		set_mode.call(g)
 	explain.call(game)
 	var mode := _mode_picker(left, game, func(g: String):
@@ -442,20 +438,16 @@ func _show_bot() -> void:
 
 
 func _show_multiplayer() -> void:
-	_page(900, "Multiplayer", "Play  /  with friends")
+	_page(900, "Multiplayer", "Play")
 	var col := _frame.body
-	var who := UiKit.label(col, "Playing as %s  ·  change your name in Profile" % Game.local_name(), true, 16)
-	who.name = "PlayingAs"
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	col.add_child(row)
 	var host := UiKit.inset(row)
 	UiKit.section(host, "Host")
-	UiKit.label(host, "Start a lobby. It shows a lobby code to give your friends. You pick the map and rules.", true, 15)
 	UiKit.primary_button(host, "Create lobby", _on_create)
 	var join := UiKit.inset(row)
 	UiKit.section(join, "Join")
-	UiKit.label(join, "Lobby code: type the code the host's lobby shows (an IP address works too).", true, 15)
 	_code_edit = UiKit.line_edit(join, "ABCD-EFGH", Settings.last_address)   # the last code you joined
 	_code_edit.text_submitted.connect(func(_t: String): _on_join())
 	UiKit.button(join, "Join lobby", _on_join)
