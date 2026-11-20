@@ -32,8 +32,8 @@ func run() -> void:
 	Settings.field_of_view = 110.0
 	Settings.changed.emit()
 	_expect(is_equal_approx(rig.camera.fov, 110.0 - CameraRig.ZOOM_FOV), "from whatever field of view you play at (%.1f)" % rig.camera.fov)
-	Settings.field_of_view = 60.0
-	_expect(is_equal_approx(CameraRig.zoom_fov(), CameraRig.ZOOM_MIN_FOV), "never narrower than %d (%.1f)" % [CameraRig.ZOOM_MIN_FOV, CameraRig.zoom_fov()])
+	Settings.field_of_view = 70.0   # (the lowest the settings go)
+	_expect(is_equal_approx(CameraRig.zoom_fov(), 70.0 - CameraRig.ZOOM_FOV), "the lowest field of view zooms just as far (%.1f)" % CameraRig.zoom_fov())
 	Settings.field_of_view = 95.0
 	rig.zoom = false
 	rig._process(CameraRig.ZOOM_TIME * 2.0)
