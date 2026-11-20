@@ -71,17 +71,24 @@ func _rope() -> void:
 	while _me.global_position.x < 54.2:
 		await _physics(1)
 	await _tap("jump")
-	await _physics(10)
-	_look(BEAM)
-	_key("grapple", true)
 	_key("sprint", false)
 	_key("move_forward", false)
+	# (The aim is where the camera looks: a few steps for it to come round before the hook goes.)
+	for i in 14:
+		_look(BEAM)
+		await _physics(1)
+	_key("grapple", true)
 	var hook := _me.motor.grapple
 	var on := 0
 	var began := -1
-	for i in 1500:
+	for i in 700:
 		await _physics(1)
 		if not hook.attached:
+			_look(BEAM)
+			if i > 40 and not hook.busy():   # (it missed: again)
+				_key("grapple", false)
+				await _physics(3)
+				_key("grapple", true)
 			continue
 		on += 1
 		_look(Vector3(100.0, 9.0, LANE_Z), 0.08)   # looking along the lane, level
