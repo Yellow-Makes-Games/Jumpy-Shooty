@@ -192,6 +192,76 @@ func _fine_checks(map: MapRoot, d: MapDestruction, space: PhysicsDirectSpaceStat
 	_check(off_grid > 0, "  fine: the hole's edge is ragged (%d corners off the grid)" % off_grid)
 	d._rebuild_meshes(wall)
 	_check(_drawn_corners(panel) == corners, "  fine: drawn again, it is the same edge")
+	await _through_checks(map, d, space, panel, at + (panel.xf as Transform3D).basis[panel.u].normalized() * 5.0, normal)
+
+
+## Rounds through a wall, and the marks they leave: `at` is a point in the middle of an
+## unbroken stretch of block wall `panel`, `normal` the way it faces.
+func _through_checks(map: MapRoot, d: MapDestruction, space: PhysicsDirectSpaceState3D, panel: Dictionary, at: Vector3, normal: Vector3) -> void:
+	var from := at + normal * 3.0
+	var path := func(weapon: WeaponData) -> Array:
+		var to := from - normal * weapon.max_range
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1))
+		var legs := [{"a": from, "b": to if hit.is_empty() else hit.position, "dir": -normal, "hit": hit}]
+		d.pierce(space, legs, weapon)
+		return legs
+	var rifle: Array = path.call(WeaponData.by_id("rifle"))
+	_check(rifle.size() == 1 and int(rifle[0].cell) >= 0 and d.panels[d.cells[rifle[0].cell].panel] == panel,
+		"  through: a rifle round stops in a block wall")
+	var sniper: Array = path.call(WeaponData.by_id("sniper"))
+	_check(sniper.size() == 2 and sniper[1].has("through"), "  through: a sniper round goes through it")
+	if sniper.size() == 2:
+		_check(is_equal_approx(sniper[0].keep, 1.0) and is_equal_approx(sniper[1].keep, MapDestruction.FINE_STYLES.masonry.keep),
+			"  through: with %d%% of its damage left on the far side" % roundi(sniper[1].keep * 100.0))
+		_check((sniper[1].a as Vector3).distance_to(at - normal * 0.17) < 0.1, "  through: it comes out of the far face")
+		_check(int(sniper[0].cell) == int(rifle[0].cell), "  through: and the wall still takes the hit")
+	var pistol := WeaponData.by_id("pistol")
+	var sheet := -1
+	for i in d.panels.size():
+		if d.panels[i].fine and d.panels[i].kind == "sheeting" and sheet < 0:
+			sheet = i
+	if sheet >= 0:
+		var sp: Dictionary = d.panels[sheet]
+		var sn: Vector3 = (sp.xf as Transform3D).basis[sp.thin].normalized()
+		var s_from: Vector3 = (sp.xf as Transform3D).origin + sn * 1.0
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(s_from, s_from - sn * 3.0, 1))
+		var legs := [{"a": s_from, "b": hit.get("position", s_from - sn * 3.0), "dir": -sn, "hit": hit}]
+		d.pierce(space, legs, pistol)
+		_check(legs.size() >= 2 and legs[1].has("through"), "  through: a pistol round goes through sheeting")
+	# The marks.
+	var marks := map.marks
+	_check(marks != null, "  marks: a map with fine destruction has them")
+	if marks == null:
+		return
+	var had: int = marks.counts()[0]
+	marks.shot(from, rifle[0].b, WeaponData.by_id("rifle"))
+	_check(marks.counts()[0] == had + 1, "  marks: a round that stops in a wall leaves one")
+	had = marks.counts()[0]
+	marks.shot(from, sniper[sniper.size() - 1].b, WeaponData.by_id("sniper"))
+	_check(marks.counts()[0] >= had + 2, "  marks: one that goes through leaves a hole on each face (%d more)" % (marks.counts()[0] - had))
+	had = marks.counts()[0]
+	for n in BulletMarks.MAX_MARKS + 50:
+		marks.shot(from + Vector3(0, (n % 20) * 0.02, 0), rifle[0].b + Vector3(0, (n % 20) * 0.02, 0), WeaponData.by_id("rifle"))
+	_check(marks.counts()[0] == BulletMarks.MAX_MARKS, "  marks: there are never more than %d" % BulletMarks.MAX_MARKS)
+	# A cracked cell is drawn cracked; a broken one takes its marks with it.
+	var c := int(rifle[0].cell)
+	var cracks: int = marks.counts()[1]
+	d.damage(c, d.cells[c].max_hp * 0.5)
+	var change := d.flush()
+	if not change.is_empty():
+		d.apply(change[0], change[1])
+	_check(marks.counts()[1] == cracks + 1, "  marks: a cracked cell gets its cracks")
+	d.damage(c, 100000.0)
+	change = d.flush()
+	if not change.is_empty():
+		d.apply(change[0], change[1])
+	_check(marks.counts()[1] == cracks, "  marks: broken, they go")
+	var left := 0
+	for slot in BulletMarks.MAX_MARKS:
+		if marks._mark_cell[slot] == c:
+			left += 1
+	_check(left == 0 and not marks._by_cell.has(c), "  marks: and so does every mark on it")
+	await physics_frame
 
 
 func _drawn_corners(panel: Dictionary) -> PackedVector3Array:

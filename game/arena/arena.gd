@@ -243,6 +243,8 @@ func _on_exploded(id: int, at: Vector3, weapon_id: String) -> void:
 	Sound.play_at(ShotFx.landed_sound(w), at, "fire", 0.0, 0.05)
 	if not w.explosive:
 		return   # a nail or a bolt: no blast, no shake
+	if layout.marks:
+		layout.marks.scorch(at, w.splash_radius)
 	var d := at.distance_to(Sound.listener_position())
 	if d > 40.0 and d < INF:
 		Sound.play_at("explosion_far", at, "far", 0.0, 0.05)
@@ -257,6 +259,7 @@ func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit
 	if p:
 		p.show_shot()
 	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
+	BulletMarks.shots(p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
 	if portals:
 		portals.shots_through(vias)
 	Sound.shot_landed(p.muzzle_position() if p else muzzle, ends, hits, false)

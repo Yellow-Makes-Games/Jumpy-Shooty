@@ -54,13 +54,18 @@ const FALLEN := 4            ## ...4 gone with what held it up (a collapse): no 
 const FINE_HEALTH := 0.3     ## fine: a cell's health, as a share of its kind's toughness
 ## fine: how each sort of material breaks. cell: metres across a piece (along the panel,
 ## up it); jitter: how far a corner on the edge of a hole strays, as a share of a cell
-## (along, up); armour: a hit weaker than this does nothing.
+## (along, up); armour: a hit weaker than this does nothing; stop: a round weaker than
+## this stops in it, a stronger one goes through (see pierce()); keep: the share of its
+## damage a round still has on the far side; wear: the share of a round's damage the
+## wall takes when the round goes through (one that stops in it does all of it).
 const FINE_STYLES := {
-	"concrete": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.3, 0.3), "armour": 60.0},
-	"masonry": {"cell": Vector2(0.4, 0.4), "jitter": Vector2(0.1, 0.0), "armour": 0.0},
-	"wood": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.38, 0.12), "armour": 0.0},
-	"sheet": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.26, 0.26), "armour": 0.0},
+	"concrete": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.3, 0.3), "armour": 60.0, "stop": 90.0, "keep": 0.4, "wear": 0.6},
+	"masonry": {"cell": Vector2(0.4, 0.4), "jitter": Vector2(0.1, 0.0), "armour": 0.0, "stop": 50.0, "keep": 0.5, "wear": 0.3},
+	"wood": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.38, 0.12), "armour": 0.0, "stop": 8.0, "keep": 0.7, "wear": 0.5},
+	"sheet": {"cell": Vector2(0.5, 0.5), "jitter": Vector2(0.26, 0.26), "armour": 0.0, "stop": 5.0, "keep": 0.85, "wear": 0.5},
 }
+const GLASS_KEEP := 0.9       ## fine: ...and through a pane of glass (any round goes through one)
+const MAX_PIERCE := 2         ## fine: how many walls one round can go through
 const ARMOURED_FROM := 200.0  ## fine: a concrete kind at least this tough has concrete's armour
 const BLAST_REACH := 0.35     ## fine: a blast breaks walls out to this share of its splash radius
 const BLOW_REACH := 0.8       ## fine: metres round a melee blow that it damages
@@ -244,7 +249,9 @@ func _add_panel(piece: Dictionary, toughness: float, whole: bool = false, frame:
 	var panel := {"xf": piece.xf, "size": s, "kind": piece.kind, "tint": piece.get("tint", Color.WHITE),
 		"n": n, "cell": Vector3(s.x / n.x, s.y / n.y, s.z / n.z), "first": cells.size(), "thin": thin,
 		"skins": [], "body": null, "meshes": null, "whole": whole, "piece": piece, "material": mat, "frame": frame,
-		"fine": not style.is_empty(), "armour": style.get("armour", 0.0), "jitter": style.get("jitter", Vector2.ZERO)}
+		"fine": not style.is_empty(), "armour": style.get("armour", 0.0), "jitter": style.get("jitter", Vector2.ZERO),
+		"stop": style.get("stop", 0.0 if fine and mat == "glass" else INF),
+		"keep": style.get("keep", GLASS_KEEP), "wear": style.get("wear", 1.0)}
 	# The two axes across its face, how many cells along each, and how far apart their
 	# numbers are in `cells`.
 	var u := (thin + 1) % 3
@@ -472,6 +479,75 @@ func cell_at(body: Object, point: Vector3, normal: Vector3) -> int:
 ## What a cell is made of, for sounds and rubble (a BlockMaterials name).
 func material_of(c: int) -> String:
 	return panels[cells[c].panel].material
+
+
+## The cell of the breakable wall or floor whose face is at `point` (a mark's place on
+## a surface facing `normal`), or -1.
+func cell_near(point: Vector3, normal: Vector3) -> int:
+	var at := point - normal * 0.05
+	for panel: Dictionary in panels:
+		var local: Vector3 = _panel_xf(panel).affine_inverse() * at
+		var half: Vector3 = panel.size * 0.5
+		if absf(local.x) > half.x or absf(local.y) > half.y or absf(local.z) > half.z:
+			continue
+		var n: Vector3i = panel.n
+		var ijk := Vector3i(((local + half) / (panel.cell as Vector3)).floor()).clamp(Vector3i.ZERO, n - Vector3i.ONE)
+		return int(panel.first) + ijk.x + n.x * (ijk.y + n.y * ijk.z)
+	return -1
+
+
+## fine: a shot's path carried on through the walls it is strong enough to go through.
+## `legs` is the path so far (Portals.shot_path: [{a, b, dir, hit}], the last one ending
+## where it hit the level); legs are added past each wall the round goes through (at
+## most MAX_PIERCE), found the same way with `portals`, `mask` and `exclude`. Every leg
+## gets `keep` (the share of the round's damage it still has along that leg), `cell`
+## (the breakable cell it ended on, or -1) and `wear` (the share of the round's damage
+## that cell takes: all of it, or less if the round went on through), and a leg that
+## starts on the far side of a wall gets `through`. Nothing is damaged here: the host and a shooter's own copy both
+## work the path out this way, and only the host acts on it.
+func pierce(space: PhysicsDirectSpaceState3D, legs: Array, weapon: WeaponData, portals: Object = null,
+		mask: int = 1, exclude: Array[RID] = []) -> void:   # (portals: the arena's Portals, or null)
+	var keep := 1.0
+	var gone := 0.0
+	var holes := 0
+	var i := 0
+	while i < legs.size():
+		var leg: Dictionary = legs[i]
+		i += 1
+		leg["keep"] = keep
+		leg["cell"] = -1
+		leg["wear"] = 1.0
+		gone += (leg.a as Vector3).distance_to(leg.b)
+		var hit: Dictionary = leg.hit
+		if hit.is_empty():
+			continue
+		var c := cell_at(hit.collider, hit.position, hit.normal)
+		leg["cell"] = c
+		if c < 0 or not fine or holes >= MAX_PIERCE or i < legs.size():
+			continue
+		var panel: Dictionary = panels[cells[c].panel]
+		if weapon.damage_at(gone) * weapon.structure_damage * keep < float(panel.stop):
+			continue
+		var dir: Vector3 = leg.dir
+		var face: Vector3 = _panel_xf(panel).basis[panel.thin].normalized()
+		var thick: float = (panel.size as Vector3)[panel.thin] / maxf(absf(dir.dot(face)), 0.2)
+		var left := weapon.max_range - gone - thick
+		if left < 0.1:
+			continue
+		var from: Vector3 = (hit.position as Vector3) + dir * (thick + 0.02)
+		leg["wear"] = float(panel.wear)
+		keep *= float(panel.keep)
+		holes += 1
+		gone += thick
+		var more: Array
+		if portals:
+			more = portals.call("shot_path", space, from, dir, left, mask, exclude)
+		else:
+			var ray := PhysicsRayQueryParameters3D.create(from, from + dir * left, mask, exclude)
+			var next := space.intersect_ray(ray)
+			more = [{"a": from, "b": from + dir * left if next.is_empty() else next.position, "dir": dir, "hit": next}]
+		more[0]["through"] = true
+		legs.append_array(more)
 
 
 # ---------------------------------------------------------------------------

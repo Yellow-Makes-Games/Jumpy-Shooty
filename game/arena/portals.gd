@@ -475,6 +475,8 @@ func shot_path(space: PhysicsDirectSpaceState3D, from: Vector3, dir: Vector3, re
 static func path_bends(legs: Array) -> PackedVector3Array:
 	var out := PackedVector3Array()
 	for i in range(1, legs.size()):
+		if legs[i].has("through"):
+			continue   # (it went through a wall there, not a portal: see MapDestruction.pierce)
 		out.append(legs[i - 1].b)
 		out.append(legs[i].a)
 	return out

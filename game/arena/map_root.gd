@@ -160,6 +160,8 @@ var clock_source: Callable
 ## (arena matches; never races). Then `destruction` holds them (see MapDestruction).
 var destructible := false
 var destruction: MapDestruction
+## The marks shots and blasts leave on the map (a map with fine destruction; else null).
+var marks: BulletMarks
 ## build() made meshes (false in the movement tests).
 var has_meshes := true
 
@@ -235,6 +237,10 @@ func build(with_meshes: bool = true) -> void:
 		destruction.fine = fine_destruction
 		add_child(destruction)
 		pieces = destruction.setup(self, pieces, spawns)
+		if fine_destruction and with_meshes:
+			marks = BulletMarks.new()
+			add_child(marks)
+			marks.setup(self)
 	for i in movers.size():
 		_build_mover(i, with_meshes)   # (after the breakables: a mover's own ride on it)
 	if movers.is_empty():

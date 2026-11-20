@@ -483,13 +483,14 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		var legs: Array = portals.shot_path(space, origin, direction, weapon.max_range, 1) if portals \
 			else [{"a": origin, "b": origin + direction * weapon.max_range, "dir": direction,
 				"hit": space.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + direction * weapon.max_range, 1))}]   # layer 1: level only
+		# ...and through the walls it is strong enough to go through (a map that breaks
+		# fine): more legs, each with the share of its damage the round has left (`keep`).
+		# Every leg that ends on a breakable wall has its `cell`.
+		if breaks:
+			breaks.pierce(space, legs, weapon, portals)
 		var last: Dictionary = legs[legs.size() - 1]
-		var world_hit: Dictionary = last.hit
 		var end: Vector3 = last.b
 		vias.append(Portals.path_bends(legs))
-		var wall_cell := -1
-		if world_hit and breaks:
-			wall_cell = breaks.cell_at(world_hit.collider, world_hit.position, world_hit.normal)
 		var travelled := 0.0   # along the legs before this one (damage falls off with the whole way)
 		if weapon.pierce:   # the railgun: everyone along the line
 			for leg in legs:
@@ -499,7 +500,8 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 					if hit.is_empty():
 						continue
 					hit_mask |= 1 << i
-					var dmg := weapon.damage_at(travelled + hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0)
+					var dmg := weapon.damage_at(travelled + hit.dist) * (weapon.headshot_multiplier if hit.head else 1.0) \
+						* float(leg.get("keep", 1.0))
 					damage[bb[0]] = damage.get(bb[0], 0.0) + dmg
 					shove[bb[0]] = shove.get(bb[0], Vector3.ZERO) \
 						+ Vector3(dir.x, 0.0, dir.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
@@ -508,8 +510,8 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 					if DevArgs.sync_log:
 						log.append("hit %d at %.2f m%s" % [bb[0], hit.height, " head" if hit.head else ""])
 				travelled += (leg.a as Vector3).distance_to(leg.b)
-			if wall_cell >= 0:
-				breaks.damage(wall_cell, weapon.damage_at(travelled) * weapon.structure_damage)
+				if int(leg.get("cell", -1)) >= 0:
+					breaks.damage(leg.cell, weapon.damage_at(travelled) * weapon.structure_damage * float(leg.keep) * float(leg.wear))
 			ends.append(end)
 			continue
 		# The nearest opponent the pellet passes through, leg by leg.
@@ -519,6 +521,7 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 		var best_head := false
 		var best_height := 0.0
 		var best_dir := direction
+		var best_keep := 1.0
 		for leg in legs:
 			var la: Vector3 = leg.a
 			var lb: Vector3 = leg.b
@@ -538,23 +541,26 @@ func _host_shot(shooter: int, origin: Vector3, directions: PackedVector3Array, v
 						best_height = pts[0].y - feet.y
 						best_head = best_height >= height - (Player.CAPSULE_HEIGHT - HEAD_HEIGHT)
 						best_dir = leg.dir
+						best_keep = leg.get("keep", 1.0)
 			if best_target != 0:
 				# Hit on this leg: the path stops here (the portals after it are not reached).
 				var cut := legs.find(leg)
 				vias[i] = Portals.path_bends(legs.slice(0, cut + 1))
 				break
 			travelled += la.distance_to(lb)
+			# It got to the end of this leg: the wall there takes the hit (whether the
+			# round stops in it or goes on through).
+			if int(leg.get("cell", -1)) >= 0:
+				breaks.damage(leg.cell, weapon.damage_at(travelled) * weapon.structure_damage * float(leg.keep) * float(leg.wear))
 		if best_target != 0:
 			end = best_point
 			hit_mask |= 1 << i
-			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0)
+			var dmg := weapon.damage_at(best_dist) * (weapon.headshot_multiplier if best_head else 1.0) * best_keep
 			damage[best_target] = damage.get(best_target, 0.0) + dmg
 			shove[best_target] = shove.get(best_target, Vector3.ZERO) \
 				+ Vector3(best_dir.x, 0.0, best_dir.z).normalized() * weapon.knockback * pull + Vector3.UP * weapon.knockback_up
 			heads[best_target] = heads.get(best_target, false) or best_head
 			dirs[best_target] = best_dir
-		elif wall_cell >= 0:
-			breaks.damage(wall_cell, weapon.damage_at(travelled) * weapon.structure_damage)
 		ends.append(end)
 		if DevArgs.sync_log:
 			log.append(("hit %d at %.2f m%s" % [best_target, best_height, " head" if best_head else ""]) if best_target else "miss")

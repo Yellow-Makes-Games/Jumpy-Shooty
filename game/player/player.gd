@@ -618,11 +618,20 @@ func _fire_round() -> void:
 	var vias := []   # through portals: where each pellet goes in and comes out
 	var space := get_world_3d().direct_space_state
 	var portals: Portals = Net.arena.get("portals") if Net.arena else null
+	var breaks: MapDestruction = MapRoot.current.destruction if MapRoot.current and is_instance_valid(MapRoot.current) else null
 	for dir in dirs:
 		var end := eye + dir * weapon.data.max_range
 		var hit := {}
-		if portals:
-			var legs: Array = portals.shot_path(space, eye, dir, weapon.data.max_range, 1 | (1 << 1), [get_rid()])
+		if portals or (breaks and breaks.fine):
+			# (through portals, and through the walls the round is strong enough for)
+			var legs: Array
+			if portals:
+				legs = portals.shot_path(space, eye, dir, weapon.data.max_range, 1 | (1 << 1), [get_rid()])
+			else:
+				var first := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, end, 1 | (1 << 1), [get_rid()]))
+				legs = [{"a": eye, "b": end if first.is_empty() else first.position, "dir": dir, "hit": first}]
+			if breaks and breaks.fine:
+				breaks.pierce(space, legs, weapon.data, portals, 1 | (1 << 1), [get_rid()])
 			end = legs[legs.size() - 1].b
 			hit = legs[legs.size() - 1].hit
 			vias.append(Portals.path_bends(legs))
@@ -635,6 +644,7 @@ func _fire_round() -> void:
 		ends.append(end)
 		hits.append(hit and (hit.collider is Player or hit.collider is TargetDummy))
 	ShotFx.spawn(get_parent().get_parent(), muzzle_position(), ends, hits, weapon.data.id, vias)  # into the arena, not among the players
+	BulletMarks.shots(muzzle_position(), ends, hits, weapon.data.id, vias)
 	if portals:
 		portals.shots_through(vias)
 	Sound.shot_landed(muzzle_position(), ends, hits, sounds.own)
