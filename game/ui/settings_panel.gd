@@ -18,13 +18,10 @@ const HUD_TAB := 2
 ## The short controls list on the pause menu: [action, description]. Keys come from
 ## the current bindings.
 const CHEAT_SHEET := [
-	["move", "Move"], ["sprint", "Sprint"], ["glide", "Glide: hold in mid-air (weakens the longer you hold)"], ["jump", "Jump; again in mid-air to flip"],
-	["crouch", "Crouch; moving forward: dive, moving back: slide on your back"], ["dive", "Dive (keep holding to land in a belly slide)"],
-	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Mobility"],
-	["interact", "Interact: press at a map terminal"],
-	["fire", "Shoot; melee: hold to wind up, let go to swing"], ["reload", "Reload"],
-	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"],
-	["debug_menu", "Debug menu (Practice and Vs Bots)"],
+	["move", "Move"], ["sprint", "Sprint"], ["glide", "Glide"], ["jump", "Jump"], ["crouch", "Crouch"], ["dive", "Dive"],
+	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Mobility"], ["interact", "Interact"],
+	["fire", "Shoot"], ["zoom", "Zoom"], ["reload", "Reload"],
+	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"], ["debug_menu", "Debug menu"],
 ]
 
 const DISPLAY_KEYS := ["fullscreen", "vsync", "resolution", "frame_rate", "quality",
