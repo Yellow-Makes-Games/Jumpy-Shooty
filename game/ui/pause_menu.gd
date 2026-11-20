@@ -32,32 +32,30 @@ func open_loadout() -> void:
 
 func _show_main() -> void:
 	_frame.clear(1080)
-	_frame.title("Paused", "%s  ·  the match keeps going" % Maps.name_of(Net.map_id()))
+	_frame.title("Paused", Maps.name_of(Net.map_id()))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 30)
 	_frame.body.add_child(row)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 12)
 	col.custom_minimum_size = Vector2(360, 0)
+	col.size_flags_vertical = Control.SIZE_SHRINK_CENTER   # (beside the taller controls list: in its middle)
 	row.add_child(col)
 	UiKit.primary_button(col, "Resume", func(): visible = false).grab_focus()
 	UiKit.button(col, "Loadout", _show_loadout)
 	UiKit.button(col, "Settings", _show_settings)
 	if Net.spectating():
-		var join := UiKit.button(col, "Stop spectating (join the match)", func():
+		var join := UiKit.button(col, "Stop spectating", func():
 			Net.set_spectating(false)
 			visible = false)
 		join.disabled = Net.players.size() >= Net.MAX_PLAYERS
 	elif Game.mode != Game.Mode.PRACTICE:
-		UiKit.button(col, "Spectate (watch with a free camera)", func():
+		UiKit.button(col, "Spectate", func():
 			Net.set_spectating(true)
 			visible = false)
 	if Net.is_online and Net.is_host():
-		UiKit.button(col, "End match now (show results)", Match.host_end_match)
-	var leave_text := "Leave match"
-	if Net.is_online and Net.is_host():
-		leave_text = "Close lobby (ends it for everyone)"
-	UiKit.button(col, leave_text, Game.leave_to_menu)
+		UiKit.button(col, "End match", Match.host_end_match)
+	UiKit.button(col, "Main menu", Game.leave_to_menu)
 	var keys := VBoxContainer.new()
 	keys.add_theme_constant_override("separation", 6)
 	keys.size_flags_horizontal = Control.SIZE_EXPAND_FILL
