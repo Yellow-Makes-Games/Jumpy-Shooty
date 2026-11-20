@@ -95,6 +95,9 @@ func _place_bomb() -> void:
 	if p:
 		var back := Vector3(sin(p.visual.global_rotation.y), 0.0, cos(p.visual.global_rotation.y))
 		_bomb.global_position = p.global_position + Vector3(0, 1.0, 0) + back * 0.32
+		# Being planted: it is in the planter's free hand, down in front of them (see FreeHand).
+		if Teams.holder == carrier and Teams.phase == Teams.Phase.LIVE and p.robot != null and p.hand.w > 0.0:
+			_bomb.global_position = _bomb.global_position.lerp(p.robot.marker("hand_l") - Vector3(0, 0.06, 0), smoothstep(0.0, 1.0, p.hand.w))
 		_bomb.rotation.y = p.visual.global_rotation.y
 		_bomb.visible = p.alive
 	else:

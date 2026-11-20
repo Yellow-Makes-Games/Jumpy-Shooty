@@ -101,6 +101,11 @@ var _trail: SwingTrail            # the glowing smear behind a blade mid-blow (m
 ## Deathmatch: the weapons you carry that are not in your hands, put away on your body
 ## where everyone can see them (see StowedWeapon). Looks only.
 var stowed: Array = []
+## What the hand without the gun is doing with a pickup, a terminal, the bomb (see
+## FreeHand). It is this player's, not the animator's: that is made anew with every weapon.
+var hand := FreeHand.new()
+var _snatched := ""          # a weapon just snatched off a pad...
+var _snatched_at := 0        # ...and when (Time.get_ticks_msec)
 var _stow_props := {}             # weapon id -> its StowedWeapon on `robot`
 var _glide_fx: GlideFx            # the wind trail and speed streaks of a glide
 var _punch := Vector2.ZERO        # own view: a quick jolt of the camera (yaw, pitch) from your own blows
@@ -607,6 +612,7 @@ func _fire_round() -> void:
 	Sound.gun_fire(weapon.data.id, muzzle_position(), sounds.own)
 	sounds.fired()
 	animator.fire(_akimbo_left)
+	hand.cut()
 	if DevArgs.sync_log:
 		print("ANIM FIRE %d" % peer_id)
 	if view:
@@ -825,6 +831,7 @@ func _watch_swings(delta: float) -> void:
 		_seen_wind = _charge if is_local else maxf(_seen_wind, 0.0) + delta
 		var held := WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
 		animator.wind(held, _swing_side)
+		hand.cut()
 		if view:
 			view.wind(held, _swing_side)
 		if _trail:
@@ -842,6 +849,7 @@ func _watch_swings(delta: float) -> void:
 			_since_swing = 0.0
 			_shown_power = power
 			animator.swing(power, _seen_side)
+			hand.cut()
 			if view:
 				view.swing(power, _seen_side)
 			if _trail:
@@ -1211,6 +1219,12 @@ func _show_stowed() -> void:
 		return
 	_stow_props = StowedWeapon.put_on(robot, stowed, Net.player_color(peer_id), character, CameraRig.BODY_LAYER if rig else 0)
 	_stowed_visible(alive)
+	# One just snatched off a pad goes to its place from the hand that took it.
+	if _snatched != "" and _stow_props.has(_snatched) and Time.get_ticks_msec() - _snatched_at < 600 and alive and visual.visible:
+		var bone := robot.skeleton.find_bone("hand_l")
+		if bone >= 0:
+			(_stow_props[_snatched] as StowedWeapon).fly_from(robot.skeleton.global_transform * robot.skeleton.get_bone_global_pose(bone))
+		_snatched = ""
 
 
 func _stowed_visible(on: bool) -> void:
@@ -1358,6 +1372,7 @@ func _first_person() -> bool:
 
 ## Another player's shot, as told by the host: kick their gun.
 func show_shot() -> void:
+	hand.cut()
 	_next_gun()
 	animator.fire(_akimbo_left)
 	Sound.gun_fire(robot.weapon, muzzle_position(), false)
@@ -1786,6 +1801,7 @@ func _animate(delta: float) -> void:
 	animator.first_person = first_person > 0.0
 	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
 	_anim.feet = _feet_ground()
+	_feed_hand(delta)
 	var wall := _rope_wall()
 	_anim.wall_at = wall[0] if not wall.is_empty() else Vector3.ZERO
 	_anim.wall_normal = wall[1] if not wall.is_empty() else Vector3.ZERO
@@ -1832,6 +1848,89 @@ func _feet_ground() -> Vector2:
 		if not hit.is_empty():
 			out[i] = (hit.position as Vector3).y - floor_y
 	return out
+
+
+# ---------------------------------------------------------------------------
+# The hand without the gun (see FreeHand): pickups, terminals and levers, the bomb.
+# Looks only: every copy works it out for the bodies it draws, from what it is told.
+
+## Every frame: what the free hand is at, from what is going on round this body.
+func _feed_hand(delta: float) -> void:
+	if not alive or robot == null or not is_inside_tree():
+		hand.stop()
+		animator.free = null
+		return
+	if _anim.reloading():
+		hand.cut()   # (both hands are on the gun)
+	var middle := global_position + Vector3(0.0, 0.9, 0.0)
+	# Something to pick up close ahead: the hand goes out to it.
+	var arena := Net.arena
+	if arena != null and (not arena.pickups.is_empty() or not arena.items.is_empty()):
+		var near := FreeHand.AHEAD + _anim.velocity.length() * FreeHand.LEAD
+		var at := Vector3.INF
+		for i in arena.pickups.size():
+			var spot: Vector3 = (arena.pickups[i] as WeaponPickup).spot
+			if not Match.pickups_taken.has(i) and spot.distance_to(middle) < near:
+				near = spot.distance_to(middle)
+				at = spot
+		for i in arena.items.size():
+			var item := arena.items[i] as ItemPickup
+			if not Match.items_taken.has(i) and item.spot.distance_to(middle) < near and _could_use(item.kind):
+				near = item.spot.distance_to(middle)
+				at = item.spot
+		if at != Vector3.INF:
+			hand.reach(at)
+	# Planting the bomb (down in front of the feet), or defusing it (where it sits).
+	if Teams.is_snd() and Teams.holder == peer_id:
+		var ahead := Vector3.FORWARD.rotated(Vector3.UP, _visual_yaw)
+		if Teams.phase == Teams.Phase.LIVE:
+			hand.hold(global_position + ahead * 0.5 + Vector3(0.0, 0.3, 0.0), true, true)
+		elif Teams.phase == Teams.Phase.PLANTED and Teams.bomb_pos != Vector3.INF:
+			hand.hold(Teams.bomb_pos + Vector3(0.0, 0.22, 0.0), true, true, true)
+	hand.update(delta, visual.global_transform)
+	animator.free = hand
+	robot.set_tint(hand.pulse_color, hand.pulse)
+	if view != null and view.model != null:
+		view.model.set_tint(hand.pulse_color, hand.pulse)
+	if hand.take_spark():
+		MeleeFx.spark(get_parent().get_parent(), robot.marker("hand_l"), RobotModel.trim_color(Net.player_color(peer_id)), _first_person())
+
+
+# Would this power-up do anything for this body now? (A health one stays put for someone at full health.)
+func _could_use(kind: String) -> bool:
+	if kind == "damage":
+		return true
+	var cap := Match.MAX_OVERHEAL if ItemPickup.overheals(kind) else Match.MAX_HEALTH
+	return float(Match.health.get(peer_id, Match.MAX_HEALTH)) < cap
+
+
+## Something has been picked up from `at` (a weapon, a power-up, the bomb, a flag): the
+## free hand snatches it. `color`: a power-up's, to flash through the body's lights;
+## `gun`: a weapon's id (one that goes on the body, not into the hands, is carried there
+## from that hand: see _show_stowed).
+func snatch(at: Vector3, color: Color = Color(0, 0, 0, 0), gun: String = "") -> void:
+	if not alive:
+		return
+	hand.grab(at, color)
+	_snatched = gun
+	_snatched_at = Time.get_ticks_msec()
+
+
+## A terminal or a lever has been set off by this body (MapTerminal): the hand on it, or
+## riding the lever's knob over.
+func used_terminal(terminal: MapTerminal) -> void:
+	if not alive:
+		return
+	if terminal is MapLever:
+		hand.touch(terminal.hand_point(), 0.5, Callable(terminal, "hand_point"))
+	else:
+		hand.touch(terminal.hand_point(), 0.32)
+
+
+## ...and one that takes a hold is being held by this body: the hand stays on it.
+func holding_terminal(terminal: MapTerminal) -> void:
+	if alive:
+		hand.hold(terminal.hand_point())
 
 
 ## The wall this body, on a tight rope, could put its feet on: [a point on it, its

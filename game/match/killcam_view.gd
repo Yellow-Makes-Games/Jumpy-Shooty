@@ -91,6 +91,7 @@ class Ghost:
 	var sounds: PlayerSounds  # their footsteps, jumps, landings... (in the world)
 	var seen := {}
 	var akimbo_shots := 0
+	var hand := FreeHand.new()   # the snatch of a pickup, as it was (see FreeHand)
 
 
 func setup(watch: KillClip, slow: bool = false) -> KillcamView:
@@ -426,6 +427,9 @@ func _play_ghost(id: int, delta: float) -> void:
 	a.set_hook_replayed(_hook_look(f))   # (so the body hangs on that rope as it did in the match: RopeSwing)
 	_find_wall(a, f[0])
 	_watch(a.flags, g.weapon, g.seen, g)
+	g.hand.update(delta, g.visual.global_transform)
+	g.animator.free = g.hand
+	g.robot.set_tint(g.hand.pulse_color, g.hand.pulse)
 	g.animator.update(delta, a, g.visual.global_transform)
 	if world_sound:
 		if g.sounds == null:
@@ -629,6 +633,9 @@ func _play_event(e: Dictionary) -> void:
 		"melee":
 			if mine and _view and str(e.weapon) not in ["kick", "flying_kick"] and not (e.points as PackedVector3Array).is_empty():
 				_view.hit_stop()
+		"grab":
+			if _ghosts.has(who):
+				(_ghosts[who] as Ghost).hand.grab(e.at, e.color)
 		"hit":
 			# The body flinches (see HitReaction), as it did.
 			var way: Vector3 = e.way

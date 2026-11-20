@@ -91,6 +91,14 @@ func _ready() -> void:
 		_event({"kind": "melee", "who": attacker, "weapon": weapon_id, "points": points}))
 	Match.hit_taken.connect(func(target: int, way: Vector3, damage: float, headshot: bool, blow: int):
 		_event({"kind": "hit", "who": target, "way": way, "damage": damage, "head": headshot, "blow": blow}))
+	# Something snatched off its pad (see FreeHand): where from, and a power-up's colour.
+	Match.pickup_changed.connect(func(index: int, taken: bool, by: int, _weapon: String):
+		if taken and by != 0 and Net.arena != null and index < Net.arena.pickups.size():
+			_event({"kind": "grab", "who": by, "at": (Net.arena.pickups[index] as WeaponPickup).spot, "color": Color(0, 0, 0, 0)}))
+	Match.item_changed.connect(func(index: int, taken: bool, by: int):
+		if taken and by != 0 and Net.arena != null and index < Net.arena.items.size():
+			var item := Net.arena.items[index] as ItemPickup
+			_event({"kind": "grab", "who": by, "at": item.spot, "color": ItemPickup.INFO[item.kind][1]}))
 	Match.match_over.connect(_on_match_over)
 	Match.player_respawned.connect(_on_respawned)
 

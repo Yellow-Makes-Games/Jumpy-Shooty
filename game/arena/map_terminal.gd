@@ -90,6 +90,19 @@ func focus() -> Vector3:
 	return global_position + Vector3(0, FOCUS_HEIGHT, 0)
 
 
+## Where a hand goes to press it (the body's free hand: see FreeHand).
+func hand_point() -> Vector3:
+	return focus()
+
+
+## The body of whoever is at it shows it (Player.used_terminal, Player.holding_terminal). Looks only.
+func _show_hand(who: int, how: String) -> void:
+	var net := _autoload("Net")
+	var body: Node = net.arena.get_player(who) if net != null and net.arena != null and who != 0 else null
+	if body != null and body.has_method(how):
+		body.call(how, self)
+
+
 ## Is a player standing at `feet` close enough to use it?
 func reaches(feet: Vector3) -> bool:
 	return (feet + Vector3(0, BODY_MIDDLE, 0)).distance_to(focus()) <= range
@@ -224,6 +237,7 @@ func apply_state(new_phase: int, who: int, how_far: float) -> void:
 	var fired := phase == Phase.BUSY and was != Phase.BUSY and who != 0   # (not: told so on joining mid-event)
 	if fired:
 		_flash = 1.0
+		_show_hand(who, "used_terminal")
 	if phase == Phase.CHANNEL and was != Phase.CHANNEL:
 		_start_hum()
 	elif fired and was != Phase.CHANNEL:
@@ -319,6 +333,8 @@ func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	_time += delta
+	if phase == Phase.CHANNEL and channeler != 0:
+		_show_hand(channeler, "holding_terminal")
 	if _material:
 		# Ready: a slow, gentle pulse. Busy or cooling down: only the dim track.
 		var want := (0.55 + 0.45 * sin(_time * 2.2)) if phase == Phase.READY and ready_to_use() else 0.0

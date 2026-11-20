@@ -95,6 +95,11 @@ func _build_screen() -> void:
 	_pose()
 
 
+## Where a hand goes to throw it: its knob, wherever the lever has got to.
+func hand_point() -> Vector3:
+	return _arm.global_transform * Vector3(0.0, length, 0.0) if _arm != null and _arm.is_inside_tree() else focus()
+
+
 func _pose() -> void:
 	if _arm:
 		_arm.rotation.x = deg_to_rad(-_angle)   # (+ angle leans it toward -z)

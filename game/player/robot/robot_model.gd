@@ -6,6 +6,7 @@ extends Node3D
 
 const VIEW_SHADER := "res://game/player/robot/viewmodel.gdshader"
 const VISOR_ENERGY := 1.6
+const TINT_SURGE := 1.2   ## a flash of colour through the lights (set_tint) is this much brighter at its height
 const GUN_GLOW_ENERGY := 1.4   ## a gun's glowing strips and cells ("<gun>.glow"), as bright as the melee weapons' edges
 const GOLD := Color(1.0, 0.76, 0.22)   ## the Golden Gun
 ## Left out of the body you see in first person: the camera sits inside the head,
@@ -69,6 +70,9 @@ var melee_left: Node3D            ## the left fist's brass knuckles, if any
 var _glow_materials: Array = []   # [material, is_shader]
 var _gun_glow: Array = []         # [material, its colour]: the gun's lit parts (see set_gun_glow)
 var _glow_color := Color.WHITE
+var _power := 1.0
+var _tint := Color.WHITE   # a flash of another colour through the lights (set_tint)...
+var _tint_w := 0.0         # ...and how much of it shows
 var _sway: Array = []             # {bone, parent, rest (its rest, on the parent), tip, kind}: see settle_sway
 
 
@@ -632,11 +636,25 @@ func marker(bone: String) -> Vector3:
 
 ## How brightly the visor and lights glow: 1 = on, 0 = powered down (dead).
 func set_power(power: float) -> void:
+	_power = power
+	var color := _glow_color.lerp(_tint, _tint_w)
+	var energy := VISOR_ENERGY * power * (1.0 + TINT_SURGE * _tint_w)
 	for entry in _glow_materials:
 		if entry[1]:
-			(entry[0] as ShaderMaterial).set_shader_parameter("emission", _glow_color * VISOR_ENERGY * power)
+			(entry[0] as ShaderMaterial).set_shader_parameter("emission", color * energy)
 		else:
-			(entry[0] as StandardMaterial3D).emission_energy_multiplier = VISOR_ENERGY * power
+			(entry[0] as StandardMaterial3D).emission = color
+			(entry[0] as StandardMaterial3D).emission_energy_multiplier = energy
+
+
+## A flash of another colour through the visor and lights (a power-up taken: see
+## FreeHand.pulse): `amount` 0..1 of the way to `color`, and brighter with it.
+func set_tint(color: Color, amount: float) -> void:
+	if amount <= 0.0 and _tint_w <= 0.0:
+		return
+	_tint = color
+	_tint_w = clampf(amount, 0.0, 1.0)
+	set_power(_power)
 
 
 ## How brightly the gun's glowing parts shine: 1 = as at rest. (Nothing drives this
