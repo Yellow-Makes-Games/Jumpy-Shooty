@@ -497,7 +497,7 @@ func _profile_page(current: String, width: float = 1280) -> void:
 func _show_profile() -> void:
 	_profile_page("_show_profile")
 	_frame.body.add_child(ProfilePage.new())
-	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Main menu", _show_main).grab_focus()
 
 
 # ---------------------------------------------------------------------------
@@ -505,18 +505,15 @@ func _show_profile() -> void:
 
 func _show_creator() -> void:
 	_profile_page("_show_creator")
-	UiKit.label(_frame.header, "Robot, dude, goblin, frog: mix any head, torso and legs, then dress it up.", true, 15)
 	var start := Game.local_character()
 	if not Characters.is_custom(start) and not Settings.custom_characters.is_empty():
 		start = Settings.custom_characters[-1]
 	var creator := CharacterCreator.new(start)
 	_frame.body.add_child(creator)
-	_frame.back_button("Back", _show_main)
+	_frame.back_button("Main menu", _show_main)
 	var del := _frame.back_button("Delete", creator.delete_saved)
 	del.custom_minimum_size.x = 140
-	var keep := _frame.back_button("Save", func(): creator.save())
-	keep.custom_minimum_size.x = 160
-	var play := _frame.main_button("Save and play as this", func():
+	var play := _frame.main_button("Save", func():   # (and play as it)
 		var id := creator.save()
 		if id == "":
 			return   # it wears something still locked (the creator says what)
@@ -526,9 +523,8 @@ func _show_creator() -> void:
 	play.grab_focus()
 	# Something locked on it: it can be looked at, not saved.
 	var lock := func():
-		keep.disabled = not creator.can_save()
-		play.disabled = keep.disabled
-		play.text = "SAVE AND PLAY AS THIS" if creator.can_save() else "LOCKED: SEE ACHIEVEMENTS"
+		play.disabled = not creator.can_save()
+		play.text = "SAVE" if creator.can_save() else "LOCKED: SEE ACHIEVEMENTS"
 	creator.changed.connect(lock)
 	lock.call()
 
@@ -536,24 +532,23 @@ func _show_creator() -> void:
 # Calling Card: the banner and the badge other players see with your name.
 func _show_calling_card() -> void:
 	_profile_page("_show_calling_card")
-	UiKit.label(_frame.header, "Your banner and icon, by your name for everyone to see. Play to unlock more.", true, 15)
 	_frame.body.add_child(CallingCardPicker.new())
-	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Main menu", _show_main).grab_focus()
 
 
 # Achievements: what you have done, how far along the rest are, and what each unlocks.
 func _show_achievements() -> void:
 	var counts := Achievements.item_counts()
 	_profile_page("_show_achievements")
-	UiKit.label(_frame.header, "%d of %d done  ·  %d of %d items unlocked  ·  click one, or point at it and press T, to track it on your Profile (up to %d)" % [
-		Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1], Achievements.MAX_TRACKED], true, 15)
+	UiKit.label(_frame.header, "%d of %d done  ·  %d of %d items unlocked  ·  %s" % [
+		Achievements.done_count(), Achievements.LIST.size(), counts[0], counts[1], AchievementsPanel.TRACK_TIP], true, 15)
 	UiKit.section(_frame.body, "Race medals")
 	_frame.body.add_child(AchievementsPanel.medals())
 	UiKit.section(_frame.body, "Achievements")
 	var panel := AchievementsPanel.new()
 	_frame.body.add_child(AchievementsPanel.tabs(panel))
 	_frame.body.add_child(panel)
-	_frame.back_button("Back", _show_main).grab_focus()
+	_frame.back_button("Main menu", _show_main).grab_focus()
 
 
 func _show_settings() -> void:

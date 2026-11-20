@@ -18,7 +18,7 @@ const MEDAL_COLORS := [Color(0.80, 0.52, 0.30), Color(0.80, 0.84, 0.90), Color(1
 static var category := "all"
 
 const TRACK_KEY := KEY_T
-const TRACK_TIP := "Click, or point and press T, to track this on your Profile (up to %d)."
+const TRACK_TIP := "Click or press T to track"
 
 var _hover := ""   # the achievement under the mouse
 
@@ -103,7 +103,7 @@ func _trackable(c: PanelContainer) -> PanelContainer:
 	if Achievements.done(id):
 		return c
 	c.mouse_filter = Control.MOUSE_FILTER_STOP
-	c.tooltip_text = TRACK_TIP % Achievements.MAX_TRACKED
+	c.tooltip_text = TRACK_TIP
 	c.mouse_entered.connect(func(): _hover = id)
 	c.mouse_exited.connect(func():
 		if _hover == id:

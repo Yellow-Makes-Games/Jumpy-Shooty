@@ -520,9 +520,8 @@ func _pick_button(parent: Node, height: float = 44.0) -> Button:
 
 ## The Character Creator in a window of its own, from the robot window's "Make new
 ## character": a new character starts from the body of the robot you have (a blank
-## name), and "Save and play as this" saves it and makes it yours; Save keeps it for
-## later (it joins the robot list either way). Cancel, a click outside or Esc closes
-## it without saving.
+## name), and Save saves it and makes it yours (it joins the robot list too). Cancel, a
+## click outside or Esc closes it without saving.
 func _open_creator() -> void:
 	_robot_panel.close()
 	if _creator_panel:
@@ -543,11 +542,7 @@ func _open_creator() -> void:
 		if _creator_panel == panel:
 			_creator_panel = null)
 	UiKit.button(buttons, "Cancel", panel.close).custom_minimum_size = Vector2(160, 50)
-	var keep := UiKit.button(buttons, "Save", func():
-		creator.save()
-		_character.refresh_custom())
-	keep.custom_minimum_size = Vector2(160, 50)
-	var play := UiKit.primary_button(buttons, "Save and play as this", func():
+	var play := UiKit.primary_button(buttons, "Save", func():   # (and play as it)
 		var id := creator.save()
 		if id == "":
 			return   # it wears something still locked (the creator says what)
@@ -559,8 +554,7 @@ func _open_creator() -> void:
 		panel.close())
 	play.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var lock := func():   # something locked on it: it can be looked at, not saved
-		keep.disabled = not creator.can_save()
-		play.disabled = keep.disabled
+		play.disabled = not creator.can_save()
 	creator.changed.connect(lock)
 	lock.call()
 	panel.open(_character._name_button)

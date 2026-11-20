@@ -263,10 +263,6 @@ func _level(parent: Node) -> void:
 	big.add_theme_font_override("font", HudStyle.font(true))
 	big.add_theme_color_override("font_color", UiKit.ACCENT)
 	big.autowrap_mode = TextServer.AUTOWRAP_OFF
-	var hint := UiKit.label(top, "Kills earn their killcam score as XP", true, 13)
-	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	col.add_child(_bar(float(lv.into) / float(lv.need)))
 	var nums := UiKit.label(col, "%s / %s XP   %d%%" % [_n(lv.into), _n(lv.need), _pct(lv.into, lv.need)], true, 14)
 	nums.name = "xp"
