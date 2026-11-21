@@ -39,8 +39,8 @@ static func karate_hit(parent: Node, at: Vector3, from: Vector3, color: Color, p
 	var way := sweep.normalized() if sweep.length_squared() > 0.01 else away
 	if finisher:
 		_flash(parent, at, hot, 0.34, 0.12)
-		_ring(parent, at, away, color.lerp(Color.WHITE, 0.3), 0.9)
-		_ring(parent, at, away, hot, 0.5)
+		_ring(parent, at, away, color.lerp(Color.WHITE, 0.3), 0.75)   # (a little over a heavy blade's: it fills a close view)
+		_ring(parent, at, away, hot, 0.42)
 		_streak(parent, at, way, hot, 2.4)
 		_sparks(parent, at, away, hot, 1.0)
 	elif kick:
