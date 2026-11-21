@@ -1680,7 +1680,8 @@ func _grapple(delta: float, visible: bool) -> void:
 
 
 ## Blink: sideways when just hit, toward its target when it is out of range, or up
-## to higher ground it is heading for. Easy bots hardly use it.
+## to higher ground it is heading for. Easy bots hardly use it. A dodge can come
+## straight after another blink (short); closing in and climbing wait for a full one.
 func _blink(delta: float, visible: bool) -> void:
 	input.grapple = false
 	var b := me.blink
@@ -1700,18 +1701,20 @@ func _blink(delta: float, visible: bool) -> void:
 		var to := spot - me.global_position
 		var flat := Vector3(to.x, 0.0, to.z)
 		var dist := flat.length()
-		var higher := to.y > 2.5 and dist < Blink.RANGE * 1.5
+		if b.strength() < 0.75:
+			return   # it has just blinked: wait for a full one to close in or climb
+		var higher := to.y > 2.5 and dist < b.reach() * 1.5
 		var close_in := dist > (FAR + 6.0 if not _melee else 4.0) and (visible or dist > 20.0)
 		if not (higher or close_in) or dist < 0.5:
 			return
 		dir = flat.normalized()
 		if higher:
 			dir = (dir + Vector3(0, clampf(to.y / maxf(dist, 1.0), 0.3, 1.2), 0)).normalized()
-		elif not _ground_ahead(dir, Blink.RANGE):
+		elif not _ground_ahead(dir, b.reach()):
 			return   # nothing to land on that way
 		else:
 			dir = (dir + Vector3(0, 0.12, 0)).normalized()
-	if (_light() or _open()) and not _ground_ahead(Vector3(dir.x, 0, dir.z).normalized(), Blink.RANGE):
+	if (_light() or _open()) and not _ground_ahead(Vector3(dir.x, 0, dir.z).normalized(), b.reach()):
 		return
 	input.mobility_dir = dir
 	input.grapple_pressed = true

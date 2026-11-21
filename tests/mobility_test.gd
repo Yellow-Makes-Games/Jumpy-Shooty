@@ -3,8 +3,9 @@ extends SceneTree
 ## real Practice match on the Testing Grounds.
 ## Run: godot --headless --path . --script tests/mobility_test.gd
 ##
-## Blink: goes where you aim, stops short of a wall, keeps you moving, uses a charge
-## and the charges come back. Portal gun: shoots portals onto floors and walls,
+## Blink: goes where you aim, stops short of a wall, keeps you moving, has three
+## charges that can be used in a quick burst (each one shorter) and come back one at
+## a time, and spaced-out blinks keep their full range. Portal gun: shoots portals onto floors and walls,
 ## alternating blue and orange; a body walking or falling into one comes out of the
 ## other moving out of it, and does not bounce straight back; the portals go when
 ## their owner dies. Picking: the pick is refused while alive and taken while dead,

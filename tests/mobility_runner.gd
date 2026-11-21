@@ -17,26 +17,46 @@ func run() -> void:
 	_check(me.mobility == Mobility.BLINK and me.blink != null, "you have the blink you picked")
 	_check(net.player_mobility(net.my_id()) == Mobility.BLINK, "the lobby has it on record")
 
-	# --- Blink in the open.
-	var open := _open_spot(me, 16.0)
+	# --- Blink in the open: three charges in a quick burst, each one shorter.
+	var open := _open_spot(me, 28.0)
 	_check(not open.is_empty(), "found an open stretch of floor to blink along")
 	me.teleport(open[0], open[1])
 	await _physics(20)
-	var from := me.global_position
+	var went := await _blink(me, open[2])
+	_check(went > Blink.RANGE - 1.5, "a blink goes about its range (%.1f m)" % went)
+	_check(Blink.CHARGES == 3 and me.blink.charges == 2, "it uses one of its three charges (%d left)" % me.blink.charges)
+	_check(Net.arena.get_node_or_null("BlinkTrail") != null, "a trail of sparks follows you to where you land")
+	_check(me.velocity.dot(open[2]) >= Blink.BLINK_PUSH - 0.5, "you keep moving the way you blinked (%.1f m/s)" % me.velocity.dot(open[2]))
+	_check(me.blink.strength() < 1.0, "the next blink straight after is shorter (%.0f%%)" % (me.blink.strength() * 100.0))
 	me.input.mobility_dir = open[2]
 	me.input.grapple_pressed = true
 	await _physics(2)
-	var went := Vector2(me.global_position.x - from.x, me.global_position.z - from.z).length()
-	_check(went > Blink.RANGE - 1.5, "a blink goes about its range (%.1f m)" % went)
-	_check(Blink.CHARGES == 1 and me.blink.charges == 0, "it uses its one charge (%d left)" % me.blink.charges)
-	_check(Net.arena.get_node_or_null("BlinkTrail") != null, "a trail of sparks follows you to where you land")
-	_check(me.velocity.dot(open[2]) >= Blink.BLINK_PUSH - 0.5, "you keep moving the way you blinked (%.1f m/s)" % me.velocity.dot(open[2]))
-	me.input.mobility_dir = open[2]
-	me.input.grapple_pressed = true
-	await _physics(1)
-	_check(me.blink.charges == Blink.CHARGES - 1, "no second blink straight away (a short gap)")
-	await get_tree().create_timer(Blink.RECHARGE + 0.4).timeout
-	_check(me.blink.charges == Blink.CHARGES, "the charge comes back")
+	_check(me.blink.charges == 2, "no second blink on the very next frame (a short gap)")
+	await _physics(_ticks(Blink.GAP) + 2)
+	var went2 := await _blink(me, open[2])
+	_check(me.blink.charges == 1, "a second blink a moment later goes (%d left)" % me.blink.charges)
+	_check(went2 < went - 1.5 and went2 > Blink.RANGE * Blink.MIN_REACH - 1.0, "...but shorter (%.1f m after %.1f m)" % [went2, went])
+	await _physics(_ticks(Blink.GAP) + 2)
+	var went3 := await _blink(me, open[2])
+	_check(me.blink.charges == 0, "a third straight after goes too (%d left)" % me.blink.charges)
+	_check(went3 < went2 - 1.0 and went3 > Blink.RANGE * Blink.MIN_REACH - 1.0, "...shorter again (%.1f m)" % went3)
+	await _physics(_ticks(Blink.GAP) + 2)
+	var went4 := await _blink(me, open[2])
+	_check(me.blink.charges == 0 and went4 < 1.0, "no fourth: the charges are spent")
+	await get_tree().create_timer(Blink.RECHARGE + 0.2).timeout
+	_check(me.blink.charges == 1, "a charge comes back after %.1f s" % Blink.RECHARGE)
+	await get_tree().create_timer(Blink.RECHARGE * (Blink.CHARGES - 1) + 0.3).timeout
+	_check(me.blink.charges == Blink.CHARGES and is_equal_approx(me.blink.strength(), 1.0), "then all three, one at a time, and the next blink is full length again")
+
+	# --- Spaced out, blinks keep their range.
+	me.teleport(open[0], open[1])
+	await _physics(20)
+	var spaced_1 := await _blink(me, open[2])
+	me.teleport(open[0], open[1])   # (back to the start, for room)
+	await get_tree().create_timer(Blink.STRAIN_PER_BLINK / Blink.STRAIN_RECOVER + 0.05).timeout
+	var spaced_2 := await _blink(me, open[2])
+	_check(spaced_1 > Blink.RANGE - 1.5 and spaced_2 > Blink.RANGE - 1.5, "two blinks a second apart both go the full range (%.1f m, %.1f m)" % [spaced_1, spaced_2])
+	me.blink.reset()
 
 	# --- Blink at a wall: stops short of it.
 	var wall := _wall_spot(me)
@@ -251,6 +271,21 @@ func _wall_spot(me: Player) -> Array:
 			if flat:
 				return [feet, dir, dist]
 	return []
+
+
+## Blink along `dir`; how far (flat) you went.
+func _blink(me: Player, dir: Vector3) -> float:
+	var from := me.global_position
+	me.input.mobility_dir = dir
+	me.input.grapple_pressed = true
+	await _physics(2)
+	me.input.mobility_dir = Vector3.ZERO
+	return Vector2(me.global_position.x - from.x, me.global_position.z - from.z).length()
+
+
+## Physics ticks in `seconds`.
+func _ticks(seconds: float) -> int:
+	return ceili(seconds * Engine.physics_ticks_per_second)
 
 
 func _physics(n: int) -> void:

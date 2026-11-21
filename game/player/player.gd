@@ -2372,13 +2372,12 @@ func _try_blink() -> void:
 		return
 	var aim := mobility_aim()
 	var dir: Vector3 = aim[1]
-	var to := Blink.destination(self, _shape, dir)
+	var to := Blink.destination(self, _shape, dir, blink.reach())   # (shorter if you have just blinked)
 	if to == Vector3.INF:
 		sounds.grapple_missed()
-		blink._gap = Blink.GAP
+		blink.refuse()
 		return
-	blink.charges -= 1
-	blink._gap = Blink.GAP
+	blink.spend()
 	if DevArgs.sync_log:
 		print("BLINK %d %.2f" % [peer_id, global_position.distance_to(to)])
 	warp(to, Blink.carry(velocity, dir), input.yaw)
