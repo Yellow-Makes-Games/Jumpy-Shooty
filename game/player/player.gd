@@ -761,6 +761,9 @@ func _watch_charge(delta: float) -> void:
 	_seen_charge = (_blast_held if is_local else maxf(_seen_charge, 0.0) + delta) if on else -1.0
 	var amount := data.charge_of(_seen_charge) if on else -1.0
 	sounds.charging(amount)
+	if on:   # (as a melee wind-up does: see _watch_swings)
+		hand.cut()
+		stop_emote()
 	if amount >= 0.0 and _charge_glow == null:
 		_charge_glow = AirBlast.make_glow()
 		add_child(_charge_glow)
@@ -1572,6 +1575,8 @@ func respawn_at(pos: Vector3, yaw: float, life: int = -1) -> void:
 	_strike_left = -1.0
 	_charge = -1.0
 	_seen_wind = -1.0
+	_blast_held = -1.0
+	_seen_charge = -1.0
 	_kick_strike = -1.0
 	_kick_cool = 0.0
 	_slamming = false
