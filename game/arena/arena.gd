@@ -47,11 +47,11 @@ func _ready() -> void:
 	if layout.destruction:
 		layout.destruction.cells_changed.connect(_on_cells_changed)
 		layout.mender = Match.mend_due
-	if layout.collapse:
-		layout.collapse.changed.connect(_level_gone)
-		layout.collapse.news_out.connect(Match.collapse_news)
-		layout.collapse.rest_out.connect(Match.collapse_rest)
-		layout.collapse.settled.connect(Match.collapse_settled)
+	for c in layout.collapses:
+		c.changed.connect(_level_gone)
+		c.news_out.connect(Match.collapse_news)
+		c.rest_out.connect(Match.collapse_rest)
+		c.settled.connect(Match.collapse_settled)
 	FxWarmup.start(self, layout)   # (what a first hit would draw, drawn once now: no hitch at the first rocket)
 	layout.parts_moving.connect(_on_parts_moving)
 	layout.parts_settled.connect(_on_parts_settled)

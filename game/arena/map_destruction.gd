@@ -659,8 +659,8 @@ func blast(at: Vector3, weapon: WeaponData, body: Object, normal: Vector3) -> vo
 	var amount := weapon.damage * weapon.structure_damage
 	if fine and weapon.explosive:
 		damage_area(at, weapon.splash_radius * BLAST_REACH, amount)
-		if root.collapse:
-			root.collapse.blast(at, weapon.splash_radius * BLAST_REACH, amount)   # (the columns of a building that can come down)
+		for c in root.collapses:
+			c.blast(at, weapon.splash_radius * BLAST_REACH, amount)   # (the columns of a building that can come down)
 	elif body:
 		damage(cell_at(body, at - normal * 0.05, normal), amount)
 
@@ -680,15 +680,15 @@ func blow(body: Object, at: Vector3, normal: Vector3, amount: float, reach: floa
 ## Host: a round or a blow of `amount` landed at `point` on something that is not a
 ## breakable wall: a column of a building that can come down takes it (see MapCollapse).
 func struck(point: Vector3, amount: float) -> void:
-	if root.collapse:
-		root.collapse.hit(point, amount)
+	for c in root.collapses:
+		c.hit(point, amount)
 
 
 ## Host: who is doing the damage that follows, and what with (a collapse's kills are theirs).
 func cause(who: int, weapon_id: String) -> void:
-	if root.collapse:
-		root.collapse.by = who
-		root.collapse.with = weapon_id
+	for c in root.collapses:
+		c.by = who
+		c.with = weapon_id
 
 
 ## Host: a blast or a heavy blow at `at`: every cell within `radius` metres takes

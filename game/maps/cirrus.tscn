@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://game/arena/map_jump_link.gd" id="9_link"]
 [ext_resource type="Resource" path="res://game/maps/palettes/cirrus.tres" id="pal"]
 [ext_resource type="Shader" path="res://game/maps/sky/cirrus_sky.gdshader" id="sky"]
+[ext_resource type="Script" path="res://game/arena/map_frame.gd" id="10_frame"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("sky")
@@ -9325,6 +9326,14 @@ kind = "brass"
 solid = false
 sides = 10
 
+[node name="Frame" type="Node3D" parent="Observatory"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-13.4, -4.47, 4.47, 13.4)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 10)
+held_by_walls = true
+
 [node name="Building" type="Node3D" parent="Observatory"]
 
 [node name="Shell" type="Node3D" parent="Observatory/Building"]
@@ -14343,6 +14352,14 @@ size = Vector3(0.54, 0.05, 0.54)
 kind = "brass"
 solid = false
 sides = 10
+
+[node name="Frame" type="Node3D" parent="Labs"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-14, -4.67, 4.67, 14)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 11.95)
+held_by_walls = true
 
 [node name="Building" type="Node3D" parent="Labs"]
 
@@ -21053,6 +21070,14 @@ size = Vector3(0.54, 0.05, 0.54)
 kind = "brass"
 solid = false
 sides = 10
+
+[node name="Frame" type="Node3D" parent="LectureHall"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-14, -4.67, 4.67, 14)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 12.55)
+held_by_walls = true
 
 [node name="Building" type="Node3D" parent="LectureHall"]
 
@@ -27791,6 +27816,14 @@ size = Vector3(0.54, 0.05, 0.54)
 kind = "brass"
 solid = false
 sides = 10
+
+[node name="Frame" type="Node3D" parent="Cafeteria"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-14, -4.67, 4.67, 14)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 11.95)
+held_by_walls = true
 
 [node name="Building" type="Node3D" parent="Cafeteria"]
 
@@ -35380,6 +35413,14 @@ size = Vector3(0.54, 0.05, 0.54)
 kind = "brass"
 solid = false
 sides = 10
+
+[node name="Frame" type="Node3D" parent="Library"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-14, -4.67, 4.67, 14)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 11, 18.35)
+held_by_walls = true
 
 [node name="Building" type="Node3D" parent="Library"]
 

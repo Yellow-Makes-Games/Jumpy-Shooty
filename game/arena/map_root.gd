@@ -166,7 +166,12 @@ var destruction: MapDestruction
 var marks: BulletMarks
 ## ...and the rubble its walls leave (see MapDebris).
 var debris: MapDebris
-## ...and its building that can come down, if it has a MapFrame (see MapCollapse).
+## Every building that can come down (see MapCollapse): the map's own, if it has a
+## MapFrame, and one for each mover with a MapFrame inside it. A collapse's `index` is
+## its place here.
+var collapses: Array[MapCollapse] = []
+var _mover_frames := {}   # build(): MapMover -> the MapFrame inside it
+## ...and the first of them (the map's own, on a map that has one).
 var collapse: MapCollapse
 ## build() made meshes (false in the movement tests).
 var has_meshes := true
@@ -227,12 +232,23 @@ func build(with_meshes: bool = true) -> void:
 	_trail = []
 	_framed = []
 	_framing = 0
+	collapses = []
+	_mover_frames = {}
 	var building: MapFrame = null
 	for child in get_children():
-		if child is MapFrame and building == null:
-			building = child
-			for path in building.parts:
-				var part := building.get_node_or_null(path)
+		var f := child as MapFrame
+		if f == null and child is MapMover:   # (a building on a flying island: the frame is inside it)
+			for inner in child.get_children():
+				if inner is MapFrame and not _mover_frames.has(child):
+					f = inner
+					_mover_frames[child] = inner
+		elif f and building == null:
+			building = f
+		else:
+			f = null
+		if f:
+			for path in f.parts:
+				var part := f.get_node_or_null(path)
 				if part:
 					_framed.append(part)
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
@@ -262,6 +278,7 @@ func build(with_meshes: bool = true) -> void:
 			debris.setup(self, destruction)
 		if fine_destruction and building:
 			collapse = MapCollapse.new()
+			collapses.append(collapse)
 			add_child(collapse)
 			pieces = collapse.setup(self, building, pieces)
 	for i in movers.size():
@@ -663,7 +680,7 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			movers.append(m)
 			_collect(child, Transform3D.IDENTITY, m.pieces, spawn_list, movers.size() - 1)
 			continue
-		var in_frame := mover < 0 and _framed.has(child)
+		var in_frame := _framed.has(child)
 		if in_frame:
 			_framing += 1
 		if child is MapBlock:
@@ -714,9 +731,20 @@ func mend_due(body: Node3D) -> void:
 		mend(body)
 
 
+## A mover's body was parked out of the way below the map, or brought back: a building
+## on it that can come down is told (see MapCollapse.set_parked).
+func mover_parked(body: Node3D, parked: bool) -> void:
+	for c in collapses:
+		if c.on == body:
+			c.set_parked(parked)
+
+
 ## Everything that rides `body` (a mover's) is as it was built: its broken walls whole,
 ## no marks on it, no rubble lying on it.
 func mend(body: Node3D) -> void:
+	for c in collapses:
+		if c.on == body:
+			c.mend()   # (before the walls: they are told once that every piece is back)
 	if destruction:
 		destruction.repair(body)
 	if marks:
@@ -745,6 +773,17 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 			if r.list == 0 and r.mover == index:
 				near.append([(r.xf as Transform3D).origin, 0.0])
 		built = destruction.add_riding(body, built, near)
+		var f: MapFrame = _mover_frames.get(m.node)
+		if fine_destruction and f:
+			# Its building can come down (see MapFrame): what of it does not break rides
+			# the body as part of the collapse, which is the body's child.
+			var c := MapCollapse.new()
+			c.index = collapses.size()
+			collapses.append(c)
+			body.add_child(c)
+			built = c.setup(self, f, built, body)
+			if collapse == null:
+				collapse = c
 	var bounds := AABB()
 	var any := false
 	for piece in m.pieces:
@@ -1001,7 +1040,7 @@ func spawn_open(point: Vector3) -> int:
 func open_spawns() -> Array:
 	if movers.is_empty():
 		if collapse:
-			var standing := spawns.filter(func(s: Array) -> bool: return not collapse.blocked(s[0]))
+			var standing := spawns.filter(func(s: Array) -> bool: return not under_rubble(s[0]))
 			if not standing.is_empty():
 				return standing   # (not in or under a bay that has come down)
 		return spawns
@@ -1010,6 +1049,8 @@ func open_spawns() -> Array:
 	var gliding := []
 	for s in spawns:
 		var open := spawn_open(s[0])
+		if open > 0 and under_rubble(s[0]):
+			continue   # (in or under a bay of its building that has come down)
 		if open > 0:
 			if island_at(s[0]).gliding:
 				gliding.append(s)
@@ -1021,6 +1062,20 @@ func open_spawns() -> Array:
 		if not tier.is_empty():
 			return tier
 	return spawns
+
+
+## Is this place in or under a bay of a building that has come down?
+func under_rubble(at: Vector3) -> bool:
+	for c in collapses:
+		if c.blocked(at):
+			return true
+	return false
+
+
+## The collapse that event `id` is one of (see MapCollapse.EVENTS_EACH), or null.
+func collapse_of(id: int) -> MapCollapse:
+	var i := id / MapCollapse.EVENTS_EACH
+	return collapses[i] if i >= 0 and i < collapses.size() else null
 
 
 ## Room for a standing player (SPAWN_RADIUS, SPAWN_HEIGHT: Player's capsule) with their

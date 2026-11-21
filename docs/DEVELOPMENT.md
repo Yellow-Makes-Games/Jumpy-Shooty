@@ -181,7 +181,8 @@ Quick checks:
   the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
 - breakable walls and floors (`tests/destruction_test.gd`);
-- a building coming down (`tests/collapse_test.gd`);
+- a building coming down (`tests/collapse_test.gd`), and one on an island that flies
+  (`tests/cirrus_collapse_test.gd`);
 - flicker (`tests/map_flicker_test.gd`), on the Castle, Castle 2, Rail Yard, Lost Temple, Neon
   Arcade and Sky Island: no two surfaces of different colours share a plane where both can be seen,
   and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
@@ -372,7 +373,15 @@ The sync, match and bot tests take a map and a player count, for example
   the frame a column goes; steel beams and posts come away in one piece each; online
   (`tests/run_collapse_test.sh`, laggy network) the host blows out the corner column
   (`--blow-column`), one spectator joins during the fall and one after, and all four
-  copies end with the same heap and the same walls and floors gone;
+  copies end with the same heap and the same walls and floors gone
+  (`MAP=cirrus COLUMN=9:0,0,1 tests/run_collapse_test.sh` does the same on Cirrus);
+- a building coming down on Cirrus (`tests/cirrus_collapse_test.gd`): each of the five
+  buildings has a collapse of its own riding its island, with stretches of wall for
+  columns; one piece short of Wall Share and the wall holds, one more and the corner
+  bay comes down from that floor up; no cornice runs from one bay into the next; the
+  walls above topple; the pieces fall where the island is and the pile
+  is the island's (it moves when the island does, and cannot be hit while the island
+  is parked); the island comes back with its building whole, and it can come down again;
 - Halcyon (`tests/halcyon_test.gd`): 16 or more spawn points, each clear, none in the
   Control Room or in sight of the terminal's dais; the pickups (the heavy weapons up
   high, none in the Control Room); the terminal on its dais and its event; on the bots'
@@ -986,7 +995,8 @@ else about making the map changes. What that turns on, a layer at a time:
   away from the shot or blast that broke it, with bits and dust; chunks land, lie where
   they fell and fall again if the floor under them goes. At most 120 in the air and
   160 lying of each kind. Looks only as well: each copy throws its own.
-- *Buildings that fall* (`map_collapse.gd`, below). The Construction Site only so far.
+- *Buildings that fall* (`map_collapse.gd`, below): the Construction Site's tower and
+  the five buildings on Cirrus's islands.
 
 A thin band that runs along the faces of several breakable blocks (a slab edge, a band
 of colour round a building, across the stretches of wall between its windows) is
@@ -1024,6 +1034,8 @@ with fine destruction, at the map's origin, and tell it where the building's fra
   columns. **Column Health** (600) and **Column Armour** (60): the damage one storey of
   a column takes before it is blown out, and the weakest hit that does it any.
 - **Core**: a box that always stands (a lift core). The bay it is in never falls.
+- **Held By Walls**: the building has no columns: its walls hold it up (below).
+  **Wall Reach** (2.5 m) and **Wall Share** (0.6) say which wall and how much of it.
 
 The square of floor between four columns is a *bay*. Blow out a storey of a bay's
 outside corner column, or of any two of its columns, and that floor of the bay falls
@@ -1054,6 +1066,37 @@ the bots' navigation laid over it. A player who joins during or after a fall is 
 the same. Someone under a big piece coming down fast is killed, and the kill goes to
 whoever blew the column. Nobody spawns in or under a bay that has come down. A killcam
 shows what fell as already fallen.
+
+**A building held up by its walls** (Held By Walls: Cirrus's five). There are no
+columns to find, so at each crossing of the lines, a storey at a time, the pieces of
+breakable upright wall within Wall Reach of the crossing stand in for one (glass and
+what is protected do not count, and a sliver of fewer than 30 pieces, beside a door,
+holds nothing up). When Wall Share of a stretch's pieces are gone, that storey of that
+"column" is blown out, and the same rule decides what falls: a bay's outside corner,
+or any two of its corners. On Cirrus that is two to four well placed rockets at a
+corner, about what a column takes on the Construction Site; bullets get there too,
+slowly, since they break stone. Wall that came down with the bay next door counts as
+gone, so a building that has lost a bay is easier to bring down further. Nothing is
+drawn for these stretches: the wall is the wall. A cornice, band or parapet that runs
+the length of such a building is cut at the lines when the map is built, so each bay
+takes its own stretch down with it (`MapCollapse._by_bay`). And each piece is tipped
+outwards from the middle of its bay as it lets go (`_topple`, the same on every copy):
+a wall cut loose over the wall it stood on would otherwise stay there, a stack of
+loose blocks that looks like a wall.
+
+**On an island that flies.** Put the MapFrame inside the MapMover or MapIsland, with
+its lines measured in the island's own frame, and the building gets a collapse of its
+own that is a child of the island's body (`MapRoot.collapses`, one for each; `collapse`
+is still the first). Everything about a fall is then worked out in the island's frame:
+the pieces, the host's news, where they rest and the pile, which is a body that moves
+with the island. So a building brought down on a gliding island falls where the island
+is, and its heap goes where the island goes. Pieces that go over the edge are gone
+(hidden four metres under the map's kill height, and left out of the pile). An island
+that goes below the map takes any fall in progress with it (it ends there and then,
+for everyone), and when it comes back mended the building is rebuilt: bays, walls and
+heap (`MapCollapse.mend`, called from `MapRoot.mend`). Each collapse numbers its
+events from its index times 100,000, so a message about a fall says whose it is
+(`MapRoot.collapse_of`), and the column messages carry the index.
 
 What it costs to draw: the columns that still stand are one mesh for each kind (made
 again when one goes, which is quick), everything loose in the building is another (made

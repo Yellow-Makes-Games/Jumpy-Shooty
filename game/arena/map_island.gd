@@ -103,9 +103,10 @@ func set_parked(on: bool) -> void:
 	for child in _body.get_children():   # (its breakable walls are bodies of their own)
 		if child is CollisionObject3D:
 			(child as CollisionObject3D).collision_layer = 0 if on else 1
-	if not on and mends:
-		var map := MapRoot.of(self)
-		if map:
+	var map := MapRoot.of(self)
+	if map:
+		map.mover_parked(_body, on)
+		if not on and mends:
 			map.mend_due(_body)
 
 
