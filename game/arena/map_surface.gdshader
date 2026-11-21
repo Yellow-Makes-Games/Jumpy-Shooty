@@ -38,6 +38,12 @@ uniform float inlay = 0.0;                  // ring flags: a line inlaid (in acc
 uniform vec3 accent_a : source_color = vec3(1.0, 0.25, 0.7);   // confetti: its three colours; ring flags: the inlay
 uniform vec3 accent_b : source_color = vec3(0.2, 0.95, 1.0);
 uniform vec3 accent_c : source_color = vec3(1.0, 0.86, 0.2);
+// GTAO ambient occlusion (the "GTAO" setting; see game/core/gtao/gtao.gd): worked out
+// before this pass, for the view being drawn, pixel for pixel. The stamp says which
+// view it is for (its size, and whether it is valid now); for any other view, or when
+// GTAO is off, it does not match and AO stays 1.
+global uniform sampler2D gtao_ao;
+global uniform sampler2D gtao_stamp;
 
 varying vec3 map_pos;
 varying vec3 map_normal;
@@ -602,4 +608,10 @@ void fragment() {
 	ALBEDO = mix(albedo.rgb * COLOR.rgb * shade, paint, painted);
 	EMISSION = shine;
 	ROUGHNESS = roughness;
+
+	// Ambient light only (AO_LIGHT_AFFECT stays 0): the sun and lamps are not darkened.
+	vec4 gtao_for = texelFetch(gtao_stamp, ivec2(0), 0);
+	if (gtao_for.z > 0.5 && ivec2(gtao_for.xy) == ivec2(VIEWPORT_SIZE)) {
+		AO = texelFetch(gtao_ao, ivec2(FRAGCOORD.xy), 0).r;
+	}
 }

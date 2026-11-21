@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://d3p68156y05hi"
+path="res://.godot/imported/cmaa2.glsl-7894074ae3467bb33161cd13d7dfec49.res"
+
+[deps]
+
+source_file="res://game/core/cmaa2/cmaa2.glsl"
+dest_files=["res://.godot/imported/cmaa2.glsl-7894074ae3467bb33161cd13d7dfec49.res"]
+
+[params]
+
