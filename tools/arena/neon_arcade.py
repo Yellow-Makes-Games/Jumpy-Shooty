@@ -7,7 +7,7 @@ Heights: floor 0 m, stage 0.6 m, booth roof 3 m, mezzanine 4.5 m, trusses 7.4-8 
 roof 9.6 m.
 """
 import math
-from arena_builder import Map, palette
+from arena_builder import Map, palette, SCRIPTS, IDENTITY, xform
 
 PAL = "res://game/maps/palettes/neon_arcade.tres"
 
@@ -63,7 +63,11 @@ def build(path):
     details(m)
     spawns(m)
     pickups(m)
-    m.write(path)
+    SCRIPTS["item"] = "res://game/arena/map_item_spawn.gd"   # only this map's scene gets the power-up script
+    try:
+        m.write(path)
+    finally:
+        del SCRIPTS["item"]
     palette(path.replace("game/maps/", "game/maps/palettes/").replace(".tscn", ".tres"), COLORS, GLOW, BREAKABLE,
             roughness=0.7, surface=SURFACE)
 
@@ -578,3 +582,14 @@ def pickups(m):
         ((-14.5, 0, -3), "machine_pistol"), ((9, 0, -6.6), "spear"), ((-15, 0, -8), "akimbo"),
     ]:
         m.weapon(p, w)
+    # Deathmatch power-ups (MapItemSpawn): double damage on the roof between the skylights,
+    # uber on the stage; health on both mezzanine stair tops, the party room, the claw
+    # machines and the pinball alley. Each 3 m or more from a spawn point, 2.5 m from a weapon.
+    m._add("ItemSpawns", "Node3D", ".", [], None, False)
+    for i, (p, item) in enumerate([
+        ((-4, 9.6, 0), "damage"), ((4.2, 0.6, 12.2), "uber"), ((-15.5, MY, 9.2), "health_medium"),
+        ((15.5, MY, -11.5), "health_medium"), ((4.8, 0, -12.8), "health_small"), ((-15.6, 0, 11), "health_small"),
+        ((-6, 0, -11), "health_small"),
+    ]):
+        props = [("transform", xform(IDENTITY, p)), ("item", '"%s"' % item)]
+        m._add("%s%d" % (item, i + 1), "Marker3D", "ItemSpawns", props, "item", False)

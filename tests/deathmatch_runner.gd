@@ -2,7 +2,8 @@ extends Node
 ## Deathmatch checks:
 ##  - the map lists: Deathmatch is a game of its own, played on the Construction Site
 ##    and the Office (and only there);
-##  - every Deathmatch map has weapon pickups, each over a floor with room to stand;
+##  - every Deathmatch map has weapon pickups and every kind of power-up, each over a
+##    floor with room to stand (tests/power_up_spots_test.gd checks the power-ups more);
 ##  - the inventory rules the host keeps: you start empty-handed, a pickup goes in your
 ##    inventory (and in your hands if they were empty), you can only switch to what you
 ##    carry, a death empties it, and the lobby weapon choice is left alone;
@@ -87,8 +88,7 @@ func _pickup_spots() -> void:
 			q.transform = Transform3D(Basis(), pos + Vector3(0, 1.0, 0))
 			if not down or not space.intersect_shape(q, 1).is_empty():
 				bad_items.append(pos)
-		if not map.item_spawns.is_empty():   # (maps without power-ups yet are skipped)
-			_expect(items.size() == ItemPickup.KINDS.size(),"%s: every power-up can be found (%s)" % [id, items.keys()])
+		_expect(items.size() == ItemPickup.KINDS.size(), "%s: every power-up can be found (%s)" % [id, items.keys()])
 		_expect(bad_items.is_empty(), "%s: every power-up is over a floor with room to stand %s" % [id, bad_items])
 		map.queue_free()
 		await get_tree().process_frame

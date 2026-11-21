@@ -10,6 +10,7 @@
 [ext_resource type="Resource" path="res://game/maps/palettes/halcyon.tres" id="pal"]
 [ext_resource type="Resource" path="res://game/maps/sky/maps/halcyon.tres" id="sky_preset"]
 [ext_resource type="Resource" path="res://game/maps/sky/maps/halcyon_deep.tres" id="sky_preset2"]
+[ext_resource type="Script" path="res://game/arena/map_item_spawn.gd" id="91_itmsp"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 2
@@ -19780,3 +19781,50 @@ weapon = "hammer"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -6, 24)
 script = ExtResource("4_weapon")
 weapon = "plasma_pistol"
+
+[node name="ItemSpawns" type="Node3D" parent="."]
+
+[node name="damage1" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8, 56)
+script = ExtResource("91_itmsp")
+item = "damage"
+
+[node name="health_small2" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59, -6, -59)
+script = ExtResource("91_itmsp")
+item = "health_small"
+
+[node name="health_small3" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -63, -6, 63)
+script = ExtResource("91_itmsp")
+item = "health_small"
+
+[node name="health_small4" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -61, 0, -61)
+script = ExtResource("91_itmsp")
+item = "health_small"
+
+[node name="health_small5" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61, 0, 61)
+script = ExtResource("91_itmsp")
+item = "health_small"
+
+[node name="health_medium6" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57, 6, 0)
+script = ExtResource("91_itmsp")
+item = "health_medium"
+
+[node name="health_medium7" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -35, 0, -10)
+script = ExtResource("91_itmsp")
+item = "health_medium"
+
+[node name="health_medium8" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.5, -6, 0)
+script = ExtResource("91_itmsp")
+item = "health_medium"
+
+[node name="uber9" type="Marker3D" parent="ItemSpawns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, -2.4, -56)
+script = ExtResource("91_itmsp")
+item = "uber"
