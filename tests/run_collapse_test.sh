@@ -6,7 +6,7 @@
 #  - the host starts one collapse, and every copy ends with exactly the same heap and
 #    the same walls and floors gone (the two who joined late as well)
 #  - there are no script errors
-# MAP=cirrus COLUMN=9:0,0,1 does it on Cirrus: a first-floor corner of the first island
+# MAP=cirrus COLUMN=9:0,0,1 does it on Cirrus: a ground-floor corner of the first island
 # that is up, a building held up by its walls on an island that flies.
 # Usage: [MAP=...] [COLUMN=SECONDS:X,Z,STOREY] tests/run_collapse_test.sh [NET_SIM]
 set -euo pipefail

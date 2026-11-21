@@ -47,6 +47,7 @@ signal cells_changed(cells: PackedInt32Array, stages: PackedByteArray)
 const CELL := 2.0            ## metres: about how big a piece breaks off
 const MAX_THICKNESS := 0.6   ## a wall or floor this thin or thinner can break
 const MIN_AREA := 7.0        ## ...and at least this big (small landings and steps stay)
+const SMALL_AREA := 0.4      ## ...or this big, in a building held up by its walls (MapFrame): every bit of wall breaks there
 const ONE_PIECE_BELOW := 50.0  ## kinds weaker than this (glass) shatter as one pane
 const SPAWN_GUARD := 3.0     ## metres round a spawn point nothing breaks
 const BROKEN := 3            ## stages: 0 whole, 1 cracked, 2 badly cracked, 3 broken
@@ -182,11 +183,16 @@ func _can_break(piece: Dictionary, table: Dictionary) -> bool:
 		return false
 	if piece.get("break_mode", "cell") == "whole":
 		return true
-	return thin_enough_piece(piece)
+	var small: bool = piece.get("unguarded", false)
+	if fine and root.break_small_walls and not small:
+		var up: Vector3 = (piece.xf as Transform3D).basis.y.abs()
+		var s: Vector3 = piece.size
+		small = s.y > minf(s.x, s.z) and up.y > 0.99   # (a wall: thin sideways, not a floor)
+	return thin_enough_piece(piece, SMALL_AREA if small else MIN_AREA)
 
 
-static func thin_enough_piece(piece: Dictionary) -> bool:
-	return piece.shape == "box" and _thin(piece.size)
+static func thin_enough_piece(piece: Dictionary, area: float = MIN_AREA) -> bool:
+	return piece.shape == "box" and _thin(piece.size, area)
 
 
 ## Can a block of this shape and size break per cell? (MapBlock's warning asks.)
@@ -194,10 +200,11 @@ static func thin_enough(shape: int, size: Vector3) -> bool:
 	return shape == MapBlock.Shape.BOX and _thin(size)
 
 
-static func _thin(s: Vector3) -> bool:
+static func _thin(s: Vector3, area: float = MIN_AREA) -> bool:
 	var dims := [s.x, s.y, s.z]
 	dims.sort()
-	return dims[0] <= MAX_THICKNESS and dims[1] * dims[2] >= MIN_AREA
+	# (A size is held in single precision, where 0.6 is a hair over 0.6.)
+	return dims[0] <= MAX_THICKNESS + 0.001 and dims[1] * dims[2] >= area
 
 
 ## How much damage a cell of this piece takes: its own health, else its kind's
@@ -435,6 +442,8 @@ func _protect(others: Array, spawn_points: Array, first_cell: int = 0, first_pan
 					grid[key].append(id)
 	for index in range(first_panel, panels.size()):
 		var panel: Dictionary = panels[index]
+		if (panel.piece as Dictionary).get("unguarded", false):
+			continue   # (a building held up by its walls: all of it breaks, and what stands on it goes with it)
 		var pxf: Transform3D = panel.xf
 		var inv := pxf.affine_inverse()
 		var pbox: AABB = pxf * AABB(-(panel.size as Vector3) * 0.5, panel.size)
@@ -514,6 +523,26 @@ static func _holds(cell: AABB, other: AABB, floor_panel: bool) -> bool:
 	# Through it: the two really overlap (not just touching side by side).
 	var inside := cell.intersection(other)
 	return inside.size.x > eps and inside.size.y > eps and inside.size.z > eps
+
+
+## Is the floor that someone at `at` would stand on gone: a floor that breaks, right
+## under there, with its piece at that spot broken or fallen? (A spawn point on an upper
+## floor is no use once that is so.)
+func floor_gone(at: Vector3) -> bool:
+	for panel: Dictionary in panels:
+		if int(panel.thin) != 1 or panel.whole:
+			continue
+		var half: Vector3 = (panel.size as Vector3) * 0.5
+		var local: Vector3 = _panel_xf(panel).affine_inverse() * at
+		if absf(local.x) > half.x or absf(local.z) > half.z or local.y < half.y - 0.2 or local.y > half.y + 1.0:
+			continue
+		var n: Vector3i = panel.n
+		var step: Vector3 = panel.cell
+		var i := clampi(int((local.x + half.x) / step.x), 0, n.x - 1)
+		var k := clampi(int((local.z + half.z) / step.z), 0, n.z - 1)
+		if int(cells[int(panel.first) + i + n.x * n.y * k].stage) >= BROKEN:
+			return true
+	return false
 
 
 ## A cell's box in the map's frame (around its panel's box: rough for a turned panel),

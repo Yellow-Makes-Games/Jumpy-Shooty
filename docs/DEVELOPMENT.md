@@ -392,6 +392,10 @@ The sync, match and bot tests take a map and a player count, for example
   walls above topple; the pieces fall where the island is and the pile
   is the island's (it moves when the island does, and cannot be hit while the island
   is parked); the island comes back with its building whole, and it can come down again;
+  nothing of a building is protected, the two domes break as whole blocks, a thing goes
+  with the floor under it and comes back with it, a spawn point on a floor that has
+  been shot away is closed, the ground-floor wall at a corner takes the corner down
+  from the ground to the roof, and the plinth stops at the doorways;
 - Halcyon (`tests/halcyon_test.gd`): 16 or more spawn points, each clear, none in the
   Control Room or in sight of the terminal's dais; the pickups (the heavy weapons up
   high, none in the Control Room); the terminal on its dais and its event; on the bots'
@@ -1081,6 +1085,9 @@ with fine destruction, at the map's origin, and tell it where the building's fra
 - **Core**: a box that always stands (a lift core). The bay it is in never falls.
 - **Held By Walls**: the building has no columns: its walls hold it up (below).
   **Wall Reach** (2.5 m) and **Wall Share** (0.6) say which wall and how much of it.
+  **To The Ground** (with **Ground**, the height of its ground floor): the ground floor
+  comes down too. **Rests Share** (0.5): how much of what a thing stands on has to
+  break before the thing goes.
 
 The square of floor between four columns is a *bay*. Blow out a storey of a bay's
 outside corner column, or of any two of its columns, and that floor of the bay falls
@@ -1128,6 +1135,35 @@ takes its own stretch down with it (`MapCollapse._by_bay`). And each piece is ti
 outwards from the middle of its bay as it lets go (`_topple`, the same on every copy):
 a wall cut loose over the wall it stood on would otherwise stay there, a stack of
 loose blocks that looks like a wall.
+
+**All of such a building breaks.** Nothing in it is protected (no cell is kept because
+something stands on it or a spawn point is near), and every ticked thin box in it
+breaks cell by cell however small (a face of 0.4 m² or more, `SMALL_AREA`, where it
+is 7 elsewhere). In place of protection each loose thing knows what it rests on
+(`MapCollapse._take_rests`): the floor cells it stands on; failing that the cells it
+hangs from, is set in or touches (a lamp under a ceiling, an arch in a wall, a cornice);
+what stands on another thing shares that thing's; what stands on the ground has
+none. Once Rests Share of them are broken or have fallen the thing goes, in a burst of
+rubble, with what was drawn on it; it is back if they are (a mended island). Every
+copy works that out from the cells, so nothing is sent. Nobody spawns on a floor that
+has been shot away (`MapDestruction.floor_gone`, asked by `MapRoot.under_rubble`).
+A block that breaks all at once (Break Settings "Whole Block": Cirrus's two domes)
+comes down in a collapse as itself.
+
+**To The Ground.** The ground floor is then a level too, and a level is a storey's
+walls with the slab they hold up, not a slab with what stands on it: the storey whose
+wall goes comes down with everything above it, and the floor it stood on stays.
+Storeys count from 1 there (1: the ground floor's walls). Lose the ground floor's wall
+at a corner and that corner is rubble on the ground, stairs and furniture included;
+do it all the way round and nothing of the building stands. What is outside every bay
+(a porch, an awning) belongs to the bay it stands against.
+
+Drawing: the loose things of a building with columns are one lot. A building held up
+by its walls has two lots for each bay, what stays put until the bay falls and what
+can go on its own, so that losing a planter with its bit of roof draws a handful of
+things again (`_lot_mesh`, `_show_lot`), and the drawing ahead of a collapse is done a
+lot a frame. A copy that joins after a fall makes every piece and then drops the ones
+the host's poses do not have (`_absent`), so its heap is the host's.
 
 **On an island that flies.** Put the MapFrame inside the MapMover or MapIsland, with
 its lines measured in the island's own frame, and the building gets a collapse of its
@@ -1470,19 +1506,31 @@ generated arenas the scene is what you edit from here on, and running the script
 buildings' stone walls (`stone`), their roof slabs and the lower walls inside
 (`stone_warm`), the wooden and tiled upper floors (`floor_wood`, `floor_tile`) break
 small; the Labs' glass, the windows and the skylight go a pane at a time. The islands
-themselves (lawn, deck, rock), the stairs, the porch columns, the domes and the clock
-tower (its walls are 0.6 m thick, too thick to be a breakable panel) do not break.
+themselves (lawn, deck, rock) do not break, nor do stairs, porch columns and furniture,
+which come down with their part of the building.
 Which blocks break is the **Breakable** tick on each block; `python3
 tools/arena/cirrus_breakable.py` ticked them (every solid, drawn, thin box of those
-kinds with a face of 7 m² or more) and can be run again after adding walls. How tough
+kinds) and can be run again after adding walls. How tough
 each kind is sits in the palette's **Breakable** table. An island that goes down
 comes back mended; the quad's damage stays. `tests/cirrus_destruction_test.gd` checks
 all of it on an island that has moved.
 
-Each building can come down: a **Frame** node (a MapFrame, Held By Walls) inside each
-island, before its Building, with three bays along the front and two deep and a level
-for each upper floor and the roof, in the island's own frame (`python3
-tools/arena/cirrus_frames.py` wrote them). Move a building's outer walls or floors and
+Each building can come down, all the way: a **Frame** node (a MapFrame, Held By Walls,
+To The Ground) inside each island, before its Building, with three bays along the
+front and two deep and a level for the ground floor, each upper floor and the roof, in
+the island's own frame (`python3 tools/arena/cirrus_frames.py` wrote them). Every
+thin stone, floor, paving and glass box in a Building is ticked Breakable, and the
+two domes break as whole blocks (`tools/arena/cirrus_breakable.py`). The plinth round
+each building is cut at its doorways (`tools/arena/cirrus_plinths.py`).
+
+**The clock tower's walls break, its corners do not.** Each wall of the tower is cut in
+three (`tools/arena/cirrus_tower.py`): the last 1.2 m at each corner is not Breakable
+(with the pilasters on them the corners are pillars from the ground to the belfry),
+nor is what is above the upper ledge, at 20.4 m (the stage that carries the clock
+faces, spanning from pillar to pillar), and the rest is. The arched tops of its door
+and slits break as whole blocks, and the map's **Break Small Walls** is ticked so the
+narrow bits of wall between the slits break too. The tower has no MapFrame: nothing of
+it falls, and what touches its stair stays (the usual protection). Move a building's outer walls or floors and
 its Frame's lines have to follow. See "A building held up by its walls" and
 `tests/cirrus_collapse_test.gd`.
 
