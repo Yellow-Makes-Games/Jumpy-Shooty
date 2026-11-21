@@ -45,6 +45,15 @@ func run(scene: String, view: String, pick: Vector2i) -> void:
 	if scene in ["all", "air"]:
 		await _back_to_start()
 		await _air(false)
+	if scene == "moves":   # the rest of the full wind-ups, one after another: ground then air
+		for g in [0, 1, 3]:
+			_me.dev_pick = MeleeSwing.pick_of(g, 0)
+			await _back_to_start()
+			await _heavy()
+		for a in [0, 2]:
+			_me.dev_pick = MeleeSwing.pick_of(0, a)
+			await _back_to_start()
+			await _air(false)
 	if scene == "slam":
 		await _back_to_start()
 		await _air(true)

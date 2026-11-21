@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Films Karate in the real game without a GPU (see karate_film.gd): writes OUT_DIR/karate_SCENE_VIEW.mp4.
-# Usage: tools/combat/karate_film.sh OUT_DIR SCENE(all|combo|heavy|air|slam) first|third|side|front|back [more options, e.g. --pick=2,1 --character=orbit]
+# Usage: tools/combat/karate_film.sh OUT_DIR SCENE(all|combo|heavy|air|slam|moves) first|third|side|front|back [more options, e.g. --pick=2,1 --character=orbit]
 # SIZE=WxH sets the picture size (default 1280x720).
 set -euo pipefail
 OUT="$(realpath -m "$1")"; SCENE="$2"; VIEW="$3"; shift 3

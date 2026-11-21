@@ -6,7 +6,7 @@ extends SceneTree
 ##
 ##   godot --fixed-fps 60 --write-movie OUT.avi --path . --script tools/combat/karate_film.gd --
 ##       --weapon=karate [--character=ID] [--pick=G,A] (which heavy blow on the ground and in the air,
-##       see MeleeSwing.pick_of) [--scene=all|combo|heavy|air|slam] [--third-person] [--side] [--front]
+##       see MeleeSwing.pick_of) [--scene=all|combo|heavy|air|slam|moves] (moves: the tornado kick, flying knee, palm blast, helicopter kick and flying side kick) [--third-person] [--side] [--front]
 
 func _init() -> void:
 	_start.call_deferred()
