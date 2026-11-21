@@ -95,6 +95,25 @@ func aim_travel(window: float) -> float:
 	return rad_to_deg(total)
 
 
+## How far they spun one way (degrees): the most the yaw turned in one direction
+## anywhere in the last `window` seconds of states (a 360 then a little flick back
+## is still a 360).
+func spin(window: float) -> float:
+	if snaps.is_empty():
+		return 0.0
+	var from := snaps[-1].t - window
+	var turned := 0.0
+	var most := 0.0
+	var least := 0.0
+	var i := snaps.size() - 1
+	while i > 0 and snaps[i - 1].t >= from:
+		turned += wrapf(snaps[i].yaw - snaps[i - 1].yaw, -PI, PI)
+		most = maxf(most, turned)
+		least = minf(least, turned)
+		i -= 1
+	return rad_to_deg(most - least)
+
+
 ## The time, on the sender's clock, that we should be showing right now.
 ## Call once per frame. The delay eases toward its target so time never jumps.
 func render_time(local_time: float, delta: float = 0.016) -> float:

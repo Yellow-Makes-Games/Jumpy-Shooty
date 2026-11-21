@@ -68,6 +68,11 @@ const FLICK_WINDOW := 0.6
 const FLICK_FROM := 20.0     ## every degree past this is worth a point...
 const FLICK_MAX := 120       ## ...up to this many (at 140 degrees)
 const FLICK := 60.0          ## the "FLICK 95°" tag from this far
+## A spin: the killer turned all the way round before the shot (one way, within the
+## last SPIN_WINDOW seconds), on the ground or in the air. It takes the flick's place
+## (it is a bigger one) and is one trick for the combo.
+const SPIN_WINDOW := 1.5
+const SPINS := [[720.0, 131072, 400], [360.0, 65536, 250], [180.0, 32768, 150]]   ## [degrees, tag, points], biggest first
 
 ## Tag bits (sent with the score; every copy turns them back into words).
 const T_HEADSHOT := 1
@@ -85,6 +90,10 @@ const T_CLUTCH := 2048
 const T_FAST := 4096
 const T_TARGET_FAST := 8192
 const T_FLICK := 16384
+const T_180 := 32768
+const T_360 := 65536
+const T_720 := 131072
+const T_SPIN := T_180 | T_360 | T_720
 
 const TRICKS := [T_MID_AIR, T_AIR_SHOT, T_FLICK, T_LONG]
 
@@ -94,7 +103,7 @@ const AIRBORNE := [S.AIR, S.GRAPPLE, S.WALL_RUN, S.FLIP, S.DIVE, S.GLIDE, S.WALL
 
 ## facts: {distance: metres, headshot, killer_state, victim_state (MovementController.State),
 ## cause ("", "kick", "flying_kick", "slam"), melee, streak (earlier kills in the window),
-## killer_hp, killer_speed and victim_speed (m/s), flick (degrees)}. Returns [score, tag bits].
+## killer_hp, killer_speed and victim_speed (m/s), flick and spin (degrees)}. Returns [score, tag bits].
 static func score(facts: Dictionary) -> Array:
 	var tags := 0
 	var dist := float(facts.get("distance", 0.0))
@@ -134,6 +143,12 @@ static func score(facts: Dictionary) -> Array:
 	var flick := float(facts.get("flick", 0.0))
 	if flick >= FLICK:
 		tags |= T_FLICK
+	if not is_blow(tags):   # a spin is a shot's
+		var spun := float(facts.get("spin", 0.0))
+		for s in SPINS:
+			if spun >= float(s[0]):
+				tags = (tags & ~T_FLICK) | int(s[1])
+				break
 	var total := 0
 	for part in parts(tags, int(facts.get("streak", 0)), dist, speed, target, flick):
 		total += int(part[1])
@@ -170,7 +185,9 @@ static func parts(tags: int, streak: int, distance: float, speed: float = 0.0, t
 	if tags & T_HEADSHOT:
 		add.call("HEADSHOT", HEADSHOT)
 	var blow := is_blow(tags)
-	if not blow:   # (aim counts for shots; on a blow you just face them)
+	if tags & T_SPIN:
+		add.call(spin_words(tags), spin_points(tags))
+	elif not blow:   # (aim counts for shots; on a blow you just face them)
 		add.call("FLICK %d°" % roundi(flick), mini(int(maxf(flick - FLICK_FROM, 0.0)), FLICK_MAX))
 	var motion := motion_points(speed, target)
 	if blow:
@@ -194,6 +211,21 @@ static func motion_points(speed: float, target: float) -> int:
 	return mini(int(maxf(both - MOTION_FROM, 0.0) * MOTION_PER), MOTION_MAX)
 
 
+## "180", "360" or "720" for a spin's tag (see SPINS); "" for none.
+static func spin_words(tags: int) -> String:
+	for s in SPINS:
+		if tags & int(s[1]):
+			return str(int(s[0]))
+	return ""
+
+
+static func spin_points(tags: int) -> int:
+	for s in SPINS:
+		if tags & int(s[1]):
+			return int(s[2])
+	return 0
+
+
 ## A kick, a flying kick, a crash into a wall or a blade, not a shot (see BLOWS).
 static func is_blow(tags: int) -> bool:
 	return (tags & BLOWS) != 0
@@ -207,6 +239,8 @@ static func trick_count(tags: int) -> int:
 	for t in TRICKS:
 		if tags & t:
 			n += 1
+	if tags & T_SPIN:   # (in the flick's place)
+		n += 1
 	return n
 
 
@@ -229,6 +263,8 @@ static func tag_words(tags: int, streak: int, distance: float, speed: float = 0.
 		out.append(["DOUBLE KILL", "TRIPLE KILL", "QUAD KILL"][mini(streak, 3) - 1] if streak <= 3 else "MULTI KILL")
 	if trick_count(tags) >= 2:
 		out.append("TRICKSHOT")
+	if tags & T_SPIN:
+		out.append(spin_words(tags))
 	if tags & T_FLYING_KICK:
 		out.append("FLYING KICK")
 	elif tags & T_KICK:
