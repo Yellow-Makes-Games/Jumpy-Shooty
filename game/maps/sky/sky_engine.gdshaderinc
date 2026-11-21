@@ -141,6 +141,26 @@ uniform vec3 psy_color_a : source_color = vec3(0.98, 0.35, 0.78);
 uniform vec3 psy_color_b : source_color = vec3(0.3, 0.85, 0.95);
 uniform vec3 psy_color_c : source_color = vec3(1.0, 0.82, 0.3);
 
+// -- Silk: abstract folded colour, wrapped round the whole sky ---------------------------------
+uniform float silk_amount = 0.0;
+uniform int silk_style = 0;            // 0 folded ribbons, 1 layered waves, 2 blurred colour fields
+uniform vec3 silk_base : source_color = vec3(0.12, 0.08, 0.2);       // behind everything, low
+uniform vec3 silk_base_top : source_color = vec3(0.25, 0.15, 0.35);  // behind everything, high
+uniform vec3 silk_color_a : source_color = vec3(1.0, 0.55, 0.25);
+uniform vec3 silk_color_b : source_color = vec3(1.0, 0.4, 0.45);
+uniform vec3 silk_color_c : source_color = vec3(1.0, 0.8, 0.4);
+uniform vec3 silk_color_d : source_color = vec3(0.6, 0.3, 0.6);
+uniform float silk_count = 4.0;        // how many folds or bands up the sky
+uniform float silk_scale = 1.0;        // how wide they are
+uniform float silk_tilt = 0.25;        // how much they sweep up and down round the sky
+uniform float silk_speed = 1.0;
+uniform float silk_sheen = 0.6;        // satin highlight along the crests
+uniform float silk_shadow = 0.6;       // soft shadow in the creases and under each layer
+uniform float silk_edge_glow = 0.0;    // a glow along the edges (the dark versions)
+uniform vec3 silk_edge_color : source_color = vec3(0.4, 0.9, 1.0);      // every other edge...
+uniform vec3 silk_edge_color_b : source_color = vec3(0.9, 0.35, 0.9);   // ...and the rest
+uniform float silk_seed = 0.0;
+
 // -- Surreal: things the sky can't have -----------------------------------------------------
 uniform float sun2_amount = 0.0;
 uniform vec3 sun2_dir = vec3(0.6, 0.25, -0.75);
@@ -351,6 +371,77 @@ vec3 sk_psychedelic(vec3 d, float t, bool full) {
 	return col;
 }
 
+// -- Silk ----------------------------------------------------------------------------------
+vec3 silk_pal(int i) {
+	i = i % 4;
+	if (i == 0) return silk_color_a;
+	if (i == 1) return silk_color_b;
+	if (i == 2) return silk_color_c;
+	return silk_color_d;
+}
+
+// A soft blend through the four colours, round and round as x grows (no seams, no edges).
+vec3 silk_blend(float x) {
+	vec3 acc = vec3(0.0);
+	float total = 0.0;
+	for (int i = 0; i < 4; i++) {
+		float w = pow(0.5 + 0.5 * cos(SK_TAU * (x - float(i) * 0.25)), 6.0);
+		acc += silk_pal(i) * w;
+		total += w;
+	}
+	return acc / max(total, 0.0001);
+}
+
+// Every style is one flowing field: the sky direction pushed about by slow, drifting
+// noise (domain warping), so the colour melts and morphs rather than having edges.
+// x is where in the colour cycle a point is; the folds are soft glows along it.
+vec3 silk_flow(vec3 d, float t, float calm) {
+	float s = t * silk_speed * 1.8;
+	float v = asin(clamp(d.y, -1.0, 1.0)) / 1.5708;
+	vec3 p = d * (0.62 / silk_scale) + vec3(silk_seed * 3.1, silk_seed * 1.7, 0.0);
+	// Two rounds of warping: the second rides the first, which makes the folds billow.
+	vec3 w1 = vec3(sk_fbm3(p + vec3(0.0, 0.0, s * 0.05), 3), sk_fbm3(p + vec3(5.2, 1.3, -s * 0.045), 3),
+		sk_fbm3(p + vec3(2.1, 7.7, s * 0.04), 3)) - 0.5;
+	vec3 q = p + w1 * 1.7;
+	vec3 w2 = vec3(sk_fbm3(q * 1.1 + vec3(1.7, 9.2, s * 0.06), 2), sk_fbm3(q * 1.1 + vec3(8.3, 2.8, -s * 0.05), 2), 0.0) - 0.5;
+	float swirl = sk_fbm3(q + w2.xyx * 1.5 + vec3(0.0, s * 0.03, 0.0), 3);
+	float x;
+	if (silk_style == 1) {
+		// Waves: bands stacked up the sky, rolling and breathing.
+		x = v * silk_count * 0.45 + silk_tilt * sin(atan(d.z, d.x) + silk_seed) + (swirl - 0.5) * 1.1 - s * 0.012;
+	} else if (silk_style == 2) {
+		// Colour fields: pools of colour drifting into each other.
+		x = swirl * 1.6 + w1.x * 0.8 + s * 0.006;
+	} else {
+		// Ribbons: long folds sweeping round, twisting through each other.
+		x = v * silk_count * 0.3 + silk_tilt * sin(atan(d.z, d.x) + silk_seed) + (swirl - 0.5) * 1.8 + w2.x * 0.9 - s * 0.01;
+	}
+	vec3 col = silk_blend(x);
+	// Behind it all, deeper toward the bottom of the sky: lets the colour sink into shade.
+	float depth = smoothstep(0.1, 0.8, 0.5 + 0.5 * sin(x * SK_TAU * 0.5 + swirl * 3.0));
+	col = mix(mix(silk_base, silk_base_top, smoothstep(-1.0, 1.0, v)), col, mix(1.0, 0.25 + 0.75 * depth, silk_shadow));
+	// The folds: a broad satin glow riding each crest, soft shade in each hollow.
+	float fold = 0.5 + 0.5 * sin(x * SK_TAU * 1.0 + swirl * 2.0 + s * 0.05);
+	col *= 1.0 - silk_shadow * 0.25 * (1.0 - fold);
+	col += mix(col, vec3(1.0), 0.25) * pow(fold, 4.0) * silk_sheen * 0.3 * calm;
+	// The dark looks: light seeping through the folds, blurred, never a line.
+	if (silk_edge_glow > 0.0) {
+		float seam = pow(1.0 - abs(fold * 2.0 - 1.0), 2.0) * smoothstep(0.3, 0.7, swirl);
+		vec3 tint = mix(silk_edge_color, silk_edge_color_b, 0.5 + 0.5 * sin(x * SK_TAU + s * 0.02));
+		col += tint * seam * silk_edge_glow * 0.4 * calm;
+	}
+	return col;
+}
+
+vec3 sk_silk(vec3 d, float t, float h) {
+	float az = atan(d.z, d.x);
+	float v = asin(clamp(d.y, -1.0, 1.0)) / 1.5708;
+	float calm = mix(0.45, 1.0, smoothstep(0.03, 0.3, abs(h)));   // softer behind the players
+	vec3 col = silk_flow(d, t, calm);
+	// A little darker and calmer below the horizon.
+	return col * mix(1.0, 0.72, smoothstep(0.0, 0.5, -h));
+}
+
 // A faceted low-poly shape (an octahedron's outline: four lit faces) floating far off.
 vec3 sk_shape(vec3 d, vec3 at, float size, float spin, vec3 sun, inout float cover) {
 	mat3 fr = sk_frame(at);
@@ -413,6 +504,11 @@ vec3 sky_engine(vec3 d, vec3 eye, float t, bool full) {
 	}
 	if (city_glow > 0.0) {
 		colour += city_glow_color * exp(-abs(h) * 14.0) * city_glow;
+	}
+
+	// Silk: abstract folded colour all round.
+	if (silk_amount > 0.0) {
+		colour = mix(colour, sk_silk(d, t, h), silk_amount);
 	}
 
 	// Psychedelic colour, calmer close to the horizon (behind the players).

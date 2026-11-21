@@ -2,7 +2,8 @@ extends Node
 ## Sky engine checks (started by tests/sky_engine_test.gd). Nothing here writes settings.
 
 const BASE_LOOKS := ["clear_day", "golden_hour", "hazy_overcast", "night_city", "deep_space",
-	"planet_orbit", "psychedelic", "surreal_dream"]
+	"planet_orbit", "psychedelic", "surreal_dream", "ember", "ember_dark", "tide", "tide_dark",
+	"sorbet", "sorbet_dark", "abyss", "abyss_dark"]
 
 var _fails: Array[String] = []
 

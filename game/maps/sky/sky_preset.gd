@@ -136,6 +136,27 @@ extends Resource
 @export var psy_color_b := Color(0.58, 0.93, 0.98)
 @export var psy_color_c := Color(1.0, 0.92, 0.58)
 
+@export_group("Silk")
+@export_range(0.0, 1.0) var silk_amount := 0.0
+## Folded ribbons, layered waves or blurred colour fields.
+@export_enum("Ribbons", "Waves", "Colour fields") var silk_style := 0
+@export var silk_base := Color(0.38, 0.31, 0.49)
+@export var silk_base_top := Color(0.54, 0.42, 0.63)
+@export var silk_color_a := Color(1.0, 0.77, 0.54)
+@export var silk_color_b := Color(1.0, 0.67, 0.7)
+@export var silk_color_c := Color(1.0, 0.91, 0.67)
+@export var silk_color_d := Color(0.8, 0.58, 0.8)
+@export_range(1.0, 5.0, 1.0) var silk_count := 4.0
+@export_range(0.3, 2.0) var silk_scale := 1.0
+@export_range(-0.6, 0.6) var silk_tilt := 0.25
+@export_range(0.0, 4.0) var silk_speed := 1.0
+@export_range(0.0, 2.0) var silk_sheen := 0.6
+@export_range(0.0, 1.0) var silk_shadow := 0.6
+@export_range(0.0, 2.0) var silk_edge_glow := 0.0
+@export var silk_edge_color := Color(0.67, 0.95, 1.0)
+@export var silk_edge_color_b := Color(0.95, 0.63, 0.95)
+@export var silk_seed := 0.0
+
 @export_group("Surreal")
 @export_range(0.0, 1.0) var sun2_amount := 0.0
 @export var sun2_dir := Vector3(0.6, 0.25, -0.75)
