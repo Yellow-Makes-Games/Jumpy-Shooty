@@ -76,6 +76,36 @@ func run() -> void:
 	var through := await _blink(me, open[2])
 	_check(through > Blink.RANGE - 1.5, "a blink at a thin wall %.0f m away goes through it, its full range (%.1f m)" % [to_wall, through])
 	_check(me.global_position.y > open[0].y - 0.5, "...and lands on the floor on the far side, not under it")
+	# The same wall, blink-proof (MapBlock.blink_proof): you stop short of it.
+	var layout: MapRoot = Net.arena.layout
+	_check(layout.blink_proof.size() >= 4, "the Testing Grounds' outside walls are blink-proof (%d)" % layout.blink_proof.size())
+	var kept := layout.blink_proof.duplicate()
+	layout.blink_proof.append([layout.global_transform.affine_inverse() * wall.global_transform, box.size * 0.5])
+	me.teleport(open[0], open[1])
+	me.blink.reset()
+	await _physics(20)
+	var stopped := await _blink(me, open[2])
+	_check(stopped < to_wall and stopped > to_wall - 1.6, "a blink-proof wall: you stop short of it (%.1f m from %.0f m)" % [stopped, to_wall])
+	layout.blink_proof = kept
+	# A real one: the Testing Grounds' outside wall, blinked at from 3 m inside it.
+	var shell: Array = layout.blink_proof[0]
+	var shell_xf: Transform3D = layout.global_transform * (shell[0] as Transform3D)
+	var half: Vector3 = shell[1]
+	var thin := 0 if half.x < half.z else 2
+	var outward: Vector3 = shell_xf.basis[thin].normalized()
+	if outward.dot(shell_xf.origin - layout.global_position) < 0.0:
+		outward = -outward   # (pointing away from the middle of the map)
+	outward = Vector3(outward.x, 0, outward.z).normalized()
+	var face := shell_xf.origin - outward * half[thin]
+	var down := me.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(face - outward * 3.0 + Vector3(0, 3, 0), face - outward * 3.0 + Vector3(0, -30, 0), 1, [me.get_rid()]))
+	_check(not down.is_empty(), "found floor inside the outside wall")
+	if not down.is_empty():
+		me.teleport(down.position, atan2(-outward.x, -outward.z))
+		me.blink.reset()
+		await _physics(20)
+		await _blink(me, outward)
+		var past := (me.global_position - face).dot(outward)
+		_check(past < 0.0, "a blink at the map's outside wall stops short of it (%.1f m from it)" % -past)
 	# One thicker than a blink's reach: no open ground past it, so you stop short.
 	box.size = Vector3(6.0, 5.0, 30.0)
 	wall.global_transform = Transform3D(Basis(side, Vector3.UP, -open[2]), open[0] + open[2] * (to_wall + 15.0) + Vector3(0, 2.5, 0))

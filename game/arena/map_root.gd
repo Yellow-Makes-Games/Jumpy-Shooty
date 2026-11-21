@@ -137,6 +137,10 @@ var item_spawns: Array = []
 ## Route: {pos, action, aim, radius, boost} in running order.
 var checkpoints: Array = []
 var hazards: Array = []
+## The blocks a blink never goes through (MapBlock.blink_proof), each as the box round
+## it in the map's frame: [Transform3D (unscaled, at its middle), half its size]. Only
+## the blocks that stay put (not on a MapMover).
+var blink_proof: Array = []
 var movers: Array = []
 var route: Array = []
 ## The map's MapSpinner nodes (scenery that turns), filled in by build().
@@ -294,6 +298,12 @@ func build(with_meshes: bool = true) -> void:
 						_framed.append(part)
 					(_frame_of.get_or_add(part, []) as Array).append(f)
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
+	blink_proof = []
+	for piece in pieces:
+		if piece.get("blink_proof", false) and piece.solid:
+			var box := _piece_box(piece)
+			if box.size.length_squared() > 0.0:
+				blink_proof.append([(piece.xf as Transform3D).translated_local(box.get_center()), box.size * 0.5])
 	# Gravity by place (none on most maps: then it is 1.0 everywhere, whatever the
 	# last map said).
 	WorldGravity.set_zones(gravity_zones, gravity_outside)
@@ -1371,6 +1381,21 @@ func collision_shapes(piece: Dictionary) -> Array:
 		hull.points = pts
 		shapes.append(hull)
 	return shapes
+
+
+## The box round a piece, in its own frame.
+static func _piece_box(piece: Dictionary) -> AABB:
+	var lumps := MapMesher.hull_points(piece)
+	if lumps.is_empty():
+		var size: Vector3 = piece.size
+		return AABB(-size * 0.5, size)
+	var box := AABB()
+	var any := false
+	for pts: PackedVector3Array in lumps:
+		for p in pts:
+			box = box.expand(p) if any else AABB(p, Vector3.ZERO)
+			any = true
+	return box
 
 
 func _collision_shape(piece: Dictionary) -> Shape3D:

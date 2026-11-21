@@ -6943,6 +6943,7 @@ bevel = 0.1
 [node name="Obelisk" type="Node3D" parent="SteppingStones/StoneObservatory"]
 transform = Transform3D(0.7071, 0, 0.7071, 0, 1, 0, -0.7071, 0, 0.7071, 0, 2.7, 1.2)
 script = ExtResource("2_block")
+blink_proof = true
 shape = 3
 size = Vector3(1, 2.6, 1)
 kind = "statue"
@@ -7111,6 +7112,7 @@ sides = 10
 [node name="Kiosk" type="Node3D" parent="SteppingStones/StoneLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 1.2)
 script = ExtResource("2_block")
+blink_proof = true
 shape = 1
 size = Vector3(1.9, 2, 1.9)
 kind = "kiosk"

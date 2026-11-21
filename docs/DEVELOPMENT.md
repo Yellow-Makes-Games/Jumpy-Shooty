@@ -877,8 +877,8 @@ makes ordinary MapBlocks and is one step of undo.
   to keep (both, the part in front of the cut, the part behind it), Enter cuts, Esc or
   a right click gives up. A box cut square to its sides stays boxes; anything else
   becomes hull blocks. Tubes, arches and hollow domes are only cut straight.
-- **Solid**, **Drawn**, **Breakable** buttons (Alt+S, Alt+D, Alt+B): turn those settings
-  on or off on every selected block, in groups too.
+- **Solid**, **Drawn**, **Breakable**, **Blink-Proof** buttons (Alt+S, Alt+D, Alt+B,
+  Alt+L): turn those settings on or off on every selected block, in groups too.
 - **Map > Hollow** (Alt+H): a selected box becomes a room, a group of six walls of the
   thickness you type that fills the same outside. You can leave the top or the floor off.
   Any other shape of one lump (a wedge, a cylinder, a hull...) is hollowed too: walls
@@ -918,8 +918,10 @@ makes ordinary MapBlocks and is one step of undo.
   are; a Ring is as wide as its first child is far from its middle. Do not edit the
   blocks a piece made, they are replaced; press **Bake** in its inspector to turn it into
   a plain group first.
-- **Map > Show Invisible Blocks / Show Solid Blocks Only**: what the editor shows. The
-  second hides everything you cannot bump into, to check a map's real shape.
+- **Map > Show Invisible Blocks / Show Solid Blocks Only / Show Blink-Proof Blocks Only**:
+  what the editor shows. The second hides everything you cannot bump into, to check a
+  map's real shape; the third everything a blink can go through, to check the outside
+  walls are all ticked.
 - **Map > Show Grid Under Mouse / Show Selected Edges / Show Terminal Links** (all on
   at first; remembered per project): drawn over the 3D view whatever tool is on. The
   grid, at its current size, on the surface under the mouse (or the ground), fading out
@@ -983,6 +985,19 @@ in metres from where the surface is in the map, so they line up from block to bl
 kind that glows or is see-through takes no pattern. The MapRoot's inspector also has the map's rules:
 **Bounds** (leave it and you are out; drawn as a red rectangle), **Kill Height** and the
 **Swing Point** the test player hooks.
+
+**Blink-proof walls.** Blink goes through walls and up through ceilings to open ground
+past them (see `game/player/movement/blink.gd`), but never through a block with **Blink
+Proof** ticked: aimed at one, a blink stops short of it. Tick it on a map's outside walls
+so nobody blinks out of the map. `godot --headless --path . --script
+tools/arena/mark_blink_proof.gd -- res://game/maps/my_map.tscn` ticks them for you: it
+works out where players can walk (from the spawns, weapon and item spots and jump links)
+and ticks every wall that stands between that and ground nobody reaches, past the map's
+fence or open sky, and clears the tick on every other block (`--dry-run` only reports,
+`--plans=DIR` saves a plan of each map with the walls it ticked in red). With no map
+named it does every arena map. Run it again after changing a map's outside, or after
+rebuilding one with its script in `tools/arena/`. Only blocks that stay put count (not
+those on a MapMover or a flying island).
 
 **Breakable walls and floors.** A block breaks only if you tick **Breakable** in its
 **Breaking** section; it is off on a new block. Blocks break only in arena matches,

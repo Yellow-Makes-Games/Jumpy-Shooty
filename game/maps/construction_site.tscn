@@ -28731,6 +28731,7 @@ metadata/_edit_group_ = true
 [node name="Hoarding" type="Node3D" parent="Fence" unique_id=1254128850]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, -40.2)
 script = ExtResource("3_ufyk6")
+blink_proof = true
 size = Vector3(80.8, 7, 0.4)
 kind = "hoarding"
 
@@ -28898,6 +28899,7 @@ solid = false
 [node name="Hoarding2" type="Node3D" parent="Fence" unique_id=585602924]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -40.2, 3.5, 0)
 script = ExtResource("3_ufyk6")
+blink_proof = true
 size = Vector3(80.8, 7, 0.4)
 kind = "hoarding"
 
@@ -29065,6 +29067,7 @@ solid = false
 [node name="Hoarding3" type="Node3D" parent="Fence" unique_id=1014305444]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 3.5, 40.2)
 script = ExtResource("3_ufyk6")
+blink_proof = true
 size = Vector3(80.8, 7, 0.4)
 kind = "hoarding"
 
@@ -29232,6 +29235,7 @@ solid = false
 [node name="Hoarding4" type="Node3D" parent="Fence" unique_id=1087149900]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 40.2, 3.5, 0)
 script = ExtResource("3_ufyk6")
+blink_proof = true
 size = Vector3(80.8, 7, 0.4)
 kind = "hoarding"
 

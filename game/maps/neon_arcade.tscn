@@ -5025,18 +5025,21 @@ tint = Color(0.7, 0.7, 0.7, 1)
 [node name="Fence" type="Node3D" parent="Street"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23.4, 0.6, 17.9)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(0.2, 1.2, 6.2)
 kind = "steel"
 
 [node name="Fence2" type="Node3D" parent="Street"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.4, 0.6, 17.9)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(0.2, 1.2, 6.2)
 kind = "steel"
 
 [node name="Barrier" type="Node3D" parent="Street"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, 23)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(46, 12, 0.4)
 kind = "steel"
 drawn = false
@@ -5231,24 +5234,28 @@ kind = "parapet"
 [node name="Parapet" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10.1, -14.65)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(37.6, 1, 0.3)
 kind = "parapet"
 
 [node name="Parapet2" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10.1, 14.65)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(37.6, 1, 0.3)
 kind = "parapet"
 
 [node name="Parapet3" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.65, 10.1, 0)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(0.3, 1, 29.6)
 kind = "parapet"
 
 [node name="Parapet4" type="Node3D" parent="Roof"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.65, 10.1, 0)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(0.3, 1, 29.6)
 kind = "parapet"
 
