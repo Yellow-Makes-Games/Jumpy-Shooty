@@ -8,17 +8,11 @@
 [ext_resource type="Script" path="res://game/arena/map_terminal.gd" id="6_terminal"]
 [ext_resource type="Script" path="res://game/arena/gravity_event.gd" id="7_gravity"]
 [ext_resource type="Resource" path="res://game/maps/palettes/halcyon.tres" id="pal"]
-[ext_resource type="Shader" path="res://game/maps/sky/halcyon_sky.gdshader" id="sky"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
-shader = ExtResource("sky")
-
-[sub_resource type="Sky" id="Sky_1"]
-sky_material = SubResource("ShaderMaterial_sky")
+[ext_resource type="Resource" path="res://game/maps/sky/maps/halcyon.tres" id="sky_preset"]
+[ext_resource type="Resource" path="res://game/maps/sky/maps/halcyon_deep.tres" id="sky_preset2"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 2
-sky = SubResource("Sky_1")
 ambient_light_source = 2
 ambient_light_color = Color(0.84, 0.9, 1, 1)
 ambient_light_energy = 1.0
@@ -31,6 +25,7 @@ glow_intensity = 0.9
 
 [node name="Halcyon" type="Node3D"]
 script = ExtResource("1_root")
+sky = ExtResource("sky_preset")
 palette = ExtResource("pal")
 face_shade = Vector3(0.92, 0.83, 0.64)
 kill_height = -16.0
@@ -19615,6 +19610,7 @@ solid = false
 
 [node name="LowGravity" type="Node" parent="."]
 script = ExtResource("7_gravity")
+sky = ExtResource("sky_preset2")
 mote_volumes = Array[AABB]([AABB(-13, 0.5, -13, 26, 12, 26), AABB(-29, -5, -65, 58, 30, 32), AABB(-23, -5, 33, 46, 30, 32), AABB(-65, -5, -23, 32, 28, 46), AABB(33, -5, -23, 32, 30, 46)])
 
 [node name="Spawn1" type="Marker3D" parent="Spawns"]

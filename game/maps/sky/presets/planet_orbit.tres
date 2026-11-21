@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="SkyPreset" format=3]
+
+[ext_resource type="Script" path="res://game/maps/sky/sky_preset.gd" id="1_3u1oc"]
+
+[resource]
+script = ExtResource("1_3u1oc")
+zenith_color = Color(0.019607844, 0.02745098, 0.05882353, 1)
+sky_color = Color(0.019607844, 0.02745098, 0.05882353, 1)
+horizon_color = Color(0.02745098, 0.039215688, 0.08627451, 1)
+sun_color = Color(1, 0.9647059, 0.9019608, 1)
+sun_disc = 2.0
+sun_radius = 0.025
+sun_glow = 0.12
+sun_glow_power = 30.0
+sun_core = 0.4
+sun_core_power = 300.0
+moon_amount = 1.0
+moon_dir = Vector3(0.55, 0.45, 0.7)
+moon_radius = 0.045
+moon_color = Color(0.8392157, 0.8235294, 0.8, 1)
+moon_phase = -0.3
+moon_glow = 0.05
+star_amount = 0.9
+star_density = 0.014
+star_scale = 180.0
+nebula_amount = 0.35
+nebula_color_a = Color(0.29803923, 0.22745098, 0.47843137, 1)
+nebula_color_b = Color(0.16470589, 0.3529412, 0.43137255, 1)
+planet_amount = 1.0
+planet_dir = Vector3(-0.5, 0.24, 0.83)
+planet_radius = 0.5
+planet_color_a = Color(0.42352942, 0.6117647, 0.7529412, 1)
+planet_color_b = Color(0.76862746, 0.8627451, 0.91764706, 1)
+planet_color_c = Color(0.5411765, 0.4627451, 0.72156864, 1)
+planet_ambient = 0.06
+planet_wrap = 0.15
+planet_tilt = 0.4
+ring_amount = 1.0
+ring_color = Color(0.9019608, 0.8862745, 0.9490196, 1)
+planet_spin = 0.003
+floor_mode = 3
+light_sun_color = Color(1, 0.95686275, 0.9019608, 1)
+light_sun_energy = 1.15
+light_ambient_color = Color(0.5411765, 0.5882353, 0.7058824, 1)

@@ -36,11 +36,10 @@ own x along the wall.
 """
 import math
 import random
-from arena_builder import xform, fmt, vec, color, norm, cross, IDENTITY, yaw_cols
+from arena_builder import sky_ext, map_name, xform, fmt, vec, color, norm, cross, IDENTITY, yaw_cols
 from cirrus import CirrusMap, FLIP, LIE_X, LIE_Z
 
 PAL = "res://game/maps/palettes/empyrean.tres"
-SKY = "res://game/maps/sky/empyrean_sky.gdshader"
 
 TIER = 30.5            # a tier's height
 TIERS = 6
@@ -209,18 +208,15 @@ class EmpyreanMap(CirrusMap):
             ids[k] = "%d_%s" % (i + 1, k)
             out.append('[ext_resource type="Script" path="%s" id="%s"]' % (p, ids[k]))
         out.append('[ext_resource type="Resource" path="%s" id="pal"]' % self.palette)
-        out.append('[ext_resource type="Shader" path="%s" id="sky"]' % SKY)
+        out.append(sky_ext(map_name(path)))
         elev, azim, col, energy = self.sun
         e, az = math.radians(elev), math.radians(azim)
         Z = norm((math.sin(az) * math.cos(e), math.sin(e), -math.cos(az) * math.cos(e)))
         X = norm(cross((0, 1, 0), Z))
-        out += ["", '[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]', 'shader = ExtResource("sky")',
-                "shader_parameter/sun_dir = %s" % vec(Z), "",
-                '[sub_resource type="Sky" id="Sky_1"]', 'sky_material = SubResource("ShaderMaterial_sky")', "",
-                '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2", 'sky = SubResource("Sky_1")']
+        out += ["", '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2"]
         out += self.env["lines"]
         out += ["", '[node name="%s" type="Node3D"]' % self.root, 'script = ExtResource("%s")' % ids["root"],
-                'palette = ExtResource("pal")']
+                'palette = ExtResource("pal")', 'sky = ExtResource("sky")']
         for k, v in self.settings.items():
             out.append("%s = %s" % (k, v))
         out += ["", '[node name="Environment" type="WorldEnvironment" parent="."]', 'environment = SubResource("Environment_1")', ""]

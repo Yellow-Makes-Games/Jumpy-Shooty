@@ -59,7 +59,7 @@ extends SceneTree
 
 const OUT := "res://game/maps/sky_island.tscn"
 const PALETTE := "res://game/maps/palettes/sky_island.tres"
-const SKY := "res://game/maps/sky/sky_island_sky.gdshader"
+const SKY := "res://game/maps/sky/maps/sky_island.tres"   ## its sky engine preset
 
 const DECK := 1.4          ## how thick an island's deck is
 const TURF := 0.3          ## the grass on top of it (the rest is earth)
@@ -348,21 +348,16 @@ func clear_of(mover_node: Node3D, at: Vector3, radius: float) -> void:
 	keep_clear.append([p.x, p.z, radius])
 
 
-## A bright late morning over a sea of cloud (the sky is a shader:
-## game/maps/sky/sky_island_sky.gdshader): a warm, strong sun from the south-east and
+## A bright late morning over a sea of cloud (the sky engine draws it, from the preset
+## game/maps/sky/maps/sky_island.tres): a warm, strong sun from the south-east and
 ## cool blue light in the shade, so every colour stays deep and every shape has a
 ## bright side and a dark one. Only a breath of haze, for the far islands.
 func sky() -> void:
-	var mat := ShaderMaterial.new()
-	mat.shader = load(SKY)
-	var sun_turn := Basis.from_euler(Vector3(deg_to_rad(-44), deg_to_rad(38), 0))
-	mat.set_shader_parameter("sun_dir", sun_turn * Vector3.BACK)   # (toward the sun: the light shines down -z of the Sun node)
-	mat.set_shader_parameter("cloud_height", -30.0)   # above the kill height (-36), below the deepest rock (about -26)
-	var s := Sky.new()
-	s.sky_material = mat
+	# The sky's sun follows the Sun node; its cloud sea is at -30, above the kill height
+	# (-36) and below the deepest rock (about -26).
+	scn.set("sky", load(SKY))
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
-	env.sky = s
 	# The shade is lit by one colour, not by the sky: the sky's light comes mostly off
 	# the white cloud below, which washed every colour out.
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
@@ -370,7 +365,6 @@ func sky() -> void:
 	env.ambient_light_energy = 0.62
 	env.tonemap_mode = Environment.TONE_MAPPER_ACES
 	env.tonemap_white = 2.6
-	env.background_energy_multiplier = 1.1
 	env.ssao_enabled = true
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.1

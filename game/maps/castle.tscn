@@ -5,21 +5,10 @@
 [ext_resource type="Script" uid="uid://54hcvu7hy6we" path="res://game/arena/map_block.gd" id="3_6drw3"]
 [ext_resource type="Script" uid="uid://nastdacq4avs" path="res://game/arena/map_spawn.gd" id="4_7eo0r"]
 [ext_resource type="Script" uid="uid://cva73htot14i5" path="res://game/arena/map_weapon_spawn.gd" id="5_wdpoi"]
-
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_mbrwm"]
-sky_top_color = Color(0.2, 0.38, 0.68, 1)
-sky_horizon_color = Color(0.82, 0.79, 0.7, 1)
-sky_curve = 0.12
-ground_bottom_color = Color(0.3, 0.29, 0.26, 1)
-ground_horizon_color = Color(0.66, 0.63, 0.55, 1)
-sun_angle_max = 18.0
-
-[sub_resource type="Sky" id="Sky_72xoo"]
-sky_material = SubResource("ProceduralSkyMaterial_mbrwm")
+[ext_resource type="Resource" path="res://game/maps/sky/maps/castle.tres" id="sky_preset"]
 
 [sub_resource type="Environment" id="Environment_mtv7q"]
 background_mode = 2
-sky = SubResource("Sky_72xoo")
 ambient_light_source = 2
 ambient_light_color = Color(0.82, 0.8, 0.76, 1)
 ambient_light_energy = 0.85
@@ -35,6 +24,7 @@ fog_sky_affect = 0.0
 
 [node name="Castle" type="Node3D" unique_id=73784591]
 script = ExtResource("1_eg1j5")
+sky = ExtResource("sky_preset")
 palette = ExtResource("2_pa6pw")
 face_shade = Vector3(0.92, 0.86, 0.72)
 kill_height = -5.0

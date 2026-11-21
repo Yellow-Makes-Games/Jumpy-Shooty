@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="SkyPreset" format=3]
+
+[ext_resource type="Script" path="res://game/maps/sky/sky_preset.gd" id="1_0psnu"]
+
+[resource]
+script = ExtResource("1_0psnu")
+zenith_color = Color(0.41568628, 0.36078432, 0.7058824, 1)
+sky_color = Color(0.7764706, 0.627451, 0.8392157, 1)
+horizon_color = Color(1, 0.84705883, 0.8156863, 1)
+horizon_band = 0.2
+zenith_start = 0.05
+zenith_end = 0.6
+glow_color = Color(1, 0.8784314, 0.9411765, 1)
+glow_amount = 0.15
+sun_color = Color(1, 0.9019608, 0.76862746, 1)
+sun_disc = 2.2
+sun_radius = 0.05
+sun_glow = 0.3
+sun_glow_power = 8.0
+streak_amount = 0.4
+streak_color = Color(1, 0.95686275, 0.98039216, 1)
+floor_mode = 1
+sea_lit = Color(1, 0.9411765, 0.95686275, 1)
+sea_shade = Color(0.7372549, 0.6509804, 0.8627451, 1)
+silhouette_mode = 3
+silhouette_color = Color(0.5568628, 0.47058824, 0.7058824, 1)
+silhouette_height = 0.05
+silhouette_haze = 0.5
+sun2_amount = 1.0
+sun2_dir = Vector3(0.62, 0.22, -0.75)
+sun2_color = Color(0.61960787, 0.89411765, 1, 1)
+shapes_amount = 1.0
+shapes_color = Color(0.9647059, 0.93333334, 1, 1)
+mirror_amount = 0.9
+mirror_line = 0.72
+mirror_color = Color(0.7058824, 0.6117647, 0.8392157, 1)
+orbit_amount = 0.6
+orbit_color = Color(1, 0.94509804, 0.8627451, 1)
+light_sun_color = Color(1, 0.93333334, 0.8627451, 1)
+light_ambient_color = Color(0.8627451, 0.79607844, 0.9411765, 1)
+light_ambient_energy = 0.7

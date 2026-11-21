@@ -23,11 +23,9 @@ ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
 
 def env_block(sky_top, horizon, ground, ambient, ambient_energy, fog=None, glow=True, extra=()):
     c = lambda t: "Color(%s, 1)" % ", ".join(fmt(v) for v in t)
-    lines = ['[sub_resource type="ProceduralSkyMaterial" id="Sky_mat"]',
-             "sky_top_color = %s" % c(sky_top), "sky_horizon_color = %s" % c(horizon),
-             "ground_bottom_color = %s" % c(ground), "ground_horizon_color = %s" % c(horizon), "",
-             '[sub_resource type="Sky" id="Sky_1"]', 'sky_material = SubResource("Sky_mat")', "",
-             '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2", 'sky = SubResource("Sky_1")',
+    # sky_top, horizon and ground are no longer used: the sky engine draws the sky (the
+    # map's preset in game/maps/sky/maps/, see Course.write).
+    lines = ['[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2",
              "ambient_light_source = 2", "ambient_light_color = %s" % c(ambient),
              "ambient_light_energy = %s" % fmt(ambient_energy), "tonemap_mode = 2", "tonemap_white = 2.6",
              "ssao_enabled = true"]

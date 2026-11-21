@@ -25,7 +25,7 @@ const CHEAT_SHEET := [
 ]
 
 const DISPLAY_KEYS := ["fullscreen", "vsync", "resolution", "frame_rate", "quality",
-	"msaa", "screen_aa", "render_scale", "fsr_sharpness", "shadows", "ao", "glow"]
+	"msaa", "screen_aa", "render_scale", "fsr_sharpness", "shadows", "ao", "glow", "sky_motion"]
 const CONFIRM_SECONDS := 15
 
 static var _last_tab := 0
@@ -385,6 +385,7 @@ func _fill_advanced() -> void:
 	_option("Shadows", GraphicsQuality.SHADOW_NAMES, _pending.shadows, func(v): _pick_advanced("shadows", v), false)
 	_option("Ambient occlusion", GraphicsQuality.AO_NAMES, _pending.ao, func(v): _pick_advanced("ao", v), false)
 	_switch("Glow", _pending.glow, func(v): _pick_advanced("glow", v), false)
+	_switch("Moving sky", _pending.sky_motion, func(v): _pick_advanced("sky_motion", v), false)
 	_into = null
 
 

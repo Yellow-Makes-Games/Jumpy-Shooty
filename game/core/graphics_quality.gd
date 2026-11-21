@@ -15,11 +15,12 @@ extends RefCounted
 
 ## Picks: msaa (0, 2, 4, 8), screen_aa ("off", "fxaa", "smaa"), render_scale (0.5..1),
 ## fsr_sharpness (0 sharpest..2 softest), shadows ("low".."ultra"), ao ("off", "on",
-## "high"), glow (bool).
+## "high"), glow (bool), sky_motion (bool: the moving sky; off, the sky engine shows a
+## still picture of it, see SkyRig).
 const PRESETS := {
-	"low": {"msaa": 0, "screen_aa": "fxaa", "render_scale": 1.0, "fsr_sharpness": 0.2, "shadows": "low", "ao": "off", "glow": true},
-	"medium": {"msaa": 2, "screen_aa": "smaa", "render_scale": 1.0, "fsr_sharpness": 0.2, "shadows": "medium", "ao": "on", "glow": true},
-	"high": {"msaa": 4, "screen_aa": "smaa", "render_scale": 1.0, "fsr_sharpness": 0.2, "shadows": "high", "ao": "high", "glow": true},
+	"low": {"msaa": 0, "screen_aa": "fxaa", "render_scale": 1.0, "fsr_sharpness": 0.2, "shadows": "low", "ao": "off", "glow": true, "sky_motion": false},
+	"medium": {"msaa": 2, "screen_aa": "smaa", "render_scale": 1.0, "fsr_sharpness": 0.2, "shadows": "medium", "ao": "on", "glow": true, "sky_motion": true},
+	"high": {"msaa": 4, "screen_aa": "smaa", "render_scale": 1.0, "fsr_sharpness": 0.2, "shadows": "high", "ao": "high", "glow": true, "sky_motion": true},
 }
 const QUALITY_NAMES := {"low": "Low", "medium": "Medium", "high": "High", "custom": "Custom"}
 
@@ -87,6 +88,7 @@ static func clean(picks: Dictionary) -> Dictionary:
 	var a := str(picks.get("ao", out.ao))
 	out.ao = a if AO_NAMES.has(a) else out.ao
 	out.glow = bool(picks.get("glow", out.glow))
+	out.sky_motion = bool(picks.get("sky_motion", out.sky_motion))
 	return out
 
 
@@ -146,3 +148,7 @@ static func apply_environments(node: Node, picks: Dictionary) -> void:
 		apply_environment((world as WorldEnvironment).environment, picks)
 	if node is WorldEnvironment:
 		apply_environment((node as WorldEnvironment).environment, picks)
+	if node.is_inside_tree():
+		for rig in node.get_tree().get_nodes_in_group(SkyRig.GROUP):
+			if node == rig or node.is_ancestor_of(rig):
+				(rig as SkyRig).motion = bool(picks.get("sky_motion", true))
