@@ -26,6 +26,7 @@ CHECKS=(
   "ragdoll|--fixed-fps 60 --script tests/ragdoll_test.gd"
   "custom_character|--script tests/custom_character_test.gd"
   "gibs|--fixed-fps 60 --script tests/gibs_test.gd"
+  "blast_fx|--fixed-fps 60 --script tests/blast_fx_test.gd"
   "weapons|--script tests/weapon_test.gd"
   "gun_recoil|--script tests/gun_recoil_test.gd"
   "weapon_draw|--script tests/weapon_draw_test.gd"

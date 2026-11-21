@@ -912,13 +912,13 @@ warning, a few milliseconds a tick, and the loose things are drawn as they will 
 after the fall, hidden, before it starts (`_draw_ahead`), so the moment it lets go
 only has to mark the cells fallen and swap the drawings. A graphics card builds what it
 needs for each new sort of surface the first time one is drawn, which can hold the
-game up for a moment, so on a map with fine destruction `FxWarmup`
-(`game/arena/fx_warmup.gd`) draws one of everything a first hit would be the first to
-draw (rubble in the air and lying, bits, dust, a falling piece and a piece of a pile of
-each kind, an explosion and its light) in the first frames of the match, a couple of
-metres in front of the camera and two thousandths of life size. Anything new that is
-only drawn when something breaks should be added to it (`MapDebris.warm`,
-`MapCollapse.warm`).
+game up for a moment, so `FxWarmup` (`game/arena/fx_warmup.gd`) draws one of
+everything a first hit would be the first to draw (on every map, each part of an
+explosion and its light; on a map with fine destruction also rubble in the air and
+lying, bits, dust, a falling piece and a piece of a pile of each kind) in the first
+frames of the match, a couple of metres in front of the camera and two thousandths of
+life size. Anything new that is only drawn when something breaks or blows up should be
+added to it (`MapDebris.warm`, `MapCollapse.warm`, `BlastFx.warm`).
 
 Not done yet: only the Construction Site's concrete tower has a frame (the scaffolds,
 the hoist and the steel that is not part of the tower stand whatever happens), and a
@@ -1980,6 +1980,29 @@ reload opens: a flap or louvres on most, the barrels themselves on a break-open 
 look at guns on their own: `tools/combat/gun_preview.sh OUT_DIR
 --guns=pistol,rifle`; for before/after sheets of every gun by family:
 `python3 tools/combat/gun_sheet.py OUT_DIR BEFORE.glb`.
+
+**Explosions** (`game/combat/blast_fx.gd`, `BlastFx`) are looks only: the damage, the
+scorch mark and the rubble are the arena's. Each is a white flash, a fireball of glowing
+puffs thrown out fast and slowed hard (white, orange, deep red, gone), sparks or shrapnel
+along the way they fly, a shock ring along whatever it hit, dust kicked out along the
+floor, smoke that billows and rises after the fire has gone, and one light that flares
+and fades (no shadows). It finds the surface it went off against with six short rays:
+off a floor or a wall it is thrown out from the surface, in the air it is round. Every
+explosive weapon has a style in `BlastFx.STYLES`, picked by its round's look
+(`WeaponData.look()`): `rocket`, `grenade` (more shrapnel, a few clods), `shell` (the
+mortar: bigger, a tall column of dark smoke and dirt), `flare` (burning red sparks that
+hang, little smoke, a red glow that lingers) and `orb` (plasma: cold blue, no smoke, its
+ring even in the air). Sizes and speeds in a style are in units of the blast's size (0.4
+of the splash radius), so a gib popping (0.7 m) and the Search and Destroy bomb (a 9 m
+`shell` and three rockets) use the same styles. It is cheap on purpose: four to six
+one-shot `CPUParticles3D` bursts (about 70 particles for a rocket), two quads, one light,
+all sharing a few materials, meshes and textures made once (about 0.1 to 0.2 ms to make a
+blast once warm), and gone 3.2 s later. To film every blast in the real game:
+`tools/combat/explosion_film.sh OUT_DIR` (`--only=ground`, `first` or `wall`; `FPS=30`
+for half the frames) writes `explosions.mp4` and a strip of stills for each blast, 0.03 to
+1.4 s after it goes off: each one on open ground, three through the player's eyes, and
+real rounds flown into a block wall that breaks. `tests/blast_fx_test.gd` checks the
+styles, the surfaces, the cost and that every blast goes.
 
 **Reloads** are clips like the rest (`reload_<gun>`, `fp_reload_<gun>`), each as long as
 the gun's reload time: the pistol's in `animations.py`, the other sidearms' in

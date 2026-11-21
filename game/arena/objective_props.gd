@@ -115,9 +115,9 @@ func _place_bomb() -> void:
 
 ## A blast where the bomb was (the sound and the shake are the arena's).
 func blast(at: Vector3) -> void:
-	var w := WeaponData.by_id("rocket_launcher")
-	for off in [Vector3.ZERO, Vector3(1.6, 0.8, 0.4), Vector3(-1.2, 1.4, -1.0), Vector3(0.3, 2.4, 1.3)]:
-		ShotFx.landed(get_parent(), at + off, w)
+	ShotFx.explosion(get_parent(), at, 9.0, "shell")   # (on the floor: a mortar shell's, bigger)
+	for off in [Vector3(1.6, 0.8, 0.4), Vector3(-1.2, 1.4, -1.0), Vector3(0.3, 2.4, 1.3)]:
+		ShotFx.explosion(get_parent(), at + off, 4.5, "rocket")
 
 
 # ---------------------------------------------------------------------------
