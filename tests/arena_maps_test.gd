@@ -23,11 +23,13 @@ const GOALS := {
 		"treehouse C": Vector3(-19.5, 6, 40.5), "courtyard dais": Vector3(33.5, 1.2, 30.5), "scaffold deck": Vector3(-35, 4.5, -1),
 	},
 	"neon_arcade": {
-		"north mezzanine": Vector3(0, 4.5, -11.2), "west mezzanine": Vector3(-16, 4.5, 12), "party room": Vector3(2, 0, -10.6),
-		"stage": Vector3(1, 0.6, 11.5),
+		"north mezzanine": Vector3(0, 4.5, -12), "west mezzanine": Vector3(-18, 4.5, 12), "party room": Vector3(2, 0, -10.6),
+		"stage": Vector3(18, 0.6, 8.4), "arcade roof": Vector3(0, 9.6, 0), "flat over the noodle bar": Vector3(-33, 3.9, 10),
+		"pool room": Vector3(36.5, 3.9, 12), "diner": Vector3(-14.5, 0, 35), "laundromat": Vector3(4, 0, 35),
+		"back lot": Vector3(0, 0, -20), "filling station": Vector3(38.2, 0, -5), "plaza": Vector3(-33.4, 0, 38.9),
 	},
 }
-const MIN_SPAWNS := {"rail_yard": 16, "lost_temple": 16, "neon_arcade": 8}
+const MIN_SPAWNS := {"rail_yard": 16, "lost_temple": 16, "neon_arcade": 24}
 
 var failures := 0
 
