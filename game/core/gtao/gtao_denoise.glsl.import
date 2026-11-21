@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://difl38b62yahd"
+path="res://.godot/imported/gtao_denoise.glsl-359ff30e5c965ae66f9fa00e4eb388e8.res"
+
+[deps]
+
+source_file="res://game/core/gtao/gtao_denoise.glsl"
+dest_files=["res://.godot/imported/gtao_denoise.glsl-359ff30e5c965ae66f9fa00e4eb388e8.res"]
+
+[params]
+

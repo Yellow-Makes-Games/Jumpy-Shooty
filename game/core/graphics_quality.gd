@@ -15,8 +15,8 @@ extends RefCounted
 
 ## Picks: msaa (0, 2, 4, 8), screen_aa ("off", "fxaa", "smaa", "cmaa2"), render_scale (0.5..1),
 ## fsr_sharpness (0 sharpest..2 softest), shadows ("low".."ultra"), ao ("off", "on",
-## "high"), glow (bool), sky_motion (bool: the moving sky; off, the sky engine shows a
-## still picture of it, see SkyRig).
+## "high", "gtao"), glow (bool), sky_motion (bool: the moving sky; off, the sky engine
+## shows a still picture of it, see SkyRig).
 const PRESETS := {
 	"low": {"msaa": 0, "screen_aa": "fxaa", "render_scale": 1.0, "fsr_sharpness": 0.2, "shadows": "low", "ao": "off", "glow": true, "sky_motion": false},
 	"medium": {"msaa": 2, "screen_aa": "smaa", "render_scale": 1.0, "fsr_sharpness": 0.2, "shadows": "medium", "ao": "on", "glow": true, "sky_motion": true},
@@ -27,7 +27,7 @@ const QUALITY_NAMES := {"low": "Low", "medium": "Medium", "high": "High", "custo
 const MSAA_NAMES := {0: "Off", 2: "2x", 4: "4x", 8: "8x"}
 const SCREEN_AA_NAMES := {"off": "Off", "fxaa": "FXAA (fast, a little soft)", "smaa": "SMAA (sharper)", "cmaa2": "CMAA2 (fast, sharp)"}
 const SHADOW_NAMES := {"low": "Low", "medium": "Medium", "high": "High", "ultra": "Ultra"}
-const AO_NAMES := {"off": "Off", "on": "On", "high": "High (with light bounce)"}
+const AO_NAMES := {"off": "Off", "on": "On", "high": "High (with light bounce)", "gtao": "GTAO (faster)"}
 
 ## Shadow quality: [sun shadow map size, soft-edge filter, lamp shadow atlas size].
 const SHADOWS := {
@@ -166,7 +166,9 @@ static func apply_global(picks: Dictionary) -> void:
 
 
 ## A map's Environment with these picks: what the map has, minus what the picks turn off.
-## Light bounce (SSIL) only comes with "high", and only where the map has AO.
+## Light bounce (SSIL) only comes with "high", and only where the map has AO. "gtao" turns
+## the map's SSAO off: GTAO (see Gtao) takes its place, on the WorldEnvironment
+## (apply_environments()), again only where the map has AO.
 static func apply_environment(env: Environment, picks: Dictionary) -> void:
 	if env == null:
 		return
@@ -176,7 +178,7 @@ static func apply_environment(env: Environment, picks: Dictionary) -> void:
 		env.set_meta("gq_glow", env.glow_enabled)
 	var ao := str(picks.ao)
 	var map_ao: bool = env.get_meta("gq_ssao")
-	env.ssao_enabled = map_ao and ao != "off"
+	env.ssao_enabled = map_ao and (ao == "on" or ao == "high")
 	env.ssil_enabled = (map_ao or env.get_meta("gq_ssil")) and ao == "high"
 	env.glow_enabled = env.get_meta("gq_glow") and bool(picks.glow)
 
@@ -186,10 +188,16 @@ static func apply_environments(node: Node, picks: Dictionary) -> void:
 	if node == null:
 		return
 	for world in node.find_children("*", "WorldEnvironment", true, false):
-		apply_environment((world as WorldEnvironment).environment, picks)
+		_apply_world(world, picks)
 	if node is WorldEnvironment:
-		apply_environment((node as WorldEnvironment).environment, picks)
+		_apply_world(node, picks)
 	if node.is_inside_tree():
 		for rig in node.get_tree().get_nodes_in_group(SkyRig.GROUP):
 			if node == rig or node.is_ancestor_of(rig):
 				(rig as SkyRig).motion = bool(picks.get("sky_motion", true))
+
+
+static func _apply_world(world: WorldEnvironment, picks: Dictionary) -> void:
+	var env := world.environment
+	apply_environment(env, picks)
+	Gtao.use(world, env != null and env.get_meta("gq_ssao", false) and str(picks.ao) == "gtao")

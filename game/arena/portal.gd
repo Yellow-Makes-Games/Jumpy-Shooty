@@ -572,6 +572,10 @@ func _match_environment(cam: Camera3D) -> void:
 	_view_env.fog_light_color = src.fog_light_color
 	_view_env.fog_density = src.fog_density
 	_view_env.fog_light_energy = src.fog_light_energy
+	# ...and the Ambient occlusion setting, changed while a portal is open (the "GTAO"
+	# pick turns the map's SSAO off; GTAO itself runs in this view too, from the world).
+	_view_env.ssao_enabled = src.ssao_enabled
+	_view_env.ssil_enabled = src.ssil_enabled
 
 
 ## Rides what it sits on: `carrier` (see Portals.place) and where on it.

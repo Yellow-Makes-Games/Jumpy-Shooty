@@ -17,6 +17,7 @@ func run() -> void:
 	_check_cmaa2()
 	_check_environment()
 	_check_map()
+	_check_gtao()
 	await _check_settings_tab()
 
 	Settings.set_graphics(keep)
@@ -176,6 +177,66 @@ func _check_map() -> void:
 		env.ssao_enabled = true
 		env.ssil_enabled = false
 		map.queue_free()
+	Settings.set_quality("high")
+
+
+## The GTAO pick (see Gtao): the map's SSAO and SSIL off, GTAO on its WorldEnvironment
+## with the map's own tuning, only where the map has AO; and back again.
+func _check_gtao() -> void:
+	print("  gtao")
+	var picks := GraphicsQuality.preset("high")
+	picks.ao = "gtao"
+	_expect(GraphicsQuality.AO_NAMES.has("gtao"), "GTAO is an Ambient occlusion choice")
+	_expect(GraphicsQuality.clean({"ao": "gtao"}).ao == "gtao", "a saved GTAO pick is kept")
+	_expect(GraphicsQuality.matching(picks) == "custom", "no preset uses GTAO")
+	var world := WorldEnvironment.new()
+	world.environment = Environment.new()
+	world.environment.ssao_enabled = true
+	world.environment.ssao_radius = 1.6
+	world.environment.ssao_intensity = 1.4
+	add_child(world)
+	GraphicsQuality.apply_environments(world, picks)
+	var env := world.environment
+	_expect(not env.ssao_enabled and not env.ssil_enabled, "GTAO: the map's SSAO and SSIL are off")
+	_expect(Gtao.is_on(world), "...and GTAO is on its WorldEnvironment")
+	var effects: Array = world.compositor.compositor_effects if world.compositor else []
+	_expect(effects.size() == 2 and effects[0].effect_callback_type == CompositorEffect.EFFECT_CALLBACK_TYPE_PRE_OPAQUE
+		and effects[1].effect_callback_type == CompositorEffect.EFFECT_CALLBACK_TYPE_POST_OPAQUE,
+		"one effect before the opaque pass, one after (it clears the stamp)")
+	_expect(not effects.is_empty() and is_equal_approx(effects[0].radius, 1.6 * Gtao.RADIUS_SCALE)
+		and is_equal_approx(effects[0].power, Gtao.FINAL_VALUE_POWER * 1.4 / 2.0), "the map's SSAO radius and intensity carry over")
+	GraphicsQuality.apply_environments(world, picks)
+	_expect(world.compositor.compositor_effects.size() == 2, "picking it again adds nothing")
+	GraphicsQuality.apply_environments(world, GraphicsQuality.preset("medium"))
+	_expect(env.ssao_enabled and not Gtao.is_on(world) and world.compositor == null, "back to On: SSAO again, GTAO gone")
+	# Another effect on the same WorldEnvironment is left alone.
+	var other := CompositorEffect.new()
+	world.compositor = Compositor.new()
+	world.compositor.compositor_effects = [other]
+	GraphicsQuality.apply_environments(world, picks)
+	_expect(Gtao.is_on(world) and world.compositor.compositor_effects.has(other), "GTAO joins an effect already there")
+	GraphicsQuality.apply_environments(world, GraphicsQuality.preset("low"))
+	_expect(not Gtao.is_on(world) and world.compositor != null and world.compositor.compositor_effects == [other],
+		"...and leaves it when it goes")
+	# A map with no AO gets none.
+	var plain := WorldEnvironment.new()
+	plain.environment = Environment.new()
+	add_child(plain)
+	GraphicsQuality.apply_environments(plain, picks)
+	_expect(not plain.environment.ssao_enabled and not Gtao.is_on(plain), "settings never add GTAO to a map that has no AO")
+	world.queue_free()
+	plain.queue_free()
+	# A real map, through Settings.
+	Settings.set_quality("high")
+	Settings.ao = "gtao"
+	var map := Maps.make("cirrus")
+	add_child(map)
+	map.build(false)
+	var w := map.find_children("*", "WorldEnvironment", true, false)[0] as WorldEnvironment
+	_expect(Gtao.is_on(w) and not w.environment.ssao_enabled, "cirrus with GTAO: GTAO on, SSAO off")
+	GraphicsQuality.apply_environments(map, GraphicsQuality.preset("medium"))   # leave the shared resource as the map has it
+	_expect(not Gtao.is_on(w) and w.environment.ssao_enabled, "cirrus back to On")
+	map.queue_free()
 	Settings.set_quality("high")
 
 

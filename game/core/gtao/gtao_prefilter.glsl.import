@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bdono7lmi2crm"
+path="res://.godot/imported/gtao_prefilter.glsl-29cd602e8f0e16600dfaad3fcf9edb6d.res"
+
+[deps]
+
+source_file="res://game/core/gtao/gtao_prefilter.glsl"
+dest_files=["res://.godot/imported/gtao_prefilter.glsl-29cd602e8f0e16600dfaad3fcf9edb6d.res"]
+
+[params]
+
