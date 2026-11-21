@@ -400,6 +400,7 @@ var _framed: Array = []   # build(): the nodes whose blocks are a MapFrame's bui
 var _framing := 0
 var _frame_of := {}       # build(): each of those nodes -> its MapFrames (several can share a part: see MapFrame.claim)
 var _frames_now: Array = []   # ...and the ones _collect is inside of (while _framing > 0)
+var _part_now: Node = null    # ...and the part it is inside of
 var _surfaces := {}   # Vector2i bucket -> [a surface (see _surface_of)]
 
 ## Decoration counts as what is underfoot when it lies flat: no thicker than this...
@@ -730,9 +731,11 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			continue
 		var in_frame := _framed.has(child)
 		var frames_before := _frames_now
+		var part_before := _part_now
 		if in_frame:
 			_framing += 1
 			_frames_now = _frame_of[child]
+			_part_now = child
 		if child is MapBlock:
 			var piece := (child as MapBlock).to_piece(at)
 			pieces.append(piece)
@@ -745,6 +748,7 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 			if f:
 				piece["framed"] = true   # part of a building that can come down (see MapFrame)
 				piece["frame"] = f
+				piece["part"] = _part_now   # (which of the frame's parts it is under: see MapFrame.spans)
 				if f.held_by_walls:
 					piece["unguarded"] = true   # (nothing of it is kept from breaking: see MapCollapse._take_rests)
 				if not _framed.has(node):
@@ -778,6 +782,7 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 		if in_frame:
 			_framing -= 1
 			_frames_now = frames_before
+			_part_now = part_before
 
 
 ## A mover's body is due to be mended (an island on its way back up: see

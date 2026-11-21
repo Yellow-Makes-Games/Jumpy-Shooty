@@ -59,6 +59,15 @@ extends Node3D
 ## has broken.
 @export_range(0.1, 1.0) var rests_share := 0.5
 
+## (To The Ground) Parts that span open space at the height of the ground floor (a
+## bridge over a shaft: one of `parts`): they belong to the ground storey and come down
+## with it, where the ground floor itself only breaks.
+@export var spans: Array[NodePath] = []
+## (Held By Walls) A section of a floor (a bay's, at one level) caves in, with the walls
+## under it and all there is above it in the bay, once this share of the floor itself
+## has been broken, whatever holds it up: a ceiling shot half away comes down. 0: never.
+@export_range(0.0, 1.0) var cave_share := 0.0
+
 
 ## Is a block whose middle is at `at` (in the map, or the mover) one of this building's?
 func claims(at: Vector3) -> bool:

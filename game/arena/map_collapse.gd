@@ -70,6 +70,8 @@ const TOPPLE := 2.0           ## metres a second: how hard a piece of a building
 const TOPPLE_TURN := 1.2      ## ...and radians a second
 const EVENTS_EACH := 100000   ## a collapse's events are numbered from its `index` times this: the number says whose it is
 const BUCKET := 5.0           ## metres: the size of the buckets things and panels are found by (see _take_rests)
+const SPAN_SHARE := 0.15      ## a bridge that caves in takes down the bays that this much of it is in
+const CAVE_CELLS := 16        ## a floor with fewer cells than this in a bay does not cave in (MapFrame.cave_share), unless the bay has no wall of its own
 const WALL_CELLS := 30        ## a stretch of wall with fewer cells that can break than this holds nothing up (a sliver beside a door)
 ## Square metres of slab or wall to a piece, by what it is made of.
 const PIECE_AREA := {"concrete": 5.0, "masonry": 1.6, "wood": 2.2, "sheet": 2.5}
@@ -126,6 +128,10 @@ var _lines_z := PackedFloat32Array()
 var _tops := PackedFloat32Array()
 var _columns := {}        # Vector2i -> [segment index by storey, -1: none]
 var _unit_cells := {}     # unit -> PackedInt32Array (breakable cells in it)
+var _unit_floor := {}     # (held by walls) unit -> PackedInt32Array: the cells of its floor (the slab its walls hold up)
+var _floor_of := {}       # ...and each of those cells -> its unit
+var _span_units := {}     # ...and for a floor that spans open space (MapFrame.spans: a bridge), its panel -> {each unit it is in: how many of its cells}
+var _weak := {}           # host: the units whose floor has lost enough of itself to cave in
 var _pending := {}        # host: segment -> its new stage
 var _wall_of := {}        # a wall's cell -> the segment it is part of
 var _slab := 0.45         # how far below a level's top the level starts (the frame's slab; 0 to the ground)
@@ -174,6 +180,11 @@ func setup(map: MapRoot, f: MapFrame, pieces: Array, body: Node3D = null) -> Arr
 	var nz := _lines_z.size() - 1
 	if nx < 1 or nz < 1 or _tops.is_empty():
 		return pieces
+	var spans := []   # the parts that span open space at the ground floor's height (MapFrame.spans)
+	if _shift == 1:
+		for path in f.spans:
+			if f.get_node_or_null(path):
+				spans.append(f.get_node(path))
 	for j in nz:
 		for i in nx:
 			var x0 := _lines_x[i] - (f.overhang if i == 0 else 0.0)
@@ -234,6 +245,8 @@ func setup(map: MapRoot, f: MapFrame, pieces: Array, body: Node3D = null) -> Arr
 		if b < 0 and f.held_by_walls:
 			b = _bay_near(at)   # (a porch, an awning: it is part of the bay it stands against)
 		var level := level_at(at.y - up + 0.3 if up > 1.0 else at.y)
+		if level < 0 and spans.has(piece.get("part")) and at.y > _tops[0] - 1.5:
+			level = 0   # (a lamp under a bridge at the height of the ground floor)
 		if b < 0 or level < 0 or bays[b].fixed:
 			rest.append(piece)
 			rest.append_array(piece.get("with", []))
@@ -247,6 +260,7 @@ func setup(map: MapRoot, f: MapFrame, pieces: Array, body: Node3D = null) -> Arr
 	_draw_standing()
 	if breaks:
 		var by_unit := {}   # unit -> [cells]
+		var floors := {}    # unit -> [cells of its floor]
 		for panel: Dictionary in breaks.panels:
 			if (panel.piece as Dictionary).get("frame") != frame:
 				continue
@@ -255,20 +269,31 @@ func setup(map: MapRoot, f: MapFrame, pieces: Array, body: Node3D = null) -> Arr
 			var step: Vector3 = panel.cell
 			var half: Vector3 = (panel.size as Vector3) * 0.5
 			var c: int = panel.first
+			var span := spans.has((panel.piece as Dictionary).get("part"))
 			for k in n.z:
 				for j in n.y:
 					for i in n.x:
 						var at := xf * (-half + (Vector3(i, j, k) + Vector3(0.5, 0.5, 0.5)) * step)
 						var b := bay_at(at)
 						var level := level_at(at.y)
+						if level < 0 and span and at.y > _tops[0] - 1.0:
+							level = 0   # (a bridge at the height of the ground floor: it is the ground storey's)
 						if b >= 0 and level >= 0 and not bays[b].fixed:
 							var unit := unit_of(b, level)
 							if not by_unit.has(unit):
 								by_unit[unit] = []
 							(by_unit[unit] as Array).append(c)
+							if f.held_by_walls and int(panel.thin) == 1 and panel.fine:
+								(floors.get_or_add(unit, []) as Array).append(c)
+								_floor_of[c] = unit
+								if span:
+									var into: Dictionary = _span_units.get_or_add(int(breaks.cells[c].panel), {})
+									into[unit] = int(into.get(unit, 0)) + 1
 						c += 1
 		for unit: int in by_unit:
 			_unit_cells[unit] = PackedInt32Array(by_unit[unit])
+			if floors.has(unit):
+				_unit_floor[unit] = PackedInt32Array(floors[unit])
 		if f.held_by_walls:
 			_take_walls()
 			_take_rests()
@@ -528,6 +553,42 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 				and not piece.get("hidden", false):
 			var box: AABB = (piece.xf as Transform3D) * AABB(-(piece.size as Vector3) * 0.5, piece.size)
 			root.debris.burst(_box_out(box), piece.kind, BlockMaterials.for_kind(piece.kind, root.palette))
+	# A floor that has lost enough of itself caves in (MapFrame.cave_share).
+	if frame.cave_share > 0.0 and not _letting_go and not _restoring:
+		var floors := {}
+		var bridges := {}
+		for n in mini(cells.size(), stages.size()):
+			if int(stages[n]) == MapDestruction.BROKEN and _floor_of.has(cells[n]):
+				floors[int(_floor_of[cells[n]])] = true
+				if _span_units.has(int(breaks.cells[cells[n]].panel)):
+					bridges[int(breaks.cells[cells[n]].panel)] = true
+		# (A bridge is one thing, whatever bays it crosses: enough of it gone and all of it goes.)
+		for index: int in bridges:
+			var panel: Dictionary = breaks.panels[index]
+			var count := int(panel.n.x) * int(panel.n.y) * int(panel.n.z)
+			var gone := 0
+			for c in range(int(panel.first), int(panel.first) + count):
+				if int(breaks.cells[c].stage) >= MapDestruction.BROKEN:
+					gone += 1
+			if gone >= ceili(count * frame.cave_share):
+				for unit: int in _span_units[index]:
+					# (Not the bays its ends only just reach into: their floors stand.)
+					if int(_span_units[index][unit]) >= count * SPAN_SHARE and int(bays[unit / 16].from) > unit % 16:
+						_weak[unit] = true
+		for unit: int in floors:
+			var bay: Dictionary = bays[unit / 16]
+			var of: PackedInt32Array = _unit_floor[unit]
+			if int(bay.from) <= unit % 16 or _weak.has(unit):
+				continue
+			# (A sliver of floor at the foot of a wall brings nothing down: a real stretch of it, or a span that stands on no wall of its own.)
+			if of.size() < CAVE_CELLS and not _bare(bay):
+				continue
+			var gone := 0
+			for c in of:
+				if int(breaks.cells[c].stage) >= MapDestruction.BROKEN:
+					gone += 1
+			if gone >= ceili(of.size() * frame.cave_share):
+				_weak[unit] = true
 	for i: int in touched:
 		var seg: Dictionary = segments[i]
 		if int(seg.stage) >= DESTROYED or seg.fallen:
@@ -654,6 +715,8 @@ func dev_blow(column: Vector2i, storey: int) -> bool:
 
 ## Is this place (a spawn point) in or under a bay that has come down?
 func blocked(at: Vector3) -> bool:
+	if not frame.claims(_in(at)):
+		return false   # (another building's: a tier of a tower over or under this one)
 	var b := bay_at(_in(at))
 	return b >= 0 and int(bays[b].from) < levels()
 
@@ -931,7 +994,7 @@ func _damage(i: int, amount: float) -> void:
 ## Host: what changed since the last flush, for everyone: {} if nothing, else
 ## {columns: [segments, stages], events: [a start() for each new collapse]}.
 func flush() -> Dictionary:
-	if _pending.is_empty():
+	if _pending.is_empty() and _weak.is_empty():
 		return {}
 	var ids := PackedInt32Array()
 	var stages := PackedByteArray()
@@ -943,7 +1006,7 @@ func flush() -> Dictionary:
 			lost.append(i)
 	_pending.clear()
 	var result := {"columns": [ids, stages], "events": []}
-	if lost.is_empty():
+	if lost.is_empty() and _weak.is_empty():
 		return result
 	# Which units that leaves with nothing under them.
 	var gone := {}   # segment -> true: gone now, or about to be
@@ -953,28 +1016,99 @@ func flush() -> Dictionary:
 	for i in lost:
 		gone[i] = true
 	var units := PackedInt32Array()
+	var caved := Vector3.INF   # where a floor caved in (the middle of the first one)
+	var weak := _weak.keys()
+	weak.sort()
+	_weak.clear()
+	for unit: int in weak:
+		var bay: Dictionary = bays[unit / 16]
+		if bay.fixed or int(bay.from) <= unit % 16:
+			continue
+		if caved == Vector3.INF:
+			caved = unit_box(unit).get_center()
+			caved.y = _tops[unit % 16 + 1] if unit % 16 + 1 < _tops.size() else caved.y
+		for up in range(unit % 16, int(bay.from)):
+			units.append(unit_of(unit / 16, up))
+		bay.from = unit % 16
 	for b in bays.size():
 		var bay: Dictionary = bays[b]
 		if bay.fixed:
 			continue
 		for level in int(bay.from):
 			var without := 0
+			var standing := 0
 			var corner_gone := false
 			for col: Vector2i in bay.cols:
 				if _lost(col, level, gone):
 					without += 1
 					corner_gone = corner_gone or col == bay.corner
-			if corner_gone or without >= 2:
+				elif _holds(col, level):
+					standing += 1
+			# (Two of its columns, or the only one it has: a bay of a round tower can have a single crossing with wall by it.)
+			if corner_gone or without >= 2 or (without == 1 and standing == 0):
 				for up in range(level, int(bay.from)):
 					units.append(unit_of(b, up))
 				bay.from = level   # (the host's own: nothing claims these units twice)
 				break
+	# A floor with no column of its own under it (the middle of a wide room's ceiling) is
+	# held up by the floors beside it: it goes, with all above it, once two of those have
+	# at that level, or the only one there was.
+	var nx := _lines_x.size() - 1
+	var spreading := not units.is_empty() and frame.held_by_walls
+	while spreading:
+		spreading = false
+		for b in bays.size():
+			var bay: Dictionary = bays[b]
+			if bay.fixed or int(bay.from) == 0:
+				continue
+			for level in int(bay.from):
+				var held := false
+				for col: Vector2i in bay.cols:
+					held = held or _holds(col, level) or _lost(col, level, gone)
+				if held or not _unit_floor.has(unit_of(b, level)):
+					continue   # (it has columns of its own, or there is no floor of it at this level)
+				var beside := 0
+				var down := 0
+				for step: Vector2i in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+					var i := int(bay.i) + step.x
+					var j := int(bay.j) + step.y
+					if i < 0 or i >= nx or j < 0 or j >= _lines_z.size() - 1:
+						continue
+					var o := j * nx + i
+					if not _unit_floor.has(unit_of(o, level)):
+						continue
+					beside += 1
+					if int(bays[o].from) <= level:
+						down += 1
+				if beside > 0 and down >= mini(2, beside):
+					for up in range(level, int(bay.from)):
+						units.append(unit_of(b, up))
+					bay.from = level
+					spreading = true
+					break
 	if not units.is_empty():
-		var first: Dictionary = segments[lost[0]]
+		var at: Vector3 = caved if lost.is_empty() else (segments[lost[0]].box as AABB).get_center()
 		(result.events as Array).append({"id": _next_id, "units": units, "seed": randi() & 0x7fffffff,
-			"at": (first.box as AABB).get_center(), "by": by, "with": with})
+			"at": at, "by": by, "with": with})
 		_next_id += 1
 	return result
+
+
+## Has this bay no column of its own on any storey (the middle of a wide room, a bridge)?
+func _bare(bay: Dictionary) -> bool:
+	for col: Vector2i in bay.cols:
+		if _holds(col, levels()):
+			return false
+	return true
+
+
+## Has crossing `col` a column at or below `level` (any storey of one up to there)?
+func _holds(col: Vector2i, level: int) -> bool:
+	var by_storey: Array = _columns.get(col, [])
+	for s in mini(level + 1 + _shift, by_storey.size()):
+		if int(by_storey[s]) >= 0:
+			return true
+	return false
 
 
 ## Is column `col` gone at or below `level` (one of its storeys up to there blown out)?
@@ -1059,6 +1193,7 @@ func start(event: Dictionary, restore: Dictionary = {}) -> void:
 		bay.from = mini(int(bay.from), unit % 16)
 		touched[unit / 16] = true
 		(e.boxes as Array).append(unit_box(unit))
+		_weak.erase(unit)
 	e["bays"] = touched.keys()
 	var falling := {}
 	for unit: int in (e.units as PackedInt32Array):
@@ -1609,11 +1744,14 @@ func _fall(e: Dictionary, delta: float) -> void:
 					root.debris.dust(_out(body.transform * (p.c as Vector3)), "concrete", Vector3.DOWN)
 			continue
 		if not body.sleeping and not body.freeze:
-			if on and _out(body.transform * (p.c as Vector3)).y < root.kill_height - 4.0:
-				# (Off the edge of an island and away below the map: it is gone. See _solidify.)
+			var where := _out(body.transform * (p.c as Vector3))
+			if where.y < root.kill_height - 4.0:
+				# (Off the edge of an island, or out of a tower, and away below the map: it is gone. See _solidify.)
 				body.freeze = true
 				body.visible = false
 				continue
+			if not WorldGravity.zones.is_empty():
+				body.gravity_scale = WorldGravity.zone_at(where)   # (out of a hole in a tower in orbit, it drifts)
 			var v := body.linear_velocity
 			if v.length_squared() > 0.01 or body.angular_velocity.length_squared() > 0.04:
 				awake += 1
@@ -1980,8 +2118,8 @@ func _solidify(e: Dictionary) -> void:
 			continue
 		var from: RigidBody3D = p.body
 		var xf := from.transform
-		if on and _out(xf * (p.c as Vector3)).y < root.kill_height:
-			from.queue_free()   # (it fell off the island: no part of the pile)
+		if _out(xf * (p.c as Vector3)).y < root.kill_height:
+			from.queue_free()   # (it fell off the island, or out of the tower: no part of the pile)
 			p.body = null
 			continue
 		for child in from.get_children():
@@ -2214,6 +2352,7 @@ func mend() -> void:
 	var had := not events.is_empty() or not _losing.is_empty()
 	events.clear()
 	_pending.clear()
+	_weak.clear()
 	_losing.clear()
 	for seg: Dictionary in segments:
 		if seg.has("cells"):   # (a column of its own that was blown out is not put back)

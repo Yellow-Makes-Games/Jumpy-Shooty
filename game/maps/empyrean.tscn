@@ -123034,6 +123034,8 @@ held_by_walls = true
 wall_reach = 3.0
 to_the_ground = true
 ground = -0.05
+cave_share = 0.4
+spans = Array[NodePath]([NodePath("../Shaft/Bridges")])
 
 [node name="FrameGrandLibrary" type="Node3D" parent="."]
 script = ExtResource("22_frame")
@@ -123046,6 +123048,8 @@ held_by_walls = true
 wall_reach = 3.0
 to_the_ground = true
 ground = 30.45
+cave_share = 0.4
+spans = Array[NodePath]([NodePath("../Shaft/Bridges")])
 
 [node name="FrameAlchemyLabs" type="Node3D" parent="."]
 script = ExtResource("22_frame")
@@ -123058,6 +123062,8 @@ held_by_walls = true
 wall_reach = 3.0
 to_the_ground = true
 ground = 60.95
+cave_share = 0.4
+spans = Array[NodePath]([NodePath("../Shaft/Bridges")])
 
 [node name="FrameMenagerie" type="Node3D" parent="."]
 script = ExtResource("22_frame")
@@ -123070,6 +123076,8 @@ held_by_walls = true
 wall_reach = 3.0
 to_the_ground = true
 ground = 91.45
+cave_share = 0.4
+spans = Array[NodePath]([NodePath("../Shaft/Bridges")])
 
 [node name="FrameSummoningChamber" type="Node3D" parent="."]
 script = ExtResource("22_frame")
@@ -123082,6 +123090,8 @@ held_by_walls = true
 wall_reach = 3.0
 to_the_ground = true
 ground = 121.95
+cave_share = 0.4
+spans = Array[NodePath]([NodePath("../Shaft/Bridges")])
 
 [node name="FrameObservatory" type="Node3D" parent="."]
 script = ExtResource("22_frame")
@@ -123094,3 +123104,5 @@ held_by_walls = true
 wall_reach = 3.0
 to_the_ground = true
 ground = 152.45
+cave_share = 0.4
+spans = Array[NodePath]([NodePath("../Shaft/Bridges")])

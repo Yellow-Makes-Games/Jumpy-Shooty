@@ -16,7 +16,8 @@ game/maps/empyrean.tscn and game/maps/palettes/empyrean.tres as text:
    each claims what lies between its own floor and the next one up (MapFrame.claim), so
    a tier is a building standing on its floor: its rooms, storeys and upper hall can
    come down, a section at a time, and the tier floor it stands on stays (it only
-   breaks). The ribs outside the wall (Exterior/Ribs) are no part of it and stand
+   breaks). A section's floor also caves in once 40% of it is shot away
+   (MapFrame.cave_share): that is how a bridge over the shaft is brought down. The ribs outside the wall (Exterior/Ribs) are no part of it and stand
    whatever happens.
 
     python3 tools/arena/empyrean_destruction.py
@@ -35,6 +36,7 @@ L1, L2, L3 = 6.35, 12.7, 19.0
 GALLERY = 9.0             # the Observatory's gallery, above its floor
 R_FOOT, R_TOP, TOP = 30.5, 20.0, 183.0
 BAY = 7.5                 # about how far across a bay is
+CAVE = 0.4                # a bay's floor caves in once this much of it is shot away
 MAX_THICKNESS = 1.0
 SMALL_AREA = 0.4
 FLOORS = {"stone_floor", "floor_engine", "floor_library", "floor_labs", "floor_menagerie", "floor_summoning",
@@ -87,6 +89,8 @@ def frame(i):
         "wall_reach = 3.0",
         "to_the_ground = true",
         "ground = %s" % num(y0 - 0.05),
+        "cave_share = %s" % num(CAVE),
+        'spans = Array[NodePath]([NodePath("../Shaft/Bridges")])',
         "", ""])
 
 
@@ -156,9 +160,19 @@ def main():
         text = text[:end] + FRAME_SCRIPT + text[end:]
     framed = []
     for i, tier in enumerate(TIERS):
-        if '[node name="Frame%s" ' % tier not in text:
-            text = text.rstrip("\n") + "\n\n" + frame(i).rstrip("\n") + "\n"
+        want = frame(i).rstrip("\n") + "\n"
+        head = '[node name="Frame%s" ' % tier
+        if head not in text:
+            text = text.rstrip("\n") + "\n\n" + want
             framed.append(tier)
+        else:   # (written again as this file says: its settings are this file's)
+            start = text.index(head)
+            end = text.find("\n[", start)
+            end = len(text) if end < 0 else end + 1
+            have = text[start:end].rstrip("\n") + "\n"
+            if have != want:
+                text = text[:start] + want + ("\n" if end < len(text) else "") + text[end:]
+                framed.append(tier)
     with open(SCENE, "w") as fh:
         fh.write(text)
     with open(PALETTE) as fh:
