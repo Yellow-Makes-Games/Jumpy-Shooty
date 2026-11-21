@@ -57,7 +57,10 @@ const BATCH_3 := ["derringer", "flare_gun", "plasma_pistol", "auto_shotgun", "sl
 	"mortar", "plasma_cannon", "katana", "scythe", "mace", "machete", "wrench", "energy_sword", "claws"]
 ## Weapons nobody picks: a mode hands them out (the Golden Gun, see GoldenGun). Real
 ## weapons all the same (has(), by_id()), but never in IDS, so no picker shows them.
-const HIDDEN := ["golden_gun"]
+const HIDDEN := ["golden_gun", "auto_rocket"]
+## Hidden weapons a player may pick once a lobby has unlocked them (the Auto Rocket
+## Launcher, see SecretRockets). Until then no picker shows them.
+const SECRET := ["auto_rocket"]
 ## Guns held like the pistol (in both hands round the grip, no stock): they use the
 ## pistol's poses, with their own reload and firing clips.
 const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_gun", "plasma_pistol", "golden_gun"]
@@ -113,6 +116,8 @@ const SIDEARMS := ["pistol", "revolver", "machine_pistol", "derringer", "flare_g
 @export var looks_like := ""
 ## Drawn in gold (the Golden Gun).
 @export var golden := false
+## Drawn in this colour, like the gold of the Golden Gun (alpha 0: its own colours).
+@export var paint := Color(0, 0, 0, 0)
 @export_group("Projectile")
 ## Kind.PROJECTILE: a rocket or grenade that flies (the host follows it) and blows up
 ## where it lands: full `damage` within `splash_inner` metres, falling to nothing at
@@ -363,6 +368,37 @@ static func golden_gun() -> WeaponData:
 	w.falloff_min = 1.0
 	w.headshot_multiplier = 1.0
 	w.tracer_color = Color(1.0, 0.8, 0.25)
+	return w
+
+
+## The Auto Rocket Launcher (see SecretRockets): a hidden rocket launcher that fires
+## like a machine gun. Only a lobby that typed the secret code gets it, for one match.
+## It is meant to be absurd: eleven rockets a second, each a kill on a direct hit,
+## big blasts, and none of them hurt you.
+static func auto_rocket() -> WeaponData:
+	var w := rocket_launcher()
+	w.id = "auto_rocket"
+	w.display_name = "Auto Rocket Launcher"
+	w.short_name = "Auto Rockets"
+	w.blurb = "Secret weapon. A fully automatic rocket launcher: hold the trigger and everything goes away. Your own rockets never hurt you."
+	w.looks_like = "rocket_launcher"
+	w.paint = Color(1.0, 0.16, 0.08)
+	w.automatic = true
+	w.damage = 140.0
+	w.fire_interval = 0.09
+	w.magazine = 60
+	w.reload_time = 0.8
+	w.spread_degrees = 1.2
+	w.projectile_speed = 55.0
+	w.splash_radius = 6.0
+	w.splash_inner = 2.0
+	w.self_damage = 0.0
+	w.structure_damage = 4.0
+	w.knockback = 22.0
+	w.knockback_up = 9.0
+	w.kick = 1.6
+	w.move_bonus = 1.1
+	w.tracer_color = Color(1.0, 0.3, 0.1)
 	return w
 
 
@@ -757,12 +793,25 @@ func shot_gap() -> float:
 	return minf(burst_gap, fire_interval) if burst > 1 else fire_interval
 
 
-## Which group of the pickers the weapon is in (0 = sidearms).
+## Which group of the pickers the weapon is in (0 = sidearms). A hidden weapon is in
+## the group of the weapon it looks like (the Auto Rocket Launcher: explosives).
 static func group_of(weapon_id: String) -> int:
 	for i in GROUPS.size():
 		if weapon_id in GROUPS[i][1]:
 			return i
+	if weapon_id in HIDDEN and by_id(weapon_id).looks_like != "":
+		return group_of(by_id(weapon_id).looks_like)
 	return 0
+
+
+## The weapons a picker shows in group `i`: the group's own, then any SECRET weapon
+## in it (shown only once the lobby has unlocked it).
+static func group_ids(i: int) -> Array:
+	var ids: Array = GROUPS[i][1].duplicate()
+	for w in SECRET:
+		if group_of(w) == i:
+			ids.append(w)
+	return ids
 
 
 ## Held in both hands round the grip, like the pistol.
@@ -783,6 +832,7 @@ static func _make(weapon_id: String) -> WeaponData:
 		"dagger": return dagger()
 		"revolver": return revolver()
 		"golden_gun": return golden_gun()
+		"auto_rocket": return auto_rocket()
 		"machine_pistol": return machine_pistol()
 		"akimbo": return akimbo()
 		"break_action": return break_action()

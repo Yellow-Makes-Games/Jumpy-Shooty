@@ -124,7 +124,8 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 	weapon = gun if gun == "none" else WeaponData.valid(gun)   # "none": empty hands (races)
 	# A melee weapon is not in the model file: empty hands, then the blade in the fist.
 	var shown_gun := "none" if WeaponData.melee(weapon) else WeaponData.look_of(weapon)   # (the Golden Gun: the revolver)
-	var golden := weapon != "none" and WeaponData.by_id(weapon).golden
+	var golden := weapon != "none" and (WeaponData.by_id(weapon).golden or WeaponData.by_id(weapon).paint.a > 0.0)
+	var gild: Color = WeaponData.by_id(weapon).paint if golden and WeaponData.by_id(weapon).paint.a > 0.0 else GOLD   # (the Auto Rocket Launcher: red)
 	if custom and not arms:
 		mesh.mesh = _custom_mesh(custom, path, mesh.skin, shown_gun)
 		_add_sway(mesh.mesh.get_meta("sway", []))
@@ -155,7 +156,7 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 			color = colors[channel]
 		var gilded := golden and base.resource_name.begins_with(shown_gun + ".")   # the gun's own surfaces
 		if gilded:
-			color = GOLD if kind != "accent" else GOLD.darkened(0.25)
+			color = gild if kind != "accent" else gild.darkened(0.25)
 		if viewmodel:
 			var sm := ShaderMaterial.new()
 			sm.shader = load(VIEW_SHADER)

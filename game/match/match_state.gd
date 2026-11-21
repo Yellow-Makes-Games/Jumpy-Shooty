@@ -650,7 +650,7 @@ func _host_projectile(shooter: int, origin: Vector3, direction: Vector3) -> void
 	_projectiles[id] = {"pos": origin, "vel": direction * weapon.projectile_speed, "shooter": shooter,
 		"weapon": weapon.id, "t": 0.0}
 	if DevArgs.sync_log:
-		print("PROJECTILE %d %s %d" % [shooter, weapon.id, id])
+		print("PROJECTILE %d %s %d at %.3f" % [shooter, weapon.id, id, now])
 	_projectile_spawn.rpc(id, shooter, weapon.id, origin, direction)
 
 

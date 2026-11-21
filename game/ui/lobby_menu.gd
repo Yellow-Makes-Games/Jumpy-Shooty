@@ -18,6 +18,10 @@ extends Control
 ## loadout and the cosmetics they wear, the ones you have not unlocked in red: see
 ## PlayerCardView) while the stage on the right shows their robot; click the row to
 ## keep it open in a window, where a red cosmetic's tooltip says how to unlock it.
+##
+## Anyone can type the secret code here with the arrow keys (see SecretRockets): the
+## whole lobby gets the Auto Rocket Launcher for the next match, with a banner for
+## everyone saying who found it.
 
 var _frame: MenuFrame
 var _col: VBoxContainer          # the middle column: mode, loadout rules, map, win condition
@@ -83,6 +87,8 @@ var _bot_row: HBoxContainer   # the host: Add bot, at this difficulty
 var _add_bot: Button
 var _bot_level: OptionButton
 var _bot_note: Label
+var _secret := SecretRockets.Listener.new()   # the arrow keys typed, for the secret code
+var _rockets_note: Label   # the secret code is in: the Auto Rocket Launcher is unlocked
 
 
 func _ready() -> void:
@@ -200,6 +206,7 @@ func _ready() -> void:
 			Game.start_bot_lobby())
 	Net.players_changed.connect(_refresh)
 	Net.internet_changed.connect(_refresh)
+	Net.secret_code_entered.connect(_on_secret_code)
 	_hover_card = PanelContainer.new()
 	var hover_box := UiKit.panel_box(18)
 	hover_box.border_color = Color(UiKit.CYAN, 0.45)
@@ -432,6 +439,9 @@ func _build_character(columns: Node) -> void:
 	_weapon_card.set_meta("sfx", "select")
 	_weapon_box.add_child(_weapon_card)
 	_no_weapon_note = UiKit.label(_weapon_box, "", true, 15)
+	_rockets_note = UiKit.label(_weapon_box, "", false, 14)
+	_rockets_note.add_theme_color_override("font_color", AUTO_ROCKET_RED)
+	_rockets_note.visible = false
 	_weapon = WeaponPicker.new(Net.player_weapon(Net.my_id()))
 	_weapon_panel = _floating(_weapon)
 	_weapon_card.pressed.connect(func():
@@ -553,6 +563,108 @@ func _open_creator() -> void:
 	creator.changed.connect(lock)
 	lock.call()
 	panel.open(_character._name_button)
+
+
+## Does this match let you pick your own weapon here? (Not in a race, Gun Game,
+## Killcam or a Deathmatch, nor with one gun for everyone.)
+func _can_pick_weapon() -> bool:
+	return Net.game_kind() != "race" and not GunGame.active() and not KillcamMode.active() \
+		and not Net.is_deathmatch() and LobbySettings.only_weapon() == ""
+
+
+# ---------------------------------------------------------------------------
+# The secret code (see SecretRockets)
+
+const AUTO_ROCKET_RED := Color(1.0, 0.32, 0.22)
+
+
+## Every arrow key pressed on this page goes to the code (not while typing in a box).
+## The keys still do whatever else they do.
+func _input(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	if key == null or not key.pressed or key.echo or Net.in_match:
+		return
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit:
+		return
+	if _secret.feed(key.keycode):
+		Net.enter_secret_code()
+
+
+## Someone typed the code: a banner for everyone. (Whoever typed it has been handed
+## the weapon by the host: the page shows it as the players change.)
+func _on_secret_code(by: int, by_name: String) -> void:
+	_weapon_panel.close()
+	var who := "You" if by == Net.my_id() else by_name
+	var line := "%s typed the secret code. Every Rocket Launcher on the map fires full auto this match." % who if Net.is_deathmatch() \
+		else "%s typed the secret code. Everyone can take it this match: it is with the Explosives." % who
+	_show_secret_banner("AUTO ROCKET LAUNCHER UNLOCKED", line)
+	Sound.play("explosion")
+	Sound.play("ui_materialize")
+	get_tree().create_timer(0.35).timeout.connect(func(): Sound.play("equip_" + SecretRockets.WEAPON))
+
+
+var _banner: Control
+
+
+## A big banner over the page that pops in with a red flash and a shake, then fades.
+func _show_secret_banner(title: String, line: String) -> void:
+	if _banner and is_instance_valid(_banner):
+		_banner.queue_free()
+	_banner = Control.new()
+	_banner.name = "secret_banner"
+	_banner.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_banner)
+	var flash := ColorRect.new()
+	flash.color = Color(AUTO_ROCKET_RED, 0.45)
+	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner.add_child(flash)
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner.add_child(centre)
+	var panel := PanelContainer.new()
+	var box := UiKit.panel_box(30)
+	box.border_color = AUTO_ROCKET_RED
+	box.set_border_width_all(2)
+	box.shadow_color = Color(AUTO_ROCKET_RED, 0.5)
+	box.shadow_size = 28
+	panel.add_theme_stylebox_override("panel", box)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	centre.add_child(panel)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 10)
+	panel.add_child(col)
+	var kicker := UiKit.label(col, "SECRET CODE", false, 14)
+	kicker.add_theme_font_override("font", HudStyle.font_spaced(4))
+	kicker.add_theme_color_override("font_color", AUTO_ROCKET_RED)
+	kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var head := UiKit.label(col, title, false, 40)
+	head.add_theme_font_override("font", HudStyle.font(true))
+	head.add_theme_color_override("font_color", Color.WHITE)
+	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	head.autowrap_mode = TextServer.AUTOWRAP_OFF
+	var sub := UiKit.label(col, line, true, 17)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub.custom_minimum_size = Vector2(620, 0)
+	# Pop in, hold, fade; the flash goes first; the page shakes.
+	panel.pivot_offset = panel.get_combined_minimum_size() * 0.5
+	panel.scale = Vector2(0.4, 0.4)
+	var t := create_tween()
+	t.tween_property(panel, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_interval(3.4)
+	t.tween_property(_banner, "modulate:a", 0.0, 0.6)
+	t.tween_callback(_banner.queue_free)
+	var f := create_tween()
+	f.tween_property(flash, "color:a", 0.0, 0.7).set_ease(Tween.EASE_OUT)
+	var home := Vector2.ZERO   # (the frame fills the page)
+	var shake := create_tween()
+	for i in 8:
+		var strength := 14.0 * (1.0 - i / 8.0)
+		shake.tween_property(_frame, "position", home + Vector2(randf_range(-1, 1), randf_range(-1, 1)) * strength, 0.04)
+	shake.tween_property(_frame, "position", home, 0.05)
 
 
 ## The weapon card shows this weapon.
@@ -856,7 +968,7 @@ func _refresh_rules() -> void:
 		# No guns in a race; Gun Game hands them out; Killcam is snipers only; a Deathmatch
 		# finds them on the map; the host may have set one gun for everyone.
 		_weapon.set_allowed(LobbySettings.allowed_weapons())
-		var pick_weapon := not race and not gun_game and not killcam and not Net.is_deathmatch() and only == ""
+		var pick_weapon := _can_pick_weapon()
 		_weapon_card.disabled = not pick_weapon
 		_weapon_card.visible = not race and not Net.is_deathmatch()   # (a race has none; a Deathmatch finds them)
 		_no_weapon_note.visible = not pick_weapon
@@ -870,6 +982,9 @@ func _refresh_rules() -> void:
 			else ("Gun Game hands out the weapons: every kill moves you to the next one." if gun_game \
 			else ("Deathmatch: everyone starts unarmed. Weapons float about the map; walk over one to pick it up." if Net.is_deathmatch() \
 			else "One gun for everyone: the %s. The host picked it for this match." % WeaponData.name_of(only))))
+		_rockets_note.visible = SecretRockets.active() and not race and not gun_game and not killcam
+		_rockets_note.text = "SECRET UNLOCKED: every Rocket Launcher on the map fires full auto this match." if Net.is_deathmatch() \
+			else "SECRET UNLOCKED: the Auto Rocket Launcher is with the Explosives, for everyone, this match."
 	if _allowed:
 		_allowed.visible = LobbySettings.weapons_apply()   # a shoot-out: everyone picks their own weapon
 		_allowed.set_editable(Net.is_host())
@@ -952,6 +1067,14 @@ func _dev_lobby_steps() -> void:
 				var s := Net.match_settings.duplicate()
 				s["song"] = DevArgs.song_later
 				Net.set_match_settings(s))
+	if DevArgs.secret_code_at >= 0.0:
+		get_tree().create_timer(DevArgs.secret_code_at).timeout.connect(func():
+			if is_inside_tree() and not Net.in_match:
+				for k in SecretRockets.CODE:   # (typed on the arrow keys, as a player would)
+					var e := InputEventKey.new()
+					e.keycode = k
+					e.pressed = true
+					_input(e))
 	if DevArgs.ready_at >= 0.0 and not Net.is_host():
 		get_tree().create_timer(DevArgs.ready_at).timeout.connect(func():
 			if is_inside_tree() and not Net.in_match:

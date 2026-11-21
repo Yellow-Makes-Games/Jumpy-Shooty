@@ -614,8 +614,18 @@ func _spawn_pickups() -> void:
 	var root := Node3D.new()
 	root.name = "Pickups"
 	add_child(root)
-	for w in layout.weapon_spawns:
-		var p := WeaponPickup.make(pickups.size(), w[0], w[1])
+	var guns: Array = layout.weapon_spawns.map(func(w): return str(w[1]))
+	if SecretRockets.active() and not guns.is_empty():
+		# The secret code: every rocket launcher fires full auto. A map with none gets one
+		# in place of its first explosive (or its first weapon).
+		if not "rocket_launcher" in guns:
+			var at := guns.find_custom(func(g): return WeaponData.group_of(g) == WeaponData.group_of("rocket_launcher"))
+			guns[maxi(at, 0)] = "rocket_launcher"
+		guns = guns.map(func(g): return SecretRockets.WEAPON if g == "rocket_launcher" else g)
+	if DevArgs.sync_log and Net.is_deathmatch():
+		print("PICKUPS %d %s" % [Net.my_id(), ",".join(guns)])
+	for i in layout.weapon_spawns.size():
+		var p := WeaponPickup.make(pickups.size(), layout.weapon_spawns[i][0], guns[i])
 		root.add_child(p)
 		pickups.append(p)
 

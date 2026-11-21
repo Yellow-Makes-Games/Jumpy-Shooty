@@ -16,6 +16,7 @@ signal join_failed(reason: String)
 signal session_ended(reason: String)    # host left, or we were refused or kicked
 signal match_started
 signal internet_changed                 # host only: internet_state / public_ip changed
+signal secret_code_entered(by: int, by_name: String)   # someone typed the secret code (see SecretRockets)
 
 const DEFAULT_PORT := 24680
 const BOT_ID_BASE := 9001
@@ -79,6 +80,7 @@ var _local_name := "Player"
 var _local_character := Characters.default_id()
 var _local_weapon := WeaponData.default_id()
 var _local_mobility := Mobility.default_id()
+var _weapon_before_secret := ""   # your own weapon, while you have the Auto Rocket Launcher (see SecretRockets)
 var _join_spectating := false   # the join under way is to watch, not to play
 
 
@@ -581,6 +583,7 @@ func confirm_my_character() -> void:
 func set_loadout(character: String, weapon: String, mobility: String = "") -> void:
 	_local_character = Characters.valid(character)
 	if weapon != "":
+		_remember_own_weapon(weapon)
 		_local_weapon = WeaponData.valid(weapon)
 	if mobility != "":
 		_local_mobility = Mobility.valid(mobility)
@@ -810,6 +813,7 @@ func menu_color() -> Color:
 ## and during a fight while you are dead (you come back with it). A pick made while
 ## you are alive is ignored, and confirm_my_character() sends it again in the next lobby.
 func set_my_weapon(weapon: String) -> void:
+	_remember_own_weapon(weapon)
 	_local_weapon = WeaponData.valid(weapon)
 	if is_host():
 		_apply_weapon(my_id(), _local_weapon)
@@ -827,7 +831,7 @@ func _apply_weapon(id: int, weapon: String) -> void:
 	weapon = LobbySettings.fit_weapon(WeaponData.valid(weapon))   # only what the lobby allows
 	if not players.has(id) or players[id].get("weapon", "") == weapon:
 		return
-	if str(players[id].get("weapon", "")) in WeaponData.HIDDEN:
+	if str(players[id].get("weapon", "")) == GoldenGun.WEAPON:
 		return   # the Golden Gun's holder keeps it until the host passes it on (see GoldenGun)
 	if in_match and (GunGame.active() or KillcamMode.active()):
 		return   # Gun Game hands out the weapons; Killcam is snipers only
@@ -839,6 +843,13 @@ func _apply_weapon(id: int, weapon: String) -> void:
 		_sync_players.rpc(players)
 	else:
 		players_changed.emit()
+
+
+## Taking a secret weapon (see SecretRockets): keep the one you had, to get it back
+## when the match is over.
+func _remember_own_weapon(weapon: String) -> void:
+	if WeaponData.valid(weapon) in WeaponData.SECRET and not _local_weapon in WeaponData.SECRET:
+		_weapon_before_secret = _local_weapon
 
 
 ## Pick the mobility tool (an id from Mobility): the grapple, the portal gun or blink.
@@ -891,6 +902,7 @@ func set_match_settings(settings: Dictionary) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _sync_settings(settings: Dictionary) -> void:
+	var had_rockets := SecretRockets.active()
 	match_settings = settings
 	var game := Maps.valid_game(str(match_settings.get("game", "")))
 	var map := str(match_settings.get("map", ""))
@@ -907,11 +919,67 @@ func _sync_settings(settings: Dictionary) -> void:
 		print("LOBBY_MAP %d map=%s random=%s pool=%s song=%s" % [my_id(), map_id(), match_settings.random_map,
 			",".join(LobbySettings.map_pool()), match_settings.song])
 		print("LOBBY_MOVEMENT %d movement=%s" % [my_id(), LobbySettings.movement()])
+		print("LOBBY_AUTO_ROCKETS %d %s" % [my_id(), SecretRockets.active()])
+	if had_rockets and not SecretRockets.active() and _local_weapon in WeaponData.SECRET:
+		_local_weapon = _weapon_before_secret if _weapon_before_secret != "" else WeaponData.valid(Settings.weapon)   # the match is over: back to the weapon you had
 	if is_host() and not in_match:
 		host_fit_loadouts()   # weapons no longer allowed are swapped (everyone is told)
 	elif players.has(my_id()) and not in_match:
 		confirm_my_character()   # a weapon allowed again: ask for the one you picked
 	players_changed.emit()  # lobby screens refresh on this
+
+
+# ---------------------------------------------------------------------------
+# The secret code (see SecretRockets): anyone in the lobby can type it; the host turns
+# the Auto Rocket Launcher on for everyone and says who found it.
+
+## You typed the secret code in the lobby.
+func enter_secret_code() -> void:
+	if is_host():
+		_host_secret_code(my_id())
+	else:
+		_ask_secret_code.rpc_id(1)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _ask_secret_code() -> void:
+	if is_host():
+		_host_secret_code(multiplayer.get_remote_sender_id())
+
+
+func _host_secret_code(id: int) -> void:
+	if not is_host() or in_match or not (players.has(id) or spectators.has(id)):
+		return   # (only in the lobby, by someone who is in it)
+	if not SecretRockets.active():
+		var s := match_settings.duplicate()
+		s[SecretRockets.SETTING] = true
+		set_match_settings(s)   # (reliable and in order: everyone has it before the news below)
+	if SecretRockets.handed_out() and players.has(id) and str(players[id].get("weapon", "")) != GoldenGun.WEAPON:
+		players[id]["weapon"] = SecretRockets.WEAPON   # whoever typed it gets it now
+		_players_updated()
+	var who := player_name(id) if players.has(id) else spectator_name(id)
+	print("[net] %d typed the secret code: auto rockets" % id)
+	_secret_code.rpc(id, who)
+
+
+@rpc("authority", "call_local", "reliable")
+func _secret_code(by: int, by_name: String) -> void:
+	if DevArgs.sync_log:
+		print("SECRET_CODE %d by %d" % [my_id(), by])
+	if by == my_id() and SecretRockets.handed_out() and players.has(by) and player_loadout_weapon(by) == SecretRockets.WEAPON:
+		_remember_own_weapon(SecretRockets.WEAPON)   # the host handed it to you: it is your pick now
+		_local_weapon = SecretRockets.WEAPON
+	secret_code_entered.emit(by, by_name)
+
+
+## Host: the match is over, so the Auto Rocket Launcher goes away again (it was for one
+## match). Anyone holding it gets the weapon they had back (see _sync_settings).
+func host_end_secret_rockets() -> void:
+	if not is_host() or not SecretRockets.active():
+		return
+	var s := match_settings.duplicate()
+	s[SecretRockets.SETTING] = false
+	set_match_settings(s)
 
 
 ## Host: everyone's weapon and mobility tool are ones the lobby allows (see
@@ -922,7 +990,7 @@ func host_fit_loadouts() -> void:
 	var changed := false
 	for id in players:
 		# Your own pick is known here, so you get it back once it is allowed again.
-		if str(players[id].get("weapon", "")) in WeaponData.HIDDEN:
+		if str(players[id].get("weapon", "")) == GoldenGun.WEAPON:
 			continue   # the Golden Gun's holder keeps it (see GoldenGun)
 		var wanted := _local_weapon if id == my_id() else str(players[id].get("weapon", ""))
 		var w := LobbySettings.fit_weapon(WeaponData.valid(wanted))

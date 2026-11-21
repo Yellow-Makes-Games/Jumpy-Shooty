@@ -74,7 +74,10 @@ var _applied_fullscreen := false
 # Profile
 var player_name: String = ""
 var character: String = Characters.default_id()   # the robot you play as (see Characters)
-var weapon: String = WeaponData.default_id()       # the gun you take into matches (see WeaponData)
+var weapon: String = WeaponData.default_id():      # the gun you take into matches (see WeaponData)
+	set(v):
+		if not v in WeaponData.HIDDEN:   # (a weapon a mode or the secret code hands out is never kept)
+			weapon = v
 var mobility: String = Mobility.default_id()       # the tool on the mobility button: a grappling hook, the portal gun, blink or the jetpack (see Mobility)
 var player_color := -1   # your colour in a free-for-all: a number in Net.PLAYER_COLORS, or -1 for the first free one
 var calling_card: String = CallingCard.DEFAULT_CARD   # the banner behind your name (see CallingCard)

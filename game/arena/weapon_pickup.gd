@@ -114,7 +114,9 @@ func is_taken() -> bool:
 ## A gun: its surfaces cut out of a robot model file (every model holds every gun),
 ## unskinned and centred on its middle.
 func _add_gun(model: Node3D) -> void:
-	var mesh := gun_mesh(weapon)
+	var mesh := gun_mesh(WeaponData.look_of(weapon))   # (the Auto Rocket Launcher: the rocket launcher)
+	var paint := WeaponData.by_id(weapon).paint
+	var trim := paint if paint.a > 0.0 else GLOW
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh
 	mi.position = -mesh.get_aabb().get_center()
@@ -123,9 +125,9 @@ func _add_gun(model: Node3D) -> void:
 		var base := mesh.surface_get_material(s) as StandardMaterial3D
 		if base and RobotModel.material_kind(base.resource_name) in ["accent", "glow"]:
 			var m: StandardMaterial3D = base.duplicate()
-			m.albedo_color = GLOW
+			m.albedo_color = trim
 			m.emission_enabled = true
-			m.emission = GLOW
+			m.emission = trim
 			m.emission_energy_multiplier = 1.2
 			mi.set_surface_override_material(s, m)
 	# The model file holds the gun as the robot's hand does at rest (barrel down):
