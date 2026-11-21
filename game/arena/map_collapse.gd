@@ -1004,8 +1004,8 @@ func _cells_mesh(panel: Dictionary, cells: Array) -> Node3D:
 	for box: Array in MapDestruction._merge_flat(nu, nv, keys, 1):
 		# (a box is its first and last cell each way, counted from the corner of these cells)
 		var local: AABB = breaks._flat_extent(panel, [lo.x + int(box[0]), lo.y + int(box[1]), lo.x + int(box[2]), lo.y + int(box[3])])
-		pieces.append({"xf": (panel.xf as Transform3D) * Transform3D(Basis(), local.get_center()), "size": local.size, "kind": panel.kind,
-			"solid": true, "shape": "box", "tint": panel.tint})
+		pieces.append(MapDestruction.painted(panel, {"xf": (panel.xf as Transform3D) * Transform3D(Basis(), local.get_center()), "size": local.size,
+			"kind": panel.kind, "solid": true, "shape": "box", "tint": panel.tint}))
 		# What is on its face (a lamp strip, the frosting on glass) goes with it.
 		for skin: Dictionary in panel.skins:
 			var clipped: AABB = breaks._clip_skin(panel, skin.box, local)
@@ -1547,7 +1547,20 @@ func _gather(lots: Dictionary, mi: MeshInstance3D, xf: Transform3D) -> void:
 	lot.at.append_array(xf * at)
 	lot.facing.append_array(Transform3D(xf.basis.orthonormalized(), Vector3.ZERO) * facing)
 	lot.colours.append_array(arrays[Mesh.ARRAY_COLOR])
-	lot.was_at.append_array(at)
+	# A face whose pattern was moved (MapBlock.face_patterns) tells the shader so in
+	# CUSTOM0, which the pile's mesh uses for where its corners were: the pattern is
+	# worked into where they were here, so it stays where it was.
+	var pattern: Variant = arrays[Mesh.ARRAY_CUSTOM0]
+	if pattern is PackedFloat32Array and (pattern as PackedFloat32Array).size() == at.size() * 4:
+		var settings: PackedFloat32Array = pattern
+		var was := at.duplicate()
+		for i in at.size():
+			var custom := Vector4(settings[i * 4], settings[i * 4 + 1], settings[i * 4 + 2], settings[i * 4 + 3])
+			if custom != Vector4.ZERO:
+				was[i] = MapMesher.pattern_place(at[i], facing[i], custom)
+		lot.was_at.append_array(was)
+	else:
+		lot.was_at.append_array(at)
 	lot.was_facing.append_array(facing)
 
 

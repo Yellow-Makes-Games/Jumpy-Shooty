@@ -24,6 +24,7 @@ func _initialize() -> void:
 	_check_blocks()
 	_check_hulls()
 	_check_footsteps()
+	_check_painted_breaking()
 	_check_face_moves()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -151,6 +152,72 @@ func _check_footsteps() -> void:
 	_expect(map.material_at(Vector3(-3, 1, 3)) == "dirt", "on a block whose top is painted grass: the grass (%s)" % map.material_at(Vector3(-3, 1, 3)))
 	_expect(map.material_at(Vector3(4, 0.5, 6)) == "wood", "on a slope painted planks: wood (%s)" % map.material_at(Vector3(4, 0.5, 6)))
 	map.free()
+
+
+## A breakable wall with a painted face (MapBlock.face_kinds, face_patterns) keeps its
+## paint as it breaks (MapDestruction): on what is left whole and round the hole. And the
+## pattern a pile of fallen pieces is drawn with (MapCollapse) is the face's, moved.
+func _check_painted_breaking() -> void:
+	print("  painted faces on a wall that breaks")
+	var map := MapRoot.new()
+	var palette := MapPalette.new()
+	palette.colors = {"block": Color.GRAY, "grass": Color.GREEN}
+	palette.material = {"block": "concrete"}
+	map.palette = palette
+	map.destructible = true
+	map.fine_destruction = true
+	root.add_child(map)
+	var ground := MapBlock.new()
+	ground.kind = "block"
+	ground.size = Vector3(30, 1, 30)
+	ground.position = Vector3(0, -0.5, 0)
+	map.add_child(ground)
+	var wall := MapBlock.new()
+	wall.kind = "block"
+	wall.size = Vector3(8, 4, 0.3)
+	wall.position = Vector3(0, 2.0, 0)
+	wall.breakable = true
+	var front := MapBlock.face_key(Vector3.BACK)   # (+z)
+	wall.face_kinds = {front: "grass"}
+	wall.face_patterns = {front: Vector4(0.5, 0.25, 30.0, 1.5)}
+	map.add_child(wall)
+	map.build()
+	var d := map.destruction
+	var index := -1
+	if d:
+		for i in d.panels.size():
+			if (d.panels[i].piece as Dictionary).has("face_kinds"):
+				index = i
+	_expect(index >= 0, "the painted wall breaks (%d panels)" % (d.panels.size() if d else 0))
+	if index < 0:
+		map.free()
+		return
+	var panel: Dictionary = d.panels[index]
+	var grass := map.material_for("grass")
+	var painted_meshes := func() -> Array:
+		return (panel.meshes as Node).get_children().filter(func(m: Node) -> bool:
+			return m is MeshInstance3D and (m as MeshInstance3D).material_override == grass)
+	_expect(not painted_meshes.call().is_empty(), "whole, its painted face is drawn in the paint's kind")
+	# A hole of four cells in the middle, drawn as a killcam would show it (no rubble and
+	# no sounds, which want a running game: this is about how what is left is drawn).
+	var ids := PackedInt32Array()
+	var stages := PackedByteArray()
+	for du in 2:
+		for dv in 2:
+			ids.append(panel.first + (panel.nu / 2 + du) * panel.su + (panel.nv / 2 + dv) * panel.sv)
+			stages.append(MapDestruction.BROKEN)
+	d.replay_show([ids, stages], null, 0.0, null)
+	var holed: Array = painted_meshes.call()
+	var patterned := holed.filter(func(m: MeshInstance3D) -> bool:
+		return m.mesh.get_surface_count() > 0 and m.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_CUSTOM0 != 0)
+	_expect(holed.size() >= 2, "holed, its painted face is still drawn in the paint's kind, round the hole too (%d meshes)" % holed.size())
+	_expect(patterned.size() == holed.size(), "...and with its pattern moved (%d of %d)" % [patterned.size(), holed.size()])
+	map.free()
+	# The pile's place for a pattern (MapMesher.pattern_place) is the shader's.
+	var at := Vector3(1.0, 2.0, 0.15)
+	_expect(MapMesher.pattern_place(at, Vector3.BACK, Vector4.ZERO) == at, "a pattern left as it is: measured from where the corner is")
+	var slid := MapMesher.pattern_place(at, Vector3.BACK, Vector4(0.5, 0.0, 0.0, 0.0))
+	_expect(is_equal_approx(slid.z, at.z) and is_equal_approx(slid.distance_to(at), 0.5), "a pattern slid along a face: measured from half a metre along it (%s)" % slid)
 
 
 func _check_blocks() -> void:

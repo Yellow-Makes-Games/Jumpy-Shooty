@@ -65,16 +65,61 @@ static func build_arrays(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basi
 	_custom = Vector4.ZERO
 	var result := {}
 	for kind in by_kind:
-		var buf: Array = by_kind[kind]
-		var arrays := []
-		arrays.resize(Mesh.ARRAY_MAX)
-		arrays[Mesh.ARRAY_VERTEX] = buf[0]
-		arrays[Mesh.ARRAY_NORMAL] = buf[1]
-		arrays[Mesh.ARRAY_COLOR] = buf[2]
-		if buf[3] != null:
-			arrays[Mesh.ARRAY_CUSTOM0] = buf[3]
-		result[kind] = arrays
+		result[kind] = surface_arrays(by_kind[kind])
 	return result
+
+
+## The arrays for a mesh surface (Mesh.ARRAY_MAX long) from a buffer: [corners, normals,
+## colours] and, if any face in it has a pattern moved, its settings (see _buffer).
+static func surface_arrays(buf: Array) -> Array:
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = buf[0]
+	arrays[Mesh.ARRAY_NORMAL] = buf[1]
+	arrays[Mesh.ARRAY_COLOR] = buf[2]
+	if buf.size() > 3 and buf[3] != null:
+		arrays[Mesh.ARRAY_CUSTOM0] = buf[3]
+	return arrays
+
+
+## A buffer for one kind's faces drawn outside build() (see face_buffer).
+static func new_buffer() -> Array:
+	return [PackedVector3Array(), PackedVector3Array(), PackedColorArray(), null]
+
+
+## Outside build() (MapDestruction drawing the ragged cells round a hole, face by face):
+## the buffer in `by_kind` (kind -> new_buffer()) that the face of `piece` looking along
+## `normal` (in the piece's own frame) goes in: its painted kind's (MapBlock.face_kinds)
+## if it has one, else `kind`'s. What is drawn into it next carries that face's pattern
+## (face_patterns). Pass {} for `piece` to draw a face of nothing painted.
+static func face_buffer(by_kind: Dictionary, piece: Dictionary, kind: String, normal: Vector3) -> Array:
+	_by_kind = by_kind
+	_face_kinds = piece.get("face_kinds", {})
+	_face_patterns = piece.get("face_patterns", {})
+	_key_scale = piece.get("scale", Vector3.ONE)
+	var buf := _route(_buffer(kind), normal)
+	_by_kind = {}
+	_face_kinds = {}
+	_face_patterns = {}
+	return buf
+
+
+## Where the surface shader measures the pattern from for a corner at `pos` on a face
+## looking along `normal`, with that face's pattern settings `custom` (what _route puts
+## in CUSTOM0): map_surface.gdshader's vertex() does the same. For a mesh that keeps
+## where its corners were in CUSTOM0 instead (MapCollapse's piles), worked out ahead.
+static func pattern_place(pos: Vector3, normal: Vector3, custom: Vector4) -> Vector3:
+	if custom == Vector4.ZERO:
+		return pos
+	var n := normal.normalized()
+	var u := (Vector3.UP.cross(n) if absf(n.y) < 0.9 else Vector3.RIGHT.cross(n)).normalized()
+	var v := n.cross(u)
+	var grow := maxf(1.0 + custom.w, 0.01)
+	var across := Vector2(pos.dot(u), pos.dot(v))
+	var ct := cos(custom.z)
+	var st := sin(custom.z)
+	across = Vector2(across.x * ct - across.y * st, across.x * st + across.y * ct) / grow + Vector2(custom.x, custom.y)
+	return u * across.x + v * across.y + n * pos.dot(n)
 
 
 ## The flags a surface made from `arrays` needs: a face pattern's settings (CUSTOM0)
@@ -123,6 +168,8 @@ static func _route(buf: Array, normal: Vector3) -> Array:
 ## Adds the pattern settings for the last `count` corners put in `buf`. A buffer gets
 ## them only once a face needs them (the corners before get nothing: as they are).
 static func _put_custom(buf: Array, count: int) -> void:
+	if buf.size() < 4:
+		return   # (a buffer of three made by hand, outside build(): no face in it has a pattern)
 	if buf[3] == null:
 		if _custom == Vector4.ZERO:
 			return

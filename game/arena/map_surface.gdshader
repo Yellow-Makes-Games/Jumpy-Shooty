@@ -62,8 +62,9 @@ void vertex() {
 	// A face whose pattern was moved, turned or scaled (MapBlock.face_patterns, through
 	// MapMesher): CUSTOM0 is (across, up, turn in radians, scale - 1), all 0 for a face
 	// left as it is. The pattern is measured from a place turned about the face's normal,
-	// shrunk by the scale, and slid along the face.
-	if (CUSTOM0 != vec4(0.0)) {
+	// shrunk by the scale, and slid along the face. (Not on a pile: there CUSTOM0 is where
+	// the corner was, and its face's pattern was worked into that ahead: MapCollapse._gather.)
+	if (UV2.x < 1.5 && CUSTOM0 != vec4(0.0)) {
 		vec3 n = normalize(map_normal);
 		vec3 u = normalize(abs(n.y) < 0.9 ? cross(vec3(0.0, 1.0, 0.0), n) : cross(vec3(1.0, 0.0, 0.0), n));
 		vec3 v = cross(n, u);
