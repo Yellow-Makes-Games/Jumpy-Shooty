@@ -828,16 +828,7 @@ func _next_pick() -> int:
 	if dev_pick >= 0:
 		return dev_pick
 	var sizes := MeleeSwing.pool_sizes(robot.weapon) if robot and WeaponData.melee(robot.weapon) else Vector2i(1, 1)
-	var ground := _pick_new(sizes.x, _last_heavy)
-	var air := _pick_new(sizes.y, _last_air)
-	return MeleeSwing.pick_of(ground, air)
-
-
-static func _pick_new(n: int, last: int) -> int:
-	if n <= 1:
-		return 0
-	var p := randi() % (n - 1)
-	return p + 1 if last >= 0 and p >= last else p
+	return MeleeSwing.pick_of(MeleeSwing.pick_new(sizes.x, _last_heavy), MeleeSwing.pick_new(sizes.y, _last_air))
 
 
 ## Let go: the swing starts from however far it was wound up.

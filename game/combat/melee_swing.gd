@@ -719,6 +719,16 @@ static func pool_sizes(weapon_id: String) -> Vector2i:
 	return Vector2i(1 + (m.get("heavy_pool", []) as Array).size(), (1 if m.has("air") else 0) + (m.get("air_pool", []) as Array).size())
 
 
+## One of `n` moves at random, never `last` (the one let go last time; -1: none yet).
+static func pick_new(n: int, last: int) -> int:
+	if n <= 1:
+		return 0
+	if last < 0 or last >= n:
+		return randi() % n
+	var p := randi() % (n - 1)
+	return p + 1 if p >= last else p
+
+
 ## The number set_pick() takes: which heavy blow `ground` and which mid-air one `air`.
 static func pick_of(ground: int, air: int) -> int:
 	return (ground & 3) | ((air & 3) << 2)
@@ -871,14 +881,14 @@ static func impact_time(weapon_id: String, step: int = 0, power: float = 0.0, in
 
 
 ## How long a blow takes, from letting go to back at ready (see impact_time).
-static func blow_length(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false) -> float:
-	var blow := blow_of(weapon_id, step, power, in_air)
+static func blow_length(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false, pick: int = 0) -> float:
+	var blow := blow_of(weapon_id, step, power, in_air, pick)
 	return (STRIKE * float(blow.get("strike", 1.0)) + FOLLOW + RECOVER) * PACE.get(weapon_id, 1.0) * float(blow.get("pace", 1.0))
 
 
 ## A blow's own pace, against the weapon's (a spinning kick takes longer than a jab).
-static func blow_pace(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false) -> float:
-	return float(blow_of(weapon_id, step, power, in_air).get("pace", 1.0))
+static func blow_pace(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false, pick: int = 0) -> float:
+	return float(blow_of(weapon_id, step, power, in_air, pick).get("pace", 1.0))
 
 
 ## The keys of one blow as MOVES has them (see impact_time for the arguments).
@@ -900,8 +910,8 @@ static func combo_length(weapon_id: String) -> int:
 
 
 ## Letting go of a blow lifts you this fast (metres a second; a jumping kick), or 0.
-static func hop_of(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false) -> float:
-	return float(blow_of(weapon_id, step, power, in_air).get("hop", 0.0))
+static func hop_of(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false, pick: int = 0) -> float:
+	return float(blow_of(weapon_id, step, power, in_air, pick).get("hop", 0.0))
 
 
 ## How long a blow that lands freezes for: longer the more it was wound up.
