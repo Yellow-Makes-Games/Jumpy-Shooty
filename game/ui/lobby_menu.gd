@@ -18,6 +18,8 @@ extends Control
 ## loadout and the cosmetics they wear, the ones you have not unlocked in red: see
 ## PlayerCardView) while the stage on the right shows their robot; click the row to
 ## keep it open in a window, where a red cosmetic's tooltip says how to unlock it.
+## The host, signed in, can invite friends from a window beside the lobby code (see
+## FriendsPanel).
 
 var _frame: MenuFrame
 var _col: VBoxContainer          # the middle column: mode, loadout rules, map, win condition
@@ -33,6 +35,8 @@ var _waiting: Label
 var _info: Label
 var _code: Label    # the host's lobby code, big
 var _copy: Button   # copies the lobby code
+var _invite: Button   # the host, signed in: invite a friend (opens _invite_window)
+var _invite_window: FloatingPanel
 var _rules_label: Label
 var _host_rules: HBoxContainer
 var _mode_pick: OptionButton
@@ -107,6 +111,14 @@ func _ready() -> void:
 		_copy.text = "Copied")
 	_copy.custom_minimum_size = Vector2(0, 38)
 	_copy.theme_type_variation = "Chip"
+	# The host: invite a friend (see Friends), from a window of your friends.
+	_invite = UiKit.button(info_row, "Invite friends", func():
+		_invite_window.open(_invite)
+		if Friends.active():
+			Friends.refresh())   # (what they are doing now)
+	_invite.name = "invite"
+	_invite.custom_minimum_size = Vector2(0, 38)
+	_invite.theme_type_variation = "Chip"
 	# The host: how many players the lobby takes (see LobbySettings.max_players).
 	_size_box = HBoxContainer.new()
 	_size_box.add_theme_constant_override("separation", 8)
@@ -208,6 +220,13 @@ func _ready() -> void:
 	_hover_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hover_card.visible = false
 	_frame.add_child(_hover_card)
+	if Net.is_host():
+		Friends.invited_ids.clear()   # (a new lobby: nobody invited to it yet)
+	_invite_window = _floating(null, "below")
+	_invite_window.name = "InviteWindow"
+	_invite_window.content.custom_minimum_size.x = 380
+	UiKit.section(_invite_window.content, "Invite friends")
+	_invite_window.content.add_child(FriendsPanel.new(Net.lobby_code))
 	_player_panel = _floating(null, "right")
 	_player_panel.closed.connect(func():
 		_pinned_id = 0
@@ -283,6 +302,7 @@ func _refresh() -> void:
 	_code.text = code
 	_code.visible = code != ""
 	_copy.visible = code != ""
+	_invite.visible = code != "" and Account.available()
 	# Only what you need to know: the player count online, and a router that would not
 	# open the port (then only friends on your own network can get in).
 	if Net.is_online and Net.is_host() and Net.internet_state != "open" and Net.internet_state != "checking":
@@ -1061,7 +1081,7 @@ func _peek_at(id: int) -> void:
 
 ## A window over the page (a pick, the creator, a player kept open): no hover card.
 func _any_window_open() -> bool:
-	for p in [_mode_panel, _robot_panel, _creator_panel, _mobility_panel, _weapon_panel, _map_window, _song_window, _player_panel]:
+	for p in [_mode_panel, _robot_panel, _creator_panel, _mobility_panel, _weapon_panel, _map_window, _song_window, _player_panel, _invite_window]:
 		if p and is_instance_valid(p) and p.is_open():
 			return true
 	return false

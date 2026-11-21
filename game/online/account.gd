@@ -9,6 +9,7 @@ extends Node
 ##   Account.sign_in("google") opens the browser; `changed` fires when it is done
 ##   Account.sign_out()
 ##   Account.sync_now()        put this computer's data and the cloud's together
+##   Account.call_function()   one of the database's functions (Friends uses these)
 ##
 ## Signing in (OAuth with PKCE, for a desktop game): the browser opens Supabase's sign-in
 ## page, which sends you back to a small web server this opens on 127.0.0.1 (REDIRECT
@@ -23,6 +24,7 @@ extends Node
 
 signal changed            ## signed in or out, or a sync finished: the UI redraws
 signal sign_in_failed(why: String)
+signal _refresh_done(ok: bool)
 
 const CONFIG_FILES := ["user://supabase.cfg", "res://game/online/supabase.cfg"]
 const SESSION_FILE := "user://account.cfg"
@@ -54,6 +56,7 @@ var _peers: Array = []
 var _sign_in_left := 0.0
 var _sync_in := -1.0       ## seconds to the next sync; -1 none due
 var _restoring := false
+var _refreshing := false   ## a refresh is on its way (others wait for it: the token changes)
 
 
 func _ready() -> void:
@@ -247,7 +250,19 @@ func _start_session() -> void:
 		await sync_now()
 
 
+## Trade the refresh token for a fresh session. A second call while one is on its way
+## waits for that one (each refresh token works once).
 func _refresh_session() -> bool:
+	if _refreshing:
+		return await _refresh_done
+	_refreshing = true
+	var ok := await _do_refresh()
+	_refreshing = false
+	_refresh_done.emit(ok)
+	return ok
+
+
+func _do_refresh() -> bool:
 	var r := await _request(HTTPClient.METHOD_POST, "/auth/v1/token?grant_type=refresh_token",
 		JSON.stringify({"refresh_token": _refresh}), false)
 	if r.code == 200 and r.data is Dictionary:
@@ -333,6 +348,20 @@ func _sync() -> bool:
 		status = "Couldn't save to your account (%s). Will try again." % _error_text(w)
 		return false
 	return true
+
+
+# ---------------------------------------------------------------------------
+# Database functions
+
+## Call one of the project's database functions (POST /rest/v1/rpc/<fn>, see
+## supabase/migrations) as the signed-in player: {code, data}, code 0 if it never got
+## there. Friends uses it.
+func call_function(fn: String, args: Dictionary = {}) -> Dictionary:
+	if not signed_in():
+		return {"code": 0, "data": null}
+	if Time.get_unix_time_from_system() > _expires_at - 60.0 and not await _refresh_session():
+		return {"code": 0, "data": null}
+	return await _request(HTTPClient.METHOD_POST, "/rest/v1/rpc/" + fn, JSON.stringify(args), true)
 
 
 # ---------------------------------------------------------------------------
