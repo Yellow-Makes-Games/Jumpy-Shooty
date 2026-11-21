@@ -64,6 +64,8 @@ const TINY := 0.004           ## cubic metres: a loose thing smaller than this j
 const DESTROYED := 3          ## a column storey's stages: 0 whole, 1 cracked, 2 badly cracked, 3 gone
 const CRUSH_SPEED := 3.0      ## metres a second down: a big piece falling this fast kills who it lands on
 const BUILD_MS := 3.0         ## milliseconds a frame spent making pieces during the warning
+const DRAW_MS := 3.0          ## milliseconds a frame spent drawing a bay's loose things again after one of them has gone
+const DRAW_TRIES := 3         ## a drawing begun again this often (more went meanwhile) is finished at once
 const HISTORY := 24           ## what each copy remembers of its own pieces: this many samples...
 const HISTORY_HZ := 30.0      ## ...this often
 const TOPPLE := 2.0           ## metres a second: how hard a piece of a building held up by its walls is tipped outwards as it lets go
@@ -146,6 +148,8 @@ var _tick := 0
 var _standing: Node3D = null   # what stands, drawn (see _draw_standing): holds the lots
 var _lots := {}                # a lot of loose things (see _lot_of) -> {nodes: [what stays put, what can go], drawings}
 var _stale := {}               # the lots to draw again -> which of their two (1: what stays put, 2: what can go, 3: both)
+var _jobs := {}                # a lot -> its drawing being made a little each frame (see _lot_job, _draw_later)
+var _tries := {}               # a stale lot -> how often its drawing was begun again before it was done
 var _columns_drawn: Node3D     # ...and of its column storeys
 var _redraw := 0               # which of the two has lost something since (COLUMNS, LOOSE)
 
@@ -790,7 +794,12 @@ func _build_bay(b: int, drawn: int = 3) -> void:
 		(bay.node as Node).queue_free()
 		bay.node = null
 	_redraw |= LOOSE
-	_stale[_lot_of(b)] = int(_stale.get(_lot_of(b), 0)) | drawn
+	var lot := _lot_of(b)
+	_stale[lot] = int(_stale.get(lot, 0)) | drawn
+	if _jobs.has(lot):   # (a drawing of it under way shows it as it was)
+		_stale[lot] = int(_stale[lot]) | int(_jobs[lot].which)
+		_tries[lot] = int(_jobs[lot].tries) + 1
+		_jobs.erase(lot)
 	var body := _fixed_body()
 	body.name = "Bay_%d_%d" % [bay.i, bay.j]
 	if _parked:
@@ -825,8 +834,10 @@ func _build_bay(b: int, drawn: int = 3) -> void:
 func _draw_standing() -> void:
 	var what := _redraw
 	_redraw = 0
+	_tries.clear()
 	if not root.has_meshes:
 		_stale.clear()
+		_jobs.clear()
 		return
 	if what & COLUMNS:
 		if _columns_drawn:
@@ -853,7 +864,15 @@ func _lot_of(b: int) -> int:
 ## The loose things of a lot on the floors that are shown, drawn: [what stays put, what
 ## can go on its own], each a node or null (not one of `which`: 1, 2 or 3 for both).
 func _lot_mesh(lot: int, which: int = 3) -> Array:
-	var lists := [[[], []], [[], []]]   # [stays, goes] x [solid, decor]
+	var job := _lot_job(lot, which)
+	_draw_some(job, 0.0)
+	return _job_nodes(job)
+
+
+## A lot's drawing, to be made a few things at a time (see _draw_some): what there is
+## to draw of it now, on the floors that are shown.
+func _lot_job(lot: int, which: int) -> Dictionary:
+	var lists := [[], [], [], []]   # [stays, goes] x [solid, decor]
 	for b in bays.size():
 		if _lot_of(b) != lot:
 			continue
@@ -863,16 +882,84 @@ func _lot_mesh(lot: int, which: int = 3) -> Array:
 				if piece.get("lost", false):
 					continue
 				var goes := 0 if (piece.get("rests", PackedInt32Array()) as PackedInt32Array).is_empty() else 1
+				if not which & (1 << goes):
+					continue
 				if not piece.get("hidden", false):
-					(lists[goes][0 if piece.solid else 1] as Array).append(piece)
+					(lists[goes * 2 + (0 if piece.solid else 1)] as Array).append(piece)
 				for part: Dictionary in piece.get("with", []):
 					if not part.get("hidden", false):
-						(lists[goes][1] as Array).append(part)
-	var drawn := [null, null]
+						(lists[goes * 2 + 1] as Array).append(part)
+	return {"lot": lot, "which": which, "lists": lists, "drawn": [{}, {}, {}, {}], "list": 0, "at": 0, "tries": 0}
+
+
+## Draws more of `job` for up to `budget` milliseconds (0: all of it). True once it is
+## all drawn (_job_nodes makes the nodes of it).
+func _draw_some(job: Dictionary, budget: float) -> bool:
+	var started := Time.get_ticks_usec()
+	while int(job.list) < 4:
+		var list: Array = job.lists[job.list]
+		var at := int(job.at)
+		if at >= list.size():
+			job.list = int(job.list) + 1
+			job.at = 0
+			continue
+		MapMesher.add_to(job.drawn[job.list], [list[at]], root.face_shade)   # (one at a time: a bevelled block alone is milliseconds)
+		job.at = at + 1
+		if budget > 0.0 and (Time.get_ticks_usec() - started) / 1000.0 > budget:
+			return false
+	return true
+
+
+## The nodes of a job that is all drawn: [what stays put, what can go], null for the
+## one that was not asked for.
+func _job_nodes(job: Dictionary) -> Array:
+	var nodes := [null, null]
 	for n in 2:
-		if which & (1 << n):
-			drawn[n] = _standing_mesh(lists[n][0], lists[n][1])
-	return drawn
+		if int(job.which) & (1 << n):
+			nodes[n] = _holder(MapMesher.meshes(job.drawn[n * 2]), MapMesher.meshes(job.drawn[n * 2 + 1]))
+	return nodes
+
+
+## Loose things have gone from the stale lots one at a time (not in a collapse): their
+## drawings are made again over the next frames, DRAW_MS of each, and shown as each is
+## done. A furnished room is tens of milliseconds to draw, and the thing that went is
+## in the dust of what it stood on for those few frames. (_build_bay drops a drawing
+## under way when more of its lot goes; one begun again DRAW_TRIES times is made at
+## once.)
+func _draw_later() -> void:
+	if not root.has_meshes:
+		_draw_standing()
+		return
+	for lot: int in _stale.keys():
+		var tries := int(_tries.get(lot, 0))
+		if tries >= DRAW_TRIES:
+			continue
+		var job := _lot_job(lot, int(_stale[lot]))
+		job.tries = tries
+		_jobs[lot] = job
+		_stale.erase(lot)
+		# (what a collapse drew of it ahead of time is out of date from now: see _let_go)
+		var mine: Dictionary = _lots.get_or_add(lot, {"nodes": [null, null], "drawings": 0})
+		mine.drawings = int(mine.drawings) + 1
+	if _stale.is_empty():
+		_redraw &= ~LOOSE
+	if _redraw:
+		_draw_standing()
+	_tries.clear()
+
+
+## A frame's share of the drawings under way (see _draw_later).
+func _draw_jobs() -> void:
+	var started := Time.get_ticks_usec()
+	for lot: int in _jobs.keys():
+		var left := DRAW_MS - (Time.get_ticks_usec() - started) / 1000.0
+		if left <= 0.0:
+			return
+		var job: Dictionary = _jobs[lot]
+		if not _draw_some(job, left):
+			return
+		_jobs.erase(lot)
+		_show_lot(lot, _job_nodes(job))
 
 
 ## Puts a lot's new drawing (see _lot_mesh) in place of its old one.
@@ -898,9 +985,14 @@ func _show_lot(lot: int, drawn: Array) -> void:
 
 
 func _standing_mesh(solid: Array, decor: Array) -> Node3D:
+	return _holder(MapMesher.build(solid, root.face_shade), MapMesher.build(decor, root.face_shade))
+
+
+## A node with a mesh for each kind of `solid` and of `decor` (kind -> mesh).
+func _holder(solid: Dictionary, decor: Dictionary) -> Node3D:
 	var holder := Node3D.new()
 	for lot in 2:
-		var meshes := MapMesher.build([solid, decor][lot], root.face_shade)
+		var meshes: Dictionary = [solid, decor][lot]
 		for kind in meshes:
 			var mi := MeshInstance3D.new()
 			mi.name = ("Mesh_%s" if lot == 0 else "Mesh_%s_decor") % kind
@@ -923,7 +1015,7 @@ func _draw_ahead(e: Dictionary) -> void:
 		return
 	if not e.has("ahead"):
 		var first := {}   # lot -> [its drawing as it will be, how many times it had been drawn]
-		var jobs := []    # [lot, which of its two]: one is drawn each time this is called
+		var jobs := []    # [lot, which of its two]: drawn one after the other, BUILD_MS of a frame at a time
 		for b: int in e.bays:
 			var lot := _lot_of(b)
 			if not first.has(lot):
@@ -932,24 +1024,30 @@ func _draw_ahead(e: Dictionary) -> void:
 				jobs.append([lot, 2])
 		e["ahead"] = first
 		e["ahead_jobs"] = jobs
-	if (e.ahead_jobs as Array).is_empty():
+	if not e.has("ahead_job"):
+		if (e.ahead_jobs as Array).is_empty():
+			return
+		var next: Array = (e.ahead_jobs as Array).pop_back()
+		var kept := PackedInt32Array()
+		for bay: Dictionary in bays:
+			kept.append(int(bay.shown))
+		for unit: int in (e.units as PackedInt32Array):
+			bays[unit / 16].shown = mini(int(bays[unit / 16].shown), unit % 16)
+		e["ahead_job"] = _lot_job(next[0], next[1])
+		for b in bays.size():
+			bays[b].shown = kept[b]
+	var job: Dictionary = e.ahead_job
+	if not _draw_some(job, BUILD_MS):
 		return
-	var job: Array = (e.ahead_jobs as Array).pop_back()
-	var kept := PackedInt32Array()
-	for bay: Dictionary in bays:
-		kept.append(int(bay.shown))
-	for unit: int in (e.units as PackedInt32Array):
-		bays[unit / 16].shown = mini(int(bays[unit / 16].shown), unit % 16)
-	var drawn := _lot_mesh(job[0], job[1])
-	for b in bays.size():
-		bays[b].shown = kept[b]
+	e.erase("ahead_job")
+	var drawn := _job_nodes(job)
 	for n in 2:
 		var node := drawn[n] as Node3D
 		if node:
 			node.visible = false
 			if _standing:
 				_standing.add_child(node)
-			e.ahead[job[0]][0][n] = node
+			e.ahead[job.lot][0][n] = node
 
 
 # ---------------------------------------------------------------------------
@@ -1432,7 +1530,9 @@ func _physics_process(delta: float) -> void:
 		for b: int in _losing:
 			_build_bay(b, 2)
 		_losing.clear()
-		_draw_standing()
+		_draw_later()
+	if not _jobs.is_empty():
+		_draw_jobs()
 	for e: Dictionary in events:
 		match int(e.state):
 			WAITING:
@@ -1662,7 +1762,7 @@ func _let_go(e: Dictionary, quiet: bool) -> void:
 	if e.has("ahead"):
 		var ahead: Dictionary = e.ahead
 		e.erase("ahead")
-		var whole: bool = (e.get("ahead_jobs", []) as Array).is_empty()
+		var whole: bool = (e.get("ahead_jobs", []) as Array).is_empty() and not e.has("ahead_job")
 		for lot: int in ahead:
 			# (all of it drawn, and nothing else of it has gone since)
 			if whole and int(ahead[lot][1]) == int(_lots.get(lot, {}).get("drawings", 0)) and _standing:
