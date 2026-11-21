@@ -32,6 +32,7 @@ var kind := "concrete":
 
 ## Editor view: leave out blocks that are drawn only (set with the plugin's switch).
 var solid_only := false
+var blink_proof_only := false   # "Show Blink-Proof Blocks Only": the rest are hidden and cannot be picked
 
 ## The Vertex tool is on: blocks show no face handles (block_gizmo.gd).
 var editing_corners := false
@@ -92,7 +93,7 @@ func _gather(node: Node) -> void:
 			continue
 		if c is MapBlock:
 			var b := c as MapBlock
-			if (b.drawn or map.show_invisible_blocks) and (b.solid or not solid_only) and not MapBlock.view_hides(b):
+			if (b.drawn or map.show_invisible_blocks) and (b.solid or not solid_only) and (b.blink_proof or not blink_proof_only) and not MapBlock.view_hides(b):
 				var box := MapOps.box_of(b)
 				_cache.append({"block": b, "xf": box[0], "half": box[1]})
 		_gather(c)

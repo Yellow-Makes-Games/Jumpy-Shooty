@@ -11,7 +11,9 @@ extends RefCounted
 ## down through a floor or a ramp (a face turned up), so looking a little down as you
 ## blink never drops you a storey. It never lands outside the map: out of its fence,
 ## over nothing (no ground under it before the map's kill height) or in a hazard; with
-## nowhere like that past the wall, it stops short of the wall.
+## nowhere like that past the wall, it stops short of the wall. Nor does it go through a
+## blink-proof block (MapBlock.blink_proof, every map's outside walls): it stops short
+## of that one, or lands before it if it went through another wall first.
 ##
 ## Three charges, which come back one at a time, RECHARGE seconds each. They can
 ## be used in quick succession (GAP apart), but each blink adds STRAIN, which
@@ -145,9 +147,10 @@ static func destination(body: CharacterBody3D, shape: CollisionShape3D, dir: Vec
 	fit.collision_mask = 1
 	fit.exclude = [body.get_rid()]
 	# Through a wall: the full reach, pulled back until the body fits on open ground
-	# inside the map, but never to this side of the wall.
+	# inside the map, but never to this side of the wall nor past a blink-proof one.
 	if wall:
-		var d := reach
+		var proof := proof_distance(q.transform.origin, dir, reach, r, height * 0.5)
+		var d := minf(reach, proof - 0.05)
 		while d > dist + r * 2.0:
 			fit.transform = q.transform.translated(dir * d)
 			if space.intersect_shape(fit, 1).is_empty() and in_map(body, body.global_position + dir * d):
@@ -163,6 +166,48 @@ static func destination(body: CharacterBody3D, shape: CollisionShape3D, dir: Vec
 	if dist < MIN_DISTANCE:
 		return Vector3.INF
 	return body.global_position + dir * dist
+
+
+## How far along `dir` from `from` (m) a body `radius` round and `half_height` tall
+## each way from its middle can go before it touches a blink-proof block
+## (MapRoot.blink_proof); INF if none is in the first `reach` m.
+static func proof_distance(from: Vector3, dir: Vector3, reach: float, radius: float, half_height: float) -> float:
+	var map := MapRoot.current
+	if map == null or not is_instance_valid(map) or map.blink_proof.is_empty():
+		return INF
+	var to_map := map.global_transform.affine_inverse()
+	var start := to_map * from
+	var way := (to_map.basis * dir).normalized()
+	var best := INF
+	for box: Array in map.blink_proof:
+		var xf: Transform3D = box[0]
+		var half: Vector3 = box[1]
+		# The body as a point against the box grown by it (a little more round the
+		# corners than a capsule: it only ever stops a blink a touch early).
+		var grow := (xf.basis.inverse() * Vector3(radius, half_height, radius)).abs()
+		grow = Vector3(maxf(grow.x, radius), maxf(grow.y, radius), maxf(grow.z, radius))
+		var ext := half + grow
+		var o := xf.affine_inverse() * start
+		var v := xf.basis.inverse() * way
+		var t0 := 0.0
+		var t1 := reach
+		var hit := true
+		for i in 3:
+			if absf(v[i]) < 0.000001:
+				if absf(o[i]) > ext[i]:
+					hit = false
+					break
+			else:
+				var a := (-ext[i] - o[i]) / v[i]
+				var b := (ext[i] - o[i]) / v[i]
+				t0 = maxf(t0, minf(a, b))
+				t1 = minf(t1, maxf(a, b))
+				if t0 > t1:
+					hit = false
+					break
+		if hit:
+			best = minf(best, t0)
+	return best
 
 
 ## Can a blink through a wall land with its feet at `feet`: inside the map's fence,

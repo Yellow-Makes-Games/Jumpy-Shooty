@@ -12598,18 +12598,21 @@ metadata/_edit_group_ = true
 [node name="SideWall" type="Node3D" parent="Perimeter/Walls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 3, -29)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(1, 6, 34)
 kind = "brick_dark"
 
 [node name="SideWall2" type="Node3D" parent="Perimeter/Walls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50, 3, 32)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(1, 6, 28)
 kind = "brick_dark"
 
 [node name="Tunnel" type="Node3D" parent="Perimeter/Walls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -50.7, 2.6, 3)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(0.6, 5.2, 30)
 kind = "tunnel"
 
@@ -12622,18 +12625,21 @@ kind = "stone_trim"
 [node name="SideWall3" type="Node3D" parent="Perimeter/Walls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 3, -29)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(1, 6, 34)
 kind = "brick_dark"
 
 [node name="SideWall4" type="Node3D" parent="Perimeter/Walls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50, 3, 32)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(1, 6, 28)
 kind = "brick_dark"
 
 [node name="Tunnel2" type="Node3D" parent="Perimeter/Walls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.7, 2.6, 3)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(0.6, 5.2, 30)
 kind = "tunnel"
 
@@ -12646,12 +12652,14 @@ kind = "stone_trim"
 [node name="SouthWall" type="Node3D" parent="Perimeter/Walls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 46)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(100, 6, 1)
 kind = "brick_dark"
 
 [node name="NorthWall" type="Node3D" parent="Perimeter/Walls"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, -46)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(100, 3, 1)
 kind = "brick_dark"
 

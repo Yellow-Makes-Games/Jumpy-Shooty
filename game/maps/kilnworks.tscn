@@ -102,24 +102,28 @@ metadata/_edit_group_ = true
 [node name="WallNorth" type="Node3D" parent="Walls" unique_id=1234975547]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, -30)
 script = ExtResource("3_onmqy")
+blink_proof = true
 size = Vector3(60, 14, 2)
 kind = "brick"
 
 [node name="WallSouth" type="Node3D" parent="Walls" unique_id=1225523697]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7, 30)
 script = ExtResource("3_onmqy")
+blink_proof = true
 size = Vector3(60, 14, 2)
 kind = "brick"
 
 [node name="WallWest" type="Node3D" parent="Walls" unique_id=1713569938]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 7, 0)
 script = ExtResource("3_onmqy")
+blink_proof = true
 size = Vector3(2, 14, 60)
 kind = "brick"
 
 [node name="WallEast" type="Node3D" parent="Walls" unique_id=2139171163]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 7, 0)
 script = ExtResource("3_onmqy")
+blink_proof = true
 size = Vector3(2, 14, 60)
 kind = "brick"
 
