@@ -21,7 +21,7 @@ func _initialize() -> void:
 			button.pressed.emit()
 			await process_frame
 			var maps := _map_ids(menu)
-			if maps != Maps.ids_for(step[1]) + [null, Maps.RANDOM]:   # (a separator, then "Random map")
+			if maps != [Maps.RANDOM, null] + Maps.ids_for(step[1]):   # ("Random map", a separator, then the maps)
 				_fails.append("%s after '%s': map list is %s" % [page, step[0], maps])
 	if _fails.is_empty():
 		print("PASS menu mode switch refills the map list")

@@ -282,7 +282,18 @@ func _check_modes() -> void:
 	var pick := OptionButton.new()
 	Maps.fill(pick, ffa[0], "race")
 	_expect(pick.item_count == race.size() and Maps.picked(pick) == race[0], "the race map list shows only race maps (and falls back to the first)")
+	Maps.fill(pick, "", "ffa", true)
+	_expect(Maps.picked(pick) == Maps.RANDOM and pick.get_item_metadata(0) == Maps.RANDOM, "with Random offered, it comes first and is picked to begin with")
+	Maps.fill(pick, "castle_v2", "ffa", true)
+	_expect(Maps.picked(pick) == "castle", "an old id (castle_v2) selects the map it became")
 	pick.free()
+	for game in Maps.GAMES:
+		var names: Array = Maps.ids_for(game).map(func(id): return Maps.name_of(id).to_lower())
+		var sorted := names.duplicate()
+		sorted.sort()
+		_expect(names == sorted, "%s maps are in alphabetical order (%s)" % [game, names])
+	_expect(Maps.current("castle_v2") == "castle" and not "castle_v2" in Maps.ids(), "Castle 2 is now Castle")
+	_expect(Maps.name_of("castle") == "Castle" and Maps.label("castle") == "Castle" and "castle" in Maps.random_ids("dm"), "Castle is a real map, for free-for-all and Deathmatch")
 
 
 func _check_face_moves() -> void:

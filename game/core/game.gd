@@ -19,10 +19,11 @@ var mode: Mode = Mode.NONE
 var pending_notice := ""
 ## The last bot match's settings, for a rematch and the next Vs Bots lobby. "bots": how
 ## many bots (1 is a 1v1); "levels": each one's difficulty (else all "difficulty").
-## "game": "ffa", "dm" or "race" (one the map can host).
-var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.default_id(), "bots": 1, "game": "ffa"}
-## The map and kind of game last picked for practice.
-var last_practice_map := Maps.default_id()
+## "game": "ffa", "dm" or "race" (one the map can host). "map" can be Maps.RANDOM, which
+## is where the menus start.
+var last_bot := {"difficulty": 1, "kills": 10, "map": Maps.RANDOM, "bots": 1, "game": "ffa"}
+## The map (or Maps.RANDOM, to begin with) and kind of game last picked for practice.
+var last_practice_map := Maps.RANDOM
 var last_practice_game := "ffa"
 ## The map last picked for each kind of game, so the menus remember both.
 var last_map := {"ffa": Maps.default_id("ffa"), "dm": Maps.default_id("dm"), "race": Maps.default_id("race")}

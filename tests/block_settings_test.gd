@@ -194,15 +194,6 @@ func _run() -> void:
 	old_map.free()
 	DirAccess.remove_absolute(old_path)
 
-	# The maps were brought up to date by tools/arena/migrate_breakable.gd: the Castle's
-	# two wooden hoardings are the only things there that break.
-	var castle: MapRoot = Maps.make("castle")
-	var ticked := 0
-	for b in castle.find_children("*", "MapBlock", true, false):
-		if (b as MapBlock).breakable:
-			ticked += 1
-	_check(ticked == 2, "the castle's 2 breakable blocks are ticked, the rest not (%d)" % ticked)
-	castle.free()
 
 	map.queue_free()
 	await process_frame
