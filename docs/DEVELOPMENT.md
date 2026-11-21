@@ -191,8 +191,8 @@ Quick checks:
 - breakable walls and floors (`tests/destruction_test.gd`);
 - a building coming down (`tests/collapse_test.gd`), and one on an island that flies
   (`tests/cirrus_collapse_test.gd`);
-- flicker (`tests/map_flicker_test.gd`), on the Castle, Castle 2, Rail Yard, Lost Temple, Neon
-  Arcade and Sky Island: no two surfaces of different colours share a plane where both can be seen,
+- flicker (`tests/map_flicker_test.gd`), on the Castle, Rail Yard, Lost Temple, Neon
+  Arcade and Sky Islands: no two surfaces of different colours share a plane where both can be seen,
   and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
   `FLICKER_LIST=40` prints more of what it found;
 - skies (`tests/sky_engine_test.gd`): every map has a sky preset, the still sky never
@@ -206,7 +206,7 @@ Quick checks:
   breaks, bots' routes and crossings; and `tests/cirrus_destruction_test.gd`: walls
   that break small on an island that has moved, marks and rubble that ride it, and an
   island that comes back up mended;
-- Sky Island (`tests/sky_island_test.gd`): its moving parts, spawns and pickups; the
+- Sky Islands (`tests/sky_island_test.gd`): its moving parts, spawns and pickups; the
   bots' crossings join every island to every other; the navigation mesh's frame
   (`MapRoot.to_nav`); and the crossings themselves, done the way a bot does them, with
   the clock stopped and with the islands and pads on the move;
@@ -538,7 +538,7 @@ top of `game/dev/dev_args.gd`. The useful ones:
 | --- | --- |
 | `--practice` | Go straight into the arena alone |
 | `--benchmark` | Run the graphics benchmark (see Measuring performance), print where the report went, and quit |
-| `--map=ID` | Which map: `construction_site` (the default), `office`, `kilnworks`, `castle`, `halcyon`, `cirrus`, `empyrean`, `haunted_house`, `testing_grounds`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
+| `--map=ID` | Which map: `castle`, `cirrus`, `construction_site` (the default when none is set), `empyrean`, `halcyon`, `haunted_house`, `kilnworks`, `lost_temple`, `neon_arcade`, `office`, `rail_yard`, `sky_island`, `testing_grounds`, `random`, a race map (`rooftop_run`, `foundry`, `sky_ruins`, `summit_plunge`), or a map scene's path (`res://game/maps/my_map.tscn`). Works with `--practice`, `--bot` and `--host` |
 | `--host` / `--join=ADDRESS` | Host or join straight away |
 | `--name=NAME` | Player name for this copy |
 | `--autostart=N` | Host starts the match when N players are in the lobby |
@@ -583,32 +583,12 @@ top of `game/dev/dev_args.gd`. The useful ones:
 
 Maps are scenes you edit in the Godot editor: `game/maps/construction_site.tscn`,
 `game/maps/office.tscn`, `game/maps/kilnworks.tscn`, `game/maps/rail_yard.tscn`,
-`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle.tscn`, `game/maps/halcyon.tscn`, `game/maps/cirrus.tscn`, `game/maps/empyrean.tscn`, `game/maps/haunted_house.tscn` and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
+`game/maps/lost_temple.tscn`, `game/maps/neon_arcade.tscn`, `game/maps/castle_v2.tscn` (the Castle), `game/maps/halcyon.tscn`, `game/maps/cirrus.tscn`, `game/maps/empyrean.tscn`, `game/maps/haunted_house.tscn`, `game/maps/sky_island.tscn` (Sky Islands) and `game/maps/testing_grounds.tscn`. Double-click one in the FileSystem dock to open it.
 
-The Castle is a good small example of a map with several height levels: a curtain
-wall with a battlement walk at 6 m, four round corner towers at 12 m reached by
-stone ramps laid along the wall walks, a gatehouse with a gate tunnel, and a
-central keep whose upper floor (6 m) is reached from a terrace ramp and from the
-west wall walk over a timber bridge, and whose roof deck (12 m) the keep stair
-climbs to. Its palette (`palettes/castle.tres`) shows a breakable kind (the wooden
-hoardings in the bailey). The scene is grouped by object, and each object holds its
-own dressing: a merlon's coping is in its `Merlon` group, a torch's arm, cup and flame
-are one `Torch` group, a tower's windows and flag are in the tower, and the lake,
-causeway, boats, shores and mountains are under `Outside`. Small things you would move
-as one (a torch, a shield, a barrel and its hoops, a pine, a mountain) are selection
-groups: a click in the viewport picks the whole thing. To work on one piece, pick it in
-the Scene dock. The dressing was first written by `tools/arena/castle_dressing.py`,
-but the scene is now edited by hand and that script must not be run on it again.
-You die only by falling into the lake (Kill Height -5, just under the water; the
-Bounds are a far safety net). Outside the walls a 60 degree rock slope (`Outside/Shore`)
-runs into the water: too steep to stand on, not steep enough to wall-run, so anyone who
-drops off a wall slides in. Invisible blockers close the two footholds the walls leave:
-the gate mouth in front of the portcullis, and the wall tops in front of each tower.
-Nothing solid may stick out past the walls' outer faces (x and z of plus or minus 30).
-The causeway starts 40 m out from the gate.
-
-`game/maps/castle_v2.tscn` (test map `castle_v2`, "Castle 2") is a refreshed Castle:
-72 m across instead of 60, a wall walk that runs all
+`game/maps/castle_v2.tscn` (map id `castle`, "Castle"; it was "Castle 2", a test map,
+until it replaced the first Castle, whose scene is gone) is a good example of a map
+with several height levels:
+72 m across, a wall walk that runs all
 the way round over flush corner bastions, a stair up each wall with a landing from
 its head into the bastion, a keep with doors on
 every side and ramps inside, four bridges from the keep to the walls, and in each
@@ -629,12 +609,15 @@ training yard red, well court blue, market green) that its bastion flag, the kee
 banners and the pennants under the bridges repeat, so you can tell which way you face
 in a map that is the same on all four sides. The dressing script removes its own
 earlier pieces first (they carry the meta `dressing`), so it can be run again; the
-block-out script starts over from the old Castle. The scene is edited by hand now
+block-out script started over from the old Castle (which no longer exists, so it
+cannot be run again as it is). The scene is edited by hand now
 (blocks were moved in the editor), so both scripts refuse to run unless
 `CASTLE_V2_REBUILD=1` is set: a run would throw the hand edits away. Try the map with
-`--map=castle_v2 --practice`.
+`--map=castle --practice` (`castle_v2` still works: Maps.RENAMED). Its power-ups (the
+`ItemSpawns` group) and the scythe and derringer pickups came over from the first
+Castle, so Deathmatch still has every weapon and power-up somewhere.
 
-`game/maps/sky_island.tscn` (test map `sky_island`, "Sky Island") is a stone castle in
+`game/maps/sky_island.tscn` (map `sky_island`, "Sky Islands") is a stone castle in
 the clouds, in bright colours: seven floating islands of vivid grass (the turf
 overhangs a band of earth) with rock hanging underneath in jagged cones (the ground
 slabs have 16 sides, the rock under them a few, blocky; pad tops 9 or more) and bits
@@ -651,8 +634,8 @@ out) under a deep blue sky; below is a sea of cloud (the sky engine's preset `ga
 at -30 m; see "Skies"). Most colours come from the
 palette; a block's tint shades one thing off the next (each clump of pines, each
 ball of blossom). The grey
-block-out it started from is kept as `game/maps/sky_island_layout.tscn` (test map
-`sky_island_layout`, "Sky Island (layout)", its own copy of the old palette). The
+block-out it started from (`sky_island_layout`) has been removed; its id now means
+this map. The
 scene is grouped like the castle maps: by object, each holding its own dressing, and
 whatever you would move as one (a pad, a wall piece with its footing and ivy, a
 column, a tree, a patch of meadow, a lobe of an island with its rocks) is a
@@ -1307,7 +1290,7 @@ events.
 
 **A new map.** Make a scene with a MapRoot root (or duplicate an existing map and strip
 it down), give it a palette, add blocks, spawns, a WorldEnvironment and a sun. F6 plays
-it straight away. To put it in the menus, add a line to `LIST` in `game/arena/maps.gd`.
+it straight away. To put it in the menus, add a line to `LIST` in `game/arena/maps.gd`, in alphabetical order among its kind of game (the menus show the list in that order, under "Random map", which they start on; a test checks the order).
 To offer an arena for Deathmatch too, give it `"also": ["dm"]` there and add
 MapWeaponSpawn nodes; `tests/deathmatch_test.gd` checks every Deathmatch map has at
 least 8 pickups of 10 or more different weapons, each over a floor with room to stand,

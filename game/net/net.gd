@@ -64,7 +64,7 @@ var _upnp_thread: Thread = null
 ## map: which map to play (an id from Maps; it must be one for the game).
 ## powerups: Deathmatch only, whether the map's power-ups (ItemPickup) are out.
 ## Plus the lobby settings (see LobbySettings), such as which weapons are allowed.
-var match_settings := LobbySettings.clean({"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id(), "powerups": true})
+var match_settings := LobbySettings.clean({"game": "ffa", "mode": "kills", "kills": 15, "minutes": 8, "race_minutes": 10, "map": Maps.default_id(), "random_map": true, "powerups": true})
 
 ## Each player's ping to the host in ms (peer id -> ms), measured by the host from its
 ## ENet links and sent to everyone every PING_GAP seconds (the Tab scoreboard shows it).

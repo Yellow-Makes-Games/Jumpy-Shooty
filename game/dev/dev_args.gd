@@ -32,7 +32,7 @@ extends Node
 ## --spectate          Watch instead of play: --join joins as a spectator; with --host or --bot, you spectate.
 ## --practice           Skip the menus and drop into the arena alone.
 ## --benchmark          Run the graphics benchmark (see Benchmark), print where the report went, and quit.
-## --map=ID             Which map to play: construction_site, office, rail_yard, lost_temple, neon_arcade, castle, halcyon, testing_grounds, or a race map
+## --map=ID             Which map to play: castle, cirrus, construction_site, empyrean, halcyon, haunted_house, kilnworks, lost_temple, neon_arcade, office, rail_yard, sky_island, testing_grounds, or a race map
 ##                      (rooftop_run, foundry, sky_ruins, summit_plunge: that makes it a race) (host, practice and bot).
 ##                      --map=random: a random map, picked as the match starts (from --map-pool, if given).
 ## --map-pool=ID,ID     The maps a random map may pick from (host, practice and bot; see LobbySettings).
