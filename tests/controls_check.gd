@@ -23,7 +23,7 @@ func _initialize() -> void:
 	_ok(InputMap.action_has_event("kick", _key(KEY_F)), "F kicks by default")
 	_ok(S.action_text("dive") == "Q", "dive shows Q: " + S.action_text("dive"))
 	_ok(S.bindings.glide == ["key:%d" % KEY_ALT] and InputMap.action_has_event("glide", _key(KEY_ALT)), "Alt glides")
-	_ok(InputMap.action_has_event("sprint", _key(KEY_SHIFT)) and not InputMap.action_has_event("glide", _key(KEY_SHIFT)), "Shift sprints only")
+	_ok(InputMap.action_has_event("boost", _key(KEY_SHIFT)) and S.bindings.sprint.is_empty() and S.always_sprint, "Shift is rocket boots; sprint is always on, with no key")
 	var on_alt := []
 	for a in S.ACTIONS:
 		if a[0] != "glide" and (a[2] as Array).has("key:%d" % KEY_ALT):
@@ -37,19 +37,29 @@ func _initialize() -> void:
 	S._load_bindings(old)
 	_ok(S.bindings.glide == ["key:%d" % KEY_ALT], "an old saved glide key goes back to Alt: %s" % [S.bindings.glide])
 	_ok(S.bindings.dive == ["key:%d" % KEY_Q] and S.bindings.interact == ["key:%d" % KEY_G], "...and Alt comes off whatever else had it saved")
+	# Bindings saved before Rocket boots took Shift and Interact took E: those come off the rest.
+	var v2 := ConfigFile.new()
+	S.reset_bindings()
+	v2.set_value("bindings", "version", 2)
+	v2.set_value("bindings", "kick", ["key:%d" % KEY_E])
+	v2.set_value("bindings", "dive", ["key:%d" % KEY_Q, "key:%d" % KEY_SHIFT])
+	S._load_bindings(v2)
+	_ok(S.bindings.kick.is_empty() and S.bindings.dive == ["key:%d" % KEY_Q] and S.bindings.boost == ["key:%d" % KEY_SHIFT]
+		and S.bindings.interact == ["key:%d" % KEY_E], "...and Shift and E come off what had them saved before 3")
+	S.reset_bindings()
 	var newer := ConfigFile.new()
 	S._save_bindings(newer)
 	newer.set_value("bindings", "glide", ["mouse:%d" % MOUSE_BUTTON_XBUTTON2])
 	S._load_bindings(newer)
 	_ok(S.bindings.glide == ["mouse:%d" % MOUSE_BUTTON_XBUTTON2], "a glide key saved since then is kept")
 	S.reset_bindings()
-	_ok(InputMap.action_has_event("interact", _key(KEY_G)), "G is interact by default (press it at a map terminal)")
+	_ok(InputMap.action_has_event("interact", _key(KEY_E)), "E is interact by default (press it at a map terminal)")
 	var shared := []
 	for a in S.ACTIONS:
-		if a[0] != "interact" and (a[2] as Array).has("key:%d" % KEY_G):
+		if a[0] != "interact" and (a[2] as Array).has("key:%d" % KEY_E):
 			shared.append(a[1])
-	_ok(shared.is_empty(), "no other action uses G by default %s" % [shared])
-	_ok(S.rebind("glide", 1, "key:%d" % KEY_SHIFT).is_empty() and S.bindings.sprint.size() == 1, "glide may share Shift with sprint (not a conflict)")
+	_ok(shared.is_empty(), "no other action uses E by default %s" % [shared])
+	_ok(S.rebind("sprint", 0, "key:%d" % KEY_ALT).is_empty() and S.bindings.glide.size() == 1, "sprint may share Alt with glide (not a conflict)")
 	var taken: Array = S.rebind("boost", 0, "key:%d" % KEY_F)
 	_ok(taken == ["Kick"], "F taken from Kick")
 	_ok(InputMap.action_has_event("boost", _key(KEY_F)) and not InputMap.action_has_event("kick", _key(KEY_F)), "F boosts, no longer kicks")
@@ -66,7 +76,7 @@ func _initialize() -> void:
 	_ok(InputMap.action_has_event("grapple", InputEventMouseButton.new()) == false, "sanity")
 	S.reset_bindings()
 	S.load_settings()
-	_ok(S.bindings.kick == ["key:%d" % KEY_F] and S.bindings.boost == ["key:%d" % KEY_E], "reset to defaults saved")
+	_ok(S.bindings.kick == ["key:%d" % KEY_F] and S.bindings.boost == ["key:%d" % KEY_SHIFT], "reset to defaults saved")
 	# The Controls tab: click a binding, press a key
 	var panel_script: GDScript = load("res://game/ui/settings_panel.gd")
 	var panel: Node = panel_script.new()

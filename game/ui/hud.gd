@@ -297,7 +297,7 @@ func update_local(p: Player) -> void:
 	if mt.glides_on:
 		v.moves.append(["GLIDE", _key_label("glide", "ALT"), p.motor.glide_readiness(), p.motor.state == MovementController.State.GLIDE])
 	v.moves.append(["SLIDE", "CTRL" if mt.ctrl_moves else "C", p.motor.slide_boost_readiness(), false])
-	v.moves.append(["BOOST", "SPACE" if mt.space_boost else "E", p.motor.boost_readiness(), p.motor.since_boost < 0.3])
+	v.moves.append(["BOOST", "SPACE" if mt.space_boost else _key_label("boost", "SHIFT"), p.motor.boost_readiness(), p.motor.since_boost < 0.3])
 	if not Race.active:
 		v.moves.append(["KICK", "F", p.kick_readiness(), p.flying_kick()])
 		if p.weapon and p.weapon.data.is_melee():

@@ -559,7 +559,7 @@ func read_local_input() -> void:
 	input.move = Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_forward") - Input.get_action_strength("move_back"))
-	input.sprint = Input.is_action_pressed("sprint")
+	input.sprint = Settings.always_sprint or Input.is_action_pressed("sprint")
 	input.interact = Input.is_action_pressed("interact")
 	input.crouch = Input.is_action_pressed("crouch")
 	if Input.is_action_just_pressed("crouch"):
@@ -2488,7 +2488,7 @@ func _fly(delta: float) -> void:
 		dir += Vector3.UP
 	if input.crouch:
 		dir += Vector3.DOWN
-	velocity = dir.limit_length(1.0) * (32.0 if input.sprint else 12.0)
+	velocity = dir.limit_length(1.0) * (32.0 if Input.is_physical_key_pressed(KEY_SHIFT) else 12.0)
 	global_position += velocity * delta
 	motor.state = MovementController.State.AIR
 

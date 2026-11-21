@@ -48,7 +48,7 @@ extends RefCounted
 ## Winding a melee swing up in a plain fall hangs you in the air for a moment (see
 ## _hang): hang_time seconds per time in the air, refilled like the glide.
 ##
-## Rocket boots (E): a burst of speed toward your WASD direction as seen from
+## Rocket boots (Shift): a burst of speed toward your WASD direction as seen from
 ## where you look (straight where you look if you hold no direction), so you can
 ## boost up, down, sideways or back, on the ground, in the air or mid-swing. It
 ## adds to the speed you have, so a burst along a grapple swing whips you round

@@ -10,6 +10,7 @@ const SAVE_PATH := "user://settings.cfg"
 var mouse_sensitivity: float = 0.12  # degrees of turn per pixel of mouse movement
 var invert_y: bool = false
 var zoom_toggle: bool = true   # the zoom button: on, it switches the zoom on and off; off, you hold it (see CameraRig.zoom)
+var always_sprint: bool = true   # on, you always run at sprint speed; off, you hold Sprint
 
 # Camera
 var field_of_view: float = 95.0
@@ -114,6 +115,7 @@ func load_settings() -> void:
 	mouse_sensitivity = cfg.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	invert_y = cfg.get_value("controls", "invert_y", invert_y)
 	zoom_toggle = bool(cfg.get_value("controls", "zoom_toggle", zoom_toggle))
+	always_sprint = bool(cfg.get_value("controls", "always_sprint", always_sprint))
 	field_of_view = cfg.get_value("camera", "field_of_view", field_of_view)
 	third_person = cfg.get_value("camera", "third_person", third_person)
 	camera_shake = clampf(float(cfg.get_value("camera", "camera_shake", camera_shake)), 0.0, 1.0)
@@ -173,6 +175,7 @@ func save_settings() -> void:
 	cfg.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	cfg.set_value("controls", "invert_y", invert_y)
 	cfg.set_value("controls", "zoom_toggle", zoom_toggle)
+	cfg.set_value("controls", "always_sprint", always_sprint)
 	cfg.set_value("camera", "field_of_view", field_of_view)
 	cfg.set_value("camera", "camera_shake", camera_shake)
 	cfg.set_value("camera", "third_person", third_person)
@@ -408,13 +411,13 @@ const ACTIONS := [
 	["move_left", "Move left", ["key:%d" % KEY_A]],
 	["move_right", "Move right", ["key:%d" % KEY_D]],
 	["jump", "Jump / Flip", ["key:%d" % KEY_SPACE]],
-	["sprint", "Sprint", ["key:%d" % KEY_SHIFT]],
+	["sprint", "Sprint", []],   # (sprint is always on unless it is switched off: see always_sprint)
 	["glide", "Glide", ["key:%d" % KEY_ALT]],
 	["crouch", "Crouch / slide", ["key:%d" % KEY_CTRL, "key:%d" % KEY_C]],
 	["dive", "Dive", ["key:%d" % KEY_Q]],
 	["kick", "Kick", ["key:%d" % KEY_F]],
-	["boost", "Rocket boots", ["key:%d" % KEY_E]],
-	["interact", "Interact", ["key:%d" % KEY_G]],
+	["boost", "Rocket boots", ["key:%d" % KEY_SHIFT]],
+	["interact", "Interact", ["key:%d" % KEY_E]],
 	["grapple", "Mobility", ["mouse:%d" % MOUSE_BUTTON_RIGHT]],
 	["fire", "Shoot / swing", ["mouse:%d" % MOUSE_BUTTON_LEFT]],
 	["zoom", "Zoom", ["mouse:%d" % MOUSE_BUTTON_MIDDLE]],
@@ -438,7 +441,8 @@ const MAX_BINDS := 2
 const CAN_SHARE := [["sprint", "glide"]]
 ## Saved bindings older than this are brought up to date as they load (see _load_bindings).
 ## 2: the glide moved from Shift to Alt, which Dive gave up.
-const BINDINGS_VERSION := 2
+## 3: Rocket boots moved from E to Shift (sprint is always on), and Interact from G to E.
+const BINDINGS_VERSION := 3
 
 ## Not rebindable: Esc always opens the menu (and cancels a rebind).
 const FIXED_BINDINGS := {"pause": ["key:%d" % KEY_ESCAPE]}
@@ -476,6 +480,8 @@ func _apply_bindings() -> void:
 func _load_bindings(cfg: ConfigFile) -> void:
 	var version := int(cfg.get_value("bindings", "version", 1))
 	var alt := "key:%d" % KEY_ALT
+	var shift := "key:%d" % KEY_SHIFT
+	var e_key := "key:%d" % KEY_E
 	for a in ACTIONS:
 		var saved = cfg.get_value("bindings", a[0]) if cfg.has_section_key("bindings", a[0]) else null
 		if saved == null and a[0] == "glide" and cfg.has_section_key("bindings", "float"):
@@ -487,6 +493,8 @@ func _load_bindings(cfg: ConfigFile) -> void:
 			for b in saved:
 				if version < 2 and str(b) == alt and a[0] != "glide":
 					continue   # (Alt is the glide's now: Dive, or anything else saved with it, gives it up)
+				if version < 3 and ((str(b) == shift and a[0] != "boost") or (str(b) == e_key and a[0] != "interact")):
+					continue   # (Shift is the rocket boots' now, and E the interact's)
 				if binding_event(str(b)) and not list.has(str(b)) and list.size() < MAX_BINDS:
 					list.append(str(b))
 			bindings[a[0]] = list
