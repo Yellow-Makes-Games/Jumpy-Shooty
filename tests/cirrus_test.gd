@@ -252,8 +252,8 @@ func _glass() -> void:
 			riding += 1
 	var found := kinds.keys()
 	found.sort()
-	_expect(found == ["floor_tile", "floor_wood", "glass_lab", "glass_sky", "glass_window", "stone", "stone_warm"],
-		"the glass, the stone walls and the floors break (%s)" % [found])
+	_expect(found == ["dome_copper", "floor_tile", "floor_wood", "glass_lab", "glass_sky", "glass_window", "paving", "roof_terracotta", "stone", "stone_warm"],
+		"the glass, the stone walls, the floors, the terrace and the two domes break (%s)" % [found])
 	_expect(riding >= 150 and riding < d.panels.size(), "the islands' ride with them, the quad's stand still (%d of %d)" % [riding, d.panels.size()])
 	var glass := d.panels.filter(func(p): return p.material == "glass")
 	_expect(glass.size() >= 12 and glass.all(func(p): return p.n == Vector3i.ONE), "glass goes a pane at a time (%d panes)" % glass.size())

@@ -123,6 +123,7 @@ breakable = Dictionary[String, float]({
 "glass_lab": 25.0,
 "glass_sky": 25.0,
 "glass_window": 25.0,
+"paving": 220.0,
 "stone": 180.0,
 "stone_warm": 220.0
 })

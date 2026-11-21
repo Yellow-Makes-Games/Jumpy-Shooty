@@ -9,7 +9,11 @@ extends SceneTree
 ##    brings down the bay over it, from that storey up, where the island is now;
 ##  - the pieces fall, come to rest on the island and become a pile that is the
 ##    island's: it goes where the island goes;
-##  - an island that goes down comes back with its building whole.
+##  - an island that goes down comes back with its building whole;
+##  - nothing of a building is kept from breaking: what stands on a floor that is shot
+##    away goes with it, nobody spawns there, the domes break as whole blocks, and the
+##    ground floor comes down when its walls go, so a building can be levelled;
+##  - the plinth round a building stops at its doorways.
 
 const ISLANDS := ["Observatory", "Labs", "LectureHall", "Cafeteria", "Library"]
 
@@ -55,7 +59,21 @@ func _run() -> void:
 		return
 	var walls := c.segments.filter(func(seg): return seg.has("cells"))
 	_check(walls.size() >= 20 and walls.size() == c.segments.size(), "it stands on its walls: %d stretches, no columns" % walls.size())
-	_check(c.bays.size() == 6 and c.levels() == 3, "six bays, two upper floors and the roof")
+	_check(c.bays.size() == 6 and c.levels() == 4, "six bays; the ground floor, two upper floors and the roof")
+	# Nothing of the five buildings is kept from breaking, and their domes break too.
+	var guarded := 0
+	var domes := 0
+	for panel: Dictionary in d.panels:
+		if panel.get("frame") == null:
+			continue
+		if panel.whole and panel.kind in ["dome_copper", "roof_terracotta"] and is_equal_approx(d.cells[panel.first].max_hp, 1500.0):
+			domes += 1
+		var n: Vector3i = panel.n
+		for cell in range(int(panel.first), int(panel.first) + n.x * n.y * n.z):
+			if d.cells[cell].protected:
+				guarded += 1
+	_check(guarded == 0, "no wall, floor or roof of a building is kept from breaking (%d pieces are)" % guarded)
+	_check(domes == 2, "the Observatory's dome and the Lecture Hall's roof break as whole blocks (%d)" % domes)
 	# A cornice runs the length of the building: each bay has its own stretch of it.
 	var crossing := 0
 	var stretches := 0
@@ -78,8 +96,58 @@ func _run() -> void:
 	for i in 8:
 		await physics_frame
 	var corner := Vector2i(0, 0)
-	_check(c.has_column(corner, 1), "the front corner has a stretch of wall on the first floor")
-	var seg: Dictionary = c.segments[c._columns[corner][1]]
+	# The plinth round the building stops at its doorways: there is wall behind all of it.
+	var bare := 0
+	var plinths := 0
+	for node: Node in library.get_node("Building/Shell").get_children():
+		var block := node as MapBlock
+		if block == null or not String(block.name).begins_with("Plinth"):
+			continue
+		plinths += 1
+		var along := Vector3.RIGHT if block.size.x > block.size.z else Vector3.BACK
+		var length := maxf(block.size.x, block.size.z)
+		var inward := (body.transform.origin + body.transform.basis * Vector3(0, 0, 6.1) - block.global_position) * Vector3(1, 0, 1)
+		inward = (inward - inward.project(block.global_transform.basis * along)).normalized()
+		var steps := int(length / 0.4)
+		for n in range(1, steps):
+			var at := block.global_transform * (along * (-length * 0.5 + n * length / steps))
+			if _ray(at - inward * 0.5, at + inward * 0.8).is_empty():
+				bare += 1
+	_check(bare == 0 and plinths > 4, "the plinth stops at the doorways: wall behind all of it (%d pieces, %d places without)" % [plinths, bare])
+
+	# A floor shot away from under a thing: the thing goes, and nobody spawns there.
+	var thing: Dictionary = {}
+	for b: Dictionary in c.bays:
+		if int(b.i) > 0:   # (not the corner this test brings down)
+			for level: Array in b.loose:
+				for piece: Dictionary in level:
+					var rests: PackedInt32Array = piece.rests
+					if thing.is_empty() and piece.solid and rests.size() >= 4 and int(d.panels[d.cells[rests[0]].panel].thin) == 1:
+						thing = piece
+	_check(not thing.is_empty(), "a solid thing stands on a floor that can break")
+	if not thing.is_empty():
+		var under: PackedInt32Array = thing.rests
+		var need_gone := ceili(under.size() * c.frame.rests_share)
+		for n in need_gone - 1:
+			d.damage(under[n], 10000.0)
+		_apply(d)
+		await physics_frame
+		_check(not thing.get("lost", false), "with %d of the %d pieces under it gone it stands" % [need_gone - 1, under.size()])
+		d.damage(under[need_gone - 1], 10000.0)
+		_apply(d)
+		await physics_frame
+		_check(thing.get("lost", false), "one more and it goes with them")
+		var where: Vector3 = body.transform * ((thing.xf as Transform3D).origin)
+		var hit := _ray(where + Vector3(0, 0.05, 0), where - Vector3(0, 0.05, 0))
+		_check(hit.is_empty(), "and it is no longer there to stand on")
+	var spawn := body.transform * Vector3(-10.0, 5.7, 3.0)   # (one of the Library's, on its first floor)
+	_check(not map.under_rubble(spawn), "a spawn point on an upper floor is open while the floor is there")
+	d.damage_area(spawn - Vector3(0, 0.3, 0), 1.2, 100000.0)
+	_apply(d)
+	_check(map.under_rubble(spawn), "and closed once the floor under it is shot away")
+
+	_check(c.has_column(corner, 2), "the front corner has a stretch of wall on the first floor")
+	var seg: Dictionary = c.segments[c._columns[corner][2]]
 	var cells: PackedInt32Array = seg.cells
 	var need := ceili(cells.size() * c.frame.wall_share)
 	# Not enough of it: nothing comes down.
@@ -100,8 +168,8 @@ func _run() -> void:
 	var units: PackedInt32Array = ev.units
 	var bay := units[0] / 16
 	_check(int(ev.id) / MapCollapse.EVENTS_EACH == c.index and map.collapse_of(int(ev.id)) == c, "the collapse's number says whose it is")
-	_check(int(c.bays[bay].i) == 0 and int(c.bays[bay].j) == 0 and units.size() == 2 and units[0] % 16 == 1,
-		"the corner bay, from the first floor up (%s)" % [units])
+	_check(int(c.bays[bay].i) == 0 and int(c.bays[bay].j) == 0 and units.size() == 3 and units[0] % 16 == 1,
+		"the corner bay, from the first floor's walls up: the floor they stood on stays (%s)" % [units])
 	c.apply_columns(out.columns[0], out.columns[1])
 	c.start(ev)
 	c.host(int(ev.id))
@@ -185,6 +253,7 @@ func _run() -> void:
 			left += 1
 	_check(c.events.is_empty() and not is_instance_valid(heap) or heap.is_queued_for_deletion(), "back up, the pile is gone")
 	_check(left == 0 and int(c.bays[bay].from) == c.levels() and int(seg.stage) == 0, "and the building is whole (%d pieces broken before)" % whole_before)
+	_check(not thing.get("lost", false) and not map.under_rubble(body.transform * Vector3(-10.0, 5.7, 3.0)), "what went with its floor is back, and the spawn point is open")
 	var roof := _ray(body.transform * Vector3(-12.0, 30.0, 1.0), body.transform * Vector3(-12.0, 12.0, 1.0))
 	_check(not roof.is_empty() and (roof.position as Vector3).y > body.transform.origin.y + 18.0, "its roof is back over the corner")
 	# And it can come down again.
@@ -193,12 +262,12 @@ func _run() -> void:
 	_apply(d)
 	_check(not c.flush().is_empty(), "it can be brought down again")
 	# The test's way in (--blow-column): the far corner, at the ground.
-	_check(c.dev_blow(Vector2i(3, 2), 0) and not c.dev_blow(Vector2i(9, 9), 0), "a corner blown out for a test")
+	_check(c.dev_blow(Vector2i(3, 2), 1) and not c.dev_blow(Vector2i(9, 9), 1), "a corner's ground-floor wall blown out for a test")
 	_apply(d)
 	var far := c.flush()
 	var far_units: PackedInt32Array = far.events[0].units if not far.is_empty() and not (far.events as Array).is_empty() else PackedInt32Array()
-	_check(far_units.size() == 3 and far_units[0] % 16 == 0 and int(c.bays[far_units[0] / 16].i) == 2 and int(c.bays[far_units[0] / 16].j) == 1,
-		"takes that corner down from the first floor to the roof (%s)" % [far_units])
+	_check(far_units.size() == 4 and far_units[0] % 16 == 0 and int(c.bays[far_units[0] / 16].i) == 2 and int(c.bays[far_units[0] / 16].j) == 1,
+		"takes that corner down from the ground to the roof (%s)" % [far_units])
 
 	print("FAIL: %d checks failed" % failures if failures else "PASS")
 	quit(1 if failures else 0)

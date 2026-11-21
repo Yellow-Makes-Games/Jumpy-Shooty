@@ -141,7 +141,8 @@ MATERIAL = {
 }
 # How tough each kind that can break is. (The scene has since been given fine destruction:
 # tools/arena/cirrus_breakable.py ticked Breakable on its walls, floors and panes.)
-BREAKABLE = {"floor_tile": 260, "floor_wood": 110, "glass_lab": 25, "glass_sky": 25, "glass_window": 25, "stone": 180, "stone_warm": 220}
+BREAKABLE = {"floor_tile": 260, "floor_wood": 110, "glass_lab": 25, "glass_sky": 25, "glass_window": 25, "paving": 220, "stone": 180,
+             "stone_warm": 220}
 
 
 def polar(r, deg, y=0.0):

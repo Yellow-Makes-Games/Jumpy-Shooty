@@ -88,6 +88,10 @@ extends Node3D
 ## metre across in place of 2 m squares, with ragged edges, so a hole is the size of
 ## what made it. Off, the map breaks the old way.
 @export var fine_destruction := false
+## With fine destruction: a breakable wall breaks however small it is (a face of 0.4
+## square metres or more, where it otherwise takes 7): the bits of wall between a
+## tower's window slits go like the rest of it.
+@export var break_small_walls := false
 ## Tick this if a walkable floor winds up over itself, like a spiral stair in a tower
 ## (Cirrus's clock tower): the bots' navigation mesh is then cut up a way that keeps
 ## such a stair. Leave it off otherwise: the usual way makes tidier paths in the open.
@@ -263,6 +267,7 @@ func build(with_meshes: bool = true) -> void:
 	_nav_poses = []
 	_trail = []
 	_framed = []
+	_frame_of = {}
 	_framing = 0
 	collapses = []
 	_mover_frames = {}
@@ -283,6 +288,7 @@ func build(with_meshes: bool = true) -> void:
 				var part := f.get_node_or_null(path)
 				if part:
 					_framed.append(part)
+					_frame_of[part] = f
 	_collect(self, Transform3D.IDENTITY, pieces, spawns)
 	# Gravity by place (none on most maps: then it is 1.0 everywhere, whatever the
 	# last map said).
@@ -384,6 +390,8 @@ static var current: MapRoot
 
 var _framed: Array = []   # build(): the nodes whose blocks are a MapFrame's building
 var _framing := 0
+var _frame_of := {}       # build(): each of those nodes -> its MapFrame
+var _frame_now: MapFrame  # ...and the one _collect is inside of (while _framing > 0)
 var _surfaces := {}   # Vector2i bucket -> [a surface (see _surface_of)]
 
 ## Decoration counts as what is underfoot when it lies flat: no thicker than this...
@@ -715,11 +723,14 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 		var in_frame := _framed.has(child)
 		if in_frame:
 			_framing += 1
+			_frame_now = _frame_of[child]
 		if child is MapBlock:
 			var piece := (child as MapBlock).to_piece(at)
 			pieces.append(piece)
 			if _framing > 0:
 				piece["framed"] = true   # part of a building that can come down (see MapFrame)
+				if _frame_now.held_by_walls:
+					piece["unguarded"] = true   # (nothing of it is kept from breaking: see MapCollapse._take_rests)
 				if not _framed.has(node):
 					piece["group"] = node.get_instance_id()   # (the blocks of one thing, a girder say: they fall as one)
 			if child is MapHazard:
@@ -1101,7 +1112,7 @@ func under_rubble(at: Vector3) -> bool:
 	for c in collapses:
 		if c.blocked(at):
 			return true
-	return false
+	return destruction != null and destruction.floor_gone(at)   # (or on a floor that has been shot away)
 
 
 ## The collapse that event `id` is one of (see MapCollapse.EVENTS_EACH), or null.

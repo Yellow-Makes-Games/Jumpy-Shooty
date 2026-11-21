@@ -12,7 +12,11 @@ extends Node3D
 ##
 ## A building with no columns stands on its walls: tick **Held By Walls**. Then each
 ## crossing of the lines that has breakable wall near it counts as a column made of
-## that wall, a storey at a time, and it is gone once enough of the wall is.
+## that wall, a storey at a time, and it is gone once enough of the wall is. Nothing
+## of such a building is kept from breaking because something stands on it: what
+## stands on or hangs from a wall or floor that breaks goes with it. Tick **To The
+## Ground** as well and the ground floor can come down too, so the whole building can
+## be levelled.
 
 ## The parts of the map that are the building (its floors, walls, columns and what
 ## stands on them): only blocks under these can fall. (Paths from this node.)
@@ -42,3 +46,11 @@ extends Node3D
 ## How much of that wall (of what can break of it) has to be gone, in one storey, for
 ## the storey to count as blown out.
 @export_range(0.1, 1.0) var wall_share := 0.6
+## (Held By Walls) The storey whose wall goes comes down too, with everything on it,
+## the ground floor included: all of the building can end as rubble.
+@export var to_the_ground := false
+## (To The Ground) How high the building's ground floor is.
+@export var ground := 0.0
+## (Held By Walls) A thing goes once this share of what it stands on, or hangs from,
+## has broken.
+@export_range(0.1, 1.0) var rests_share := 0.5

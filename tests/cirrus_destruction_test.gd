@@ -162,6 +162,28 @@ func _run() -> void:
 		_apply(d)
 		_check(d.is_broken(q), "and it breaks")
 
+	# The clock tower: its walls break between corners that do not, and the stage that
+	# carries the clock faces does not either.
+	var wall := _ray(Vector3(-2.8, 12.0, -12.0), Vector3(-2.8, 12.0, -3.0))
+	var wall_cell: int = d.cell_at(wall.collider, wall.position, wall.normal) if not wall.is_empty() and (wall.collider as Node).has_meta("panel") else -1
+	_check(wall_cell >= 0 and absf((wall.position as Vector3).z + 5.2) < 0.05, "the clock tower's wall can break")
+	d.damage_area(Vector3(-2.8, 12.0, -5.2), 1.5, 100000.0)
+	_apply(d)
+	var tower_hole := _ray(Vector3(-2.8, 12.0, -12.0), Vector3(-2.8, 12.0, -4.5))
+	_check(wall_cell >= 0 and d.is_broken(wall_cell) and tower_hole.is_empty(), "a blast makes a hole in it")
+	var small := _ray(Vector3(0.0, 5.6, -12.0), Vector3(0.0, 5.6, -3.0))
+	_check(not small.is_empty() and (small.collider as Node).has_meta("panel") and absf((small.position as Vector3).z + 5.2) < 0.05,
+		"the narrow wall between its window slits can break too")
+	for spot: Array in [[Vector3(-4.6, 12.0, -12.0), Vector3(-4.6, 12.0, -3.0), "a corner of the tower"],
+			[Vector3(-12.0, 12.0, -4.6), Vector3(-3.0, 12.0, -4.6), "the same corner from the other side"],
+			[Vector3(2.9, 23.2, -12.0), Vector3(2.9, 23.2, -3.0), "the stage that carries the clock"]]:
+		var middle: Vector3 = ((spot[0] as Vector3) + (spot[1] as Vector3)) * 0.5
+		d.damage_area(Vector3(spot[0].x if absf(spot[0].x) < 6.0 else -5.2, spot[0].y, spot[0].z if absf(spot[0].z) < 6.0 else -5.2), 1.5, 100000.0)
+		_apply(d)
+		var solid := _ray(spot[0], spot[1])
+		_check(not solid.is_empty() and not (solid.collider as Node).has_meta("panel") and (solid.position as Vector3).distance_to(middle) < 3.5,
+			"%s does not break" % spot[2])
+
 	# The island glides somewhere else: it all goes with it.
 	var before := body.transform
 	_rest(LayoutEvent.pack(_pair("Labs", "Library"), LayoutEvent.Kind.CLOSE, 0, 0))
