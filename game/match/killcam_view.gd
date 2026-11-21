@@ -576,18 +576,18 @@ func _watch(flags: int, weapon: String, seen: Dictionary, g: Ghost) -> void:
 		var held := WeaponData.by_id(weapon).charge_of(seen.wind)
 		var coming := RobotAnimInput.step_of(flags)   # (which blow of the combo is coming)
 		if g:
-			g.animator.wind(held, coming)
+			g.animator.wind(held, coming, RobotAnimInput.pick_of(flags))
 		elif _view:
-			_view.wind(held, coming)
+			_view.wind(held, coming, RobotAnimInput.pick_of(flags))
 	if swings != int(seen.swings):
 		seen.swings = swings
 		if melee:
 			var power := WeaponData.by_id(weapon).charge_of(maxf(float(seen.wind), 0.0))
 			var step := RobotAnimInput.step_of(flags)   # (which blow of the combo it is: a jab, a spinning kick...)
 			if g:
-				g.animator.swing(power, step)
+				g.animator.swing(power, step, RobotAnimInput.pick_of(flags))
 			elif _view:
-				_view.swing(power, step)
+				_view.swing(power, step, RobotAnimInput.pick_of(flags))
 		seen.wind = -1.0
 	if g and flying != bool(seen.flying):
 		g.animator.set_flying_kick(flying)

@@ -223,7 +223,7 @@ func cues() -> Array:
 			if _crossed(float(beat[1])):
 				out.append(str(beat[2]))
 	# Every weapon with lights hums as they come on, and a heavy one lands with a clack.
-	if not own_hum and weapon != "karate" and weapon != "" and _crossed(float(_glow[0])):
+	if not own_hum and weapon != "" and _crossed(float(_glow[0])):   # (Karate: its wraps power on as the aura ignites)
 		out.append("power_on")
 	if float(_kind.dip) >= 1.0 and _crossed(_time * 0.9):
 		out.append("heavy_clack")

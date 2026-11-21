@@ -22,6 +22,63 @@ static func hit(parent: Node, at: Vector3, from: Vector3, color: Color, power: f
 		_ring(parent, at, away, color.lerp(Color.WHITE, 0.3), lerpf(0.35, 0.7, power))
 
 
+## A Karate blow landed (instead of hit()): a punch is a tight burst with a small shock
+## ring, a kick a wider arc swept along its way; each blow of the combo a little bigger
+## than the one before (`step` 0..5), and the combo's last blow or a full wind-up
+## (`finisher`) a big flash with a double ring.
+static func karate_hit(parent: Node, at: Vector3, from: Vector3, color: Color, power: float, sweep: Vector3,
+		kick: bool, step: int, finisher: bool) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
+		return
+	power = clampf(power, 0.0, 1.0)
+	var away := at - from
+	away.y = 0.0
+	away = away.normalized() if away.length_squared() > 0.0001 else Vector3.FORWARD
+	var hot := color.lerp(Color.WHITE, 0.55)
+	var grow := 1.0 + 0.12 * clampi(step, 0, 5)
+	var way := sweep.normalized() if sweep.length_squared() > 0.01 else away
+	if finisher:
+		_flash(parent, at, hot, 0.34, 0.12)
+		_ring(parent, at, away, color.lerp(Color.WHITE, 0.3), 0.9)
+		_ring(parent, at, away, hot, 0.5)
+		_streak(parent, at, way, hot, 2.4)
+		_sparks(parent, at, away, hot, 1.0)
+	elif kick:
+		_flash(parent, at, hot, 0.16 * grow, 0.08)
+		_streak(parent, at, way, hot, 1.5 * grow)
+		_streak(parent, at - way * 0.12, way, color, 1.1 * grow)
+		_ring(parent, at, away, color.lerp(Color.WHITE, 0.3), 0.35 * grow)
+		_sparks(parent, at, away, hot, 0.4 + 0.1 * step)
+	else:
+		_flash(parent, at, hot, 0.1 * grow, 0.06)
+		_ring(parent, at, away, hot, 0.2 * grow)
+		_sparks(parent, at, away, hot, 0.15 + 0.08 * step)
+
+
+## A palm blast (Karate): the aura bursts out ahead of the palms, at `at` going `forward`:
+## a flash and two rings racing out, whether it hits anyone or not. Looks only.
+static func karate_burst(parent: Node, at: Vector3, forward: Vector3, color: Color) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
+		return
+	var hot := color.lerp(Color.WHITE, 0.5)
+	_flash(parent, at, hot, 0.3, 0.1)
+	_ring(parent, at, forward, hot, 0.7)
+	_ring(parent, at + forward * 0.35, forward, color, 1.0)
+	_streak(parent, at, forward, hot, 1.6)
+
+
+## Karate's ground slam: on top of the slam's own shockwave, the aura bursts up out of
+## the floor round the fist: a tall flash, a ring standing up and one more racing out flat.
+static func karate_slam(parent: Node, at: Vector3, color: Color) -> void:
+	if DisplayServer.get_name() == "headless" or not is_instance_valid(parent):
+		return
+	var hot := color.lerp(Color.WHITE, 0.45)
+	_flash(parent, at + Vector3(0, 0.6, 0), hot, 0.55, 0.14)
+	_ring(parent, at + Vector3(0, 0.05, 0), Vector3.UP, hot, 1.6)
+	_ring(parent, at + Vector3(0, 0.3, 0), Vector3.UP, color, 1.0)
+	_streak(parent, at, Vector3.UP, hot, 2.2)
+
+
 ## A small spark at `at` (fists knocked together: see WeaponDraw): a flash and a few sparks, no more.
 ## `close`: right in front of your own eyes (the flash alone: sparks that near fill the view).
 static func spark(parent: Node, at: Vector3, color: Color, close: bool = false) -> void:
@@ -211,7 +268,7 @@ static func _ring(parent: Node, at: Vector3, away: Vector3, color: Color, size: 
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mesh)
 	# A torus lies flat (its axis is Y): stand it up across the way the blow went.
-	var x := Vector3.UP.cross(away).normalized()
+	var x := Vector3.UP.cross(away).normalized() if absf(away.normalized().y) < 0.95 else Vector3.RIGHT   # (straight up: a ring flat on the floor)
 	mesh.global_transform = Transform3D(Basis(x, away, x.cross(away)), at)
 	mesh.scale = Vector3(0.12, 0.02, 0.12)
 	var tween := mesh.create_tween().set_parallel()

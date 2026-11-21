@@ -211,6 +211,8 @@ var _carry_pose: RobotPose
 var _fire_t := -1.0       # time into the gun's fire clip (pump, bolt), or -1
 var _loop_reload := false
 var _melee := false       # a melee weapon: held and swung by MeleeSwing, not by clips
+var _stance_w := 0.0      # how far into a fighting stance on the spot (Karate), 0..1
+var _ghost_t := 0.0       # seconds to the next afterimage of a spinning blow
 var _swing := MeleeSwing.new()
 var _hold := 1.0          # how much the arms hold the weapon up (0 in a flip, a roll, a climb)
 var _swing_key: Array = []   # the swing's pose this frame
@@ -341,18 +343,18 @@ func fire(left: bool = false) -> void:
 
 ## Winding a melee swing up, this frame: `charge` 0..1 is how far (the body coils with
 ## it), `side` which tap is coming (see MeleeSwing).
-func wind(charge: float, side: int = 0) -> void:
+func wind(charge: float, side: int = 0, pick: int = 0) -> void:
 	if _melee:
-		_swing.wind(charge, side, _airborne)
+		_swing.wind(charge, side, _airborne, pick)
 		draw.cut()
 		rope.hurry_flip()
 		_end_glide_flip()
 
 
 ## The swing was let go, `power` 0..1 wound up.
-func swing(power: float, side: int = 0) -> void:
+func swing(power: float, side: int = 0, pick: int = 0) -> void:
 	if _melee:
-		_swing.swing(power, side, _airborne)
+		_swing.swing(power, side, _airborne, pick)
 		draw.cut()
 		_since_fire = 0.0
 		rope.hurry_flip()
@@ -700,8 +702,16 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		var busy := _swing.active() and inp.alive
 		var carried: bool = want[0] > 0.0 and inp.alive and _respawn_t < 0.0 and not (hanging and not in_use)   # (on the rope it hangs from the hand)
 		_hold = move_toward(_hold, 1.0 if busy or carried else 0.0, delta * (ROPE_AIM_DROP if hanging and not busy else 9.0))
+		# A fighting stance on the spot (Karate): side-on, knees bent, bouncing on the toes.
+		if _swing.stance() and key == "loco" and inp.alive:
+			_fight_stance(delta, speed)
 		# On its feet the body sinks into its knees as it coils (less on the run), then turns.
 		var low := MeleeSwing.sink(_swing_key) * _hold * (1.0 - 0.6 * clampf(speed / 6.0, 0.0, 1.0)) if key == "loco" else 0.0
+		# ...and into the blow itself, the weight driving forward with it (Karate: see MeleeSwing.body).
+		var drive := _swing.body() if key == "loco" and inp.alive else Vector2.ZERO
+		low = maxf(low, drive.x * _hold)
+		if drive.y != 0.0:
+			_pose.pos[_b["hips"]] += Vector3(0.0, 0.0, -drive.y * _hold)
 		low = maxf(low, _swing.landed())   # a slam lands in a deep crouch
 		_sink = move_toward(_sink, low, delta * (20.0 if _swing.landed() > 0.0 else 8.0))
 		# Off the ground, a wind-up of the weapon's own (and a slam) draws the legs up.
@@ -725,7 +735,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 			if tilt != 0.0:
 				_pose.rot[_b["hips"]] = Quaternion(Vector3.BACK, tilt) * _pose.rot[_b["hips"]]
 				_pose.rot[_b["spine"]] = Quaternion(Vector3.BACK, -tilt * 0.6) * _pose.rot[_b["spine"]]
-		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold)
+		MeleeSwing.turn_body(_pose, _b, _swing_key, _hold, _swing.hips_turn())
 		# A mid-air wind-up spins the whole body about its middle (not the body you see from
 		# inside it: your own view stays level, and the arms go round it instead).
 		if _swing.spin() != 0.0 and not first_person and inp.alive:
@@ -801,7 +811,7 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		# (The swing's own lean is taken out in full, so a thrust stays level as the body leans into it.)
 		MeleeSwing.hold(_pose, rig, _swing_key, _swing.two_handed,
 			clampf(inp.pitch - chest_pitch, -1.2, 1.2) * 0.8 + float(_swing_key[MeleeSwing.LEAN]) * _hold * 0.2, _hold, _hold,
-			Vector3.ZERO, _swing.other_fist(), _swing.left_fist())
+			Vector3.ZERO, _swing.other_fist(), _swing.left_fist(), _swing.open_hands())
 		if draw.active():
 			_take_out(up_r, up_l, across)
 
@@ -900,6 +910,14 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		flinch.pose_body(_pose, _b, _lean, key in AIRBORNE)
 	_plant_feet(delta, inp, key, speed)
 	_pose.apply(model.skeleton)
+	# Afterimages of a spinning blow (Karate), left hanging in the air behind it.
+	if _melee and model.karate_gear and _swing.ghosts() and not first_person and inp.alive:
+		_ghost_t -= delta
+		if _ghost_t <= 0.0:
+			_ghost_t = KarateGear.GHOST_EVERY
+			KarateGear.ghost(model, fx_parent)
+	else:
+		_ghost_t = 0.0
 	model.settle_sway(rope.stream(inp.yaw, inp.velocity) * rope.w if hanging else Vector3.ZERO)   # a custom character's cape and tail
 	# The reload's own effects: the gun's glow, the spent cell thrown clear. (In first
 	# person the arms you see are ViewModel's, and it throws the cell.)
@@ -910,6 +928,37 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 	_fx_t = fx_t
 	if draw.active() and not _melee:
 		model.set_gun_glow(draw.glow())   # it powers on as it comes up
+
+
+## A fighting stance on the spot (Karate): the left foot forward and the right turned out
+## behind, the knees bent, bouncing on the toes, the hips a little lower; shallower
+## when the guard is down (see MeleeSwing.relaxed), gone as soon as you move off.
+func _fight_stance(delta: float, speed: float) -> void:
+	var still := 1.0 - smoothstep(0.4, 2.2, speed)
+	var busy_legs := not _swing.legs().is_empty()
+	_stance_w = move_toward(_stance_w, still * _hold * (0.0 if busy_legs else 1.0), delta * 6.0)
+	if _stance_w <= 0.0:
+		return
+	var depth := lerpf(1.0, 0.55, _swing.relaxed()) * _stance_w
+	var bounce := 0.5 + 0.5 * sin(_swing_clock() * TAU * MeleeSwing.STANCE_BOUNCE)
+	var t_l: int = _b["thigh_l"]
+	var s_l: int = _b["shin_l"]
+	var t_r: int = _b["thigh_r"]
+	var s_r: int = _b["shin_r"]
+	var knees := 0.32 + 0.08 * bounce
+	_pose.rot[t_l] = _pose.rot[t_l].slerp(Quaternion(Vector3.UP, 0.12) * Quaternion(Vector3.RIGHT, 0.36 + knees * 0.3), depth)
+	_pose.rot[s_l] = _pose.rot[s_l].slerp(Quaternion(Vector3.RIGHT, -knees - 0.2), depth)
+	_pose.rot[t_r] = _pose.rot[t_r].slerp(Quaternion(Vector3.UP, -0.45) * Quaternion(Vector3.RIGHT, -0.22 + knees * 0.4), depth)
+	_pose.rot[s_r] = _pose.rot[s_r].slerp(Quaternion(Vector3.RIGHT, -knees), depth)
+	var hips: int = _b["hips"]
+	_pose.pos[hips] += Vector3(0.0, -(0.05 + 0.02 * bounce) * depth, 0.0)
+	_pose.rot[hips] = Quaternion(Vector3.UP, -0.18 * depth) * _pose.rot[hips]   # a little side-on...
+	var chest: int = _b["chest"]
+	_pose.rot[chest] = Quaternion(Vector3.UP, 0.18 * depth) * _pose.rot[chest]   # ...the chest still square to the aim
+
+
+func _swing_clock() -> float:
+	return _swing.clock()
 
 
 ## A reload in the air (both hands free): the knees come up, and the spine and chest

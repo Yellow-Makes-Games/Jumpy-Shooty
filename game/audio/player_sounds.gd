@@ -38,6 +38,7 @@ var _wind: Node               # a glide's wind: a looping player of its own (on 
 var _wind_on := 0.0           # how far its wind is faded in, 0..1
 var _glide_t := 0.0           # seconds into the glide under way (or the one just let go)
 var _hum: Node                # the air cannon charging: a looping hum that rises (see charging)
+var _aura: Node               # Karate's aura: a hum that swells into a crackle with the wind-up (see aura)
 
 
 func _init(p: Node3D, is_own: bool, gun: String) -> void:
@@ -94,32 +95,58 @@ func charging(amount: float) -> void:
 			_hum.stop()
 		return
 	if _hum == null:
-		if Sound.silent or not is_instance_valid(player) or not player.is_inside_tree():
+		_hum = _loop("charge_hum")
+		if _hum == null:
 			return
-		var stream: AudioStream = Sound.stream("charge_hum")
-		if stream == null:
-			return
-		stream = stream.duplicate()
-		if stream is AudioStreamWAV:
-			var wav := stream as AudioStreamWAV
-			wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
-			wav.loop_end = int(wav.get_length() * wav.mix_rate)
-		if own:
-			_hum = AudioStreamPlayer.new()
-		else:
-			var p3 := AudioStreamPlayer3D.new()
-			var r: Array = Sound.RANGE.move   # (heard a fair way off: a warning)
-			p3.unit_size = r[0]
-			p3.max_distance = r[1]
-			p3.position = Vector3(0, 1.3, 0)
-			_hum = p3
-		_hum.stream = stream
-		_hum.bus = Sound.BUS_SFX
-		player.add_child(_hum)
 	_hum.pitch_scale = lerpf(0.55, 1.7, amount)
 	_hum.volume_db = float(SfxList.VOLUME.get("charge_hum", -11.0)) + lerpf(-6.0, 4.0, amount) + (0.0 if own else 2.0)
 	if not _hum.playing:
 		_hum.play()
+
+
+## Karate's aura (see KarateGear): a low hum that swells into a crackle as the swing is
+## wound up (`amount` 0..1), and stops (-1) when it is let go.
+func aura(amount: float) -> void:
+	if amount < 0.0:
+		if _aura and _aura.playing:
+			_aura.stop()
+		return
+	if _aura == null:
+		_aura = _loop("karate_aura")
+		if _aura == null:
+			return
+	_aura.pitch_scale = lerpf(0.7, 1.35, amount)
+	_aura.volume_db = float(SfxList.VOLUME.get("karate_aura", -15.0)) + lerpf(-8.0, 5.0, amount) + (0.0 if own else 2.0)
+	if not _aura.playing:
+		_aura.play()
+
+
+## A looping player of sound `name` on this player (heard in 3D by everyone else), or null.
+func _loop(name: String) -> Node:
+	if Sound.silent or not is_instance_valid(player) or not player.is_inside_tree():
+		return null
+	var stream: AudioStream = Sound.stream(name)
+	if stream == null:
+		return null
+	stream = stream.duplicate()
+	if stream is AudioStreamWAV:
+		var wav := stream as AudioStreamWAV
+		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		wav.loop_end = int(wav.get_length() * wav.mix_rate)
+	var out: Node
+	if own:
+		out = AudioStreamPlayer.new()
+	else:
+		var p3 := AudioStreamPlayer3D.new()
+		var r: Array = Sound.RANGE.move   # (heard a fair way off: a warning)
+		p3.unit_size = r[0]
+		p3.max_distance = r[1]
+		p3.position = Vector3(0, 1.3, 0)
+		out = p3
+	out.stream = stream
+	out.bus = Sound.BUS_SFX
+	player.add_child(out)
+	return out
 
 
 ## This player's gun just fired.

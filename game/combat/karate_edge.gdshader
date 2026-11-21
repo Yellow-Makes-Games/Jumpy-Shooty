@@ -25,7 +25,7 @@ void fragment() {
 	vec2 d2 = min(uv, 1.0 - uv) * aspect;
 	float d = min(d2.x, d2.y);
 	float flame = noise(vec2(uv.x * 9.0 + uv.y * 3.0, uv.y * 4.0 + TIME * 1.8));
-	float reach = 0.06 + 0.05 * flame;
+	float reach = 0.035 + 0.035 * flame;
 	float a = 1.0 - smoothstep(0.0, reach, d);
-	COLOR = vec4(color * a * strength * 0.32, 1.0);
+	COLOR = vec4(color * a * strength * 0.16, 1.0);
 }

@@ -1274,6 +1274,55 @@ def punch_hit(seed):
     return finish(mix(dry, fftconv(lp(dry, 3000), room_ir(rng, 0.4, 3000)) * 0.15))
 
 
+def karate(kind):
+    """Karate's own sounds (2026-11-21): the blows landing by kind, the whooshes of kicks and
+    spins, and the aura's loop (a low hum with a crackle of energy in it)."""
+    rng = np.random.default_rng(9700 + ["jab", "cross", "kick", "finisher", "kick_whoosh", "spin", "aura"].index(kind))
+    if kind == "jab":        # a quick sharp snap on armour
+        snap = bp(noise(rng, 0.06), 2600, 0.8) * env(0.06, 0.006, 0.0002) * 1.1
+        tap = sat(sine_sweep(0.12, 220, 110, 0.015) * env(0.12, 0.02) * 0.8, 1.6)
+        dry = mix(click(rng, 0.006, 0.0004, 4200), snap, tap)
+        return finish(mix(dry, fftconv(lp(dry, 3500), room_ir(rng, 0.3, 3500)) * 0.12))
+    if kind == "cross":      # the rear hand: a heavier smack, the weight behind it
+        smack = bp(noise(rng, 0.1), 1500, 0.7) * env(0.1, 0.014, 0.0002) * 1.3
+        thud = sat(sine_sweep(0.3, 160, 55, 0.025) * env(0.3, 0.05) * 1.5, 2.0)
+        dry = mix(click(rng, 0.008, 0.0005, 3200), smack, thud,
+                  modal(rng, 0.25, [520, 980, 1700], [0.035, 0.025, 0.015], [0.18, 0.1, 0.05], 0.05))
+        return finish(mix(dry, fftconv(lp(dry, 3000), room_ir(rng, 0.4, 3000)) * 0.15))
+    if kind == "kick":       # a shin into armour: a deep body thud with a slap on top
+        slap = bp(noise(rng, 0.12), 1100, 0.6) * env(0.12, 0.018, 0.0003) * 1.1
+        thud = sat(sine_sweep(0.4, 120, 42, 0.04) * env(0.4, 0.07) * 1.8, 2.2)
+        dry = mix(slap, thud, lp(noise(rng, 0.2), 500) * env(0.2, 0.04, 0.001) * 0.5)
+        return finish(mix(dry, fftconv(lp(dry, 2500), room_ir(rng, 0.5, 2500)) * 0.18))
+    if kind == "finisher":   # the combo's last blow: a crack like a whip and a boom under it
+        crack = hp(noise(rng, 0.05), 2500) * env(0.05, 0.004, 0.0001) * 1.4
+        boom = sat(sine_sweep(0.8, 90, 30, 0.08) * env(0.8, 0.16) * 2.0, 2.5)
+        rumble = lp(noise(rng, 0.8), 260) * env(0.8, 0.2, 0.004) * 0.8
+        dry = mix(click(rng, 0.008, 0.0004, 5000), crack, (boom, 0.004), (rumble, 0.01),
+                  (bp(noise(rng, 0.15), 1300, 0.7) * env(0.15, 0.02) * 0.9, 0.0))
+        return finish(mix(dry, fftconv(lp(dry, 2800), room_ir(rng, 0.8, 2800)) * 0.22))
+    if kind == "kick_whoosh":   # a leg swept through the air: deeper and longer than a punch
+        return finish(mix(whoosh(rng, 0.24, 300, 2200, 1.5, 0.6), (hp(noise(rng, 0.03), 1600) * env(0.03, 0.004) * 0.4, 0.2)))
+    if kind == "spin":       # a whole body turning: a long rising whoosh that snaps at the end
+        snap = (hp(noise(rng, 0.03), 1800) * env(0.03, 0.004, 0.0005) * 0.55, 0.3)
+        return finish(mix(whoosh(rng, 0.34, 250, 2600, 1.4, 0.75) * 1.1, (whoosh(rng, 0.2, 600, 3400, 1.8, 0.5) * 0.5, 0.14), snap))
+    # The aura's loop: a low hum with a crackle of energy riding on it; looped, its pitch
+    # and loudness rise with the wind-up (PlayerSounds.aura), so it swells into the crackle.
+    secs = 1.2
+    t = tt(secs)
+    hum = lp(glide(secs, 70, 70, "saw"), 700) * 0.4 + np.sin(2 * np.pi * 140 * t) * 0.15
+    hum = hum * (0.85 + 0.15 * np.sin(2 * np.pi * 2.5 * t))
+    crackle = np.zeros(n(secs))
+    for i in range(int(secs * 26)):
+        at = int(rng.uniform(0, n(secs) - n(0.02)))
+        crackle[at:at + n(0.02)] += hp(noise(rng, 0.02), 2500) * env(0.02, 0.002, 0.0001) * rng.uniform(0.15, 0.45)
+    loop = hum + crackle
+    fade = n(0.02)   # (ends that meet: it loops)
+    loop[:fade] *= np.linspace(0, 1, fade)
+    loop[-fade:] *= np.linspace(1, 0, fade)
+    return finish(loop, fade=0.0)
+
+
 def equip_melee(name):
     """Drawing a blade or hefting the hammer: a whoosh and a ring of steel (a clunk for the hammer)."""
     rng = np.random.default_rng(9500 + MELEE.index(name))
@@ -1950,6 +1999,8 @@ def recipes():
     for m in MELEE:
         r["swing_" + m] = lambda m=m: swing(m)
         r["equip_" + m] = lambda m=m: equip_melee(m)
+    for k in ["jab", "cross", "kick", "finisher", "kick_whoosh", "spin", "aura"]:
+        r["karate_" + k] = lambda k=k: karate(k)
     r["bat_hit"] = bat_hit
     for i in range(2):
         r["punch_hit_%d" % (i + 1)] = lambda i=i: punch_hit(i)

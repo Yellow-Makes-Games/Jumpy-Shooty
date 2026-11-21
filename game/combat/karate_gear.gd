@@ -34,6 +34,7 @@ const AURA_THICK_FULL := 0.05  ## ...and wound right up
 const SPARKS := 26             ## sparks in the air at once at most (High/Medium)
 const SPARKS_LOW := 10         ## ...and on Low
 const GRIT := 18
+const FP_AURA := 0.4          ## the aura on your own arms in first person is this bright, against everyone else's view of it
 const IGNITE := 0.45          ## seconds the aura's flare takes on taking Karate out
 
 static var _measures := {}     # mesh -> {bone: AABB in the bone's space}
@@ -71,7 +72,7 @@ static func attach(model: RobotModel, trim: Color, viewmodel: bool) -> Node3D:
 	# The aura: the body's own mesh, pushed out and lit, twice: a close flickering shell,
 	# and outer flames that grow with the charge.
 	var shells := []
-	for outer in [false, true]:
+	for outer in ([false] if viewmodel else [false, true]):   # (in first person: only the close shell, the flames would fill the view)
 		var shell := MeshInstance3D.new()
 		shell.name = "AuraOuter" if outer else "Aura"
 		shell.mesh = aura_mesh(model)
@@ -111,6 +112,10 @@ static func set_level(gear: Node3D, glow: float, draw: float, delta: float, on_f
 	if draw < 1.0:
 		ignite = sin(clampf(draw, 0.0, 1.0) * PI) * 1.3   # taking Karate out: the aura ignites with a flare
 	want = maxf(want, ignite)
+	# A blow that landed flares it (see flare()), fading quickly.
+	var flared: float = gear.get_meta("flare", 0.0)
+	want = maxf(want, flared * 1.5)
+	gear.set_meta("flare", move_toward(flared, 0.0, delta * 3.0))
 	if not alive:
 		want = -1.0
 	var level: float = gear.get_meta("level", 0.0)
@@ -125,9 +130,10 @@ static func set_level(gear: Node3D, glow: float, draw: float, delta: float, on_f
 	var shown := 0.0 if level < 0.0 else AURA_REST + level * 0.8
 	for shell in gear.get_meta("shells"):
 		var mat: ShaderMaterial = (shell as MeshInstance3D).material_override
-		mat.set_shader_parameter("level", maxf(level, 0.0))
-		mat.set_shader_parameter("strength", shown * (0.85 + 0.3 * beat))
-		mat.set_shader_parameter("thick", lerpf(AURA_THICK, AURA_THICK_FULL, clampf(level, 0.0, 1.0)) * (0.92 + 0.16 * beat))
+		var near: bool = mat.get_shader_parameter("first_person")   # your own arms, right in front of you: kept thin and faint
+		mat.set_shader_parameter("level", maxf(level, 0.0) * (0.4 if near else 1.0))
+		mat.set_shader_parameter("strength", shown * (0.85 + 0.3 * beat) * (FP_AURA if near else 1.0))
+		mat.set_shader_parameter("thick", lerpf(AURA_THICK, AURA_THICK_FULL, clampf(level, 0.0, 1.0)) * (0.92 + 0.16 * beat) * (0.45 if near else 1.0))
 		shell.visible = level > -0.99 and (not mat.get_shader_parameter("outer") or level > 0.05)
 	var trim: Color = gear.get_meta("trim")
 	for m in gear.get_meta("lit", []):
@@ -136,14 +142,20 @@ static func set_level(gear: Node3D, glow: float, draw: float, delta: float, on_f
 			m.set_shader_parameter("emission", trim * energy)
 		else:
 			(m as StandardMaterial3D).emission_energy_multiplier = energy
-	var sparks: GPUParticles3D = gear.get_meta("sparks", null)
+	var sparks: GPUParticles3D = gear.get_meta("sparks") if gear.has_meta("sparks") else null
 	if sparks:
 		sparks.emitting = level > 0.0
 		sparks.amount_ratio = clampf(0.25 + 0.75 * level, 0.0, 1.0)
 		sparks.speed_scale = 0.8 + 0.8 * clampf(level, 0.0, 1.0)
-	var grit: GPUParticles3D = gear.get_meta("grit", null)
+	var grit: GPUParticles3D = gear.get_meta("grit") if gear.has_meta("grit") else null
 	if grit:
 		grit.emitting = on_floor and level > 0.9 and alive
+
+
+## A blow landed: the aura flares up (`amount` 0..1) and settles back.
+static func flare(gear: Node3D, amount: float) -> void:
+	if gear:
+		gear.set_meta("flare", maxf(gear.get_meta("flare", 0.0), amount))
 
 
 ## Puts every piece of the gear and the aura on a render layer (RobotModel.set_layer).
@@ -160,7 +172,7 @@ static func set_layers(gear: Node3D, layers: int, also: int = 0) -> void:
 	for shell in gear.get_meta("shells"):
 		(shell as VisualInstance3D).layers = layers
 	for key in ["sparks", "grit"]:
-		var p: GPUParticles3D = gear.get_meta(key, null)
+		var p: GPUParticles3D = gear.get_meta(key) if gear.has_meta(key) else null
 		if p:
 			p.layers = layers
 
@@ -478,3 +490,48 @@ static func _grit(root: Node3D, trim: Color) -> GPUParticles3D:
 	p.emitting = false
 	root.add_child(p)
 	return p
+
+
+# ---------------------------------------------------------------------------
+# Afterimages
+
+const GHOST_EVERY := 0.035   ## seconds between afterimages of a spinning blow
+const GHOST_LIFE := 0.24     ## how long each one hangs in the air, fading
+const GHOST_SHADER := "res://game/combat/karate_ghost.gdshader"
+
+## An afterimage of `model` as it is posed right now: its body (the aura's smoothed mesh)
+## on a still copy of its skeleton, left where it is in the world and fading out in the
+## trim colour. Never solid: added light, brightest at the outline.
+static func ghost(model: RobotModel, parent: Node = null) -> void:
+	var gear := model.karate_gear
+	if gear == null or not model.is_inside_tree():
+		return
+	if parent == null or not is_instance_valid(parent):
+		parent = model.get_tree().current_scene if model.get_tree().current_scene else model.get_tree().root
+	var src := model.skeleton
+	var sk := Skeleton3D.new()
+	for i in src.get_bone_count():
+		sk.add_bone(src.get_bone_name(i))
+	for i in src.get_bone_count():
+		sk.set_bone_parent(i, src.get_bone_parent(i))
+		sk.set_bone_rest(i, src.get_bone_rest(i))
+		sk.set_bone_pose(i, src.get_bone_pose(i))
+	var root := Node3D.new()
+	root.name = "KarateGhost"
+	parent.add_child(root)
+	root.global_transform = src.global_transform
+	root.add_child(sk)
+	var mi := MeshInstance3D.new()
+	mi.mesh = aura_mesh(model)
+	mi.skin = model.mesh.skin
+	var mat := ShaderMaterial.new()
+	mat.shader = load(GHOST_SHADER)
+	mat.set_shader_parameter("color", gear.get_meta("trim"))
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.layers = model.mesh.layers
+	sk.add_child(mi)
+	mi.skeleton = mi.get_path_to(sk)
+	var tw := root.create_tween()
+	tw.tween_method(func(v: float) -> void: mat.set_shader_parameter("fade", v), 1.0, 0.0, GHOST_LIFE)
+	tw.tween_callback(root.queue_free)
