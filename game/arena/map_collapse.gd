@@ -69,6 +69,7 @@ const HISTORY_HZ := 30.0      ## ...this often
 const TOPPLE := 2.0           ## metres a second: how hard a piece of a building held up by its walls is tipped outwards as it lets go
 const TOPPLE_TURN := 1.2      ## ...and radians a second
 const EVENTS_EACH := 100000   ## a collapse's events are numbered from its `index` times this: the number says whose it is
+const BUCKET := 5.0           ## metres: the size of the buckets things and panels are found by (see _take_rests)
 const WALL_CELLS := 30        ## a stretch of wall with fewer cells that can break than this holds nothing up (a sliver beside a door)
 ## Square metres of slab or wall to a piece, by what it is made of.
 const PIECE_AREA := {"concrete": 5.0, "masonry": 1.6, "wood": 2.2, "sheet": 2.5}
@@ -194,7 +195,7 @@ func setup(map: MapRoot, f: MapFrame, pieces: Array, body: Node3D = null) -> Arr
 	var mine := []          # the building's own loose things
 	var solid_in := {}      # group -> its solid pieces
 	for piece: Dictionary in pieces:
-		if not piece.get("framed", false):
+		if piece.get("frame") != frame:
 			rest.append(piece)
 		elif not _take_column(piece):
 			mine.append(piece)
@@ -247,7 +248,7 @@ func setup(map: MapRoot, f: MapFrame, pieces: Array, body: Node3D = null) -> Arr
 	if breaks:
 		var by_unit := {}   # unit -> [cells]
 		for panel: Dictionary in breaks.panels:
-			if not (panel.piece as Dictionary).get("framed", false) or panel.get("frame") != on:
+			if (panel.piece as Dictionary).get("frame") != frame:
 				continue
 			var xf: Transform3D = panel.xf
 			var n: Vector3i = panel.n
@@ -326,7 +327,7 @@ func _take_walls() -> void:
 	var reach := frame.wall_reach
 	var found := {}   # Vector3i(crossing x, crossing z, storey) -> [cells]
 	for panel: Dictionary in breaks.panels:
-		if not (panel.piece as Dictionary).get("framed", false) or panel.get("frame") != on or not panel.fine or int(panel.thin) == 1 \
+		if (panel.piece as Dictionary).get("frame") != frame or not panel.fine or int(panel.thin) == 1 \
 				or panel.material == "glass":
 			continue
 		var xf: Transform3D = panel.xf
@@ -343,16 +344,21 @@ func _take_walls() -> void:
 						if storey < 0 and at.y < _tops[s] - _slab:
 							storey = s
 					if storey >= 0 and not breaks.cells[c].protected:
-						# (the nearest crossing, if it is near enough)
+						# (the nearest crossing, if it is near enough: the nearest line each way)
 						var best := Vector2i(-1, -1)
 						var nearest := reach
 						for a in _lines_x.size():
-							for b in _lines_z.size():
-								var d := maxf(absf(at.x - _lines_x[a]), absf(at.z - _lines_z[b]))
-								if d <= nearest:
-									nearest = d
-									best = Vector2i(a, b)
-						if best.x >= 0:
+							var d := absf(at.x - _lines_x[a])
+							if d <= nearest:
+								nearest = d
+								best.x = a
+						nearest = reach
+						for b in _lines_z.size():
+							var d := absf(at.z - _lines_z[b])
+							if d <= nearest:
+								nearest = d
+								best.y = b
+						if best.x >= 0 and best.y >= 0:
 							(found.get_or_add(Vector3i(best.x, best.y, storey), []) as Array).append(c)
 					c += 1
 	var keys := found.keys()
@@ -386,15 +392,24 @@ func _take_walls() -> void:
 ## none; what stands on another thing goes with that.
 func _take_rests() -> void:
 	_rests_of = {}
-	var mine := []   # the panels of this building: [panel, its box here]
+	# (In buckets: a tier of a tower has hundreds of panels and thousands of things.)
+	var mine := []   # the panels a thing here can rest on: [panel, its box here]
+	var panel_buckets := {}
 	for panel: Dictionary in breaks.panels:
-		if (panel.piece as Dictionary).get("framed", false) and panel.get("frame") == on:
-			mine.append([panel, (panel.xf as Transform3D) * AABB(-(panel.size as Vector3) * 0.5, panel.size)])
+		var piece: Dictionary = panel.piece
+		# (This building's, and any other's that it touches: a lamp hangs from the floor of the building above.)
+		if piece.get("frame") == frame or (piece.get("unguarded", false) and panel.get("frame") == on):
+			var reach := (panel.xf as Transform3D) * AABB(-(panel.size as Vector3) * 0.5, panel.size)
+			_bucket(panel_buckets, reach.grow(0.1), mine.size())
+			mine.append([panel, reach])
 	var all := []   # [piece, its box]
+	var thing_buckets := {}
 	for bay: Dictionary in bays:
 		for level: Array in bay.loose:
 			for piece: Dictionary in level:
-				all.append([piece, (piece.xf as Transform3D) * AABB(-(piece.size as Vector3) * 0.5, piece.size)])
+				var box := (piece.xf as Transform3D) * AABB(-(piece.size as Vector3) * 0.5, piece.size)
+				_bucket(thing_buckets, box.grow(0.15), all.size())
+				all.append([piece, box])
 	for n in all.size():
 		all[n][0]["rid"] = n
 	for entry: Array in all:
@@ -403,7 +418,8 @@ func _take_rests() -> void:
 		var stands := []
 		var hangs := []
 		var reach := box.grow(0.08)
-		for pair: Array in mine:
+		for m: int in _bucketed(panel_buckets, reach):
+			var pair: Array = mine[m]
 			if not (pair[1] as AABB).intersects(reach):
 				continue
 			var panel: Dictionary = pair[0]
@@ -436,7 +452,8 @@ func _take_rests() -> void:
 			var box: AABB = entry[1]
 			if not (piece.rests as PackedInt32Array).is_empty() or (_shift == 1 and box.position.y <= _tops[0] + 0.5):
 				continue
-			for other: Array in all:
+			for o: int in _bucketed(thing_buckets, box):
+				var other: Array = all[o]
 				var under: AABB = other[1]
 				if other[0] == piece or (other[0].rests as PackedInt32Array).is_empty():
 					continue
@@ -446,6 +463,33 @@ func _take_rests() -> void:
 	for entry: Array in all:
 		for c: int in (entry[0].rests as PackedInt32Array):
 			(_rests_of.get_or_add(c, []) as Array).append(entry[0])
+
+
+## Puts `index` in every bucket of `buckets` that `box` reaches, and gives the indices in
+## the buckets a box reaches, lowest first.
+static func _bucket(buckets: Dictionary, box: AABB, index: int) -> void:
+	var lo := Vector3i((box.position / BUCKET).floor())
+	var hi := Vector3i((box.end / BUCKET).floor())
+	for x in range(lo.x, hi.x + 1):
+		for y in range(lo.y, hi.y + 1):
+			for z in range(lo.z, hi.z + 1):
+				(buckets.get_or_add(Vector3i(x, y, z), []) as Array).append(index)
+
+
+static func _bucketed(buckets: Dictionary, box: AABB) -> Array:
+	var lo := Vector3i((box.position / BUCKET).floor())
+	var hi := Vector3i((box.end / BUCKET).floor())
+	if lo == hi:
+		return buckets.get(lo, [])   # (in the order they went in: lowest first)
+	var found := {}
+	for x in range(lo.x, hi.x + 1):
+		for y in range(lo.y, hi.y + 1):
+			for z in range(lo.z, hi.z + 1):
+				for i: int in buckets.get(Vector3i(x, y, z), []):
+					found[i] = true
+	var near := found.keys()
+	near.sort()
+	return near
 
 
 ## A cell's box in this collapse's frame (the map's, or the mover's).
@@ -530,11 +574,20 @@ func unit_of(bay: int, level: int) -> int:
 
 ## The bay over (or under) a point, or -1.
 func bay_at(at: Vector3) -> int:
-	for b in bays.size():
-		var bay: Dictionary = bays[b]
-		if at.x >= bay.x0 and at.x < bay.x1 and at.z >= bay.z0 and at.z < bay.z1:
-			return b
-	return -1
+	var nx := _lines_x.size() - 1
+	var nz := _lines_z.size() - 1
+	if nx < 1 or nz < 1:
+		return -1
+	var over := frame.overhang
+	if at.x < _lines_x[0] - over or at.x >= _lines_x[nx] + over or at.z < _lines_z[0] - over or at.z >= _lines_z[nz] + over:
+		return -1
+	var i := 0
+	while i < nx - 1 and at.x >= _lines_x[i + 1]:
+		i += 1
+	var j := 0
+	while j < nz - 1 and at.z >= _lines_z[j + 1]:
+		j += 1
+	return j * nx + i
 
 
 ## The bay nearest a place outside all of them.

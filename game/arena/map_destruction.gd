@@ -48,6 +48,8 @@ const CELL := 2.0            ## metres: about how big a piece breaks off
 const MAX_THICKNESS := 0.6   ## a wall or floor this thin or thinner can break
 const MIN_AREA := 7.0        ## ...and at least this big (small landings and steps stay)
 const SMALL_AREA := 0.4      ## ...or this big, in a building held up by its walls (MapFrame): every bit of wall breaks there
+const THICK_CELL := 1.5      ## fine: a wall or floor thicker than MAX_THICKNESS (MapRoot.break_thickness lets one break) breaks in pieces this much bigger...
+const THICK_ARMOUR := 60.0   ## ...and a hit weaker than this does nothing to it (small arms only mark it), whatever it is made of
 const ONE_PIECE_BELOW := 50.0  ## kinds weaker than this (glass) shatter as one pane
 const SPAWN_GUARD := 3.0     ## metres round a spawn point nothing breaks
 const BROKEN := 3            ## stages: 0 whole, 1 cracked, 2 badly cracked, 3 broken
@@ -75,6 +77,7 @@ const HEALTH_SPREAD := 0.5    ## fine: one cell is up to this much tougher than 
 const CUT_SHADE := 0.7       ## fine: how dark the broken edge of a panel is drawn
 const CRACK_SHADE := [1.0, 0.8, 0.62]
 const MAX_DEBRIS := 140
+const PANEL_BUCKET := 6.0     ## metres: the size of the buckets pieces are matched to panels in
 
 ## Every panel: {xf, size, kind, tint, n: Vector3i, cell: Vector3, first: int (first
 ## cell index), body: StaticBody3D, meshes: Node3D, skins: [{kind, tint, box: AABB}], thin: int,
@@ -148,11 +151,25 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 		_add_panel(piece, health_of(piece, table), whole, frame)
 		if whole:
 			whole_pieces.append(piece)
+	# (Where the new panels are, in buckets: a big map has thousands of them, and tens of
+	# thousands of pieces that might lie on one.)
+	var buckets := {}
+	for i in range(first_panel, panels.size()):
+		var reach: AABB = ((panels[i].xf as Transform3D) * AABB(-(panels[i].size as Vector3) * 0.5, panels[i].size)).grow(0.2)
+		var lo := Vector3i((reach.position / PANEL_BUCKET).floor())
+		var hi := Vector3i((reach.end / PANEL_BUCKET).floor())
+		for x in range(lo.x, hi.x + 1):
+			for y in range(lo.y, hi.y + 1):
+				for z in range(lo.z, hi.z + 1):
+					(buckets.get_or_add(Vector3i(x, y, z), []) as Array).append(i)
+	var near_of := {}   # index in keep -> the panels it might lie on, lowest first
 	for k in keep.size():
 		var p: Dictionary = keep[k]
 		if p.solid or p.get("hidden", false) or p.shape != "box":
 			continue
-		for i in range(first_panel, panels.size()):
+		var near := _panels_near(buckets, (p.xf as Transform3D) * AABB(-(p.size as Vector3) * 0.5, p.size))
+		near_of[k] = near
+		for i: int in near:
 			if panels[i].whole:
 				continue
 			var box := _skin_box(panels[i], p)
@@ -168,7 +185,7 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 		if p.solid or p.get("hidden", false) or p.shape != "box":
 			rest.append(p)
 		else:
-			rest.append_array(_share_band(p, first_panel))
+			rest.append_array(_share_band(p, near_of[k]))
 	# Whole blocks count as things resting on a floor: a floor under a crate holds.
 	_protect(rest + whole_pieces, spawn_points, first_cell, first_panel)
 	for i in range(first_panel, panels.size()):
@@ -188,11 +205,11 @@ func _can_break(piece: Dictionary, table: Dictionary) -> bool:
 		var up: Vector3 = (piece.xf as Transform3D).basis.y.abs()
 		var s: Vector3 = piece.size
 		small = s.y > minf(s.x, s.z) and up.y > 0.99   # (a wall: thin sideways, not a floor)
-	return thin_enough_piece(piece, SMALL_AREA if small else MIN_AREA)
+	return thin_enough_piece(piece, SMALL_AREA if small else MIN_AREA, maxf(root.break_thickness, MAX_THICKNESS) if fine else MAX_THICKNESS)
 
 
-static func thin_enough_piece(piece: Dictionary, area: float = MIN_AREA) -> bool:
-	return piece.shape == "box" and _thin(piece.size, area)
+static func thin_enough_piece(piece: Dictionary, area: float = MIN_AREA, thickness: float = MAX_THICKNESS) -> bool:
+	return piece.shape == "box" and _thin(piece.size, area, thickness)
 
 
 ## Can a block of this shape and size break per cell? (MapBlock's warning asks.)
@@ -200,11 +217,11 @@ static func thin_enough(shape: int, size: Vector3) -> bool:
 	return shape == MapBlock.Shape.BOX and _thin(size)
 
 
-static func _thin(s: Vector3, area: float = MIN_AREA) -> bool:
+static func _thin(s: Vector3, area: float = MIN_AREA, thickness: float = MAX_THICKNESS) -> bool:
 	var dims := [s.x, s.y, s.z]
 	dims.sort()
 	# (A size is held in single precision, where 0.6 is a hair over 0.6.)
-	return dims[0] <= MAX_THICKNESS + 0.001 and dims[1] * dims[2] >= area
+	return dims[0] <= thickness + 0.001 and dims[1] * dims[2] >= area
 
 
 ## How much damage a cell of this piece takes: its own health, else its kind's
@@ -250,6 +267,17 @@ func _add_panel(piece: Dictionary, toughness: float, whole: bool = false, frame:
 	var n := Vector3i.ONE
 	var cut := toughness >= ONE_PIECE_BELOW and not whole   # (else one pane, or one block)
 	var style: Dictionary = fine_style(piece.kind, mat, root.palette, toughness) if fine and cut else {}
+	if not style.is_empty():
+		# Bigger pieces: where the map's palette says so for this kind, and in anything
+		# thicker than usually breaks (which small arms only mark, and no round goes through).
+		var bigger: float = root.palette.break_scale.get(piece.kind, 1.0) if root.palette else 1.0
+		var thick := s[thin] > MAX_THICKNESS + 0.001
+		if thick or bigger != 1.0:
+			style = style.duplicate()
+			style.cell = (style.cell as Vector2) * bigger * (THICK_CELL if thick else 1.0)
+			if thick:
+				style.armour = maxf(float(style.armour), THICK_ARMOUR)
+				style.stop = INF
 	if cut:
 		for a in 3:
 			if a != thin:
@@ -310,6 +338,22 @@ func _add_panel(piece: Dictionary, toughness: float, whole: bool = false, frame:
 	panel.meshes = meshes
 
 
+## The panels in `buckets` (see _take) that a box reaches the neighbourhood of, lowest
+## number first.
+func _panels_near(buckets: Dictionary, box: AABB) -> Array:
+	var lo := Vector3i((box.position / PANEL_BUCKET).floor())
+	var hi := Vector3i((box.end / PANEL_BUCKET).floor())
+	var found := {}
+	for x in range(lo.x, hi.x + 1):
+		for y in range(lo.y, hi.y + 1):
+			for z in range(lo.z, hi.z + 1):
+				for i: int in buckets.get(Vector3i(x, y, z), []):
+					found[i] = true
+	var near := found.keys()
+	near.sort()
+	return near
+
+
 ## `piece` as a box in the panel's frame, if it is a skin of that panel: thin, lying
 ## flat against one of its big faces, square to it, and within its outline.
 func _skin_box(panel: Dictionary, piece: Dictionary) -> AABB:
@@ -338,7 +382,7 @@ func _skin_box(panel: Dictionary, piece: Dictionary) -> AABB:
 ## panel takes the length of it that lies on it as a skin, and what is left over (past
 ## a corner, across an opening) comes back as pieces of its own, to be drawn as before.
 ## A piece that is no such band comes back whole.
-func _share_band(piece: Dictionary, first_panel: int) -> Array:
+func _share_band(piece: Dictionary, near: Array) -> Array:
 	var size: Vector3 = piece.size
 	var along := 0   # its long axis, in its own frame
 	for a in 3:
@@ -348,7 +392,7 @@ func _share_band(piece: Dictionary, first_panel: int) -> Array:
 		return [piece]
 	var pxf: Transform3D = piece.xf
 	var spans: Array = []   # [from, to (along it, from its middle), panel, the skin's box]
-	for i in range(first_panel, panels.size()):
+	for i: int in near:
 		var panel: Dictionary = panels[i]
 		if panel.whole or not panel.fine:
 			continue
