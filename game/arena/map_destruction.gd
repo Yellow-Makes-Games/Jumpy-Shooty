@@ -107,10 +107,11 @@ var _replay_of: Variant = null   # ...from this replay_capture() (the same one a
 
 ## Takes the pieces that will break out of `pieces` (they are built here instead)
 ## and returns the rest, for MapRoot to build as usual.
-func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
+## Await it: with a `budget` it stops for a frame now and then (see MapBuildBudget).
+func setup(map: MapRoot, pieces: Array, spawn_points: Array, budget: MapBuildBudget = null) -> Array:
 	root = map
 	name = "Breakables"
-	var rest := _take(pieces, spawn_points, null)
+	var rest: Array = await _take(pieces, spawn_points, null, budget)
 	if not panels.is_empty():
 		add_to_group(MapReplay.GROUP)
 	return rest
@@ -119,13 +120,13 @@ func setup(map: MapRoot, pieces: Array, spawn_points: Array) -> Array:
 ## The same for the blocks of a mover (MapRoot calls it for each): `pieces` and
 ## `spawn_points` are in the mover's own frame, and `frame` is its moving body.
 func add_riding(frame: Node3D, pieces: Array, spawn_points: Array) -> Array:
-	var rest := _take(pieces, spawn_points, frame)
+	var rest: Array = await _take(pieces, spawn_points, frame)   # (no budget: never stops, but await it)
 	if not panels.is_empty():
 		add_to_group(MapReplay.GROUP)
 	return rest
 
 
-func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
+func _take(pieces: Array, spawn_points: Array, frame: Node3D, budget: MapBuildBudget = null) -> Array:
 	var map := root
 	var first_panel := panels.size()
 	var first_cell := cells.size()
@@ -148,6 +149,8 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 	# Thin drawn-only pieces lying flat on a panel go with it (cut cell by cell).
 	var skin_of := {}   # index in keep -> panel index
 	for piece in panel_pieces:
+		if budget and budget.due():
+			await budget.wait()
 		var whole: bool = piece.get("break_mode", "cell") == "whole"
 		_add_panel(piece, health_of(piece, table), whole, frame)
 		if whole:
@@ -165,6 +168,8 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 					(buckets.get_or_add(Vector3i(x, y, z), []) as Array).append(i)
 	var near_of := {}   # index in keep -> the panels it might lie on, lowest first
 	for k in keep.size():
+		if budget and budget.due():
+			await budget.wait()
 		var p: Dictionary = keep[k]
 		if p.solid or p.get("hidden", false) or p.shape != "box":
 			continue
@@ -188,8 +193,10 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 		else:
 			rest.append_array(_share_band(p, near_of[k]))
 	# Whole blocks count as things resting on a floor: a floor under a crate holds.
-	_protect(rest + whole_pieces, spawn_points, first_cell, first_panel)
+	await _protect(rest + whole_pieces, spawn_points, first_cell, first_panel, budget)
 	for i in range(first_panel, panels.size()):
+		if budget and budget.due():
+			await budget.wait()
 		if panels[i].fine and panels[i].frame == null:
 			panels[i]["lot"] = []   # (drawn with the panels round it while it is whole: see _draw_lots)
 		_rebuild_panel(i)
@@ -506,7 +513,8 @@ func _band_part(piece: Dictionary, along: int, from: float, to: float) -> Dictio
 ## Marks the cells that must not break: near spawns, and under or round other things.
 ## (Panel by panel, and for each thing only the cells it reaches: a map cut fine has
 ## thousands of cells.)
-func _protect(others: Array, spawn_points: Array, first_cell: int = 0, first_panel: int = 0) -> void:
+func _protect(others: Array, spawn_points: Array, first_cell: int = 0, first_panel: int = 0,
+		budget: MapBuildBudget = null) -> void:
 	# A coarse grid of the other pieces' boxes, so each panel only checks its neighbours.
 	var bucket := 4.0
 	var grid := {}
@@ -531,6 +539,8 @@ func _protect(others: Array, spawn_points: Array, first_cell: int = 0, first_pan
 						grid[key] = []
 					grid[key].append(id)
 	for index in range(first_panel, panels.size()):
+		if budget and budget.due():
+			await budget.wait()
 		var panel: Dictionary = panels[index]
 		if (panel.piece as Dictionary).get("unguarded", false):
 			continue   # (a building held up by its walls: all of it breaks, and what stands on it goes with it)

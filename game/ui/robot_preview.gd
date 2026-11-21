@@ -26,6 +26,7 @@ var color := Color.WHITE
 var weapon := "pistol"   ## the gun in its hands
 var turn := true   ## sway left and right; false keeps it facing you
 var facing := 0.0  ## a single robot's extra turn (radians): PI shows its back
+var clip := ""     ## an animation to loop in place of the idle ("sprint" on the loading screen); "" idles
 var staged := false   ## on a lit stage (see above)
 var drag := 0.0       ## turned this far by hand (radians); PortraitFrame sets it
 var held := false     ## being turned by hand right now: the sway waits
@@ -231,7 +232,13 @@ func _step(delta: float) -> void:
 	else:
 		for r in _robots:
 			var robot: RobotModel = r.robot
-			pose_at(r, _time + r.phase)
+			if clip != "" and robot.rig.has_clip(clip):
+				var pose: RobotPose = r.pose
+				robot.rig.sample(pose, clip, fmod(_time + r.phase, robot.rig.length(clip)))
+				pose.apply(robot.skeleton)
+				robot.settle_sway()
+			else:
+				pose_at(r, _time + r.phase)
 			if _lineup:   # each turned a little toward the middle of the row
 				robot.rotation.y = PI + 0.15 - clampf(robot.position.x * 0.4, -0.5, 0.5)
 	if _lineup:

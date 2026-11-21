@@ -35,6 +35,25 @@ static func build(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basis: Basi
 	return result
 
 
+## build(), a few pieces at a time, stopping for a frame whenever `budget` says so
+## (the arena's loading screen; see MapBuildBudget). Await it. With a null budget it
+## never stops.
+static func build_spread(pieces: Array, shade: Vector3, budget: MapBuildBudget) -> Dictionary:
+	if budget == null:
+		return build(pieces, shade)
+	var by_kind := {}
+	var i := 0
+	while i < pieces.size():
+		add_to(by_kind, pieces.slice(i, i + SPREAD_CHUNK), shade)
+		i += SPREAD_CHUNK
+		if budget.due():
+			await budget.wait()
+	return meshes(by_kind)
+
+
+const SPREAD_CHUNK := 64   ## pieces drawn between looks at the clock
+
+
 ## kind -> the arrays for a mesh surface (Mesh.ARRAY_MAX long: corners, normals,
 ## colours, and CUSTOM0 when a face's pattern is moved), as build() would put in its
 ## mesh. Nothing is handed to the GPU: the editor keeps every block's arrays and

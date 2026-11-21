@@ -131,6 +131,14 @@ static func name_of(id: String) -> String:
 
 ## A fresh copy of the map with this id (the default map if the id is unknown).
 ## Add it to the scene, then call build() on it.
+## The scene file of the map with this id (the default map's if the id is unknown).
+static func scene_path(id: String) -> String:
+	if has(id) and id.begins_with("res://"):
+		return id
+	var m := _entry(id)
+	return scene_path(default_id()) if m.is_empty() else str(m.scene)
+
+
 static func make(id: String) -> MapRoot:
 	if has(id) and id.begins_with("res://"):
 		return (load(id) as PackedScene).instantiate() as MapRoot

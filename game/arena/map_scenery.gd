@@ -21,6 +21,25 @@ static func bake_navigation(level: Node3D) -> NavigationRegion3D:
 	return region
 
 
+## bake_navigation(), but baking on a background thread while the screen keeps
+## drawing (the arena's loading screen). Await it.
+static func bake_navigation_spread(level: Node3D) -> NavigationRegion3D:
+	var started := Time.get_ticks_msec()
+	var nav := _nav_settings(level)
+	var source := NavigationMeshSourceGeometryData3D.new()
+	if level is MapRoot:
+		(level as MapRoot).remember_nav_poses()   # (bots ask their way in this frame: see MapRoot.to_nav)
+	NavigationServer3D.parse_source_geometry_data(nav, source, level)
+	NavigationServer3D.bake_from_source_geometry_data_async(nav, source)
+	while NavigationServer3D.is_baking_navigation_mesh(nav):
+		await level.get_tree().process_frame
+	var region := NavigationRegion3D.new()
+	region.name = "Navigation"
+	region.navigation_mesh = nav
+	print("Navigation mesh: %d polygons in %d ms (baked in the background)" % [nav.get_polygon_count(), Time.get_ticks_msec() - started])
+	return region
+
+
 ## Redoes the navigation mesh after the level changed (walls or floors broke), baking
 ## on a background thread so the game does not stall; `done` is called (with a line
 ## saying how long it took) when it is in.

@@ -33,6 +33,8 @@ var last_map_pool: Array = []
 ## The movement variant last picked (MovementTuning.VARIANTS) on the Practice or Vs Bots
 ## page or in a lobby you hosted; the next match you set up starts with it.
 var last_movement := MovementTuning.DEFAULT_VARIANT
+## The loading screen while a map is being built (null the rest of the time).
+var _loading: LoadingScreen
 
 
 func _ready() -> void:
@@ -119,6 +121,7 @@ func goto_main_menu(notice: String = "") -> void:
 	mode = Mode.NONE
 	_release_mouse()
 	Settings.use_movement_layout(false)   # (the usual keys outside a Movement B match)
+	_hide_loading()
 	get_tree().change_scene_to_file.call_deferred(MAIN_MENU)
 
 
@@ -136,6 +139,7 @@ func start_benchmark() -> void:
 
 func goto_lobby() -> void:
 	_release_mouse()
+	_hide_loading()
 	get_tree().change_scene_to_file.call_deferred(LOBBY)
 
 
@@ -383,13 +387,42 @@ func _on_session_ended(reason: String) -> void:
 
 
 func _on_match_started() -> void:
-	get_tree().change_scene_to_file.call_deferred(ARENA)
+	if DisplayServer.get_name() == "headless":
+		get_tree().change_scene_to_file.call_deferred(ARENA)   # nothing to see: no need to wait a frame
+		return
+	_hide_loading()
+	var me := Net.my_id()
+	_loading = LoadingScreen.make(Maps.name_of(Net.map_id()), Net.player_character(me), Net.player_color(me), Net.player_weapon(me))
+	var screen := _loading
+	add_child(screen)
+	await RenderingServer.frame_post_draw   # the loading screen is on screen before the map's build holds everything up
+	if _loading == screen and Net.in_match:   # (not if the match was called off, or started again, in the meantime)
+		get_tree().change_scene_to_file.call_deferred(ARENA)
+
+
+## The arena has built its map: take the loading screen down once the first few
+## frames of the match are drawn (the first frames compile shaders and stutter too).
+func map_loaded() -> void:
+	if _loading == null:
+		return
+	var screen := _loading
+	for i in 3:
+		await RenderingServer.frame_post_draw
+	if _loading == screen:
+		_hide_loading()
+
+
+func _hide_loading() -> void:
+	if _loading:
+		_loading.queue_free()
+		_loading = null
 
 
 ## The match is over: slow motion and a fade to "MATCH OVER" (MatchEndFade), then the
 ## results (which play the best kills).
 func _on_match_over(results: Array) -> void:
 	_release_mouse()
+	_hide_loading()
 	if Net.arena == null or not is_instance_valid(Net.arena):
 		Net.in_match = false
 		get_tree().change_scene_to_file.call_deferred(RESULTS)
