@@ -29,10 +29,9 @@ Angles in this file are measured the way a node's yaw is: 0 = south (+z), 90 = e
 180 = north, 270 = west.
 """
 import math
-from arena_builder import Map, palette, yaw_cols, xform, fmt, vec, color, norm, cross, facing, IDENTITY
+from arena_builder import sky_ext, map_name, Map, palette, yaw_cols, xform, fmt, vec, color, norm, cross, facing, IDENTITY
 
 PAL = "res://game/maps/palettes/halcyon.tres"
-SKY = "res://game/maps/sky/halcyon_sky.gdshader"
 
 COLORS = {
     # the ship
@@ -146,13 +145,12 @@ class HalcyonMap(Map):
             ids[k] = "%d_%s" % (i + 1, k)
             out.append('[ext_resource type="Script" path="%s" id="%s"]' % (p, ids[k]))
         out.append('[ext_resource type="Resource" path="%s" id="pal"]' % self.palette)
-        out.append('[ext_resource type="Shader" path="%s" id="sky"]' % SKY)
-        out += ["", '[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]', 'shader = ExtResource("sky")', "",
-                '[sub_resource type="Sky" id="Sky_1"]', 'sky_material = SubResource("ShaderMaterial_sky")', "",
-                '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2", 'sky = SubResource("Sky_1")']
+        out.append(sky_ext(map_name(path)))
+        out.append(sky_ext("halcyon_deep", "sky2"))   # the event's second look
+        out += ["", '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2"]
         out += self.env["lines"]
         out += ["", '[node name="%s" type="Node3D"]' % self.root, 'script = ExtResource("%s")' % ids["root"],
-                'palette = ExtResource("pal")']
+                'palette = ExtResource("pal")', 'sky = ExtResource("sky")']
         for k, v in self.settings.items():
             out.append("%s = %s" % (k, v))
         out += ["", '[node name="Environment" type="WorldEnvironment" parent="."]', 'environment = SubResource("Environment_1")', ""]
@@ -1571,7 +1569,7 @@ def centrifuge(m):
 def event(m):
     boxes = [(-13, 0.5, -13, 26, 12, 26), (-29, -5, -65, 58, 30, 32), (-23, -5, 33, 46, 30, 32),
              (-65, -5, -23, 32, 28, 46), (33, -5, -23, 32, 30, 46)]
-    m.node("LowGravity", ".", "gravity", [
+    m.node("LowGravity", ".", "gravity", [("sky", 'ExtResource("sky2")'), 
         ("mote_volumes", "Array[AABB]([%s])" % ", ".join("AABB(%s)" % ", ".join(fmt(v) for v in b) for b in boxes))], type_="Node")
 
 

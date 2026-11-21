@@ -30,7 +30,7 @@ map scene from then on; running this again overwrites hand edits.
 """
 import math
 import random
-from arena_builder import Map, yaw_cols, xform, fmt, vec, color, norm, cross, IDENTITY
+from arena_builder import sky_ext, map_name, Map, yaw_cols, xform, fmt, vec, color, norm, cross, IDENTITY
 
 PAL = "res://game/maps/palettes/haunted_house.tres"
 
@@ -274,16 +274,11 @@ class HauntedMap(Map):
             ids[k] = "%d_%s" % (i + 1, k)
             out.append('[ext_resource type="Script" path="%s" id="%s"]' % (p, ids[k]))
         out.append('[ext_resource type="Resource" path="%s" id="pal"]' % self.palette)
-        sky = self.env["sky"]
-        out += ["", '[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]']
-        for k in ("sky_top_color", "sky_horizon_color", "ground_bottom_color", "ground_horizon_color"):
-            out.append("%s = %s" % (k, color(sky[k])))
-        out += ["sun_angle_max = 8.0", "sky_energy_multiplier = 0.6", "",
-                '[sub_resource type="Sky" id="Sky_1"]', 'sky_material = SubResource("ProceduralSkyMaterial_1")', "",
-                '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2", 'sky = SubResource("Sky_1")']
+        out.append(sky_ext(map_name(path)))
+        out += ["", '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2"]
         out += self.env["lines"]
         out += ["", '[node name="%s" type="Node3D"]' % self.root, 'script = ExtResource("%s")' % ids["root"],
-                'palette = ExtResource("pal")']
+                'palette = ExtResource("pal")', 'sky = ExtResource("sky")']
         for k, v in self.settings.items():
             out.append("%s = %s" % (k, v))
         out += ["", '[node name="Environment" type="WorldEnvironment" parent="."]', 'environment = SubResource("Environment_1")', ""]

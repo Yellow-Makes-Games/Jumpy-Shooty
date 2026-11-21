@@ -20,6 +20,20 @@ SCRIPTS = {
 
 IDENTITY = ((1, 0, 0), (0, 1, 0), (0, 0, 1))
 
+# The sky engine: each map's sky is a SkyPreset in game/maps/sky/maps/, named after the
+# map (tools/sky/make_sky_presets.gd makes them). MapRoot.sky points at it.
+SKY_PRESET = "res://game/maps/sky/maps/%s.tres"
+
+
+def sky_ext(name, id_="sky"):
+    """The ext_resource line for a map's sky preset."""
+    return '[ext_resource type="Resource" path="%s" id="%s"]' % (SKY_PRESET % name, id_)
+
+
+def map_name(path):
+    """game/maps/office.tscn -> office."""
+    return path.replace("\\", "/").rsplit("/", 1)[-1].rsplit(".", 1)[0]
+
 
 def fmt(v):
     v = round(float(v), 4)
@@ -77,7 +91,8 @@ class Node:
 
 class Map:
     def __init__(self, root_name, palette_res, env, sun, settings):
-        """env: Environment settings (list of "key = value" lines) and sky colours (dict).
+        """env: Environment settings (list of "key = value" lines); its "sky" colours are no
+        longer used (the sky engine draws the sky: SKY_PRESET).
         sun: (elevation degrees, azimuth degrees from north toward east, colour, energy).
         settings: MapRoot properties as text (bounds, kill_height, swing_point, face_shade)."""
         self.root = root_name
@@ -330,23 +345,16 @@ class Map:
             ids[k] = "%d_%s" % (i + 1, k)
             out.append('[ext_resource type="Script" path="%s" id="%s"]' % (p, ids[k]))
         out.append('[ext_resource type="Resource" path="%s" id="pal"]' % self.palette)
-        out.append("")
-        sky = self.env["sky"]
-        out.append('[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]')
-        for k in ("sky_top_color", "sky_horizon_color", "ground_bottom_color", "ground_horizon_color"):
-            out.append("%s = %s" % (k, color(sky[k])))
-        out.append("")
-        out.append('[sub_resource type="Sky" id="Sky_1"]')
-        out.append('sky_material = SubResource("ProceduralSkyMaterial_1")')
+        out.append(sky_ext(map_name(path)))
         out.append("")
         out.append('[sub_resource type="Environment" id="Environment_1"]')
         out.append("background_mode = 2")
-        out.append('sky = SubResource("Sky_1")')
         out += self.env["lines"]
         out.append("")
         out.append('[node name="%s" type="Node3D"]' % self.root)
         out.append('script = ExtResource("%s")' % ids["root"])
         out.append('palette = ExtResource("pal")')
+        out.append('sky = ExtResource("sky")')
         for k, v in self.settings.items():
             out.append("%s = %s" % (k, v))
         out.append("")

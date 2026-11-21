@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="SkyPreset" format=3]
+
+[ext_resource type="Script" path="res://game/maps/sky/sky_preset.gd" id="1_sdxau"]
+
+[resource]
+script = ExtResource("1_sdxau")
+zenith_color = Color(0.24705882, 0.5254902, 0.8784314, 1)
+sky_color = Color(0.4745098, 0.7058824, 0.9411765, 1)
+horizon_color = Color(0.8235294, 0.9019608, 0.972549, 1)
+horizon_band = 0.22
+zenith_start = 0.04
+zenith_end = 0.85
+zenith_power = 0.75
+ground_color = Color(0.6039216, 0.6392157, 0.6117647, 1)
+sun_color = Color(1, 0.9647059, 0.89411765, 1)
+sun_radius = 0.038
+puff_amount = 0.7
+puff_color = Color(1, 1, 1, 1)
+puff_shade = Color(0.8745098, 0.90588236, 0.9490196, 1)
+puff_top = 0.55
+haze_amount = 0.25
+haze_height = 0.08
+silhouette_mode = 2
+silhouette_color = Color(0.49803922, 0.57254905, 0.5882353, 1)
+silhouette_height = 0.045
+silhouette_haze = 0.55
+light_sun_color = Color(1, 0.9607843, 0.8784314, 1)
+light_ambient_color = Color(0.7294118, 0.78431374, 0.9019608, 1)
+light_ambient_energy = 0.65

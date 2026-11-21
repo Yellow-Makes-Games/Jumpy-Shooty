@@ -186,6 +186,8 @@ Quick checks:
   Arcade and Sky Island: no two surfaces of different colours share a plane where both can be seen,
   and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
   `FLICKER_LIST=40` prints more of what it found;
+- skies (`tests/sky_engine_test.gd`): every map has a sky preset, the still sky never
+  uses `TIME` or `POSITION`, the rig's lighting, sun, blending and the Moving sky setting;
 - Halcyon (`tests/halcyon_test.gd`): spawn points, pickups, the terminal on its dais,
   bot navigation through every room and level, the hull stays sealed, the reactor pit
   kills;
@@ -613,8 +615,8 @@ tops, arrow slits, ivy, banners with gold marks (red on the Keep, blue on the
 Citadel, purple on the Broken Tower), pennants on the two whole towers, pale columns
 and paved floors with weeds in them. The light is a strong warm sun with cool blue
 shade (one ambient colour, not the sky's light, which the white cloud below washed
-out) under a deep blue sky; below is a sea of cloud (the sky is a shader,
-`game/maps/sky/sky_island_sky.gdshader`, at -30 m). Most colours come from the
+out) under a deep blue sky; below is a sea of cloud (the sky engine's preset `game/maps/sky/maps/sky_island.tres`,
+at -30 m; see "Skies"). Most colours come from the
 palette; a block's tint shades one thing off the next (each clump of pines, each
 ball of blossom). The grey
 block-out it started from is kept as `game/maps/sky_island_layout.tscn` (test map
@@ -1170,6 +1172,49 @@ in), and `--frames=N --fps=30` saves N pictures in a row for a clip (run it with
 `FPS=30` so the game steps at the same rate). The rest are at the top of
 `tools/portrait_preview.gd`.
 
+### Skies
+
+Every map's sky is drawn by the sky engine: one shader made of layers
+(`game/maps/sky/sky_engine.gdshaderinc`), each switched on and tuned by a **sky preset**
+(`SkyPreset`, `game/maps/sky/sky_preset.gd`). A map's root has a **Sky** setting
+pointing at its own preset in `game/maps/sky/maps/` (the map's name). Open that file
+in the inspector and drag its sliders: the open map redraws as you go.
+
+- **Layers**: the gradient (horizon to the top of the sky), sun, moon, stars, nebula,
+  aurora, shooting stars, the ribbon of magic, high streaks, puffy clouds, an overcast
+  deck, horizon haze, a planet (banded with a ring, or seas and land), what is below the
+  horizon (ground, a sea of cloud, a planet seen from low orbit, or open space), far
+  silhouettes (a city skyline with lit windows, hills or mountains), a city's glow,
+  the psychedelic colour flow and the surreal things (a second sun, faceted shapes,
+  an upside-down world overhead, orbit rings). An amount of 0 switches a layer off.
+- **The base looks** are in `game/maps/sky/presets/`: Clear Day, Golden Hour, Hazy
+  Overcast, Night City, Deep Space, Planet Orbit, Psychedelic and Surreal Dream.
+  `tools/sky/make_sky_presets.gd` writes them and each map's tuned copy (a base look
+  plus changes); it leaves files that are there alone unless given `--force`. To give
+  a new map a sky, add a line to its `maps()` table, run it, and set the map's Sky.
+- **Lighting**: the preset's Lighting group sets the map's Sun colour and brightness,
+  its ambient light and (if ticked) its fog. Untick one and the map keeps its own.
+  The Sun's direction is always the map's own, and the sun in the sky follows it.
+- **Cheap to run.** The Environment's sky is a still picture of the sky; the map's
+  light (ambient light and reflections) is captured from it once, and again only when
+  something changes it, never more than about once a second. (A sky shader that uses
+  `TIME`, or a setting changed every frame, makes Godot capture it every frame, which
+  is slow; the old hand-made skies of Cirrus, Empyrean, Halcyon and Sky Island did.)
+  What moves is drawn on a backdrop locked to the camera, behind everything and only
+  where sky shows (`sky_dome.gdshader`). On the Low graphics preset (or with **Moving
+  sky** off in the advanced graphics settings) there is no backdrop: the still sky is
+  the background. `SkyRig` (`game/maps/sky/sky_rig.gd`) does all this; MapRoot makes one.
+- **Events** change the sky by blending to a second preset: `SkyRig.blend(preset, k)`
+  (Cirrus's LayoutEvent and Halcyon's GravityEvent have a Sky setting for it), and
+  `SkyRig.set_live(setting, value)` pushes one setting (the cloud sea's churn).
+- **Readability**: nothing in the band just above and below the horizon (behind the
+  players) gets brighter than Horizon Cap, and the psychedelic flow calms down there.
+
+`tools/sky_preview.sh MAP OUT_DIR` renders a map's sky with the real renderer (views
+toward the sun, away and up); `--sky=res://...tres` tries another preset on it,
+`--map=stage` shows a preset on an open floor, `--still` shows the Low still sky and
+`--clip=6 --fps=12` saves frames for a clip. `tests/sky_engine_test.gd` checks it all.
+
 ### Rail Yard, Lost Temple and Neon Arcade
 
 These three arenas were laid out by `tools/arena/build_arena_maps.py` (one file per map
@@ -1244,7 +1289,8 @@ Things to keep true when editing it:
 - No spawn point or weapon in the Control Room, and no spawn point that can see the dais.
 - Lighting is the ambient light, a soft shadowless "sun" and the glowing kinds (each
   room has its own accent kind: `accent_cyan` and so on). There are no light nodes, so
-  it looks the same on every renderer. The sky is `game/maps/sky/halcyon_sky.gdshader`.
+  it looks the same on every renderer. The sky is the preset `game/maps/sky/maps/halcyon.tres`;
+  the GravityEvent blends it to `halcyon_deep.tres` while gravity is low (see "Skies").
 
 ### Cirrus
 
@@ -1335,8 +1381,9 @@ Things to keep true when editing it:
 - Bots cannot get round this map without the grapple, so the MapRoot has **Bots
   Grapple** ticked: every bot carries it here, whatever it was dealt.
 - Only the Labs' glass (`glass_lab`) breaks. Its panes ride the island like the walls.
-- The sky, the cloud sea and the ringed planet are `game/maps/sky/cirrus_sky.gdshader`;
-  the LayoutEvent turns its `sunset` and `swirl` up and down. The Environment's fog is
+- The sky, the cloud sea and the ringed planet are the preset `game/maps/sky/maps/cirrus.tres`;
+  the LayoutEvent blends it to `cirrus_sunset.tres` and churns the cloud sea while the
+  islands move (see "Skies"). The Environment's fog is
   height fog only (nothing above -34 m is touched): it is what a falling island
   vanishes into.
 
@@ -1445,7 +1492,7 @@ Things to keep true when editing it:
 - Keep the kerb round the core's basin (0.35 m: more than the bots' navigation mesh
   climbs), and the Kill Height 46 m under the root.
 - Lighting is the ambient light, the sun and the glowing kinds; there are no light nodes.
-  The sky is `game/maps/sky/empyrean_sky.gdshader`; the fog is height fog under the tower
+  The sky is the preset `game/maps/sky/maps/empyrean.tres` (see "Skies"); the fog is height fog under the tower
   only (the burn layer's haze).
 
 ### Haunted House

@@ -6,19 +6,10 @@
 [ext_resource type="Script" uid="uid://nastdacq4avs" path="res://game/arena/map_spawn.gd" id="4_1nbxg"]
 [ext_resource type="Script" uid="uid://b8cbf4nhxbmow" path="res://game/arena/map_dummy.gd" id="5_dummy"]
 [ext_resource type="Script" path="res://game/arena/map_grapple_point.gd" id="6_gpoint"]
-
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_21ygj"]
-sky_top_color = Color(0.22, 0.38, 0.62, 1)
-sky_horizon_color = Color(0.7, 0.74, 0.8, 1)
-ground_bottom_color = Color(0.2, 0.17, 0.13, 1)
-ground_horizon_color = Color(0.45, 0.47, 0.5, 1)
-
-[sub_resource type="Sky" id="Sky_l4vkl"]
-sky_material = SubResource("ProceduralSkyMaterial_21ygj")
+[ext_resource type="Resource" path="res://game/maps/sky/maps/testing_grounds.tres" id="sky_preset"]
 
 [sub_resource type="Environment" id="Environment_jnsip"]
 background_mode = 2
-sky = SubResource("Sky_l4vkl")
 ambient_light_source = 3
 ambient_light_energy = 0.35
 tonemap_mode = 4
@@ -27,6 +18,7 @@ glow_enabled = true
 
 [node name="TestingGrounds" type="Node3D" unique_id=941301076]
 script = ExtResource("1_ov1cm")
+sky = ExtResource("sky_preset")
 palette = ExtResource("2_i5v0i")
 grid_texture = true
 metadata/breakable_migrated = true

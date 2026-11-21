@@ -39,10 +39,9 @@ Angles in this file are measured the way a node's yaw is: 0 = south (+z), 90 = e
 outward, y = 0 its deck.
 """
 import math
-from arena_builder import Map, yaw_cols, xform, fmt, vec, color, norm, cross, IDENTITY
+from arena_builder import sky_ext, map_name, Map, yaw_cols, xform, fmt, vec, color, norm, cross, IDENTITY
 
 PAL = "res://game/maps/palettes/cirrus.tres"
-SKY = "res://game/maps/sky/cirrus_sky.gdshader"
 
 # The islands: (name, home angle, accent kind, roof kind)
 ISLANDS = [
@@ -271,18 +270,16 @@ class CirrusMap(Map):
             ids[k] = "%d_%s" % (i + 1, k)
             out.append('[ext_resource type="Script" path="%s" id="%s"]' % (p, ids[k]))
         out.append('[ext_resource type="Resource" path="%s" id="pal"]' % self.palette)
-        out.append('[ext_resource type="Shader" path="%s" id="sky"]' % SKY)
+        out.append(sky_ext(map_name(path)))
+        out.append(sky_ext("cirrus_sunset", "sky2"))   # the event's second look
         elev, azim, col, energy = self.sun
         e, az = math.radians(elev), math.radians(azim)
         Z = norm((math.sin(az) * math.cos(e), math.sin(e), -math.cos(az) * math.cos(e)))
         X = norm(cross((0, 1, 0), Z))
-        out += ["", '[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]', 'shader = ExtResource("sky")',
-                "shader_parameter/sun_dir = %s" % vec(Z), "",
-                '[sub_resource type="Sky" id="Sky_1"]', 'sky_material = SubResource("ShaderMaterial_sky")', "",
-                '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2", 'sky = SubResource("Sky_1")']
+        out += ["", '[sub_resource type="Environment" id="Environment_1"]', "background_mode = 2"]
         out += self.env["lines"]
         out += ["", '[node name="%s" type="Node3D"]' % self.root, 'script = ExtResource("%s")' % ids["root"],
-                'palette = ExtResource("pal")']
+                'palette = ExtResource("pal")', 'sky = ExtResource("sky")']
         for k, v in self.settings.items():
             out.append("%s = %s" % (k, v))
         out += ["", '[node name="Environment" type="WorldEnvironment" parent="."]', 'environment = SubResource("Environment_1")', ""]
@@ -1916,7 +1913,7 @@ BUILDINGS = {"Observatory": observatory, "Labs": labs, "LectureHall": lecture_ha
 
 def event(m):
     lit = 'PackedStringArray("window_lit", "lamp")'
-    m.node("Layout", ".", "layout", [
+    m.node("Layout", ".", "layout", [("sky", 'ExtResource("sky2")'), 
         ("up_count", "2"), ("hold_time", "60.0"), ("windup_time", "8.0"), ("move_time", "4.0"), ("down", fmt(DOWN)),
         ("tick_from", "Vector3(0, %s, 0)" % fmt(CLOCK_Y)),
         ("drift_turns", "PackedFloat32Array(-36, 36)"), ("close_in", "12.2"), ("far_out", "9.1"),

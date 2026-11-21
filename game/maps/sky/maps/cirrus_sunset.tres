@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="SkyPreset" format=3]
+
+[ext_resource type="Script" path="res://game/maps/sky/sky_preset.gd" id="1_4p3ih"]
+
+[resource]
+script = ExtResource("1_4p3ih")
+zenith_color = Color(0.48452926, 0.48452926, 0.7083697, 1)
+sky_color = Color(0.97769153, 0.6799757, 0.58383155, 1)
+horizon_color = Color(1, 0.80946815, 0.58383155, 1)
+sun_color = Color(1, 0.7735731, 0.5271128, 1)
+sun_disc = 3.0
+sun_radius = 0.0424
+sun_glow = 0.32
+sun_glow_power = 9.0
+sun_core = 0.7
+sun_core_power = 90.0
+streak_amount = 1.0
+streak_color = Color(1, 0.83228356, 0.735357, 1)
+planet_amount = 1.0
+planet_color_a = Color(0.935741, 0.7977378, 0.6799757, 1)
+planet_color_b = Color(0.9822071, 0.91627353, 0.80946815, 1)
+planet_color_c = Color(0.85430586, 0.6651851, 0.6342527, 1)
+planet_haze = 1.0
+planet_haze_color = Color(0.9546871, 0.735357, 0.6799757, 1)
+planet_wrap = 0.3
+planet_tilt = 0.347
+ring_amount = 1.0
+ring_color = Color(0.9911565, 0.9546871, 0.886004, 1)
+planet_spin = 0.002
+floor_mode = 1
+sea_lit = Color(1, 0.8433892, 0.735357, 1)
+sea_shade = Color(0.6799757, 0.58383155, 0.7083697, 1)
+sea_bumps = 0.34
+horizon_cap = 2.2
+light_sun = false
+light_ambient = false
