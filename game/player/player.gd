@@ -212,6 +212,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 			brain = BotBrain.new(self, Net.players[id].get("difficulty", 1))
 	elif is_local:
 		motor = MovementController.new(MovementTuning.for_variant(LobbySettings.movement()))   # (the host's pick: everyone moves the same way)
+		Settings.use_movement_layout(motor.tuning.shift_boost)   # (Movement B's keys)
 		weapon = _make_weapon(Net.player_weapon(id))
 		_apply_move_bonus()
 		if racing and DevArgs.autopilot:

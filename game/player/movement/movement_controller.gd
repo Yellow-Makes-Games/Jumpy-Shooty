@@ -203,7 +203,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		return
 
 	var wish := _wish_dir(input)
-	var wish_speed: float = (t.sprint_speed if input.sprint else t.run_speed) * min(input.move.length(), 1.0)
+	var wish_speed: float = (t.sprint_speed if input.sprint or t.always_sprint else t.run_speed) * min(input.move.length(), 1.0)
 	var forward := input.move.y > 0.3
 
 	# The crouch and dive keys. With tuning.ctrl_moves (Variant B) either key is one
