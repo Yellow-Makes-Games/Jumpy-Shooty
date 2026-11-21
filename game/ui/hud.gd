@@ -756,20 +756,24 @@ func _draw_points(ci: CanvasItem, c: Vector2) -> void:
 
 
 ## The killcam score's whole list, bottom left on a screen `height` tall (also the
-## HUD preview's in Settings).
-static func draw_points_list(ci: CanvasItem, height: float, total: int, parts: Array, fade: float) -> void:
-	var lx := HudClean.MARGIN
+## HUD preview's in Settings, and every killcam's: see KillcamOverlay). `scale`: all of
+## it this much bigger (a killcam saved at 1080p); `origin`: where the screen starts;
+## `bottom`: how far up from the bottom its last line sits (before `scale`).
+static func draw_points_list(ci: CanvasItem, height: float, total: int, parts: Array, fade: float, scale: float = 1.0,
+		origin: Vector2 = Vector2.ZERO, bottom: float = POINTS_LIST_BOTTOM) -> void:
+	var k := scale
+	var lx := origin.x + HudClean.MARGIN * k
 	var col := 0.0   # the words line up after the widest "+100"
 	for p in parts:
-		col = maxf(col, HudStyle.text_width("+%d" % p[1], 14) + 10.0)
-	var ly: float = height - POINTS_LIST_BOTTOM - (parts.size() - 1) * 19.0
-	var hw := HudStyle.label(ci, Vector2(lx, ly - 28.0), "KILLCAM SCORE", 10, Color(1, 1, 1, 0.7 * fade))
-	HudStyle.text(ci, Vector2(lx + hw + 10.0, ly - 29.0), str(total), 20, Color(HudStyle.ORANGE, fade))
+		col = maxf(col, HudStyle.text_width("+%d" % p[1], int(14 * k)) + 10.0 * k)
+	var ly: float = origin.y + height - bottom * k - (parts.size() - 1) * 19.0 * k
+	var hw := HudStyle.label(ci, Vector2(lx, ly - 28.0 * k), "KILLCAM SCORE", int(10 * k), Color(1, 1, 1, 0.7 * fade))
+	HudStyle.text(ci, Vector2(lx + hw + 10.0 * k, ly - 29.0 * k), str(total), int(20 * k), Color(HudStyle.ORANGE, fade))
 	for i in parts.size():
 		var p: Array = parts[i]
-		HudStyle.text(ci, Vector2(lx, ly), "+%d" % p[1], 14, Color(_points_color(p, i), fade))
-		HudStyle.text(ci, Vector2(lx + col, ly), p[0], 12, Color(1, 1, 1, 0.8 * fade), HORIZONTAL_ALIGNMENT_LEFT, false)
-		ly += 19.0
+		HudStyle.text(ci, Vector2(lx, ly), "+%d" % p[1], int(14 * k), Color(_points_color(p, i), fade))
+		HudStyle.text(ci, Vector2(lx + col, ly), p[0], int(12 * k), Color(1, 1, 1, 0.8 * fade), HORIZONTAL_ALIGNMENT_LEFT, false)
+		ly += 19.0 * k
 
 
 ## Gold for the parts that make a highlight (a headshot, a flick, a multikill).

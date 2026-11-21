@@ -351,6 +351,18 @@ func _follow_on() -> void:
 	_expect(is_equal_approx(Killcam.clip_start(10.0, chain, false), 10.0 + Killcam.HIGHLIGHT_AFTER - Killcam.MAX_CLIP),
 		"a long streak before it: no more than %.0f s in all" % Killcam.MAX_CLIP)
 	Killcam._pending = saved
+	# Each kill's points show as the replay reaches it.
+	var multi := KillClip.new()
+	multi.kill_time = 5.0
+	multi.info = {"seq": 2, "score": 300}
+	multi.kills = [[4.0, {"seq": 1, "score": 120}], [5.0, {"seq": 2, "score": 300}], [6.2, {"seq": 3, "score": 210}]]
+	_expect(multi.kill_at(3.9).is_empty(), "before the first kill: no points yet")
+	_expect(int(multi.kill_at(4.5)[1].seq) == 1 and int(multi.kill_at(5.0)[1].seq) == 2 and int(multi.kill_at(7.0)[1].seq) == 3,
+		"then each kill's points as it lands, the scoring kill's and the others'")
+	var single := KillClip.new()
+	single.kill_time = 2.0
+	single.info = {"seq": 9, "score": 100}
+	_expect(single.kill_at(1.0).is_empty() and int(single.kill_at(2.5)[1].seq) == 9, "a clip with only its own kill shows that one")
 
 
 ## The killer zoomed in partway through: the killcam's view narrows with them.
