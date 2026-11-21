@@ -73,10 +73,12 @@ var grapple := GRAPPLE_NO_TARGET
 var grapple_cooldown := 0.0     ## 1 = just let go, 0 = ready
 var tether := 0.0
 ## The mobility tool (see Mobility), and for blink its charges (and how far the next
-## has come back), for the portal gun which of your portals are up and which is next.
+## has come back) and how far the next goes (see Blink.strength), for the portal gun
+## which of your portals are up and which is next.
 var mobility := Mobility.GRAPPLE
 var blink_charges := 0
 var blink_refill := 1.0
+var blink_strength := 1.0
 var portals_up := [false, false]
 var portal_next := 0
 var jet_fuel := 1.0
@@ -268,6 +270,7 @@ func update_local(p: Player) -> void:
 	if p.blink:
 		blink_charges = p.blink.charges
 		blink_refill = p.blink.recharge_progress()
+		blink_strength = p.blink.strength()
 	if p.portal_gun and Net.arena and Net.arena.portals:
 		portal_next = p.portal_gun.next_slot
 		portals_up = [Net.arena.portals.get_portal(p.peer_id, 0) != null, Net.arena.portals.get_portal(p.peer_id, 1) != null]
@@ -793,17 +796,21 @@ static func _points_color(part: Array, i: int) -> Color:
 
 
 ## Under the crosshair ring: blink's charges (three short arcs, the next one filling
-## up), or the portal gun's two portals (filled when up, the next one to shoot ringed).
+## up; the ready ones go from blue to orange while blinks in quick succession have
+## shortened the next one), or the portal gun's two portals (filled when up, the next
+## one to shoot ringed).
 func _draw_mobility_marks(ci: CanvasItem, c: Vector2, ring: float) -> void:
 	match mobility:
 		Mobility.BLINK:
 			var each := 36.0
+			var tired := inverse_lerp(1.0, Blink.MIN_REACH, blink_strength)   # 0 a full blink .. 1 the shortest
+			var ready_col := Color(Portal.COLORS[0].lerp(HudStyle.ORANGE, tired), 0.95)
 			for i in Blink.CHARGES:
 				var from := 90.0 + (i - 1) * (each + 6.0) - each * 0.5
 				HudStyle.arc(ci, c, ring + 6.0, from, from + each, Color(1, 1, 1, 0.15), 3.0)
 				var fill := 1.0 if i < blink_charges else (blink_refill if i == blink_charges else 0.0)
 				if fill > 0.0:
-					var col := Color(Portal.COLORS[0], 0.95) if fill >= 1.0 else Color(1, 1, 1, 0.45)
+					var col := ready_col if fill >= 1.0 else Color(1, 1, 1, 0.45)
 					HudStyle.arc(ci, c, ring + 6.0, from, from + each * fill, col, 3.0)
 		Mobility.JETPACK:   # fuel: an arc under the ring, orange when low
 			var span := 110.0
