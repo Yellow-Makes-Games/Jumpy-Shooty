@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="SkyPreset" format=3]
+
+[ext_resource type="Script" path="res://game/maps/sky/sky_preset.gd" id="1_8nwqv"]
+
+[resource]
+script = ExtResource("1_8nwqv")
+zenith_color = Color(0.14901961, 0.1254902, 0.21960784, 1)
+sky_color = Color(0.14901961, 0.1254902, 0.21960784, 1)
+horizon_color = Color(0.101960786, 0.08627451, 0.15686275, 1)
+sun_color = Color(0.9019608, 0.8392157, 1, 1)
+sun_disc = 0.0
+sun_glow = 0.2
+sun_glow_power = 6.0
+sun_core = 0.0
+floor_mode = 3
+silk_amount = 1.0
+silk_style = 2
+silk_base = Color(0.101960786, 0.08627451, 0.15686275, 1)
+silk_base_top = Color(0.14901961, 0.1254902, 0.21960784, 1)
+silk_color_a = Color(0.72156864, 0.4392157, 0.3529412, 1)
+silk_color_b = Color(0.43137255, 0.32156864, 0.65882355, 1)
+silk_color_c = Color(0.23529412, 0.5647059, 0.47058824, 1)
+silk_color_d = Color(0.23529412, 0.43137255, 0.65882355, 1)
+silk_sheen = 0.45
+silk_shadow = 0.4
+silk_seed = 6.0
+light_sun_color = Color(0.8862745, 0.83137256, 1, 1)
+light_sun_energy = 0.62
+light_ambient_color = Color(0.4862745, 0.4392157, 0.6117647, 1)
+light_ambient_energy = 0.62

@@ -1261,10 +1261,17 @@ in the inspector and drag its sliders: the open map redraws as you go.
   deck, horizon haze, a planet (banded with a ring, or seas and land), what is below the
   horizon (ground, a sea of cloud, a planet seen from low orbit, or open space), far
   silhouettes (a city skyline with lit windows, hills or mountains), a city's glow,
-  the psychedelic colour flow and the surreal things (a second sun, faceted shapes,
+  the psychedelic colour flow, **silk** (abstract colour flowing all round the sky:
+  four colours melting into each other, pushed about by drifting noise so they fold,
+  billow and morph, with no hard edges; styles lean toward long folds, stacked waves
+  or pools of colour; a soft satin glow on the crests and, for the dark looks, light
+  seeping through the folds) and the surreal things (a second sun, faceted shapes,
   an upside-down world overhead, orbit rings). An amount of 0 switches a layer off.
 - **The base looks** are in `game/maps/sky/presets/`: Clear Day, Golden Hour, Hazy
-  Overcast, Night City, Deep Space, Planet Orbit, Psychedelic and Surreal Dream.
+  Overcast, Night City, Deep Space, Planet Orbit, Psychedelic and Surreal Dream; and the
+  abstract silk looks, each with a dark version (`_dark`): Ember (tangerine, coral pink
+  and gold over plum), Tide (cobalt, teal and violet), Sorbet (pastels) and Abyss
+  (midnight blues with cyan and magenta light).
   `tools/sky/make_sky_presets.gd` writes them and each map's tuned copy (a base look
   plus changes); it leaves files that are there alone unless given `--force`. To give
   a new map a sky, add a line to its `maps()` table, run it, and set the map's Sky.

@@ -136,7 +136,49 @@ func base_looks() -> Dictionary:
 			"light_sun_color": C("#ffeedc"), "light_sun_energy": 1.0,
 			"light_ambient_color": C("#dccbf0"), "light_ambient_energy": 0.7,
 		},
+		# Abstract silk (the Silk layer): folded colour all round, no sun disc, nothing else.
+		"ember": _silk(0, "#2a1030", "#4a1c48", ["#ff8a3c", "#ff8a9e", "#ffc857", "#c0487a"],
+			{"silk_count": 4.0, "silk_tilt": 0.25, "silk_sheen": 0.8, "silk_shadow": 0.95, "sun_color": C("#ffd2a0"),
+			"light_sun_color": C("#ffd8b4"), "light_sun_energy": 1.0, "light_ambient_color": C("#dcbcc8"), "light_ambient_energy": 0.72}),
+		"ember_dark": _silk(0, "#0e040e", "#220a24", ["#9a3e16", "#8e2e52", "#9a6418", "#48143a"],
+			{"silk_count": 4.0, "silk_tilt": 0.25, "silk_sheen": 0.3, "silk_edge_glow": 0.6, "sky_energy": 0.8,
+			"silk_edge_color": C("#ffb066"), "silk_edge_color_b": C("#ff8ab4"), "sun_color": C("#ffb880"),
+			"light_sun_color": C("#ffc09a"), "light_sun_energy": 0.7, "light_ambient_color": C("#9a7290"), "light_ambient_energy": 0.62}),
+		"tide": _silk(1, "#0d1640", "#1b2a6b", ["#2f6fe0", "#1fb3b8", "#6a5ad8", "#3aa0e8"],
+			{"silk_count": 5.0, "silk_tilt": 0.12, "silk_sheen": 0.55, "sun_color": C("#d8ecff"),
+			"light_sun_color": C("#e4f2ff"), "light_sun_energy": 1.0, "light_ambient_color": C("#aec4ea"), "light_ambient_energy": 0.72}),
+		"tide_dark": _silk(1, "#040818", "#070c26", ["#173a8a", "#0d6a72", "#36287a", "#1a5490"],
+			{"silk_count": 5.0, "silk_tilt": 0.12, "silk_sheen": 0.4, "silk_edge_glow": 0.5,
+			"silk_edge_color": C("#5ce8ff"), "silk_edge_color_b": C("#9a8aff"), "sun_color": C("#a8c8ff"),
+			"light_sun_color": C("#bcd2ff"), "light_sun_energy": 0.62, "light_ambient_color": C("#5e6ea4"), "light_ambient_energy": 0.62}),
+		"sorbet": _silk(2, "#e6cfe0", "#d6dcf2", ["#ffa98a", "#b296f0", "#86e2c0", "#88c2ff"],
+			{"silk_count": 4.0, "silk_scale": 0.85, "silk_sheen": 0.5, "silk_shadow": 0.5, "sun_color": C("#fff2e6"), "horizon_cap": 2.0,
+			"light_sun_color": C("#fff2e8"), "light_sun_energy": 1.0, "light_ambient_color": C("#e6def2"), "light_ambient_energy": 0.82}),
+		"sorbet_dark": _silk(2, "#1a1628", "#262038", ["#b8705a", "#6e52a8", "#3c9078", "#3c6ea8"],
+			{"silk_count": 4.0, "silk_sheen": 0.45, "silk_shadow": 0.4, "sun_color": C("#e6d6ff"),
+			"light_sun_color": C("#e2d4ff"), "light_sun_energy": 0.62, "light_ambient_color": C("#7c709c"), "light_ambient_energy": 0.62}),
+		"abyss": _silk(0, "#141c4a", "#24327a", ["#3a5ad0", "#7a3ab8", "#2a7ad0", "#5a3ac0"],
+			{"silk_count": 5.0, "silk_tilt": 0.3, "silk_scale": 0.85, "silk_sheen": 0.55, "silk_edge_glow": 0.5,
+			"silk_edge_color": C("#4af0ff"), "silk_edge_color_b": C("#ff5ae6"), "sun_color": C("#c8d8ff"),
+			"light_sun_color": C("#d0dcff"), "light_sun_energy": 0.9, "light_ambient_color": C("#8a90c8"), "light_ambient_energy": 0.7}),
+		"abyss_dark": _silk(0, "#02030c", "#050822", ["#10183e", "#2a0e3a", "#0a1c40", "#1c0e44"],
+			{"silk_count": 5.0, "silk_tilt": 0.3, "silk_scale": 0.85, "silk_sheen": 0.45, "silk_edge_glow": 1.0,
+			"silk_edge_color": C("#4af0ff"), "silk_edge_color_b": C("#ff5ae6"), "sun_color": C("#a0b4ff"),
+			"light_sun_color": C("#aebcff"), "light_sun_energy": 0.55, "light_ambient_color": C("#565c94"), "light_ambient_energy": 0.6}),
 	}
+
+
+## A Silk look: style (0 ribbons, 1 waves, 2 colour fields), the colours low and high
+## behind it, its four colours, and the rest.
+static func _silk(style: int, base: String, top: String, colours: Array, more: Dictionary) -> Dictionary:
+	var out := {
+		"floor_mode": 3, "silk_amount": 1.0, "silk_style": style, "silk_seed": float(style) + colours.size(),
+		"silk_base": C(base), "silk_base_top": C(top), "horizon_color": C(base), "sky_color": C(top), "zenith_color": C(top),
+		"silk_color_a": C(colours[0]), "silk_color_b": C(colours[1]), "silk_color_c": C(colours[2]), "silk_color_d": C(colours[3]),
+		"sun_disc": 0.0, "sun_glow": 0.2, "sun_glow_power": 6.0, "sun_core": 0.0,
+	}
+	out.merge(more, true)
+	return out
 
 
 ## Each map: [base look, changes]. Maps whose sky was made by hand keep their own
@@ -261,10 +303,9 @@ func maps() -> Dictionary:
 			"light_sun_color": C("#ffe8c4"), "light_sun_energy": 1.12,
 			"light_ambient_color": C("#d8cbbe"), "light_ambient_energy": 0.8,
 		}],
-		"castle_v2": ["golden_hour", {
-			"sun_color": C("#ffe4b0"), "glow_amount": 0.25,
-			"light_sun_color": C("#ffe8c4"), "light_sun_energy": 1.12,
-			"light_ambient_color": C("#d8cbbe"), "light_ambient_energy": 0.8,
+		"castle_v2": ["ember", {
+			# Its distance fog takes the sky's warm colour, so far mountains melt into it.
+			"light_fog": true, "light_fog_color": C("#d8bcaa"), "light_fog_density": 0.0012,
 		}],
 		"testing_grounds": ["clear_day", {
 			"silhouette_mode": 0,
