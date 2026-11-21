@@ -457,7 +457,7 @@ func _surface_of(p: Dictionary) -> Dictionary:
 		if lumps.size() == 1:
 			planes = MapMesher.hull_planes(lumps[0])
 	# (A hull is looked up as the box round it, its top face by its planes.)
-	return {"inv": xf.affine_inverse(), "half": half, "round": p.shape != "box" and p.shape != "hull" and p.shape != "wedge" and p.shape != "bevel",
+	return {"inv": xf.affine_inverse(), "half": half, "round": p.shape not in ["box", "hull", "wedge", "bevel", "stairs"],
 		"top": box.end.y, "box": box, "material": mat, "faces": faces, "planes": planes, "scale": p.get("scale", Vector3.ONE),
 		"decor": decor}
 
@@ -1329,7 +1329,7 @@ func _collect_dummies(node: Node, xf: Transform3D) -> void:
 ## flat side, so you can stand in the hole you can see through; it is not in
 ## hull_points() because it is drawn by _prism, not from its lumps.
 func collision_shapes(piece: Dictionary) -> Array:
-	var lumps := MapMesher.tube_hulls(piece) if piece.shape == "tube" else MapMesher.hull_points(piece)
+	var lumps := MapMesher.tube_hulls(piece) if piece.shape == "tube" and not piece.has("arc") else MapMesher.hull_points(piece)
 	if lumps.is_empty():
 		return [_collision_shape(piece)]
 	var shapes := []
