@@ -1009,8 +1009,8 @@ static func air_cannon() -> WeaponData:
 	w.kick = 2.0
 	w.knockback = 9.0       # a tap: a shove, never into a wall hard enough to hurt
 	w.knockback_up = 4.0
-	w.charge_knockback = 40.0     # a full charge up close: across the room
-	w.charge_knockback_up = 11.0
+	w.charge_knockback = 60.0     # a full charge up close: across the room
+	w.charge_knockback_up = 16.5
 	w.tracer_color = Color(0.85, 0.95, 1.0)
 	return w
 
