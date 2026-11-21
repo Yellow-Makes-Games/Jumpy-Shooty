@@ -16,10 +16,10 @@ extends RefCounted
 ## be used in quick succession (GAP apart), but each blink adds STRAIN, which
 ## drains away at STRAIN_RECOVER a second, and the strain left when you blink
 ## shortens it: every point of strain takes STRAIN_FALLOFF off the range, down to
-## MIN_REACH of it. So three blinks in a burst go about 11, 8 and 5.5 m; spaced a
-## second apart they all go the full 11 m.
+## MIN_REACH of it. So three blinks in a burst go about 7.5, 5.6 and 3.8 m; spaced a
+## second apart they all go the full 7.5 m.
 
-const RANGE := 11.0
+const RANGE := 7.5
 const CHARGES := 3
 const RECHARGE := 5.0         ## seconds per charge (they come back one at a time)
 const GAP := 0.15             ## seconds between two blinks
