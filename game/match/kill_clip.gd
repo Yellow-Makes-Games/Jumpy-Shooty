@@ -252,6 +252,9 @@ var wrecks: Array = []
 var props: Dictionary = {}
 ## The kill (see Match.kill_info).
 var info: Dictionary = {}
+## Every kill the killer makes in the clip, oldest first: [when (the killer's time),
+## its kill info (see Match.kill_info)]. The killcam shows each one's points as it lands.
+var kills: Array = []
 var killer := 0
 var victim := 0
 ## When the killer landed the blow, and the stretch to watch.
@@ -277,9 +280,20 @@ func event_time(e: Dictionary) -> float:
 
 
 ## A copy holding only what is needed to watch [start - margin, end + margin].
+## The kill the replay has reached at `t` (the latest at or before it), as
+## [when, info]; [] before the first.
+func kill_at(t: float) -> Array:
+	var out: Array = []
+	for k in (kills if not kills.is_empty() else [[kill_time, info]]):
+		if float(k[0]) <= t:
+			out = k
+	return out
+
+
 func cut(margin: float = 0.6) -> KillClip:
 	var out := KillClip.new()
 	out.info = info
+	out.kills = kills.duplicate()
 	out.killer = killer
 	out.victim = victim
 	out.kill_time = kill_time

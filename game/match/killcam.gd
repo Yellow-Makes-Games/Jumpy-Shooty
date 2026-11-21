@@ -318,6 +318,19 @@ func _follow_on(killer: int, kill_time: float, now: float) -> void:
 		entry["at"] = maxf(float(entry.at), now + (clip.end - kill_time) + 0.4)
 
 
+## The killer's kills during the clip, oldest first: [when, info] (see KillClip.kills).
+func _kills_in(clip: KillClip) -> Array:
+	var out: Array = []
+	for k in Match.kill_log:
+		var seq := int(k.seq)
+		if int(k.killer) == clip.killer and _kill_times.has(seq):
+			var t := float(_kill_times[seq])
+			if t >= clip.start and t <= clip.end:
+				out.append([t, k])
+	out.sort_custom(func(a, b): return float(a[0]) < float(b[0]))
+	return out
+
+
 ## A clip that reads straight from what is being recorded (it fills in as it plays).
 func _live_clip(info: Dictionary, kill_time: float, start: float, end: float) -> KillClip:
 	var clip := KillClip.new()
@@ -325,6 +338,7 @@ func _live_clip(info: Dictionary, kill_time: float, start: float, end: float) ->
 	clip.killer = int(info.killer)
 	clip.victim = int(info.victim)
 	clip.kill_time = kill_time
+	clip.kills = [[kill_time, info]]   # (a best kill's gets every kill in it when it is kept: _capture)
 	clip.start = start
 	clip.end = end
 	clip.map = Net.map_id()
@@ -343,6 +357,7 @@ func _capture(entry: Dictionary) -> void:
 	var live: KillClip = entry.clip
 	if not live.has_killer():   # (a best kill keeps what there is, even right after the start)
 		return
+	live.kills = _kills_in(live)
 	var clip := live.cut()
 	clip.align_to_hits()
 	clips[int(clip.info.seq)] = clip

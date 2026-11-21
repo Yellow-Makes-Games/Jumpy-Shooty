@@ -84,6 +84,13 @@ static func draw(ci: CanvasItem, r: Rect2, view: KillcamView, title: String, foo
 		var total := w1 + HudStyle.text_width(victim_name, int(24 * k))
 		HudStyle.text(ci, Vector2(c.x - total * 0.5, c.y + 90.0 * k), "ELIMINATED", int(24 * k), Color(HudStyle.RED, a))
 		HudStyle.text(ci, Vector2(c.x - total * 0.5 + w1, c.y + 90.0 * k), victim_name, int(24 * k), Color(1, 1, 1, a))
+	# Bottom left: the points of the kill the replay has reached (each kill's as it lands),
+	# the same list a match shows the killer (Hud.draw_points_list).
+	var reached := clip.kill_at(view.time)
+	if not reached.is_empty():
+		var kinfo: Dictionary = reached[1]
+		var fade := clampf((view.time - float(reached[0])) / 0.2, 0.0, 1.0)
+		Hud.draw_points_list(ci, r.size.y - bar, int(kinfo.get("score", 0)), KillScore.breakdown(kinfo), fade, k, r.position, 52.0)   # (just over the clip's bar)
 	# A plain crosshair dot where the killer was aiming.
 	if view.time < clip.kill_time + 0.6 and not view.third_person:
 		var mid := r.position + r.size * 0.5
