@@ -266,6 +266,11 @@ func _on_shot_fired(shooter: int, muzzle: Vector3, ends: PackedVector3Array, hit
 		return  # we (or our bot) already drew this shot the moment it was fired
 	if p:
 		p.show_shot()
+	if WeaponData.by_id(Net.player_weapon(shooter)).is_blast():
+		# The air cannon hurts nobody: just its streaks of air, as its shooter sees them
+		# (Player._send_blast). Its hits stay in the shot for the killcam to line bodies up.
+		ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, [], Net.player_weapon(shooter))
+		return
 	ShotFx.spawn(self, p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
 	BulletMarks.shots(p.muzzle_position() if p else muzzle, ends, hits, Net.player_weapon(shooter), vias)
 	hit_sparks(muzzle, ends, hits)

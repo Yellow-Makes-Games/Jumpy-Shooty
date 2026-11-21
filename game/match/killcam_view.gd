@@ -650,8 +650,11 @@ func _play_event(e: Dictionary) -> void:
 				g.akimbo_shots += 1
 				g.animator.fire(left)
 				muzzle = g.robot.marker(data.muzzle_bone_left if left else data.muzzle_bone)
-			ShotFx.spawn(_fx, muzzle, e.ends, e.hits, weapon)
-			_hit_sparks(muzzle, e.ends, e.hits)
+			if data.is_blast():
+				ShotFx.spawn(_fx, muzzle, e.ends, [], weapon)   # (no hit flashes or sparks: it hurts nobody; see Arena._on_shot_fired)
+			else:
+				ShotFx.spawn(_fx, muzzle, e.ends, e.hits, weapon)
+				_hit_sparks(muzzle, e.ends, e.hits)
 			_fired(who)
 			if mine:
 				Sound.gun_fire(weapon, muzzle, true)
