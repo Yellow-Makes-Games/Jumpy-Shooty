@@ -28330,6 +28330,7 @@ metadata/_edit_group_ = true
 [node name="Barrier" type="Node3D" parent="Edges"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -38.8, 20, 6)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(0.6, 40, 70.2)
 kind = "frame"
 drawn = false
@@ -28337,6 +28338,7 @@ drawn = false
 [node name="Barrier2" type="Node3D" parent="Edges"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 43.8, 20, 6)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(0.6, 40, 70.2)
 kind = "frame"
 drawn = false
@@ -28344,6 +28346,7 @@ drawn = false
 [node name="Barrier3" type="Node3D" parent="Edges"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 20, -28.8)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(82, 40, 0.6)
 kind = "frame"
 drawn = false
@@ -28351,6 +28354,7 @@ drawn = false
 [node name="Barrier4" type="Node3D" parent="Edges"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 20, 40.8)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(82, 40, 0.6)
 kind = "frame"
 drawn = false
@@ -43156,6 +43160,7 @@ kind = "brick_tan"
 [node name="Hotel" type="Node3D" parent="Hotel"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.25, 17.5, 39.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(33.3, 25, 16)
 kind = "backdrop"
 

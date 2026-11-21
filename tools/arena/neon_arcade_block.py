@@ -145,13 +145,14 @@ def ground(m):
 
 
 def edges(m):
-    """What shuts the block in: walls you cannot see, and the fences and barriers you can."""
+    """What shuts the block in: walls you cannot see (Blink Proof, so nobody blinks out of
+    the map), and the fences and barriers you can."""
     e = m.group("Edges")
     H = 40.0
-    m.box(e, "Barrier", "frame", (BX0 - 0.6, 0, BZ0 - 0.6), (BX0, H, BZ1 + 0.6), drawn=False)
-    m.box(e, "Barrier", "frame", (BX1, 0, BZ0 - 0.6), (BX1 + 0.6, H, BZ1 + 0.6), drawn=False)
-    m.box(e, "Barrier", "frame", (BX0, 0, BZ0 - 0.6), (BX1, H, BZ0), drawn=False)
-    m.box(e, "Barrier", "frame", (BX0, 0, BZ1), (BX1, H, BZ1 + 0.6), drawn=False)
+    m.box(e, "Barrier", "frame", (BX0 - 0.6, 0, BZ0 - 0.6), (BX0, H, BZ1 + 0.6), drawn=False, blink_proof=True)
+    m.box(e, "Barrier", "frame", (BX1, 0, BZ0 - 0.6), (BX1 + 0.6, H, BZ1 + 0.6), drawn=False, blink_proof=True)
+    m.box(e, "Barrier", "frame", (BX0, 0, BZ0 - 0.6), (BX1, H, BZ0), drawn=False, blink_proof=True)
+    m.box(e, "Barrier", "frame", (BX0, 0, BZ1), (BX1, H, BZ1 + 0.6), drawn=False, blink_proof=True)
     f = m.group("Fences")
     # North: behind the back lot and the filling station; across the side street's far end, barriers.
     K.fence(m, f, (BX0, BZ0 - 0.1), (21.5, BZ0 - 0.1), 3.0)
@@ -679,7 +680,7 @@ def hotel(m):
     g = m.group("Hotel")
     x0, x1, z0 = WASH[1] + 0.6, BX1 + 2.4, SOUTH_ROW
     m.box(g, "HotelBase", "brick_tan", (x0, 0, z0), (x1, 5.0, z0 + 16.0))
-    m.box(g, "Hotel", "backdrop", (x0, 5.0, z0), (x1, 30.0, z0 + 16.0))
+    m.box(g, "Hotel", "backdrop", (x0, 5.0, z0), (x1, 30.0, z0 + 16.0), blink_proof=True)
     m.on_wall(g, "Cornice", "frame", "x", z0, -1, x0, x1, 5.0, 5.4, 0.3)
     # The entrance: a canopy on two posts, lit doors, a red carpet, trees in tubs.
     c = m.group("HotelCanopy")

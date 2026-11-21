@@ -137,10 +137,14 @@ class ArcadeMap(CirrusMap):
     of another kind, walls and floors with openings, glass, buildings that come down
     (MapFrame), power-ups and writing made of blocks."""
 
-    def block(self, parent, name, kind, center, size, breaks=False, faces=None, unbreakable=False, **kw):
-        """breaks: Breakable is ticked. faces: {"+x": kind...}: faces painted another kind."""
+    def block(self, parent, name, kind, center, size, breaks=False, faces=None, unbreakable=False, blink_proof=False, **kw):
+        """breaks: Breakable is ticked. faces: {"+x": kind...}: faces painted another kind.
+        blink_proof: Blink Proof is ticked (an outside wall: nobody blinks through it; the
+        same blocks tools/arena/mark_blink_proof.gd would tick)."""
         path = Map.block(self, parent, name, kind, center, size, **kw)
         props = self.nodes[-1].props
+        if blink_proof:
+            props.insert(1, ("blink_proof", "true"))
         if breaks:
             props.append(("breakable", "true"))
         if faces:

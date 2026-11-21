@@ -1492,6 +1492,10 @@ How it is put together:
   navigation mesh is of the block and not of the city round it.
 - **What hangs on a building is in that building's folder**, so it goes when the wall
   behind it does and falls with the building.
+- **Nobody blinks out.** The four walls you cannot see round the block, and the hotel,
+  are Blink Proof: the generator ticks the very blocks `tools/arena/mark_blink_proof.gd`
+  would, so rebuilding the map keeps them (run the tool after changing the block's edges
+  and tick in the generator what it finds).
 
 `tests/neon_arcade_destruction_test.gd` checks what breaks and what comes down;
 `tests/arena_maps_test.gd` that the spawn points are clear and a bot can walk to every
