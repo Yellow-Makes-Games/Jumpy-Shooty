@@ -7,7 +7,8 @@ extends SceneTree
 ## wall-to-floor pair, and a camera off to one side), the camera behind a portal or
 ## a portal out of view opens no view, a lone portal (no partner) never does, at most
 ## Portals.MAX_VIEWS are live, the view is sized to the portal on screen, and the
-## portal cameras see the plain faces and your whole body, never a window.
+## portal cameras see the plain faces and your whole body, never a window, and run the
+## world's compositor effects less CMAA2 (GTAO yes, the main view's anti-aliasing no).
 
 
 func _init() -> void:

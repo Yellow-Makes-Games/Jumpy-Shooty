@@ -112,42 +112,41 @@ static func apply_viewport(view: Viewport, picks: Dictionary, scale: float = 1.0
 	view.positional_shadow_atlas_size = shadow[2]
 
 
+## CMAA2's key in a world's WorldCompositor.
+const CMAA2_KEY := &"cmaa2"
+## Last of the world's effects of its callback type (after transparent things): it
+## smooths the picture everything else has drawn.
+const CMAA2_ORDER := 100
+
 ## CMAA2 on or off for what a viewport draws (Cmaa2Effect). Godot runs compositor effects
-## for a world (its WorldEnvironment's compositor) or a camera, not a viewport, so this
-## puts the effect on the viewport's own world straight through the RenderingServer, the
-## way a WorldEnvironment would: the game window's world, and each menu picture's and the
-## results screen killcam's own one. Not through the maps' WorldEnvironments: those are
-## also built in the saved killcam video's world, which keeps its own fixed anti-aliasing,
-## and the menu pictures' worlds are never given the player's environment picks.
+## for a world or a camera, not a viewport, so this puts the effect on the viewport's own
+## world, in its WorldCompositor (shared with GTAO, which every view of a map runs): the
+## game window's world, and each menu picture's and the results screen killcam's own one.
+## It follows apply_viewport(), not the maps: the saved killcam video's world also has a
+## map, but is never given the player's viewport picks and keeps its own fixed
+## anti-aliasing; and the menu pictures' worlds are never given the player's environment
+## picks.
 ##
 ## The portal views draw the game window's world too, with no anti-aliasing of their own
-## (the window's goes over them): their cameras carry an empty Compositor, which Godot
-## takes over the world's. Nothing in the game gives a WorldEnvironment a compositor; one
-## that did would take the world's over from this one.
+## (the window's goes over them): their cameras carry WorldCompositor.without(world,
+## CMAA2_KEY), the world's effects less this one, which Godot takes over the world's.
 ##
-## Off, the effect is dropped (it is held in the world's metadata) and with it its GPU
-## memory; on again makes a new one.
+## Off, the effect is dropped and with it its GPU memory; on again makes a new one.
 static func use_cmaa2(view: Viewport, on: bool) -> void:
 	var world := view.find_world_3d()
-	if world == null or world.has_meta("gq_cmaa2") == on:
+	if world == null or WorldCompositor.has(world, CMAA2_KEY) == on:
 		return
 	if on:
-		var compositor := Compositor.new()
 		var effects: Array[CompositorEffect] = [Cmaa2Effect.new()]
-		compositor.compositor_effects = effects
-		world.set_meta("gq_cmaa2", compositor)
-		RenderingServer.scenario_set_compositor(world.scenario, compositor.get_rid())
+		WorldCompositor.add(world, CMAA2_KEY, effects, CMAA2_ORDER)
 	else:
-		RenderingServer.scenario_set_compositor(world.scenario, RID())
-		world.remove_meta("gq_cmaa2")
+		WorldCompositor.remove(world, CMAA2_KEY)
 
 
 ## The CMAA2 effect on a viewport's world, or null (see use_cmaa2).
 static func cmaa2_of(view: Viewport) -> Cmaa2Effect:
-	var world := view.find_world_3d()
-	if world == null or not world.has_meta("gq_cmaa2"):
-		return null
-	return (world.get_meta("gq_cmaa2") as Compositor).compositor_effects[0] as Cmaa2Effect
+	var effects := WorldCompositor.effects_of(view.find_world_3d(), CMAA2_KEY)
+	return effects[0] as Cmaa2Effect if not effects.is_empty() else null
 
 
 ## Settings the renderer keeps for every viewport: shadow detail, ambient occlusion
@@ -167,8 +166,8 @@ static func apply_global(picks: Dictionary) -> void:
 
 ## A map's Environment with these picks: what the map has, minus what the picks turn off.
 ## Light bounce (SSIL) only comes with "high", and only where the map has AO. "gtao" turns
-## the map's SSAO off: GTAO (see Gtao) takes its place, on the WorldEnvironment
-## (apply_environments()), again only where the map has AO.
+## the map's SSAO off: GTAO (see Gtao) takes its place, on the world the map's
+## WorldEnvironment is in (apply_environments()), again only where the map has AO.
 static func apply_environment(env: Environment, picks: Dictionary) -> void:
 	if env == null:
 		return

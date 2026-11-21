@@ -9,7 +9,7 @@ extends RefCounted
 ## light, never the sun or a lamp, the way Godot's own SSAO does. Nothing multiplies
 ## the finished colour.
 ##
-## Each frame, for each view of a map whose WorldEnvironment carries a GtaoEffect:
+## Each frame, for each view of a world with a map that has GTAO on (see use()):
 ##  1. gtao_prefilter.glsl: depths as metres, with smaller copies (MIPs);
 ##  2. gtao_main.glsl, at half resolution: how open each pixel is to the sky (normals
 ##     come from the depth too, so the depth prepass need not write Godot's normal
@@ -120,45 +120,86 @@ static func shared() -> Gtao:
 	return g
 
 
-## Puts GTAO on (or takes it off) a map's WorldEnvironment: a GtaoEffect pair in its
-## Compositor, which every view of that world runs. Any other effects in the Compositor
-## stay. The effect takes the map's own SSAO tuning (radius, intensity).
+## GTAO's key in a world's WorldCompositor, and its place there: first, so the AO is
+## ready before any other effect of the same callback type runs.
+const KEY := &"gtao"
+const ORDER := 0
+## (A WorldEnvironment's metadata, while GTAO is on for its map: its GtaoEffect pair and
+## the signal callables that follow it in and out of the tree.)
+const META := &"gtao"
+## Every WorldEnvironment GTAO is on for (in the tree or not).
+const GROUP := &"_gtao_maps"
+
+
+## Puts GTAO on (or takes it off) a map: a GtaoEffect pair, with the map's own SSAO tuning
+## (radius, intensity), on the world its WorldEnvironment is in, which every view of that
+## world runs: the game's and each portal's (see Portal._make_view). It goes in the world's
+## WorldCompositor, shared with CMAA2: other effects there stay as they are.
+##
+## Not on the WorldEnvironment's own compositor: Godot puts that on the world's one
+## compositor slot over anyone else's (WorldCompositor explains). So this follows the
+## WorldEnvironment itself instead: on its world while it is in the tree (from now, or
+## once it goes in), off when it leaves (its map freed or swapped for the next), on the new
+## world if it moves to another. One world, one pair: if two maps in the same world want
+## GTAO (the next one in before the last has gone), the newer one's runs, then the other's
+## once the newer leaves.
 static func use(world: WorldEnvironment, on: bool) -> void:
-	var comp := world.compositor
-	var effects: Array[CompositorEffect] = []
-	var mine: Array[GtaoEffect] = []
-	if comp:
-		for e in comp.compositor_effects:
-			if e is GtaoEffect:
-				mine.append(e)
-			else:
-				effects.append(e)
+	var held: Dictionary = world.get_meta(META, {})
 	if on:
-		if mine.is_empty():
-			if comp == null:
-				comp = Compositor.new()
-				world.compositor = comp
-				world.set_meta("gtao_compositor", true)   # ours: taken away again when off
-			mine = [GtaoEffect.new(), GtaoEffect.new(true)]
-			effects.append_array(mine)
-			comp.compositor_effects = effects
-		for e in mine:
+		if held.is_empty():
+			var pair: Array[CompositorEffect] = [GtaoEffect.new(), GtaoEffect.new(true)]
+			held = {"effects": pair, "in": Gtao._entered.bind(world), "out": Gtao._leaving.bind(world)}
+			world.set_meta(META, held)
+			world.add_to_group(GROUP)
+			world.tree_entered.connect(held["in"])
+			world.tree_exiting.connect(held["out"])
+			if world.is_inside_tree():
+				_entered(world)
+		for e in held.effects:
 			e.tune(world.environment)
-	elif not mine.is_empty():
-		comp.compositor_effects = effects
-		if effects.is_empty() and world.get_meta("gtao_compositor", false):
-			world.compositor = null
-			world.remove_meta("gtao_compositor")
+	elif not held.is_empty():
+		if world.is_inside_tree():
+			_leaving(world)
+		world.tree_entered.disconnect(held["in"])
+		world.tree_exiting.disconnect(held["out"])
+		world.remove_from_group(GROUP)
+		world.remove_meta(META)
 
 
-## Is GTAO on this WorldEnvironment?
+## Is GTAO on for this WorldEnvironment's map?
 static func is_on(world: WorldEnvironment) -> bool:
-	if world.compositor == null:
-		return false
-	for e in world.compositor.compositor_effects:
-		if e is GtaoEffect:
-			return true
-	return false
+	return world.has_meta(META)
+
+
+## Its GtaoEffect pair (empty when GTAO is off for it).
+static func effects_of(world: WorldEnvironment) -> Array[CompositorEffect]:
+	var out: Array[CompositorEffect] = []
+	if world.has_meta(META):
+		out.assign(world.get_meta(META).effects)
+	return out
+
+
+## (In the tree.) Its pair on its world, over any other map's there.
+static func _entered(world: WorldEnvironment) -> void:
+	WorldCompositor.add(_world_of(world), KEY, effects_of(world), ORDER)
+
+
+## (Still in the tree.) Its pair off its world, if they are the ones there; then another
+## map's in the same world that wants GTAO, if there is one.
+static func _leaving(world: WorldEnvironment) -> void:
+	var w3d := _world_of(world)
+	WorldCompositor.remove(w3d, KEY, effects_of(world))
+	if WorldCompositor.has(w3d, KEY):
+		return
+	for other in world.get_tree().get_nodes_in_group(GROUP):
+		if other != world and other is WorldEnvironment and _world_of(other) == w3d:
+			_entered(other)
+			return
+
+
+## The World3D a WorldEnvironment is in (what it gives its environment to).
+static func _world_of(world: WorldEnvironment) -> World3D:
+	return world.get_viewport().find_world_3d()
 
 
 func _init() -> void:

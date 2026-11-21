@@ -1,6 +1,6 @@
 class_name GtaoEffect
 extends CompositorEffect
-## GTAO on a map's WorldEnvironment (see Gtao, which does the work). Comes in a pair:
+## GTAO on a map's world (see Gtao.use; Gtao does the work). Comes in a pair:
 ## the opening effect runs GTAO just before the opaque pass, so the map's surfaces can
 ## read it while they are drawn; the closing one (`closing`) runs just after and clears
 ## the stamp, so no other view can mistake this view's AO for its own.
