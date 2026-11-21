@@ -9,8 +9,8 @@ extends RefCounted
 ##  - portal:  the portal gun (see PortalGun and Portal): shoot two portals onto
 ##             walls, floors or ceilings; walk into one and come out of the other
 ##             with your speed carried through. Anyone can use anyone's portals.
-##  - blink:   a short teleport where you look (see Blink), three charges that
-##             come back one at a time; blinks in quick succession go shorter.
+##  - blink:   a short teleport where you look (see Blink), through walls, three
+##             charges that come back one at a time; quick blinks go shorter.
 ##  - jetpack: hold to fly (see Jetpack), on fuel that refills when you let go.
 ##
 ## A race always uses the grapple: the courses are built around it.
@@ -30,7 +30,7 @@ const SHORT := {GRAPPLE: "Grapple", PORTAL: "Portal Gun", BLINK: "Blink", JETPAC
 const BLURBS := {
 	GRAPPLE: "Shoot the hook out: it bites, the slack snaps tight and you swing. Hook a player to kick.",
 	PORTAL: "Shoot a blue and an orange portal onto any surface. Step in one, fly out the other at full speed. Up to 45 m apart.",
-	BLINK: "Teleport where you look, keeping your speed. Three charges: chain them, but quick ones go shorter.",
+	BLINK: "Teleport where you look, even through walls, keeping your speed. Three charges: quick ones go shorter.",
 	JETPACK: "Hold to fly up and steer with WASD. Fuel refills when you let go, fastest on the ground.",
 }
 
