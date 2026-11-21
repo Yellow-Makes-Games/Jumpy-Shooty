@@ -4,7 +4,7 @@ extends SceneTree
 ## Run: godot --headless --path . --script tests/mobility_test.gd
 ##
 ## Blink: goes where you aim, through a thin wall to the far side but short of one
-## too thick to get past, never down through a floor or off the map, keeps you
+## too thick to get past, up through a ceiling to the floor above, never down through a floor or off the map, keeps you
 ## moving, has three
 ## charges that can be used in a quick burst (each one shorter) and come back one at
 ## a time, and spaced-out blinks keep their full range. Portal gun: shoots portals onto floors and walls,

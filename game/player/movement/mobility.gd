@@ -9,7 +9,8 @@ extends RefCounted
 ##  - portal:  the portal gun (see PortalGun and Portal): shoot two portals onto
 ##             walls, floors or ceilings; walk into one and come out of the other
 ##             with your speed carried through. Anyone can use anyone's portals.
-##  - blink:   a short teleport where you look (see Blink), through walls, three
+##  - blink:   a short teleport where you look (see Blink), through walls and up
+##             through ceilings, three
 ##             charges that come back one at a time; quick blinks go shorter.
 ##  - jetpack: hold to fly (see Jetpack), on fuel that refills when you let go.
 ##

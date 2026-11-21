@@ -5,21 +5,22 @@ extends RefCounted
 ## You keep the speed you had, and get at least BLINK_PUSH along the blink so it
 ## feels like a dash; falling speed is cancelled.
 ##
-## A blink goes through walls: aimed at a wall, it goes its full reach and lands on
-## the far side, pulled back towards you until the body fits somewhere open. It only
-## goes through walls (steep faces), not floors, ceilings or ramps, so looking a little
-## down or up as you blink never drops you a storey. It never lands outside the map:
-## out of its fence, over nothing (no ground under it before the map's kill height) or
-## in a hazard; with nowhere like that past the wall, it stops short of the wall.
+## A blink goes through walls and up through ceilings: aimed at one, it goes its full
+## reach and lands on the far side (a blink up through a ceiling lands over the floor
+## above), pulled back towards you until the body fits somewhere open. It never goes
+## down through a floor or a ramp (a face turned up), so looking a little down as you
+## blink never drops you a storey. It never lands outside the map: out of its fence,
+## over nothing (no ground under it before the map's kill height) or in a hazard; with
+## nowhere like that past the wall, it stops short of the wall.
 ##
 ## Three charges, which come back one at a time, RECHARGE seconds each. They can
 ## be used in quick succession (GAP apart), but each blink adds STRAIN, which
 ## drains away at STRAIN_RECOVER a second, and the strain left when you blink
 ## shortens it: every point of strain takes STRAIN_FALLOFF off the range, down to
-## MIN_REACH of it. So three blinks in a burst go about 11, 8 and 5.5 m; spaced a
-## second apart they all go the full 11 m.
+## MIN_REACH of it. So three blinks in a burst go about 7.5, 5.6 and 3.8 m; spaced a
+## second apart they all go the full 7.5 m.
 
-const RANGE := 11.0
+const RANGE := 7.5
 const CHARGES := 3
 const RECHARGE := 5.0         ## seconds per charge (they come back one at a time)
 const GAP := 0.15             ## seconds between two blinks
@@ -30,7 +31,7 @@ const STRAIN_RECOVER := 1.0   ## strain that drains away each second
 const STRAIN_MAX := 3.0
 const STRAIN_FALLOFF := 0.3   ## the share of the range each point of strain takes off
 const MIN_REACH := 0.45       ## a blink never goes less than this share of RANGE
-const WALL_STEEP := 0.5       ## a face whose normal points up or down less than this is a wall (blinked through)
+const FLOOR_UP := 0.5         ## a face whose normal points up more than this is a floor or ramp (not blinked through); walls and ceilings are
 const THROUGH_STEP := 0.3     ## how far a blink through a wall pulls back each time the spot is not open
 
 var charges := CHARGES
@@ -116,7 +117,7 @@ static func destination(body: CharacterBody3D, shape: CollisionShape3D, dir: Vec
 	var parts := space.cast_motion(q)
 	var safe: float = parts[0] if parts.size() > 0 else 1.0
 	var dist := maxf(safe * reach - 0.08, 0.0)
-	var wall := false   # stopped by a wall (not a floor, ceiling or ramp)
+	var wall := false   # stopped by a wall or a ceiling (not a floor or ramp)
 	if safe < 1.0:
 		var touch := PhysicsShapeQueryParameters3D.new()
 		touch.shape = shape.shape
@@ -125,7 +126,7 @@ static func destination(body: CharacterBody3D, shape: CollisionShape3D, dir: Vec
 		touch.exclude = [body.get_rid()]
 		touch.margin = 0.05
 		var info := space.get_rest_info(touch)
-		wall = not info.is_empty() and absf((info.normal as Vector3).y) < WALL_STEEP
+		wall = not info.is_empty() and (info.normal as Vector3).y < FLOOR_UP
 	# The sweep misses anything the body already touches when it sets off (a wall
 	# you are pressed against): rays through the middle of the body catch those.
 	var r := (shape.shape as CapsuleShape3D).radius if shape.shape is CapsuleShape3D else 0.4
@@ -138,7 +139,7 @@ static func destination(body: CharacterBody3D, shape: CollisionShape3D, dir: Vec
 			var near := from.distance_to(hit.position) - r - 0.1
 			if near < dist:
 				dist = near
-				wall = absf((hit.normal as Vector3).y) < WALL_STEEP
+				wall = (hit.normal as Vector3).y < FLOOR_UP
 	var fit := PhysicsShapeQueryParameters3D.new()
 	fit.shape = shape.shape
 	fit.collision_mask = 1

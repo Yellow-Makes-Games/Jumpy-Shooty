@@ -87,6 +87,16 @@ func run() -> void:
 	var space := me.get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(open[0] + Vector3(0, 1, 0), me.global_position + Vector3(0, 1, 0), 1, [me.get_rid()])
 	_check(space.intersect_ray(q).is_empty(), "...and on this side of it")
+	# Up through a ceiling: a slab 3 m over the floor, blinked at straight up.
+	box.size = Vector3(6.0, 0.4, 6.0)
+	wall.global_transform = Transform3D(Basis.IDENTITY, open[0] + Vector3(0, 3.2, 0))
+	me.teleport(open[0], open[1])
+	me.blink.reset()
+	await _physics(20)
+	await _blink(me, Vector3.UP)
+	_check(me.global_position.y > open[0].y + 3.4, "a blink up at a ceiling goes through it to the floor above (%.1f m up)" % (me.global_position.y - open[0].y))
+	await _physics(_ticks(2.5))
+	_check(absf(me.global_position.y - (open[0].y + 3.4)) < 0.3, "...and you land on it (%.1f m up)" % (me.global_position.y - open[0].y))
 	wall.queue_free()
 	# Floors are not walls: aimed steeply down at the floor, you stay on it.
 	await _physics(4)
