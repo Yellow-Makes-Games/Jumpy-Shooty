@@ -22,6 +22,9 @@ func _initialize() -> void:
 	_check_export()
 	_check_modes()
 	_check_blocks()
+	_check_hulls()
+	_check_footsteps()
+	_check_painted_breaking()
 	_check_face_moves()
 	print("FAIL: %d checks failed" % failures if failures else "PASS: every check passed")
 	quit(1 if failures else 0)
@@ -90,6 +93,131 @@ func _check_export() -> void:
 			if not packed.is_empty() and (script == null or not script.is_tool()) and state.get_node_instance(i) == null:
 				lost.append("%s %s: %s" % [file, state.get_node_path(i), ", ".join(packed)])
 	_expect(lost.is_empty(), "no map scene sets a packed array on a node whose script does not run in the editor%s" % ("" if lost.is_empty() else " (an export would drop: %s)" % "; ".join(lost)))
+
+
+## A hull in a built map: what you touch is the hull, not the box round it.
+func _check_hulls() -> void:
+	print("  hulls")
+	var map := MapRoot.new()
+	root.add_child(map)
+	var slope := MapHazard.new()   # a slope of something deadly: 4 m square, 2 m tall at the back (-z)
+	slope.shape = MapBlock.Shape.HULL
+	slope.points = MapMesher.wedge_points({"size": Vector3(4, 2, 4)})
+	slope.position = Vector3(0, 1, 0)
+	slope.solid = false
+	map.add_child(slope)
+	map.build()
+	_expect(map.hazards.size() == 1 and map.hazards[0].shape == "hull", "a hull hazard is a hull to the map")
+	_expect(map.hazard_at(Vector3(0, 0.5, 0)), "under the slope, you touch it")
+	_expect(not map.hazard_at(Vector3(0, 1.5, 0.5)), "over the slope, inside the box round it, you do not")
+	map.free()
+
+
+## Footsteps go by what is seen underfoot: a rug or a painted patch lying on a floor
+## wins over the floor, and a painted face over its block.
+func _check_footsteps() -> void:
+	print("  footsteps")
+	var map := MapRoot.new()
+	var palette := MapPalette.new()
+	palette.colors = {"stone": Color.GRAY, "grass": Color.GREEN, "rug": Color.RED, "planks": Color.BROWN, "rail": Color.BLACK, "glow": Color.WHITE}
+	palette.material = {"stone": "concrete", "grass": "dirt", "rug": "rubber", "planks": "wood", "rail": "metal"}
+	map.palette = palette
+	root.add_child(map)
+	var add := func(kind: String, at: Vector3, size: Vector3, solid := true) -> MapBlock:
+		var b := MapBlock.new()
+		b.kind = kind
+		b.size = size
+		b.position = at
+		b.solid = solid
+		map.add_child(b)
+		return b
+	add.call("stone", Vector3(0, -0.5, 0), Vector3(20, 1, 20))                 # the floor, top at 0
+	add.call("rug", Vector3(3, 0.01, 0), Vector3(2, 0.02, 2), false)            # a rug lying on it
+	add.call("rail", Vector3(-6, 0.03, 0), Vector3(0.08, 0.06, 4), false)        # a thin rail on it: not a floor
+	add.call("glow", Vector3(7, 0.01, 0), Vector3(1, 0.02, 1), false)           # a glowing panel: made of nothing known
+	var painted: MapBlock = add.call("stone", Vector3(-3, 0.5, 3), Vector3(2, 1, 2))   # a stone block, top at 1, painted grass
+	painted.face_kinds = {MapBlock.face_key(Vector3.UP): "grass"}
+	var wedge: MapBlock = add.call("stone", Vector3(4, 0.5, 6), Vector3(4, 1, 4))   # a slope, painted planks on it
+	wedge.shape = MapBlock.Shape.WEDGE
+	var slope := ""
+	for f in MapMesher.hull_faces(MapMesher.wedge_points({"size": wedge.size})):
+		if (f[0] as Vector3).y > 0.1:
+			slope = MapBlock.face_key(f[0])
+	wedge.face_kinds = {slope: "planks"}
+	map.build()
+	_expect(map.material_at(Vector3(0, 0, -5)) == "concrete", "on the bare floor: its own material (concrete)")
+	_expect(map.material_at(Vector3(3, 0, 0)) == "rubber", "on a rug lying on the floor: the rug (%s)" % map.material_at(Vector3(3, 0, 0)))
+	_expect(map.material_at(Vector3(-6, 0, 0)) == "concrete", "on a thin rail on the floor: still the floor (%s)" % map.material_at(Vector3(-6, 0, 0)))
+	_expect(map.material_at(Vector3(7, 0, 0)) == "concrete", "on a glowing panel (made of nothing known) lying on it: still the floor")
+	_expect(map.material_at(Vector3(-3, 1, 3)) == "dirt", "on a block whose top is painted grass: the grass (%s)" % map.material_at(Vector3(-3, 1, 3)))
+	_expect(map.material_at(Vector3(4, 0.5, 6)) == "wood", "on a slope painted planks: wood (%s)" % map.material_at(Vector3(4, 0.5, 6)))
+	map.free()
+
+
+## A breakable wall with a painted face (MapBlock.face_kinds, face_patterns) keeps its
+## paint as it breaks (MapDestruction): on what is left whole and round the hole. And the
+## pattern a pile of fallen pieces is drawn with (MapCollapse) is the face's, moved.
+func _check_painted_breaking() -> void:
+	print("  painted faces on a wall that breaks")
+	var map := MapRoot.new()
+	var palette := MapPalette.new()
+	palette.colors = {"block": Color.GRAY, "grass": Color.GREEN}
+	palette.material = {"block": "concrete"}
+	map.palette = palette
+	map.destructible = true
+	map.fine_destruction = true
+	root.add_child(map)
+	var ground := MapBlock.new()
+	ground.kind = "block"
+	ground.size = Vector3(30, 1, 30)
+	ground.position = Vector3(0, -0.5, 0)
+	map.add_child(ground)
+	var wall := MapBlock.new()
+	wall.kind = "block"
+	wall.size = Vector3(8, 4, 0.3)
+	wall.position = Vector3(0, 2.0, 0)
+	wall.breakable = true
+	var front := MapBlock.face_key(Vector3.BACK)   # (+z)
+	wall.face_kinds = {front: "grass"}
+	wall.face_patterns = {front: Vector4(0.5, 0.25, 30.0, 1.5)}
+	map.add_child(wall)
+	map.build()
+	var d := map.destruction
+	var index := -1
+	if d:
+		for i in d.panels.size():
+			if (d.panels[i].piece as Dictionary).has("face_kinds"):
+				index = i
+	_expect(index >= 0, "the painted wall breaks (%d panels)" % (d.panels.size() if d else 0))
+	if index < 0:
+		map.free()
+		return
+	var panel: Dictionary = d.panels[index]
+	var grass := map.material_for("grass")
+	var painted_meshes := func() -> Array:
+		return (panel.meshes as Node).get_children().filter(func(m: Node) -> bool:
+			return m is MeshInstance3D and (m as MeshInstance3D).material_override == grass)
+	_expect(not painted_meshes.call().is_empty(), "whole, its painted face is drawn in the paint's kind")
+	# A hole of four cells in the middle, drawn as a killcam would show it (no rubble and
+	# no sounds, which want a running game: this is about how what is left is drawn).
+	var ids := PackedInt32Array()
+	var stages := PackedByteArray()
+	for du in 2:
+		for dv in 2:
+			ids.append(panel.first + (panel.nu / 2 + du) * panel.su + (panel.nv / 2 + dv) * panel.sv)
+			stages.append(MapDestruction.BROKEN)
+	d.replay_show([ids, stages], null, 0.0, null)
+	var holed: Array = painted_meshes.call()
+	var patterned := holed.filter(func(m: MeshInstance3D) -> bool:
+		return m.mesh.get_surface_count() > 0 and m.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_CUSTOM0 != 0)
+	_expect(holed.size() >= 2, "holed, its painted face is still drawn in the paint's kind, round the hole too (%d meshes)" % holed.size())
+	_expect(patterned.size() == holed.size(), "...and with its pattern moved (%d of %d)" % [patterned.size(), holed.size()])
+	map.free()
+	# The pile's place for a pattern (MapMesher.pattern_place) is the shader's.
+	var at := Vector3(1.0, 2.0, 0.15)
+	_expect(MapMesher.pattern_place(at, Vector3.BACK, Vector4.ZERO) == at, "a pattern left as it is: measured from where the corner is")
+	var slid := MapMesher.pattern_place(at, Vector3.BACK, Vector4(0.5, 0.0, 0.0, 0.0))
+	_expect(is_equal_approx(slid.z, at.z) and is_equal_approx(slid.distance_to(at), 0.5), "a pattern slid along a face: measured from half a metre along it (%s)" % slid)
 
 
 func _check_blocks() -> void:

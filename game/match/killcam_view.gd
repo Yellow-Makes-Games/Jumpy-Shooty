@@ -467,6 +467,8 @@ func _build_ghost(id: int, track: KillClip.Track, weapon: String) -> Ghost:
 	var old: Ghost = _ghosts.get(id)
 	if old:
 		old.root.queue_free()
+		if is_instance_valid(old.seen.get("glow")):
+			(old.seen.glow as Node).queue_free()   # (an air cannon's charge glow: in _fx, see _watch_charge)
 	var g := Ghost.new()
 	g.weapon = weapon
 	g.root.name = "Ghost_%d" % id
@@ -568,6 +570,7 @@ func _watch(flags: int, weapon: String, seen: Dictionary, g: Ghost) -> void:
 	if not seen.has("swings"):
 		seen.merge({"swings": swings, "kicks": kicks, "flying": flying, "wind": -1.0})
 		return
+	_watch_charge(flags, weapon, seen, g)
 	if melee and RobotAnimInput.winding_of(flags):
 		seen.wind = maxf(float(seen.wind), 0.0) + get_process_delta_time()
 		var held := WeaponData.by_id(weapon).charge_of(seen.wind)
@@ -597,6 +600,33 @@ func _watch(flags: int, weapon: String, seen: Dictionary, g: Ghost) -> void:
 			_sound("kick" if not flying else "flying_kick", camera.global_position if g == null else g.root.global_position, g == null)
 
 
+## An air cannon charging (the wind-up flag, as Player._watch_charge): the glow swells at
+## its muzzle and its hum rises, from how long it has been seen charging.
+func _watch_charge(flags: int, weapon: String, seen: Dictionary, g: Ghost) -> void:
+	var data: WeaponData = WeaponData.by_id(weapon) if weapon != "none" and WeaponData.has(weapon) else null
+	var alive := g.anim.alive if g else (_puppet == null or _puppet.alive)
+	var on := alive and data != null and data.is_blast() and RobotAnimInput.winding_of(flags)
+	var was := float(seen.get("charge", -1.0))
+	if not on and was < 0.0:
+		return
+	seen.charge = maxf(was, 0.0) + get_process_delta_time() if on else -1.0
+	var amount := data.charge_of(float(seen.charge)) if on else -1.0
+	var sounds: PlayerSounds = g.sounds if g else _killer_sounds
+	if sounds and (world_sound or g == null):
+		sounds.charging(amount)
+	var glow: MeshInstance3D = seen.get("glow") if is_instance_valid(seen.get("glow")) else null
+	if glow == null and amount >= 0.0:
+		glow = AirBlast.make_glow()
+		_fx.add_child(glow)
+		seen.glow = glow
+	if glow:
+		var at := Vector3.ZERO
+		if amount >= 0.0:
+			at = g.robot.marker(data.muzzle_bone) if g else (_view.marker(data.muzzle_bone) if _view else camera.global_position)
+		var shown := amount >= 0.0 and (g == null or g.root.visible)
+		AirBlast.show_glow(glow, at, amount if shown else -1.0, g == null)
+
+
 # ---------------------------------------------------------------------------
 # Shots, rockets, blows
 
@@ -620,8 +650,11 @@ func _play_event(e: Dictionary) -> void:
 				g.akimbo_shots += 1
 				g.animator.fire(left)
 				muzzle = g.robot.marker(data.muzzle_bone_left if left else data.muzzle_bone)
-			ShotFx.spawn(_fx, muzzle, e.ends, e.hits, weapon)
-			_hit_sparks(muzzle, e.ends, e.hits)
+			if data.is_blast():
+				ShotFx.spawn(_fx, muzzle, e.ends, [], weapon)   # (no hit flashes or sparks: it hurts nobody; see Arena._on_shot_fired)
+			else:
+				ShotFx.spawn(_fx, muzzle, e.ends, e.hits, weapon)
+				_hit_sparks(muzzle, e.ends, e.hits)
 			_fired(who)
 			if mine:
 				Sound.gun_fire(weapon, muzzle, true)

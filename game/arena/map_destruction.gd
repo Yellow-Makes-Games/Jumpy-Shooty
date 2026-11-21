@@ -802,8 +802,8 @@ func _rebuild_meshes(index: int) -> void:
 		var local := _boxes_extent(panel, box)
 		var shade: float = CRACK_SHADE[box[2] - 1]
 		var tint: Color = panel.tint
-		pieces.append({"xf": (panel.xf as Transform3D) * Transform3D(Basis(), local.get_center()), "size": local.size,
-			"kind": panel.kind, "shape": "box", "tint": Color(tint.r * shade, tint.g * shade, tint.b * shade, tint.a)})
+		pieces.append(painted(panel, {"xf": (panel.xf as Transform3D) * Transform3D(Basis(), local.get_center()), "size": local.size,
+			"kind": panel.kind, "shape": "box", "tint": Color(tint.r * shade, tint.g * shade, tint.b * shade, tint.a)}))
 		for skin in panel.skins:
 			var clipped := _clip_skin(panel, skin.box, local)
 			if clipped.has_volume():
@@ -852,6 +852,17 @@ func _rebuild_whole_meshes(panel: Dictionary) -> void:
 		mesh.mesh = meshes[kind]
 		mesh.material_override = root.material_for(kind)
 		holder.add_child(mesh)
+
+
+## `piece`, a box of a panel's own kind that is part of how the panel is drawn, with the
+## panel's block's painted faces (MapBlock.face_kinds, face_patterns): its faces look the
+## way the block's do, so they are painted as the block's are.
+static func painted(panel: Dictionary, piece: Dictionary) -> Dictionary:
+	var own: Dictionary = panel.piece
+	for key in ["face_kinds", "face_patterns", "scale"]:
+		if own.has(key):
+			piece[key] = own[key]
+	return piece
 
 
 ## The part of a skin over these cells: cut along the panel's face, whole across it.
@@ -1133,10 +1144,11 @@ func _fine_meshes(panel: Dictionary) -> void:
 						open[k] = 1
 					elif gone[bu + nu * bv] == 1:
 						open[k] = 2
-				for layer: Array in layers:
-					if not extra.has(layer[0]):
-						extra[layer[0]] = [PackedVector3Array(), PackedVector3Array(), PackedColorArray()]
-					var buf: Array = extra[layer[0]]
+				for li in layers.size():
+					var layer: Array = layers[li]
+					# (The panel's own layer has its block's painted faces: a face goes in its
+					# painted kind's buffer, with its pattern. A skin's, none.)
+					var own: Dictionary = panel.piece if li == 0 else {}
 					var colour: Color = layer[1]
 					var near := []
 					var far := []
@@ -1150,8 +1162,8 @@ func _fine_meshes(panel: Dictionary) -> void:
 						far.append(a)
 					var out := Vector3.ZERO
 					out[t] = 1.0
-					MapMesher._flat(buf, xf, near, out, colour)
-					MapMesher._flat(buf, xf, far, -out, colour)
+					MapMesher._flat(MapMesher.face_buffer(extra, own, layer[0], out), xf, near, out, colour)
+					MapMesher._flat(MapMesher.face_buffer(extra, own, layer[0], -out), xf, far, -out, colour)
 					for k in 4:
 						if open[k] == 0:
 							continue
@@ -1164,12 +1176,12 @@ func _fine_meshes(panel: Dictionary) -> void:
 						if Vector2(side[u], side[v]).dot((flat[k] + flat[k2]) * 0.5 - mid) < 0.0:
 							side = -side
 						var shade := CUT_SHADE if open[k] == 2 else 1.0
-						MapMesher._flat(buf, xf, [far[k], far[k2], near[k2], near[k]], side.normalized(),
-							Color(colour.r * shade, colour.g * shade, colour.b * shade, colour.a))
+						MapMesher._flat(MapMesher.face_buffer(extra, own, layer[0], side.normalized()), xf, [far[k], far[k2], near[k2], near[k]],
+							side.normalized(), Color(colour.r * shade, colour.g * shade, colour.b * shade, colour.a))
 	for box in _merge_flat(nu, nv, keys, 1):
 		var local := _flat_extent(panel, box)
-		pieces.append({"xf": xf * Transform3D(Basis(), local.get_center()), "size": local.size,
-			"kind": panel.kind, "shape": "box", "tint": tint})
+		pieces.append(painted(panel, {"xf": xf * Transform3D(Basis(), local.get_center()), "size": local.size,
+			"kind": panel.kind, "shape": "box", "tint": tint}))
 		for skin in panel.skins:
 			var clipped := _clip_skin(panel, skin.box, local)
 			if clipped.has_volume():
@@ -1178,14 +1190,9 @@ func _fine_meshes(panel: Dictionary) -> void:
 	var holder: Node3D = panel.meshes
 	var meshes := MapMesher.build(pieces, root.face_shade)
 	for kind in extra:
-		var buf: Array = extra[kind]
-		var arrays := []
-		arrays.resize(Mesh.ARRAY_MAX)
-		arrays[Mesh.ARRAY_VERTEX] = buf[0]
-		arrays[Mesh.ARRAY_NORMAL] = buf[1]
-		arrays[Mesh.ARRAY_COLOR] = buf[2]
+		var arrays := MapMesher.surface_arrays(extra[kind])
 		var ragged := ArrayMesh.new()
-		ragged.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		ragged.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, MapMesher.surface_flags(arrays))
 		meshes[kind + " "] = ragged   # (its own mesh beside the kind's boxes)
 	for key: String in meshes:
 		var mesh := MeshInstance3D.new()
