@@ -250,7 +250,9 @@ static func of(node: Node) -> MapRoot:
 
 ## Makes the playable level: collision for every solid block and (unless
 ## `with_meshes` is false, as in the movement tests) one mesh per kind.
-func build(with_meshes: bool = true) -> void:
+## With a `budget` (the arena, behind its loading screen) the build is spread over
+## frames so the screen keeps drawing: await it then. Without one it runs straight through.
+func build(with_meshes: bool = true, budget: MapBuildBudget = null) -> void:
 	# The player's ambient occlusion and glow picks (Settings is missing in tools and tests).
 	var tree := Engine.get_main_loop() as SceneTree
 	var settings := tree.root.get_node_or_null("Settings") if tree else null
@@ -298,11 +300,15 @@ func build(with_meshes: bool = true) -> void:
 	# last map said).
 	WorldGravity.set_zones(gravity_zones, gravity_outside)
 	for s in spinners:
+		if budget and budget.due():
+			await budget.wait()
 		(s as MapSpinner).build(self, with_meshes)
 	checkpoints.sort_custom(func(a, b): return a.number < b.number)
 	dummies = []
 	_collect_dummies(self, Transform3D.IDENTITY)
 	has_meshes = with_meshes
+	if budget and budget.due():
+		await budget.wait()
 	_index_surfaces(pieces)
 	_index_decor(pieces)
 	current = self
@@ -310,7 +316,7 @@ func build(with_meshes: bool = true) -> void:
 		destruction = MapDestruction.new()
 		destruction.fine = fine_destruction
 		add_child(destruction)
-		pieces = destruction.setup(self, pieces, spawns)
+		pieces = await destruction.setup(self, pieces, spawns, budget)
 		if fine_destruction and with_meshes:
 			marks = BulletMarks.new()
 			add_child(marks)
@@ -320,6 +326,8 @@ func build(with_meshes: bool = true) -> void:
 			debris.setup(self, destruction)
 		if fine_destruction:
 			for building in buildings:
+				if budget and budget.due():
+					await budget.wait()
 				var c := MapCollapse.new()
 				c.index = collapses.size()
 				collapses.append(c)
@@ -328,17 +336,23 @@ func build(with_meshes: bool = true) -> void:
 				if collapse == null:
 					collapse = c
 	for i in movers.size():
-		_build_mover(i, with_meshes)   # (after the breakables: a mover's own ride on it)
+		if budget and budget.due():
+			await budget.wait()
+		await _build_mover(i, with_meshes)   # (after the breakables: a mover's own ride on it)
 	if movers.is_empty():
 		remove_from_group(MapReplay.GROUP)
 	else:
 		add_to_group(MapReplay.GROUP)   # killcams replay where they were (see MapReplay)
 	for s in spans:
+		if budget and budget.due():
+			await budget.wait()
 		var on: Node3D = movers[s.mover].body if s.mover >= 0 else self
 		(s.node as MapSpan).build(self, on, s.base, with_meshes)
 	var body := StaticBody3D.new()
 	body.name = "Collision"
 	for piece in pieces:
+		if budget and budget.due():
+			await budget.wait()
 		if piece.solid:
 			for lump in collision_shapes(piece):
 				var shape := CollisionShape3D.new()
@@ -371,7 +385,7 @@ func build(with_meshes: bool = true) -> void:
 			lots[key] = []
 		lots[key].append(piece)
 	for key: Array in lots:
-		var meshes := MapMesher.build(lots[key], face_shade)
+		var meshes: Dictionary = await MapMesher.build_spread(lots[key], face_shade, budget)
 		for kind in meshes:
 			var mesh := MeshInstance3D.new()
 			mesh.name = ["Mesh_%s", "Mesh_%s_decor", "Mesh_%s_detail"][key[1]] % kind
@@ -837,7 +851,7 @@ func _build_mover(index: int, with_meshes: bool) -> void:
 		for r in _riders:
 			if r.list == 0 and r.mover == index:
 				near.append([(r.xf as Transform3D).origin, 0.0])
-		built = destruction.add_riding(body, built, near)
+		built = await destruction.add_riding(body, built, near)
 		var f: MapFrame = _mover_frames.get(m.node)
 		if fine_destruction and f:
 			# Its building can come down (see MapFrame): what of it does not break rides

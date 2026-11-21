@@ -39,11 +39,22 @@ var _nav_serial := 0   # goes up every time the map's parts start moving: a bake
 func _ready() -> void:
 	WorldGravity.reset()   # whatever the last match's map event left behind
 	WorldGravity.clear_zones()   # ...and the last map's gravity zones (this map's build() sets its own)
+	# With a screen, the map loads and builds a little each frame behind the loading
+	# screen (Game's), so it keeps drawing. Headless (tests) it is built in one go.
+	var spread := DisplayServer.get_name() != "headless"
+	var started := Time.get_ticks_msec()
+	var budget: MapBuildBudget = null
+	if spread:
+		process_mode = Node.PROCESS_MODE_DISABLED   # nothing here runs on a half-built map
+		budget = MapBuildBudget.new(get_tree())
+		await _load_map_scene(Maps.scene_path(Net.map_id()))
 	layout = Maps.make(Net.map_id())
 	layout.name = "Level"
 	add_child(layout)
 	layout.destructible = not Race.active and Maps.game_of(Net.map_id()) != "race"
-	layout.build()
+	await layout.build(true, budget)
+	print("Map %s built in %d ms%s" % [Net.map_id(), Time.get_ticks_msec() - started,
+		" (over %d frames)" % (budget.waits + 1) if budget else ""])
 	if layout.destruction:
 		layout.destruction.cells_changed.connect(_on_cells_changed)
 		layout.mender = Match.mend_due
@@ -59,7 +70,13 @@ func _ready() -> void:
 		layout.clock_source = func(): return Race.time + Race.COUNTDOWN   # moving parts in step on every copy
 		_build_gates()
 	elif Net.has_bots() and Net.is_host():   # (the host runs the bots)
-		ensure_navigation()   # only when bots play: it takes a moment (racing bots follow the map's route instead)
+		# Only when bots play: it takes a moment (racing bots follow the map's route instead).
+		if spread:
+			await _ensure_navigation_spread()
+		else:
+			ensure_navigation()
+	if spread:
+		process_mode = Node.PROCESS_MODE_INHERIT
 	_spawn_dummies()
 	if Teams.active():
 		Teams.setup_map(layout)   # the bases, each side's spawn points and the bomb sites
@@ -479,6 +496,29 @@ func menu_open() -> bool:
 
 ## The navigation mesh bots walk on. Baked when the match starts with bots, or
 ## when the debug menu adds the first one.
+## ensure_navigation() behind the loading screen: baked on a background thread (await it).
+func _ensure_navigation_spread() -> void:
+	if has_node("Navigation"):
+		return
+	var region: NavigationRegion3D = await MapScenery.bake_navigation_spread(layout)
+	add_child(region)
+	if not layout.shifting:
+		_nav_by_layout[layout.layout_state] = region.navigation_mesh
+
+
+## Loads a map's scene file on a loader thread, waiting a frame at a time (await it).
+## Maps.make() then finds it already loaded.
+func _load_map_scene(path: String) -> void:
+	if ResourceLoader.load_threaded_request(path) != OK:
+		return   # make() loads it the usual way
+	while ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		await get_tree().process_frame
+	_map_scene = ResourceLoader.load_threaded_get(path)   # (held, so it stays cached for make())
+
+
+var _map_scene: Resource
+
+
 func ensure_navigation() -> void:
 	if not has_node("Navigation"):
 		var region := MapScenery.bake_navigation(layout)

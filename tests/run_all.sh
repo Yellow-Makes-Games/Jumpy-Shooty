@@ -58,6 +58,7 @@ CHECKS=(
   "map_tools|--script tests/map_tools_test.gd"
   "curved_blocks|--script tests/curved_blocks_test.gd"
   "arena_maps|--script tests/arena_maps_test.gd"
+  "map_build_spread|--script tests/map_build_spread_test.gd"
   "flicker|--script tests/map_flicker_test.gd"
   "halcyon|--script tests/halcyon_test.gd"
   "terminal|--script tests/terminal_test.gd"

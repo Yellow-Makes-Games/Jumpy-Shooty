@@ -391,7 +391,8 @@ func _on_match_started() -> void:
 		get_tree().change_scene_to_file.call_deferred(ARENA)   # nothing to see: no need to wait a frame
 		return
 	_hide_loading()
-	_loading = LoadingScreen.make(Maps.name_of(Net.map_id()))
+	var me := Net.my_id()
+	_loading = LoadingScreen.make(Maps.name_of(Net.map_id()), Net.player_character(me), Net.player_color(me), Net.player_weapon(me))
 	var screen := _loading
 	add_child(screen)
 	await RenderingServer.frame_post_draw   # the loading screen is on screen before the map's build holds everything up
