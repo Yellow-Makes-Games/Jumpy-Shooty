@@ -9,6 +9,8 @@ extends Node3D
 ## Where the pieces fly depends on what broke the wall: the shots and blasts this copy
 ## was told about just before (push_shot(), push_blast()). There are only so many of
 ## each, the oldest going first, and rubble lying on a floor that breaks falls again.
+## Rubble that comes to rest on something that moves (a flying island) is drawn from
+## that, so it goes where it goes.
 ##
 ## MapRoot makes one (`debris`) on a map with fine destruction.
 
@@ -29,7 +31,10 @@ var root: MapRoot
 var breaks: MapDestruction
 
 var _flying: Array = []    # [{body: RigidBody3D, kind, size: Vector3, tint: Color, born: float}]
-var _resting := {}         # kind -> {mm: MultiMesh, xf: Array (Transform3D or null), tint: Array, next: int}
+# What lies about, a lot for each kind on the map and on each mover: "kind#mover's body" ->
+# {kind, frame: Node3D or null, mm: MultiMesh, xf: Array (Transform3D or null, in the
+# frame), tint: Array, next: int}
+var _resting := {}
 var _pushes: Array = []    # [{at: Vector3, from: Vector3 (INF: a blast), time: float, power: float}]
 var _tick := 0
 var _materials := {}       # kind (and shade) -> the plain material its chunks are drawn with
@@ -325,23 +330,32 @@ func _land(i: int) -> void:
 	var body: RigidBody3D = f.body
 	var xf := Transform3D(body.global_transform.basis.orthonormalized() * Basis.from_scale(f.size), body.global_position)
 	body.queue_free()
-	var lot := _lot(f.kind)
+	var frame := _under(xf.origin, maxf(f.size.x, maxf(f.size.y, f.size.z)))
+	var lot := _lot(f.kind, frame)
+	xf = (frame if frame else self).global_transform.affine_inverse() * xf
 	var slot: int = lot.next
 	lot.next = (slot + 1) % MAX_RESTING
 	lot.xf[slot] = xf
 	lot.tint[slot] = f.tint
 	var mm: MultiMesh = lot.mm
-	mm.set_instance_transform(slot, to_local_xf(xf))
+	mm.set_instance_transform(slot, xf)
 	mm.set_instance_color(slot, Color(f.tint.r, f.tint.g, f.tint.b, 1.0))
 
 
-func to_local_xf(xf: Transform3D) -> Transform3D:
-	return global_transform.affine_inverse() * xf
+## The mover's body a chunk `size` across at `at` has come to rest on, or null (it lies
+## on the map, or on nothing).
+func _under(at: Vector3, size: float) -> Node3D:
+	if root.movers.is_empty() or not is_inside_tree():
+		return null
+	var hit := get_world_3d().direct_space_state.intersect_ray(
+		PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.05, at + Vector3.DOWN * (size + 0.3), 1))
+	return null if hit.is_empty() else BulletMarks.frame_of(hit.collider)
 
 
-func _lot(kind: String) -> Dictionary:
-	if _resting.has(kind):
-		return _resting[kind]
+func _lot(kind: String, frame: Node3D = null) -> Dictionary:
+	var key := "%s#%d" % [kind, frame.get_instance_id() if frame else 0]
+	if _resting.has(key):
+		return _resting[key]
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
@@ -356,13 +370,13 @@ func _lot(kind: String) -> Dictionary:
 	node.material_override = _material(kind, Color.WHITE)
 	node.visibility_range_end = SEEN_TO
 	node.visibility_range_end_margin = 10.0
-	add_child(node)
+	(frame if frame else self).add_child(node)
 	var xfs := []
 	xfs.resize(MAX_RESTING)
 	var tints := []
 	tints.resize(MAX_RESTING)
-	_resting[kind] = {"mm": mm, "xf": xfs, "tint": tints, "next": 0}
-	return _resting[kind]
+	_resting[key] = {"kind": kind, "frame": frame, "mm": mm, "xf": xfs, "tint": tints, "next": 0}
+	return _resting[key]
 
 
 ## Walls or floors broke: rubble lying on or against them falls again.
@@ -380,18 +394,22 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 		boxes.append(box)
 	if boxes.is_empty():
 		return
-	for kind: String in _resting:
-		var lot: Dictionary = _resting[kind]
+	for key: String in _resting:
+		var lot: Dictionary = _resting[key]
+		var frame := lot.frame as Node3D
+		if frame and not frame.is_visible_in_tree():
+			continue   # (an island parked below the map)
+		var placed := (frame if frame else self).global_transform
 		for slot in MAX_RESTING:
-			if lot.xf[slot] == null or not all.has_point((lot.xf[slot] as Transform3D).origin):
+			if lot.xf[slot] == null or not all.has_point(placed * (lot.xf[slot] as Transform3D).origin):
 				continue
-			var xf: Transform3D = lot.xf[slot]
+			var xf: Transform3D = placed * (lot.xf[slot] as Transform3D)
 			for box: AABB in boxes:
 				if box.has_point(xf.origin):
 					var size := xf.basis.get_scale()
 					lot.xf[slot] = null
 					(lot.mm as MultiMesh).set_instance_transform(slot, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
-					_fly(kind, lot.tint[slot], size, Transform3D(xf.basis.orthonormalized(), xf.origin), Vector3.ZERO, Vector3.ZERO)
+					_fly(lot.kind, lot.tint[slot], size, Transform3D(xf.basis.orthonormalized(), xf.origin), Vector3.ZERO, Vector3.ZERO)
 					break
 
 
@@ -400,12 +418,22 @@ func clear() -> void:
 	for f: Dictionary in _flying:
 		(f.body as RigidBody3D).queue_free()
 	_flying.clear()
-	for kind: String in _resting:
-		var lot: Dictionary = _resting[kind]
-		for slot in MAX_RESTING:
-			if lot.xf[slot] != null:
-				lot.xf[slot] = null
-				(lot.mm as MultiMesh).set_instance_transform(slot, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+	for key: String in _resting:
+		_empty(_resting[key])
+
+
+## Every chunk lying on `frame` (a mover's body) gone: it has been mended.
+func clear_on(frame: Node3D) -> void:
+	for key: String in _resting:
+		if _resting[key].frame == frame:
+			_empty(_resting[key])
+
+
+func _empty(lot: Dictionary) -> void:
+	for slot in MAX_RESTING:
+		if lot.xf[slot] != null:
+			lot.xf[slot] = null
+			(lot.mm as MultiMesh).set_instance_transform(slot, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
 
 
 ## What a chunk of `kind` is drawn with: the kind's colour, plain (a lump of blockwork
@@ -489,11 +517,22 @@ func warm(stage: Node3D) -> void:
 ## How many chunks there are: [in the air, lying about] (tests).
 func counts() -> Array:
 	var lying := 0
-	for kind: String in _resting:
-		for xf in _resting[kind].xf:
+	for key: String in _resting:
+		for xf in _resting[key].xf:
 			if xf != null:
 				lying += 1
 	return [_flying.size(), lying]
+
+
+## How many chunks lie on `frame` (a mover's body) (tests).
+func lying_on(frame: Node3D) -> int:
+	var lying := 0
+	for key: String in _resting:
+		if _resting[key].frame == frame:
+			for xf in _resting[key].xf:
+				if xf != null:
+					lying += 1
+	return lying
 
 
 # ---------------------------------------------------------------------------

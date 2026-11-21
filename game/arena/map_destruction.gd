@@ -161,8 +161,13 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 				break
 	var rest := []
 	for k in keep.size():
-		if not skin_of.has(k):
-			rest.append(keep[k])
+		if skin_of.has(k):
+			continue
+		var p: Dictionary = keep[k]
+		if p.solid or p.get("hidden", false) or p.shape != "box":
+			rest.append(p)
+		else:
+			rest.append_array(_share_band(p, first_panel))
 	# Whole blocks count as things resting on a floor: a floor under a crate holds.
 	_protect(rest + whole_pieces, spawn_points, first_cell, first_panel)
 	for i in range(first_panel, panels.size()):
@@ -319,6 +324,86 @@ func _skin_box(panel: Dictionary, piece: Dictionary) -> AABB:
 	if absf(gap_above) > 0.05 and absf(gap_below) > 0.05:
 		return AABB()   # not touching either face
 	return box
+
+
+## A long thin drawn-only piece that runs along the faces of several panels (a band of
+## colour round a building, across the stretches of wall between its windows): each
+## panel takes the length of it that lies on it as a skin, and what is left over (past
+## a corner, across an opening) comes back as pieces of its own, to be drawn as before.
+## A piece that is no such band comes back whole.
+func _share_band(piece: Dictionary, first_panel: int) -> Array:
+	var size: Vector3 = piece.size
+	var along := 0   # its long axis, in its own frame
+	for a in 3:
+		if size[a] > size[along]:
+			along = a
+	if size[along] < 2.0 or minf(size[(along + 1) % 3], size[(along + 2) % 3]) > 0.15:
+		return [piece]
+	var pxf: Transform3D = piece.xf
+	var spans: Array = []   # [from, to (along it, from its middle), panel, the skin's box]
+	for i in range(first_panel, panels.size()):
+		var panel: Dictionary = panels[i]
+		if panel.whole or not panel.fine:
+			continue
+		var to_local: Transform3D = (panel.xf as Transform3D).affine_inverse() * pxf
+		var square := true
+		for a in 3:
+			var col: Vector3 = to_local.basis[a].abs()
+			if maxf(col.x, maxf(col.y, col.z)) < 0.999:
+				square = false
+		if not square:
+			continue
+		var box: AABB = to_local * AABB(-size * 0.5, size)
+		var half: Vector3 = panel.size * 0.5
+		var thin: int = panel.thin
+		if box.size[thin] > 0.15 or (absf(box.position[thin] - half[thin]) > 0.05 and absf(-half[thin] - box.end[thin]) > 0.05):
+			continue   # not flat on either face
+		var run := 0   # the panel's axis it runs along
+		for a in 3:
+			if to_local.basis[along].abs()[a] > 0.5:
+				run = a
+		var across := 3 - thin - run
+		if run == thin or box.position[across] < -half[across] - 0.05 or box.end[across] > half[across] + 0.05:
+			continue
+		var from := maxf(box.position[run], -half[run])
+		var to := minf(box.end[run], half[run])
+		if to - from < 0.1:
+			continue
+		var skin := box
+		skin.position[run] = from
+		skin.size[run] = to - from
+		# (where that is along the piece: its axis may run the other way)
+		var a_end: float = (to_local.affine_inverse() * skin.position)[along]
+		var b_end: float = (to_local.affine_inverse() * skin.end)[along]
+		spans.append([minf(a_end, b_end), maxf(a_end, b_end), i, skin])
+	if spans.is_empty():
+		return [piece]
+	spans.sort_custom(func(a, b): return a[0] < b[0])
+	var left: Array = []
+	var at := -size[along] * 0.5
+	for span in spans:
+		if span[0] < at - 0.01:
+			continue   # (two panels over the same stretch: the first has it)
+		if span[0] - at > 0.01:
+			left.append(_band_part(piece, along, at, span[0]))
+		panels[span[2]].skins.append({"kind": piece.kind, "tint": piece.get("tint", Color.WHITE), "box": span[3]})
+		at = span[1]
+	if size[along] * 0.5 - at > 0.01:
+		left.append(_band_part(piece, along, at, size[along] * 0.5))
+	return left
+
+
+## The stretch of `piece` from `from` to `to` along its axis `along` (measured from its
+## middle), as a piece.
+func _band_part(piece: Dictionary, along: int, from: float, to: float) -> Dictionary:
+	var part := piece.duplicate()
+	var size: Vector3 = piece.size
+	size[along] = to - from
+	var shift := Vector3.ZERO
+	shift[along] = (from + to) * 0.5
+	part["size"] = size
+	part["xf"] = (piece.xf as Transform3D) * Transform3D(Basis.IDENTITY, shift)
+	return part
 
 
 ## Marks the cells that must not break: near spawns, and under or round other things.
@@ -574,8 +659,8 @@ func blast(at: Vector3, weapon: WeaponData, body: Object, normal: Vector3) -> vo
 	var amount := weapon.damage * weapon.structure_damage
 	if fine and weapon.explosive:
 		damage_area(at, weapon.splash_radius * BLAST_REACH, amount)
-		if root.collapse:
-			root.collapse.blast(at, weapon.splash_radius * BLAST_REACH, amount)   # (the columns of a building that can come down)
+		for c in root.collapses:
+			c.blast(at, weapon.splash_radius * BLAST_REACH, amount)   # (the columns of a building that can come down)
 	elif body:
 		damage(cell_at(body, at - normal * 0.05, normal), amount)
 
@@ -595,15 +680,15 @@ func blow(body: Object, at: Vector3, normal: Vector3, amount: float, reach: floa
 ## Host: a round or a blow of `amount` landed at `point` on something that is not a
 ## breakable wall: a column of a building that can come down takes it (see MapCollapse).
 func struck(point: Vector3, amount: float) -> void:
-	if root.collapse:
-		root.collapse.hit(point, amount)
+	for c in root.collapses:
+		c.hit(point, amount)
 
 
 ## Host: who is doing the damage that follows, and what with (a collapse's kills are theirs).
 func cause(who: int, weapon_id: String) -> void:
-	if root.collapse:
-		root.collapse.by = who
-		root.collapse.with = weapon_id
+	for c in root.collapses:
+		c.by = who
+		c.with = weapon_id
 
 
 ## Host: a blast or a heavy blow at `at`: every cell within `radius` metres takes
@@ -684,6 +769,8 @@ func apply(ids: PackedInt32Array, stages: PackedByteArray) -> PackedInt32Array:
 			broke.append(c)
 		if stage >= BROKEN:
 			cell.hp = 0.0
+		elif stage == 0:
+			cell.hp = cell.max_hp   # (made whole again: see repair())
 		cell.stage = stage
 		if stage == 0:
 			_damaged.erase(c)
@@ -701,6 +788,28 @@ func apply(ids: PackedInt32Array, stages: PackedByteArray) -> PackedInt32Array:
 	if not broke.is_empty() and not _replaying:   # (a killcam playing shows the wall as it was: no rubble from it)
 		_break_effects(broke)
 	return broke
+
+
+## Every copy: everything that rides `frame` (a mover's body) is whole again: an island
+## that went below the clouds comes back up mended. Nothing is sent: every copy does it
+## at the same point of the island's journey. Returns how many cells it mended.
+func repair(frame: Node3D) -> int:
+	var ids := PackedInt32Array()
+	for panel: Dictionary in panels:
+		if panel.get("frame") != frame:
+			continue
+		for c in range(int(panel.first), int(panel.first) + int(panel.n.x * panel.n.y * panel.n.z)):
+			var cell: Dictionary = cells[c]
+			cell.hp = cell.max_hp   # (host: also what was hit and does not show it yet)
+			_pending.erase(c)       # (host: damage done to it on its way down, not yet sent)
+			if cell.stage != 0:
+				ids.append(c)
+	if ids.is_empty():
+		return 0
+	var stages := PackedByteArray()
+	stages.resize(ids.size())   # (all 0: whole)
+	apply(ids, stages)
+	return ids.size()
 
 
 ## "cracked/broken checksum": the same on every copy that shows the same damage (tests).
@@ -811,10 +920,7 @@ func _rebuild_meshes(index: int) -> void:
 					"kind": skin.kind, "shape": "box", "tint": skin.tint})
 	var meshes := MapMesher.build(pieces, root.face_shade)
 	for kind in meshes:
-		var mesh := MeshInstance3D.new()
-		mesh.mesh = meshes[kind]
-		mesh.material_override = root.material_for(kind)
-		holder.add_child(mesh)
+		holder.add_child(_drawn(panel, kind, meshes[kind]))
 
 
 ## A whole-block panel: its own shape while it stands (darker as it cracks), nothing
@@ -848,10 +954,22 @@ func _rebuild_whole_meshes(panel: Dictionary) -> void:
 	piece.tint = Color(tint.r * shade, tint.g * shade, tint.b * shade, tint.a)
 	var meshes := MapMesher.build([piece], root.face_shade)
 	for kind in meshes:
-		var mesh := MeshInstance3D.new()
-		mesh.mesh = meshes[kind]
-		mesh.material_override = root.material_for(kind)
-		holder.add_child(mesh)
+		holder.add_child(_drawn(panel, kind, meshes[kind]))
+
+
+## One of a panel's meshes, ready to draw. On a panel that rides a mover the kind's
+## pattern is laid out from the mover, like the rest of what rides it (see
+## MapRoot._build_mover): measured from the map it would stand still while the wall
+## moved through it, and would not meet the pattern on the wall beside it.
+func _drawn(panel: Dictionary, kind: String, mesh: ArrayMesh) -> MeshInstance3D:
+	var node := MeshInstance3D.new()
+	if panel.get("frame") != null:
+		node.mesh = MapMesher.riding(mesh)
+		node.material_override = root.riding_material_for(kind)
+	else:
+		node.mesh = mesh
+		node.material_override = root.material_for(kind)
+	return node
 
 
 ## `piece`, a box of a panel's own kind that is part of how the panel is drawn, with the
@@ -1195,10 +1313,7 @@ func _fine_meshes(panel: Dictionary) -> void:
 		ragged.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, MapMesher.surface_flags(arrays))
 		meshes[kind + " "] = ragged   # (its own mesh beside the kind's boxes)
 	for key: String in meshes:
-		var mesh := MeshInstance3D.new()
-		mesh.mesh = meshes[key]
-		mesh.material_override = root.material_for(key.strip_edges())
-		holder.add_child(mesh)
+		holder.add_child(_drawn(panel, key.strip_edges(), meshes[key]))
 
 
 # ---------------------------------------------------------------------------

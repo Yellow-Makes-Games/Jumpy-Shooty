@@ -181,7 +181,8 @@ Quick checks:
   the player did: `COURSE_ONLY="fence" COURSE_DEBUG="fence" godot --headless --fixed-fps 60
   --path . --script tests/site_test.gd`;
 - breakable walls and floors (`tests/destruction_test.gd`);
-- a building coming down (`tests/collapse_test.gd`);
+- a building coming down (`tests/collapse_test.gd`), and one on an island that flies
+  (`tests/cirrus_collapse_test.gd`);
 - flicker (`tests/map_flicker_test.gd`), on the Castle, Castle 2, Rail Yard, Lost Temple, Neon
   Arcade and Sky Island: no two surfaces of different colours share a plane where both can be seen,
   and no sign lies in the wall behind it. `FLICKER_MAPS=all` tries every map,
@@ -193,8 +194,10 @@ Quick checks:
   kills;
 - Cirrus (`tests/cirrus_test.gd`, with `--fixed-fps 60`): spawn points and pickups, the
   pool of arrangements, the clock's timing and sounds, no writing, what crosses the gap,
-  a move (riders on an island that stays are carried, those on one that goes die), the
-  glass, bots' routes and crossings;
+  a move (riders on an island that stays are carried, those on one that goes die), what
+  breaks, bots' routes and crossings; and `tests/cirrus_destruction_test.gd`: walls
+  that break small on an island that has moved, marks and rubble that ride it, and an
+  island that comes back up mended;
 - Sky Island (`tests/sky_island_test.gd`): its moving parts, spawns and pickups; the
   bots' crossings join every island to every other; the navigation mesh's frame
   (`MapRoot.to_nav`); and the crossings themselves, done the way a bot does them, with
@@ -372,7 +375,15 @@ The sync, match and bot tests take a map and a player count, for example
   the frame a column goes; steel beams and posts come away in one piece each; online
   (`tests/run_collapse_test.sh`, laggy network) the host blows out the corner column
   (`--blow-column`), one spectator joins during the fall and one after, and all four
-  copies end with the same heap and the same walls and floors gone;
+  copies end with the same heap and the same walls and floors gone
+  (`MAP=cirrus COLUMN=9:0,0,1 tests/run_collapse_test.sh` does the same on Cirrus);
+- a building coming down on Cirrus (`tests/cirrus_collapse_test.gd`): each of the five
+  buildings has a collapse of its own riding its island, with stretches of wall for
+  columns; one piece short of Wall Share and the wall holds, one more and the corner
+  bay comes down from that floor up; no cornice runs from one bay into the next; the
+  walls above topple; the pieces fall where the island is and the pile
+  is the island's (it moves when the island does, and cannot be hit while the island
+  is parked); the island comes back with its building whole, and it can come down again;
 - Halcyon (`tests/halcyon_test.gd`): 16 or more spawn points, each clear, none in the
   Control Room or in sight of the terminal's dais; the pickups (the heavy weapons up
   high, none in the Control Room); the terminal on its dais and its event; on the bots'
@@ -965,7 +976,7 @@ ceiling under a floor, a rug, a lamp strip, frosting on glass) break along with 
 whole block only keeps the spawn rule. The bots' navigation mesh is not rebuilt when
 something breaks. The code is `game/arena/map_destruction.gd`.
 
-**Fine destruction (the Construction Site, for now).** Tick **Fine Destruction** on a
+**Fine destruction (the Construction Site and Cirrus).** Tick **Fine Destruction** on a
 map's root and its breakable blocks break small in place of the 2 m squares; nothing
 else about making the map changes. What that turns on, a layer at a time:
 
@@ -985,8 +996,34 @@ else about making the map changes. What that turns on, a layer at a time:
 - *Rubble* (`map_debris.gd`): a piece that breaks throws chunks of its own material,
   away from the shot or blast that broke it, with bits and dust; chunks land, lie where
   they fell and fall again if the floor under them goes. At most 120 in the air and
-  160 lying. Looks only as well: each copy throws its own.
-- *Buildings that fall* (`map_collapse.gd`, below).
+  160 lying of each kind. Looks only as well: each copy throws its own.
+- *Buildings that fall* (`map_collapse.gd`, below): the Construction Site's tower and
+  the five buildings on Cirrus's islands.
+
+A thin band that runs along the faces of several breakable blocks (a slab edge, a band
+of colour round a building, across the stretches of wall between its windows) is
+shared out among them, each taking the length that lies on it, so it breaks with the
+wall behind it (`MapDestruction._share_band`). What lies over an opening or past a
+corner is drawn as before.
+
+**On something that moves** (a MapMover or a MapIsland: Cirrus's building islands) all
+of it rides along. A breakable block inside a mover becomes a panel in the mover's own
+frame: its collision and its meshes are children of the mover's body, drawn with the
+pattern measured from the mover like the rest of it. A mark on a mover or on one of
+its walls goes into a batch that hangs off the mover's body, made when it is first
+marked (`BulletMarks.frame_of` says what a ray hit is part of); rubble that comes to
+rest on a mover goes into a lot that hangs off it too. So a shot-up island keeps its
+holes, marks and rubble wherever the clock sends it. Other things that move (a
+spinner, a door) still take no marks.
+
+**A MapIsland comes back mended.** An island that goes below the map (see "Maps of
+flying islands") is whole again when it rises: broken pieces back with all their
+health, no marks, no rubble (`MapRoot.mend`). Untick **Mends** on the island to keep
+its damage all match. The host says when (`Match.mend_due` and `_mend`, sent in step
+with the breaks, so a copy whose island gets there a moment sooner or later still ends
+with the same walls); the island asks as it is un-parked on its way up, at least a
+whole turn after it went down. While it is parked nothing of it can be hit. What never
+goes down (Cirrus's quad, every island in the team modes) keeps its damage.
 
 **A building that can come down.** Add a **MapFrame** node (`map_frame.gd`) to a map
 with fine destruction, at the map's origin, and tell it where the building's frame is:
@@ -999,6 +1036,8 @@ with fine destruction, at the map's origin, and tell it where the building's fra
   columns. **Column Health** (600) and **Column Armour** (60): the damage one storey of
   a column takes before it is blown out, and the weakest hit that does it any.
 - **Core**: a box that always stands (a lift core). The bay it is in never falls.
+- **Held By Walls**: the building has no columns: its walls hold it up (below).
+  **Wall Reach** (2.5 m) and **Wall Share** (0.6) say which wall and how much of it.
 
 The square of floor between four columns is a *bay*. Blow out a storey of a bay's
 outside corner column, or of any two of its columns, and that floor of the bay falls
@@ -1029,6 +1068,37 @@ the bots' navigation laid over it. A player who joins during or after a fall is 
 the same. Someone under a big piece coming down fast is killed, and the kill goes to
 whoever blew the column. Nobody spawns in or under a bay that has come down. A killcam
 shows what fell as already fallen.
+
+**A building held up by its walls** (Held By Walls: Cirrus's five). There are no
+columns to find, so at each crossing of the lines, a storey at a time, the pieces of
+breakable upright wall within Wall Reach of the crossing stand in for one (glass and
+what is protected do not count, and a sliver of fewer than 30 pieces, beside a door,
+holds nothing up). When Wall Share of a stretch's pieces are gone, that storey of that
+"column" is blown out, and the same rule decides what falls: a bay's outside corner,
+or any two of its corners. On Cirrus that is two to four well placed rockets at a
+corner, about what a column takes on the Construction Site; bullets get there too,
+slowly, since they break stone. Wall that came down with the bay next door counts as
+gone, so a building that has lost a bay is easier to bring down further. Nothing is
+drawn for these stretches: the wall is the wall. A cornice, band or parapet that runs
+the length of such a building is cut at the lines when the map is built, so each bay
+takes its own stretch down with it (`MapCollapse._by_bay`). And each piece is tipped
+outwards from the middle of its bay as it lets go (`_topple`, the same on every copy):
+a wall cut loose over the wall it stood on would otherwise stay there, a stack of
+loose blocks that looks like a wall.
+
+**On an island that flies.** Put the MapFrame inside the MapMover or MapIsland, with
+its lines measured in the island's own frame, and the building gets a collapse of its
+own that is a child of the island's body (`MapRoot.collapses`, one for each; `collapse`
+is still the first). Everything about a fall is then worked out in the island's frame:
+the pieces, the host's news, where they rest and the pile, which is a body that moves
+with the island. So a building brought down on a gliding island falls where the island
+is, and its heap goes where the island goes. Pieces that go over the edge are gone
+(hidden four metres under the map's kill height, and left out of the pile). An island
+that goes below the map takes any fall in progress with it (it ends there and then,
+for everyone), and when it comes back mended the building is rebuilt: bays, walls and
+heap (`MapCollapse.mend`, called from `MapRoot.mend`). Each collapse numbers its
+events from its index times 100,000, so a message about a fall says whose it is
+(`MapRoot.collapse_of`), and the column messages carry the index.
 
 What it costs to draw: the columns that still stand are one mesh for each kind (made
 again when one goes, which is quick), everything loose in the building is another (made
@@ -1339,6 +1409,26 @@ It was laid out by `python3 tools/arena/build_arena_maps.py cirrus` (the layout 
 generated arenas the scene is what you edit from here on, and running the script again
 **overwrites hand edits**. After moving things, `godot --headless --path . --fixed-fps 60
 --script tests/cirrus_test.gd` checks it.
+
+**What breaks.** Cirrus has fine destruction (see "Fine destruction" above). The
+buildings' stone walls (`stone`), their roof slabs and the lower walls inside
+(`stone_warm`), the wooden and tiled upper floors (`floor_wood`, `floor_tile`) break
+small; the Labs' glass, the windows and the skylight go a pane at a time. The islands
+themselves (lawn, deck, rock), the stairs, the porch columns, the domes and the clock
+tower (its walls are 0.6 m thick, too thick to be a breakable panel) do not break.
+Which blocks break is the **Breakable** tick on each block; `python3
+tools/arena/cirrus_breakable.py` ticked them (every solid, drawn, thin box of those
+kinds with a face of 7 m² or more) and can be run again after adding walls. How tough
+each kind is sits in the palette's **Breakable** table. An island that goes down
+comes back mended; the quad's damage stays. `tests/cirrus_destruction_test.gd` checks
+all of it on an island that has moved.
+
+Each building can come down: a **Frame** node (a MapFrame, Held By Walls) inside each
+island, before its Building, with three bays along the front and two deep and a level
+for each upper floor and the roof, in the island's own frame (`python3
+tools/arena/cirrus_frames.py` wrote them). Move a building's outer walls or floors and
+its Frame's lines have to follow. See "A building held up by its walls" and
+`tests/cirrus_collapse_test.gd`.
 
 Things to keep true when editing it:
 
@@ -1804,8 +1894,10 @@ Three node kinds, all in `game/arena/`, none of them tied to Cirrus:
   degrees round, so many metres up, so many metres out) or park it far below the map,
   hidden and with nothing to bump into. In the game it is one moving body, whatever is
   in it: blocks, spawn points, weapon and power-up spots, grapple points, jump links
-  and breakable glass all ride along. `up` says people can be on it, `doomed` that it
-  goes down at the next move.
+  and breakable walls, floors and glass all ride along, with their bullet marks and
+  rubble. `up` says people can be on it, `doomed` that it goes down at the next move.
+  With **Mends** ticked (it is by default) it comes back up whole after it has been
+  parked.
 - **LayoutEvent** (`layout_event.gd`, a MapEvent, no terminal needed): a clock that runs
   for as long as a match does. Each turn: **Hold Time** (60 s), a tick or a tock every
   second (quiet everywhere, a little louder near **Tick From**); then the bell and

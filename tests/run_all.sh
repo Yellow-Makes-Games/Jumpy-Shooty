@@ -60,6 +60,8 @@ CHECKS=(
   "halcyon|--script tests/halcyon_test.gd"
   "terminal|--script tests/terminal_test.gd"
   "cirrus|--fixed-fps 60 --script tests/cirrus_test.gd"
+  "cirrus_destruction|--fixed-fps 60 --script tests/cirrus_destruction_test.gd"
+  "cirrus_collapse|--fixed-fps 60 --script tests/cirrus_collapse_test.gd"
   "gravity|--fixed-fps 60 --script tests/gravity_test.gd"
   "lift|--fixed-fps 60 --script tests/lift_test.gd"
   "empyrean|--script tests/empyrean_test.gd"
@@ -130,6 +132,8 @@ echo "== Match: 3 players, laggy network, two matches back to back, sounds (Cons
 MAP=construction_site tests/run_match_test.sh 3 "100,40,5"
 echo "== A building coming down online: laggy network, one spectator joins during the fall and one after; every copy ends with the same heap"
 tests/run_collapse_test.sh "100,30,5"
+echo "== The same on Cirrus: a building held up by its walls, on an island that flies"
+MAP=cirrus COLUMN=9:0,0,1 tests/run_collapse_test.sh "100,30,5"
 echo "== Bots: every difficulty, a fight and a rematch, a free-for-all, a sword bot, sounds (Construction Site)"
 MAP=construction_site tests/run_bot_test.sh
 echo "== Bots in an online lobby: run by the host, seen moving by a client, kills and results agree"

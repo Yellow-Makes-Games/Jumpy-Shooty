@@ -12,6 +12,7 @@
 [ext_resource type="Resource" path="res://game/maps/palettes/cirrus.tres" id="pal"]
 [ext_resource type="Resource" path="res://game/maps/sky/maps/cirrus.tres" id="sky_preset"]
 [ext_resource type="Resource" path="res://game/maps/sky/maps/cirrus_sunset.tres" id="sky_preset2"]
+[ext_resource type="Script" path="res://game/arena/map_frame.gd" id="10_frame"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 2
@@ -42,6 +43,7 @@ palette = ExtResource("pal")
 face_shade = Vector3(0.9, 0.8, 0.66)
 kill_height = -45.0
 bounds = Rect2(-100, -100, 200, 200)
+fine_destruction = true
 swing_point = Vector3(0, 24, 0)
 winding_floors = true
 bots_grapple = true
@@ -6291,6 +6293,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25.9, -1.8)
 script = ExtResource("2_block")
 size = Vector3(12.4, 0.4, 8.8)
 kind = "stone_warm"
+breakable = true
 
 [node name="BelfryFloor2" type="Node3D" parent="Quad/ClockTower/Belfry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.4, 25.9, 3.6)
@@ -6303,12 +6306,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.4, 25.9, 3.6)
 script = ExtResource("2_block")
 size = Vector3(3.6, 0.4, 2)
 kind = "stone_warm"
+breakable = true
 
 [node name="BelfryFloor4" type="Node3D" parent="Quad/ClockTower/Belfry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 25.9, 5.4)
 script = ExtResource("2_block")
 size = Vector3(12.4, 0.4, 1.6)
 kind = "stone_warm"
+breakable = true
 
 [node name="Pier" type="Node3D" parent="Quad/ClockTower/Belfry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 28.8, -5.5)
@@ -6365,6 +6370,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 26.55, -5.5)
 script = ExtResource("2_block")
 size = Vector3(9.6, 0.9, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap" type="Node3D" parent="Quad/ClockTower/Belfry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 27.05, -5.5)
@@ -6379,6 +6385,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 26.55, 0)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.9, 9.6)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap2" type="Node3D" parent="Quad/ClockTower/Belfry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.5, 27.05, 0)
@@ -6411,6 +6418,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 26.55, 5.5)
 script = ExtResource("2_block")
 size = Vector3(9.6, 0.9, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap3" type="Node3D" parent="Quad/ClockTower/Belfry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 27.05, 5.5)
@@ -6425,6 +6433,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 26.55, 0)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.9, 9.6)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap4" type="Node3D" parent="Quad/ClockTower/Belfry"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 27.05, 0)
@@ -9311,6 +9320,14 @@ kind = "brass"
 solid = false
 sides = 10
 
+[node name="Frame" type="Node3D" parent="Observatory"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-13.4, -4.47, 4.47, 13.4)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 10)
+held_by_walls = true
+
 [node name="Building" type="Node3D" parent="Observatory"]
 
 [node name="Shell" type="Node3D" parent="Observatory/Building"]
@@ -9321,6 +9338,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.55, 2.75, -1.4)
 script = ExtResource("2_block")
 size = Vector3(4.1, 5.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront2" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0.6, -1.4)
@@ -9339,6 +9357,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.05, 2.75, -1.4)
 script = ExtResource("2_block")
 size = Vector3(4.9, 5.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront5" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.85, -1.4)
@@ -9351,6 +9370,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.05, 2.75, -1.4)
 script = ExtResource("2_block")
 size = Vector3(4.9, 5.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront7" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 0.6, -1.4)
@@ -9369,6 +9389,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.55, 2.75, -1.4)
 script = ExtResource("2_block")
 size = Vector3(4.1, 5.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFrontArch" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.55, -1.4)
@@ -9399,6 +9420,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.8, 2.75, 13.6)
 script = ExtResource("2_block")
 size = Vector3(21.6, 5.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack2" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 0.6, 13.6)
@@ -9417,6 +9439,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.3, 2.75, 13.6)
 script = ExtResource("2_block")
 size = Vector3(2.6, 5.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBackArch" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 3.9, 13.6)
@@ -9431,6 +9454,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.4, 2.75, 0.9)
 script = ExtResource("2_block")
 size = Vector3(0.4, 5.5, 4.2)
 kind = "stone"
+breakable = true
 
 [node name="WallWest2" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.4, 4.75, 4.6)
@@ -9443,6 +9467,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.4, 2.75, 9.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 5.5, 7.2)
 kind = "stone"
+breakable = true
 
 [node name="WallWestArch" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -13.4, 3.4, 4.6)
@@ -9457,6 +9482,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 2.75, 1.9)
 script = ExtResource("2_block")
 size = Vector3(0.4, 5.5, 6.2)
 kind = "stone"
+breakable = true
 
 [node name="WallEast2" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 4.75, 6.6)
@@ -9469,6 +9495,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.4, 2.75, 10.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 5.5, 5.2)
 kind = "stone"
+breakable = true
 
 [node name="WallEastArch" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 13.4, 3.4, 6.6)
@@ -10001,6 +10028,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 6.2, -1.45)
 script = ExtResource("2_block")
 size = Vector3(19.9, 0.8, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap2" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 6.65, -1.45)
@@ -10015,6 +10043,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.2, 13.65)
 script = ExtResource("2_block")
 size = Vector3(26.9, 0.8, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap3" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.65, 13.65)
@@ -10029,6 +10058,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.45, 6.2, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.8, 14.8)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap4" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.45, 6.65, 6.1)
@@ -10057,6 +10087,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.45, 6.2, 8.35)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.8, 10.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap6" type="Node3D" parent="Observatory/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.45, 6.65, 8.35)
@@ -10360,6 +10391,7 @@ transform = Transform3D(0.9511, 0, 0.309, 0, 1, 0, -0.309, 0, 0.9511, 6.9777, 7.
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand2" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(0.9511, 0, 0.309, 0, 1, 0, -0.309, 0, 0.9511, 7.0519, 9.65, 12.315)
@@ -10373,6 +10405,7 @@ transform = Transform3D(0.5878, 0, 0.809, 0, 1, 0, -0.809, 0, 0.5878, 10.1777, 7
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand3" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(0.5878, 0, 0.809, 0, 1, 0, -0.809, 0, 0.5878, 10.3719, 9.65, 9.9029)
@@ -10411,6 +10444,7 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 11.4, 7.9, 6)
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand5" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 11.64, 9.65, 6)
@@ -10424,6 +10458,7 @@ transform = Transform3D(-0.309, 0, 0.9511, 0, 1, 0, -0.9511, 0, -0.309, 11.0868,
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand6" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-0.309, 0, 0.9511, 0, 1, 0, -0.9511, 0, -0.309, 11.315, 9.65, 3.9481)
@@ -10437,6 +10472,7 @@ transform = Transform3D(-0.5878, 0, 0.809, 0, 1, 0, -0.809, 0, -0.5878, 10.1777,
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand7" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-0.5878, 0, 0.809, 0, 1, 0, -0.809, 0, -0.5878, 10.3719, 9.65, 2.0971)
@@ -10475,6 +10511,7 @@ transform = Transform3D(-0.9511, 0, 0.309, 0, 1, 0, -0.309, 0, -0.9511, 6.9777, 
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand9" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-0.9511, 0, 0.309, 0, 1, 0, -0.309, 0, -0.9511, 7.0519, 9.65, -0.315)
@@ -10488,6 +10525,7 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 5, 7.9, -0.4)
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand10" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 5, 9.65, -0.64)
@@ -10501,6 +10539,7 @@ transform = Transform3D(-0.9511, 0, -0.309, 0, 1, 0, 0.309, 0, -0.9511, 3.0223, 
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand11" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-0.9511, 0, -0.309, 0, 1, 0, 0.309, 0, -0.9511, 2.9481, 9.65, -0.315)
@@ -10539,6 +10578,7 @@ transform = Transform3D(-0.5878, 0, -0.809, 0, 1, 0, 0.809, 0, -0.5878, -0.1777,
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand13" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-0.5878, 0, -0.809, 0, 1, 0, 0.809, 0, -0.5878, -0.3719, 9.65, 2.0971)
@@ -10552,6 +10592,7 @@ transform = Transform3D(-0.309, 0, -0.9511, 0, 1, 0, 0.9511, 0, -0.309, -1.0868,
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand14" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(-0.309, 0, -0.9511, 0, 1, 0, 0.9511, 0, -0.309, -1.315, 9.65, 3.9481)
@@ -10603,6 +10644,7 @@ transform = Transform3D(0.5878, 0, -0.809, 0, 1, 0, 0.809, 0, 0.5878, -0.1777, 7
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand17" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(0.5878, 0, -0.809, 0, 1, 0, 0.809, 0, 0.5878, -0.3719, 9.65, 9.9029)
@@ -10616,6 +10658,7 @@ transform = Transform3D(0.809, 0, -0.5878, 0, 1, 0, 0.5878, 0, 0.809, 1.2382, 7.
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand18" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(0.809, 0, -0.5878, 0, 1, 0, 0.5878, 0, 0.809, 1.0971, 9.65, 11.3719)
@@ -10629,6 +10672,7 @@ transform = Transform3D(0.9511, 0, -0.309, 0, 1, 0, 0.309, 0, 0.9511, 3.0223, 7.
 script = ExtResource("2_block")
 size = Vector3(2.0873, 4.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="DrumBand19" type="Node3D" parent="Observatory/Building/Dome"]
 transform = Transform3D(0.9511, 0, -0.309, 0, 1, 0, 0.309, 0, 0.9511, 2.9481, 9.65, 12.315)
@@ -14303,6 +14347,14 @@ kind = "brass"
 solid = false
 sides = 10
 
+[node name="Frame" type="Node3D" parent="Labs"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-14, -4.67, 4.67, 14)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 11.95)
+held_by_walls = true
+
 [node name="Building" type="Node3D" parent="Labs"]
 
 [node name="Shell" type="Node3D" parent="Labs/Building"]
@@ -14313,24 +14365,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.4, 5.8, -1.4)
 script = ExtResource("2_block")
 size = Vector3(1.6, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront2" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 3.2, -1.4)
 script = ExtResource("2_block")
 size = Vector3(11.2, 6.4, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront3" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 10.8, -1.4)
 script = ExtResource("2_block")
 size = Vector3(11.2, 1.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront4" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, 5.8, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3.4, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront5" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 4.75, -1.4)
@@ -14343,12 +14399,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 10.35, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3.2, 2.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront7" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.6, 5.8, -1.4)
 script = ExtResource("2_block")
 size = Vector3(2.8, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront8" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.6, -1.4)
@@ -14361,24 +14419,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 5.35, -1.4)
 script = ExtResource("2_block")
 size = Vector3(4, 2.3, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront10" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 10.65, -1.4)
 script = ExtResource("2_block")
 size = Vector3(4, 1.9, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront11" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.1, 5.8, -1.4)
 script = ExtResource("2_block")
 size = Vector3(2.2, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.6, 5.8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3.2, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack2" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 0.6, 13.6)
@@ -14391,18 +14453,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 7.9, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 7.4, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack4" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5, 5.8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack5" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.25, 3.25, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3.5, 6.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack6" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.25, 10.65, 13.6)
@@ -14433,6 +14498,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.25, 3.25, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3.5, 6.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack11" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.25, 10.65, 13.6)
@@ -14445,6 +14511,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 5.8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack13" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 0.6, 13.6)
@@ -14457,12 +14524,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 7.9, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 7.4, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack15" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.6, 5.8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3.2, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallWest" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 5.8, -1)
@@ -14475,18 +14544,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 7.7, 0.6)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.8, 2.8)
 kind = "stone"
+breakable = true
 
 [node name="WallWest3" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 5.8, 4.5)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 5)
 kind = "stone"
+breakable = true
 
 [node name="WallWest4" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 3.25, 8.5)
 script = ExtResource("2_block")
 size = Vector3(0.4, 6.5, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallWest5" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 10.65, 8.5)
@@ -14499,6 +14571,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 5.8, 11.7)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 3.4)
 kind = "stone"
+breakable = true
 
 [node name="WallEast" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5.8, -1)
@@ -14511,18 +14584,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 7.7, 0.6)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.8, 2.8)
 kind = "stone"
+breakable = true
 
 [node name="WallEast3" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5.8, 4.5)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 5)
 kind = "stone"
+breakable = true
 
 [node name="WallEast4" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 3.25, 8.5)
 script = ExtResource("2_block")
 size = Vector3(0.4, 6.5, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallEast5" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 10.65, 8.5)
@@ -14535,6 +14611,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5.8, 11.7)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 3.4)
 kind = "stone"
+breakable = true
 
 [node name="Band" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.175, -1.64)
@@ -14604,12 +14681,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.775, -0.75)
 script = ExtResource("2_block")
 size = Vector3(28.6, 0.35, 1.9)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof2" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.15, 11.775, 1.1)
 script = ExtResource("2_block")
 size = Vector3(24.3, 0.35, 1.8)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof3" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.05, 11.775, 1.1)
@@ -14622,6 +14701,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.775, 7.95)
 script = ExtResource("2_block")
 size = Vector3(28.6, 0.35, 11.9)
 kind = "stone_warm"
+breakable = true
 
 [node name="RoofSkin" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.96, -0.75)
@@ -14692,6 +14772,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.3, -1.55)
 script = ExtResource("2_block")
 size = Vector3(28.3, 0.7, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.7, -1.55)
@@ -14706,6 +14787,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.3, 13.75)
 script = ExtResource("2_block")
 size = Vector3(28.3, 0.7, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap2" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.7, 13.75)
@@ -14720,6 +14802,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.15, 12.3, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.7, 15)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap3" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.15, 12.7, 6.1)
@@ -14734,6 +14817,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.15, 12.3, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.7, 15)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap4" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.15, 12.7, 6.1)
@@ -14804,6 +14888,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 8.2, -1.4)
 script = ExtResource("2_block")
 size = Vector3(11.2, 3.6, 0.1)
 kind = "glass_window"
+breakable = true
 
 [node name="Mullion" type="Node3D" parent="Labs/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.36, 8.2, -1.4)
@@ -15059,6 +15144,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.6, 3.4)
 script = ExtResource("2_block")
 size = Vector3(27.6, 1.2, 0.1)
 kind = "glass_window"
+breakable = true
 
 [node name="LabGlass" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 1.77, 3.4)
@@ -15145,6 +15231,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 2.6, 10.8)
 script = ExtResource("2_block")
 size = Vector3(0.2, 5.2, 5.2)
 kind = "stone_warm"
+breakable = true
 
 [node name="DividerPost3" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 1.8, 5.8)
@@ -15189,6 +15276,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 2.6, 10.8)
 script = ExtResource("2_block")
 size = Vector3(0.2, 5.2, 5.2)
 kind = "stone_warm"
+breakable = true
 
 [node name="CounterBody" type="Node3D" parent="Labs/Building/GroundLabs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.2, 0.525, 12.75)
@@ -15381,12 +15469,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.2, 5.35, -0.1)
 script = ExtResource("2_block")
 size = Vector3(15.2, 0.3, 2.2)
 kind = "floor_tile"
+breakable = true
 
 [node name="Floor23" type="Node3D" parent="Labs/Building/UpperLab"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.35, 7.2)
 script = ExtResource("2_block")
 size = Vector3(27.6, 0.3, 12.4)
 kind = "floor_tile"
+breakable = true
 
 [node name="StairUp" type="Node3D" parent="Labs/Building/UpperLab"]
 metadata/_edit_group_ = true
@@ -20975,6 +21065,14 @@ kind = "brass"
 solid = false
 sides = 10
 
+[node name="Frame" type="Node3D" parent="LectureHall"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-14, -4.67, 4.67, 14)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 12.55)
+held_by_walls = true
+
 [node name="Building" type="Node3D" parent="LectureHall"]
 
 [node name="Shell" type="Node3D" parent="LectureHall/Building"]
@@ -20985,12 +21083,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.6, 6.1, -1.4)
 script = ExtResource("2_block")
 size = Vector3(1.2, 12.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront2" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.5, 3.35, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3, 6.7, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront3" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.5, 11.05, -1.4)
@@ -21003,12 +21103,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 6.1, -1.4)
 script = ExtResource("2_block")
 size = Vector3(6, 12.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront5" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 3.7, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3, 7.4, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront6" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.5, 11.4, -1.4)
@@ -21021,18 +21123,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 6.1, -1.4)
 script = ExtResource("2_block")
 size = Vector3(6.6, 12.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront8" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2, 8.2, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3.2, 8, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront9" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 6.1, -1.4)
 script = ExtResource("2_block")
 size = Vector3(5.4, 12.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFrontArch" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.2, 3.55, -1.4)
@@ -21063,6 +21168,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.1, 6.1, 13.6)
 script = ExtResource("2_block")
 size = Vector3(20.2, 12.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack2" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0.6, 13.6)
@@ -21075,12 +21181,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 8.3, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 7.8, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack4" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.6, 6.1, 13.6)
 script = ExtResource("2_block")
 size = Vector3(5.2, 12.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBackArch" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 3.9, 13.6)
@@ -21095,36 +21203,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 6.1, 3.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 12.2, 8.8)
 kind = "stone"
+breakable = true
 
 [node name="WallWest2" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 2.75, 9.1)
 script = ExtResource("2_block")
 size = Vector3(0.4, 5.5, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallWest3" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 10.25, 9.1)
 script = ExtResource("2_block")
 size = Vector3(0.4, 3.9, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallWest4" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 6.1, 12)
 script = ExtResource("2_block")
 size = Vector3(0.4, 12.2, 2.8)
 kind = "stone"
+breakable = true
 
 [node name="WallEast" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 6.1, 5.05)
 script = ExtResource("2_block")
 size = Vector3(0.4, 12.2, 12.5)
 kind = "stone"
+breakable = true
 
 [node name="WallEast2" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 7.9, 12.3)
 script = ExtResource("2_block")
 size = Vector3(0.4, 8.6, 2)
 kind = "stone"
+breakable = true
 
 [node name="WallEast3" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 6.1, 13.35)
@@ -21208,24 +21322,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.375, 1.65)
 script = ExtResource("2_block")
 size = Vector3(28.6, 0.35, 6.7)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof2" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.15, 12.375, 5.9)
 script = ExtResource("2_block")
 size = Vector3(10.3, 0.35, 1.8)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof3" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.05, 12.375, 5.9)
 script = ExtResource("2_block")
 size = Vector3(16.5, 0.35, 1.8)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof4" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.375, 10.35)
 script = ExtResource("2_block")
 size = Vector3(28.6, 0.35, 7.1)
 kind = "stone_warm"
+breakable = true
 
 [node name="RoofSkin" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.56, 1.65)
@@ -21296,6 +21414,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.9, -1.55)
 script = ExtResource("2_block")
 size = Vector3(28.3, 0.7, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.3, -1.55)
@@ -21310,6 +21429,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.9, 13.75)
 script = ExtResource("2_block")
 size = Vector3(28.3, 0.7, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap2" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 13.3, 13.75)
@@ -21324,6 +21444,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.15, 12.9, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.7, 15)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap3" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.15, 13.3, 6.1)
@@ -21338,6 +21459,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.15, 12.9, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.7, 15)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap4" type="Node3D" parent="LectureHall/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.15, 13.3, 6.1)
@@ -23223,6 +23345,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.7, 5.35, 6.1)
 script = ExtResource("2_block")
 size = Vector3(6.2, 0.3, 14.6)
 kind = "floor_wood"
+breakable = true
 
 [node name="ConcourseBase" type="Node3D" parent="LectureHall/Building/Hall"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.7, 2.6, 6.1)
@@ -23988,6 +24111,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.1, 8.65, 10.05)
 script = ExtResource("2_block")
 size = Vector3(3.4, 0.3, 6.7)
 kind = "floor_wood"
+breakable = true
 
 [node name="BoothFront" type="Node3D" parent="LectureHall/Building/ProjectionBooth"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.4, 10.5, 7.3)
@@ -27687,6 +27811,14 @@ kind = "brass"
 solid = false
 sides = 10
 
+[node name="Frame" type="Node3D" parent="Cafeteria"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-14, -4.67, 4.67, 14)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 11.95)
+held_by_walls = true
+
 [node name="Building" type="Node3D" parent="Cafeteria"]
 
 [node name="Shell" type="Node3D" parent="Cafeteria/Building"]
@@ -27697,6 +27829,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.35, 5.8, -1.4)
 script = ExtResource("2_block")
 size = Vector3(1.7, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront2" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.75, 0.6, -1.4)
@@ -27709,6 +27842,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.75, 7.9, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3.5, 7.4, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront4" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.75, 0.6, -1.4)
@@ -27733,6 +27867,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.25, 3.35, -1.4)
 script = ExtResource("2_block")
 size = Vector3(2.5, 6.7, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront8" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.25, 10.75, -1.4)
@@ -27757,18 +27892,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.9, 7.9, -1.4)
 script = ExtResource("2_block")
 size = Vector3(2.2, 7.4, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront12" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.6, 5.8, -1.4)
 script = ExtResource("2_block")
 size = Vector3(6.8, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront13" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 3.35, -1.4)
 script = ExtResource("2_block")
 size = Vector3(4, 6.7, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront14" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 10.75, -1.4)
@@ -27781,6 +27919,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.1, 5.8, -1.4)
 script = ExtResource("2_block")
 size = Vector3(6.2, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFrontArch" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.4, 3.55, -1.4)
@@ -27819,6 +27958,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.35, 5.8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(1.7, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack2" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.25, 0.4, 13.6)
@@ -27831,6 +27971,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.25, 8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(4.5, 7.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack4" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.75, 0.4, 13.6)
@@ -27855,6 +27996,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 3.25, 13.6)
 script = ExtResource("2_block")
 size = Vector3(2, 6.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack8" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 10.65, 13.6)
@@ -27891,6 +28033,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(4, 7.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack14" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.75, 0.4, 13.6)
@@ -27915,6 +28058,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 3.25, 13.6)
 script = ExtResource("2_block")
 size = Vector3(2, 6.5, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack18" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 10.65, 13.6)
@@ -27951,12 +28095,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.25, 8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(4.5, 7.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack24" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.35, 5.8, 13.6)
 script = ExtResource("2_block")
 size = Vector3(1.7, 11.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBackArch" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 9.2, 13.6)
@@ -27979,18 +28125,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 5.8, 4.1)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 10.6)
 kind = "stone"
+breakable = true
 
 [node name="WallWest2" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 7.7, 10.9)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.8, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallWest3" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 5.8, 12.9)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 1)
 kind = "stone"
+breakable = true
 
 [node name="WallWestArch" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -14, 3.3, 10.9)
@@ -28005,24 +28154,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5.8, 0.7)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 3.8)
 kind = "stone"
+breakable = true
 
 [node name="WallEast2" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 7.8, 4.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 7.6, 3.2)
 kind = "stone"
+breakable = true
 
 [node name="WallEast3" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5.8, 6.4)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 1.2)
 kind = "stone"
+breakable = true
 
 [node name="WallEast4" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 3.25, 8.5)
 script = ExtResource("2_block")
 size = Vector3(0.4, 6.5, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallEast5" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 10.65, 8.5)
@@ -28035,6 +28188,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5.8, 11.7)
 script = ExtResource("2_block")
 size = Vector3(0.4, 11.6, 3.4)
 kind = "stone"
+breakable = true
 
 [node name="WallEastArch" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 14, 3.4, 4.2)
@@ -28120,24 +28274,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.775, 1.9)
 script = ExtResource("2_block")
 size = Vector3(28.6, 0.35, 7.2)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof2" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.6, 11.775, 6.4)
 script = ExtResource("2_block")
 size = Vector3(13.4, 0.35, 1.8)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof3" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.6, 11.775, 6.4)
 script = ExtResource("2_block")
 size = Vector3(13.4, 0.35, 1.8)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof4" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.775, 10.6)
 script = ExtResource("2_block")
 size = Vector3(28.6, 0.35, 6.6)
 kind = "stone_warm"
+breakable = true
 
 [node name="RoofSkin" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.96, 1.9)
@@ -28208,6 +28366,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.3, -1.55)
 script = ExtResource("2_block")
 size = Vector3(28.3, 0.7, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.7, -1.55)
@@ -28222,6 +28381,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.3, 13.75)
 script = ExtResource("2_block")
 size = Vector3(28.3, 0.7, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap2" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.7, 13.75)
@@ -28236,6 +28396,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.15, 12.3, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.7, 15)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap3" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.15, 12.7, 6.1)
@@ -28250,6 +28411,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.15, 12.3, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.7, 15)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap4" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.15, 12.7, 6.1)
@@ -28292,6 +28454,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 2.6, 13.6)
 script = ExtResource("2_block")
 size = Vector3(7, 3.6, 0.12)
 kind = "glass_window"
+breakable = true
 
 [node name="Mullion" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 2.6, 13.6)
@@ -28305,6 +28468,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 13.6)
 script = ExtResource("2_block")
 size = Vector3(7, 3.6, 0.12)
 kind = "glass_window"
+breakable = true
 
 [node name="Mullion2" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.6, 13.6)
@@ -28318,6 +28482,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 2.6, 13.6)
 script = ExtResource("2_block")
 size = Vector3(7, 3.6, 0.12)
 kind = "glass_window"
+breakable = true
 
 [node name="Mullion3" type="Node3D" parent="Cafeteria/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 2.6, 13.6)
@@ -28629,36 +28794,42 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.3, 5.35, -0.1)
 script = ExtResource("2_block")
 size = Vector3(15, 0.3, 2.2)
 kind = "floor_wood"
+breakable = true
 
 [node name="Balcony2" type="Node3D" parent="Cafeteria/Building/Balcony"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.2, 5.35, -0.1)
 script = ExtResource("2_block")
 size = Vector3(3.2, 0.3, 2.2)
 kind = "floor_wood"
+breakable = true
 
 [node name="Balcony3" type="Node3D" parent="Cafeteria/Building/Balcony"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.35, 2.1)
 script = ExtResource("2_block")
 size = Vector3(27.6, 0.3, 2.2)
 kind = "floor_wood"
+breakable = true
 
 [node name="Balcony4" type="Node3D" parent="Cafeteria/Building/Balcony"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.9, 5.35, 6.4)
 script = ExtResource("2_block")
 size = Vector3(3.8, 0.3, 6.4)
 kind = "floor_wood"
+breakable = true
 
 [node name="Balcony5" type="Node3D" parent="Cafeteria/Building/Balcony"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.35, 11.5)
 script = ExtResource("2_block")
 size = Vector3(27.6, 0.3, 3.8)
 kind = "floor_wood"
+breakable = true
 
 [node name="Balcony6" type="Node3D" parent="Cafeteria/Building/Balcony"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 5.35, 6.4)
 script = ExtResource("2_block")
 size = Vector3(3.6, 0.3, 6.4)
 kind = "floor_wood"
+breakable = true
 
 [node name="RailPanel" type="Node3D" parent="Cafeteria/Building/Balcony"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.1, 6, 3.2)
@@ -35237,6 +35408,14 @@ kind = "brass"
 solid = false
 sides = 10
 
+[node name="Frame" type="Node3D" parent="Library"]
+script = ExtResource("10_frame")
+parts = Array[NodePath]([NodePath("../Building")])
+lines_x = PackedFloat32Array(-14, -4.67, 4.67, 14)
+lines_z = PackedFloat32Array(-1.4, 6.1, 13.6)
+floor_tops = PackedFloat32Array(5.5, 11, 18.35)
+held_by_walls = true
+
 [node name="Building" type="Node3D" parent="Library"]
 
 [node name="Shell" type="Node3D" parent="Library/Building"]
@@ -35247,6 +35426,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.35, 9, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3.7, 18, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront2" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 0.6, -1.4)
@@ -35265,12 +35445,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 13.95, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3, 8.1, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront5" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.55, 9, -1.4)
 script = ExtResource("2_block")
 size = Vector3(5.9, 18, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront6" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.55, 11.1, -1.4)
@@ -35283,12 +35465,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8.2, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3, 8, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront8" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 16.7, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3, 2.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront9" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.55, 11.1, -1.4)
@@ -35301,6 +35485,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.55, 9, -1.4)
 script = ExtResource("2_block")
 size = Vector3(5.9, 18, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront11" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.6, -1.4)
@@ -35319,12 +35504,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 13.95, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3, 8.1, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFront14" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.35, 9, -1.4)
 script = ExtResource("2_block")
 size = Vector3(3.7, 18, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallFrontArch" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.55, -1.4)
@@ -35379,60 +35566,70 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12.85, 9, 13.6)
 script = ExtResource("2_block")
 size = Vector3(2.7, 18, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack2" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 3.35, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 6.7, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack3" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 13.95, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 8.1, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack4" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5, 9, 13.6)
 script = ExtResource("2_block")
 size = Vector3(4, 18, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack5" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 6.1, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 12.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack6" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 16.7, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 2.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack7" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.25, 9, 13.6)
 script = ExtResource("2_block")
 size = Vector3(9.5, 18, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack8" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 6.1, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 12.2, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack9" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 16.7, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3, 2.6, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBack10" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.6, 9, 13.6)
 script = ExtResource("2_block")
 size = Vector3(3.2, 18, 0.4)
 kind = "stone"
+breakable = true
 
 [node name="WallBackArch" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 9.4, 13.6)
@@ -35463,30 +35660,35 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 9, 0.4)
 script = ExtResource("2_block")
 size = Vector3(0.4, 18, 3.2)
 kind = "stone"
+breakable = true
 
 [node name="WallWest2" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 6.1, 3.5)
 script = ExtResource("2_block")
 size = Vector3(0.4, 12.2, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallWest3" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 16.7, 3.5)
 script = ExtResource("2_block")
 size = Vector3(0.4, 2.6, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallWest4" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 11, 6.6)
 script = ExtResource("2_block")
 size = Vector3(0.4, 14, 3.2)
 kind = "stone"
+breakable = true
 
 [node name="WallWest5" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 9, 10.8)
 script = ExtResource("2_block")
 size = Vector3(0.4, 18, 5.2)
 kind = "stone"
+breakable = true
 
 [node name="WallWestArch" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, -14, 3.4, 6.6)
@@ -35509,12 +35711,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 9, 1.9)
 script = ExtResource("2_block")
 size = Vector3(0.4, 18, 6.2)
 kind = "stone"
+breakable = true
 
 [node name="WallEast2" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 11, 6.5)
 script = ExtResource("2_block")
 size = Vector3(0.4, 14, 3)
 kind = "stone"
+breakable = true
 
 [node name="WallEast3" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 5.35, 8.1)
@@ -35533,18 +35737,21 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 3.35, 9.6)
 script = ExtResource("2_block")
 size = Vector3(0.4, 6.7, 2.8)
 kind = "stone"
+breakable = true
 
 [node name="WallEast6" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 13.95, 9.6)
 script = ExtResource("2_block")
 size = Vector3(0.4, 8.1, 2.8)
 kind = "stone"
+breakable = true
 
 [node name="WallEast7" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 9, 12.2)
 script = ExtResource("2_block")
 size = Vector3(0.4, 18, 2.4)
 kind = "stone"
+breakable = true
 
 [node name="WallEastArch" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 14, 3.4, 6.6)
@@ -35658,24 +35865,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.175, 0.15)
 script = ExtResource("2_block")
 size = Vector3(28.6, 0.35, 3.7)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof2" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.65, 18.175, 2.5)
 script = ExtResource("2_block")
 size = Vector3(9.3, 0.35, 1)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof3" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.65, 18.175, 2.5)
 script = ExtResource("2_block")
 size = Vector3(9.3, 0.35, 1)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof4" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.65, 18.175, 3.9)
 script = ExtResource("2_block")
 size = Vector3(9.3, 0.35, 1.8)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof5" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 18.175, 3.9)
@@ -35688,24 +35899,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.05, 18.175, 3.9)
 script = ExtResource("2_block")
 size = Vector3(4.5, 0.35, 1.8)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof7" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.65, 18.175, 6.4)
 script = ExtResource("2_block")
 size = Vector3(9.3, 0.35, 3.2)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof8" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.65, 18.175, 6.4)
 script = ExtResource("2_block")
 size = Vector3(9.3, 0.35, 3.2)
 kind = "stone_warm"
+breakable = true
 
 [node name="Roof9" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.175, 10.95)
 script = ExtResource("2_block")
 size = Vector3(28.6, 0.35, 5.9)
 kind = "stone_warm"
+breakable = true
 
 [node name="RoofSkin" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.36, 0.15)
@@ -35811,6 +36026,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.7, -1.55)
 script = ExtResource("2_block")
 size = Vector3(28.3, 0.7, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 19.1, -1.55)
@@ -35825,6 +36041,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.7, 13.75)
 script = ExtResource("2_block")
 size = Vector3(28.3, 0.7, 0.3)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap2" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 19.1, 13.75)
@@ -35839,6 +36056,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.15, 18.7, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.7, 15)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap3" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.15, 19.1, 6.1)
@@ -35853,6 +36071,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.15, 18.7, 6.1)
 script = ExtResource("2_block")
 size = Vector3(0.3, 0.7, 15)
 kind = "stone"
+breakable = true
 
 [node name="ParapetCap4" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.15, 19.1, 6.1)
@@ -35923,6 +36142,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 18.175, 5)
 script = ExtResource("2_block")
 size = Vector3(10, 0.15, 6)
 kind = "glass_sky"
+breakable = true
 
 [node name="SkylightBar" type="Node3D" parent="Library/Building/Shell"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.7, 18.29, 5)
@@ -36321,12 +36541,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.9, 5.35, 6.1)
 script = ExtResource("2_block")
 size = Vector3(7.8, 0.3, 14.6)
 kind = "floor_wood"
+breakable = true
 
 [node name="Mezzanine12" type="Node3D" parent="Library/Building/Mezzanines"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.6, 5.35, 11.4)
 script = ExtResource("2_block")
 size = Vector3(4.8, 0.3, 4)
 kind = "floor_wood"
+breakable = true
 
 [node name="RailPanel" type="Node3D" parent="Library/Building/Mezzanines"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 6, 5.2)
@@ -36841,12 +37063,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.9, 10.85, 6.1)
 script = ExtResource("2_block")
 size = Vector3(7.8, 0.3, 14.6)
 kind = "floor_wood"
+breakable = true
 
 [node name="Mezzanine22" type="Node3D" parent="Library/Building/Mezzanines"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.9, 10.85, 11.4)
 script = ExtResource("2_block")
 size = Vector3(19.8, 0.3, 4)
 kind = "floor_wood"
+breakable = true
 
 [node name="RailPanel4" type="Node3D" parent="Library/Building/Mezzanines"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 11.5, 5.2)

@@ -32,8 +32,8 @@ func _ready() -> void:
 	visible = false   # (until there is a camera to put it in front of)
 	if _map.debris:
 		_map.debris.warm(self)
-	if _map.collapse:
-		_map.collapse.warm(self)
+	for c in _map.collapses:
+		c.warm(self)
 
 
 func _process(delta: float) -> void:

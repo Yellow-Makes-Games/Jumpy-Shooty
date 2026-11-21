@@ -6,11 +6,18 @@ extends Node3D
 ## say where the frame is; the blocks under `parts` are the building. Blow out the
 ## columns under a bay (the square of floor between four columns) and that bay, and
 ## everything above it, falls.
+##
+## A frame can also go inside a MapMover or MapIsland (a building on a flying island):
+## then the lines and heights are in the mover's own frame, and the building rides it.
+##
+## A building with no columns stands on its walls: tick **Held By Walls**. Then each
+## crossing of the lines that has breakable wall near it counts as a column made of
+## that wall, a storey at a time, and it is gone once enough of the wall is.
 
 ## The parts of the map that are the building (its floors, walls, columns and what
-## stands on them): only blocks under these can fall.
+## stands on them): only blocks under these can fall. (Paths from this node.)
 @export var parts: Array[NodePath] = []
-## Where the lines of columns are, along x and along z (metres, in the map).
+## Where the lines of columns are, along x and along z (metres, in the map or the mover).
 @export var lines_x := PackedFloat32Array()
 @export var lines_z := PackedFloat32Array()
 ## The top of each floor, lowest first. The ground is not one: nothing on it falls.
@@ -27,3 +34,11 @@ extends Node3D
 ## single hit has to be to do it any (small arms only mark it).
 @export var column_health := 600.0
 @export var column_armour := 60.0
+## The building stands on its walls, not on columns: the breakable upright walls within
+## Wall Reach of a crossing of the lines hold up what a column there would.
+@export var held_by_walls := false
+## How far along a wall from a crossing the wall that counts as its column reaches.
+@export var wall_reach := 2.5
+## How much of that wall (of what can break of it) has to be gone, in one storey, for
+## the storey to count as blown out.
+@export_range(0.1, 1.0) var wall_share := 0.6

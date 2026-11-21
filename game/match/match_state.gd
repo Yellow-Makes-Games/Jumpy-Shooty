@@ -1192,6 +1192,7 @@ func _flush_breaks() -> void:
 	if changed.is_empty():
 		return
 	_breaks.rpc(changed[0], changed[1])
+	_flush_collapse(d)   # (a building held up by its walls: enough of one may just have gone)
 	if DevArgs.sync_log:
 		var broke := 0
 		for s in (changed[1] as PackedByteArray):
@@ -1209,6 +1210,24 @@ func _breaks(cells: PackedInt32Array, stages: PackedByteArray) -> void:
 			print("BROKEN_STATE %s" % d.state_key())
 
 
+## Mover `index` of the map is due to be mended (an island on its way back up, see
+## MapRoot.mend_due): the host says so, and every copy mends it on its word, in step with
+## the breaks it sends. (Each copy's own island gets there a moment apart.)
+func mend_due(index: int) -> void:
+	if Net.is_host() and _breakables():
+		_mend.rpc(index)
+
+
+@rpc("authority", "call_local", "reliable")
+func _mend(index: int) -> void:
+	var d := _breakables()
+	if d == null or index < 0 or index >= d.root.movers.size() or d.root.movers[index].body == null:
+		return
+	d.root.mend(d.root.movers[index].body)
+	if DevArgs.sync_log:
+		print("MENDED %d %s" % [index, d.state_key()])
+
+
 ## A copy that has just built the arena asks the host what is already broken.
 func request_breaks() -> void:
 	if not Net.is_host():
@@ -1221,8 +1240,8 @@ func _breaks_request() -> void:
 	if Net.is_host() and d:
 		var all := d.snapshot()
 		_breaks.rpc_id(multiplayer.get_remote_sender_id(), all[0], all[1])
-		if d.root.collapse:   # (after what is broken: what came down is made of the cells marked fallen)
-			_collapse_state.rpc_id(multiplayer.get_remote_sender_id(), d.root.collapse.state())
+		for c in d.root.collapses:   # (after what is broken: what came down is made of the cells marked fallen)
+			_collapse_state.rpc_id(multiplayer.get_remote_sender_id(), c.state(), c.index)
 
 
 # ---------------------------------------------------------------------------
@@ -1230,35 +1249,40 @@ func _breaks_request() -> void:
 # decides what falls; every copy runs the fall, and the host tells the others where its
 # pieces are as they go and where they came to rest.
 
-func _collapsing() -> MapCollapse:
+## Collapse number `which` of the map (MapRoot.collapses), or null.
+func _collapse_at(which: int) -> MapCollapse:
 	var d := _breakables()
-	return d.root.collapse if d else null
+	return d.root.collapses[which] if d and which >= 0 and which < d.root.collapses.size() else null
+
+
+## The collapse that event `id` belongs to, or null.
+func _collapse_of(id: int) -> MapCollapse:
+	var d := _breakables()
+	return d.root.collapse_of(id) if d else null
 
 
 func _flush_collapse(d: MapDestruction) -> void:
-	var c := d.root.collapse
-	if c == null:
-		return
-	var out := c.flush()
-	if out.is_empty():
-		return
-	_columns.rpc(out.columns[0], out.columns[1])
-	for event: Dictionary in out.events:
-		_collapse.rpc(event)
-		if DevArgs.sync_log:
-			print("COLLAPSE %d units by %d" % [(event.units as PackedInt32Array).size(), int(event.by)])
+	for c in d.root.collapses:
+		var out := c.flush()
+		if out.is_empty():
+			continue
+		_columns.rpc(out.columns[0], out.columns[1], c.index)
+		for event: Dictionary in out.events:
+			_collapse.rpc(event)
+			if DevArgs.sync_log:
+				print("COLLAPSE %d units by %d" % [(event.units as PackedInt32Array).size(), int(event.by)])
 
 
 @rpc("authority", "call_local", "reliable")
-func _columns(ids: PackedInt32Array, stages: PackedByteArray) -> void:
-	var c := _collapsing()
+func _columns(ids: PackedInt32Array, stages: PackedByteArray, which: int = 0) -> void:
+	var c := _collapse_at(which)
 	if c:
 		c.apply_columns(ids, stages)
 
 
 @rpc("authority", "call_local", "reliable")
 func _collapse(event: Dictionary) -> void:
-	var c := _collapsing()
+	var c := _collapse_of(int(event.get("id", 0)))
 	if c:
 		c.start(event)
 		if Net.is_host():
@@ -1273,7 +1297,7 @@ func collapse_news(id: int, age: float, data: PackedByteArray) -> void:
 
 @rpc("authority", "call_remote", "unreliable")
 func _collapse_news(id: int, age: float, data: PackedByteArray) -> void:
-	var c := _collapsing()
+	var c := _collapse_of(id)
 	if c:
 		c.news(id, age, data)
 
@@ -1286,7 +1310,7 @@ func collapse_rest(id: int, data: PackedByteArray) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func _collapse_rest(id: int, data: PackedByteArray) -> void:
-	var c := _collapsing()
+	var c := _collapse_of(id)
 	if c:
 		c.rest(id, data)
 
@@ -1299,21 +1323,22 @@ func collapse_settled(id: int, key: String) -> void:
 
 
 ## Host (tests: --blow-column): blows out a storey of a column of the map's building, as
-## three rockets from player `by` would.
+## three rockets from player `by` would. On a map with several buildings (Cirrus): the
+## first that is up and has that column, where the column may be a stretch of wall.
 func dev_blow_column(column: Vector2i, storey: int, by: int) -> void:
 	var d := _breakables()
-	var c := _collapsing()
-	if not Net.is_host() or c == null or not c.has_column(column, storey):
+	if not Net.is_host() or d == null:
 		return
 	d.cause(by, "rocket_launcher")
-	for n in 3:
-		c.blast(c.column_box(column, storey).get_center(), 1.0, 262.0)
+	for c in d.root.collapses:
+		if c.dev_blow(column, storey):
+			break
 	_flush_breaks()
 
 
 @rpc("authority", "call_remote", "reliable")
-func _collapse_state(state: Dictionary) -> void:
-	var c := _collapsing()
+func _collapse_state(state: Dictionary, which: int = 0) -> void:
+	var c := _collapse_at(which)
 	if c:
 		c.restore(state)
 
@@ -1321,18 +1346,21 @@ func _collapse_state(state: Dictionary) -> void:
 ## Host: anyone under a big piece of a building coming down is killed by it; the kill
 ## goes to whoever brought it down.
 func _host_crush() -> void:
-	var c := _collapsing()
-	if c == null or not c.falling():
+	var d := _breakables()
+	if d == null:
 		return
-	for b in _live_bodies():
-		var under := c.crushes(b[1], b[2])
-		if under.is_empty():
+	for c in d.root.collapses:
+		if not c.falling():
 			continue
-		var by: int = under.by if Net.players.has(under.by) else 0
-		if is_dummy(b[0]):
-			_host_dummy_damage(by, b[0], 1000.0, false)
-		else:
-			_host_damage(by, b[0], 1000.0, false, "", {"with": under.with, "push": Vector3.DOWN * 3.0, "dir": Vector3.DOWN})
+		for b in _live_bodies():
+			var under := c.crushes(b[1], b[2])
+			if under.is_empty():
+				continue
+			var by: int = under.by if Net.players.has(under.by) else 0
+			if is_dummy(b[0]):
+				_host_dummy_damage(by, b[0], 1000.0, false)
+			else:
+				_host_damage(by, b[0], 1000.0, false, "", {"with": under.with, "push": Vector3.DOWN * 3.0, "dir": Vector3.DOWN})
 
 
 # ---------------------------------------------------------------------------

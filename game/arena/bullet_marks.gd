@@ -9,6 +9,8 @@ extends Node3D
 ## from the shots and the broken-cell news it already gets. They are flat squares just
 ## off the surface, all drawn together (two MultiMeshes, one texture), and there are
 ## only so many: the oldest go first. A mark on a piece of wall that breaks goes with it.
+## A mark on something that moves (a flying island, a lift) is drawn from that thing, so
+## it stays on it wherever it goes.
 ##
 ## MapRoot makes one (`marks`) on a map with fine destruction.
 
@@ -26,15 +28,20 @@ var root: MapRoot
 ## How many marks have been made (tests).
 var made := 0
 
-var _marks: MultiMesh
-var _cracks: MultiMesh
+# What they are drawn with: 0 (the map) or a mover's body (its instance id) ->
+# [marks: MultiMesh, cracks: MultiMesh, on: Node3D or null], a mover's made when first
+# marked. A mark has the same place in every one of them, and is drawn in one.
+var _batches := {}
+var _drawn_with: ShaderMaterial
 var _next := 0
 var _mark_cell := PackedInt32Array()   # per mark: the cell it is on, or -1
-var _mark_at := PackedVector3Array()   # per mark: where it is
+var _mark_at := PackedVector3Array()   # per mark: where it is (in what it is on)
+var _mark_on := PackedInt64Array()     # per mark: what it is on (a key of _batches)
 var _shown := PackedByteArray()        # per mark: 1 while it is drawn
 var _by_cell := {}                     # cell -> [marks on it]
 var _next_crack := 0
 var _crack_of := PackedInt32Array()    # per pair of crack squares: the cell they are on, or -1
+var _crack_on := PackedInt64Array()    # per pair: what it is on (a key of _batches)
 var _crack_at := {}                    # cell -> its pair
 
 static var _atlas: ImageTexture
@@ -43,14 +50,15 @@ static var _atlas: ImageTexture
 func setup(map: MapRoot) -> void:
 	root = map
 	name = "Marks"
-	_marks = _batch(MAX_MARKS)
-	_cracks = _batch(MAX_CRACKS * 2)
+	_batches[0] = [_batch(MAX_MARKS, self), _batch(MAX_CRACKS * 2, self), null]
 	_mark_cell.resize(MAX_MARKS)
 	_mark_cell.fill(-1)
 	_shown.resize(MAX_MARKS)
 	_mark_at.resize(MAX_MARKS)
+	_mark_on.resize(MAX_MARKS)
 	_crack_of.resize(MAX_CRACKS)
 	_crack_of.fill(-1)
+	_crack_on.resize(MAX_CRACKS)
 	if map.destruction:
 		map.destruction.cells_changed.connect(_on_cells_changed)
 
@@ -61,7 +69,30 @@ static func current() -> BulletMarks:
 	return map.marks if map and is_instance_valid(map) and map.marks and is_instance_valid(map.marks) else null
 
 
-func _batch(count: int) -> MultiMesh:
+## What moves that `body` (something a ray hit) is part of: a mover's body, for the
+## mover itself or a breakable wall that rides it. Null: it stands still, or it is
+## something else that moves (a mark on that would be left hanging in the air).
+static func frame_of(body: Object) -> Node3D:
+	var node := body as Node3D
+	if node == null:
+		return null
+	if node.has_meta("mover"):
+		return node
+	var parent := node.get_parent() as Node3D
+	if node.has_meta("panel") and parent and parent.has_meta("mover"):
+		return parent
+	return null
+
+
+## The marks and cracks drawn from `frame` (a mover's body; null: the map).
+func _batches_on(frame: Node3D) -> Array:
+	var key := frame.get_instance_id() if frame else 0
+	if not _batches.has(key):
+		_batches[key] = [_batch(MAX_MARKS, frame), _batch(MAX_CRACKS * 2, frame), frame]
+	return _batches[key]
+
+
+func _batch(count: int, on: Node3D) -> MultiMesh:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_custom_data = true
@@ -75,25 +106,34 @@ func _batch(count: int) -> MultiMesh:
 	mm.custom_aabb = AABB(Vector3.ONE * -600.0, Vector3.ONE * 1200.0)
 	var node := MultiMeshInstance3D.new()
 	node.multimesh = mm
-	node.material_override = _material()
+	if _drawn_with == null:
+		_drawn_with = _material()   # (one for every batch: a mover's first mark has nothing new to build)
+	node.material_override = _drawn_with
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.visibility_range_end = SEEN_TO
 	node.visibility_range_end_margin = 10.0
-	add_child(node)
+	on.add_child(node)
 	return mm
 
 
 ## One mark: `picture` (POCK...) `size` metres across at `at` on a surface facing
 ## `normal`. `cell`: the breakable cell it is on (-1: none), so it goes when that breaks.
-func mark(at: Vector3, normal: Vector3, picture: int, size: float, cell: int = -1, strength: float = 1.0) -> void:
+## `frame`: the mover's body it is on (see frame_of), so it goes where that goes.
+func mark(at: Vector3, normal: Vector3, picture: int, size: float, cell: int = -1, strength: float = 1.0,
+		frame: Node3D = null) -> void:
 	var slot := _next
 	_next = (_next + 1) % MAX_MARKS
-	_forget(slot)
-	_marks.set_instance_transform(slot, _square(at, normal, size, randf() * TAU))
-	_marks.set_instance_custom_data(slot, Color(picture, strength, 0, 0))
-	_marks.set_instance_color(slot, Color.WHITE)
+	_hide(slot)
+	var square := _square(at, normal, size, randf() * TAU)
+	if frame:
+		square = frame.global_transform.affine_inverse() * square
+	var marks: MultiMesh = _batches_on(frame)[0]
+	marks.set_instance_transform(slot, square)
+	marks.set_instance_custom_data(slot, Color(picture, strength, 0, 0))
+	marks.set_instance_color(slot, Color.WHITE)
 	_mark_cell[slot] = cell
-	_mark_at[slot] = at
+	_mark_at[slot] = square.origin
+	_mark_on[slot] = frame.get_instance_id() if frame else 0
 	_shown[slot] = 1
 	if cell >= 0:
 		if not _by_cell.has(cell):
@@ -107,6 +147,14 @@ func _square(at: Vector3, normal: Vector3, size: float, roll: float) -> Transfor
 	var side := normal.cross(Vector3.UP if absf(normal.y) < 0.95 else Vector3.RIGHT).normalized()
 	var basis := Basis(side, normal.cross(side), normal).rotated(normal, roll)
 	return Transform3D(basis.scaled(Vector3.ONE * size), at + normal * OFF)
+
+
+## Mark `slot` is not drawn any more.
+func _hide(slot: int) -> void:
+	if _shown[slot] == 1:
+		(_batches[_mark_on[slot]][0] as MultiMesh).set_instance_transform(slot, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+	_forget(slot)
+	_shown[slot] = 0
 
 
 func _forget(slot: int) -> void:
@@ -157,8 +205,9 @@ func shot(from: Vector3, to: Vector3, weapon: WeaponData, in_someone: bool = fal
 		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at, reach, 1))
 		if hit.is_empty():
 			return
-		if hit.collider is AnimatableBody3D:
-			return   # something that moves: a mark would be left hanging in the air
+		var frame := frame_of(hit.collider)
+		if frame == null and hit.collider is AnimatableBody3D:
+			return   # something that moves, and not a mover: a mark would be left hanging in the air
 		var went_on := (hit.position as Vector3).distance_to(to) > 0.25
 		var cell := breaks.cell_at(hit.collider, hit.position, hit.normal) if breaks else -1
 		if cell >= 0 and breaks.material_of(cell) == "glass":
@@ -166,16 +215,16 @@ func shot(from: Vector3, to: Vector3, weapon: WeaponData, in_someone: bool = fal
 		if went_on and cell < 0:
 			return   # (the round did not stop here, and nothing but a breakable wall lets one through)
 		if burns:
-			mark(hit.position, hit.normal, SCORCH, size * 1.6, cell)
+			mark(hit.position, hit.normal, SCORCH, size * 1.6, cell, 1.0, frame)
 		else:
-			mark(hit.position, hit.normal, HOLE if went_on else POCK, size * (1.15 if went_on else 1.0), cell)
+			mark(hit.position, hit.normal, HOLE if went_on else POCK, size * (1.15 if went_on else 1.0), cell, 1.0, frame)
 		if not went_on:
 			return
 		var panel: Dictionary = breaks.panels[breaks.cells[cell].panel]
-		var face: Vector3 = (panel.xf as Transform3D).basis[panel.thin].normalized()
+		var face: Vector3 = breaks._panel_xf(panel).basis[panel.thin].normalized()
 		var thick: float = (panel.size as Vector3)[panel.thin] / maxf(absf(dir.dot(face)), 0.2)
 		var out: Vector3 = (hit.position as Vector3) + dir * thick
-		mark(out, -(hit.normal as Vector3), SCORCH if burns else HOLE, size * 1.5, cell)   # (it tears a bigger hole on the way out)
+		mark(out, -(hit.normal as Vector3), SCORCH if burns else HOLE, size * 1.5, cell, 1.0, frame)   # (it tears a bigger hole on the way out)
 		at = out + dir * 0.02
 
 
@@ -188,17 +237,28 @@ func scorch(at: Vector3, radius: float) -> void:
 	var breaks := root.destruction
 	for dir: Vector3 in [Vector3.DOWN, Vector3.UP, Vector3.LEFT, Vector3.RIGHT, Vector3.FORWARD, Vector3.BACK]:
 		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at - dir * 0.1, at + dir * reach, 1))
-		if hit.is_empty() or hit.collider is AnimatableBody3D:
+		if hit.is_empty():
+			continue
+		var frame := frame_of(hit.collider)
+		if frame == null and hit.collider is AnimatableBody3D:
 			continue
 		var d := (hit.position as Vector3).distance_to(at)
 		var cell := breaks.cell_at(hit.collider, hit.position, hit.normal) if breaks else -1
-		mark(hit.position, hit.normal, SCORCH, radius * 0.9 * (1.0 - 0.5 * d / reach), cell, 0.85)
+		mark(hit.position, hit.normal, SCORCH, radius * 0.9 * (1.0 - 0.5 * d / reach), cell, 0.85, frame)
 
 
 ## A heavy blow that landed on the map at `at`: a dent.
 func dent(at: Vector3, normal: Vector3, size: float = 0.35) -> void:
 	var breaks := root.destruction
-	mark(at, normal, DENT, size, -1 if breaks == null else breaks.cell_near(at, normal))
+	var cell := -1 if breaks == null else breaks.cell_near(at, normal)
+	var frame: Node3D = breaks.panels[breaks.cells[cell].panel].get("frame") if cell >= 0 else null
+	if frame == null and root.movers.size() > 0 and is_inside_tree():   # (on a mover's own blocks?)
+		var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(at + normal * 0.2, at - normal * 0.2, 1))
+		if not hit.is_empty():
+			frame = frame_of(hit.collider)
+			if frame == null and hit.collider is AnimatableBody3D:
+				return
+	mark(at, normal, DENT, size, cell, 1.0, frame)
 
 
 ## Walls cracked or broke: a cracked cell gets its cracks (both faces), and every mark
@@ -214,21 +274,14 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 			_uncrack(c)
 			if stage != 0:
 				for slot: int in _by_cell.get(c, []).duplicate():
-					_marks.set_instance_transform(slot, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
-					_forget(slot)
-					_shown[slot] = 0
+					_hide(slot)
 			continue
 		var panel: Dictionary = breaks.panels[breaks.cells[c].panel]
-		if not panel.fine or panel.material == "glass" or panel.get("frame") != null:
+		if not panel.fine or panel.material == "glass":
 			continue
-		var pair: int = _crack_at.get(c, -1)
-		if pair < 0:
-			pair = _next_crack
-			_next_crack = (_next_crack + 1) % MAX_CRACKS
-			if _crack_of[pair] != -1:
-				_crack_at.erase(_crack_of[pair])
-			_crack_of[pair] = c
-			_crack_at[c] = pair
+		var frame := panel.get("frame") as Node3D   # (a wall that rides a mover: so do its cracks)
+		var cracks: MultiMesh = _batches_on(frame)[1]
+		var pair := _pair_for(c, frame)
 		# One square the size of the cell on each face (so no crack hangs over a hole
 		# beside it), turned and picked by the cell's number: the same on every copy.
 		var xf: Transform3D = panel.xf
@@ -258,24 +311,54 @@ func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void
 				y = -was.normalized() * y.length()
 			var centre := box.get_center()
 			centre[thin] = out * (half + OFF)
-			_cracks.set_instance_transform(pair * 2 + side, xf * Transform3D(Basis(x, y, z), centre))
-			_cracks.set_instance_custom_data(pair * 2 + side, Color(picture, 1.0, 0, 0))
-			_cracks.set_instance_color(pair * 2 + side, Color.WHITE)
+			cracks.set_instance_transform(pair * 2 + side, xf * Transform3D(Basis(x, y, z), centre))
+			cracks.set_instance_custom_data(pair * 2 + side, Color(picture, 1.0, 0, 0))
+			cracks.set_instance_color(pair * 2 + side, Color.WHITE)
 		made += 1
 
 
-## Every mark in `box` goes (what it was on has gone).
+## The pair of crack squares for `id` (a cell, or a number of cracks_on()'s), drawn
+## from `frame`: the one it has, or the next (the oldest cracks go when there is no room).
+func _pair_for(id: int, frame: Node3D) -> int:
+	var pair: int = _crack_at.get(id, -1)
+	if pair >= 0:
+		return pair
+	pair = _next_crack
+	_next_crack = (_next_crack + 1) % MAX_CRACKS
+	if _crack_of[pair] != -1:
+		_crack_at.erase(_crack_of[pair])
+		_uncrack_pair(pair)
+	_crack_of[pair] = id
+	_crack_on[pair] = frame.get_instance_id() if frame else 0
+	_crack_at[id] = pair
+	return pair
+
+
+## Every mark in `box` (in the map: not those on something that moves) goes: what it
+## was on has gone.
 func clear_in(box: AABB) -> void:
 	for slot in MAX_MARKS:
-		if _shown[slot] == 1 and box.has_point(_mark_at[slot]):
-			_marks.set_instance_transform(slot, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
-			_forget(slot)
-			_shown[slot] = 0
+		if _shown[slot] == 1 and _mark_on[slot] == 0 and box.has_point(_mark_at[slot]):
+			_hide(slot)
+
+
+## Every mark and crack on `frame` (a mover's body) goes: it has been mended.
+func clear_on(frame: Node3D) -> void:
+	var key := frame.get_instance_id()
+	if not _batches.has(key):
+		return
+	for slot in MAX_MARKS:
+		if _shown[slot] == 1 and _mark_on[slot] == key:
+			_hide(slot)
+	for pair in MAX_CRACKS:
+		if _crack_of[pair] != -1 and _crack_on[pair] == key:
+			_uncrack(_crack_of[pair])
 
 
 ## The cracks of something solid that is not a breakable wall (a column storey): `box`,
 ## upright, at `stage` (0: none). `key`: a number of its own, to change or clear them by.
 func cracks_on(key: int, box: AABB, stage: int) -> void:
+	var cracks: MultiMesh = _batches[0][1]
 	var squares := 0
 	for side in 4:
 		var out: Vector3 = [Vector3.RIGHT, Vector3.BACK, Vector3.LEFT, Vector3.FORWARD][side]
@@ -292,27 +375,20 @@ func cracks_on(key: int, box: AABB, stage: int) -> void:
 			if stage <= 0 or (stage == 1 and (n + side) % 2 == 1):
 				_uncrack(id)
 				continue
-			var pair: int = _crack_at.get(id, -1)
-			if pair < 0:
-				pair = _next_crack
-				_next_crack = (_next_crack + 1) % MAX_CRACKS
-				if _crack_of[pair] != -1:
-					_crack_at.erase(_crack_of[pair])
-					_uncrack_pair(pair)
-				_crack_of[pair] = id
-				_crack_at[id] = pair
+			var pair := _pair_for(id, null)
 			var centre := box.get_center() + out * (absf(box.size.dot(out)) * 0.5 + OFF)
 			centre.y = box.position.y + (n + 0.5) * box.size.y / count
 			var picture := (CRACK if stage == 1 else CRACK_BAD) + (hash(id) & 1)
-			_cracks.set_instance_transform(pair * 2, Transform3D(Basis(along * wide, Vector3.UP * (box.size.y / count), out), centre))
-			_cracks.set_instance_custom_data(pair * 2, Color(picture, 1.0, 0, 0))
-			_cracks.set_instance_color(pair * 2, Color.WHITE)
-			_cracks.set_instance_transform(pair * 2 + 1, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+			cracks.set_instance_transform(pair * 2, Transform3D(Basis(along * wide, Vector3.UP * (box.size.y / count), out), centre))
+			cracks.set_instance_custom_data(pair * 2, Color(picture, 1.0, 0, 0))
+			cracks.set_instance_color(pair * 2, Color.WHITE)
+			cracks.set_instance_transform(pair * 2 + 1, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
 
 
 func _uncrack_pair(pair: int) -> void:
+	var cracks: MultiMesh = _batches[_crack_on[pair]][1]
 	for side in 2:
-		_cracks.set_instance_transform(pair * 2 + side, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+		cracks.set_instance_transform(pair * 2 + side, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
 
 
 func _uncrack(cell: int) -> void:
@@ -321,8 +397,7 @@ func _uncrack(cell: int) -> void:
 		return
 	_crack_at.erase(cell)
 	_crack_of[pair] = -1
-	for side in 2:
-		_cracks.set_instance_transform(pair * 2 + side, Transform3D(Basis().scaled(Vector3.ZERO), Vector3.ZERO))
+	_uncrack_pair(pair)
 
 
 ## How many marks are drawn now: [pocks, holes and scorches, cracked cells] (tests).

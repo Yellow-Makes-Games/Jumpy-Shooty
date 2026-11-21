@@ -6,7 +6,9 @@
 #  - the host starts one collapse, and every copy ends with exactly the same heap and
 #    the same walls and floors gone (the two who joined late as well)
 #  - there are no script errors
-# Usage: tests/run_collapse_test.sh [NET_SIM]
+# MAP=cirrus COLUMN=9:0,0,1 does it on Cirrus: a first-floor corner of the first island
+# that is up, a building held up by its walls on an island that flies.
+# Usage: [MAP=...] [COLUMN=SECONDS:X,Z,STOREY] tests/run_collapse_test.sh [NET_SIM]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
@@ -15,9 +17,9 @@ OUT=tests/out
 mkdir -p "$OUT"
 rm -f "$OUT"/collapse_*.log
 PORT=$((26300 + RANDOM % 100))
-COMMON=(--sync-log --map=construction_site --net-sim="$SIM")
+COMMON=(--sync-log --map="${MAP:-construction_site}" --net-sim="$SIM")
 
-"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --autostart=2 --time-limit=90 --blow-column=9:0,0,0 --quit-after=44 "${COMMON[@]}" \
+"$GODOT" --headless --path . -- --host --port="$PORT" --name=P1 --autostart=2 --time-limit=90 --blow-column="${COLUMN:-9:0,0,0}" --quit-after=44 "${COMMON[@]}" \
   > "$OUT/collapse_host.log" 2>&1 &
 sleep 1
 "$GODOT" --headless --path . -- --join="127.0.0.1:$PORT" --name=P2 --quit-after=42 "${COMMON[@]}" > "$OUT/collapse_player.log" 2>&1 &
