@@ -5,19 +5,10 @@
 [ext_resource type="Script" path="res://game/arena/map_mover.gd" id="3_0bx0w"]
 [ext_resource type="Script" path="res://game/arena/map_block.gd" id="4_w86ov"]
 [ext_resource type="Script" path="res://game/arena/map_spawn.gd" id="5_fmo1f"]
-
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_4ini8"]
-sky_top_color = Color(0.2, 0.42, 0.74, 1)
-sky_horizon_color = Color(0.74, 0.82, 0.9, 1)
-ground_bottom_color = Color(0.52, 0.62, 0.74, 1)
-ground_horizon_color = Color(0.74, 0.82, 0.9, 1)
-
-[sub_resource type="Sky" id="Sky_xkodl"]
-sky_material = SubResource("ProceduralSkyMaterial_4ini8")
+[ext_resource type="Resource" path="res://game/maps/sky/maps/sky_island_layout.tres" id="sky_preset"]
 
 [sub_resource type="Environment" id="Environment_ick3f"]
 background_mode = 2
-sky = SubResource("Sky_xkodl")
 ambient_light_source = 3
 ambient_light_energy = 0.6
 tonemap_mode = 2
@@ -25,6 +16,7 @@ ssao_enabled = true
 
 [node name="SkyIslandLayout" type="Node3D" unique_id=563153244]
 script = ExtResource("1_m5rj4")
+sky = ExtResource("sky_preset")
 palette = ExtResource("2_8ur4b")
 face_shade = Vector3(0.9, 0.8, 0.65)
 grid_texture = true

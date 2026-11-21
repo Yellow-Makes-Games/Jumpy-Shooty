@@ -80,6 +80,9 @@ const MASK := (1 << BITS) - 1
 @export var ambient_energy := 0.75
 ## The fog below the map (what sinking islands vanish into), in the second look.
 @export var fog_color := Color(0.71, 0.49, 0.48)
+## The sky in the second look, for a map drawn by the sky engine (MapRoot.sky): the sky
+## blends to it, and the cloud sea churns while the islands move.
+@export var sky: SkyPreset
 ## Kinds that light up in the second look (windows, lamps, light strips), and how bright.
 @export var lit_kinds: Array[String] = []
 @export var lit_glow := 2.4
@@ -135,6 +138,7 @@ var _looks := false
 var _env: Environment
 var _env_base := {}
 var _sky: ShaderMaterial
+var _rig: SkyRig
 var _sun: DirectionalLight3D
 var _sun_base := {}
 var _lit: Array = []      # [StandardMaterial3D, base energy, had emission]
@@ -606,7 +610,10 @@ func _show(flare: float) -> void:
 		_env.ambient_light_energy = lerpf(_env_base.energy, ambient_energy, k)
 		_env.glow_intensity = lerpf(_env_base.glow, _env_base.glow * 1.3, maxf(k, flare))
 		_env.fog_light_color = (_env_base.fog as Color).lerp(fog_color, k)
-	if _sky:
+	if _rig:
+		_rig.blend(sky, k)   # its sun follows the Sun, turned below
+		_rig.set_live("sea_churn", flare)
+	elif _sky:
 		_sky.set_shader_parameter("sunset", k)
 		_sky.set_shader_parameter("swirl", flare)
 		_sky.set_shader_parameter("sun_dir", (_sun_base.dir as Vector3).slerp(sun_direction.normalized(), k) if _sun else sun_direction.normalized())
@@ -649,7 +656,8 @@ func _find_looks() -> void:
 		_env = world.environment.duplicate()
 		world.environment = _env
 		_env_base = {"color": _env.ambient_light_color, "energy": _env.ambient_light_energy, "glow": _env.glow_intensity, "fog": _env.fog_light_color}
-		if _env.sky and _env.sky.sky_material is ShaderMaterial:
+		_rig = _map.sky_rig() if _map is MapRoot else null
+		if _rig == null and _env.sky and _env.sky.sky_material is ShaderMaterial:
 			_env.sky = _env.sky.duplicate()
 			_sky = _env.sky.sky_material.duplicate()
 			_env.sky.sky_material = _sky

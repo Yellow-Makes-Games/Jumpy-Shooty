@@ -262,6 +262,8 @@ class Course:
             ids[k] = "%d_%s" % (i + 1, k)
             out.append('[ext_resource type="Script" path="%s" id="%s"]' % (p, ids[k]))
         out.append('[ext_resource type="Resource" path="%s" id="pal"]' % palette_res)
+        name = path.replace("\\", "/").rsplit("/", 1)[-1].rsplit(".", 1)[0]
+        out.append('[ext_resource type="Resource" path="res://game/maps/sky/maps/%s.tres" id="sky"]' % name)
         out.append("")
         out += self.env
         out.append("")
@@ -270,6 +272,7 @@ class Course:
         out.append('[node name="%s" type="Node3D"]' % self.root)
         out.append('script = ExtResource("%s")' % ids["root"])
         out.append('palette = ExtResource("pal")')
+        out.append('sky = ExtResource("sky")')
         for k, v in self.settings.items():
             out.append("%s = %s" % (k, v))
         out.append("kill_height = %s" % fmt(self.min_y - self.kill_margin))

@@ -21,18 +21,10 @@
 [ext_resource type="Script" path="res://game/arena/map_magic_field.gd" id="19_field"]
 [ext_resource type="Script" path="res://game/arena/map_ambient_sound.gd" id="20_ambient"]
 [ext_resource type="Resource" path="res://game/maps/palettes/empyrean.tres" id="pal"]
-[ext_resource type="Shader" path="res://game/maps/sky/empyrean_sky.gdshader" id="sky"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
-shader = ExtResource("sky")
-shader_parameter/sun_dir = Vector3(-0.8585, 0.4067, 0.3125)
-
-[sub_resource type="Sky" id="Sky_1"]
-sky_material = SubResource("ShaderMaterial_sky")
+[ext_resource type="Resource" path="res://game/maps/sky/maps/empyrean.tres" id="sky_preset"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 2
-sky = SubResource("Sky_1")
 ambient_light_source = 2
 ambient_light_color = Color(0.88, 0.85, 1, 1)
 ambient_light_energy = 1.0
@@ -55,6 +47,7 @@ fog_height_density = 0.045
 
 [node name="EmpyreanTower" type="Node3D"]
 script = ExtResource("1_root")
+sky = ExtResource("sky_preset")
 palette = ExtResource("pal")
 face_shade = Vector3(0.9, 0.8, 0.66)
 kill_height = -88

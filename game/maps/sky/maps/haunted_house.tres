@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="SkyPreset" format=3]
+
+[ext_resource type="Script" path="res://game/maps/sky/sky_preset.gd" id="1_m1ur6"]
+
+[resource]
+script = ExtResource("1_m1ur6")
+zenith_color = Color(0.02745098, 0.03137255, 0.101960786, 1)
+sky_color = Color(0.078431375, 0.08235294, 0.17254902, 1)
+horizon_color = Color(0.16470589, 0.17254902, 0.26666668, 1)
+horizon_band = 0.2
+zenith_start = 0.08
+zenith_end = 0.7
+ground_color = Color(0.023529412, 0.023529412, 0.039215688, 1)
+sun_disc = 0.0
+sun_glow = 0.0
+sun_core = 0.0
+moon_amount = 1.0
+moon_dir = Vector3(0.36, 0.5, -0.78)
+moon_radius = 0.11
+moon_color = Color(0.9098039, 0.9254902, 1, 1)
+moon_phase = 0.12
+moon_glow = 0.45
+star_amount = 0.9
+star_density = 0.01
+star_scale = 170.0
+star_fade = 0.35
+star_twinkle = 0.4
+silhouette_mode = 2
+silhouette_color = Color(0.039215688, 0.039215688, 0.07058824, 1)
+silhouette_height = 0.05
+silhouette_haze = 0.15
+silhouette_light_color = Color(1, 0.84313726, 0.6039216, 1)
+silhouette_seed = 3.0
+city_glow_color = Color(1, 0.6039216, 0.36078432, 1)
+light_sun_color = Color(0.63529414, 0.7058824, 1, 1)
+light_sun_energy = 0.75
+light_ambient_color = Color(0.5058824, 0.48235294, 0.65882355, 1)
+light_ambient_energy = 0.62

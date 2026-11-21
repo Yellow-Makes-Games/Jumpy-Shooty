@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="SkyPreset" format=3]
+
+[ext_resource type="Script" path="res://game/maps/sky/sky_preset.gd" id="1_k1t61"]
+
+[resource]
+script = ExtResource("1_k1t61")
+zenith_color = Color(0.078431375, 0.078431375, 0.12156863, 1)
+sky_color = Color(0.16470589, 0.1254902, 0.14901961, 1)
+horizon_color = Color(0.3529412, 0.20392157, 0.14117648, 1)
+horizon_band = 0.25
+zenith_start = 0.05
+zenith_end = 0.9
+zenith_power = 0.8
+ground_color = Color(0.09411765, 0.07058824, 0.05882353, 1)
+glow_color = Color(1, 0.5411765, 0.23529412, 1)
+glow_amount = 0.35
+glow_falloff = 10.0
+sun_color = Color(1, 0.9411765, 0.8392157, 1)
+sun_disc = 0.0
+sun_radius = 0.05
+sun_glow = 0.05
+sun_glow_power = 5.0
+sun_core = 0.0
+sun_core_power = 40.0
+puff_amount = 0.55
+puff_color = Color(0.95686275, 0.9098039, 0.83137256, 1)
+puff_shade = Color(0.72156864, 0.6666667, 0.59607846, 1)
+puff_top = 0.4
+overcast_amount = 0.55
+overcast_color = Color(0.22745098, 0.17254902, 0.16470589, 1)
+haze_amount = 0.35
+haze_height = 0.06
+silhouette_mode = 1
+silhouette_color = Color(0.08235294, 0.07058824, 0.08235294, 1)
+silhouette_haze = 0.15
+silhouette_lights = 0.6
+silhouette_light_color = Color(1, 0.6039216, 0.2901961, 1)
+silhouette_seed = 7.0
+light_sun_color = Color(0.76862746, 0.8, 1, 1)
+light_sun_energy = 0.55
+light_ambient_color = Color(0.6117647, 0.54901963, 0.5882353, 1)
+light_ambient_energy = 0.75
+light_fog_color = Color(0.9019608, 0.8627451, 0.79607844, 1)
+light_fog_density = 0.0025

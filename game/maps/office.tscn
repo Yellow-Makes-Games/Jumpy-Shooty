@@ -6,19 +6,10 @@
 [ext_resource type="Script" path="res://game/arena/map_spawn.gd" id="4_sxplk"]
 [ext_resource type="Script" path="res://game/arena/map_weapon_spawn.gd" id="90_wpnsp"]
 [ext_resource type="Script" path="res://game/arena/map_item_spawn.gd" id="91_itmsp"]
-
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_mexow"]
-sky_top_color = Color(0.22, 0.48, 0.86, 1)
-sky_horizon_color = Color(0.78, 0.88, 0.96, 1)
-ground_bottom_color = Color(0.74, 0.74, 0.72, 1)
-ground_horizon_color = Color(0.8, 0.8, 0.78, 1)
-
-[sub_resource type="Sky" id="Sky_5fh2i"]
-sky_material = SubResource("ProceduralSkyMaterial_mexow")
+[ext_resource type="Resource" path="res://game/maps/sky/maps/office.tres" id="sky_preset"]
 
 [sub_resource type="Environment" id="Environment_cqkfr"]
 background_mode = 2
-sky = SubResource("Sky_5fh2i")
 ambient_light_source = 2
 ambient_light_color = Color(0.84, 0.86, 0.92, 1)
 ambient_light_energy = 0.95
@@ -29,6 +20,7 @@ glow_enabled = true
 
 [node name="Office" type="Node3D" unique_id=442849958]
 script = ExtResource("1_jq3xl")
+sky = ExtResource("sky_preset")
 palette = ExtResource("2_rlnfw")
 face_shade = Vector3(0.93, 0.84, 0.66)
 kill_height = -6.0

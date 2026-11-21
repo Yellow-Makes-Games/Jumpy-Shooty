@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="SkyPreset" format=3]
+
+[ext_resource type="Script" path="res://game/maps/sky/sky_preset.gd" id="1_i623o"]
+
+[resource]
+script = ExtResource("1_i623o")
+zenith_color = Color(0.015686275, 0.023529412, 0.050980393, 1)
+sky_color = Color(0.015686275, 0.023529412, 0.050980393, 1)
+horizon_color = Color(0.015686275, 0.023529412, 0.050980393, 1)
+sun_color = Color(1, 0.972549, 0.9254902, 1)
+sun_disc = 2.0
+sun_radius = 0.022
+sun_glow = 0.12
+sun_glow_power = 30.0
+sun_core = 0.4
+sun_core_power = 300.0
+star_amount = 1.2
+star_density = 0.016
+nebula_amount = 0.8
+nebula_color_a = Color(0.36078432, 0.22745098, 0.4862745, 1)
+nebula_color_b = Color(0.16470589, 0.36078432, 0.4392157, 1)
+nebula_scale = 1.8
+floor_mode = 3
+light_sun_color = Color(0.9490196, 0.95686275, 1, 1)
+light_sun_energy = 1.1
+light_ambient_color = Color(0.4862745, 0.5176471, 0.65882355, 1)

@@ -25,6 +25,8 @@ extends MapEvent
 @export_range(0.05, 1.0) var gravity_scale := 0.3
 
 @export_group("Look and sound")
+## The sky while gravity is low, for a map drawn by the sky engine (MapRoot.sky).
+@export var sky: SkyPreset
 ## The colour the map's light fades to.
 @export var light_color := Color(0.1, 0.24, 1.0)
 ## MapSpinners turn at this share of their speed while gravity is low.
@@ -44,6 +46,7 @@ var _map: MapRoot
 var _env: Environment
 var _env_base := {}
 var _sky: ShaderMaterial
+var _rig: SkyRig
 var _sun: DirectionalLight3D
 var _sun_base := {}
 var _mats: Array = []      # [material, albedo, emission, has emission]
@@ -121,7 +124,9 @@ func _show() -> void:
 		_env.ambient_light_color = (_env_base.color as Color).lerp(light_color, level * 0.9)
 		_env.ambient_light_energy = lerpf(_env_base.energy, _env_base.energy * 0.72, level)
 		_env.glow_intensity = lerpf(_env_base.glow, _env_base.glow * 1.35, level)
-	if _sky:
+	if _rig:
+		_rig.blend(sky, level)
+	elif _sky:
 		_sky.set_shader_parameter("deepen", level)
 	if _sun:
 		_sun.light_color = (_sun_base.color as Color).lerp(light_color.lerp(Color.WHITE, 0.15), level)
@@ -161,7 +166,8 @@ func _find_looks() -> void:
 		_env = world.environment.duplicate()
 		world.environment = _env
 		_env_base = {"color": _env.ambient_light_color, "energy": _env.ambient_light_energy, "glow": _env.glow_intensity}
-		if _env.sky and _env.sky.sky_material is ShaderMaterial:
+		_rig = _map.sky_rig()
+		if _rig == null and _env.sky and _env.sky.sky_material is ShaderMaterial:
 			_env.sky = _env.sky.duplicate()
 			_sky = _env.sky.sky_material.duplicate()
 			_env.sky.sky_material = _sky

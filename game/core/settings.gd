@@ -54,7 +54,8 @@ var fsr_sharpness: float = 0.2
 var shadows: String = "high"
 var ao: String = "high"
 var glow: bool = true
-const GRAPHICS_KEYS := ["msaa", "screen_aa", "render_scale", "fsr_sharpness", "shadows", "ao", "glow"]
+var sky_motion: bool = true
+const GRAPHICS_KEYS := ["msaa", "screen_aa", "render_scale", "fsr_sharpness", "shadows", "ao", "glow", "sky_motion"]
 
 ## Resolutions offered in the menu (only those that fit the screen are shown).
 const RESOLUTIONS: Array[Vector2i] = [
@@ -134,6 +135,10 @@ func load_settings() -> void:
 		var picks := {}
 		for k in GRAPHICS_KEYS:
 			picks[k] = cfg.get_value("graphics", k, get(k))
+		if not cfg.has_section_key("graphics", "sky_motion"):
+			# Saved before the moving sky was a setting: as its preset has it.
+			var saved := str(cfg.get_value("graphics", "quality", "high"))
+			picks.sky_motion = GraphicsQuality.preset(saved).sky_motion if GraphicsQuality.PRESETS.has(saved) else true
 		set_graphics(GraphicsQuality.clean(picks))
 		quality = GraphicsQuality.matching(graphics())
 	player_name = cfg.get_value("profile", "player_name", player_name)

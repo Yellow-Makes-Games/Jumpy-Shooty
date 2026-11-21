@@ -26,6 +26,8 @@ extends Node3D
 ##    retract, and MapJumpLink markers telling bots where to grapple or leap across.
 ##  - Label3D nodes: signs and painted numbers.
 ##  - A WorldEnvironment (sky, ambient light, fog) and a DirectionalLight3D (the sun).
+##    With `sky` set, the sky engine draws the sky (SkyRig) and sets the lighting that
+##    goes with it.
 ##
 ## When a match starts, the arena calls build(): every visible MapBlock becomes part
 ## of one collision body and of one merged mesh per kind, and the spawn list is read.
@@ -97,6 +99,14 @@ extends Node3D
 ## Gravity wherever no MapGravityZone covers, as a share of normal (see WorldGravity).
 ## 1 = normal. Empyrean Tower: 0.4, with a zone of 1.0 filling the tower.
 @export_range(0.05, 2.0) var gravity_outside := 1.0
+## The map's sky: a SkyPreset from game/maps/sky/maps/ (see SkyRig). Empty: the
+## Environment's own sky as it stands.
+@export var sky: SkyPreset:
+	set(v):
+		sky = v
+		if is_inside_tree():
+			_update_sky()
+
 ## A high point near the middle that scripted test players swing from.
 @export var swing_point := Vector3(0, 5.5, 0):
 	set(v):
@@ -185,6 +195,7 @@ static var _ghost: StandardMaterial3D
 
 
 func _ready() -> void:
+	_update_sky()
 	# Run on its own (F6 in the editor): play it in practice mode.
 	if not Engine.is_editor_hint() and get_tree().current_scene == self:
 		var id := scene_file_path
@@ -192,6 +203,27 @@ func _ready() -> void:
 			if m.scene == id:
 				id = m.id
 		get_node("/root/Game").call_deferred("start_practice", id)
+
+
+## The SkyRig drawing this map's sky, or null.
+func sky_rig() -> SkyRig:
+	return get_node_or_null("SkyRig") as SkyRig
+
+
+func _update_sky() -> void:
+	var rig := sky_rig()
+	if sky == null:
+		if rig:
+			rig.queue_free()
+		return
+	if rig == null:
+		rig = SkyRig.new()
+		var tree := Engine.get_main_loop() as SceneTree
+		var settings := tree.root.get_node_or_null("Settings") if tree else null
+		if settings:
+			rig.motion = bool(settings.graphics().get("sky_motion", true))
+		add_child(rig)   # not saved with the scene (no owner)
+	rig.preset = sky
 
 
 ## The MapRoot a node belongs to, or null.
