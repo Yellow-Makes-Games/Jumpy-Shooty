@@ -1733,6 +1733,7 @@ func _host_score_kill(victim: int, killer: int, cause: String, headshot: bool, w
 		"killer_speed": a.buffer.speed() if a else 0.0,
 		"victim_speed": b.buffer.speed() if b else 0.0,
 		"flick": a.buffer.aim_travel(KillScore.FLICK_WINDOW) if a else 0.0,
+		"spin": a.buffer.spin(KillScore.SPIN_WINDOW, KillScore.AIRBORNE) if a else 0.0,
 	}
 	recent.append(now)
 	_recent_kills[killer] = recent
