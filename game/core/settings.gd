@@ -78,6 +78,10 @@ var mobility: String = Mobility.default_id()       # the tool on the mobility bu
 var player_color := -1   # your colour in a free-for-all: a number in Net.PLAYER_COLORS, or -1 for the first free one
 var calling_card: String = CallingCard.DEFAULT_CARD   # the banner behind your name (see CallingCard)
 var icon: String = CallingCard.DEFAULT_ICON           # the badge beside it
+## The emotes on your wheel (Emote.SLOTS ids from Emote.LIST), and the victory pose you
+## strike on the results page (a name from Podium.NAMES' victories, or "random").
+var emote_wheel: Array = Emote.DEFAULT_WHEEL.duplicate()
+var victory_pose: String = Podium.RANDOM
 ## Characters made in the Character Creator, as ids (see CustomCharacter), newest last.
 var custom_characters: Array = []
 const MAX_CUSTOM := 12
@@ -137,6 +141,8 @@ func load_settings() -> void:
 	player_color = clampi(int(cfg.get_value("profile", "color", player_color)), -1, 15)
 	calling_card = CallingCard.valid_card(str(cfg.get_value("profile", "calling_card", calling_card)))
 	icon = CallingCard.valid_icon(str(cfg.get_value("profile", "icon", icon)))
+	emote_wheel = Emote.wheel(cfg.get_value("emotes", "wheel", emote_wheel))
+	victory_pose = Podium.valid_choice(str(cfg.get_value("emotes", "victory_pose", victory_pose)))
 	custom_characters.clear()
 	var saved = cfg.get_value("creator", "characters", [])
 	if saved is Array:
@@ -186,6 +192,8 @@ func save_settings() -> void:
 	cfg.set_value("profile", "color", player_color)
 	cfg.set_value("profile", "calling_card", calling_card)
 	cfg.set_value("profile", "icon", icon)
+	cfg.set_value("emotes", "wheel", emote_wheel)
+	cfg.set_value("emotes", "victory_pose", victory_pose)
 	cfg.set_value("creator", "characters", custom_characters)
 	cfg.set_value("profile", "weapon", weapon)
 	cfg.set_value("profile", "mobility", mobility)
@@ -414,6 +422,7 @@ const ACTIONS := [
 	["weapon_6", "Weapon group 6", ["key:%d" % KEY_6]],
 	["weapon_next", "Next weapon", ["mouse:%d" % MOUSE_BUTTON_WHEEL_DOWN]],
 	["weapon_prev", "Previous weapon", ["mouse:%d" % MOUSE_BUTTON_WHEEL_UP]],
+	["emote", "Emote wheel", ["key:%d" % KEY_B]],
 	["toggle_camera", "First / third person", ["key:%d" % KEY_V]],
 	["scoreboard", "Scoreboard", ["key:%d" % KEY_TAB]],
 	["debug_menu", "Debug menu", ["key:%d" % KEY_F1, "key:%d" % KEY_QUOTELEFT]],

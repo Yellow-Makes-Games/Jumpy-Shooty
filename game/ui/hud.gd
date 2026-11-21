@@ -86,6 +86,7 @@ var _layout: Control
 var _screens: Control           ## the killcam, the death screen, world markers: never scaled or faded
 var _overlay: Control           ## the rest of the HUD: scaled and faded with the layout
 var _cross: Control             ## the crosshair, on top: never faded
+var wheel: EmoteWheel           ## the emote wheel, round the crosshair while its key is held
 var _scoreboard: PanelContainer
 var _score_rows: VBoxContainer
 var _score_title: Label
@@ -147,6 +148,8 @@ func _ready() -> void:
 	_overlay.draw.connect(_draw_overlay)
 	_cross = _full_rect(Control.new())
 	_cross.draw.connect(_draw_cross)
+	wheel = EmoteWheel.new()
+	_root.add_child(wheel)
 	_build_death_buttons()
 	_killer_view = RobotPreview.new(Vector2(150, 190), 1.15)
 	_killer_view.turn = false
@@ -219,6 +222,7 @@ func update_local(p: Player) -> void:
 	_movement_tag.visible = variant != MovementTuning.DEFAULT_VARIANT   # testers always know which one they are on
 	_movement_tag.text = "Movement: " + MovementTuning.variant_name(variant)
 	var me := p.peer_id
+	wheel.player = p
 	style = Settings.hud_style()
 	_pulse += delta
 

@@ -252,6 +252,22 @@ func _step(delta: float) -> void:
 			_show_build()
 
 
+## The one robot on show (the first of a lineup), or null.
+func robot() -> RobotModel:
+	return _robots[0].robot if not _robots.is_empty() else null
+
+
+## On a stage: something else to pose its character (see EmotePoser), in place of the
+## PortraitPoser show_robot gave it.
+func set_poser(poser: PortraitPoser) -> void:
+	_poser = poser
+
+
+## A node in the picture's own world that keeps still (for a poser's effects).
+func fx() -> Node:
+	return _stage
+
+
 ## How tall the character on the stage is (metres, hat and all).
 func height() -> float:
 	return _top

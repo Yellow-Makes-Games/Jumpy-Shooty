@@ -104,6 +104,7 @@ var stowed: Array = []
 ## What the hand without the gun is doing with a pickup, a terminal, the bomb (see
 ## FreeHand). It is this player's, not the animator's: that is made anew with every weapon.
 var hand := FreeHand.new()
+var emote := Emote.new()     ## an emote being played (see Emote): looks only
 var _spawn_fx: SpawnIn       # arriving: put together out of light (see SpawnIn), while it goes
 var _snatched := ""          # a weapon just snatched off a pad...
 var _snatched_at := 0        # ...and when (Time.get_ticks_msec)
@@ -234,6 +235,7 @@ func setup(id: int, local: bool, bot: bool = false) -> void:
 	Match.melee_landed.connect(_on_melee_landed)
 	Match.ground_slammed.connect(_on_ground_slammed)
 	Match.hit_taken.connect(_on_hit_taken)
+	Match.emoted.connect(_on_emoted)
 
 
 # ---------------------------------------------------------------------------
@@ -634,6 +636,7 @@ func _fire_round() -> void:
 	sounds.fired()
 	animator.fire(_akimbo_left)
 	hand.cut()
+	stop_emote()
 	if DevArgs.sync_log:
 		print("ANIM FIRE %d" % peer_id)
 	if view:
@@ -863,6 +866,7 @@ func _watch_swings(delta: float) -> void:
 		var held := WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
 		animator.wind(held, _swing_side)
 		hand.cut()
+		stop_emote()
 		if view:
 			view.wind(held, _swing_side)
 		if _trail:
@@ -881,6 +885,7 @@ func _watch_swings(delta: float) -> void:
 			_shown_power = power
 			animator.swing(power, _seen_side)
 			hand.cut()
+			stop_emote()
 			if view:
 				view.swing(power, _seen_side)
 			if _trail:
@@ -947,6 +952,7 @@ func _on_hit_taken(target: int, way: Vector3, damage: float, headshot: bool, blo
 func flinch(way: Vector3, damage: float, headshot: bool = false, blow: int = HitReaction.SHOT) -> void:
 	var blunt := blow == HitReaction.MELEE or blow == HitReaction.HEAVY
 	var heavy := blow == HitReaction.HEAVY
+	stop_emote()
 	animator.flinched(visual.global_transform.basis.orthonormalized().inverse() * way, damage, headshot, blunt, heavy)
 	if view:
 		view.flinched(Basis(Vector3.UP, input.yaw).inverse() * way, damage, headshot, blunt, heavy)
@@ -1404,6 +1410,7 @@ func _first_person() -> bool:
 ## Another player's shot, as told by the host: kick their gun.
 func show_shot() -> void:
 	hand.cut()
+	stop_emote()
 	_next_gun()
 	animator.fire(_akimbo_left)
 	Sound.gun_fire(robot.weapon, muzzle_position(), false)
@@ -1539,6 +1546,7 @@ func shake(amount: float) -> void:
 func change_weapon(gun: String) -> void:
 	if racing or robot == null or robot.weapon == gun:
 		return
+	stop_emote()
 	if weapon:
 		_ammo[weapon.data.id] = weapon.ammo
 	var color := Net.player_color(peer_id)
@@ -1836,6 +1844,7 @@ func _animate(delta: float) -> void:
 	animator.fx_parent = get_parent().get_parent() if is_inside_tree() else null   # a reload's spent cell goes into the arena
 	_anim.feet = _feet_ground()
 	_feed_hand(delta)
+	_step_emote(delta)
 	if _spawn_fx != null and (not alive or not _spawn_fx.update(delta, robot, global_position.y, view.model if view != null and view.visible else null)):
 		_spawn_fx.stop()
 		_spawn_fx = null
@@ -1907,6 +1916,68 @@ func spawn_in(ground: bool = true) -> void:
 
 
 # ---------------------------------------------------------------------------
+# Emotes (see Emote). Looks only: no lock-in and no protection.
+
+## Start an emote, if this body may right now: alive, standing still on the ground.
+## Yours, or a bot's on the host (a body run here): everyone else is told. False if not.
+func try_emote(id: String) -> bool:
+	if not is_local or not Emote.valid(id) or not Emote.may_start(alive, _standing(), _ground_speed()):
+		return false
+	emote.play(id, aim_forward())
+	Match.request_emote(id, emote.aim, peer_id)
+	if DevArgs.sync_log:
+		print("EMOTE %d %s" % [peer_id, id])
+	return true
+
+
+## Cut an emote short (it eases out). On the copy that runs this body, everyone else
+## is told; on the others it is just what they show.
+func stop_emote() -> void:
+	if not emote.active():
+		return
+	emote.stop()
+	if is_local:
+		Match.request_emote("", Vector3.ZERO, peer_id)
+		if DevArgs.sync_log:
+			print("EMOTE %d cut" % peer_id)
+
+
+## Someone else's emote, as the host tells it ("": cut short).
+func _on_emoted(id: int, what: String, aim: Vector3) -> void:
+	if id != peer_id or is_local:
+		return
+	if DevArgs.sync_log:
+		print("EMOTE_SHOWN %d %d %s" % [Net.my_id(), peer_id, what if what != "" else "cut"])
+	if what == "":
+		emote.stop()
+	elif alive:
+		emote.play(what, aim)
+
+
+## Every frame: an emote goes on only while the body stands where it is doing nothing
+## else (the copy that runs it decides; shots, swings, hits, reloads and swaps cut it
+## where they happen). Your own pulls the camera back to third person while it lasts.
+func _step_emote(delta: float) -> void:
+	if emote.active():
+		var busy := is_local and not is_bot and (input.fire or input.grapple or input.dive or input.kick_pressed or input.jump_held)
+		if not alive or busy or (is_local and not Emote.may_start(alive, _standing(), _ground_speed())):
+			stop_emote()
+	emote.update(delta)
+	animator.emote = emote
+	if rig:
+		rig.emoting = emote.active() and alive
+
+
+## On its feet on the ground (not crouched, sliding, in the air or on a wall or a rope).
+func _standing() -> bool:
+	return motor != null and motor.state == MovementController.State.GROUND and not motor.crouched and is_on_floor()
+
+
+func _ground_speed() -> float:
+	return Vector2(velocity.x, velocity.z).length()
+
+
+# ---------------------------------------------------------------------------
 # The hand without the gun (see FreeHand): pickups, terminals and levers, the bomb.
 # Looks only: every copy works it out for the bodies it draws, from what it is told.
 
@@ -1918,6 +1989,7 @@ func _feed_hand(delta: float) -> void:
 		return
 	if _anim.reloading():
 		hand.cut()   # (both hands are on the gun)
+		stop_emote()
 	var middle := global_position + Vector3(0.0, 0.9, 0.0)
 	# Something to pick up close ahead: the hand goes out to it.
 	var arena := Net.arena

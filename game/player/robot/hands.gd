@@ -31,3 +31,20 @@ static func set_hand(pose: RobotPose, rig: RobotRig, how: String, w: float, left
 				which.append(rig.bones[n])
 		_bones[side] = which
 	pose.blend_bones(_poses[key], w, _bones[side])
+
+
+## Only some of one hand's bones to how `how` holds them (set_hand's names): a thumb
+## stuck up out of a fist, a finger pointing. `which`: "thumb", "index" or "fingers".
+static func set_part(pose: RobotPose, rig: RobotRig, how: String, w: float, left: bool, which: String) -> void:
+	if w <= 0.0 or not rig.has_clip("hand_" + how):
+		return
+	var key := [rig, how]
+	if not _poses.has(key):
+		var p := rig.new_pose()
+		rig.sample(p, "hand_" + how, 0.0)
+		_poses[key] = p
+	var bones := PackedInt32Array()
+	for n in (LEFT if left else RIGHT):
+		if n.begins_with(which) and rig.bones.has(n):
+			bones.append(rig.bones[n])
+	pose.blend_bones(_poses[key], w, bones)

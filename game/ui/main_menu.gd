@@ -2,13 +2,13 @@ extends Control
 ## Main menu. The front page has the title and big buttons on the left (Play, with a
 ## globe button beside it that goes straight to Multiplayer; Profile; Settings; Exit)
 ## and a cinematic showcase of the characters on the right (CharacterShowcase); every other page (Play, Practice, Vs Bots,
-## Multiplayer, Settings, and Profile with its tabs: Character, Calling Card,
+## Multiplayer, Settings, and Profile with its tabs: Character, Calling Card, Emotes,
 ## Achievements) is built in one MenuFrame, which keeps its buttons on screen whatever
 ## the window size. Built in code.
 
 ## The Profile page's tabs: [name, page].
 const PROFILE_TABS := [["Profile", "_show_profile"], ["Character", "_show_creator"],
-	["Calling Card", "_show_calling_card"], ["Achievements", "_show_achievements"]]
+	["Calling Card", "_show_calling_card"], ["Emotes", "_show_emotes"], ["Achievements", "_show_achievements"]]
 
 const MODE_LABELS := ["Shoot-out", "Deathmatch", "Race"]
 ## Shown where the weapon cards would be, in the modes that don't use your pick.
@@ -50,6 +50,7 @@ func _ready() -> void:
 		"creator": _show_creator()
 		"achievements": _show_achievements()
 		"card": _show_calling_card()
+		"emotes": _show_emotes()
 		"profile": _show_profile()
 		_: _show_main()
 
@@ -562,6 +563,13 @@ func _show_creator() -> void:
 func _show_calling_card() -> void:
 	_profile_page("_show_calling_card")
 	_frame.body.add_child(CallingCardPicker.new())
+	_frame.back_button("Main menu", _show_main).grab_focus()
+
+
+# Emotes: the six on your wheel, and the victory pose you strike on the results page.
+func _show_emotes() -> void:
+	_profile_page("_show_emotes")
+	_frame.body.add_child(EmotePicker.new())
 	_frame.back_button("Main menu", _show_main).grab_focus()
 
 

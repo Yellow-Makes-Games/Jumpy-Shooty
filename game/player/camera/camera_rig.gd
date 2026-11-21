@@ -33,6 +33,10 @@ var arm: SpringArm3D
 var tp_anchor: Node3D
 var camera: Camera3D
 
+## Your own emote is playing (see Emote): the camera is pulled back to third person
+## for as long as it lasts, whichever view you play in.
+var emoting := false
+
 var _blend := 0.0   # 0 = first person, 1 = third person
 var _kick := 0.0    # the view punched in by a heavy landing (see kick), easing back
 var _rush := 0.0    # the view widened by a burst of speed (see rush), easing back
@@ -82,7 +86,7 @@ func set_view(yaw: float, pitch: float, eye: float = EYE_HEIGHT, roll: float = 0
 
 
 func is_third_person() -> bool:
-	return Settings.third_person
+	return Settings.third_person or emoting
 
 
 ## 1 while the first-person body is shown, falling to 0 by the time the full body
@@ -94,7 +98,7 @@ func first_person_amount() -> float:
 func _process(delta: float) -> void:
 	if not camera:
 		return
-	var target: float = 1.0 if Settings.third_person else 0.0
+	var target: float = 1.0 if is_third_person() else 0.0
 	var before := _blend
 	_blend = move_toward(_blend, target, delta / BLEND_TIME)
 	place()

@@ -100,6 +100,9 @@ func _ready() -> void:
 		if taken and by != 0 and Net.arena != null and index < Net.arena.items.size():
 			var item := Net.arena.items[index] as ItemPickup
 			_event({"kind": "grab", "who": by, "at": item.spot, "color": ItemPickup.INFO[item.kind][1]}))
+	# An emote started, or cut short (see Emote).
+	Match.emoted.connect(func(id: int, emote: String, aim: Vector3):
+		_event({"kind": "emote", "who": id, "emote": emote, "aim": aim}))
 	Match.match_over.connect(_on_match_over)
 	Match.player_respawned.connect(_on_respawned)
 

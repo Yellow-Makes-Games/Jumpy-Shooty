@@ -50,7 +50,7 @@ func run() -> void:
 func _check_main_menu(window: Vector2i) -> void:
 	var menu: Control = load("res://game/ui/main_menu.tscn").instantiate()
 	_view.add_child(menu)
-	for page in ["_show_main", "_show_play", "_show_practice", "_show_multiplayer", "_show_profile", "_show_creator", "_show_calling_card", "_show_achievements"]:
+	for page in ["_show_main", "_show_play", "_show_practice", "_show_multiplayer", "_show_profile", "_show_creator", "_show_calling_card", "_show_emotes", "_show_achievements"]:
 		menu.call(page)
 		await _settle()
 		_check(menu, "main menu %s" % page.trim_prefix("_show_"), window, page != "_show_achievements")   # (a long list: it scrolls)

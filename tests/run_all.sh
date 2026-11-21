@@ -35,6 +35,7 @@ CHECKS=(
   "free_hand|--fixed-fps 60 --script tests/free_hand_test.gd"
   "spawn_in|--fixed-fps 60 --script tests/spawn_in_test.gd"
   "victory_pose|--fixed-fps 60 --script tests/victory_pose_test.gd"
+  "emote|--fixed-fps 60 --script tests/emote_test.gd"
   "new_weapons|--script tests/new_weapons_test.gd"
   "audio|--script tests/audio_test.gd"
   "maps|--script tests/map_scene_test.gd"
@@ -134,6 +135,8 @@ echo "== Bots in an online lobby: run by the host, seen moving by a client, kill
 tests/run_online_bots_test.sh
 echo "== Ground slam: in Practice on a dummy, and a client's slam ruled on by the host"
 tests/run_slam_test.sh
+echo "== Emotes: the wheel in Practice (camera pulled back, cut short by walking off and by a shot), a client's emote shown on the host"
+tests/run_emote_test.sh
 echo "== Respawn visibility: players dying and coming back online, a client's respawn news held up behind their snapshots; nobody stays invisible"
 tests/run_respawn_visible_test.sh
 echo "== Kick kills in the kill feed: a client kicked into a wall and kicked down, the boot and the wall on both copies"
