@@ -98,6 +98,7 @@ func _ready() -> void:
 	if layout.destruction:
 		Match.request_breaks()   # joining a match in progress: what is broken already
 	Net.request_map_state()      # ...and where the map's terminals and events are
+	Game.map_loaded()            # the map is built: the loading screen can go
 
 
 func _exit_tree() -> void:
