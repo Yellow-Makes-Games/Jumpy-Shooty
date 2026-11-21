@@ -57410,23 +57410,23 @@ kind = "steel"
 solid = false
 
 [node name="BoothGlass" type="Node3D" parent="StreetDetails/PhoneBooth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.2, 1.225, 16.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.2, 1.165, 16.9)
 script = ExtResource("2_block")
-size = Vector3(0.06, 2.15, 0.92)
+size = Vector3(0.06, 2.03, 0.92)
 kind = "glass"
 breakable = true
 
 [node name="BoothGlass2" type="Node3D" parent="StreetDetails/PhoneBooth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.7, 1.225, 17.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.7, 1.165, 17.4)
 script = ExtResource("2_block")
-size = Vector3(0.92, 2.15, 0.06)
+size = Vector3(0.92, 2.03, 0.06)
 kind = "glass"
 breakable = true
 
 [node name="BoothGlass3" type="Node3D" parent="StreetDetails/PhoneBooth"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.7, 1.225, 16.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.7, 1.165, 16.4)
 script = ExtResource("2_block")
-size = Vector3(0.92, 2.15, 0.06)
+size = Vector3(0.92, 2.03, 0.06)
 kind = "glass"
 breakable = true
 

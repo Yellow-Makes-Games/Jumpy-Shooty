@@ -1431,9 +1431,9 @@ toward the sun, away and up); `--sky=res://...tres` tries another preset on it,
 `--map=stage` shows a preset on an open floor, `--still` shows the Low still sky and
 `--clip=6 --fps=12` saves frames for a clip. `tests/sky_engine_test.gd` checks it all.
 
-### Rail Yard, Lost Temple and Neon Arcade
+### Rail Yard and Lost Temple
 
-These three arenas were laid out by `tools/arena/build_arena_maps.py` (one file per map
+These two arenas were laid out by `tools/arena/build_arena_maps.py` (one file per map
 in `tools/arena/`, the scene writer in `tools/arena/arena_builder.py`). They are ordinary
 map scenes, grouped one object per group like the others, so edit them in the editor.
 Running the script again (`python3 tools/arena/build_arena_maps.py rail_yard`) rebuilds a
@@ -1457,6 +1457,48 @@ short of a landing. The rules they keep, which `tests/map_flicker_test.gd` check
 - On a wall or floor that breaks, a detail is a thin skin (0.15 m or less) lying
   inside one panel's outline, so it breaks with the panel. Anything bigger, or
   anything that spans two panels, would hold the wall up: stand it on its own posts.
+
+### Neon Arcade
+
+`game/maps/neon_arcade.tscn` is an arcade on a city block: the arcade (a 42 x 30 m hall with
+a mezzanine and a roof you can reach) and, round it, Main Street, a side street, an alley,
+a back lot, a plaza, four neighbours you can go into (a noodle bar, a record shop, a diner,
+a laundromat) and a filling station. `python3 tools/arena/build_arena_maps.py neon_arcade`
+builds it from four files in `tools/arena/`:
+
+- `neon_arcade.py`: the arcade itself, the spawn points and the pickups.
+- `neon_arcade_block.py`: the ground, the edges, the skyline, the neighbours (`shop()`
+  makes one: walls, floors, roof, parapet and its frame) and the street furniture.
+- `neon_arcade_details.py`: the last layer of things to look at.
+- `neon_arcade_kit.py`: the palette, the builder (`ArcadeMap`) and the furniture: every
+  cabinet, car, lamp, sign and so on is one function there.
+
+How it is put together:
+
+- **It breaks small.** The root has Fine Destruction and Break Small Walls on, as Cirrus
+  has. Walls are 0.5 m of brick (`wall()`), floors and roofs 0.3 to 0.4 m (`deck()`): thin
+  enough to break a piece at a time. A wall is brick outside and paint inside by
+  `face_kinds`, not by a second box.
+- **Every building is a MapFrame held up by its walls** (Held By Walls, To The Ground):
+  `ArcadeFrame`, `NoodleBarFrame`, `RecordShopFrame`, `DinerFrame`, `LaundromatFrame`. Its
+  lines cross at the corners and where inside walls meet outside ones, and `wall()` and
+  `deck()` cut their boxes at those lines (`cuts`), so each bay's walls and floors are its
+  own. Keep some solid wall near every crossing on every storey: a crossing where the wall
+  is all window holds nothing up. The arcade's six pillars are real columns as well
+  (Column Kind `pillar`): three rockets blow one out. The filling station's canopy is a
+  frame of the other sort, a slab on four columns (`CanopyFrame`).
+- **Writing is made of blocks** (`ArcadeMap.text`, a 5 x 7 dot face; `K.blade_sign`,
+  `K.pixel_art`), not Label3D: a label does not fall with a building, a block does.
+- **The ground is level.** Kerbs are painted on: the body cannot step up one, so the
+  bots' paths must not cross one. Ground beyond the fences is drawn only, so the
+  navigation mesh is of the block and not of the city round it.
+- **What hangs on a building is in that building's folder**, so it goes when the wall
+  behind it does and falls with the building.
+
+`tests/neon_arcade_destruction_test.gd` checks what breaks and what comes down;
+`tests/arena_maps_test.gd` that the spawn points are clear and a bot can walk to every
+floor, the roof and each neighbour; `tests/map_flicker_test.gd` that no two colours share
+a plane.
 
 ### Halcyon
 

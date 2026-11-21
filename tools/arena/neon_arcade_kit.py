@@ -1185,13 +1185,13 @@ def phone_booth(m, parent, x, z, face):
     back = a.pt((0, 0, -0.5))
     left, right = a.pt((-0.5, 0, 0)), a.pt((0.5, 0, 0))
     if axis == "x":      # it looks along z: its back is a pane along x, its sides along z
-        m.pane(a.g, "glass", "x", back[2], x - 0.46, x + 0.46, 0.15, 2.3, name="BoothGlass", thick=0.06)
+        m.pane(a.g, "glass", "x", back[2], x - 0.46, x + 0.46, 0.15, 2.18, name="BoothGlass", thick=0.06)
         for p in (left, right):
-            m.pane(a.g, "glass", "z", p[0], z - 0.46, z + 0.46, 0.15, 2.3, name="BoothGlass", thick=0.06)
+            m.pane(a.g, "glass", "z", p[0], z - 0.46, z + 0.46, 0.15, 2.18, name="BoothGlass", thick=0.06)
     else:
-        m.pane(a.g, "glass", "z", back[0], z - 0.46, z + 0.46, 0.15, 2.3, name="BoothGlass", thick=0.06)
+        m.pane(a.g, "glass", "z", back[0], z - 0.46, z + 0.46, 0.15, 2.18, name="BoothGlass", thick=0.06)
         for p in (left, right):
-            m.pane(a.g, "glass", "x", p[2], x - 0.46, x + 0.46, 0.15, 2.3, name="BoothGlass", thick=0.06)
+            m.pane(a.g, "glass", "x", p[2], x - 0.46, x + 0.46, 0.15, 2.18, name="BoothGlass", thick=0.06)
     return a
 
 
