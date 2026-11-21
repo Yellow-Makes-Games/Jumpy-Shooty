@@ -1676,12 +1676,14 @@ metadata/_edit_group_ = true
 [node name="Wall" type="Node3D" parent="Shell/NorthWall" unique_id=86137818]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1, 0.5)
 kind = "wall_outer"
 
 [node name="Window" type="Node3D" parent="Shell/NorthWall" unique_id=212062546]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 2.6, 0.5)
 kind = "wall_outer"
 drawn = false
@@ -1689,6 +1691,7 @@ drawn = false
 [node name="Wall2" type="Node3D" parent="Shell/NorthWall" unique_id=1343933815]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1.4, 0.5)
 kind = "wall_outer"
 
@@ -1828,12 +1831,14 @@ solid = false
 [node name="Wall3" type="Node3D" parent="Shell/NorthWall" unique_id=2023327039]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.5, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1, 0.5)
 kind = "wall_outer"
 
 [node name="Window2" type="Node3D" parent="Shell/NorthWall" unique_id=439053450]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.3, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 2.6, 0.5)
 kind = "wall_outer"
 drawn = false
@@ -1841,6 +1846,7 @@ drawn = false
 [node name="Wall4" type="Node3D" parent="Shell/NorthWall" unique_id=1509953394]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.3, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1.4, 0.5)
 kind = "wall_outer"
 
@@ -1980,12 +1986,14 @@ solid = false
 [node name="Wall5" type="Node3D" parent="Shell/NorthWall" unique_id=1635399564]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10.5, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1, 0.5)
 kind = "wall_outer"
 
 [node name="Window3" type="Node3D" parent="Shell/NorthWall" unique_id=1752164683]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.4, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 2.8, 0.5)
 kind = "wall_outer"
 drawn = false
@@ -1993,6 +2001,7 @@ drawn = false
 [node name="Wall6" type="Node3D" parent="Shell/NorthWall" unique_id=377178153]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 14.4, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1.2, 0.5)
 kind = "wall_outer"
 
@@ -2132,6 +2141,7 @@ solid = false
 [node name="Parapet" type="Node3D" parent="Shell/NorthWall" unique_id=402953802]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 16, -18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 0.8, 0.5)
 kind = "wall_accent"
 
@@ -2141,12 +2151,14 @@ metadata/_edit_group_ = true
 [node name="Wall7" type="Node3D" parent="Shell/SouthWall" unique_id=645567290]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1, 0.5)
 kind = "wall_outer"
 
 [node name="Window4" type="Node3D" parent="Shell/SouthWall" unique_id=220333578]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.3, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 2.6, 0.5)
 kind = "wall_outer"
 drawn = false
@@ -2154,6 +2166,7 @@ drawn = false
 [node name="Wall8" type="Node3D" parent="Shell/SouthWall" unique_id=1427215236]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.3, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1.4, 0.5)
 kind = "wall_outer"
 
@@ -2293,12 +2306,14 @@ solid = false
 [node name="Wall9" type="Node3D" parent="Shell/SouthWall" unique_id=1617058666]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.5, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1, 0.5)
 kind = "wall_outer"
 
 [node name="Window5" type="Node3D" parent="Shell/SouthWall" unique_id=304170743]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 7.3, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 2.6, 0.5)
 kind = "wall_outer"
 drawn = false
@@ -2306,6 +2321,7 @@ drawn = false
 [node name="Wall10" type="Node3D" parent="Shell/SouthWall" unique_id=1217956392]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 9.3, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1.4, 0.5)
 kind = "wall_outer"
 
@@ -2445,12 +2461,14 @@ solid = false
 [node name="Wall11" type="Node3D" parent="Shell/SouthWall" unique_id=1892510270]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 10.5, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 1, 0.5)
 kind = "wall_outer"
 
 [node name="Window6" type="Node3D" parent="Shell/SouthWall" unique_id=1014950879]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.4, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 2.8, 0.5)
 kind = "wall_outer"
 drawn = false
@@ -2597,6 +2615,7 @@ solid = false
 [node name="Parapet" type="Node3D" parent="Shell/SouthWall" unique_id=377519575]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 16, 18.25)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(49, 0.8, 0.5)
 kind = "wall_accent"
 
@@ -2606,12 +2625,14 @@ metadata/_edit_group_ = true
 [node name="Wall13" type="Node3D" parent="Shell/WestWall" unique_id=575653912]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 0.5, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1, 36)
 kind = "wall_outer"
 
 [node name="Window7" type="Node3D" parent="Shell/WestWall" unique_id=1023525468]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 2.3, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 2.6, 36)
 kind = "wall_outer"
 drawn = false
@@ -2619,6 +2640,7 @@ drawn = false
 [node name="Wall14" type="Node3D" parent="Shell/WestWall" unique_id=632804972]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 4.3, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1.4, 36)
 kind = "wall_outer"
 
@@ -2730,12 +2752,14 @@ solid = false
 [node name="Wall15" type="Node3D" parent="Shell/WestWall" unique_id=396008171]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 5.5, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1, 36)
 kind = "wall_outer"
 
 [node name="Window8" type="Node3D" parent="Shell/WestWall" unique_id=1993996186]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 7.3, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 2.6, 36)
 kind = "wall_outer"
 drawn = false
@@ -2743,6 +2767,7 @@ drawn = false
 [node name="Wall16" type="Node3D" parent="Shell/WestWall" unique_id=1637158955]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 9.3, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1.4, 36)
 kind = "wall_outer"
 
@@ -2854,12 +2879,14 @@ solid = false
 [node name="Wall17" type="Node3D" parent="Shell/WestWall" unique_id=76262410]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 10.5, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1, 36)
 kind = "wall_outer"
 
 [node name="Window9" type="Node3D" parent="Shell/WestWall" unique_id=1901026362]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 12.4, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 2.8, 36)
 kind = "wall_outer"
 drawn = false
@@ -2978,6 +3005,7 @@ solid = false
 [node name="Parapet" type="Node3D" parent="Shell/WestWall" unique_id=1185626543]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24.25, 16, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 0.8, 36)
 kind = "wall_accent"
 
@@ -2987,12 +3015,14 @@ metadata/_edit_group_ = true
 [node name="Wall19" type="Node3D" parent="Shell/EastWall" unique_id=796353933]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 0.5, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1, 36)
 kind = "wall_outer"
 
 [node name="Window10" type="Node3D" parent="Shell/EastWall" unique_id=1552370425]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 2.3, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 2.6, 36)
 kind = "wall_outer"
 drawn = false
@@ -3000,6 +3030,7 @@ drawn = false
 [node name="Wall20" type="Node3D" parent="Shell/EastWall" unique_id=1502454875]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 4.3, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1.4, 36)
 kind = "wall_outer"
 
@@ -3111,12 +3142,14 @@ solid = false
 [node name="Wall21" type="Node3D" parent="Shell/EastWall" unique_id=1406248053]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 5.5, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1, 36)
 kind = "wall_outer"
 
 [node name="Window11" type="Node3D" parent="Shell/EastWall" unique_id=1911352982]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 7.3, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 2.6, 36)
 kind = "wall_outer"
 drawn = false
@@ -3124,6 +3157,7 @@ drawn = false
 [node name="Wall22" type="Node3D" parent="Shell/EastWall" unique_id=581813166]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 9.3, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1.4, 36)
 kind = "wall_outer"
 
@@ -3235,12 +3269,14 @@ solid = false
 [node name="Wall23" type="Node3D" parent="Shell/EastWall" unique_id=1492953898]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 10.5, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1, 36)
 kind = "wall_outer"
 
 [node name="Window12" type="Node3D" parent="Shell/EastWall" unique_id=1917275524]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 12.4, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 2.8, 36)
 kind = "wall_outer"
 drawn = false
@@ -3248,6 +3284,7 @@ drawn = false
 [node name="Wall24" type="Node3D" parent="Shell/EastWall" unique_id=899015530]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 14.4, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 1.2, 36)
 kind = "wall_outer"
 
@@ -3359,6 +3396,7 @@ solid = false
 [node name="Parapet" type="Node3D" parent="Shell/EastWall" unique_id=1768748270]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.25, 16, 0)
 script = ExtResource("3_hbpam")
+blink_proof = true
 size = Vector3(0.5, 0.8, 36)
 kind = "wall_accent"
 

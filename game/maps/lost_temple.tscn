@@ -6639,6 +6639,7 @@ solid = false
 [node name="Cliff2" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.5, 9, -52.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(11, 18, 9)
 kind = "rock_dark"
 
@@ -6652,6 +6653,7 @@ solid = false
 [node name="Cliff3" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -31, 6, -52)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(12, 12, 8)
 kind = "rock"
 
@@ -6665,6 +6667,7 @@ solid = false
 [node name="Cliff4" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.5, 10, -51.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(13, 20, 7)
 kind = "rock_dark"
 
@@ -6678,6 +6681,7 @@ solid = false
 [node name="Cliff5" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5, 8, -51)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(14, 16, 6)
 kind = "rock"
 
@@ -6691,6 +6695,7 @@ solid = false
 [node name="Cliff6" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 6.5, -52.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(15, 13, 9)
 kind = "rock_dark"
 
@@ -6704,6 +6709,7 @@ solid = false
 [node name="Cliff7" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 9.5, -52)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(10, 19, 8)
 kind = "rock"
 
@@ -6717,6 +6723,7 @@ solid = false
 [node name="Cliff8" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.5, 7.5, -51.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(11, 15, 7)
 kind = "rock_dark"
 
@@ -6730,6 +6737,7 @@ solid = false
 [node name="Cliff9" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 44, 8.5, -51)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(12, 17, 6)
 kind = "rock"
 
@@ -6756,6 +6764,7 @@ solid = false
 [node name="Cliff11" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51, 9, 52)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(14, 18, 8)
 kind = "rock"
 
@@ -6769,6 +6778,7 @@ solid = false
 [node name="Cliff12" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36.5, 7, 51.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(15, 14, 7)
 kind = "rock_dark"
 
@@ -6782,6 +6792,7 @@ solid = false
 [node name="Cliff13" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 7, 51)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(10, 14, 6)
 kind = "rock"
 
@@ -6795,6 +6806,7 @@ solid = false
 [node name="Cliff14" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.5, 9, 52.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(11, 18, 9)
 kind = "rock_dark"
 
@@ -6808,6 +6820,7 @@ solid = false
 [node name="Cliff15" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 6, 52)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(12, 12, 8)
 kind = "rock"
 
@@ -6821,6 +6834,7 @@ solid = false
 [node name="Cliff16" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 10, 51.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(13, 20, 7)
 kind = "rock_dark"
 
@@ -6834,6 +6848,7 @@ solid = false
 [node name="Cliff17" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 8, 51)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(14, 16, 6)
 kind = "rock"
 
@@ -6847,6 +6862,7 @@ solid = false
 [node name="Cliff18" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.5, 6.5, 52.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(15, 13, 9)
 kind = "rock_dark"
 
@@ -6860,6 +6876,7 @@ solid = false
 [node name="Cliff19" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51, 9.5, 52)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(10, 19, 8)
 kind = "rock"
 
@@ -6886,6 +6903,7 @@ solid = false
 [node name="Cliff21" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51, 8.5, -52)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(6, 17, 12)
 kind = "rock"
 
@@ -6899,6 +6917,7 @@ solid = false
 [node name="Cliff22" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.5, 6, -39.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(9, 12, 13)
 kind = "rock_dark"
 
@@ -6912,6 +6931,7 @@ solid = false
 [node name="Cliff23" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, 9, -26)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(8, 18, 14)
 kind = "rock"
 
@@ -6925,6 +6945,7 @@ solid = false
 [node name="Cliff24" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51.5, 7, -11.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(7, 14, 15)
 kind = "rock_dark"
 
@@ -6938,6 +6959,7 @@ solid = false
 [node name="Cliff25" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51, 7, 1)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(6, 14, 10)
 kind = "rock"
 
@@ -6951,6 +6973,7 @@ solid = false
 [node name="Cliff26" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.5, 9, 11.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(9, 18, 11)
 kind = "rock_dark"
 
@@ -6964,6 +6987,7 @@ solid = false
 [node name="Cliff27" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52, 6, 23)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(8, 12, 12)
 kind = "rock"
 
@@ -6977,6 +7001,7 @@ solid = false
 [node name="Cliff28" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51.5, 10, 35.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(7, 20, 13)
 kind = "rock_dark"
 
@@ -6990,6 +7015,7 @@ solid = false
 [node name="Cliff29" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 51, 8, 49)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(6, 16, 14)
 kind = "rock"
 
@@ -7029,6 +7055,7 @@ solid = false
 [node name="Cliff32" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51.5, 7.5, -42.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(7, 15, 11)
 kind = "rock_dark"
 
@@ -7042,6 +7069,7 @@ solid = false
 [node name="Cliff33" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51, 8.5, -31)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(6, 17, 12)
 kind = "rock"
 
@@ -7055,6 +7083,7 @@ solid = false
 [node name="Cliff34" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52.5, 6, -18.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(9, 12, 13)
 kind = "rock_dark"
 
@@ -7068,6 +7097,7 @@ solid = false
 [node name="Cliff35" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52, 9, -5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(8, 18, 14)
 kind = "rock"
 
@@ -7081,6 +7111,7 @@ solid = false
 [node name="Cliff36" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51.5, 7, 9.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(7, 14, 15)
 kind = "rock_dark"
 
@@ -7094,6 +7125,7 @@ solid = false
 [node name="Cliff37" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -51, 7, 22)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(6, 14, 10)
 kind = "rock"
 
@@ -7107,6 +7139,7 @@ solid = false
 [node name="Cliff38" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52.5, 9, 32.5)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(9, 18, 11)
 kind = "rock_dark"
 
@@ -7120,6 +7153,7 @@ solid = false
 [node name="Cliff39" type="Node3D" parent="Cliffs"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -52, 6, 44)
 script = ExtResource("2_block")
+blink_proof = true
 size = Vector3(8, 12, 12)
 kind = "rock"
 

@@ -75,6 +75,15 @@ enum StepStyle { SOLID, SLAB, TREADS }
 ## You bump into it and stand on it. Off: drawn only (paint on the floor, thin rods).
 @export var solid := true
 
+## A blink never goes through it (see Blink): aimed at it, a blink stops short of it
+## as at any wall it cannot get past. For a map's outside walls, so nobody blinks out of
+## the map (tools/arena/mark_blink_proof.gd ticks those). Off (the usual): a blink goes
+## through it to open ground on the far side.
+@export var blink_proof := false:
+	set(v):
+		blink_proof = v
+		_changed()
+
 ## You can see it. Off: an invisible wall, often a plain box under finer drawn parts.
 @export var drawn := true:
 	set(v):
@@ -265,6 +274,8 @@ func to_piece(xf: Transform3D) -> Dictionary:
 	}
 	if not drawn:
 		piece["hidden"] = true
+	if blink_proof:
+		piece["blink_proof"] = true
 	if tint != Color.WHITE:
 		piece["tint"] = tint
 	if breakable:
@@ -449,6 +460,8 @@ func refresh_preview() -> void:
 	var shown := drawn or root == null or root.show_invisible_blocks
 	if not solid and Engine.get_meta(&"map_tools_solid_only", false):
 		shown = false   # the map tools' "Show Solid Blocks Only" (addons/map_tools)
+	if not blink_proof and Engine.get_meta(&"map_tools_blink_proof_only", false):
+		shown = false   # the map tools' "Show Blink-Proof Blocks Only"
 	if shown and view_hides(self):
 		shown = false   # the map tools' Isolate Selection, or a layer put out of view
 	editor_ghost = not drawn

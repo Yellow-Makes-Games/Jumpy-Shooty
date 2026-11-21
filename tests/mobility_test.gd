@@ -3,7 +3,10 @@ extends SceneTree
 ## real Practice match on the Testing Grounds.
 ## Run: godot --headless --path . --script tests/mobility_test.gd
 ##
-## Blink: goes where you aim, stops short of a wall, keeps you moving, has three
+## Blink: goes where you aim, through a thin wall to the far side but short of one
+## too thick to get past or blink-proof (the Testing Grounds' outside walls are), up
+## through a ceiling to the floor above, never down through a floor or off the map, keeps you
+## moving, has three
 ## charges that can be used in a quick burst (each one shorter) and come back one at
 ## a time, and spaced-out blinks keep their full range. Portal gun: shoots portals onto floors and walls,
 ## alternating blue and orange; a body walking or falling into one comes out of the

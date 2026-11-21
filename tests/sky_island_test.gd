@@ -1,7 +1,7 @@
 extends SceneTree
 ## Sky Island checks (game/maps/sky_island.tscn, built by tools/arena/sky_island_blockout.gd):
-##  - listed for free-for-all and Deathmatch; the grey block-out it started from is kept
-##    as a test map of its own (sky_island_layout);
+##  - listed for free-for-all and Deathmatch, as "Sky Islands" (a real map, so Random
+##    can pick it); the old block-out's id (sky_island_layout) now means this map;
 ##  - 32 moving parts (7 islands, 25 pads) on one 14 s period; 30 spawn points and 15
 ##    weapon pickups, all inside islands so they ride the bob;
 ##  - bots' crossings (MapJumpLink): each sets off from a moving part and comes down on
@@ -34,7 +34,8 @@ func _initialize() -> void:
 func _run() -> void:
 	dt = 1.0 / Engine.physics_ticks_per_second
 	_expect(Maps.fits(ID, "ffa") and Maps.fits(ID, "dm"), "listed for free-for-all and Deathmatch")
-	_expect(Maps.has("sky_island_layout") and not Maps.fits("sky_island_layout", "dm"), "the block-out is kept as a test map of its own (free-for-all only)")
+	_expect(Maps.name_of(ID) == "Sky Islands" and ID in Maps.random_ids("ffa"), "named Sky Islands, and Random can pick it")
+	_expect(Maps.current("sky_island_layout") == ID and not "sky_island_layout" in Maps.ids(), "the old block-out is gone; its id means this map")
 	map = Maps.make(ID)
 	root.add_child(map)
 	map.clock_source = func(): return _frozen   # (the test moves the clock itself)

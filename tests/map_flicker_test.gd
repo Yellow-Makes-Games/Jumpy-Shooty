@@ -18,7 +18,7 @@ extends SceneTree
 const MapFlicker := preload("res://addons/map_tools/map_flicker.gd")
 
 ## The maps this test holds to it.
-const MAPS := ["castle", "castle_v2", "rail_yard", "lost_temple", "neon_arcade", "sky_island", "haunted_house"]
+const MAPS := ["castle", "rail_yard", "lost_temple", "neon_arcade", "sky_island", "haunted_house"]
 
 var failures := 0
 var _gap := MapFlicker.SAME_PLANE

@@ -43,24 +43,28 @@ kind = "floor"
 [node name="Wall" type="Node3D" parent="Shell" unique_id=9716548]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 7, -40)
 script = ExtResource("3_jbpnt")
+blink_proof = true
 size = Vector3(152, 14, 1)
 kind = "wall"
 
 [node name="Wall2" type="Node3D" parent="Shell" unique_id=1943526224]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 7, 40)
 script = ExtResource("3_jbpnt")
+blink_proof = true
 size = Vector3(152, 14, 1)
 kind = "wall"
 
 [node name="Wall3" type="Node3D" parent="Shell" unique_id=1456151705]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -40, 7, 0)
 script = ExtResource("3_jbpnt")
+blink_proof = true
 size = Vector3(1, 14, 80)
 kind = "wall"
 
 [node name="Wall4" type="Node3D" parent="Shell" unique_id=1138396316]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 112, 7, 0)
 script = ExtResource("3_jbpnt")
+blink_proof = true
 size = Vector3(1, 14, 80)
 kind = "wall"
 

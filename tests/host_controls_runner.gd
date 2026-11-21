@@ -46,7 +46,7 @@ func _pool_rules() -> void:
 	print("  pool rules")
 	var arenas := Maps.random_ids("ffa")
 	var races := Maps.random_ids("race")
-	_expect(not "testing_grounds" in arenas and not "castle_v2" in arenas and "office" in arenas, "Random never picks a test map")
+	_expect(not "testing_grounds" in arenas and "office" in arenas, "Random never picks a test map")
 	_expect(races == Maps.ids_for("race"), "a race's pool is the race maps")
 	_expect(LobbySettings.normalized_pool(["office", "nowhere", "testing_grounds", "office"]) == ["office"], "unknown and test maps are dropped, each map once")
 	_expect(LobbySettings.normalized_pool(arenas + races) == [], "every map ticked is stored as []")
@@ -55,7 +55,7 @@ func _pool_rules() -> void:
 	_expect(LobbySettings.pool_for(["office", "foundry"], "ffa") == ["office"], "only the game's own maps count (a shoot-out)")
 	_expect(LobbySettings.pool_for(["office", "foundry"], "race") == ["foundry"], "only the game's own maps count (a race)")
 	_expect(LobbySettings.pool_for(["office"], "race") == races, "none of this game's maps ticked: all of them")
-	_expect(LobbySettings.pool_for(["office", "castle"], "dm") == ["office", "castle"], "a Deathmatch uses the arenas")
+	_expect(LobbySettings.pool_for(["office", "castle"], "dm") == ["castle", "office"], "a Deathmatch uses the arenas")
 	# Ticking and unticking.
 	var p := LobbySettings.pool_toggled([], "ffa", "office")
 	_expect(not "office" in LobbySettings.pool_for(p, "ffa") and LobbySettings.pool_for(p, "ffa").size() == arenas.size() - 1, "unticking a map takes it out")
@@ -107,7 +107,7 @@ func _picking() -> void:
 	Net.set_match_settings(s)
 	Net.host_pick_random_map()
 	_expect(Net.map_id() == "kilnworks", "the host picks from the pool, not the map just played (got %s)" % Net.map_id())
-	_expect(Net.match_settings.random_map and Net.match_settings.map_pool == ["office", "kilnworks"], "Random stays on for the next match, with its pool")
+	_expect(Net.match_settings.random_map and Net.match_settings.map_pool == ["kilnworks", "office"], "Random stays on for the next match, with its pool")
 	s = Net.match_settings.duplicate()
 	s["random_map"] = false
 	Net.set_match_settings(s)
@@ -155,8 +155,8 @@ func _lobby() -> void:
 	map_button.pressed.emit()
 	await get_tree().process_frame
 	var choices := _choice_texts(map_window)
-	_expect(map_window.is_open() and choices.size() == Maps.ids_for("ffa").size() + 1 and choices[-1] == "Random map",
-		"the map window: every map, then Random map (%s)" % [choices])
+	_expect(map_window.is_open() and choices.size() == Maps.ids_for("ffa").size() + 1 and choices[0] == "Random map",
+		"the map window: Random map, then every map (%s)" % [choices])
 	_expect(not pool.is_visible_in_tree(), "no pool while a map is picked")
 	_choice(map_window, "Random map").pressed.emit()
 	await get_tree().process_frame
@@ -218,23 +218,23 @@ func _menus() -> void:
 			continue
 		var pick: OptionButton = picks[0]
 		var pool: MapPoolPicker = pick.get_meta("pool")
-		_expect(pick.get_item_metadata(pick.item_count - 1) == Maps.RANDOM, "%s: Random map in the drop-down" % page)
-		pick.select(pick.item_count - 1)
-		pick.item_selected.emit(pick.item_count - 1)
+		_expect(pick.get_item_metadata(0) == Maps.RANDOM, "%s: Random map first in the drop-down" % page)
+		pick.select(0)
+		pick.item_selected.emit(0)
 		_expect(pool.is_visible_in_tree() and pool._edit.visible, "%s: picking Random shows the pool, to change" % page)
 		pool._open(true)
 		(pool._chips["castle"] as Button).pressed.emit()
 		_expect(not "castle" in LobbySettings.pool_for(Game.last_map_pool, "ffa"), "%s: its chips change the pool" % page)
 		(pool._chips["castle"] as Button).pressed.emit()
-		pick.select(0)
-		pick.item_selected.emit(0)
+		pick.select(2)   # (Random map, a separator, then the maps)
+		pick.item_selected.emit(2)
 		_expect(not pool.is_visible_in_tree(), "%s: a map picked hides the pool" % page)
 	menu.queue_free()
 	await get_tree().process_frame
 	# Starting a match with Random: the settings it makes.
 	Game.last_map_pool = ["office", "castle", "foundry"]
 	var s := Game.with_map({"mode": "kills"}, Maps.RANDOM, "ffa")
-	_expect(s.random_map and s.game == "ffa" and Maps.fits(s.map, "ffa") and s.map_pool == ["office", "castle", "foundry"], "Random in Vs Bots: on, with the pool")
+	_expect(s.random_map and s.game == "ffa" and Maps.fits(s.map, "ffa") and s.map_pool == ["castle", "office", "foundry"], "Random in Vs Bots: on, with the pool")
 	s = Game.with_map({"mode": "kills"}, Maps.RANDOM, "race")
 	_expect(s.random_map and s.game == "race" and Maps.game_of(s.map) == "race", "Random for a race: a race")
 	s = Game.with_map(s, "office", "ffa")

@@ -45,6 +45,7 @@ const SHORTCUTS := [
 	["solid", "Toggle Solid", KEY_S, true],
 	["drawn", "Toggle Drawn", KEY_D, true],
 	["breakable", "Toggle Breakable", KEY_B, true],
+	["blink_proof", "Toggle Blink Proof", KEY_L, true],
 	["hollow", "Hollow", KEY_H, true],
 	["snap", "Snap to Neighbours", KEY_N, true],
 ]
@@ -146,6 +147,7 @@ func _exit_tree() -> void:
 	_dock.queue_free()
 	_dialogs.queue_free()
 	_set_solid_only(false)
+	_set_blink_proof_only(false)
 	# The context and the things that hold it hold each other: let go.
 	_tools[Tool.PLACE].done = Callable()
 	_inspector.bake = Callable()
@@ -479,7 +481,7 @@ func run(what: String) -> void:
 		_select(MapCommands.inverted(ctx) if how == "invert" else MapCommands.related(ctx, how))
 		return
 	match what:
-		"solid", "drawn", "breakable":
+		"solid", "drawn", "breakable", "blink_proof":
 			apply_edit(MapCommands.toggle(ctx, what))
 		"snap":
 			apply_edit(MapCommands.snap_to_neighbours(ctx))
@@ -542,6 +544,9 @@ func run(what: String) -> void:
 		"view:solid":
 			_set_solid_only(not ctx.solid_only)
 			_toolbar.show_view(what, ctx.solid_only)
+		"view:blink_proof":
+			_set_blink_proof_only(not ctx.blink_proof_only)
+			_toolbar.show_view(what, ctx.blink_proof_only)
 		"view:grid", "view:edges", "view:links":
 			var aid := what.trim_prefix("view:")
 			_aids[aid] = not _aids[aid]
@@ -622,6 +627,15 @@ func _on_layer_toggled(node: Node3D, what: String, on: bool) -> void:
 			edit.sets.append([node, "visible", on, node.visible])
 			apply_edit(edit)
 	_dock.queue_refresh()
+
+
+func _set_blink_proof_only(on: bool) -> void:
+	ctx.blink_proof_only = on
+	Engine.set_meta(&"map_tools_blink_proof_only", on)
+	ctx.touch()
+	if ctx.map and is_instance_valid(ctx.map):
+		for b in MapOps.blocks_in(ctx.map):
+			b.refresh_preview()
 
 
 func _set_solid_only(on: bool) -> void:

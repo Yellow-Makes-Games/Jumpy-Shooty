@@ -3,19 +3,28 @@ extends RefCounted
 ## Blink: a short teleport where you look (or, for bots, a direction they choose).
 ##
 ## You keep the speed you had, and get at least BLINK_PUSH along the blink so it
-## feels like a dash; falling speed is cancelled. The body is swept along the way
-## first, so a blink stops short of a wall instead of going through it.
+## feels like a dash; falling speed is cancelled.
+##
+## A blink goes through walls and up through ceilings: aimed at one, it goes its full
+## reach and lands on the far side (a blink up through a ceiling lands over the floor
+## above), pulled back towards you until the body fits somewhere open. It never goes
+## down through a floor or a ramp (a face turned up), so looking a little down as you
+## blink never drops you a storey. It never lands outside the map: out of its fence,
+## over nothing (no ground under it before the map's kill height) or in a hazard; with
+## nowhere like that past the wall, it stops short of the wall. Nor does it go through a
+## blink-proof block (MapBlock.blink_proof, every map's outside walls): it stops short
+## of that one, or lands before it if it went through another wall first.
 ##
 ## Three charges, which come back one at a time, RECHARGE seconds each. They can
 ## be used in quick succession (GAP apart), but each blink adds STRAIN, which
 ## drains away at STRAIN_RECOVER a second, and the strain left when you blink
 ## shortens it: every point of strain takes STRAIN_FALLOFF off the range, down to
-## MIN_REACH of it. So three blinks in a burst go about 11, 8 and 5.5 m; spaced a
-## second apart they all go the full 11 m.
+## MIN_REACH of it. So three blinks in a burst go about 7.5, 5.6 and 3.8 m; spaced a
+## second apart they all go the full 7.5 m.
 
-const RANGE := 11.0
+const RANGE := 7.5
 const CHARGES := 3
-const RECHARGE := 2.2         ## seconds per charge (they come back one at a time)
+const RECHARGE := 5.0         ## seconds per charge (they come back one at a time)
 const GAP := 0.15             ## seconds between two blinks
 const MIN_DISTANCE := 1.2     ## a blink that would go less far than this (a wall in your face) is refused
 const BLINK_PUSH := 6.0       ## at least this much speed along the blink afterwards
@@ -24,6 +33,8 @@ const STRAIN_RECOVER := 1.0   ## strain that drains away each second
 const STRAIN_MAX := 3.0
 const STRAIN_FALLOFF := 0.3   ## the share of the range each point of strain takes off
 const MIN_REACH := 0.45       ## a blink never goes less than this share of RANGE
+const FLOOR_UP := 0.5         ## a face whose normal points up more than this is a floor or ramp (not blinked through); walls and ceilings are
+const THROUGH_STEP := 0.3     ## how far a blink through a wall pulls back each time the spot is not open
 
 var charges := CHARGES
 var strain := 0.0
@@ -90,7 +101,8 @@ func reset() -> void:
 
 
 ## Where a blink along `dir` from the body's feet ends, going at most `reach` m: the
-## body's own shape swept through the level (other players are passed through).
+## body's own shape swept through the level (other players are passed through). A
+## wall in the way is blinked through when there is open ground past it (see the top).
 ## Returns INF when there is no room to go.
 static func destination(body: CharacterBody3D, shape: CollisionShape3D, dir: Vector3, reach := RANGE) -> Vector3:
 	if dir.length_squared() < 0.0001:
@@ -107,21 +119,45 @@ static func destination(body: CharacterBody3D, shape: CollisionShape3D, dir: Vec
 	var parts := space.cast_motion(q)
 	var safe: float = parts[0] if parts.size() > 0 else 1.0
 	var dist := maxf(safe * reach - 0.08, 0.0)
+	var wall := false   # stopped by a wall or a ceiling (not a floor or ramp)
+	if safe < 1.0:
+		var touch := PhysicsShapeQueryParameters3D.new()
+		touch.shape = shape.shape
+		touch.transform = q.transform.translated(dir * reach * (parts[1] as float))
+		touch.collision_mask = 1
+		touch.exclude = [body.get_rid()]
+		touch.margin = 0.05
+		var info := space.get_rest_info(touch)
+		wall = not info.is_empty() and (info.normal as Vector3).y < FLOOR_UP
 	# The sweep misses anything the body already touches when it sets off (a wall
 	# you are pressed against): rays through the middle of the body catch those.
 	var r := (shape.shape as CapsuleShape3D).radius if shape.shape is CapsuleShape3D else 0.4
+	var height := (shape.shape as CapsuleShape3D).height if shape.shape is CapsuleShape3D else 1.8
 	for h in [0.35, 0.5, 0.65]:
-		var height := (shape.shape as CapsuleShape3D).height if shape.shape is CapsuleShape3D else 1.8
 		var from := body.global_position + Vector3(0, height * h, 0)
 		var ray := PhysicsRayQueryParameters3D.create(from, from + dir * (dist + r), 1, [body.get_rid()])
 		var hit := space.intersect_ray(ray)
 		if not hit.is_empty():
-			dist = minf(dist, from.distance_to(hit.position) - r - 0.1)
-	# Never end inside something: back off until the body fits.
+			var near := from.distance_to(hit.position) - r - 0.1
+			if near < dist:
+				dist = near
+				wall = (hit.normal as Vector3).y < FLOOR_UP
 	var fit := PhysicsShapeQueryParameters3D.new()
 	fit.shape = shape.shape
 	fit.collision_mask = 1
 	fit.exclude = [body.get_rid()]
+	# Through a wall: the full reach, pulled back until the body fits on open ground
+	# inside the map, but never to this side of the wall nor past a blink-proof one.
+	if wall:
+		var proof := proof_distance(q.transform.origin, dir, reach, r, height * 0.5)
+		var d := minf(reach, proof - 0.05)
+		while d > dist + r * 2.0:
+			fit.transform = q.transform.translated(dir * d)
+			if space.intersect_shape(fit, 1).is_empty() and in_map(body, body.global_position + dir * d):
+				return body.global_position + dir * d
+			d -= THROUGH_STEP
+	# Never end inside something: back off until the body fits.
+	dist = maxf(dist, 0.0)
 	while dist >= MIN_DISTANCE:
 		fit.transform = q.transform.translated(dir * dist)
 		if space.intersect_shape(fit, 1).is_empty():
@@ -130,6 +166,66 @@ static func destination(body: CharacterBody3D, shape: CollisionShape3D, dir: Vec
 	if dist < MIN_DISTANCE:
 		return Vector3.INF
 	return body.global_position + dir * dist
+
+
+## How far along `dir` from `from` (m) a body `radius` round and `half_height` tall
+## each way from its middle can go before it touches a blink-proof block
+## (MapRoot.blink_proof); INF if none is in the first `reach` m.
+static func proof_distance(from: Vector3, dir: Vector3, reach: float, radius: float, half_height: float) -> float:
+	var map := MapRoot.current
+	if map == null or not is_instance_valid(map) or map.blink_proof.is_empty():
+		return INF
+	var to_map := map.global_transform.affine_inverse()
+	var start := to_map * from
+	var way := (to_map.basis * dir).normalized()
+	var best := INF
+	for box: Array in map.blink_proof:
+		var xf: Transform3D = box[0]
+		var half: Vector3 = box[1]
+		# The body as a point against the box grown by it (a little more round the
+		# corners than a capsule: it only ever stops a blink a touch early).
+		var grow := (xf.basis.inverse() * Vector3(radius, half_height, radius)).abs()
+		grow = Vector3(maxf(grow.x, radius), maxf(grow.y, radius), maxf(grow.z, radius))
+		var ext := half + grow
+		var o := xf.affine_inverse() * start
+		var v := xf.basis.inverse() * way
+		var t0 := 0.0
+		var t1 := reach
+		var hit := true
+		for i in 3:
+			if absf(v[i]) < 0.000001:
+				if absf(o[i]) > ext[i]:
+					hit = false
+					break
+			else:
+				var a := (-ext[i] - o[i]) / v[i]
+				var b := (ext[i] - o[i]) / v[i]
+				t0 = maxf(t0, minf(a, b))
+				t1 = minf(t1, maxf(a, b))
+				if t0 > t1:
+					hit = false
+					break
+		if hit:
+			best = minf(best, t0)
+	return best
+
+
+## Can a blink through a wall land with its feet at `feet`: inside the map's fence,
+## out of its hazards, and over ground (something under it before the kill height)?
+static func in_map(body: CharacterBody3D, feet: Vector3) -> bool:
+	var floor_y := -60.0
+	var layout: Node = Net.arena.layout if Net.arena and Net.arena.get("layout") else null
+	if layout:
+		floor_y = layout.kill_height
+		var area: Rect2 = layout.bounds
+		if area.has_area() and not area.has_point(Vector2(feet.x, feet.z)):
+			return false
+		if layout.has_method("body_in_hazard") and not layout.hazards.is_empty() and layout.body_in_hazard(feet):
+			return false
+	if feet.y <= floor_y:
+		return false
+	var down := PhysicsRayQueryParameters3D.create(feet + Vector3(0, 0.2, 0), Vector3(feet.x, floor_y, feet.z), 1, [body.get_rid()])
+	return not body.get_world_3d().direct_space_state.intersect_ray(down).is_empty()
 
 
 ## Velocity after a blink along `dir`.

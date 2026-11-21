@@ -298,21 +298,12 @@ func maps() -> Dictionary:
 			"light_sun_color": C("#a2b4ff"), "light_sun_energy": 0.75,
 			"light_ambient_color": C("#817ba8"), "light_ambient_energy": 0.62,
 		}],
-		"castle": ["golden_hour", {
-			"sun_color": C("#ffe4b0"), "glow_amount": 0.25,
-			"light_sun_color": C("#ffe8c4"), "light_sun_energy": 1.12,
-			"light_ambient_color": C("#d8cbbe"), "light_ambient_energy": 0.8,
-		}],
 		"castle_v2": ["ember", {
 			# Its distance fog takes the sky's warm colour, so far mountains melt into it.
 			"light_fog": true, "light_fog_color": C("#d8bcaa"), "light_fog_density": 0.0012,
 		}],
 		"testing_grounds": ["clear_day", {
 			"silhouette_mode": 0,
-			"light_sun": false, "light_ambient": false,
-		}],
-		"sky_island_layout": ["clear_day", {
-			"silhouette_mode": 0, "floor_mode": 1, "sea_height": -30.0, "sea_lit": C("#ffffff"), "sea_shade": C("#b8d4f4"),
 			"light_sun": false, "light_ambient": false,
 		}],
 		"rooftop_run": ["golden_hour", {

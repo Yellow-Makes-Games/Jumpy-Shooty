@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://nastdacq4avs" path="res://game/arena/map_spawn.gd" id="4_qydih"]
 [ext_resource type="Script" uid="uid://cva73htot14i5" path="res://game/arena/map_weapon_spawn.gd" id="5_1gk6t"]
 [ext_resource type="Resource" path="res://game/maps/sky/maps/castle_v2.tres" id="sky_preset"]
+[ext_resource type="Script" uid="uid://lnbcbw4yw8oi" path="res://game/arena/map_item_spawn.gd" id="9_itmsp"]
 
 [sub_resource type="Environment" id="Environment_mtv7q"]
 background_mode = 2
@@ -101,6 +102,7 @@ solid = false
 [node name="Wall" type="Node3D" parent="Walls/CurtainNorth" unique_id=943586163]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, -36)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(66, 6, 3)
 kind = "stone"
 
@@ -109,126 +111,147 @@ kind = "stone"
 [node name="Merlon" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=276788386]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon2" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=377850940]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon3" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=831020242]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon4" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=533817254]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon5" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=206071539]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon6" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=619372318]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon7" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=1329105409]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon8" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=1853363100]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon9" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=1180421766]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon10" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=1932442248]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000001, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon11" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=1919489576]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon12" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=353616112]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000001, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon13" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=2083327944]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon14" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=1341168388]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon15" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=1417945231]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon16" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=655237647]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon17" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=704307482]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon18" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=765467406]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon19" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=2044963480]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon20" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=505756795]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon21" type="Node3D" parent="Walls/CurtainNorth/Battlements" unique_id=1524383396]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 6.6, -37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
@@ -1121,6 +1144,7 @@ solid = false
 [node name="Wall" type="Node3D" parent="Walls/CurtainEast" unique_id=2062139821]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 36, 3, 0)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(3, 6, 66)
 kind = "stone"
 
@@ -1129,126 +1153,147 @@ kind = "stone"
 [node name="Merlon" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=456631186]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -30)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon2" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1655384746]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -27)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon3" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1026554978]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -24)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon4" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1239816005]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -21)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon5" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=374090999]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -18)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon6" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=434235943]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -15)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon7" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=533964910]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -12)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon8" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=659150594]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -9)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon9" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=265760395]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -6)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon10" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1224387442]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, -3)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000001)
 kind = "stone"
 
 [node name="Merlon11" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1896198784]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 0)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4)
 kind = "stone"
 
 [node name="Merlon12" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1071725707]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 3)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000001)
 kind = "stone"
 
 [node name="Merlon13" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1690267920]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 6)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon14" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1331955149]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 9)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon15" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=103109628]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 12)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon16" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=504434198]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 15)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon17" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=576094250]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 18)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon18" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=454026800]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 21)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon19" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=922258373]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 24)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon20" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=1976286405]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 27)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon21" type="Node3D" parent="Walls/CurtainEast/Battlements" unique_id=41816345]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 37.2, 6.6, 30)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
@@ -2134,6 +2179,7 @@ solid = false
 [node name="Wall" type="Node3D" parent="Walls/CurtainSouth" unique_id=265149725]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 36)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(66, 6, 3)
 kind = "stone"
 
@@ -2142,96 +2188,112 @@ kind = "stone"
 [node name="Merlon" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=507095569]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon2" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1364923304]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon3" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1568844103]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon4" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1504400140]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon5" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1254811758]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon6" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1272805472]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon7" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=478433909]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon8" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=825006723]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon9" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1724983811]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon10" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1168258160]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon11" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=223634030]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.3999996, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon12" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=23758957]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon13" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1791475009]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon14" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1095827702]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon15" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=878232507]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
 [node name="Merlon16" type="Node3D" parent="Walls/CurtainSouth/Battlements" unique_id=1205596748]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -30, 6.6, 37.2)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(1.4000015, 1.1999998, 0.5999985)
 kind = "stone"
 
@@ -2937,6 +2999,7 @@ solid = false
 [node name="Wall" type="Node3D" parent="Walls/CurtainWest" unique_id=210899470]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -36, 3, 0)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(3, 6, 66)
 kind = "stone"
 
@@ -2945,126 +3008,147 @@ kind = "stone"
 [node name="Merlon" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=515135225]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 30)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon2" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1993094468]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 27)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon3" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=772174282]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 24)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon4" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1206940629]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 21)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon5" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1420473355]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 18)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon6" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=28880890]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 15)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon7" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1738596211]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 12)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon8" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1761370726]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 9)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon9" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=25090562]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 6)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon10" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1944597825]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 3)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000001)
 kind = "stone"
 
 [node name="Merlon11" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1752458893]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, 0)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4)
 kind = "stone"
 
 [node name="Merlon12" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=281299971]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -3)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000001)
 kind = "stone"
 
 [node name="Merlon13" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=987516873]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -6)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon14" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1274137803]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -9)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon15" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1177441625]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -12)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon16" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=232401410]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -15)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.3999996)
 kind = "stone"
 
 [node name="Merlon17" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=723894528]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -18)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon18" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=683797647]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -21)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon19" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1949280517]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -24)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon20" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=492644901]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -27)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
 [node name="Merlon21" type="Node3D" parent="Walls/CurtainWest/Battlements" unique_id=1015334274]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.2, 6.6, -30)
 script = ExtResource("3_ou8y5")
+blink_proof = true
 size = Vector3(0.5999985, 1.1999998, 1.4000015)
 kind = "stone"
 
@@ -17207,20 +17291,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0, -10)
 script = ExtResource("5_1gk6t")
 weapon = "smg"
 
-[node name="Sword" type="Marker3D" parent="WeaponSpawns" unique_id=1169905772]
+[node name="Scythe" type="Marker3D" parent="WeaponSpawns" unique_id=1169905772]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 2)
 script = ExtResource("5_1gk6t")
-weapon = "sword"
+weapon = "scythe"
 
 [node name="Axe" type="Marker3D" parent="WeaponSpawns" unique_id=57513512]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.5, 4.2, 3.1)
 script = ExtResource("5_1gk6t")
 weapon = "axe"
 
-[node name="Revolver" type="Marker3D" parent="WeaponSpawns" unique_id=1501740142]
+[node name="Derringer" type="Marker3D" parent="WeaponSpawns" unique_id=1501740142]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 6, -35.6)
 script = ExtResource("5_1gk6t")
-weapon = "revolver"
+weapon = "derringer"
 
 [node name="BurstRifle" type="Marker3D" parent="WeaponSpawns" unique_id=1613338875]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.6, 6, -10)
@@ -17271,3 +17355,45 @@ weapon = "railgun"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.5, 6, 33.5)
 script = ExtResource("5_1gk6t")
 weapon = "rocket_launcher"
+
+[node name="ItemSpawns" type="Node3D" parent="." unique_id=1147007773]
+
+[node name="damage1" type="Marker3D" parent="ItemSpawns" unique_id=596812139]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 12, 6.5)
+script = ExtResource("9_itmsp")
+item = "damage"
+
+[node name="health_small2" type="Marker3D" parent="ItemSpawns" unique_id=530329664]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -20, 0, -20)
+script = ExtResource("9_itmsp")
+item = "health_small"
+
+[node name="health_small3" type="Marker3D" parent="ItemSpawns" unique_id=873454119]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 4)
+script = ExtResource("9_itmsp")
+item = "health_small"
+
+[node name="health_small4" type="Marker3D" parent="ItemSpawns" unique_id=1672459514]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.5, 6, 30)
+script = ExtResource("9_itmsp")
+item = "health_small"
+
+[node name="health_medium5" type="Marker3D" parent="ItemSpawns" unique_id=368719693]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 6, 0)
+script = ExtResource("9_itmsp")
+item = "health_medium"
+
+[node name="health_medium6" type="Marker3D" parent="ItemSpawns" unique_id=1210992497]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22, 6, 1)
+script = ExtResource("9_itmsp")
+item = "health_medium"
+
+[node name="health_medium7" type="Marker3D" parent="ItemSpawns" unique_id=1450474365]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, -22)
+script = ExtResource("9_itmsp")
+item = "health_medium"
+
+[node name="uber8" type="Marker3D" parent="ItemSpawns" unique_id=1658174395]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 12, -6.5)
+script = ExtResource("9_itmsp")
+item = "uber"

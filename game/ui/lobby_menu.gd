@@ -621,14 +621,13 @@ func _show_mode_blurb() -> void:
 func _build_map() -> void:
 	UiKit.section(_col, "Map")
 	_map_label = UiKit.label(_col, "")
-	# The host: a button with the map (or Random map); it opens a window with every map
-	# of the game set up, and Random.
+	# The host: a button with the map (or Random map); it opens a window with Random
+	# first, then every map of the game set up.
 	_map_button = _pick_button(_col)
 	_map_button.tooltip_text = "Change the map"
 	_map_window = _floating()
 	_map_button.pressed.connect(func():
-		var choices := Maps.ids_for(Net.game_kind()).map(func(id): return [id, Maps.label(id)])
-		choices.append([Maps.RANDOM, "Random map"])
+		var choices := [[Maps.RANDOM, "Random map"]] + Maps.ids_for(Net.game_kind()).map(func(id): return [id, Maps.label(id)])
 		_open_choices(_map_window, _map_button, "Map", choices, _map_choice(), 2, func(picked: String):
 			var s := Net.match_settings.duplicate()
 			s["random_map"] = picked == Maps.RANDOM   # the map is picked from the pool as the match starts

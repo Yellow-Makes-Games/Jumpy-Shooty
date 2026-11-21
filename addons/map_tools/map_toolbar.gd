@@ -46,6 +46,7 @@ const MENU := [
 	[],
 	["Show Invisible Blocks", "view:invisible"],
 	["Show Solid Blocks Only", "view:solid"],
+	["Show Blink-Proof Blocks Only", "view:blink_proof"],
 	["Isolate Selection", "view:isolate"],
 	["Show Grid Under Mouse", "view:grid"],
 	["Show Selected Edges", "view:edges"],
@@ -82,6 +83,7 @@ func _init() -> void:
 	_add_button("Solid", "Selected blocks: turn Solid on or off (off = drawn only).", func() -> void: command.emit("solid"))
 	_add_button("Drawn", "Selected blocks: turn Drawn on or off (off = an invisible wall).", func() -> void: command.emit("drawn"))
 	_add_button("Breakable", "Selected blocks: turn Breakable on or off.", func() -> void: command.emit("breakable"))
+	_add_button("Blink-Proof", "Selected blocks: turn Blink Proof on or off (on = a blink never goes through it: a map's outside walls).", func() -> void: command.emit("blink_proof"))
 	var menu_button := MenuButton.new()
 	menu_button.text = "Map"
 	menu_button.flat = true
