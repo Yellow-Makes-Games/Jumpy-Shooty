@@ -19,6 +19,7 @@ extends Node
 ## --lobby-size=N       Host: the lobby takes at most N players (2 to 16).
 ## --fake-version=vX.Y.Z Pretend this copy is that release (the version check when joining; tests).
 ## --ready-at=SEC       Lobby: say you are ready SEC seconds after the lobby opens (tests).
+## --secret-code-at=SEC Lobby: type the secret code (SecretRockets) on the arrow keys SEC seconds after the lobby opens (tests).
 ## --kick-at=SEC:NAME   Host: kick the player called NAME SEC seconds after the lobby opens (tests).
 ## --start-when-ready   Host: start the match as soon as everyone (at least 2) is ready (tests).
 ## --move-at=SEC:NAME   Host: move the player called NAME to the spectators SEC seconds after the lobby opens (tests).
@@ -105,6 +106,7 @@ var allowed_mobility: Array = []  ## --allowed-mobility (see LobbySettings)
 var lobby_size := 0               ## --lobby-size
 var fake_version := ""            ## --fake-version
 var ready_at := -1.0              ## --ready-at
+var secret_code_at := -1.0        ## --secret-code-at
 var kick_at := -1.0               ## --kick-at (when)
 var kick_name := ""               ## --kick-at (who)
 var start_when_ready := false     ## --start-when-ready
@@ -220,6 +222,7 @@ func _ready() -> void:
 			"--lobby-size": lobby_size = int(value)
 			"--fake-version": fake_version = value
 			"--ready-at": ready_at = float(value)
+			"--secret-code-at": secret_code_at = float(value)
 			"--kick-at":
 				kick_at = float(value.get_slice(":", 0))
 				kick_name = value.substr(value.find(":") + 1)

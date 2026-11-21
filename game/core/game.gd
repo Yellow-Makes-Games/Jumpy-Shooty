@@ -392,12 +392,14 @@ func _on_match_over(results: Array) -> void:
 	_release_mouse()
 	if Net.arena == null or not is_instance_valid(Net.arena):
 		Net.in_match = false
+		Net.host_end_secret_rockets()   # (the Auto Rocket Launcher was for one match)
 		get_tree().change_scene_to_file.call_deferred(RESULTS)
 		return
 	var fade := MatchEndFade.new()
 	Net.arena.add_child(fade)   # (goes with the arena when the results come up)
 	fade.done.connect(func():
 		Net.in_match = false   # (only now: until then nobody swaps loadouts in front of the fade)
+		Net.host_end_secret_rockets()   # (the Auto Rocket Launcher was for one match)
 		get_tree().change_scene_to_file.call_deferred(RESULTS))
 	fade.play(results)
 

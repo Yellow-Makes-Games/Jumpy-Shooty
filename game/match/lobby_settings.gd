@@ -12,7 +12,8 @@ extends RefCounted
 ## it may pick from ("random_map", "map_pool"), and the song the lobby plays ("song";
 ## see Music), the movement variant everyone plays with ("movement"; see
 ## MovementTuning.VARIANTS, for A/B testing how movement feels), and how far everyone's
-## zoom goes ("zoom": A or B, see ZOOMS).
+## zoom goes ("zoom": A or B, see ZOOMS), and whether the secret code has unlocked the
+## Auto Rocket Launcher for the next match ("auto_rockets", see SecretRockets).
 ##
 ## To add a setting: give it a key and a default in DEFAULTS, make clean() keep only
 ## sensible values for it, put its rules here, and add a control for the host in the
@@ -35,9 +36,12 @@ extends RefCounted
 ## movement: the movement variant (an id from MovementTuning.VARIANTS) every player
 ##   runs, in every kind of game; it takes effect when the match starts.
 ## zoom: how far the zoom button narrows every player's view ("a" or "b", see ZOOMS).
+## auto_rockets: the secret code was typed: everyone may pick the Auto Rocket Launcher
+##   this match (see SecretRockets). The host turns it off when the match ends.
 const DEFAULTS := {"weapons": [], "mobility": [], "max_players": 16,
 	"killcam_points": KillcamMode.POINTS_TO_WIN, "killcam_minutes": KillcamMode.MINUTES,
-	"random_map": false, "map_pool": [], "song": "", "movement": MovementTuning.DEFAULT_VARIANT, "zoom": "a"}
+	"random_map": false, "map_pool": [], "song": "", "movement": MovementTuning.DEFAULT_VARIANT, "zoom": "a",
+	"auto_rockets": false}
 ## The zoom (see CameraRig.zoom), A or B: degrees off each player's own field of view.
 const ZOOMS := {"a": 30.0, "b": 45.0}
 const MIN_PLAYERS := 2
@@ -61,6 +65,7 @@ static func clean(settings: Dictionary) -> Dictionary:
 	s["song"] = str(s.song) if s.get("song") is String else ""
 	s["movement"] = MovementTuning.valid_variant(s.get("movement"))
 	s["zoom"] = valid_zoom(s.get("zoom"))
+	s["auto_rockets"] = s.get("auto_rockets") is bool and s.auto_rockets
 	return s
 
 
@@ -108,11 +113,13 @@ static func weapons_apply() -> bool:
 
 
 ## The weapons a player may pick now, in the pickers' order (every weapon when the
-## setting does not apply).
+## setting does not apply). With the secret code typed (SecretRockets), the Auto Rocket
+## Launcher too, last, whatever the host allows.
 static func allowed_weapons() -> Array:
-	if not weapons_apply():
-		return WeaponData.IDS.duplicate()
-	return weapons_from(Net.match_settings.get("weapons", []))
+	var out := WeaponData.IDS.duplicate() if not weapons_apply() else weapons_from(Net.match_settings.get("weapons", []))
+	if SecretRockets.active():
+		out.append(SecretRockets.WEAPON)
+	return out
 
 
 static func is_allowed(weapon_id: String) -> bool:
@@ -136,10 +143,10 @@ static func only_weapon() -> String:
 static func weapon_groups() -> Array:
 	var allowed := allowed_weapons()
 	var out := []
-	for g in WeaponData.GROUPS:
-		var ids: Array = g[1].filter(func(w): return w in allowed)
+	for i in WeaponData.GROUPS.size():
+		var ids: Array = WeaponData.group_ids(i).filter(func(w): return w in allowed)
 		if not ids.is_empty():
-			out.append([g[0], ids])
+			out.append([WeaponData.GROUPS[i][0], ids])
 	return out
 
 

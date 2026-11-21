@@ -84,6 +84,7 @@ CHECKS=(
   "portal_gun|--fixed-fps 60 --script tests/portal_gun_test.gd"
   "grappling_hook|--fixed-fps 60 --script tests/grappling_hook_test.gd"
   "lobby_settings|--script tests/lobby_settings_test.gd"
+  "secret_rockets|--script tests/secret_rockets_test.gd"
   "scoreboard|--script tests/scoreboard_test.gd"
   "lobby_code|--script tests/lobby_code_test.gd"
   "lobby_player_card|--script tests/lobby_player_card_test.gd"
@@ -162,6 +163,8 @@ echo "== Golden Gun: one holder at a time, the killer takes it, a kill reloads i
 tests/run_golden_gun_test.sh
 echo "== Lobby settings: the host allows only some weapons and mobility tools; an early and a late joiner, the death-screen pick, Vs Bots with one gun; scoreboard points and pings"
 tests/run_lobby_settings_test.sh
+echo "== Secret code: a client types it in the lobby, everyone gets the Auto Rocket Launcher for one match (and a Deathmatch on the map)"
+tests/run_secret_rockets_test.sh
 echo "== Lobby: size 3 (a fourth player is refused), ready up, the host kicks the one not ready, then starts"
 tests/run_lobby_test.sh
 echo "== Version check: a host on v0.1.30; older and newer copies are kept out and told why, the same version and a dev build join"

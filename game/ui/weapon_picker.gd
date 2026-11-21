@@ -9,7 +9,8 @@ extends VBoxContainer
 ## have picked sits, and goes back to your pick when the mouse leaves.
 ##
 ## Only the weapons the host allows can be picked (set_allowed): the others are greyed
-## out, and a class with none allowed is left out.
+## out, and a class with none allowed is left out. A secret weapon (WeaponData.SECRET)
+## is not there at all until the lobby unlocks it (see SecretRockets).
 ##
 ## Like CharacterPicker it only reports the choice; the screen decides what to do
 ## with it (save it, tell the lobby, show it in the robot preview's hands).
@@ -52,6 +53,8 @@ class Card extends Button:
 		var col := UiKit.ACCENT_DARK if button_pressed else (Color.WHITE if is_hovered() else Color(1, 1, 1, 0.82))
 		if disabled:
 			col = Color(1, 1, 1, 0.22)   # not allowed in this lobby
+		elif WeaponData.by_id(id).paint.a > 0.0 and not button_pressed:
+			col = WeaponData.by_id(id).paint.lightened(0.25 if is_hovered() else 0.0)   # the secret one, in its own colour
 		var s := minf(1.5, (size.x - 10.0) / HudStyle.weapon_width(id))   # a narrow card: a smaller silhouette
 		var iw := HudStyle.weapon_width(id) * s
 		HudStyle.weapon_icon(self, id, Vector2((size.x - iw) * 0.5, 8.0), col, s)
@@ -93,8 +96,8 @@ func _init(start: String = "", allowed: Array = []) -> void:
 	grid.add_theme_constant_override("separation", 5)
 	grid.custom_minimum_size = Vector2(0, ROWS * CARD_HEIGHT + (ROWS - 1) * 5)
 	add_child(grid)
-	for g in WeaponData.GROUPS:
-		var ids: Array = g[1]
+	for gi in WeaponData.GROUPS.size():
+		var ids: Array = WeaponData.group_ids(gi)
 		var box := VBoxContainer.new()
 		box.add_theme_constant_override("separation", 5)
 		box.visible = false
@@ -119,9 +122,14 @@ func _init(start: String = "", allowed: Array = []) -> void:
 ## Which weapons can be picked ([] for every weapon). Does not change the pick: the
 ## screen passes an allowed one to select().
 func set_allowed(ids: Array) -> void:
-	_allowed = LobbySettings.weapons_from(ids)
+	_allowed = LobbySettings.weapons_from(ids.filter(func(w): return not w in WeaponData.SECRET))
+	_allowed.append_array(ids.filter(func(w): return w in WeaponData.SECRET))
 	for key in _cards:
 		_cards[key].disabled = not key in _allowed
+		if key in WeaponData.SECRET:   # hidden until unlocked, but keeping its place in the row
+			_cards[key].modulate.a = 1.0 if key in _allowed else 0.0
+			_cards[key].mouse_filter = Control.MOUSE_FILTER_STOP if key in _allowed else Control.MOUSE_FILTER_IGNORE
+			_cards[key].focus_mode = Control.FOCUS_ALL if key in _allowed else Control.FOCUS_NONE
 		_cards[key].queue_redraw()
 	for g in WeaponData.GROUPS.size():
 		_tabs[g].visible = WeaponData.GROUPS[g][1].any(func(w): return w in _allowed)
