@@ -169,6 +169,10 @@ static func edge(melee: Node3D) -> Array:
 ## (a RobotModel), from just below the knee to past the ankle, in the world right now.
 static func kick_edge(robot: Node3D, limb: String) -> Array:
 	var side := "_l" if limb.ends_with("_l") else "_r"
+	if limb.begins_with("knee"):   # a knee strike: the front of the knee, from just above it
+		var hip: Vector3 = robot.call("marker", "thigh" + side)
+		var knee_at: Vector3 = robot.call("marker", "shin" + side)
+		return [hip.lerp(knee_at, 0.6), knee_at + (knee_at - hip) * 0.12]
 	var knee: Vector3 = robot.call("marker", "shin" + side)
 	var ankle: Vector3 = robot.call("marker", "foot" + side)
 	return [knee.lerp(ankle, 0.45), ankle + (ankle - knee) * 0.25]

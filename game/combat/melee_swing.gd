@@ -39,6 +39,9 @@ const LEAD_AT := 0.45    ## how far into the time before it lands a blow passes 
 const HEAVY_AT := 0.5    ## wound up this far or more (0..1), the blow is the weapon's heavy one
 const TAP_SPAN := 0.2    ## the first part of the wind-up draws back to the tap's coil; the rest travels on to the heavy blow's
 const COMBO_RESET := 1.0 ## seconds without a swing before the taps start from the right again
+const RELAX_AFTER := 2.0 ## a weapon with a "relaxed" rest (Karate) drops its guard this long after the last swing...
+const RELAX_TIME := 0.6  ## ...taking this long about it (the guard snaps back up at once)
+const STANCE_BOUNCE := 1.9   ## a fighting stance bounces on its toes this many times a second
 
 ## What a key holds.
 enum { GRIP, BLADE, LEAD, TURN, LEAN, LEFT, HANDS }
@@ -351,6 +354,12 @@ const MOVES := {
 		"fists": true,
 		"ready": [Vector3(0.13, -0.1, -0.28), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.25, -1.0), 0.0, 0.0, 0.0],
 		"fp_ready": [Vector3(0.15, -0.12, -0.3), Vector3(0.0, 1.0, 0.15), Vector3(0.0, 0.0, -1.0), 0.0, 0.0, 0.0],
+		# Out of a fight (RELAX_AFTER seconds without a swing) the fists drop loose by the hips and the guard
+		# snaps back up the moment you wind up.
+		"relaxed": [Vector3(0.17, -0.4, -0.1), Vector3(0.0, 1.0, 0.35), Vector3(0.0, -0.5, -0.85), -0.1, 0.0, 0.0],
+		"fp_relaxed": [Vector3(0.19, -0.3, -0.26), Vector3(0.0, 1.0, 0.3), Vector3(0.0, -0.4, -0.9), -0.05, 0.0, 0.0],
+		"hips": 0.8,   # the hips come round with the blows far more than with a blade (see turn_body)
+		"stance": true,   # a fighting stance on the spot, with a bounce (see RobotAnimator)
 		"taps": [
 			{   # jab: the left fist straight out, turning over as it lands
 				"wound": [Vector3(0.16, -0.08, -0.2), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.2, -1.0), -0.2, -0.04, 0.0],
@@ -360,6 +369,7 @@ const MOVES := {
 				"fp_end": [Vector3(0.11, -0.05, -0.52), Vector3(-1.0, 0.05, 0.05), Vector3(0.0, 0.0, -1.0), 0.35, 0.1, 0.0],
 				"left": true,
 				"pace": 0.8,
+				"sink": 0.2, "step": 0.05,
 			},
 			{   # cross: the right fist from the chin, the hips and shoulders turning in behind it
 				"wound": [Vector3(0.2, -0.08, -0.12), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.2, -1.0), -0.45, -0.06, 0.0],
@@ -368,6 +378,7 @@ const MOVES := {
 				"fp_hit": [Vector3(0.04, -0.04, -0.58), Vector3(-1.0, 0.0, 0.05), Vector3(0.0, 0.0, -1.0), 0.6, 0.18, 0.0],
 				"fp_end": [Vector3(0.04, -0.05, -0.55), Vector3(-1.0, 0.05, 0.05), Vector3(0.0, 0.0, -1.0), 0.6, 0.18, 0.0],
 				"pace": 0.9,
+				"sink": 0.32, "step": 0.11,
 			},
 			{   # roundhouse kick: the right knee up, the hips turned right over and the shin snapped round
 				"wound": [Vector3(0.14, -0.08, -0.26), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.2, -1.0), -0.35, -0.05, 0.0],
@@ -380,14 +391,18 @@ const MOVES := {
 				"way": Vector2(-1.0, 0.2),
 				"pace": 1.3,
 				"strike": 1.8,
+				"chamber": 0.3, "hold": 0.35,   # the knee comes up early and hangs a beat before the shin snaps round
+				"step": -0.04,
 			},
-			{   # left hook: wide from the side, the body turning hard through it
+			{   # left hook: a dip low under a blow, then whipped wide from the side, the body turning hard through it
 				"wound": [Vector3(0.34, -0.1, -0.06), Vector3(0.0, 1.0, 0.0), Vector3(0.4, 0.0, -0.92), -0.75, -0.05, 0.0],
+				"lead": [Vector3(0.36, -0.2, -0.16), Vector3(0.0, 1.0, 0.0), Vector3(0.2, 0.0, -0.98), -0.55, 0.32, 0.0],
 				"hit": [Vector3(0.0, -0.06, -0.44), Vector3(0.0, 1.0, 0.0), Vector3(-0.95, 0.0, -0.3), 0.45, 0.2, 0.0],
 				"end": [Vector3(-0.14, -0.08, -0.3), Vector3(0.0, 1.0, 0.0), Vector3(-0.8, 0.0, 0.6), 0.85, 0.14, 0.0],
 				"way": Vector2(-1.0, 0.0),
 				"left": true,
 				"pace": 0.9,
+				"sink": 0.42, "step": 0.04,
 			},
 			{   # spinning back fist: a whole turn to the right, the left arm flung out and whipped round level
 				"wound": [Vector3(0.3, -0.06, -0.1), Vector3(0.0, 1.0, 0.0), Vector3(0.6, 0.0, -0.8), -0.6, -0.05, 0.0],
@@ -400,6 +415,8 @@ const MOVES := {
 				"turns": -1.0,
 				"pace": 1.4,
 				"strike": 2.6,
+				"sink": 0.15, "step": 0.08,
+				"ghosts": true,   # afterimages through the spin (see KarateGhost)
 			},
 			{   # spinning hook kick: a whole turn to the right, the right leg straight and swept round high
 				"wound": [Vector3(0.14, -0.08, -0.26), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.2, -1.0), -0.4, -0.05, 0.0],
@@ -413,6 +430,9 @@ const MOVES := {
 				"turns": -1.0,
 				"pace": 1.6,
 				"strike": 3.0,
+				"chamber": 0.35, "hold": 0.25,
+				"ghosts": true,
+				"finisher": true,   # the last of the combo: the biggest hit (see MeleeFx.karate_hit)
 			},
 		],
 		"heavy": {   # tornado kick: crouched low and coiled, then a hop and a whole turn, the right foot round at head height
@@ -431,7 +451,62 @@ const MOVES := {
 			"hop": 4.5,
 			"pace": 1.5,
 			"strike": 3.0,
+			"ghosts": true,
 		},
+		# The other full wind-ups on the ground: one of these or the tornado kick, picked at random as the wind-up
+		# starts (never the same twice running: see Player), so each has its own coil and can be read coming.
+		# All four land at the same moment with the same hop, damage and reach: only the look differs.
+		"heavy_pool": [
+			{   # flying knee: a lunge up off the back foot, the right knee driven up to the chin, both fists pulled down
+				"wound": [Vector3(0.2, -0.24, -0.02), Vector3(0.0, 1.0, 0.3), Vector3(0.0, -0.4, -0.9), -0.5, 0.3, 0.0],
+				"lead": [Vector3(0.16, 0.06, -0.3), Vector3(0.0, 1.0, 0.1), Vector3(0.0, 0.2, -1.0), -0.1, -0.05, 0.0],
+				"hit": [Vector3(0.2, -0.26, -0.08), Vector3(0.0, 1.0, 0.4), Vector3(0.0, -0.6, -0.8), 0.25, -0.2, 0.0],
+				"end": [Vector3(0.2, -0.22, -0.12), Vector3(0.0, 1.0, 0.4), Vector3(0.0, -0.5, -0.85), 0.2, -0.1, 0.0],
+				"fp_hit": [Vector3(0.2, -0.22, -0.24), Vector3(0.0, 1.0, 0.4), Vector3(0.0, -0.6, -0.8), 0.15, -0.1, 0.0],
+				"fp_end": [Vector3(0.2, -0.2, -0.26), Vector3(0.0, 1.0, 0.4), Vector3(0.0, -0.5, -0.85), 0.1, -0.05, 0.0],
+				"legs": [[1.3, 2.3, -0.2, 0.5, 0.0, 0.0], [2.0, 2.5, -0.5, 0.9, 0.0, 0.0], [1.7, 2.3, -0.3, 0.7, 0.0, 0.0]],
+				"limb": "knee_r",
+				"way": Vector2(0.0, 1.0),
+				"both": true,   # both fists do the same (mirrored)
+				"hop": 4.5,
+				"pace": 1.5,
+				"strike": 3.0,
+				"chamber": 0.45, "hold": 0.15,
+				"step": 0.12,
+			},
+			{   # rising spiral uppercut: crouched right down, then corkscrewing up a whole turn behind a rising fist
+				"wound": [Vector3(0.18, -0.34, -0.12), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.3, -0.95), -0.95, 0.45, 0.0],
+				"lead": [Vector3(0.12, -0.14, -0.3), Vector3(-0.6, 0.8, 0.0), Vector3(0.0, 0.4, -0.92), -0.2, 0.2, 0.0],
+				"hit": [Vector3(0.05, 0.36, -0.36), Vector3(-1.0, 0.0, 0.1), Vector3(0.0, 1.0, -0.25), 0.5, -0.28, 0.0],
+				"end": [Vector3(0.02, 0.4, -0.3), Vector3(-1.0, 0.0, 0.1), Vector3(0.0, 1.0, -0.1), 0.8, -0.32, 0.0],
+				"fp_hit": [Vector3(0.08, 0.16, -0.42), Vector3(-1.0, 0.0, 0.1), Vector3(0.0, 1.0, -0.3), 0.3, -0.15, 0.0],
+				"fp_end": [Vector3(0.06, 0.2, -0.4), Vector3(-1.0, 0.0, 0.1), Vector3(0.0, 1.0, -0.2), 0.4, -0.15, 0.0],
+				"legs": [[0.9, 1.8, 0.9, 1.8, 0.0, 0.0], [0.05, 0.15, 1.4, 1.9, 0.0, 0.0], [0.1, 0.3, 1.1, 1.6, 0.0, 0.0]],
+				"way": Vector2(0.0, 1.0),
+				"turns": 1.0,
+				"hop": 4.5,
+				"pace": 1.5,
+				"strike": 3.0,
+				"ghosts": true,
+			},
+			{   # palm blast: both palms drawn back to the hips, then thrust out together in a deep lunge, the aura
+				# bursting out ahead of them (see MeleeFx.karate_burst)
+				"wound": [Vector3(0.22, -0.16, 0.06), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), -0.7, 0.15, 0.0],
+				"hit": [Vector3(0.09, -0.02, -0.56), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.05, 0.38, 0.0],
+				"end": [Vector3(0.09, -0.03, -0.54), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.05, 0.36, 0.0],
+				"fp_hit": [Vector3(0.1, -0.06, -0.56), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.05, 0.25, 0.0],
+				"fp_end": [Vector3(0.1, -0.07, -0.54), Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), 0.05, 0.25, 0.0],
+				"legs": [[0.7, 1.4, 0.7, 1.4, 0.0, 0.0], [-0.55, 0.15, 0.85, 1.1, 0.0, 0.0], [-0.5, 0.15, 0.8, 1.05, 0.0, 0.0]],
+				"way": Vector2.ZERO,
+				"both": true,
+				"open": true,   # open hands
+				"burst": true,
+				"hop": 4.5,
+				"pace": 1.5,
+				"strike": 3.0,
+				"sink": 0.35, "step": 0.16,
+			},
+		],
 		# In mid-air: a helicopter kick. Two turns to the right, arms flung wide and the right leg straight out
 		# to the side, sweeping everything round you.
 		"air": {
@@ -444,7 +519,35 @@ const MOVES := {
 			"axis": Vector3(0.0, 1.0, 0.0),
 			"turns": -2.0,
 			"wind": 0.75,
+			"ghosts": true,
 		},
+		# The other full wind-ups off the ground (picked like the heavy pool's).
+		"air_pool": [
+			{   # somersault heel drop: one forward flip, tucked tight, the right leg brought over the top and the heel
+				# driven down, arms flung out for balance
+				"wound": [Vector3(0.24, 0.02, -0.16), Vector3(0.0, 1.0, 0.2), Vector3(0.0, -0.3, -0.95), -0.2, 0.3, 0.0],
+				"hit": [Vector3(0.38, -0.02, -0.12), Vector3(0.0, 1.0, 0.0), Vector3(0.6, 0.0, -0.8), 0.15, 0.42, 0.0],
+				"end": [Vector3(0.36, -0.06, -0.14), Vector3(0.0, 1.0, 0.0), Vector3(0.6, 0.0, -0.8), 0.1, 0.35, 0.0],
+				"legs": [[1.8, 2.4, 1.8, 2.4, 0.0, 0.0], [1.3, 0.05, 0.35, 1.3, 0.0, 0.0]],
+				"limb": "foot_r",
+				"way": Vector2(0.0, -1.0),
+				"axis": Vector3(-1.0, 0.0, 0.0),
+				"turns": 1.0,
+				"wind": 0.85,
+				"ghosts": true,
+			},
+			{   # flying side kick: turned side-on in the air, leaning away, the right leg fired straight out at the
+				# target and the left tucked under, the fists up in a guard
+				"wound": [Vector3(0.16, -0.06, -0.2), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.25, -1.0), -0.4, -0.1, 0.0],
+				"hit": [Vector3(0.12, -0.04, -0.24), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.25, -1.0), -0.3, -0.25, 0.0],
+				"end": [Vector3(0.12, -0.05, -0.24), Vector3(0.0, 1.0, 0.25), Vector3(0.0, -0.25, -1.0), -0.3, -0.2, 0.0],
+				"legs": [[0.4, 2.2, 1.3, 2.3, 1.2, 0.0], [0.1, 0.0, 1.1, 2.2, 1.55, 0.0]],
+				"limb": "foot_r",
+				"way": Vector2(0.0, 0.0),
+				"axis": Vector3(0.0, 1.0, 0.0),
+				"dive": Vector2(0.0, 1.45),   # turned this far round (right side leading) as the kick lands, and back after
+			},
+		],
 	},
 }
 ## How long the blow, follow-through and recovery take, against the sword's.
@@ -531,6 +634,15 @@ var _blow_legs: Array = [] # the blow in flight poses the legs (a kick): its leg
 var _legs_from: Array = [] # ...and where the legs were as it was let go
 var _limb := ""            # the blow in flight is a kick: the foot that strikes ("foot_r", "foot_l")
 var _landed := 0.0         # a ground slam has touched down: 1, easing to 0 as you get back up
+var _heavies: Array = []   # every heavy blow the weapon can pick from (Karate: "heavy" and "heavy_pool"); _heavy is the one picked
+var _airs: Array = []      # ...and every mid-air one ("air" and "air_pool"); _air_move is the one picked
+var _blow_now := {}        # the blow in flight (its keys and flags, see _blow)
+var _relaxed: Array = []   # a rest with the guard dropped (Karate), or []
+var _relax := 0.0          # ...how far into it, 0..1
+var _idle_t := 99.0        # seconds since the swing was last wound up or let go
+var _hips := HIPS_TURN     # how much of the chest's turn the hips make (see turn_body)
+var _stance := false       # a fighting stance on the spot (see RobotAnimator)
+var _body := Vector2.ZERO  # the blow's drive through the legs right now: how far it sinks into the knees, how far the weight goes forward (m)
 
 
 func _init(weapon_id: String = "sword", in_first_person: bool = false) -> void:
@@ -546,16 +658,20 @@ func set_weapon(weapon_id: String) -> void:
 	for tap in m.taps:
 		_taps.append(_blow(tap))
 	_heavy = _blow(m.heavy)
+	_heavies = [_heavy]
+	for h in m.get("heavy_pool", []):
+		_heavies.append(_blow(h))
 	both_fists = m.get("fists", false)
 	_air_move = {}
+	_airs = []
 	if m.has("air"):
-		_air_move = _blow(m.air)
-		_air_move["axis"] = m.air.get("axis", Vector3.UP)
-		_air_move["turns"] = m.air.get("turns", 0.0)
-		_air_move["wind"] = m.air.get("wind", SPIN_WIND)
-		_air_move["dive"] = m.air.get("dive", Vector2.ZERO)
-		_air_move["legs"] = _leg_keys(m.air.get("legs", []))
-		_air_move["after"] = m.air.get("after", 0.0)
+		_air_move = _air_blow(m.air)
+		_airs = [_air_move]
+		for a in m.get("air_pool", []):
+			_airs.append(_air_blow(a))
+	_relaxed = _whole(_pick(m, "relaxed")) if m.has("relaxed") else []
+	_hips = float(m.get("hips", HIPS_TURN))
+	_stance = m.get("stance", false)
 	_pace = PACE.get(weapon_id, 1.0)
 	_bp = _pace
 	_sm = 1.0
@@ -567,7 +683,55 @@ func _blow(from: Dictionary) -> Dictionary:
 	return {"wound": _whole(_pick(from, "wound")), "lead": _whole(_pick(from, "lead")), "hit": _whole(_pick(from, "hit")),
 		"end": _whole(_pick(from, "end")), "left": from.get("left", false), "way": from.get("way", Vector2.ZERO),
 		"pace": from.get("pace", 1.0), "strike": from.get("strike", 1.0), "turns": from.get("turns", 0.0), "legs": _leg_keys(from.get("legs", [])),
-		"limb": from.get("limb", ""), "hop": from.get("hop", 0.0)}
+		"limb": from.get("limb", ""), "hop": from.get("hop", 0.0),
+		# Karate's extras: how far the blow sinks into the knees and drives the weight forward as it lands; a
+		# kick's knee chambered by `chamber` of the way to landing and held there for `hold` before it snaps
+		# out; afterimages through it; both fists alike; open hands; the aura bursting out ahead; the combo's last.
+		"sink": from.get("sink", 0.0), "step": from.get("step", 0.0), "chamber": from.get("chamber", 0.55), "hold": from.get("hold", 0.0),
+		"ghosts": from.get("ghosts", false), "both": from.get("both", false), "open": from.get("open", false),
+		"burst": from.get("burst", false), "finisher": from.get("finisher", false)}
+
+
+## A mid-air move: a blow, with how the body goes round as it winds up.
+func _air_blow(from: Dictionary) -> Dictionary:
+	var out := _blow(from)
+	out["axis"] = from.get("axis", Vector3.UP)
+	out["turns"] = from.get("turns", 0.0)
+	out["wind"] = from.get("wind", SPIN_WIND)
+	out["dive"] = from.get("dive", Vector2.ZERO)
+	out["legs"] = _leg_keys(from.get("legs", []))
+	out["after"] = from.get("after", 0.0)
+	return out
+
+
+## Which heavy blow and which mid-air one the coming full wind-up is, for a weapon with
+## more than one of each (Karate: see "heavy_pool"): `pick` is pick_of()'s number.
+func set_pick(pick: int) -> void:
+	if _heavies.size() > 1:
+		_heavy = _heavies[posmod(pick & 3, _heavies.size())]
+	if _airs.size() > 1:
+		_air_move = _airs[posmod((pick >> 2) & 3, _airs.size())]
+
+
+## How many heavy blows (on the ground) and mid-air ones a weapon picks from.
+static func pool_sizes(weapon_id: String) -> Vector2i:
+	var m := moves(weapon_id)
+	return Vector2i(1 + (m.get("heavy_pool", []) as Array).size(), (1 if m.has("air") else 0) + (m.get("air_pool", []) as Array).size())
+
+
+## One of `n` moves at random, never `last` (the one let go last time; -1: none yet).
+static func pick_new(n: int, last: int) -> int:
+	if n <= 1:
+		return 0
+	if last < 0 or last >= n:
+		return randi() % n
+	var p := randi() % (n - 1)
+	return p + 1 if p >= last else p
+
+
+## The number set_pick() takes: which heavy blow `ground` and which mid-air one `air`.
+static func pick_of(ground: int, air: int) -> int:
+	return (ground & 3) | ((air & 3) << 2)
 
 
 ## Leg keys with every part filled in: [right thigh, right knee, left thigh, left knee,
@@ -597,7 +761,9 @@ static func moves(weapon_id: String) -> Dictionary:
 ## Still winding up this frame: `charge` 0..1 is how far (see WeaponData.charge_of),
 ## `side` which tap is coming (0 from the right, 1 from the left).
 ## `in_air`: off the ground, where a weapon winds up its own way (see "air" in MOVES).
-func wind(charge: float, side: int = 0, in_air: bool = false) -> void:
+func wind(charge: float, side: int = 0, in_air: bool = false, pick: int = 0) -> void:
+	set_pick(pick)
+	_idle_t = 0.0
 	_charge = clampf(charge, 0.0, 1.0)
 	_wound = true
 	_in_air = in_air and not _air_move.is_empty()
@@ -618,7 +784,9 @@ func wind(charge: float, side: int = 0, in_air: bool = false) -> void:
 ## `in_air`: let go off the ground: a swing wound up enough to be the heavy blow is the
 ## weapon's mid-air blow instead, and whatever spin the wind-up had comes round to
 ## the front as it lands.
-func swing(power: float, side: int = 0, in_air: bool = false) -> void:
+func swing(power: float, side: int = 0, in_air: bool = false, pick: int = 0) -> void:
+	set_pick(pick)
+	_idle_t = 0.0
 	_phase = SWING
 	_t = 0.0
 	_stop = 0.0
@@ -629,6 +797,7 @@ func swing(power: float, side: int = 0, in_air: bool = false) -> void:
 	_is_heavy = _power >= HEAVY_AT
 	_in_air = in_air and _is_heavy and not _air_move.is_empty()
 	var blow: Dictionary = (_air_move if _in_air else _heavy) if _is_heavy else _taps[_side]
+	_blow_now = blow
 	_use_fist(blow.left)
 	var through := lerpf(0.8, 1.0, (_power - HEAVY_AT) / (1.0 - HEAVY_AT)) if _is_heavy else lerpf(0.55, 1.0, _power / HEAVY_AT)
 	_bp = _pace * float(blow.pace)
@@ -697,32 +866,40 @@ func stop() -> void:
 	_wound = false
 	_charge = 0.0
 	_drawn = 0.0
+	_blow_now = {}
+	_body = Vector2.ZERO
+	_relax = 0.0
+	_idle_t = 99.0
 
 
 ## Seconds from letting go to the blow landing: `step` is which tap of the combo it is,
 ## `power` how wound up (HEAVY_AT or more: the heavy blow, or off the ground the weapon's
 ## mid-air one when `in_air`). Every blow of the older weapons takes the same time.
-static func impact_time(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false) -> float:
-	var blow := blow_of(weapon_id, step, power, in_air)
+static func impact_time(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false, pick: int = 0) -> float:
+	var blow := blow_of(weapon_id, step, power, in_air, pick)
 	return STRIKE * PACE.get(weapon_id, 1.0) * float(blow.get("pace", 1.0)) * float(blow.get("strike", 1.0)) * HIT_AT
 
 
 ## How long a blow takes, from letting go to back at ready (see impact_time).
-static func blow_length(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false) -> float:
-	var blow := blow_of(weapon_id, step, power, in_air)
+static func blow_length(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false, pick: int = 0) -> float:
+	var blow := blow_of(weapon_id, step, power, in_air, pick)
 	return (STRIKE * float(blow.get("strike", 1.0)) + FOLLOW + RECOVER) * PACE.get(weapon_id, 1.0) * float(blow.get("pace", 1.0))
 
 
 ## A blow's own pace, against the weapon's (a spinning kick takes longer than a jab).
-static func blow_pace(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false) -> float:
-	return float(blow_of(weapon_id, step, power, in_air).get("pace", 1.0))
+static func blow_pace(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false, pick: int = 0) -> float:
+	return float(blow_of(weapon_id, step, power, in_air, pick).get("pace", 1.0))
 
 
 ## The keys of one blow as MOVES has them (see impact_time for the arguments).
-static func blow_of(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false) -> Dictionary:
+static func blow_of(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false, pick: int = 0) -> Dictionary:
 	var m := moves(weapon_id)
 	if power >= HEAVY_AT:
-		return m.air if in_air and m.has("air") else m.heavy
+		if in_air and m.has("air"):
+			var airs: Array = [m.air] + (m.get("air_pool", []) as Array)
+			return airs[posmod((pick >> 2) & 3, airs.size())]
+		var heavies: Array = [m.heavy] + (m.get("heavy_pool", []) as Array)
+		return heavies[posmod(pick & 3, heavies.size())]
 	return m.taps[posmod(step, (m.taps as Array).size())]
 
 
@@ -733,8 +910,8 @@ static func combo_length(weapon_id: String) -> int:
 
 
 ## Letting go of a blow lifts you this fast (metres a second; a jumping kick), or 0.
-static func hop_of(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false) -> float:
-	return float(blow_of(weapon_id, step, power, in_air).get("hop", 0.0))
+static func hop_of(weapon_id: String, step: int = 0, power: float = 0.0, in_air: bool = false, pick: int = 0) -> float:
+	return float(blow_of(weapon_id, step, power, in_air, pick).get("hop", 0.0))
 
 
 ## How long a blow that lands freezes for: longer the more it was wound up.
@@ -976,14 +1153,22 @@ func sample(delta: float) -> Array:
 		var lands: float = _times[_times.size() - 3]
 		var ends: float = _times[_times.size() - 2]
 		var keys: Array = [_legs_from, _blow_legs[0], _blow_legs[1], _blow_legs[2] if _blow_legs.size() > 2 else _blow_legs[1]]
-		var at := PackedFloat32Array([0.0, lands * 0.55, lands, ends])
+		var chamber := float(_blow_now.get("chamber", 0.55))
+		var at := PackedFloat32Array([0.0, lands * chamber, lands, ends])
+		var hold := float(_blow_now.get("hold", 0.0))
+		if hold > 0.0:   # the knee comes up early and hangs there a beat before the snap
+			keys.insert(1, _blow_legs[0])
+			at = PackedFloat32Array([0.0, lands * chamber, lands * minf(chamber + hold, 0.92), lands, ends])
+		var n := keys.size() - 1
 		var i := 0
-		while i < 2 and _t > at[i + 1]:
+		while i < n - 1 and _t > at[i + 1]:
 			i += 1
 		var u := clampf((_t - at[i]) / maxf(at[i + 1] - at[i], 0.001), 0.0, 1.0)
-		u = u * u * (3.0 - 2.0 * u) if i != 1 else u * u   # (into the blow it gathers pace)
+		u = u * u * (3.0 - 2.0 * u) if i != n - 2 else u * u   # (into the blow it gathers pace)
 		for j in 6:
 			_leg[j] = lerpf(float(keys[i][j]), float(keys[i + 1][j]), u)
+		if hold > 0.0 and i == 1:   # hung in the chamber: a little shiver of held power
+			_leg[1] += 0.03 * sin(_clock * 47.0)
 		legs_in = 1.0 if _t < ends + (_length - ends) * 0.35 else 0.0
 	elif _phase == WIND and not _in_air:
 		# Winding a kick up on the ground: the weight shifts and the knee starts to come up.
@@ -1016,17 +1201,43 @@ func sample(delta: float) -> Array:
 		_spin = move_toward(_spin, to, delta * SPIN_SETTLE)
 		if is_equal_approx(_spin, to):
 			_spin = 0.0
+	# Out of the fight a while, a relaxed rest drops the guard; any swing snaps it back up.
 	if _phase == REST:
-		_cur = _mix(_cur, _ready, 1.0 - exp(-delta * SETTLE))
+		_idle_t += delta
+	else:
+		_idle_t = 0.0
+	_relax = smoothstep(RELAX_AFTER, RELAX_AFTER + RELAX_TIME, _idle_t) if not _relaxed.is_empty() else 0.0
+	var rest := _rest_key()
+	if _phase == REST:
+		_cur = _mix(_cur, rest, 1.0 - exp(-delta * SETTLE))
 		_drawn = lerpf(_drawn, 0.0, follow)
 	_wound = false
 	if both_fists:
-		_other = _mix(_other, _ready, 1.0 - exp(-delta * DRAW))
+		_other = _mix(_other, rest, 1.0 - exp(-delta * DRAW))
+		# A blow with both fists alike (a palm blast, a flying knee): the other does as this one does.
+		var both: bool = (_phase == SWING and _blow_now.get("both", false) and _t < _length * 0.8) \
+			or (_phase == WIND and _charge >= TAP_SPAN and _heavy.get("both", false) and not _in_air)
+		if both:
+			_other = _cur.duplicate()
+	# The blow's drive through the legs: it sinks and the weight goes forward as it lands; the wind-up
+	# settles back onto the back foot.
+	var drive := Vector2.ZERO
+	if _phase == SWING and _landed == 0.0 and not _in_air and not _blow_now.is_empty():
+		var lands: float = _times[_times.size() - 3]
+		var ends: float = _times[_times.size() - 2]
+		var u := smoothstep(0.0, lands, _t) * (1.0 - smoothstep(ends, _length, _t))
+		drive = Vector2(float(_blow_now.sink), float(_blow_now.step)) * u
+	elif _phase == WIND and not _in_air:
+		var coming: Dictionary = _heavy if _charge >= TAP_SPAN else _taps[_side]
+		drive = Vector2(float(coming.get("sink", 0.0)) * 0.5, -absf(float(coming.get("step", 0.0))) * 0.6) * _drawn
+	_body = _body.lerp(drive, 1.0 - exp(-delta * 18.0))
 	var out := _cur.duplicate()
 	if both_fists:   # the body turns with both fists: one way for the right, the other for the left
 		var way := -1.0 if _left else 1.0
 		out[TURN] = (float(_cur[TURN]) - float(_other[TURN])) * way
 		out[LEAN] = float(_cur[LEAN]) + float(_other[LEAN])
+	if _phase == REST and _stance:   # a fighter's bounce: the fists ride it
+		out[GRIP] = out[GRIP] as Vector3 + Vector3(0.0, 0.012 * sin(_clock * TAU * STANCE_BOUNCE), 0.0)
 	if _phase == REST:   # at ease: the weapon rides the body's breathing, never quite still
 		out[GRIP] = out[GRIP] as Vector3 + Vector3(0.004 * sin(_clock * 1.3), 0.007 * sin(_clock * 1.9), 0.0)
 		out[BLADE] = (out[BLADE] as Vector3 + Vector3(0.02 * sin(_clock * 1.1 + 1.0), 0.0, 0.014 * sin(_clock * 1.7))).normalized()
@@ -1069,6 +1280,63 @@ func coil() -> float:
 ## How far the chest is turned in the ready stance.
 func rest_turn() -> float:
 	return _ready[TURN]
+
+
+## The rest the weapon eases back to: the ready guard, or (out of a fight a while) its relaxed rest.
+func _rest_key() -> Array:
+	return _ready if _relax <= 0.0 else _mix(_ready, _relaxed, _relax)
+
+
+## Seconds the swing has been running (for anything that moves with it).
+func clock() -> float:
+	return _clock
+
+
+## How far the guard has dropped into the relaxed rest, 0..1 (see RELAX_AFTER).
+func relaxed() -> float:
+	return _relax
+
+
+## A fighting stance on the spot (Karate): see RobotAnimator.
+func stance() -> bool:
+	return _stance
+
+
+## How much of the chest's turn the hips make (see turn_body).
+func hips_turn() -> float:
+	return _hips
+
+
+## The blow's drive through the legs right now: x how far it sinks into the knees (0..1), y
+## how far the weight goes forward (metres; back while winding up).
+func body() -> Vector2:
+	return _body
+
+
+## The blow in flight (or the heavy one being wound up) has afterimages trailing it.
+func ghosts() -> bool:
+	if _phase == SWING and _blow_now.get("ghosts", false):
+		var lands: float = _times[_times.size() - 3]
+		return _t < lands + FOLLOW * _bp
+	if _phase == WIND and _in_air and _air > 0.6 and _charge > 0.3:
+		return _air_move.get("ghosts", false)
+	return false
+
+
+## The hands are open (a palm strike).
+func open_hands() -> bool:
+	if _phase == SWING:
+		return _blow_now.get("open", false) and _t < _length * 0.8
+	return _phase == WIND and _charge >= TAP_SPAN and not _in_air and _heavy.get("open", false)
+
+
+## The blow in flight: the combo's last blow (or a heavy one), and one whose aura bursts out ahead.
+func finisher() -> bool:
+	return _phase == SWING and (_blow_now.get("finisher", false) or _is_heavy)
+
+
+func burst() -> bool:
+	return _phase == SWING and _blow_now.get("burst", false)
 
 
 ## How brightly the weapon's glowing parts shine right now (1 = as at rest): they
@@ -1186,14 +1454,14 @@ static func sink(k: Array) -> float:
 ## with it (and the legs with them), the spine and chest further still, and the body
 ## tips away from the way it is coiled. Call before hold(), and before anything that
 ## reads where the chest is.
-static func turn_body(pose: RobotPose, bones: Dictionary, k: Array, weight: float = 1.0) -> void:
+static func turn_body(pose: RobotPose, bones: Dictionary, k: Array, weight: float = 1.0, hips: float = HIPS_TURN) -> void:
 	if weight <= 0.0:
 		return
 	var turn: float = k[TURN] * weight
 	var lean: float = k[LEAN] * weight
 	if bones.has("hips"):
 		var hp: int = bones["hips"]
-		pose.rot[hp] = Quaternion(Vector3.UP, turn * HIPS_TURN) * pose.rot[hp]
+		pose.rot[hp] = Quaternion(Vector3.UP, turn * hips) * pose.rot[hp]
 	if bones.has("chest"):
 		var c: int = bones["chest"]
 		pose.rot[c] = Quaternion(Vector3.UP, turn) * pose.rot[c]
@@ -1202,7 +1470,7 @@ static func turn_body(pose: RobotPose, bones: Dictionary, k: Array, weight: floa
 		pose.rot[sp] = Quaternion(Vector3.UP, turn * 0.5) * Quaternion(Vector3.BACK, turn * SIDE_LEAN) * Quaternion(Vector3.RIGHT, -lean) * pose.rot[sp]
 	if bones.has("head"):   # the head keeps looking ahead, as far as a neck turns
 		var h: int = bones["head"]
-		pose.rot[h] = Quaternion(Vector3.UP, clampf(-turn * (1.5 + HIPS_TURN), -1.15, 1.15)) * pose.rot[h]
+		pose.rot[h] = Quaternion(Vector3.UP, clampf(-turn * (1.5 + hips), -1.15, 1.15)) * pose.rot[h]
 
 
 ## Bends the arms so the weapon is where key `k` says: the right hand on the grip,
@@ -1213,7 +1481,7 @@ static func turn_body(pose: RobotPose, bones: Dictionary, k: Array, weight: floa
 ## other: a weapon on each fist (see other_fist()): the pose of the fist that is not
 ## striking. Then `k` is the striking fist's, and `left_strikes` says which fist that is.
 static func hold(pose: RobotPose, rig: RobotRig, k: Array, two_handed: bool, pitch: float = 0.0,
-		right: float = 1.0, left: float = 1.0, shift: Vector3 = Vector3.ZERO, other: Array = [], left_strikes: bool = false) -> void:
+		right: float = 1.0, left: float = 1.0, shift: Vector3 = Vector3.ZERO, other: Array = [], left_strikes: bool = false, open: bool = false) -> void:
 	if right <= 0.0 and left <= 0.0:
 		return
 	var b := rig.bones
@@ -1240,11 +1508,11 @@ static func hold(pose: RobotPose, rig: RobotRig, k: Array, two_handed: bool, pit
 	if b.has("pistol"):
 		pose.rot[b["pistol"]] = pose.rot[b["pistol"]].slerp(Quaternion.IDENTITY, right)
 	# The fingers: round the handle, or a fist for a weapon worn on it.
-	Hands.set_hand(pose, rig, "fist" if not other.is_empty() else "handle", right, false)
+	Hands.set_hand(pose, rig, ("flat" if open else "fist") if not other.is_empty() else "handle", right, false)
 	left *= float(k[HANDS]) if k.size() > HANDS else 1.0
 	if left <= 0.0:
 		return
-	Hands.set_hand(pose, rig, "handle" if two_handed and other.is_empty() else "fist", left, true)
+	Hands.set_hand(pose, rig, "handle" if two_handed and other.is_empty() else ("flat" if open and not other.is_empty() else "fist"), left, true)
 	var hand_l := hand_rot
 	var want: Vector3
 	if not other.is_empty():

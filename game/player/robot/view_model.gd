@@ -160,17 +160,17 @@ func fire(left: bool = false) -> void:
 
 
 ## Winding a melee swing up, this frame: `charge` 0..1 is how far.
-func wind(charge: float, side: int = 0) -> void:
+func wind(charge: float, side: int = 0, pick: int = 0) -> void:
 	if _data.is_melee():
-		_swing.wind(charge, side, _airborne)
+		_swing.wind(charge, side, _airborne, pick)
 		draw.cut()
 		_since_fire = 0.0
 
 
 ## The swing was let go, `power` 0..1 wound up.
-func swing(power: float, side: int = 0) -> void:
+func swing(power: float, side: int = 0, pick: int = 0) -> void:
 	if _data.is_melee():
-		_swing.swing(power, side, _airborne)
+		_swing.swing(power, side, _airborne, pick)
 		draw.cut()
 		_since_fire = 0.0
 
@@ -387,7 +387,7 @@ func update(delta: float) -> void:
 		_pose.rot[chest] = Quaternion(Vector3.UP, k[MeleeSwing.TURN] * MELEE_TURN * _hold) * _pose.rot[chest]
 		_cut = move_toward(_cut, 1.0 if _swing.active() and not _swing.winding() else 0.0, delta * 14.0)
 		MeleeSwing.hold(_pose, rig, k, _swing.two_handed, MELEE_CUT_TILT * _cut + ROPE_BLADE_TIP * low, _hold, _hold * (1.0 - _grapple_w), shift,
-			_swing.other_fist(), _swing.left_fist())
+			_swing.other_fist(), _swing.left_fist(), _swing.open_hands())
 		_swing_view = Vector2(k[MeleeSwing.TURN] * 0.4, k[MeleeSwing.LEAN]) * _hold
 		if model.melee:
 			MeleeModel.set_glow(model.melee, _swing.glow() * draw.glow())

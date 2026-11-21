@@ -53,15 +53,17 @@ const FLIP_RIGHT := 3
 ##           the body zips along it: see RopeSwing): 0 no, 1 yes, 2 yes and steering
 ##           left as it pulled tight, 3 yes and steering right
 ## bit 22    zoomed in (the zoom button: see CameraRig.zoom), for killcams
+## bits 23-26 which heavy blow and which mid-air one a full wind-up is (Karate picks from a few:
+##           see MeleeSwing.pick_of), so everyone sees the same move
 const ZOOMED_BIT := 1 << 22
 static func make_flags(wall_right: bool, vaulting: bool, reloading: bool, flip: int, wall_jumps: int, swings: int = 0,
 		kicks: int = 0, flying_kick: bool = false, boosts: int = 0, winding: bool = false, jetpack: bool = false, step: int = 0,
-		pumping: bool = false, zip: int = 0) -> int:
+		pumping: bool = false, zip: int = 0, pick: int = 0) -> int:
 	return (1 if wall_right else 0) | (2 if vaulting else 0) | (4 if reloading else 0) \
 		| ((flip & 3) << 3) | ((wall_jumps & 3) << 5) | ((swings & 3) << 7) \
 		| ((kicks & 3) << 9) | ((1 if flying_kick else 0) << 11) | ((boosts & 3) << 12) \
 		| ((1 if winding else 0) << 14) | ((1 if jetpack else 0) << 15) | ((step & 7) << 16) \
-		| ((1 if pumping else 0) << 19) | ((zip & 3) << 20)
+		| ((1 if pumping else 0) << 19) | ((zip & 3) << 20) | ((pick & 15) << 23)
 
 
 ## The `zip` of make_flags from what the movement says (MovementController.dove_in, dove_side).
@@ -79,6 +81,11 @@ func set_hook(look: Array) -> void:
 ## Which blow of the melee combo the last swing (or the wind-up under way) is.
 static func step_of(f: int) -> int:
 	return (f >> 16) & 7
+
+
+## Which heavy and mid-air blow a full wind-up is (see MeleeSwing.pick_of).
+static func pick_of(f: int) -> int:
+	return (f >> 23) & 15
 
 
 ## Zoomed in (bit 22: added to make_flags' number by the player).

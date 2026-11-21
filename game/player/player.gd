@@ -90,6 +90,10 @@ var _charge := -1.0               # local: seconds the swing button has been hel
 var _swing_power := 0.0           # local: how wound up the swing in flight is, 0..1
 var _swing_side := 0              # which tap this wind-up or swing is: 0 from the right, 1 from the left (they take turns)
 var _seen_side := 1               # the side of the last swing shown
+var _heavy_pick := 0              # which heavy and mid-air blow the coming full wind-up is (Karate: see MeleeSwing.pick_of)
+var _last_heavy := -1             # ...the last heavy blow on the ground and in the air let go (never the same twice running)
+var _last_air := -1
+var dev_pick := -1                ## films and tests: every full wind-up is this pick (MeleeSwing.pick_of), not a random one
 var _since_swing := 9.0           # seconds since the last swing shown was let go
 var _shown_power := 0.0           # how wound up the last swing shown was (its hit effects go by it)
 var _slam_cool := 0.0             # local: seconds until you can ground slam again (see GroundSlam)
@@ -806,6 +810,7 @@ func _update_melee(delta: float) -> void:
 	_fire_buffer = 0.0
 	_charge = 0.0
 	_swing_side = _next_side()
+	_heavy_pick = _next_pick()
 	if DevArgs.sync_log:
 		print("ANIM WIND %d" % peer_id)
 
@@ -817,6 +822,15 @@ func _next_side() -> int:
 	return 0 if _since_swing > MeleeSwing.COMBO_RESET else (_seen_side + 1) % n
 
 
+## Which of the weapon's heavy blows (and mid-air ones) a full wind-up would be: one at
+## random, never the one let go last time (Karate has a few of each; the rest have one).
+func _next_pick() -> int:
+	if dev_pick >= 0:
+		return dev_pick
+	var sizes := MeleeSwing.pool_sizes(robot.weapon) if robot and WeaponData.melee(robot.weapon) else Vector2i(1, 1)
+	return MeleeSwing.pick_of(MeleeSwing.pick_new(sizes.x, _last_heavy), MeleeSwing.pick_new(sizes.y, _last_air))
+
+
 ## Let go: the swing starts from however far it was wound up.
 func _swing() -> void:
 	var data := weapon.data
@@ -825,6 +839,11 @@ func _swing() -> void:
 	_charge = -1.0
 	_swings += 1   # (which blow it is travels with it: see RobotAnimInput.step_of)
 	var airborne := motor.state in [MovementController.State.AIR, MovementController.State.FLIP, MovementController.State.GLIDE]
+	if _swing_power >= MeleeSwing.HEAVY_AT:   # (remembered so the next full wind-up is a different move)
+		if airborne:
+			_last_air = (_heavy_pick >> 2) & 3
+		else:
+			_last_heavy = _heavy_pick & 3
 	_strike_left = MeleeSwing.impact_time(data.id, _swing_side, _swing_power, airborne)   # when the blade is mid-blow on screen
 	# A slow blow (a spinning kick) holds the next one off until it is nearly done.
 	weapon.hold_off(MeleeSwing.blow_length(data.id, _swing_side, _swing_power, airborne) * 0.7)
@@ -894,6 +913,9 @@ func _on_ground_slammed(attacker: int, _weapon_id: String, at: Vector3, power: f
 		_shown_power = maxf(power, MeleeSwing.HEAVY_AT)
 		var color := RobotModel.trim_color(Net.player_color(peer_id))
 		MeleeFx.slam(get_parent().get_parent(), at, color, power)
+		if robot and robot.karate_gear:   # Karate: the aura bursts out of the fist across the floor
+			MeleeFx.karate_slam(get_parent().get_parent(), at, color)
+			KarateGear.flare(robot.karate_gear, 1.0)
 		for i in mini(points.size(), 4):
 			MeleeFx.hit(get_parent().get_parent(), points[i], at + Vector3(0, 0.4, 0), color, power)
 	if rig:
@@ -943,13 +965,16 @@ func _watch_swings(delta: float) -> void:
 	if winding:
 		if not is_local:
 			_swing_side = RobotAnimInput.step_of(_anim.flags)   # (the wind-up says which blow is coming)
+			_heavy_pick = RobotAnimInput.pick_of(_anim.flags)
 		_seen_wind = _charge if is_local else maxf(_seen_wind, 0.0) + delta
 		var held := WeaponData.by_id(robot.weapon).charge_of(_seen_wind)
-		animator.wind(held, _swing_side)
+		animator.wind(held, _swing_side, _heavy_pick)
+		if WeaponData.look_of(robot.weapon) == "karate":
+			sounds.aura(held)   # the aura's hum swells with the wind-up
 		hand.cut()
 		stop_emote()
 		if view:
-			view.wind(held, _swing_side)
+			view.wind(held, _swing_side, _heavy_pick)
 		if _trail:
 			_trail.power = held   # (a mid-air wind-up already leaves a trail)
 	if _seen_swings < 0:
@@ -962,28 +987,65 @@ func _watch_swings(delta: float) -> void:
 			if DevArgs.sync_log and not is_local:
 				print("ANIM SWUNG %d %d %.2f %d" % [Net.my_id(), peer_id, power, RobotAnimInput.step_of(_anim.flags)])
 			_seen_side = _swing_side if is_local else RobotAnimInput.step_of(_anim.flags)
+			if not is_local:
+				_heavy_pick = RobotAnimInput.pick_of(_anim.flags)
 			_since_swing = 0.0
 			_shown_power = power
-			animator.swing(power, _seen_side)
+			animator.swing(power, _seen_side, _heavy_pick)
 			hand.cut()
 			stop_emote()
+			if animator.melee_swing().burst() and (visual.visible or rig):
+				_karate_burst(MeleeSwing.impact_time(robot.weapon, _seen_side, power, false, _heavy_pick))
 			if view:
-				view.swing(power, _seen_side)
+				view.swing(power, _seen_side, _heavy_pick)
 			if _trail:
 				_trail.power = power
 			var loud := lerpf(-5.0, 2.0, power)   # a wound-up swing whooshes louder, and the heavy blow deeper
 			var pitch := 0.84 if power >= MeleeSwing.HEAVY_AT else (1.05 if _seen_side % 2 == 0 else 1.12)
+			var swish := "swing_" + robot.weapon
+			if WeaponData.look_of(robot.weapon) == "karate":   # a kick or a spin has a whoosh of its own
+				var blow := MeleeSwing.blow_of(robot.weapon, _seen_side, power, animator.melee_swing().air() > 0.5, _heavy_pick)
+				if float(blow.get("turns", 0.0)) != 0.0:
+					swish = "karate_spin"
+					pitch = 1.0
+				elif str(blow.get("limb", "")) != "":
+					swish = "karate_kick_whoosh"
+					pitch = 1.0
 			if sounds.own:
-				var whoosh := Sound.play("swing_" + robot.weapon, loud, 0.05)
+				var whoosh := Sound.play(swish, loud, 0.05)
 				if whoosh:
 					whoosh.pitch_scale *= pitch
 			elif visual.visible:
-				var whoosh := Sound.play_at("swing_" + robot.weapon, global_position + Vector3(0, 1.3, 0), "move", loud, 0.05)
+				var whoosh := Sound.play_at(swish, global_position + Vector3(0, 1.3, 0), "move", loud, 0.05)
 				if whoosh:
 					whoosh.pitch_scale *= pitch
 		_seen_wind = -1.0
 	elif not winding:
 		_seen_wind = -1.0
+	if not winding:
+		sounds.aura(-1.0)
+
+
+## A palm blast (Karate): the aura bursts out ahead of the palms as they land.
+func _karate_burst(after: float) -> void:
+	await get_tree().create_timer(after).timeout
+	if not is_inside_tree() or not alive:
+		return
+	var forward := Vector3.FORWARD.rotated(Vector3.UP, input.yaw if is_local else _anim.yaw)
+	MeleeFx.karate_burst(get_parent().get_parent(), global_position + Vector3(0, 1.15, 0) + forward * 0.75, forward,
+		RobotModel.trim_color(Net.player_color(peer_id)))
+	if robot.karate_gear:
+		KarateGear.flare(robot.karate_gear, 1.0)
+
+
+## Karate: the sound of the last blow landing, by what it was (Sound plays it).
+func karate_hit_sound() -> String:
+	var swing := animator.melee_swing()
+	if swing.finisher():
+		return "karate_finisher"
+	if swing.kicking() != "":
+		return "karate_kick"
+	return "karate_jab" if _seen_side == 0 else "karate_cross"
 
 
 ## How wound up this player's last swing was, 0..1 (the hit sound goes by it).
@@ -1002,16 +1064,25 @@ func _on_melee_landed(attacker: int, weapon_id: String, points: PackedVector3Arr
 			_punch_roll += randf_range(-0.03, 0.03)
 		return
 	# Harder the more it was wound up: a longer freeze, more sparks, a bigger jolt.
-	var freeze := MeleeSwing.hit_stop_time(_shown_power)
+	var swing := animator.melee_swing()
+	var karate := WeaponData.look_of(weapon_id) == "karate"
+	var finisher := karate and swing.finisher()
+	var freeze := MeleeSwing.hit_stop_time(_shown_power) * (1.6 if finisher else 1.0)   # (the combo's last blow hangs a moment longer)
 	animator.hit_stop(freeze)
 	if view:
 		view.hit_stop(freeze)
-	var way := animator.melee_swing().travel()
+	if karate and robot.karate_gear:
+		KarateGear.flare(robot.karate_gear, 1.0 if finisher else 0.5)
+	var way := swing.travel()
 	if visual.visible or rig:
 		var from := global_position + Vector3(0, 1.3, 0)
 		var sweep := Vector3.RIGHT.rotated(Vector3.UP, input.yaw if is_local else _anim.yaw) * way.x + Vector3.UP * way.y
 		for i in mini(points.size(), 3):   # (into the arena, not among the players)
-			MeleeFx.hit(get_parent().get_parent(), points[i], from, RobotModel.trim_color(Net.player_color(peer_id)), _shown_power, sweep)
+			if karate:
+				MeleeFx.karate_hit(get_parent().get_parent(), points[i], from, RobotModel.trim_color(Net.player_color(peer_id)), _shown_power, sweep,
+					swing.kicking() != "", _seen_side, finisher)
+			else:
+				MeleeFx.hit(get_parent().get_parent(), points[i], from, RobotModel.trim_color(Net.player_color(peer_id)), _shown_power, sweep)
 	if rig:
 		var weight := lerpf(0.6, 2.2, _shown_power)
 		_punch += Vector2(-way.x * 0.02 + randf_range(-0.01, 0.01), way.y * 0.012 - 0.018) * weight
@@ -1907,7 +1978,7 @@ func _my_anim_flags() -> int:
 		weapon != null and weapon.is_reloading(), flip, motor.wall_jumps, _swings,
 		_kicks, _fly_kick > 0.0, motor.boosts, (_charge >= 0.0 or _blast_held >= 0.0) and alive, jetpack != null and jetpack.on and alive, _swing_side,
 		motor.state == MovementController.State.GRAPPLE and input.move.length() > 0.3,
-		RobotAnimInput.zip_of(motor.dove_in and motor.state == MovementController.State.GRAPPLE, motor.dove_side)) \
+		RobotAnimInput.zip_of(motor.dove_in and motor.state == MovementController.State.GRAPPLE, motor.dove_side), _heavy_pick) \
 		| (RobotAnimInput.ZOOMED_BIT if zoomed and alive else 0)   # (killcams zoom in with you)
 
 

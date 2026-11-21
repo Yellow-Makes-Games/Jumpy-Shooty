@@ -17,6 +17,7 @@ var _weapon := "sword"
 var _out := "."
 var _step := 1.0 / 240.0
 var _blows := ["a", "b", "heavy"]
+var _picks: Array = []   # each blow's pick (heavy2, air1: that move of the weapon's pool, see MeleeSwing.pick_of)
 var _close := false
 var _color := Color(0.95, 0.35, 0.25)
 var _character := "vanguard"
@@ -33,11 +34,15 @@ var _height := 0.0           # how far off the floor the robots are
 
 ## Which blow part `at` of the plan belongs to.
 func _blow_of(at: int) -> String:
+	return _blows[_index_of(at)]
+
+
+func _index_of(at: int) -> int:
 	var n := -1
 	for i in at + 1:
 		if _plan[i][1] == "wind":
 			n += 1
-	return _blows[clampi(n, 0, _blows.size() - 1)]
+	return clampi(n, 0, _blows.size() - 1)
 
 
 func _initialize() -> void:
@@ -57,6 +62,17 @@ func _initialize() -> void:
 		elif arg.begins_with("--color="):
 			var c := arg.substr(8).split_floats(",")
 			_color = Color(c[0], c[1], c[2])
+	for i in _blows.size():   # heavy2, air1: a move from the weapon's pool
+		var b: String = _blows[i]
+		var pick := 0
+		if b.begins_with("heavy") and b.length() > 5:
+			pick = MeleeSwing.pick_of(int(b.substr(5)), 0)
+			b = "heavy"
+		elif b.begins_with("air") and b.length() > 3:
+			pick = MeleeSwing.pick_of(0, int(b.substr(3)))
+			b = "air"
+		_blows[i] = b
+		_picks.append(pick)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.36, 0.39, 0.45)
@@ -166,13 +182,14 @@ func _advance(dt: float, run: bool) -> void:
 		_inp.yaw = robot.rotation.y
 		if landing:
 			MeleeFx.slam(root, robot.position, RobotModel.trim_color(_color), 1.0)
+		var pick: int = _picks[_index_of(_at)]
 		if run and part[1] == "wind":
-			animator.wind(data.charge_of(_t), part[2])
+			animator.wind(data.charge_of(_t), part[2], pick)
 			trail.power = data.charge_of(_t)
 		elif let_go:
 			var power := data.charge_of(_plan[_at - 1][0])
 			trail.power = power
-			animator.swing(power, part[2])
+			animator.swing(power, part[2], pick)
 			trail.power = power
 		animator.update(dt, _inp, robot.global_transform)
 		var limb := animator.melee_swing().kicking()
