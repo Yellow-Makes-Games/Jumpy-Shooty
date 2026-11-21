@@ -24,7 +24,9 @@ extends SceneTree
 ##    from the quad; bots have a crossing each way for every island that is up, and
 ##    none to or from one that is down;
 ##  - falling off kills: nothing to land on between or under the islands;
-##  - the labs' glass breaks, and no other glass does: also once the island has moved.
+##  - what breaks: the labs' glass in panes, the buildings' stone walls, floors and
+##    roofs in small pieces, each riding its island: also once the island has moved
+##    (tests/cirrus_destruction_test.gd: the marks, the rubble, and the mending).
 ## Run: godot --headless --fixed-fps 60 --path . --script tests/cirrus_test.gd
 
 const ID := "cirrus"
@@ -248,14 +250,14 @@ func _glass() -> void:
 		kinds[panel.kind] = true
 		if panel.get("frame") != null:
 			riding += 1
-	_expect(kinds.keys() == ["glass_lab"], "only the labs' glass breaks (%s)" % [kinds.keys()])
-	_expect(riding == d.panels.size() and riding >= 6, "every pane rides its island (%d panes)" % riding)
-	_expect(not map.palette.breakable.has("glass_window") and not map.palette.breakable.has("glass_sky"),
-		"the cafeteria's windows, the skylight and the dome's glass are not breakable kinds")
-	var pieces := map.collect_pieces()
-	var other := pieces.filter(func(p): return p.kind in ["glass_window", "glass_sky"] and p.solid)
-	_expect(other.size() >= 6 and other.all(func(p): return p.get("breakable", false) == false), "and each such pane is set never to break (%d)" % other.size())
-	var c := _breakable_cell()
+	var found := kinds.keys()
+	found.sort()
+	_expect(found == ["floor_tile", "floor_wood", "glass_lab", "glass_sky", "glass_window", "stone", "stone_warm"],
+		"the glass, the stone walls and the floors break (%s)" % [found])
+	_expect(riding >= 150 and riding < d.panels.size(), "the islands' ride with them, the quad's stand still (%d of %d)" % [riding, d.panels.size()])
+	var glass := d.panels.filter(func(p): return p.material == "glass")
+	_expect(glass.size() >= 12 and glass.all(func(p): return p.n == Vector3i.ONE), "glass goes a pane at a time (%d panes)" % glass.size())
+	var c := _breakable_cell("glass_lab")
 	_expect(c >= 0, "a lab pane can be shot")
 	if c >= 0:
 		var hit := _shoot_at(d.cell_center(c))
@@ -267,10 +269,10 @@ func _glass() -> void:
 		_expect(d.is_broken(c), "and a pistol shot's worth of damage breaks it")
 
 
-func _breakable_cell() -> int:
+func _breakable_cell(kind: String) -> int:
 	var d := map.destruction
 	for c in d.cells.size():
-		if not d.cells[c].protected and not d.is_broken(c):
+		if not d.cells[c].protected and not d.is_broken(c) and d.panels[d.cells[c].panel].kind == kind:
 			return c
 	return -1
 
@@ -291,7 +293,7 @@ func _glass_after_move() -> void:
 	_rest(LayoutEvent.pack(_pair("Labs", "Library"), LayoutEvent.Kind.FAR, 1, 1))
 	for i in 8:
 		await physics_frame
-	var c := _breakable_cell()
+	var c := _breakable_cell("glass_lab")
 	_expect(c >= 0, "there is still a whole pane")
 	if c < 0:
 		return

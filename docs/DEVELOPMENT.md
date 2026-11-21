@@ -191,8 +191,10 @@ Quick checks:
   kills;
 - Cirrus (`tests/cirrus_test.gd`, with `--fixed-fps 60`): spawn points and pickups, the
   pool of arrangements, the clock's timing and sounds, no writing, what crosses the gap,
-  a move (riders on an island that stays are carried, those on one that goes die), the
-  glass, bots' routes and crossings;
+  a move (riders on an island that stays are carried, those on one that goes die), what
+  breaks, bots' routes and crossings; and `tests/cirrus_destruction_test.gd`: walls
+  that break small on an island that has moved, marks and rubble that ride it, and an
+  island that comes back up mended;
 - Sky Island (`tests/sky_island_test.gd`): its moving parts, spawns and pickups; the
   bots' crossings join every island to every other; the navigation mesh's frame
   (`MapRoot.to_nav`); and the crossings themselves, done the way a bot does them, with
@@ -963,7 +965,7 @@ ceiling under a floor, a rug, a lamp strip, frosting on glass) break along with 
 whole block only keeps the spawn rule. The bots' navigation mesh is not rebuilt when
 something breaks. The code is `game/arena/map_destruction.gd`.
 
-**Fine destruction (the Construction Site, for now).** Tick **Fine Destruction** on a
+**Fine destruction (the Construction Site and Cirrus).** Tick **Fine Destruction** on a
 map's root and its breakable blocks break small in place of the 2 m squares; nothing
 else about making the map changes. What that turns on, a layer at a time:
 
@@ -983,8 +985,33 @@ else about making the map changes. What that turns on, a layer at a time:
 - *Rubble* (`map_debris.gd`): a piece that breaks throws chunks of its own material,
   away from the shot or blast that broke it, with bits and dust; chunks land, lie where
   they fell and fall again if the floor under them goes. At most 120 in the air and
-  160 lying. Looks only as well: each copy throws its own.
-- *Buildings that fall* (`map_collapse.gd`, below).
+  160 lying of each kind. Looks only as well: each copy throws its own.
+- *Buildings that fall* (`map_collapse.gd`, below). The Construction Site only so far.
+
+A thin band that runs along the faces of several breakable blocks (a slab edge, a band
+of colour round a building, across the stretches of wall between its windows) is
+shared out among them, each taking the length that lies on it, so it breaks with the
+wall behind it (`MapDestruction._share_band`). What lies over an opening or past a
+corner is drawn as before.
+
+**On something that moves** (a MapMover or a MapIsland: Cirrus's building islands) all
+of it rides along. A breakable block inside a mover becomes a panel in the mover's own
+frame: its collision and its meshes are children of the mover's body, drawn with the
+pattern measured from the mover like the rest of it. A mark on a mover or on one of
+its walls goes into a batch that hangs off the mover's body, made when it is first
+marked (`BulletMarks.frame_of` says what a ray hit is part of); rubble that comes to
+rest on a mover goes into a lot that hangs off it too. So a shot-up island keeps its
+holes, marks and rubble wherever the clock sends it. Other things that move (a
+spinner, a door) still take no marks.
+
+**A MapIsland comes back mended.** An island that goes below the map (see "Maps of
+flying islands") is whole again when it rises: broken pieces back with all their
+health, no marks, no rubble (`MapRoot.mend`). Untick **Mends** on the island to keep
+its damage all match. The host says when (`Match.mend_due` and `_mend`, sent in step
+with the breaks, so a copy whose island gets there a moment sooner or later still ends
+with the same walls); the island asks as it is un-parked on its way up, at least a
+whole turn after it went down. While it is parked nothing of it can be hit. What never
+goes down (Cirrus's quad, every island in the team modes) keeps its damage.
 
 **A building that can come down.** Add a **MapFrame** node (`map_frame.gd`) to a map
 with fine destruction, at the map's origin, and tell it where the building's frame is:
@@ -1293,6 +1320,19 @@ It was laid out by `python3 tools/arena/build_arena_maps.py cirrus` (the layout 
 generated arenas the scene is what you edit from here on, and running the script again
 **overwrites hand edits**. After moving things, `godot --headless --path . --fixed-fps 60
 --script tests/cirrus_test.gd` checks it.
+
+**What breaks.** Cirrus has fine destruction (see "Fine destruction" above). The
+buildings' stone walls (`stone`), their roof slabs and the lower walls inside
+(`stone_warm`), the wooden and tiled upper floors (`floor_wood`, `floor_tile`) break
+small; the Labs' glass, the windows and the skylight go a pane at a time. The islands
+themselves (lawn, deck, rock), the stairs, the porch columns, the domes and the clock
+tower (its walls are 0.6 m thick, too thick to be a breakable panel) do not break.
+Which blocks break is the **Breakable** tick on each block; `python3
+tools/arena/cirrus_breakable.py` ticked them (every solid, drawn, thin box of those
+kinds with a face of 7 m² or more) and can be run again after adding walls. How tough
+each kind is sits in the palette's **Breakable** table. An island that goes down
+comes back mended; the quad's damage stays. `tests/cirrus_destruction_test.gd` checks
+all of it on an island that has moved.
 
 Things to keep true when editing it:
 
@@ -1757,8 +1797,10 @@ Three node kinds, all in `game/arena/`, none of them tied to Cirrus:
   degrees round, so many metres up, so many metres out) or park it far below the map,
   hidden and with nothing to bump into. In the game it is one moving body, whatever is
   in it: blocks, spawn points, weapon and power-up spots, grapple points, jump links
-  and breakable glass all ride along. `up` says people can be on it, `doomed` that it
-  goes down at the next move.
+  and breakable walls, floors and glass all ride along, with their bullet marks and
+  rubble. `up` says people can be on it, `doomed` that it goes down at the next move.
+  With **Mends** ticked (it is by default) it comes back up whole after it has been
+  parked.
 - **LayoutEvent** (`layout_event.gd`, a MapEvent, no terminal needed): a clock that runs
   for as long as a match does. Each turn: **Hold Time** (60 s), a tick or a tock every
   second (quiet everywhere, a little louder near **Tick From**); then the bell and

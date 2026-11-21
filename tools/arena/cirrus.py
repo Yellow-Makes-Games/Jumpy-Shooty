@@ -140,7 +140,9 @@ MATERIAL = {
     "statue": "metal", "dome_copper": "metal", "glass_lab": "glass", "glass_window": "glass", "glass_sky": "glass",
     "glass_ware": "glass", "ivy": "dirt", "leaves_dark": "dirt", "pot": "concrete", "frame": "wood",
 }
-BREAKABLE = {"glass_lab": 25}   # the labs' glass walls: a pistol shot shatters a pane. No other glass breaks.
+# How tough each kind that can break is. (The scene has since been given fine destruction:
+# tools/arena/cirrus_breakable.py ticked Breakable on its walls, floors and panes.)
+BREAKABLE = {"floor_tile": 260, "floor_wood": 110, "glass_lab": 25, "glass_sky": 25, "glass_window": 25, "stone": 180, "stone_warm": 220}
 
 
 def polar(r, deg, y=0.0):

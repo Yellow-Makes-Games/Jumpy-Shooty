@@ -31,6 +31,9 @@ const GROUP := "map_islands"
 ## island with this ticked does not count toward that.
 @export var over_ground := false
 
+## It is mended while it is parked below the map: it comes back up whole.
+@export var mends := true
+
 ## MapRoot moves this node along with the body it builds (see MapRoot.update_movers).
 var carries_nodes := true
 ## Where it comes from and where it goes: (degrees round the pivot, metres up, metres out).
@@ -88,7 +91,8 @@ func pose_of(pose: Vector3) -> Transform3D:
 
 
 ## Parked: far below the map, not drawn and not there to bump into (nor for the bots'
-## navigation mesh to be worked out over).
+## navigation mesh to be worked out over). It comes back mended: what was broken, marked
+## or left lying on it while it was up last is as it was built (see MapRoot.mend()).
 func set_parked(on: bool) -> void:
 	if on == _parked or _body == null:
 		return
@@ -96,6 +100,13 @@ func set_parked(on: bool) -> void:
 	_body.visible = not on
 	if _body is CollisionObject3D:
 		(_body as CollisionObject3D).collision_layer = 0 if on else 1
+	for child in _body.get_children():   # (its breakable walls are bodies of their own)
+		if child is CollisionObject3D:
+			(child as CollisionObject3D).collision_layer = 0 if on else 1
+	if not on and mends:
+		var map := MapRoot.of(self)
+		if map:
+			map.mend_due(_body)
 
 
 func is_parked() -> bool:

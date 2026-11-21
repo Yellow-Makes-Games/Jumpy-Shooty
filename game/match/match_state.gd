@@ -1209,6 +1209,24 @@ func _breaks(cells: PackedInt32Array, stages: PackedByteArray) -> void:
 			print("BROKEN_STATE %s" % d.state_key())
 
 
+## Mover `index` of the map is due to be mended (an island on its way back up, see
+## MapRoot.mend_due): the host says so, and every copy mends it on its word, in step with
+## the breaks it sends. (Each copy's own island gets there a moment apart.)
+func mend_due(index: int) -> void:
+	if Net.is_host() and _breakables():
+		_mend.rpc(index)
+
+
+@rpc("authority", "call_local", "reliable")
+func _mend(index: int) -> void:
+	var d := _breakables()
+	if d == null or index < 0 or index >= d.root.movers.size() or d.root.movers[index].body == null:
+		return
+	d.root.mend(d.root.movers[index].body)
+	if DevArgs.sync_log:
+		print("MENDED %d %s" % [index, d.state_key()])
+
+
 ## A copy that has just built the arena asks the host what is already broken.
 func request_breaks() -> void:
 	if not Net.is_host():

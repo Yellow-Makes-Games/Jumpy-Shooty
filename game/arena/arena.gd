@@ -46,6 +46,7 @@ func _ready() -> void:
 	layout.build()
 	if layout.destruction:
 		layout.destruction.cells_changed.connect(_on_cells_changed)
+		layout.mender = Match.mend_due
 	if layout.collapse:
 		layout.collapse.changed.connect(_level_gone)
 		layout.collapse.news_out.connect(Match.collapse_news)
@@ -514,10 +515,17 @@ func _on_parts_settled() -> void:
 ## (host, with bots) redo the bots' map of where they can walk.
 func _on_cells_changed(cells: PackedInt32Array, stages: PackedByteArray) -> void:
 	var gone: Array = []
+	var mended := false
 	for i in cells.size():
 		if stages[i] >= MapDestruction.BROKEN:
 			gone.append(layout.destruction.cell_box(cells[i]).grow(0.15))
+		elif stages[i] == 0:
+			mended = true
 	_level_gone(gone)
+	if mended and Net.is_host() and has_node("Navigation"):
+		# (An island came back up mended, see MapRoot.mend(): what was baked with holes
+		# in its walls no longer fits. It is still moving: it is baked again when it stops.)
+		_nav_by_layout.clear()
 
 
 ## Parts of the level went (`gone`: their boxes), or changed for good (a building that

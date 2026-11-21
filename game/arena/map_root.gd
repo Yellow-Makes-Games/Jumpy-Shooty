@@ -142,6 +142,8 @@ var shifting := false:
 ## The bots' navigation mesh is being redone for where the parts now are (the arena
 ## says so): bots keep standing still.
 var nav_pending := false
+## Who mends a mover that is due (see mend_due): called with its number in `movers`.
+var mender := Callable()
 ## The parts are about to move (a LayoutEvent's bell has gone): an island that is about
 ## to go down (MapIsland.doomed) is no place to be. Bots get off it and keep off.
 var warning := false
@@ -699,6 +701,28 @@ func _collect(node: Node, xf: Transform3D, pieces: Array, spawn_list: Array, mov
 		_collect(child, at, pieces, spawn_list, mover)
 		if in_frame:
 			_framing -= 1
+
+
+## A mover's body is due to be mended (an island on its way back up: see
+## MapIsland.set_parked). In a match `mender` is set, and the host says when (see
+## Match.mend_due): every copy then mends it at the same point among the breaks it is
+## told of, whenever its own island got there. With no match, it is mended here and now.
+func mend_due(body: Node3D) -> void:
+	if mender.is_valid():
+		mender.call(int(body.get_meta("mover", -1)))
+	else:
+		mend(body)
+
+
+## Everything that rides `body` (a mover's) is as it was built: its broken walls whole,
+## no marks on it, no rubble lying on it.
+func mend(body: Node3D) -> void:
+	if destruction:
+		destruction.repair(body)
+	if marks:
+		marks.clear_on(body)
+	if debris:
+		debris.clear_on(body)
 
 
 ## A mover's blocks as one moving body (collision for the solid ones) and meshes.

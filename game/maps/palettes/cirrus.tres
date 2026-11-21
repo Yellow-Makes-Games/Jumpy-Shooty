@@ -118,7 +118,13 @@ surface_scale = 2
 surface_strength = 0.45
 roughness = 0.88
 breakable = Dictionary[String, float]({
-"glass_lab": 25.0
+"floor_tile": 260.0,
+"floor_wood": 110.0,
+"glass_lab": 25.0,
+"glass_sky": 25.0,
+"glass_window": 25.0,
+"stone": 180.0,
+"stone_warm": 220.0
 })
 material = Dictionary[String, String]({
 "bark": "wood",

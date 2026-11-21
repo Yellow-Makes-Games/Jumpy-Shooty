@@ -60,6 +60,7 @@ CHECKS=(
   "halcyon|--script tests/halcyon_test.gd"
   "terminal|--script tests/terminal_test.gd"
   "cirrus|--fixed-fps 60 --script tests/cirrus_test.gd"
+  "cirrus_destruction|--fixed-fps 60 --script tests/cirrus_destruction_test.gd"
   "gravity|--fixed-fps 60 --script tests/gravity_test.gd"
   "lift|--fixed-fps 60 --script tests/lift_test.gd"
   "empyrean|--script tests/empyrean_test.gd"
