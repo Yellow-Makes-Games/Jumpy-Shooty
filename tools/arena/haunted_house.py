@@ -177,6 +177,7 @@ class HauntedMap(Map):
         "prop": "res://game/arena/haunt_prop.gd",
         "event": "res://game/arena/haunt_event.gd",
         "ghost": "res://game/arena/map_ghost.gd",
+        "item": "res://game/arena/map_item_spawn.gd",
     }
 
     def __init__(self, *a, **kw):
@@ -1984,6 +1985,15 @@ PICKUPS = [
     ((9.5, U, 9.8), "axe"), ((-8.0, U, -6.0), "dagger"), ((12.8, U, -7.4), "burst_rifle"), ((0.0, U, -3.6), "flare_gun"),
     ((0.0, U, 10.0), "slug_shotgun"),
 ]
+# Deathmatch power-ups (MapItemSpawn): double damage on the gallery's north-west corner
+# (the middle, over the Foyer), uber at the far end of the Study; health in the rooms
+# round them. Each at least 3 m from a spawn point and 2.5 m from a weapon pickup, and
+# clear of the furniture in every layout.
+POWERUPS = [
+    ((-4.25, U, 0.0), "damage"), ((10.0, U, -9.5), "uber"),
+    ((2.5, G, -6.0), "health_medium"), ((12.0, G, 5.5), "health_medium"), ((-11.0, G, 1.5), "health_medium"),
+    ((-14.0, U, -5.0), "health_small"), ((7.5, U, 4.5), "health_small"), ((-13.5, U, 7.0), "health_small"),
+]
 
 
 def players(m):
@@ -1993,6 +2003,10 @@ def players(m):
     for pos, w in PICKUPS:
         m.weapon(pos, w)
         m.weapon_pts.append(pos)
+    m.node("ItemSpawns", ".", None, [])
+    for i, (pos, item) in enumerate(POWERUPS):
+        m.node("%s%d" % (item, i + 1), "ItemSpawns", "item", [("transform", xform(IDENTITY, pos)), ("item", '"%s"' % item)],
+               type_="Marker3D")
 
 
 def check(m):

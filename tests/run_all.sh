@@ -51,6 +51,7 @@ CHECKS=(
   "hud_settings|--script tests/hud_settings_test.gd"
   "graphics_settings|--script tests/graphics_settings_test.gd"
   "deathmatch|--script tests/deathmatch_test.gd"
+  "power_ups|--script tests/power_up_spots_test.gd"
   "destruction|--fixed-fps 60 --script tests/destruction_test.gd"
   "collapse|--fixed-fps 60 --script tests/collapse_test.gd"
   "block_settings|--script tests/block_settings_test.gd"

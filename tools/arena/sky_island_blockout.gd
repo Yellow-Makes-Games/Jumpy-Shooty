@@ -123,12 +123,28 @@ const PICKUPS := {
 	"Terrace": [["railgun", 4.5, 6.0, -1.4], ["axe", -6.0, 0.0, 12.0]],
 }
 
+## Deathmatch power-ups (MapItemSpawn): island -> [[item, x, y, z], ...] in the island's
+## frame, as PICKUPS. Double damage on the Keep's drum stump (inside the Keep, 2.4 m up)
+## on the Hearth, the island you need boots or a long jump to reach; uber at the east end
+## of the Citadel's wall walk, past the low breach; health on every island. Each at
+## least 3 m from a spawn point and 2.5 m from a weapon pickup.
+const POWERUPS := {
+	"Hearth": [["damage", -9.5, 2.4, 6.5], ["health_medium", 6.0, 0.0, 4.5]],
+	"Shelf": [["health_medium", -2.0, 0.0, 4.0]],
+	"Bluff": [["health_medium", -6.5, 0.0, 1.0]],
+	"Spire": [["health_small", -3.0, 0.0, -6.0]],
+	"Citadel": [["uber", 10.5, 5.0, -2.8], ["health_small", 7.0, 0.0, 9.0]],
+	"Garden": [["health_small", -1.5, 0.0, 2.0]],
+	"Terrace": [["health_medium", 1.5, 0.0, 3.0]],
+}
+
 var scn: Node3D
 var block_script: Script
 var spawn_script: Script
 var mover_script: Script
 var link_script: Script
 var weapon_script: Script
+var item_script: Script
 var rng := RandomNumberGenerator.new()
 ## island -> its moving group; island -> [[x, z, radius], ...]: what stands on its deck
 ## (filled in once the islands are built), for keeping crossings and pickups clear.
@@ -154,6 +170,7 @@ func _init() -> void:
 	mover_script = load("res://game/arena/map_mover.gd")
 	link_script = load("res://game/arena/map_jump_link.gd")
 	weapon_script = load("res://game/arena/map_weapon_spawn.gd")
+	item_script = load("res://game/arena/map_item_spawn.gd")
 	scn = (load("res://game/arena/map_root.gd") as Script).new()
 	rng.seed = 7007
 	deco.seed = 4242
@@ -185,6 +202,9 @@ func _init() -> void:
 	for name in PICKUPS:
 		for p in PICKUPS[name]:
 			pickup(island_nodes[name], p[0], V(p[1], p[2], p[3]))
+	for name in POWERUPS:
+		for p in POWERUPS[name]:
+			powerup(island_nodes[name], p[0], V(p[1], p[2], p[3]))
 	for pair in STONES:
 		stepping_stones(crossings, pair[0], pair[1])
 	hearth_gaps()
@@ -202,9 +222,10 @@ func _init() -> void:
 	var err := ps.pack(scn)
 	if err == OK:
 		err = ResourceSaver.save(ps, OUT)
-	print("BLOCKOUT: saved %s (%s): %d blocks, %d spawns, %d movers, %d weapon pickups, %d bot crossings" % [OUT, error_string(err),
+	print("BLOCKOUT: saved %s (%s): %d blocks, %d spawns, %d movers, %d weapon pickups, %d power-ups, %d bot crossings" % [OUT, error_string(err),
 		scn.find_children("*", "MapBlock", true, false).size(), scn.find_children("*", "MapSpawn", true, false).size(),
-		scn.find_children("*", "MapMover", true, false).size(), scn.find_children("*", "MapWeaponSpawn", true, false).size(), links])
+		scn.find_children("*", "MapMover", true, false).size(), scn.find_children("*", "MapWeaponSpawn", true, false).size(),
+		scn.find_children("*", "MapItemSpawn", true, false).size(), links])
 	scn.free()
 	quit(0 if err == OK else 1)
 
@@ -1481,6 +1502,21 @@ func pickup(island: Node3D, weapon: String, at: Vector3) -> void:
 	w.owner = scn
 	w.position = at
 	clear_of(island, at, 2.0)
+
+
+## A Deathmatch power-up spot on an island (`at` in its frame): it rides the island's bob.
+## (Not kept clear of the foliage: that would draw all the dressing afresh. The spots
+## were picked clear of it.)
+func powerup(island: Node3D, item: String, at: Vector3) -> void:
+	var holder := island.get_node_or_null("ItemSpawns")
+	if holder == null:
+		holder = group(island, "ItemSpawns")
+	var m: Marker3D = item_script.new()
+	m.name = item.to_pascal_case()
+	m.set("item", item)
+	holder.add_child(m, true)
+	m.owner = scn
+	m.position = at
 
 
 ## A node's transform in `top`'s frame (the scene is not in a tree yet, so no globals).

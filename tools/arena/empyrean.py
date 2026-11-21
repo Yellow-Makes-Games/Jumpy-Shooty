@@ -172,6 +172,7 @@ class EmpyreanMap(CirrusMap):
         "orbit": "res://game/arena/orbit_event.gd", "drone": "res://game/arena/map_drone.gd",
         "magic": "res://game/arena/map_magic.gd", "stream": "res://game/arena/map_magic_stream.gd",
         "field": "res://game/arena/map_magic_field.gd", "ambient": "res://game/arena/map_ambient_sound.gd",
+        "item": "res://game/arena/map_item_spawn.gd",
     }
 
     def pb(self, g, name, kind, r0, r1, deg, width, y0, y1, **kw):
