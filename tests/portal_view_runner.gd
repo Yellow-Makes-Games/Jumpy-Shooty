@@ -57,6 +57,8 @@ func run() -> void:
 	_check("a live portal's plain face is for portal cameras only", a._disc.layers == 1 << (Portal.FLAT_LAYER - 1))
 	_check("a lone one's face is for everyone", portals.get_portal(9, 0)._disc.layers == 1)
 	_check("the main camera does not see plain faces of live portals", not cam.get_cull_mask_value(Portal.FLAT_LAYER))
+	var empty: Compositor = a._view_cam.compositor
+	_check("a portal view runs no compositor effects (the main view's CMAA2 goes over it)", empty != null and empty.compositor_effects.is_empty())
 	var vm := a._view_cam.cull_mask
 	_check("portal cameras see the plain faces", vm & (1 << (Portal.FLAT_LAYER - 1)) != 0)
 	_check("...and never a window", vm & (1 << (Portal.VIEW_LAYER - 1)) == 0)

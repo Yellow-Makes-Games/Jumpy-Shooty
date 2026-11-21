@@ -537,6 +537,7 @@ func _make_view() -> void:
 	_view_cam = Camera3D.new()
 	_view_cam.keep_aspect = Camera3D.KEEP_HEIGHT
 	_view_cam.attributes = CameraAttributesPractical.new()   # exposure 1, no blur: the main view does those
+	_view_cam.compositor = Compositor.new()   # none: the world's CMAA2 (GraphicsQuality.use_cmaa2) is the main view's
 	_view.add_child(_view_cam)
 	_view_cam.current = true
 	_window_mat.set_shader_parameter("view", _view.get_texture())

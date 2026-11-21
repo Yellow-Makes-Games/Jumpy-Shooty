@@ -14,6 +14,7 @@ func run() -> void:
 	_check_presets()
 	_check_clean()
 	_check_viewport()
+	_check_cmaa2()
 	_check_environment()
 	_check_map()
 	await _check_settings_tab()
@@ -78,6 +79,65 @@ func _check_viewport() -> void:
 	_expect(view.scaling_3d_mode == Viewport.SCALING_3D_MODE_BILINEAR, "full size: nothing to stretch")
 	_expect(view.scaling_3d_mode != Viewport.SCALING_3D_MODE_FSR2, "never FSR 2 (it trails)")
 	view.queue_free()
+
+
+## CMAA2 (Cmaa2Effect): a Screen-space AA choice of its own, run as a compositor effect
+## on the viewport's world. (Headless, the effect is never drawn: this is the plumbing.)
+func _check_cmaa2() -> void:
+	print("  cmaa2")
+	_expect(GraphicsQuality.SCREEN_AA_NAMES.has("cmaa2"), "CMAA2 is in the Screen-space AA drop-down")
+	_expect(GraphicsQuality.clean({"screen_aa": "cmaa2"}).screen_aa == "cmaa2", "a saved CMAA2 is kept")
+	for id in GraphicsQuality.PRESETS:
+		_expect(GraphicsQuality.preset(id).screen_aa != "cmaa2", "%s does not use CMAA2" % id)
+	var picks := GraphicsQuality.preset("high")
+	picks.screen_aa = "cmaa2"
+	_expect(GraphicsQuality.matching(picks) == "custom", "picking CMAA2 makes it Custom")
+
+	var view := SubViewport.new()
+	view.own_world_3d = true
+	add_child(view)
+	GraphicsQuality.apply_viewport(view, picks, -1.0)
+	var fx := GraphicsQuality.cmaa2_of(view)
+	_expect(view.screen_space_aa == Viewport.SCREEN_SPACE_AA_DISABLED, "CMAA2: Godot's own screen-space AA is off")
+	_expect(view.msaa_3d == Viewport.MSAA_4X, "and MSAA is left as picked")
+	_expect(fx != null and fx.enabled, "and the viewport's world has the CMAA2 effect")
+	_expect(fx != null and fx.effect_callback_type == CompositorEffect.EFFECT_CALLBACK_TYPE_POST_TRANSPARENT and fx.access_resolved_color,
+		"after transparent things, before tonemapping, on the resolved colour (MSAA)")
+	GraphicsQuality.apply_viewport(view, picks, -1.0)
+	_expect(GraphicsQuality.cmaa2_of(view) == fx, "applying again keeps the same effect (no second one)")
+
+	var other := SubViewport.new()
+	other.own_world_3d = true
+	add_child(other)
+	GraphicsQuality.apply_viewport(other, picks, -1.0)
+	_expect(GraphicsQuality.cmaa2_of(other) != null and GraphicsQuality.cmaa2_of(other) != fx, "each world has its own (its buffers fit its size)")
+	var plain := SubViewport.new()   # like the saved killcam video's: its own world, never given the picks
+	plain.own_world_3d = true
+	add_child(plain)
+	_expect(GraphicsQuality.cmaa2_of(plain) == null, "a world nobody picked CMAA2 for has none")
+
+	var gone: WeakRef = weakref(fx)
+	fx = null
+	picks.screen_aa = "smaa"
+	GraphicsQuality.apply_viewport(view, picks, -1.0)
+	_expect(view.screen_space_aa == Viewport.SCREEN_SPACE_AA_SMAA and GraphicsQuality.cmaa2_of(view) == null, "back to SMAA: the effect is off")
+	_expect(gone.get_ref() == null, "and freed (with its GPU buffers)")
+	_expect(GraphicsQuality.cmaa2_of(other) != null, "other worlds keep theirs")
+	picks.screen_aa = "cmaa2"
+	GraphicsQuality.apply_viewport(view, picks, -1.0)
+	_expect(GraphicsQuality.cmaa2_of(view) != null, "and on again")
+
+	# The game window, through Settings (as Apply does).
+	var keep: String = Settings.screen_aa
+	Settings.screen_aa = "cmaa2"
+	Settings._apply_graphics()
+	_expect(get_tree().root.screen_space_aa == Viewport.SCREEN_SPACE_AA_DISABLED and GraphicsQuality.cmaa2_of(get_tree().root) != null,
+		"the game window takes CMAA2 from Settings")
+	Settings.screen_aa = keep
+	Settings._apply_graphics()
+	_expect((GraphicsQuality.cmaa2_of(get_tree().root) == null) == (keep != "cmaa2"), "and lets it go")
+	for v in [view, other, plain]:
+		v.queue_free()
 
 
 func _check_environment() -> void:

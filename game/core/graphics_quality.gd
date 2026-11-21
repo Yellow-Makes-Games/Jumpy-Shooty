@@ -13,7 +13,7 @@ extends RefCounted
 ## Nothing here blurs or smears the picture: no TAA or FSR 2 (both trail behind fast
 ## movers), no motion blur, no depth of field.
 
-## Picks: msaa (0, 2, 4, 8), screen_aa ("off", "fxaa", "smaa"), render_scale (0.5..1),
+## Picks: msaa (0, 2, 4, 8), screen_aa ("off", "fxaa", "smaa", "cmaa2"), render_scale (0.5..1),
 ## fsr_sharpness (0 sharpest..2 softest), shadows ("low".."ultra"), ao ("off", "on",
 ## "high"), glow (bool), sky_motion (bool: the moving sky; off, the sky engine shows a
 ## still picture of it, see SkyRig).
@@ -25,7 +25,7 @@ const PRESETS := {
 const QUALITY_NAMES := {"low": "Low", "medium": "Medium", "high": "High", "custom": "Custom"}
 
 const MSAA_NAMES := {0: "Off", 2: "2x", 4: "4x", 8: "8x"}
-const SCREEN_AA_NAMES := {"off": "Off", "fxaa": "FXAA (fast, a little soft)", "smaa": "SMAA (sharper)"}
+const SCREEN_AA_NAMES := {"off": "Off", "fxaa": "FXAA (fast, a little soft)", "smaa": "SMAA (sharper)", "cmaa2": "CMAA2 (fast, sharp)"}
 const SHADOW_NAMES := {"low": "Low", "medium": "Medium", "high": "High", "ultra": "Ultra"}
 const AO_NAMES := {"off": "Off", "on": "On", "high": "High (with light bounce)"}
 
@@ -38,7 +38,9 @@ const SHADOWS := {
 }
 
 const MSAA := {0: Viewport.MSAA_DISABLED, 2: Viewport.MSAA_2X, 4: Viewport.MSAA_4X, 8: Viewport.MSAA_8X}
-const SCREEN_AA := {"off": Viewport.SCREEN_SPACE_AA_DISABLED, "fxaa": Viewport.SCREEN_SPACE_AA_FXAA, "smaa": Viewport.SCREEN_SPACE_AA_SMAA}
+## (CMAA2 is not one of Godot's own: Godot's is off and use_cmaa2 puts ours on.)
+const SCREEN_AA := {"off": Viewport.SCREEN_SPACE_AA_DISABLED, "fxaa": Viewport.SCREEN_SPACE_AA_FXAA, "smaa": Viewport.SCREEN_SPACE_AA_SMAA,
+	"cmaa2": Viewport.SCREEN_SPACE_AA_DISABLED}
 
 ## Specular anti-aliasing: keeps shiny edges from sparkling as you move (every preset).
 const ROUGHNESS_LIMIT_AMOUNT := 0.4
@@ -98,6 +100,7 @@ static func clean(picks: Dictionary) -> Dictionary:
 static func apply_viewport(view: Viewport, picks: Dictionary, scale: float = 1.0) -> void:
 	view.msaa_3d = MSAA.get(int(picks.msaa), Viewport.MSAA_4X)
 	view.screen_space_aa = SCREEN_AA.get(str(picks.screen_aa), Viewport.SCREEN_SPACE_AA_SMAA)
+	use_cmaa2(view, str(picks.screen_aa) == "cmaa2")
 	view.use_debanding = true
 	if scale >= 0.0:
 		var total := clampf(scale * float(picks.render_scale), 0.25, 1.0)
@@ -107,6 +110,44 @@ static func apply_viewport(view: Viewport, picks: Dictionary, scale: float = 1.0
 		view.fsr_sharpness = float(picks.fsr_sharpness)
 	var shadow: Array = SHADOWS.get(str(picks.shadows), SHADOWS.high)
 	view.positional_shadow_atlas_size = shadow[2]
+
+
+## CMAA2 on or off for what a viewport draws (Cmaa2Effect). Godot runs compositor effects
+## for a world (its WorldEnvironment's compositor) or a camera, not a viewport, so this
+## puts the effect on the viewport's own world straight through the RenderingServer, the
+## way a WorldEnvironment would: the game window's world, and each menu picture's and the
+## results screen killcam's own one. Not through the maps' WorldEnvironments: those are
+## also built in the saved killcam video's world, which keeps its own fixed anti-aliasing,
+## and the menu pictures' worlds are never given the player's environment picks.
+##
+## The portal views draw the game window's world too, with no anti-aliasing of their own
+## (the window's goes over them): their cameras carry an empty Compositor, which Godot
+## takes over the world's. Nothing in the game gives a WorldEnvironment a compositor; one
+## that did would take the world's over from this one.
+##
+## Off, the effect is dropped (it is held in the world's metadata) and with it its GPU
+## memory; on again makes a new one.
+static func use_cmaa2(view: Viewport, on: bool) -> void:
+	var world := view.find_world_3d()
+	if world == null or world.has_meta("gq_cmaa2") == on:
+		return
+	if on:
+		var compositor := Compositor.new()
+		var effects: Array[CompositorEffect] = [Cmaa2Effect.new()]
+		compositor.compositor_effects = effects
+		world.set_meta("gq_cmaa2", compositor)
+		RenderingServer.scenario_set_compositor(world.scenario, compositor.get_rid())
+	else:
+		RenderingServer.scenario_set_compositor(world.scenario, RID())
+		world.remove_meta("gq_cmaa2")
+
+
+## The CMAA2 effect on a viewport's world, or null (see use_cmaa2).
+static func cmaa2_of(view: Viewport) -> Cmaa2Effect:
+	var world := view.find_world_3d()
+	if world == null or not world.has_meta("gq_cmaa2"):
+		return null
+	return (world.get_meta("gq_cmaa2") as Compositor).compositor_effects[0] as Cmaa2Effect
 
 
 ## Settings the renderer keeps for every viewport: shadow detail, ambient occlusion
