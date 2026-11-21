@@ -58,21 +58,49 @@ func run() -> void:
 	_check(spaced_1 > Blink.RANGE - 1.5 and spaced_2 > Blink.RANGE - 1.5, "two blinks a second apart both go the full range (%.1f m, %.1f m)" % [spaced_1, spaced_2])
 	me.blink.reset()
 
-	# --- Blink at a wall: stops short of it.
-	var wall := _wall_spot(me)
-	_check(not wall.is_empty(), "found a wall to blink at")
-	if not wall.is_empty():
-		me.teleport(wall[0], 0.0)
-		await _physics(20)
-		me.input.mobility_dir = wall[1]
-		me.input.grapple_pressed = true
-		await _physics(2)
-		var to_wall: float = wall[2]
-		var gone := Vector2(me.global_position.x - wall[0].x, me.global_position.z - wall[0].z).length()
-		_check(gone < to_wall and gone > to_wall - 1.6, "a blink at a wall %.1f m away stops short of it (%.1f m)" % [to_wall, gone])
-		var space := me.get_world_3d().direct_space_state
-		var q := PhysicsRayQueryParameters3D.create(wall[0] + Vector3(0, 1, 0), me.global_position + Vector3(0, 1, 0), 1, [me.get_rid()])
-		_check(space.intersect_ray(q).is_empty(), "...and on this side of it")
+	# --- Through walls: a wall put up on the open floor, 4 m ahead.
+	var wall := StaticBody3D.new()
+	var wall_shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	wall_shape.shape = box
+	wall.add_child(wall_shape)
+	Net.arena.add_child(wall)
+	var side: Vector3 = (open[2] as Vector3).cross(Vector3.UP).normalized()
+	var to_wall := 4.0
+	# A thin one: you come out the far side, the full range away.
+	box.size = Vector3(6.0, 5.0, 0.5)
+	wall.global_transform = Transform3D(Basis(side, Vector3.UP, -open[2]), open[0] + open[2] * (to_wall + 0.25) + Vector3(0, 2.5, 0))
+	me.teleport(open[0], open[1])
+	me.blink.reset()
+	await _physics(20)
+	var through := await _blink(me, open[2])
+	_check(through > Blink.RANGE - 1.5, "a blink at a thin wall %.0f m away goes through it, its full range (%.1f m)" % [to_wall, through])
+	_check(me.global_position.y > open[0].y - 0.5, "...and lands on the floor on the far side, not under it")
+	# One thicker than a blink's reach: no open ground past it, so you stop short.
+	box.size = Vector3(6.0, 5.0, 30.0)
+	wall.global_transform = Transform3D(Basis(side, Vector3.UP, -open[2]), open[0] + open[2] * (to_wall + 15.0) + Vector3(0, 2.5, 0))
+	me.teleport(open[0], open[1])
+	me.blink.reset()
+	await _physics(20)
+	var gone := await _blink(me, open[2])
+	_check(gone < to_wall and gone > to_wall - 1.6, "a wall thicker than the reach: it stops short of it (%.1f m from %.0f m)" % [gone, to_wall])
+	var space := me.get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(open[0] + Vector3(0, 1, 0), me.global_position + Vector3(0, 1, 0), 1, [me.get_rid()])
+	_check(space.intersect_ray(q).is_empty(), "...and on this side of it")
+	wall.queue_free()
+	# Floors are not walls: aimed steeply down at the floor, you stay on it.
+	await _physics(4)
+	me.teleport(open[0], open[1])
+	me.blink.reset()
+	await _physics(20)
+	var y0 := me.global_position.y
+	await _blink(me, (open[2] + Vector3(0, -1.5, 0)).normalized())
+	await _physics(10)
+	_check(me.global_position.y > y0 - 0.5, "a blink aimed down into the floor never goes through it (%.1f m)" % (me.global_position.y - y0))
+	# Never out of the map: over nothing, or outside its fence.
+	_check(Blink.in_map(me, open[0] + Vector3(0, 0.5, 0)), "open floor is somewhere a blink can land")
+	_check(not Blink.in_map(me, open[0] + Vector3(2000.0, 0.5, 0)), "...the void off the map's edge is not")
+	me.blink.reset()
 
 	# --- Picking: refused while alive, taken while dead.
 	net.set_my_mobility(Mobility.PORTAL)
