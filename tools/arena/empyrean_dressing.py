@@ -861,6 +861,26 @@ def weapons(m):
         m.weapon(at, weapon)
 
 
+def items(m):
+    """Deathmatch power-ups. The prizes out of the way: double damage on the eaves and on the
+    Library's far island (a grapple across, or its gate), the uber on the bridge in the middle
+    of the shaft. Health on every tier, none on a spawn point or by a weapon."""
+    T = lambda i: TIER * i
+    spots = [
+        (P(E.R_TOP + 0.7, 180.0, TOP + 2.6), "damage"), (P(73.5, 75.0, 46.0), "damage"),
+        # small: a Library room, the Labs' corridor, the docking ring, the Observatory's floor
+        (P(14.0, 280.0, T(1) + L2), "health_small"), (P(20.4, 250.0, T(2) + L2), "health_small"),
+        (P(36.0, 175.0, E.RING_Y), "health_small"), (P(15.0, 260.0, T(5)), "health_small"),
+        # medium: the Engine's back balcony, the Menagerie's upper hall by the ramp, the Summoning Chamber's high balcony
+        (P(26.0, 100.0, T(0) + L1), "health_medium"), (P(16.0, 170.0, T(3) + L3), "health_medium"),
+        (P(20.0, 5.0, T(4) + L2), "health_medium"),
+        (P(0.0, 0.0, T(3) - 0.01), "uber"),
+    ]
+    g = m.group("ItemSpawns", grouped=False)
+    for n, (at, item) in enumerate(spots):
+        m.node("%s%d" % (item, n + 1), g, "item", [("transform", xform(IDENTITY, at)), ("item", '"%s"' % item)], type_="Marker3D")
+
+
 def dress(m, folders):
     engine(m, folders[0])
     library(m, folders[1])
@@ -878,3 +898,4 @@ def dress(m, folders):
     m.weapon_in("Exterior/DockingRing/Pad/Starship", (0, 5.0, 0.0), "plasma_cannon")
     spawns(m, isles)
     weapons(m)
+    items(m)

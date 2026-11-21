@@ -1178,7 +1178,13 @@ it straight away. To put it in the menus, add a line to `LIST` in `game/arena/ma
 To offer an arena for Deathmatch too, give it `"also": ["dm"]` there and add
 MapWeaponSpawn nodes; `tests/deathmatch_test.gd` checks every Deathmatch map has at
 least 8 pickups of 10 or more different weapons, each over a floor with room to stand,
-and that all the Deathmatch maps together offer every weapon.
+and that all the Deathmatch maps together offer every weapon. Give it power-ups too
+(MapItemSpawn nodes under an "ItemSpawns" group, or inside an island or a moving part
+to ride with it): the deathmatch test wants every kind on every Deathmatch map, and
+`tests/power_up_spots_test.gd` (`POWERUPS_ONLY=<map id>` for one map) checks 6 to 12 of
+them, each over a floor with room to stand, inside the bounds, at least 1.5 m from a
+weapon or another power-up and spread over the map; it notes any on a spawn point and
+says which ones a bot could walk to.
 
 The scripts behind this:
 

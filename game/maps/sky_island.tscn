@@ -8,6 +8,7 @@
 [ext_resource type="Script" uid="uid://cva73htot14i5" path="res://game/arena/map_weapon_spawn.gd" id="7_6pxm6"]
 [ext_resource type="Script" uid="uid://b1nisak1gcjen" path="res://game/arena/map_jump_link.gd" id="8_i47ch"]
 [ext_resource type="Resource" path="res://game/maps/sky/maps/sky_island.tres" id="sky_preset"]
+[ext_resource type="Script" uid="uid://lnbcbw4yw8oi" path="res://game/arena/map_item_spawn.gd" id="9_item"]
 
 [sub_resource type="Environment" id="Environment_d3b8c"]
 background_mode = 2
@@ -1260,6 +1261,13 @@ weapon = "rifle"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 3)
 script = ExtResource("7_6pxm6")
 weapon = "sword"
+
+[node name="ItemSpawns" type="Node3D" parent="Islands/Shelf" unique_id=1417620138]
+
+[node name="HealthMedium" type="Marker3D" parent="Islands/Shelf/ItemSpawns" unique_id=1320571281]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0, 4)
+script = ExtResource("9_item")
+item = "health_medium"
 
 [node name="BotCrossings" type="Node3D" parent="Islands/Shelf" unique_id=1212719095]
 
@@ -5481,6 +5489,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, 10)
 script = ExtResource("7_6pxm6")
 weapon = "grenade_launcher"
 
+[node name="ItemSpawns" type="Node3D" parent="Islands/Bluff" unique_id=1168250842]
+
+[node name="HealthMedium" type="Marker3D" parent="Islands/Bluff/ItemSpawns" unique_id=939050449]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5, 0, 1)
+script = ExtResource("9_item")
+item = "health_medium"
+
 [node name="BotCrossings" type="Node3D" parent="Islands/Bluff" unique_id=453126924]
 
 [node name="HopToPad4" type="Marker3D" parent="Islands/Bluff/BotCrossings" unique_id=926523465]
@@ -7356,6 +7371,13 @@ script = ExtResource("6_bu61d")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, -3)
 script = ExtResource("7_6pxm6")
 weapon = "akimbo"
+
+[node name="ItemSpawns" type="Node3D" parent="Islands/Spire" unique_id=1277799393]
+
+[node name="HealthSmall" type="Marker3D" parent="Islands/Spire/ItemSpawns" unique_id=1891700155]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, -6)
+script = ExtResource("9_item")
+item = "health_small"
 
 [node name="BotCrossings" type="Node3D" parent="Islands/Spire" unique_id=1558173812]
 
@@ -10694,6 +10716,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 3)
 script = ExtResource("7_6pxm6")
 weapon = "machine_pistol"
 
+[node name="ItemSpawns" type="Node3D" parent="Islands/Citadel" unique_id=234079652]
+
+[node name="Uber" type="Marker3D" parent="Islands/Citadel/ItemSpawns" unique_id=1986331697]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 5, -2.8)
+script = ExtResource("9_item")
+item = "uber"
+
+[node name="HealthSmall" type="Marker3D" parent="Islands/Citadel/ItemSpawns" unique_id=781869045]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0, 9)
+script = ExtResource("9_item")
+item = "health_small"
+
 [node name="BotCrossings" type="Node3D" parent="Islands/Citadel" unique_id=170077143]
 
 [node name="HopToPad3" type="Marker3D" parent="Islands/Citadel/BotCrossings" unique_id=1457629870]
@@ -12899,6 +12933,13 @@ weapon = "spear"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0, 12)
 script = ExtResource("7_6pxm6")
 weapon = "lever_action"
+
+[node name="ItemSpawns" type="Node3D" parent="Islands/Garden" unique_id=219585660]
+
+[node name="HealthSmall" type="Marker3D" parent="Islands/Garden/ItemSpawns" unique_id=1616717809]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 0, 2)
+script = ExtResource("9_item")
+item = "health_small"
 
 [node name="BotCrossings" type="Node3D" parent="Islands/Garden" unique_id=361581725]
 
@@ -16234,6 +16275,13 @@ weapon = "railgun"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 0, 12)
 script = ExtResource("7_6pxm6")
 weapon = "axe"
+
+[node name="ItemSpawns" type="Node3D" parent="Islands/Terrace" unique_id=163741371]
+
+[node name="HealthMedium" type="Marker3D" parent="Islands/Terrace/ItemSpawns" unique_id=275440470]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.5, 0, 3)
+script = ExtResource("9_item")
+item = "health_medium"
 
 [node name="BotCrossings" type="Node3D" parent="Islands/Terrace" unique_id=1585789776]
 
@@ -20391,6 +20439,18 @@ weapon = "smg"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0, -12)
 script = ExtResource("7_6pxm6")
 weapon = "dagger"
+
+[node name="ItemSpawns" type="Node3D" parent="Islands/Hearth" unique_id=256778754]
+
+[node name="Damage" type="Marker3D" parent="Islands/Hearth/ItemSpawns" unique_id=1958598269]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.5, 2.4, 6.5)
+script = ExtResource("9_item")
+item = "damage"
+
+[node name="HealthMedium" type="Marker3D" parent="Islands/Hearth/ItemSpawns" unique_id=1933639428]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 4.5)
+script = ExtResource("9_item")
+item = "health_medium"
 
 [node name="BotCrossings" type="Node3D" parent="Islands/Hearth" unique_id=586620115]
 
