@@ -739,6 +739,9 @@ func update(delta: float, inp: RobotAnimInput, model_xform: Transform3D) -> void
 		if model.melee_left:
 			MeleeModel.set_glow(model.melee_left, _swing.glow() * draw.glow() if inp.alive else 0.0)
 			MeleeModel.set_grown(model.melee_left, draw.grown())
+		if model.karate_gear:
+			KarateGear.set_level(model.karate_gear, _swing.glow(), draw.t / KarateGear.IGNITE, delta,
+				inp.state in [MovementController.State.GROUND, MovementController.State.CROUCH, MovementController.State.SLIDE], inp.alive)
 	_apply_kick(delta, inp.alive)
 
 	# A long gun's stance: the chest turns a little to bring the left shoulder forward

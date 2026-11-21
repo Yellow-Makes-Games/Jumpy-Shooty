@@ -66,6 +66,7 @@ var view_mesh: MeshInstance3D     ## the same body without head and arms (first 
 var chest_front := 0.12           ## how far the chest sticks out in front of the neck (set by add_view_mesh)
 var melee: Node3D                 ## the sword, hammer or dagger in the fist (see MeleeModel), if any
 var melee_left: Node3D            ## the left fist's brass knuckles, if any
+var karate_gear: Node3D           ## Karate's bracers, shin guards and aura (see KarateGear), if Karate is out
 
 var _glow_materials: Array = []   # [material, is_shader]
 var _gun_glow: Array = []         # [material, its colour]: the gun's lit parts (see set_gun_glow)
@@ -135,6 +136,8 @@ func _setup(path: String, player_color: Color, viewmodel: bool, gun: String, cus
 	if WeaponData.melee(weapon):
 		melee = MeleeModel.attach(self, weapon, trim, viewmodel)
 		melee_left = MeleeModel.attach_left(self, weapon, trim, viewmodel)
+		if WeaponData.look_of(weapon) == "karate":
+			karate_gear = KarateGear.attach(self, trim, viewmodel)
 	_glow_color = trim
 	# A mesh straight from a robot's file still has the robot's own material names (a
 	# custom character's body was renamed as it was put together, and a kit's arms
@@ -674,6 +677,7 @@ func set_layer(layer: int) -> void:
 			for c in held.get_child(0).get_children():
 				if c is MeshInstance3D:
 					c.layers = mesh.layers
+	KarateGear.set_layers(karate_gear, mesh.layers)
 
 
 ## Where a bone is in the model's own space (x right, y up, -z forward).
@@ -694,6 +698,7 @@ func add_view_mesh(layer: int) -> void:
 	chest_front = cut[2]
 	view_mesh.skin = mesh.skin
 	view_mesh.layers = 1 << (layer - 1)
+	KarateGear.set_layers(karate_gear, mesh.layers, view_mesh.layers)   # (your own legs' guards show in first person)
 	view_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	view_mesh.extra_cull_margin = 2.0
 	for i in cut[1].size():
