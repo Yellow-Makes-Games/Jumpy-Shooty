@@ -40,6 +40,8 @@ func _init() -> void:
 		if not (n is MapBlock) or not n.drawn:
 			continue
 		var b := n as MapBlock
+		if b.shape in [MapBlock.Shape.SPIRAL, MapBlock.Shape.STAIRS] or (b.arc < 360.0 and b.shape in [MapBlock.Shape.CYLINDER, MapBlock.Shape.TUBE]):
+			continue   # (curved: the box round it is nothing like it; the Map dock's flicker check knows its faces)
 		var xf := b.global_transform
 		var half := b.size * 0.5
 		var round := b.shape in [MapBlock.Shape.CYLINDER, MapBlock.Shape.TUBE, MapBlock.Shape.CONE, MapBlock.Shape.DOME]

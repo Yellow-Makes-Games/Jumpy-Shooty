@@ -27,6 +27,7 @@ const ID := "empyrean"
 const TIER := 30.5
 const TOP := 183.0
 const ALTAR := Vector3(13.523, 122.0, 3.623)     # P(14, 75 degrees) on the Summoning Chamber's floor
+const MapFlicker := preload("res://addons/map_tools/map_flicker.gd")
 const NAMES := ["Arcane Engine", "Grand Library", "Alchemy Labs", "Menagerie", "Summoning Chamber", "Observatory"]
 
 var failures := 0
@@ -83,9 +84,13 @@ func _run() -> void:
 func _planes() -> void:
 	print("  no flicker")
 	var faces := {}     # normal -> [[plane's distance, centre, u, v, half u, half v, kind, block]]
+	var curved := []    # slices of cylinders and tubes, and spirals: checked by their real faces, below
 	for n in map.find_children("*", "Node3D", true, false):
 		var b := n as MapBlock
 		if b == null or not b.drawn:
+			continue
+		if b.shape in [MapBlock.Shape.SPIRAL, MapBlock.Shape.STAIRS] or (b.arc < 360.0 and b.shape in [MapBlock.Shape.CYLINDER, MapBlock.Shape.TUBE]):
+			curved.append(b)
 			continue
 		var xf := b.global_transform
 		var half := b.size * 0.5
@@ -117,6 +122,17 @@ func _planes() -> void:
 				if A[6] != B[6] and A[7] != B[7] and _covers(A, B) and _covers(B, A) and clashes.size() < 8:
 					clashes.append("%s and %s at %s" % [A[7].name, B[7].name, (A[1] as Vector3).snappedf(0.1)])
 	_expect(clashes.is_empty(), "no two faces of different kinds share a plane %s" % [clashes])
+	# The box round a curved block is nothing like it: those are looked at face by face, by
+	# the map tools' flicker check, and none of what it finds may lie on one of them.
+	var on_curved := []
+	if not curved.is_empty():
+		for c in MapFlicker.check(map).clashes:
+			for b: MapBlock in curved.filter(func(b): return b.kind in c.kinds):   # (one of the two must be its kind)
+				var local: Vector3 = b.global_transform.affine_inverse() * (c.at as Vector3)
+				if MapMesher.draw_points(b.to_piece(Transform3D.IDENTITY)).any(func(l): return MapMesher.hull_has(MapMesher.hull_planes(l), local, 0.02)):
+					on_curved.append("%s at %s" % [b.name, (c.at as Vector3).snappedf(0.1)])
+					break
+	_expect(on_curved.is_empty(), "nor does a face of a curved block (%d of them) %s" % [curved.size(), on_curved.slice(0, 8)])
 
 
 func _covers(A: Array, B: Array) -> bool:

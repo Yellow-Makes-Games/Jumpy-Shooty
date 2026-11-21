@@ -160,6 +160,8 @@ static func mirror(ctx: RefCounted, axis: int, pivot: Vector3, copy: bool) -> Re
 				edit.sets.append([step[0], "transform", step[1], (step[0] as Node3D).transform])
 			for hull in MapOps.hulls_in(n):
 				edit.sets.append([hull, "points", MapOps.mirrored_points(hull), hull.points])
+			for spiral in MapOps.spirals_in(n):
+				edit.sets.append([spiral, "clockwise", not spiral.clockwise, spiral.clockwise])
 			for painted in MapOps.painted_in(n):
 				var faces := MapOps.mirrored_faces(painted)
 				edit.sets.append([painted, "face_kinds", faces[0], painted.face_kinds])

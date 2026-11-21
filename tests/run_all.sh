@@ -56,6 +56,7 @@ CHECKS=(
   "collapse|--fixed-fps 60 --script tests/collapse_test.gd"
   "block_settings|--script tests/block_settings_test.gd"
   "map_tools|--script tests/map_tools_test.gd"
+  "curved_blocks|--script tests/curved_blocks_test.gd"
   "arena_maps|--script tests/arena_maps_test.gd"
   "flicker|--script tests/map_flicker_test.gd"
   "halcyon|--script tests/halcyon_test.gd"
