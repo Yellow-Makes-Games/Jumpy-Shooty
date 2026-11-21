@@ -57,6 +57,7 @@ func run() -> void:
 	_check("a live portal's plain face is for portal cameras only", a._disc.layers == 1 << (Portal.FLAT_LAYER - 1))
 	_check("a lone one's face is for everyone", portals.get_portal(9, 0)._disc.layers == 1)
 	_check("the main camera does not see plain faces of live portals", not cam.get_cull_mask_value(Portal.FLAT_LAYER))
+	_compositors(root, a, b)
 	var vm := a._view_cam.cull_mask
 	_check("portal cameras see the plain faces", vm & (1 << (Portal.FLAT_LAYER - 1)) != 0)
 	_check("...and never a window", vm & (1 << (Portal.VIEW_LAYER - 1)) == 0)
@@ -90,6 +91,8 @@ func run() -> void:
 	_check("far off it is small (%d px)" % far_px, far_px == Portals.VIEW_MIN_PX)
 	_check("never taller than the screen", Portals.view_pixels(0.6, Portal.HALF_HEIGHT, t, 480.0) <= 480)
 
+	var later: Array = portals.live_views().filter(func(p): return p != a and p != b and p._view_cam != null)
+	_check("portals that open later get the same compositor", not later.is_empty() and later.all(func(p): return p._view_cam.compositor == a._view_cam.compositor))
 	root.queue_free()
 	print("portal view: %s" % ("all passed" if failures == 0 else "%d failed" % failures))
 	get_tree().quit(1 if failures > 0 else 0)
@@ -125,3 +128,40 @@ func _sees(from: Portal, to: Portal, cam: Camera3D, eye: Vector3) -> bool:
 	if worst > 0.01:
 		print("  off by %.3f of the window" % worst)
 	return worst <= 0.01
+
+
+## A portal view runs the world's compositor effects less CMAA2 (see Portal._make_view):
+## GTAO for its own pixels, but not the main view's anti-aliasing, which goes over it.
+func _compositors(root: Node3D, a: Portal, b: Portal) -> void:
+	var w3d := a.get_world_3d()
+	var window := get_tree().root
+	var had_cmaa2 := GraphicsQuality.cmaa2_of(window) != null
+	var pc: Compositor = a._view_cam.compositor
+	_check("a portal camera has a compositor of its own (Godot takes it over the world's)", pc != null)
+	_check("...with no CMAA2 in it", pc != null and not Array(pc.compositor_effects).any(func(e): return e is Cmaa2Effect))
+	GraphicsQuality.use_cmaa2(window, true)
+	var map := WorldEnvironment.new()   # a map with SSAO, and GTAO picked
+	map.environment = Environment.new()
+	map.environment.ssao_enabled = true
+	root.add_child(map)
+	var picks := GraphicsQuality.preset("high")
+	picks.ao = "gtao"
+	GraphicsQuality.apply_environments(map, picks)
+	var gtao := Array(Gtao.effects_of(map))
+	var world: Array = Array(WorldCompositor.compositor_of(w3d).compositor_effects)
+	_check("both picked: the world runs GTAO and CMAA2", world.size() == 3 and world.slice(0, 2) == gtao and world[2] is Cmaa2Effect)
+	_check("...and portal cameras GTAO only", Array(pc.compositor_effects) == gtao)
+	_check("...every portal the same", b._view_cam == null or b._view_cam.compositor == pc)
+	GraphicsQuality.use_cmaa2(window, false)
+	_check("CMAA2 off: the portal's GTAO stays", Array(pc.compositor_effects) == gtao)
+	GraphicsQuality.use_cmaa2(window, true)
+	_check("CMAA2 on again: still GTAO only in the portal", Array(pc.compositor_effects) == gtao)
+	GraphicsQuality.apply_environments(map, GraphicsQuality.preset("medium"))
+	_check("GTAO off: the portal's compositor is empty (still there, so CMAA2 stays off it)",
+		a._view_cam.compositor == pc and pc.compositor_effects.is_empty())
+	GraphicsQuality.apply_environments(map, picks)
+	gtao = Array(Gtao.effects_of(map))
+	_check("GTAO on again: back in the portal", Array(pc.compositor_effects) == gtao)
+	map.free()
+	_check("the map gone: its GTAO leaves the portal too", pc.compositor_effects.is_empty())
+	GraphicsQuality.use_cmaa2(window, had_cmaa2)

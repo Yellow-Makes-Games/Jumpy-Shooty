@@ -537,6 +537,10 @@ func _make_view() -> void:
 	_view_cam = Camera3D.new()
 	_view_cam.keep_aspect = Camera3D.KEEP_HEIGHT
 	_view_cam.attributes = CameraAttributesPractical.new()   # exposure 1, no blur: the main view does those
+	# The world's compositor effects less CMAA2 (GraphicsQuality.use_cmaa2): the main view's
+	# anti-aliasing goes over this view, but GTAO (Gtao.use) runs here for this view's own
+	# pixels. Kept in step with the world's by WorldCompositor.
+	_view_cam.compositor = WorldCompositor.without(get_world_3d(), GraphicsQuality.CMAA2_KEY)
 	_view.add_child(_view_cam)
 	_view_cam.current = true
 	_window_mat.set_shader_parameter("view", _view.get_texture())
@@ -571,6 +575,10 @@ func _match_environment(cam: Camera3D) -> void:
 	_view_env.fog_light_color = src.fog_light_color
 	_view_env.fog_density = src.fog_density
 	_view_env.fog_light_energy = src.fog_light_energy
+	# ...and the Ambient occlusion setting, changed while a portal is open (the "GTAO"
+	# pick turns the map's SSAO off; GTAO itself runs in this view too: see _make_view).
+	_view_env.ssao_enabled = src.ssao_enabled
+	_view_env.ssil_enabled = src.ssil_enabled
 
 
 ## Rides what it sits on: `carrier` (see Portals.place) and where on it.

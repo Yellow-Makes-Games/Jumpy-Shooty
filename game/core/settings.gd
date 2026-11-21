@@ -440,6 +440,12 @@ const CAN_SHARE := [["sprint", "glide"]]
 ## 2: the glide moved from Shift to Alt, which Dive gave up.
 const BINDINGS_VERSION := 2
 
+## Movement B's keys (MovementTuning.shift_boost), for the actions it moves: no Sprint
+## key (it always sprints), the rocket boots on Shift and Interact on E. An action still
+## on its usual default switches to these in a Movement B match, and back after.
+const LAYOUT_B := {"sprint": [], "boost": ["key:%d" % KEY_SHIFT], "interact": ["key:%d" % KEY_E]}
+var _layout_b := false
+
 ## Not rebindable: Esc always opens the menu (and cancels a rebind).
 const FIXED_BINDINGS := {"pause": ["key:%d" % KEY_ESCAPE]}
 
@@ -496,7 +502,7 @@ func _load_bindings(cfg: ConfigFile) -> void:
 func _save_bindings(cfg: ConfigFile) -> void:
 	cfg.set_value("bindings", "version", BINDINGS_VERSION)
 	for a in ACTIONS:
-		if bindings[a[0]] != a[2]:
+		if bindings[a[0]] != _current_default(a[0]):
 			cfg.set_value("bindings", a[0], bindings[a[0]])
 
 
@@ -533,9 +539,26 @@ static func _can_share(a: String, b: String) -> bool:
 	return false
 
 
+## Switch to Movement B's keys (see LAYOUT_B), or back. Keys you chose yourself stay.
+func use_movement_layout(b: bool) -> void:
+	if b == _layout_b:
+		return
+	for action in LAYOUT_B:
+		var from: Array = default_bindings(action) if b else LAYOUT_B[action]
+		if bindings[action] == from:
+			bindings[action] = (default_bindings(action) if not b else LAYOUT_B[action]).duplicate()
+	_layout_b = b
+	_apply_bindings()
+
+
+## This action's default in the keys in use (Movement B's for the ones it moves).
+func _current_default(action: String) -> Array:
+	return LAYOUT_B[action] if _layout_b and LAYOUT_B.has(action) else default_bindings(action)
+
+
 func reset_bindings() -> void:
 	for a in ACTIONS:
-		bindings[a[0]] = (a[2] as Array).duplicate()
+		bindings[a[0]] = _current_default(a[0]).duplicate()
 	_apply_bindings()
 	save_settings()
 

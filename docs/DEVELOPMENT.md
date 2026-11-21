@@ -174,6 +174,14 @@ Quick checks:
   see, flat side for flat side, not as the box round it: nothing to hit in its hole or
   past its flat sides where the box's corners were, its ring all round, a tube with no
   hole as a cylinder, and no ground in the hole of one that moves;
+- curved blocks (`tests/curved_blocks_test.gd`): slices of cylinders and tubes collide
+  where they are drawn and nowhere in their open slice or hole; spiral ramps and stairs
+  are walked at the height their numbers give, climb the way Clockwise says (a mirrored
+  copy the other way), draw Solid, Slab and Treads steps over a smooth walked ramp with
+  room under the high end of the last two; straight Stairs blocks the same, with their
+  way on at floor level and their top step level with their top, and steps you stand on
+  when not Smooth; bots find a way up a spiral and up a straight flight; the settings
+  save and show only where they apply;
 - the Testing Grounds courses and the Construction Site and Office routes: a scripted
   player runs each one (`tests/course_test.gd`, `tests/site_test.gd`,
   `tests/office_test.gd`), plus spawn points and bot navigation; the other arenas'
@@ -714,6 +722,37 @@ scene is edited by hand. Try it with `--map=sky_island --practice`.
   a hollow dome filled in); **Map > Make Editable** keeps their holes. A hull breaks only
   whole (Break Settings: Whole Block), never per cell. Mirror turns its corners into
   their mirror image.
+  **Arc** (degrees, as a dome's) also works on a **cylinder** or a **tube**: under 360 it
+  leaves a slice open, facing the block's +z, so one block is a slice of a round floor
+  (a cylinder), a curved wall or a sector of a ring-shaped floor round a shaft (a tube),
+  instead of a row of boxes. Its Sides are spread across the arc. It is drawn and
+  collides as convex lumps (a tube slice one per side, a cylinder slice in pieces short
+  of half a turn), with the faces between them left out. Clip still cuts it across its
+  height; Make Editable gives one hull per lump.
+  A **Spiral** block is a curved ramp or curved stairs, climbing round its own y axis:
+  Size x is the outside diameter and y how high it climbs, foot to top; **Inner** is the
+  inside diameter (0 = round a point), **Arc** how far round it goes (its open slice faces
+  +z, as above), **Sides** how many pieces the curve is made of, and **Clockwise** which
+  way it climbs seen from above (off: anticlockwise; Mirror turns it the other way). It
+  starts level with its foot at one edge of the open slice and arrives at its top at the
+  other. A **Stairs** block is the same climb in a straight line: Size x wide, y high
+  (foot to top) and z long, climbing toward its -z (its high end at the back, as a
+  wedge's). Both share these settings, under **Steps**. **Steps** 0 is a smooth ramp;
+  more lays out that many steps as a Stairs piece does: the block's first stretch, one
+  step deep, is the way on at floor level (nothing drawn), then the steps, each a riser
+  higher, the last level with the block's top. With **Smooth** on, players walk an
+  invisible smooth ramp over the steps' front edges, level over the last step (they do
+  not step up kerbs), and the bots' navigation mesh is baked from that ramp; off, the
+  steps themselves are solid. **Step Style** says what holds it up: **Solid** (each
+  step, or the ramp, down to the foot), **Slab** (the steps sit on a sloping slab
+  **Thickness** thick, with room to walk under its high end) or **Treads** (floating
+  treads Thickness thick, open between; a ramp with Treads is the same slab as with
+  Slab). With a slab or treads the walked surface starts Thickness above the foot, so
+  sink the block that far to start it at floor level. It warns past 46 degrees (a
+  spiral's half way across), and when a Slab is thinner than a riser. Each piece of a
+  spiral's curve is flat-faced, so its walked surface is within a few centimetres of a
+  true curve; more Sides bring it closer. A straight flight is exact.
+  `tests/curved_blocks_test.gd` checks slices, spirals and stairs in a built map.
 - Plain **Node3D** groups. Each object (a container, a staircase, the crane) is a group
   grouped the Godot way (the group icon beside it in the Scene tree), so a click in the
   3D view selects the whole object. To change one part, pick the part in the Scene
@@ -876,9 +915,13 @@ makes ordinary MapBlocks and is one step of undo.
   again whenever you change one. Stairs and ramps are one piece: its **Style** is Steps
   or Ramp, and it has Rise, Run and Width, which you can also set by dragging its three
   handles in the 3D view (at the top, at the far end of the foot, at the side), as you
-  would a block's. Players do not step up kerbs, so steps are drawn only, under an
-  invisible ramp, unless you untick Smooth; past 46 degrees (too steep to walk) the piece
-  warns you. A Row or a Ring repeats its first child, a block or a whole group: edit that
+  would a block's. Steps are one **Stairs** block however many there are (see "What a
+  map is made of"), and a ramp one wedge or slab. Players do not step up kerbs, so the
+  steps are walked as a smooth ramp over their front edges unless you untick Smooth.
+  **Step Style** is what holds it up: Solid (down to the ground; a ramp is a wedge),
+  Slab (steps on a sloping slab, or a tilted slab for a ramp, **Thickness** thick, with
+  room to walk under) or Treads (floating treads Thickness thick). Past 46 degrees (too
+  steep to walk) the piece warns you. A Row or a Ring repeats its first child, a block or a whole group: edit that
   one and the copies follow. A Row has a handle at its last copy for how far apart they
   are; a Ring is as wide as its first child is far from its middle. Do not edit the
   blocks a piece made, they are replaced; press **Bake** in its inspector to turn it into
@@ -1297,10 +1340,17 @@ in the inspector and drag its sliders: the open map redraws as you go.
   deck, horizon haze, a planet (banded with a ring, or seas and land), what is below the
   horizon (ground, a sea of cloud, a planet seen from low orbit, or open space), far
   silhouettes (a city skyline with lit windows, hills or mountains), a city's glow,
-  the psychedelic colour flow and the surreal things (a second sun, faceted shapes,
+  the psychedelic colour flow, **silk** (abstract colour flowing all round the sky:
+  four colours melting into each other, pushed about by drifting noise so they fold,
+  billow and morph, with no hard edges; styles lean toward long folds, stacked waves
+  or pools of colour; a soft satin glow on the crests and, for the dark looks, light
+  seeping through the folds) and the surreal things (a second sun, faceted shapes,
   an upside-down world overhead, orbit rings). An amount of 0 switches a layer off.
 - **The base looks** are in `game/maps/sky/presets/`: Clear Day, Golden Hour, Hazy
-  Overcast, Night City, Deep Space, Planet Orbit, Psychedelic and Surreal Dream.
+  Overcast, Night City, Deep Space, Planet Orbit, Psychedelic and Surreal Dream; and the
+  abstract silk looks, each with a dark version (`_dark`): Ember (tangerine, coral pink
+  and gold over plum), Tide (cobalt, teal and violet), Sorbet (pastels) and Abyss
+  (midnight blues with cyan and magenta light).
   `tools/sky/make_sky_presets.gd` writes them and each map's tuned copy (a base look
   plus changes); it leaves files that are there alone unless given `--force`. To give
   a new map a sky, add a line to its `maps()` table, run it, and set the map's Sky.
@@ -1585,6 +1635,16 @@ again **overwrites hand edits**. After moving things, `godot --headless --path .
 tests/empyrean_test.gd` checks the map and `tests/empyrean_play_test.gd` plays its systems
 in a real Practice match.
 
+The Grand Library's floors and ramps are curved blocks (see **Arc** and **Spiral** under
+"What a map is made of"), a pilot of rebuilding the tower with them, made by
+`tools/arena/empyrean_curved_pilot.gd -- --tier=1 --write`. Each run of floor sectors with
+the same radii is one tube slice (`FloorArc`, `Storey1Arc`...), and each curved ramp's
+straight slabs between its two level landings are one Spiral (Slab style): 108 blocks
+fewer on that tier, the same floor plan, and ramps within about 4 cm of the curve the
+generator meant (its straight slabs kinked up to 18 cm below it at their joints). The
+other tiers are still boxes; the script does any tier (`--tier=0` to `4`), and running
+empyrean.py again puts the boxes back.
+
 Things to keep true when editing it:
 
 - Fantasy in its construction, sci-fi in its modification. It is an old tower, built of
@@ -1612,7 +1672,10 @@ Things to keep true when editing it:
   carpet level with a strip of light in the floor, a landing level with the floor it
   lands on): the two flicker. Lay one a centimetre proud of the other.
   `godot --headless --path . --script tools/arena/find_shared_planes.gd -- --map=empyrean`
-  lists them (it works on any map), and `tests/empyrean_test.gd` fails on one.
+  lists them (it works on any map), and `tests/empyrean_test.gd` fails on one. Both look
+  at a block as the box round it, which for a slice of a tube or a spiral is nothing like
+  it, so they leave those out; the test checks them with the Map dock's flicker check
+  (`addons/map_tools/map_flicker.gd`), which knows their real faces.
 - The river of magic passes every bridge square on to it, three metres to one side, from
   below the bridge's banners to above its rails, and the shaft's floating stones hang
   across the shaft from it (`river_at`, `bridges` and `stone_at` in empyrean.py). The

@@ -541,27 +541,33 @@ func _check_pieces() -> void:
 	map.add_child(stairs)
 	stairs.rebuild()
 	var made := stairs.generated()
-	_expect(stairs.steps() == 12 and made.size() == 13, "3 m of stairs with 0.25 m steps: 12 steps and the ramp you walk on")
-	var walk := made.back() as MapBlock
-	_expect(walk.shape == MapBlock.Shape.WEDGE and not walk.drawn and walk.solid and made.slice(0, 12).all(func(s: MapBlock) -> bool: return not s.solid),
-		"smooth: the steps are drawn only, an invisible wedge is solid")
-	var top := made[11] as MapBlock
-	_expect(is_equal_approx(top.position.y + top.size.y * 0.5, 3.0) and is_equal_approx(top.position.z - top.size.z * 0.5, -6.0), "the top step ends 3 m up, 6 m along")
-	# The wedge's surface passes through each step's front top edge.
-	var first := made[0] as MapBlock
-	var nose := Vector3(0, first.size.y, 0.0)
-	var along := (walk.position.z + walk.size.z * 0.5 - nose.z) / walk.size.z   # 0 at its low end, 1 at its high end
-	_expect(is_equal_approx(along * walk.size.y, nose.y), "the ramp lies on the steps' front edges")
+	var flight := made[0] as MapBlock if made.size() == 1 else null
+	_expect(stairs.steps() == 12 and flight != null and flight.shape == MapBlock.Shape.STAIRS and flight.steps == 12,
+		"3 m of stairs with 0.25 m steps: one Stairs block of 12 steps")
+	_expect(flight.solid and flight.drawn and flight.smooth, "smooth: the steps are drawn, a smooth ramp over them is walked on")
+	_expect(is_equal_approx(flight.position.y + flight.size.y * 0.5, 3.0) and is_equal_approx(flight.position.z - flight.size.z * 0.5, -6.0)
+		and is_equal_approx(flight.position.z + flight.size.z * 0.5, 0.5), "the top step ends 3 m up, 6 m along; the way on starts a step in front")
+	# Its walked ramp passes through each step's front top edge, from the floor in front.
+	var flight_piece := flight.to_piece(Transform3D.IDENTITY)
+	var noses := true
+	for k in range(1, 13):
+		var step := MapMesher.climb_step(flight_piece, k)
+		var front_z: float = flight.size.z * 0.5 - flight.size.z * step[1]
+		noses = noses and is_equal_approx(flight.position.y + step[0], k * 0.25) and is_equal_approx(flight.position.z + front_z, -(k - 1) * 0.5) \
+			and is_equal_approx(MapMesher.climb_height(flight_piece, step[1]), step[0])
+	_expect(noses and is_equal_approx(flight.position.y + MapMesher.climb_height(flight_piece, 0.0), 0.0),
+		"the steps are where a row of 12 would be, and the ramp lies on their front edges from the floor")
 	stairs.smooth = false
 	stairs.rebuild()
-	_expect(stairs.generated().size() == 12 and stairs.generated().all(func(s: MapBlock) -> bool: return s.solid), "not smooth: solid steps and no ramp")
+	var rough := stairs.generated()[0] as MapBlock
+	_expect(not rough.smooth and MapMesher.hull_points(rough.to_piece(Transform3D.IDENTITY)).size() == 12, "not smooth: the steps themselves are solid")
 	stairs.step_height = 0.5
 	stairs.rebuild()
-	_expect(stairs.generated().size() == 6, "taller steps: fewer of them, the old ones gone")
+	_expect(stairs.generated().size() == 1 and (stairs.generated()[0] as MapBlock).steps == 6, "taller steps: fewer of them, still one block")
 
 	var ramp := MapStairs.new()
 	ramp.style = MapStairs.Style.RAMP
-	ramp.filled = false
+	ramp.step_style = MapBlock.StepStyle.SLAB
 	ramp.rise = 3.0
 	ramp.run = 4.0
 	ramp.thickness = 0.2
@@ -572,12 +578,12 @@ func _check_pieces() -> void:
 	var top_low: Vector3 = slab.transform * Vector3(0, 0.1, 2.5)
 	var top_high: Vector3 = slab.transform * Vector3(0, 0.1, -2.5)
 	_expect(top_low.is_equal_approx(Vector3.ZERO) and top_high.is_equal_approx(Vector3(0, 3, -4)), "its top runs from the origin to 3 m up, 4 m along")
-	ramp.filled = true
+	ramp.step_style = MapBlock.StepStyle.SOLID
 	ramp.rebuild()
-	_expect((ramp.generated()[0] as MapBlock).shape == MapBlock.Shape.WEDGE, "filled: one wedge")
+	_expect((ramp.generated()[0] as MapBlock).shape == MapBlock.Shape.WEDGE, "solid: one wedge")
 	ramp.style = MapStairs.Style.STEPS
 	ramp.rebuild()
-	_expect(ramp.generated().size() == ramp.steps() + 1, "switched to Steps, the same piece is stairs")
+	_expect(ramp.generated().size() == 1 and (ramp.generated()[0] as MapBlock).steps == ramp.steps(), "switched to Steps, the same piece is stairs")
 	var shown := {}
 	for p in ramp.get_property_list():
 		shown[p.name] = p.usage & PROPERTY_USAGE_EDITOR
@@ -629,7 +635,7 @@ func _check_pieces() -> void:
 	_expect(empty.generated().is_empty() and empty._get_configuration_warnings().size() == 1, "a row with nothing to repeat makes nothing and says why")
 
 	var pieces := map.collect_pieces()
-	_expect(pieces.size() == 6 + 1 + 5 + 4, "the game sees a piece's blocks like any others (%d pieces)" % pieces.size())
+	_expect(pieces.size() == 1 + 1 + 5 + 4, "the game sees a piece's blocks like any others (%d pieces: the stairs one block)" % pieces.size())
 	map.free()
 
 
@@ -1526,7 +1532,7 @@ func _check_tools() -> void:
 	place.input(view, _motion(view, Vector3(-6.2, 0, 5.9)))
 	place.input(view, _press(view, Vector3(-6.2, 0, 5.9), true))
 	var stairs := _picked[0] as MapStairs if _picked.size() == 1 else null
-	_expect(stairs != null and stairs.position.is_equal_approx(Vector3(-6, 0, 6)) and stairs.generated().size() == 13,
+	_expect(stairs != null and stairs.position.is_equal_approx(Vector3(-6, 0, 6)) and stairs.generated().size() == 1,
 		"Place: a click puts stairs down on the grid with their steps made")
 	_expect(stairs != null and stairs.generated().all(func(n: Node) -> bool: return n.owner == map), "and their blocks are saved with the map")
 	cam.free()
@@ -1593,11 +1599,11 @@ func _check_commands() -> void:
 	MapPiece.adopt(stairs, map)
 	var bake := MapCommands.bake(stairs)
 	bake.apply(map)
-	_expect(stairs.get_script() == null and stairs.get_child_count() == 13 and not stairs.get_child(0).has_meta(MapPiece.GENERATED),
-		"Bake: the stairs are a plain group of 13 blocks")
+	_expect(stairs.get_script() == null and stairs.get_child_count() == 1 and not stairs.get_child(0).has_meta(MapPiece.GENERATED),
+		"Bake: the stairs are a plain group, of their one Stairs block")
 	for c in bake.undo_calls:
 		(c[0] as Object).callv(c[1], c.slice(2))
-	_expect(stairs is MapStairs and is_equal_approx(stairs.rise, 3.0) and stairs.generated().size() == 13, "undone, they are stairs again with their numbers")
+	_expect(stairs is MapStairs and is_equal_approx(stairs.rise, 3.0) and stairs.generated().size() == 1, "undone, they are stairs again with their numbers")
 	for sort in MapCommands.PIECES:
 		var piece := MapCommands.new_piece(sort, "concrete")
 		_expect(piece != null and piece.generated().size() > 0, "a new %s comes with its blocks" % sort)

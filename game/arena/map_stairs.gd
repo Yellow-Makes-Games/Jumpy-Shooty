@@ -7,7 +7,9 @@ extends MapPiece
 ## (at the top), Run (at the far end of its foot) and Width (at its side).
 ##
 ## Players do not step up kerbs, so with Smooth on (the default) the steps are drawn
-## only and an invisible ramp lying on their front edges is what you walk on.
+## only and an invisible ramp lying on their front edges is what you walk on. Steps are
+## one Stairs block (MapBlock.Shape.STAIRS), however many there are; a ramp is one wedge
+## or one slab.
 
 enum Style { STEPS, RAMP }
 
@@ -41,11 +43,12 @@ enum Style { STEPS, RAMP }
 		kind = v
 		_changed()
 
-## On: solid down to the ground (each step a block, a ramp a wedge). Off: floating
-## treads, or a tilted slab you can walk under.
-@export var filled := true:
+## What holds it up. Solid: down to the ground (a ramp: a wedge). Slab: the steps sit on
+## a sloping slab Thickness thick, with room to walk under its high end (a ramp: a tilted
+## slab). Treads: each step a floating tread Thickness thick (a ramp: the same slab).
+@export var step_style := MapBlock.StepStyle.SOLID:
 	set(v):
-		filled = v
+		step_style = v
 		notify_property_list_changed()
 		_changed()
 
@@ -62,7 +65,8 @@ enum Style { STEPS, RAMP }
 		smooth = v
 		_changed()
 
-## A ramp that is not Filled: how thick the slab is.
+## With a Slab or Treads: how thick the slab or each tread is (a ramp's slab: square to
+## its slope; a step's: upright).
 @export var thickness := 0.3:
 	set(v):
 		thickness = maxf(v, 0.02)
@@ -84,26 +88,22 @@ func _make() -> Array[Node3D]:
 	if style == Style.RAMP:
 		out.append(_ramp())
 		return out
+	# One block: the way on (a step's depth in front of the first step, at floor level),
+	# then the steps; its walked ramp lies on their front edges (see MapMesher.climb_walk).
 	var n := steps()
-	var h := rise / n
 	var d := run / n
-	for i in n:
-		var top := (i + 1) * h
-		var size := Vector3(width, top if filled else h, d)
-		var step := _block("Step%d" % (i + 1), kind, size, Vector3(0, top - size.y * 0.5, -(i + 0.5) * d))
-		step.solid = not smooth
-		out.append(step)
-	if smooth:
-		# A wedge is tall at its -z and runs down to nothing at +z. Laid on the steps'
-		# front edges it starts one step's depth in front of the first step.
-		var walk := _block("Walk", kind, Vector3(width, rise, run), Vector3(0, rise * 0.5, d - run * 0.5), MapBlock.Shape.WEDGE)
-		walk.drawn = false
-		out.append(walk)
+	var held := 0.0 if step_style == MapBlock.StepStyle.SOLID else thickness
+	var flight := _block("Stairs", kind, Vector3(width, rise + held, run + d), Vector3(0, (rise - held) * 0.5, (d - run) * 0.5), MapBlock.Shape.STAIRS)
+	flight.steps = n
+	flight.step_style = step_style
+	flight.thickness = thickness
+	flight.smooth = smooth
+	out.append(flight)
 	return out
 
 
 func _ramp() -> MapBlock:
-	if filled:
+	if step_style == MapBlock.StepStyle.SOLID:
 		return _block("Ramp", kind, Vector3(width, rise, run), Vector3(0, rise * 0.5, -run * 0.5), MapBlock.Shape.WEDGE)
 	var angle := atan2(rise, run)
 	var slab := _block("Ramp", kind, Vector3(width, thickness, sqrt(rise * rise + run * run)), Vector3.ZERO)
@@ -120,7 +120,7 @@ func _validate_property(property: Dictionary) -> void:
 			if style != Style.STEPS:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"thickness":
-			if style != Style.RAMP or filled:
+			if step_style == MapBlock.StepStyle.SOLID:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 
 

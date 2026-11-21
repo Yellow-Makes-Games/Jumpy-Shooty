@@ -54,10 +54,11 @@ static func build_arrays(pieces: Array, shade: Vector3 = Vector3.ONE, shade_basi
 		_custom = Vector4.ZERO
 		var buf := _buffer(piece.kind)
 		match piece.shape:
+			"cyl", "tube" when piece.has("arc"): _hulls(buf, piece)   # a slice: its sector's lumps
 			"cyl": _prism(buf, piece, 0.0)
 			"tube": _prism(buf, piece, piece.get("inner", 0.0))
 			"cone": _cone(buf, piece)
-			"wedge", "bevel", "dome", "arch", "hull": _hulls(buf, piece)
+			"wedge", "bevel", "dome", "arch", "hull", "spiral", "stairs": _hulls(buf, piece)
 			_: _box(buf, piece)
 	_by_kind = {}
 	_face_kinds = {}
@@ -338,7 +339,8 @@ static func tube_hulls(piece: Dictionary) -> Array:
 
 ## The convex lumps a piece is made of, each a list of corners in the piece's own
 ## frame. A wedge, a bevelled box, a whole solid dome and a hull are one lump; a
-## hollow or cut-open dome and an arch are several.
+## hollow or cut-open dome, an arch, a slice of a cylinder or tube and a spiral are
+## several. It is what the piece is bumped into as; draw_points is what is drawn.
 static func hull_points(piece: Dictionary) -> Array:
 	match piece.shape:
 		"wedge": return [wedge_points(piece)]
@@ -346,7 +348,201 @@ static func hull_points(piece: Dictionary) -> Array:
 		"dome": return dome_hulls(piece)
 		"arch": return arch_hulls(piece)
 		"hull": return [piece.points]
+		"cyl", "tube": return sector_hulls(piece) if piece.has("arc") else []
+		"spiral", "stairs":
+			if int(piece.get("steps", 0)) > 0 and not piece.get("smooth", true):
+				return climb_steps(piece)   # (not smooth: its steps are what you bump into)
+			return climb_walk(piece)
 	return []
+
+
+## The convex lumps a piece is drawn as: its hull_points, except a spiral or stairs with
+## steps, drawn as its steps (over the smooth ramp it is walked on, when Smooth).
+static func draw_points(piece: Dictionary) -> Array:
+	if piece.shape in ["spiral", "stairs"] and int(piece.get("steps", 0)) > 0:
+		return climb_steps(piece)
+	return hull_points(piece)
+
+
+# ---------------------------------------------------------------------------
+# Slices of a cylinder or tube (an Arc under 360), and spirals. Their angle runs as a
+# dome's does: the open slice faces +z.
+
+## The angle (round from +x toward +z) a fraction `t` of the way across a piece's arc.
+static func arc_angle(piece: Dictionary, t: float) -> float:
+	var arc: float = deg_to_rad(piece.get("arc", 360.0))
+	return PI * 0.5 + (TAU - arc) * 0.5 + arc * t
+
+
+static func _round_at(piece: Dictionary, t: float, reach: float, y: float) -> Vector3:
+	var a := arc_angle(piece, t)
+	return Vector3(cos(a) * reach, y, sin(a) * reach)
+
+
+## A slice of a cylinder (pie pieces, each no wider than half a turn) or of a tube (one
+## lump per flat side, as tube_hulls): what an Arc under 360 leaves.
+static func sector_hulls(piece: Dictionary) -> Array:
+	var sides: int = maxi(int(piece.get("sides", 12)), 1)
+	var r: float = piece.size.x * 0.5
+	var hy: float = piece.size.y * 0.5
+	var ri: float = 0.0
+	if piece.shape == "tube":
+		ri = maxf(minf(float(piece.get("inner", 0.0)) * 0.5, r - 0.01), 0.0)
+	var hulls := []
+	if ri > 0.0:
+		for i in sides:
+			var lump := PackedVector3Array()
+			for t in [float(i) / sides, float(i + 1) / sides]:
+				for reach in [ri, r]:
+					for y in [-hy, hy]:
+						lump.append(_round_at(piece, t, reach, y))
+			hulls.append(lump)
+		return hulls
+	# A pie piece is convex short of half a turn round (at half a turn its flat side runs
+	# right across, and would not meet its neighbour's); at most 14 sides each (32 corners).
+	var arc: float = piece.get("arc", 360.0)
+	var per := clampi(ceili(sides * 180.0 / arc) - 1, 1, 14)
+	var i := 0
+	while i < sides:
+		var j := mini(i + per, sides)
+		var lump := PackedVector3Array([Vector3(0, -hy, 0), Vector3(0, hy, 0)])
+		for k in range(i, j + 1):
+			for y in [-hy, hy]:
+				lump.append(_round_at(piece, float(k) / sides, r, y))
+		hulls.append(lump)
+		i = j
+	return hulls
+
+
+# ---------------------------------------------------------------------------
+# Spirals and straight stairs: a surface you walk that climbs from one end to the other
+# (a fraction f of the way, 0 at the low end), drawn as a ramp or as steps. With Steps,
+# laid out as a Stairs piece lays them: the first of steps + 1 equal stretches is the way
+# on (at floor level, nothing drawn), then the steps, each a riser higher, the last level
+# with the top; the walked ramp lies on their front edges and runs level over the last.
+
+## A climb's numbers: [half its height, how far its walked surface rises, where that
+## surface starts (y), what holds it ("solid", "slab", "treads"), how thick the slab or a
+## tread is, how many steps (0 = a ramp)].
+static func _climb(piece: Dictionary) -> Array:
+	var hy: float = piece.size.y * 0.5
+	var style: String = piece.get("step_style", "solid")
+	var held: float = 0.0 if style == "solid" else clampf(float(piece.get("thickness", 0.3)), 0.02, piece.size.y)
+	return [hy, piece.size.y - held, -hy + held, style, held, maxi(int(piece.get("steps", 0)), 0)]
+
+
+## The angle a fraction `f` of the way up a spiral.
+static func spiral_angle(piece: Dictionary, f: float) -> float:
+	return arc_angle(piece, f if piece.get("clockwise", false) else 1.0 - f)
+
+
+## The height of a spiral's or stairs' walked surface a fraction `f` of the way up.
+static func climb_height(piece: Dictionary, f: float) -> float:
+	var c := _climb(piece)
+	var n: int = c[5]
+	var t := f if n == 0 else minf(f * (n + 1) / n, 1.0)
+	return c[2] + c[1] * t
+
+
+## Step `k` (1 to Steps) of a spiral or stairs: [its tread's height, the fraction of the
+## way up where it starts, where it ends].
+static func climb_step(piece: Dictionary, k: int) -> Array:
+	var c := _climb(piece)
+	var n: int = maxi(c[5], 1)
+	return [c[2] + c[1] * k / n, float(k) / (n + 1), float(k + 1) / (n + 1)]
+
+
+## Where a corner of a climb is: a fraction `f` of the way up, on its inside or left edge
+## (`side` 0) or its outside or right edge (1), at height `y`.
+static func _climb_at(piece: Dictionary, f: float, side: int, y: float) -> Vector3:
+	if piece.shape == "stairs":
+		var half: Vector3 = piece.size * 0.5
+		return Vector3(half.x * (side * 2 - 1), y, half.z - piece.size.z * f)
+	var r: float = piece.size.x * 0.5
+	var reach := r if side == 1 else clampf(float(piece.get("inner", 0.0)) * 0.5, 0.0, r - 0.05)
+	var a := spiral_angle(piece, f)
+	return Vector3(cos(a) * reach, y, sin(a) * reach)
+
+
+## A lump of a climb between fractions f0 and f1 of the way up: its walked surface (or a
+## step's tread) from `top0` to `top1`, its underside from `low0` to `low1`.
+static func _climb_lump(piece: Dictionary, f0: float, f1: float, top0: float, top1: float, low0: float, low1: float) -> PackedVector3Array:
+	var lump := PackedVector3Array()
+	for end in [[f0, top0, low0], [f1, top1, low1]]:
+		for side in 2:
+			for y: float in [end[1], end[2]]:
+				var p := _climb_at(piece, end[0], side, y)
+				if not lump.has(p):
+					lump.append(p)   # (a spiral with no Inner: its corners on the axis are one; a ramp's foot, a line)
+	return lump
+
+
+## Where a climb's walked surface is cut into lumps: a spiral's pieces of curve (Sides),
+## and where the ramp over steps turns level.
+static func _climb_cuts(piece: Dictionary) -> Array:
+	var cuts := [0.0, 1.0]
+	if piece.shape == "spiral":
+		var n: int = maxi(int(piece.get("sides", 12)), 1)
+		cuts = []
+		for i in n + 1:
+			cuts.append(float(i) / n)
+	var steps: int = _climb(piece)[5]
+	if steps > 0:
+		var level := float(steps) / (steps + 1)
+		if not cuts.any(func(c): return absf(c - level) < 0.0001):
+			cuts.append(level)
+	cuts.sort()
+	return cuts
+
+
+## A spiral or stairs as it is walked on: a smooth ramp (level over its last step).
+static func climb_walk(piece: Dictionary) -> Array:
+	var c := _climb(piece)
+	var cuts := _climb_cuts(piece)
+	var under: float = INF if c[3] == "solid" else c[4]
+	var hulls := []
+	for i in cuts.size() - 1:
+		var t0 := climb_height(piece, cuts[i])
+		var t1 := climb_height(piece, cuts[i + 1])
+		hulls.append(_climb_lump(piece, cuts[i], cuts[i + 1], t0, t1, maxf(t0 - under, -c[0]), maxf(t1 - under, -c[0])))
+	return hulls
+
+
+## A spiral's or stairs' steps: each a level tread, down to the foot (solid), on the
+## slab under the walked ramp (slab), or a tread of its own (treads). On a spiral a step is
+## cut into as many lumps as the curve has pieces across it, so each stays all but flat.
+static func climb_steps(piece: Dictionary) -> Array:
+	var c := _climb(piece)
+	var steps: int = maxi(c[5], 1)
+	var per := 1
+	if piece.shape == "spiral":
+		per = maxi(ceili(float(maxi(int(piece.get("sides", 12)), 1)) / (steps + 1)), 1)
+	var hy: float = c[0]
+	var hulls := []
+	for k in range(1, steps + 1):
+		var step := climb_step(piece, k)
+		var tread: float = step[0]
+		for j in per:
+			var f0: float = lerpf(step[1], step[2], float(j) / per)
+			var f1: float = lerpf(step[1], step[2], float(j + 1) / per)
+			var low0: float
+			var low1: float
+			match c[3]:
+				"solid":
+					low0 = -hy
+					low1 = -hy
+				"slab":   # under the slope, never closer than 2 cm under the tread
+					low0 = minf(climb_height(piece, f0) - c[4], tread - 0.02)
+					low1 = minf(climb_height(piece, f1) - c[4], tread - 0.02)
+				_:        # a floating tread
+					low0 = tread - c[4]
+					low1 = tread - c[4]
+			low0 = maxf(low0, -hy)
+			low1 = maxf(low1, -hy)
+			if tread - maxf(low0, low1) < 0.01:
+				continue
+			hulls.append(_climb_lump(piece, f0, f1, tread, tread, low0, low1))
+	return hulls
 
 
 # ---------------------------------------------------------------------------
@@ -564,8 +760,11 @@ static func _hulls(buf: Array, piece: Dictionary) -> void:
 	# ways) is inside the piece and is left out.
 	var faces := []   # [normal, corners in order, a key for where its middle is]
 	var count := {}
-	for pts in hull_points(piece):
-		for face in hull_surface(pts):
+	for pts in draw_points(piece):
+		var surface := hull_surface(pts)
+		if piece.shape == "spiral":
+			_one_way_up(surface)
+		for face in surface:
 			var mid := Vector3.ZERO
 			for p in face[1]:
 				mid += p
@@ -577,6 +776,25 @@ static func _hulls(buf: Array, piece: Dictionary) -> void:
 	for face in faces:
 		if count[face[2]] == 1:
 			_flat(_route(buf, face[0]), xf, face[1], face[0], color)
+
+
+## A piece of a spiral's curve is twisted a little (its two ends are level lines at
+## different heights and angles), so its top comes out as two faces leaning slightly
+## different ways, and its underside too. Drawn as they are, the shading and the floor's
+## pattern break at the fold between them. This gives the faces of its top one way out
+## between them (and those of its underside), so each piece reads as one sloping slab.
+## Where the corners are does not change.
+static func _one_way_up(surface: Array) -> void:
+	for way: float in [1.0, -1.0]:
+		var sum := Vector3.ZERO
+		var group := []
+		for face in surface:
+			if (face[0] as Vector3).y * way > 0.5:
+				sum += (face[0] as Vector3) * _twice_area(face[1]).length()
+				group.append(face)
+		if group.size() > 1 and sum.length() > 0.0:
+			for face in group:
+				face[0] = sum.normalized()
 
 
 ## One flat face with these corners (in the piece's own frame, in order round it,

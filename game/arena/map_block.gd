@@ -10,7 +10,13 @@ extends Node3D
 ## collision body, so a map of thousands of blocks still draws in a few calls. A
 ## block (or a group of them) hidden with the eye icon is left out of the game.
 
-enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
+enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL, SPIRAL, STAIRS }
+
+## How the steps (or the ramp) of a spiral or a flight of stairs are held up. SOLID: down
+## to its foot. SLAB: on a
+## sloping slab Thickness thick, with room to walk under its high end. TREADS: each step
+## a floating tread Thickness thick, open between (a ramp: the same slab as SLAB).
+enum StepStyle { SOLID, SLAB, TREADS }
 
 ## Hull: any convex shape, the smallest one round its Points. Picking Hull here turns
 ## the block's present shape into its corners (a tube, an arch or a hollow dome is
@@ -39,7 +45,10 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 ## with Inner it is a shell you can stand inside, with Arc under 360 a slice is left
 ## open (toward +z). Arch: a box (x wide, y high, z thick) with an arched opening cut
 ## up into it from below, Inner wide (0 = the whole width) and leaving Top at the crown.
-## Hull: the box round its corners; changing it stretches the corners to fit.
+## Hull: the box round its corners; changing it stretches the corners to fit. Spiral: the
+## diameter of its outside edge (x) and how high it climbs, foot to top (y); z is not used.
+## Stairs: a straight flight x wide, y high (foot to top) and z long, climbing toward -z
+## (its high end at the back, as a wedge).
 @export var size := Vector3.ONE:
 	set(v):
 		v = v.max(Vector3(0.01, 0.01, 0.01))
@@ -113,15 +122,16 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 		tint = v
 		_changed()
 
-## Cylinders, tubes, cones and domes: how many flat sides round. Arches: how many
-## pieces the curve is made of.
+## Cylinders, tubes, cones and domes: how many flat sides round (with an Arc under
+## 360, across the arc). Arches and spirals: how many pieces the curve is made of.
 @export_range(3, 48) var sides := 12:
 	set(v):
 		sides = v
 		_changed()
 
 ## Tubes: the inside diameter. Domes: the same, for a hollow one (0 = solid).
-## Arches: how wide the opening is (0 = as wide as the block).
+## Arches: how wide the opening is (0 = as wide as the block). Spirals: the diameter of
+## the inside edge (0 = it winds round a point, like a spiral stair with no newel).
 @export var inner := 0.0:
 	set(v):
 		inner = v
@@ -140,12 +150,53 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 		bevel = maxf(v, 0.0)
 		_changed()
 
-## Domes: how much of the way round it goes, in degrees. Under 360 leaves a slice
-## open, facing +z (an observatory's slit).
+## Domes, cylinders, tubes and spirals: how much of the way round it goes, in degrees.
+## Under 360 leaves a slice open, facing +z: an observatory's slit, a slice of a round
+## floor (a cylinder) or of a ring (a tube: a curved wall, a ring-shaped floor's sector).
 @export_range(10.0, 360.0) var arc := 360.0:
 	set(v):
 		arc = v
 		_changed()
+
+@export_group("Steps")
+## Spirals and stairs: 0 is a smooth ramp. More draws that many steps, laid out as a Stairs
+## piece lays them: the block's first stretch (one step deep) is the way on, at floor
+## level, then the steps, each a riser higher, the last level with the block's top.
+@export_range(0, 64) var steps := 0:
+	set(v):
+		steps = maxi(v, 0)
+		notify_property_list_changed()
+		_changed()
+
+## Spirals and stairs with Steps: on, players walk an invisible smooth ramp over the steps'
+## front edges (they do not step up kerbs), and the bots' navigation mesh is made from
+## it. Off, the steps themselves are solid, and anyone walking has to jump them.
+@export var smooth := true:
+	set(v):
+		smooth = v
+		_changed()
+
+## Spirals and stairs: what holds the steps (or the ramp) up. See StepStyle.
+@export var step_style := StepStyle.SOLID:
+	set(v):
+		step_style = v
+		notify_property_list_changed()
+		_changed()
+
+## Spirals and stairs with a Slab or Treads: how thick the slab or each tread is (metres,
+## upright). The walked surface starts this far above the block's foot.
+@export var thickness := 0.3:
+	set(v):
+		thickness = maxf(v, 0.02)
+		_changed()
+
+## Spirals: on, it climbs clockwise seen from above; off, anticlockwise. (A mirror
+## turns it the other way.)
+@export var clockwise := false:
+	set(v):
+		clockwise = v
+		_changed()
+@export_group("")
 
 @export_group("Faces")
 ## Some faces of another kind than the block (a trim, a painted floor): face -> kind.
@@ -187,7 +238,8 @@ enum Shape { BOX, CYLINDER, TUBE, CONE, WEDGE, BEVEL, DOME, ARCH, HULL }
 			_fitting = false
 		_changed()
 
-const SHAPE_NAMES := ["box", "cyl", "tube", "cone", "wedge", "bevel", "dome", "arch", "hull"]
+const SHAPE_NAMES := ["box", "cyl", "tube", "cone", "wedge", "bevel", "dome", "arch", "hull", "spiral", "stairs"]
+const STEP_STYLE_NAMES := ["solid", "slab", "treads"]
 
 ## Editor: how this block looks, in its own frame, for its map to draw merged with the
 ## blocks round it (MapRoot.editor_draw): kind -> mesh arrays (MapMesher.build_arrays).
@@ -225,7 +277,7 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["material"] = material_type
 	if shape != Shape.BOX:
 		piece["sides"] = sides
-	if shape == Shape.TUBE or shape == Shape.DOME or shape == Shape.ARCH:
+	if shape == Shape.TUBE or shape == Shape.DOME or shape == Shape.ARCH or shape == Shape.SPIRAL:
 		piece["inner"] = inner * scale.x
 	if shape == Shape.CONE:
 		piece["top"] = top * scale.x
@@ -233,8 +285,14 @@ func to_piece(xf: Transform3D) -> Dictionary:
 		piece["top"] = top * scale.y
 	if shape == Shape.BEVEL:
 		piece["bevel"] = bevel * minf(scale.x, minf(scale.y, scale.z))
-	if shape == Shape.DOME and arc < 360.0:
+	if arc < 360.0 and shape in [Shape.DOME, Shape.CYLINDER, Shape.TUBE, Shape.SPIRAL]:
 		piece["arc"] = arc
+	if shape == Shape.SPIRAL or shape == Shape.STAIRS:
+		piece["steps"] = steps
+		piece["smooth"] = smooth
+		piece["step_style"] = STEP_STYLE_NAMES[step_style]
+		piece["thickness"] = thickness * scale.y
+		piece["clockwise"] = clockwise
 	if not face_kinds.is_empty():
 		piece["face_kinds"] = face_kinds
 	if not face_patterns.is_empty():
@@ -269,6 +327,8 @@ func shape_lumps() -> Array:
 				box.append(Vector3(h.x if i & 1 else -h.x, h.y if i & 2 else -h.y, h.z if i & 4 else -h.z))
 			return [box]
 		Shape.CYLINDER, Shape.TUBE:
+			if arc < 360.0:
+				return MapMesher.hull_points(piece)   # a slice: its sector's lumps
 			var ring := MapMesher.tube_hulls(piece) if shape == Shape.TUBE else []
 			if not ring.is_empty():
 				return ring
@@ -299,9 +359,22 @@ static func points_bounds(pts: PackedVector3Array) -> AABB:
 	return box
 
 
-## Round the y axis, with one diameter (x): a cylinder, a tube or a cone.
+## Round the y axis, with one diameter (x): a cylinder, a tube, a cone or a spiral.
 func is_round() -> bool:
-	return shape == Shape.CYLINDER or shape == Shape.TUBE or shape == Shape.CONE
+	return shape == Shape.CYLINDER or shape == Shape.TUBE or shape == Shape.CONE or shape == Shape.SPIRAL
+
+
+## A spiral's or a flight of stairs' slope where players walk it, in degrees (a spiral's
+## half way between its inside and outside edges: steeper toward the inside). With steps
+## it climbs over all but the last step's depth.
+func climb_slope() -> float:
+	var held := 0.0 if step_style == StepStyle.SOLID else minf(thickness, size.y)
+	var run := size.z
+	if shape == Shape.SPIRAL:
+		run = deg_to_rad(arc) * maxf((size.x + maxf(inner, 0.0)) * 0.25, 0.01)
+	if steps > 0:
+		run *= float(steps) / (steps + 1)
+	return rad_to_deg(atan2(size.y - held, maxf(run, 0.01)))
 
 
 ## Moves one face (0 +x, 1 -x, 2 +y, 3 -y, 4 +z, 5 -z) to `reach` from the block's
@@ -492,7 +565,7 @@ func _validate_property(property: Dictionary) -> void:
 				# empty list into every block of every map it saves.
 				property.usage &= ~(PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_STORAGE)
 		"inner":
-			if shape != Shape.TUBE and shape != Shape.DOME and shape != Shape.ARCH:
+			if shape != Shape.TUBE and shape != Shape.DOME and shape != Shape.ARCH and shape != Shape.SPIRAL:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"top":
 			if shape != Shape.CONE and shape != Shape.ARCH:
@@ -501,7 +574,19 @@ func _validate_property(property: Dictionary) -> void:
 			if shape != Shape.BEVEL:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 		"arc":
-			if shape != Shape.DOME:
+			if shape not in [Shape.DOME, Shape.CYLINDER, Shape.TUBE, Shape.SPIRAL]:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"steps", "step_style":
+			if shape != Shape.SPIRAL and shape != Shape.STAIRS:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"smooth":
+			if (shape != Shape.SPIRAL and shape != Shape.STAIRS) or steps <= 0:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"clockwise":
+			if shape != Shape.SPIRAL:
+				property.usage &= ~PROPERTY_USAGE_EDITOR
+		"thickness":
+			if (shape != Shape.SPIRAL and shape != Shape.STAIRS) or step_style == StepStyle.SOLID:
 				property.usage &= ~PROPERTY_USAGE_EDITOR
 
 
@@ -526,6 +611,14 @@ func _get_configuration_warnings() -> PackedStringArray:
 			warnings.append("A hull needs at least four corners that are not all in one plane. Until it has them it is the box round its corners.")
 		elif points.size() > MapMesher.MAX_HULL_CORNERS:
 			warnings.append("A hull of more than %d corners is slow to build; split it into two blocks." % MapMesher.MAX_HULL_CORNERS)
+	if shape == Shape.SPIRAL or shape == Shape.STAIRS:
+		var slope := climb_slope()
+		if slope > 46.0 and (steps == 0 or smooth):
+			warnings.append("At %.0f degrees%s this is too steep to walk up (the limit is 46): players slide down it. Give it %s." % [slope,
+				" (half way across)" if shape == Shape.SPIRAL else "", "more Arc or a wider Size" if shape == Shape.SPIRAL else "a longer Size z"])
+		var riser := (size.y - (0.0 if step_style == StepStyle.SOLID else thickness)) / maxi(steps, 1)
+		if steps > 0 and step_style == StepStyle.SLAB and thickness < riser:
+			warnings.append("A slab thinner than a riser (%.2f m) leaves notches under the steps. Make Thickness at least that." % riser)
 	if breakable and not whole and not MapDestruction.thin_enough(shape, size):
 		warnings.append("Only thin walls and floors (a box at most %.1f m thick and %d m² across) break per cell. Set Break Settings to Whole Block to break this one." % [MapDestruction.MAX_THICKNESS, int(MapDestruction.MIN_AREA)])
 	return warnings

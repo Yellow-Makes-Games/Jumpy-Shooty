@@ -408,6 +408,11 @@ static func painted_in(node: Node) -> Array[MapBlock]:
 	return blocks_in(node).filter(func(b: MapBlock) -> bool: return not b.face_kinds.is_empty() or not b.face_patterns.is_empty())
 
 
+## Every spiral block that is `node` or under it (a mirror turns each the other way).
+static func spirals_in(node: Node) -> Array[MapBlock]:
+	return blocks_in(node).filter(func(b: MapBlock) -> bool: return b.shape == MapBlock.Shape.SPIRAL)
+
+
 ## Every hull block that is `node` or under it.
 static func hulls_in(node: Node) -> Array[MapBlock]:
 	return blocks_in(node).filter(func(b: MapBlock) -> bool: return b.shape == MapBlock.Shape.HULL)
@@ -897,6 +902,8 @@ static func mirrored_copy(node: Node3D, axis: int, pivot: Vector3) -> Node3D:
 		(step[0] as Node3D).transform = step[1]
 	for hull in hulls_in(dup):
 		hull.points = mirrored_points(hull)
+	for spiral in spirals_in(dup):
+		spiral.clockwise = not spiral.clockwise   # (its mirror image climbs the other way)
 	for painted in painted_in(dup):
 		var faces := mirrored_faces(painted)
 		painted.face_kinds = faces[0]

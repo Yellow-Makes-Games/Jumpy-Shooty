@@ -583,12 +583,24 @@ static func _claws() -> Array:
 	return k.parts()
 
 
-## Karate: no weapon, only hand wraps: white tape round the fist and a band of the
-## player's glow across the knuckles (it brightens with the wind-up and flares on a blow).
+## Karate: no weapon, fighting wraps (2026-11-21): an armoured guard over the knuckles in
+## three faceted plates with the player's glow in the seams between them, a gunmetal band
+## round the hand behind it and a plate down the back of the hand. Light, close to the
+## fist, so the fingers still show. KarateGear adds the bracers, shin guards and aura.
 static func _wraps() -> Array:
 	var k := MeleeKit.new()
-	k.box("plate", Vector3(0, 0, -0.03), Vector3(0.036, 0.07, 0.046))
-	for y in [-0.05, 0.0, 0.05]:
-		k.box("detail", Vector3(0, y, -0.03), Vector3(0.038, 0.006, 0.048))
-	k.box("edge", Vector3(0, 0, -0.078), Vector3(0.026, 0.066, 0.005))
+	# The band round the hand behind the knuckles.
+	k.box("dark", Vector3(0, 0, -0.018), Vector3(0.05, 0.096, 0.03))
+	# The knuckle guard: three plates across the fist with glowing seams.
+	for i in 3:
+		var y := -0.032 + 0.032 * i
+		k.plate("plate", MeleeKit.cut_rect(0.028, 0.0135, 0.007, Vector2(0, y)), -0.058, -0.072)
+	for y in [-0.016, 0.016]:
+		k.box("edge", Vector3(0, y, -0.064), Vector3(0.05, 0.004, 0.012))
+	k.plate("dark", MeleeKit.cut_rect(0.03, 0.054, 0.012), -0.034, -0.058)
+	k.box("edge", Vector3(0, 0, -0.074), Vector3(0.012, 0.09, 0.003))
+	# Plates down each side of the hand (whichever way the palm faces, one is its back).
+	for x in [-0.029, 0.029]:
+		k.box("plate", Vector3(x, 0, -0.03), Vector3(0.006, 0.082, 0.05))
+		k.box("detail", Vector3(x * 1.12, 0.0, -0.03), Vector3(0.004, 0.05, 0.012))
 	return k.parts()

@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bapmhouimwc0o"
+path="res://.godot/imported/gtao_main.glsl-5f13e6a1e7b3858268d577743fe73ea4.res"
+
+[deps]
+
+source_file="res://game/core/gtao/gtao_main.glsl"
+dest_files=["res://.godot/imported/gtao_main.glsl-5f13e6a1e7b3858268d577743fe73ea4.res"]
+
+[params]
+

@@ -108,6 +108,7 @@ var _weapon := "pistol"
 var _data: WeaponData
 var _fire_t := -1.0
 var _swing := MeleeSwing.new("sword", true)
+var _edge: ColorRect   # Karate's aura round the edges of the screen (KarateGear.edge_pulse)
 var _swing_view := Vector2.ZERO   # the swing's chest turn and lean, felt as a turn of the whole view model
 var _hold := 1.0                  # how much the arms hold the melee weapon up
 var _rest := 1.0                  # how much the blade is in its resting lean (0 while winding up or swinging)
@@ -394,6 +395,21 @@ func update(delta: float) -> void:
 		if model.melee_left:
 			MeleeModel.set_glow(model.melee_left, _swing.glow() * draw.glow())
 			MeleeModel.set_grown(model.melee_left, draw.grown())
+		if model.karate_gear:
+			KarateGear.set_level(model.karate_gear, _swing.glow(), draw.t / KarateGear.IGNITE, delta)
+
+	# Karate's aura round the edges of the screen, in first person only.
+	var fp: bool = _player.rig != null and _player.rig.first_person_amount() > 0.5
+	if model.karate_gear and fp and _player.alive:
+		if _edge == null:
+			var layer := CanvasLayer.new()
+			layer.layer = -1   # under the HUD
+			add_child(layer)
+			_edge = KarateGear.edge_pulse(model.karate_gear.get_meta("trim"))
+			layer.add_child(_edge)
+		KarateGear.set_edge(_edge, model.karate_gear)
+	elif _edge:
+		_edge.visible = false
 
 	# The shot (see GunRecoil): the gun's own parts work, and a sidearm flips up at the wrist.
 	recoil.spun = _player.weapon.spin if _player.weapon != null and _player.weapon.spin > 0.0 else -1.0   # (the minigun's barrels turn with the trigger; a killcam's go by its shots)
