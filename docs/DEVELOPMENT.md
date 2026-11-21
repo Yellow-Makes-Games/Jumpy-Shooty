@@ -242,8 +242,9 @@ Quick checks:
   and none of it is kept from breaking, the outer wall breaks under a rocket but not
   small arms, each tier has a collapse of its own, a stretch of wall gone brings down
   the section over it in that tier only (nobody spawns under it, they do a tier up), a
-  bridge over the shaft caves in without the rooms beside it, and a piece weighs what
-  things weigh where it falls;
+  bridge over the shaft caves in without the rooms beside it, a piece weighs what
+  things weigh where it falls, and a copy that is told afterwards what broke and what
+  fell (as a late joiner is) has the very same heaps in the same tiers;
 - menu layout (`tests/ui_layout_test.gd`): builds every menu page (main menu and its
   pages, the four Settings tabs, lobby, results, pause, loadout) at 18 window sizes
   and shapes (960x540 to 4K, 16:10, 21:9, 32:9, 4:3, 5:4, tall and tiny windows) and
@@ -390,7 +391,9 @@ The sync, match and bot tests take a map and a player count, for example
   (`tests/run_collapse_test.sh`, laggy network) the host blows out the corner column
   (`--blow-column`), one spectator joins during the fall and one after, and all four
   copies end with the same heap and the same walls and floors gone
-  (`MAP=cirrus COLUMN=9:0,0,1 tests/run_collapse_test.sh` does the same on Cirrus);
+  (`MAP=cirrus COLUMN=9:0,0,1 tests/run_collapse_test.sh` does the same on Cirrus, and
+  `MAP=empyrean COLUMN=14:2,2,1 SLOW=30` on Empyrean Tower, where the two who join late
+  are dropped while the map loads: see docs/FEATURES.md, known gaps);
 - a building coming down on Cirrus (`tests/cirrus_collapse_test.gd`): each of the five
   buildings has a collapse of its own riding its island, with stretches of wall for
   columns; one piece short of Wall Share and the wall holds, one more and the corner
@@ -1050,6 +1053,14 @@ else about making the map changes. What that turns on, a layer at a time:
   away from the shot or blast that broke it, with bits and dust; chunks land, lie where
   they fell and fall again if the floor under them goes. At most 120 in the air and
   160 lying of each kind. Looks only as well: each copy throws its own.
+- *Whole walls drawn together* (`MapDestruction._draw_lots`). A panel that stands still
+  and has no hole in it is drawn with the panels round it, all those in a cube of 32 m
+  (`LOT`) as one mesh for each kind, like the rest of the map; the first time it is
+  drawn with a hole it is blanked there (`MapMesher.blank`) and drawn on its own from
+  then on. So a map pays in draw calls for its damage, not for how much of it can
+  break: Empyrean Tower's 1,900 panels cost 5,000 draw calls a frame drawn singly, and
+  about 1,000 this way (570 with nothing breakable; `tools/perf/draw_load.sh
+  --map=empyrean --arena`). Panels that ride a mover are drawn singly from the start.
 - *Buildings that fall* (`map_collapse.gd`, below): the Construction Site's tower, the
   five buildings on Cirrus's islands and the six tiers of Empyrean Tower.
 
@@ -1136,7 +1147,7 @@ pieces are (at most 25 KB a second for each player, the big pieces first); a cop
 compares that with where it had the piece at the same moment of its own fall and takes
 the difference out, so nothing snaps back in time. When the host's pile is still it
 sends where every piece ended, every copy slides its pieces there over half a second,
-and the pile becomes one fixed body: part of the level, the same for everyone, with
+and the pile becomes one fixed body (the slide ends exactly on the host's numbers, so the piles match to the last bit): part of the level, the same for everyone, with
 the bots' navigation laid over it. A player who joins during or after a fall is sent
 the same. Someone under a big piece coming down fast is killed, and the kill goes to
 whoever blew the column. Nobody spawns in or under a bay that has come down. A killcam
@@ -1195,15 +1206,16 @@ at a corner and that corner is rubble on the ground, stairs and furniture includ
 do it all the way round and nothing of the building stands. What is outside every bay
 (a porch, an awning) belongs to the bay it stands against.
 
-Drawing: the loose things of a building with columns are one lot. A building held up
-by its walls has two lots for each bay, what stays put until the bay falls and what
-can go on its own, so that losing a planter with its bit of roof draws a handful of
-things again (`_lot_mesh`, `_show_lot`). Even so a furnished room is tens of
-milliseconds to draw (the mesher is GDScript, and one bevelled block is several), so
-when a thing goes on its own the bay's drawing is made over the next frames, 3 ms of
-each (`_draw_later`, `DRAW_MS`; `MapMesher.add_to` builds a few pieces at a time), and
-swapped in when done: the thing that went is in the dust of what it stood on for those
-few frames. The drawing ahead of a collapse is spread out the same way. A copy that joins after a fall makes every piece and then drops the ones
+Drawing: the loose things of a building with columns are one lot, and a building held
+up by its walls is cut into lots of 8 bays a side (`LOT_BAYS`: a tier of Empyrean Tower
+is one), each a mesh for each kind. A lot is drawn when the map is made and when it is
+mended, and at no other time: a furnished room is tens of milliseconds to draw (the
+mesher is GDScript, and one bevelled block is several), which would hold the game up.
+In its place each lot knows where in its meshes each thing is, and a thing that goes
+(with the floor under it, or with its bay in a collapse) is blanked there: its corners
+are all put at one point, a write of a few bytes to the mesh (`MapCollapse._hide`,
+`MapMesher.blank`; `MapMesher.add_to` builds a mesh a thing at a time so the places
+are known). A copy that joins after a fall makes every piece and then drops the ones
 the host's poses do not have (`_absent`), so its heap is the host's.
 
 **On an island that flies.** Put the MapFrame inside the MapMover or MapIsland, with
@@ -1223,8 +1235,8 @@ events from its index times 100,000, so a message about a fall says whose it is
 (`MapRoot.collapse_of`), and the column messages carry the index.
 
 What it costs to draw: the columns that still stand are one mesh for each kind (made
-again when one goes, which is quick), everything loose in the building is another (made
-again when a bay goes), and a pile is one mesh for each material once it is still. In a pile every vertex remembers where
+again when one goes, which is quick), everything loose in the building is another
+(blanked a thing at a time as bays go: see "Drawing" above), and a pile is one mesh for each material once it is still. In a pile every vertex remembers where
 it was before the fall, and `map_surface.gdshader` measures the pattern from there, so
 blockwork stays blockwork on a piece lying on its side and nothing changes as the pile
 sets. From four places round the site the map draws about a tenth more objects than
@@ -1232,9 +1244,8 @@ it did before fine destruction, and no more after three bays have come down.
 
 What it costs in time: the frame in which a column goes does almost nothing (about
 2 ms here). Cutting the bay up (`_plan`) and making the pieces are spread over the
-warning, a few milliseconds a tick, and the loose things are drawn as they will be
-after the fall, hidden, before it starts (`_draw_ahead`), so the moment it lets go
-only has to mark the cells fallen and swap the drawings. A graphics card builds what it
+warning, a few milliseconds a tick, so the moment it lets go only has to mark the
+cells fallen and blank what stood in those bays where it is drawn (`_hide`). A graphics card builds what it
 needs for each new sort of surface the first time one is drawn, which can hold the
 game up for a moment, so `FxWarmup` (`game/arena/fx_warmup.gd`) draws one of
 everything a first hit would be the first to draw (on every map, each part of an
@@ -1732,7 +1743,8 @@ Things to keep true when editing it:
   **Detail Chunk** metres so that works). Its sun's shadow reaches 150 m in two steps.
   A MapMagic box is not drawn beyond its **Draw Range** (90 m). `tools/perf/draw_load.sh
   --map=empyrean` counts the triangles and draw calls in a frame from six viewpoints
-  (about 630,000 and 570; before these settings 1,730,000 and 600).
+  (about 630,000 and 570; before these settings 1,730,000 and 600). Add `--arena` to
+  count it as a match has it, with what breaks set up to break (about 550,000 and 990).
 - Bots: its navigation mesh has about 8,800 polygons, more than the navigation server
   will search by default (4,096), which is why `BotBrain._nav_path` asks with a higher
   limit. `godot --headless --path . --script tools/perf/bot_load.gd -- --perf-map=empyrean`

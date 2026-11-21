@@ -205,6 +205,17 @@ static func _put_custom(buf: Array, count: int) -> void:
 	buf[3] = custom
 
 
+## Blanks `count` corners of a mesh from `first` on, in place: they are all put at one
+## point, so the faces they made are no longer drawn. For something drawn as part of a
+## big mesh that is gone now (a thing fallen with its floor, a panel with its first
+## hole in it): the big mesh need not be made again, which is slow. (A surface's
+## corners come first in its vertex data, three 32-bit numbers each.)
+static func blank(mesh: ArrayMesh, first: int, count: int) -> void:
+	var none := PackedByteArray()
+	none.resize(count * 12)
+	mesh.surface_update_vertex_region(0, first * 12, none)
+
+
 ## The same mesh, marked as part of something that moves (a MapMover's body): its
 ## second UV says "measure my pattern from my own frame, not the map's", which the
 ## surface shader reads (map_surface.gdshader). A pattern measured from the map stays

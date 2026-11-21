@@ -167,7 +167,10 @@ Last updated: killcams match the match (the killer's crosshair exactly where the
   hardware (15,300 blocks, the most of any map, plus 250 boxes of shader-driven magic), how the low gravity outside feels, the lifts
   and the Portal Surge all want a playtest. Its three new sounds have not been heard by a person.
   Its destruction (2026-11-21) has been checked the same way only: how many rockets a wall, a section and a bridge
-  should take, and what a tier costs to draw now that its furniture is drawn a section at a time, want a playtest.
+  should take, and its frame rate in a long fight (a match now draws about 990 things a frame there against 570, more as walls get holes), want a playtest.
+- Joining an Empyrean Tower match that has already started may not work: in the automated online check (headless, 100 ms of
+  simulated lag) a spectator who joins late is dropped by the host while the map loads (it takes 8 to 11 s, during which the
+  joiner does not answer the network). It was so before the tower could break. Not seen on the smaller maps. Needs a try on real PCs.
 - Cirrus has only been run in a software renderer, automated tests and short headless
   bot games, never on a real graphics card or with people. Its frame rate, how a fall
   and a ride feel, whether 8 s is enough warning from deep inside a building, and its

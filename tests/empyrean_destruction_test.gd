@@ -12,13 +12,16 @@ extends SceneTree
 ##    tier up;
 ##  - a bridge over the shaft caves in once enough of it is shot away, and takes none
 ##    of the rooms beside it;
-##  - what falls outside the wall falls in the low gravity there.
+##  - what falls outside the wall falls in the low gravity there;
+##  - someone who joins afterwards is told what is broken and what fell, tier by tier,
+##    and has the very same heaps and the same walls and floors gone.
 
 const TIER := 30.5
 const ROCKET := [1.575, 262.0]   # how far a rocket breaks things, and how hard
 
 var failures := 0
 var map: MapRoot
+var heaps := {}   # the host's heaps: a collapse's number -> what MapCollapse.settled says of it
 
 
 func _init() -> void:
@@ -64,6 +67,8 @@ func _run() -> void:
 	for i in 4:
 		await physics_frame
 	var d := map.destruction
+	for other in map.collapses:
+		other.settled.connect(func(id: int, key: String): heaps[id] = key)
 
 	print("  what breaks")
 	var kinds := {}
@@ -199,6 +204,33 @@ func _run() -> void:
 				if (library._span_units[bridge] as Dictionary).has(unit):
 					mine += 1
 			_check(mine >= 1 and span.size() <= 12, "the bridge and what stands on it, not the rooms beside it (%d sections)" % span.size())
+
+	print("  someone who joins afterwards")
+	for n in 3600:   # (120 steps a second: a fall is called over 22 s after it began at the latest)
+		if map.collapses.all(func(o): return o.events.all(func(ev): return int(ev.state) == MapCollapse.DOWN)):
+			break
+		await physics_frame
+	_check(heaps.size() == 2, "both falls come to rest on the host (%d)" % heaps.size())
+	var view := SubViewport.new()   # (a world of its own)
+	view.own_world_3d = true
+	view.size = Vector2i(16, 16)
+	root.add_child(view)
+	var late: MapRoot = Maps.make("empyrean")
+	late.destructible = true
+	view.add_child(late)
+	late.build()
+	var theirs := {}
+	for other in late.collapses:
+		other.settled.connect(func(id: int, key: String): theirs[id] = key)
+	# (As MatchState does it: what is broken, then each collapse's state.)
+	var all := d.snapshot()
+	late.destruction.apply(all[0], all[1])
+	for other in map.collapses:
+		late.collapses[other.index].restore(other.state())
+	for n in 120:
+		await physics_frame
+	_check(late.destruction.state_key() == d.state_key(), "they have the same walls and floors gone (%s)" % late.destruction.state_key())
+	_check(theirs == heaps and not theirs.is_empty(), "and the very same heaps, each in its own tier (%s)" % [theirs])
 
 	print("  falling outside")
 	_check(is_equal_approx(WorldGravity.zone_at(Vector3(0, 5, 0)), 1.0) and WorldGravity.zone_at(Vector3(45, 40, 0)) < 0.5,

@@ -76,6 +76,7 @@ const SLAM_REACH := 1.1       ## fine: metres round a ground slam that go throug
 const HEALTH_SPREAD := 0.5    ## fine: one cell is up to this much tougher than the next (a ragged hole, not a round one)
 const CUT_SHADE := 0.7       ## fine: how dark the broken edge of a panel is drawn
 const CRACK_SHADE := [1.0, 0.8, 0.62]
+const LOT := 32.0             ## metres: fine panels that stand whole are drawn together, in lots this big (see _draw_lots)
 const MAX_DEBRIS := 140
 const PANEL_BUCKET := 6.0     ## metres: the size of the buckets pieces are matched to panels in
 
@@ -189,8 +190,53 @@ func _take(pieces: Array, spawn_points: Array, frame: Node3D) -> Array:
 	# Whole blocks count as things resting on a floor: a floor under a crate holds.
 	_protect(rest + whole_pieces, spawn_points, first_cell, first_panel)
 	for i in range(first_panel, panels.size()):
+		if panels[i].fine and panels[i].frame == null:
+			panels[i]["lot"] = []   # (drawn with the panels round it while it is whole: see _draw_lots)
 		_rebuild_panel(i)
+	_draw_lots(first_panel)
 	return rest
+
+
+## Draws the fine panels from `first_panel` on that stand still, whole: all those in
+## each cube of LOT metres as one mesh for each kind, like the rest of the map, in
+## place of a mesh or two for every panel (a map can have thousands: Empyrean Tower's
+## 1,900 were five thousand draw calls a frame). Each panel knows where in those
+## meshes it is ("lot": [[mesh, its first corner, how many]...]); the first time it is
+## drawn with a hole in it, it is blanked there and drawn on its own from then on
+## (_rebuild_meshes). Panels that ride a mover are drawn on their own from the start.
+func _draw_lots(first_panel: int) -> void:
+	if DisplayServer.get_name() == "headless" and not root.has_meshes:
+		return
+	var lots := {}   # which cube -> {"drawn": kind -> buffer, "sizes": kind -> corners so far, "spans": [[panel, kind, first corner, how many]]}
+	for index in range(first_panel, panels.size()):
+		var panel: Dictionary = panels[index]
+		if not panel.has("lot"):
+			continue
+		var keys := PackedByteArray()
+		keys.resize(int(panel.nu) * int(panel.nv))
+		keys.fill(1)
+		var lot: Dictionary = lots.get_or_add(Vector3i(((panel.xf as Transform3D).origin / LOT).floor()), {"drawn": {}, "sizes": {}, "spans": []})
+		var drawn: Dictionary = lot.drawn
+		MapMesher.add_to(drawn, _flat_pieces(panel, keys), root.face_shade)
+		for kind: String in drawn:
+			var now := (drawn[kind][0] as PackedVector3Array).size()
+			var was := int(lot.sizes.get(kind, 0))
+			if now > was:
+				(lot.spans as Array).append([index, kind, was, now - was])
+				lot.sizes[kind] = now
+	for at: Vector3i in lots:
+		var holder := Node3D.new()
+		holder.name = "Lot_%d_%d_%d" % [at.x, at.y, at.z]
+		add_child(holder)
+		var meshes := MapMesher.meshes(lots[at].drawn)
+		for kind: String in meshes:
+			var node := MeshInstance3D.new()
+			node.name = "Mesh_%s" % kind
+			node.mesh = meshes[kind]
+			node.material_override = root.material_for(kind)
+			holder.add_child(node)
+		for span: Array in lots[at].spans:
+			(panels[span[0]].lot as Array).append([meshes[span[1]], span[2], span[3]])
 
 
 func _can_break(piece: Dictionary, table: Dictionary) -> bool:
@@ -975,6 +1021,12 @@ func _rebuild_meshes(index: int) -> void:
 	_dirty.erase(index)
 	if DisplayServer.get_name() == "headless" and not root.has_meshes:
 		return
+	if panel.has("lot"):
+		if not _fine_gone(panel, true).has(1):
+			return   # (whole, as it is drawn in its lot: see _draw_lots)
+		for at: Array in panel.lot:
+			MapMesher.blank(at[0], at[1], at[2])
+		panel.erase("lot")
 	if panel.fine:
 		_fine_meshes(panel)
 		return
@@ -1028,6 +1080,23 @@ func _rebuild_whole_meshes(panel: Dictionary) -> void:
 	var meshes := MapMesher.build([piece], root.face_shade)
 	for kind in meshes:
 		holder.add_child(_drawn(panel, kind, meshes[kind]))
+
+
+## The cells of a fine panel marked 1 in `keys` (one for each cell across its face), as
+## the few boxes they make, with the skins over them cut to match: pieces to draw.
+func _flat_pieces(panel: Dictionary, keys: PackedByteArray) -> Array:
+	var pieces := []
+	var xf: Transform3D = panel.xf
+	for box in _merge_flat(panel.nu, panel.nv, keys, 1):
+		var local := _flat_extent(panel, box)
+		pieces.append(painted(panel, {"xf": xf * Transform3D(Basis(), local.get_center()), "size": local.size,
+			"kind": panel.kind, "shape": "box", "tint": panel.tint}))
+		for skin in panel.skins:
+			var clipped := _clip_skin(panel, skin.box, local)
+			if clipped.has_volume():
+				pieces.append({"xf": xf * Transform3D(Basis(), clipped.get_center()), "size": clipped.size,
+					"kind": skin.kind, "shape": "box", "tint": skin.tint})
+	return pieces
 
 
 ## One of a panel's meshes, ready to draw. On a panel that rides a mover the kind's
@@ -1369,15 +1438,7 @@ func _fine_meshes(panel: Dictionary) -> void:
 						var shade := CUT_SHADE if open[k] == 2 else 1.0
 						MapMesher._flat(MapMesher.face_buffer(extra, own, layer[0], side.normalized()), xf, [far[k], far[k2], near[k2], near[k]],
 							side.normalized(), Color(colour.r * shade, colour.g * shade, colour.b * shade, colour.a))
-	for box in _merge_flat(nu, nv, keys, 1):
-		var local := _flat_extent(panel, box)
-		pieces.append(painted(panel, {"xf": xf * Transform3D(Basis(), local.get_center()), "size": local.size,
-			"kind": panel.kind, "shape": "box", "tint": tint}))
-		for skin in panel.skins:
-			var clipped := _clip_skin(panel, skin.box, local)
-			if clipped.has_volume():
-				pieces.append({"xf": xf * Transform3D(Basis(), clipped.get_center()), "size": clipped.size,
-					"kind": skin.kind, "shape": "box", "tint": skin.tint})
+	pieces.append_array(_flat_pieces(panel, keys))
 	var holder: Node3D = panel.meshes
 	var meshes := MapMesher.build(pieces, root.face_shade)
 	for kind in extra:
