@@ -18,7 +18,7 @@ const HUD_TAB := 2
 ## The short controls list on the pause menu: [action, description]. Keys come from
 ## the current bindings.
 const CHEAT_SHEET := [
-	["move", "Move"], ["glide", "Glide"], ["jump", "Jump"], ["crouch", "Crouch"], ["dive", "Dive"],
+	["move", "Move"], ["sprint", "Sprint"], ["glide", "Glide"], ["jump", "Jump"], ["crouch", "Crouch"], ["dive", "Dive"],
 	["kick", "Kick"], ["boost", "Rocket boots"], ["grapple", "Mobility"], ["interact", "Interact"],
 	["fire", "Shoot"], ["zoom", "Zoom"], ["reload", "Reload"],
 	["toggle_camera", "First / third person"], ["scoreboard", "Scoreboard"], ["debug_menu", "Debug menu"],
@@ -93,7 +93,6 @@ func _show_tab(i: int) -> void:
 			_slider("Sensitivity", 0.02, 0.5, 0.01, Settings.mouse_sensitivity, func(v): Settings.mouse_sensitivity = v)
 			_switch("Invert mouse Y", Settings.invert_y, func(v): Settings.invert_y = v)
 			_switch("Toggle zoom", Settings.zoom_toggle, func(v): Settings.zoom_toggle = v)
-			_switch("Always sprint", Settings.always_sprint, func(v): Settings.always_sprint = v)
 			_build_bindings()
 		1:
 			UiKit.section(_page, "Camera")

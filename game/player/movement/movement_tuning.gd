@@ -8,16 +8,16 @@ const EYE_HEIGHT := 1.6  ## eyes above the feet, standing
 const BODY_RADIUS := 0.4
 
 ## Movement variants, for A/B testing how movement feels. The host picks one in the
-## lobby (LobbySettings.movement) and every player in the match runs it. There is one
-## variant today: "b" (the numbers below with the changes in _apply_b). Classic (the
+## lobby (LobbySettings.movement) and every player in the match runs it. Two today:
+## Movement A is id "b" (the numbers below with the changes in _apply_b; the id is
+## older than the A/B names), and Movement B is id "sprint" (A, plus _apply_sprint). Classic (the
 ## plain numbers, with Shift-glide and the crouch-slide on C) is retired: an old
 ## "classic" choice (saved settings, an older host) now means "b". The A/B setup is kept
 ## so a new variant can be tried later: add its id to VARIANTS, give each mechanic it
 ## changes a switch here (an @export bool), have MovementController check the switch,
 ## and turn it on in an _apply_ function. Prefer a switch per mechanic over checking
-## `variant` in the controller. (While there is only one variant there is nothing to
-## pick, so the menus show no movement switch.)
-const VARIANTS := ["b"]
+## `variant` in the controller.
+const VARIANTS := ["b", "sprint"]
 const DEFAULT_VARIANT := "b"
 
 var variant := DEFAULT_VARIANT   ## which variant built these numbers (see for_variant)
@@ -28,9 +28,9 @@ static func valid_variant(id) -> String:
 	return str(id) if str(id) in VARIANTS else DEFAULT_VARIANT
 
 
-## The variant's name for menus and the HUD.
+## The variant's name for menus and the HUD: "A" or "B".
 static func variant_name(id) -> String:
-	return "Variant B" if valid_variant(id) == "b" else str(id)
+	return "B" if valid_variant(id) == "sprint" else "A"
 
 
 ## Fresh tuning for a variant. Each player gets their own copy: Player changes some
@@ -38,9 +38,17 @@ static func variant_name(id) -> String:
 static func for_variant(id) -> MovementTuning:
 	var t := MovementTuning.new()
 	t.variant = valid_variant(id)
-	if t.variant == "b":
-		t._apply_b()
+	t._apply_b()
+	if t.variant == "sprint":
+		t._apply_sprint()
 	return t
+
+
+## Movement B: Movement A, but you always run at sprint speed (no Sprint key), the
+## rocket boots are on Shift and Interact on E (see Settings.use_movement_layout).
+func _apply_sprint() -> void:
+	always_sprint = true
+	shift_boost = true
 
 
 ## Variant B: its numbers and mechanic switches, set over the plain ones.
@@ -206,6 +214,8 @@ func _apply_b() -> void:
 @export var space_jetpack := false        ## Space held in the air flies the jetpack, if you have it
 @export var space_hold_time := 0.2        ## space_jetpack: Space held this long in the air flies it
 @export var always_tuck := false          ## legs tucked whenever you have been in the air a moment, no key needed
+@export var always_sprint := false        ## always at sprint speed on the ground (no Sprint key needed)
+@export var shift_boost := false          ## the keys: Shift fires the rocket boots, E interacts (Settings.use_movement_layout)
 @export var ctrl_moves := false           ## Ctrl or Q: forward dives, back slides on your back, otherwise crouches (no crouch-slide)
 @export var wall_sit_time := 0.0          ## push into a wall in mid-air: stick to it this long (0 = never)...
 @export var wall_sit_slide_speed := 2.0   ## ...then slide down it this fast while you keep pushing

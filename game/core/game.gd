@@ -117,6 +117,7 @@ func goto_main_menu(notice: String = "") -> void:
 		pending_notice = notice
 	mode = Mode.NONE
 	_release_mouse()
+	Settings.use_movement_layout(false)   # (the usual keys outside a Movement B match)
 	get_tree().change_scene_to_file.call_deferred(MAIN_MENU)
 
 

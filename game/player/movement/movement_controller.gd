@@ -48,7 +48,7 @@ extends RefCounted
 ## Winding a melee swing up in a plain fall hangs you in the air for a moment (see
 ## _hang): hang_time seconds per time in the air, refilled like the glide.
 ##
-## Rocket boots (Shift): a burst of speed toward your WASD direction as seen from
+## Rocket boots (E): a burst of speed toward your WASD direction as seen from
 ## where you look (straight where you look if you hold no direction), so you can
 ## boost up, down, sideways or back, on the ground, in the air or mid-swing. It
 ## adds to the speed you have, so a burst along a grapple swing whips you round
@@ -203,7 +203,7 @@ func step(body: CharacterBody3D, input: PlayerInput, delta: float) -> void:
 		return
 
 	var wish := _wish_dir(input)
-	var wish_speed: float = (t.sprint_speed if input.sprint else t.run_speed) * min(input.move.length(), 1.0)
+	var wish_speed: float = (t.sprint_speed if input.sprint or t.always_sprint else t.run_speed) * min(input.move.length(), 1.0)
 	var forward := input.move.y > 0.3
 
 	# The crouch and dive keys. With tuning.ctrl_moves (Variant B) either key is one

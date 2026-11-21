@@ -43,6 +43,7 @@ var _killcam_minutes: SpinBox
 var _amount_unit: Label
 var _powerups: CheckButton   # Deathmatch: power-ups on the map or not
 var _zoom_ab: CheckButton    # how far everyone's zoom goes: A (off) or B (on), see LobbySettings.ZOOMS
+var _movement_ab: CheckButton   # how everyone moves: Movement A (off) or B (on), see MovementTuning.VARIANTS
 var _allowed: AllowedWeaponsPicker   # shoot-out: the weapons the host allows (see LobbySettings)
 var _allowed_mobility: AllowedMobilityPicker   # every fight: the mobility tools the host allows
 var _rules_head: Control   # the "Loadout rules" heading over the lobby settings
@@ -776,6 +777,16 @@ func _build_rules() -> void:
 		var s := Net.match_settings.duplicate()
 		s["zoom"] = "b" if on else "a"
 		Net.set_match_settings(s))
+	_movement_ab = CheckButton.new()
+	_movement_ab.name = "movement_ab"
+	_movement_ab.custom_minimum_size = Vector2(0, 44)
+	_col.add_child(_movement_ab)
+	_movement_ab.toggled.connect(func(on: bool):
+		if _updating:
+			return
+		var s := Net.match_settings.duplicate()
+		s["movement"] = "sprint" if on else "b"
+		Net.set_match_settings(s))
 
 
 # Lobby settings (see LobbySettings): the host picks; everyone else sees them. New
@@ -897,6 +908,9 @@ func _refresh_rules() -> void:
 	_zoom_ab.disabled = not Net.is_host()
 	_zoom_ab.set_pressed_no_signal(LobbySettings.zoom() == "b")
 	_zoom_ab.text = "Zoom: %s (%d degrees)" % [LobbySettings.zoom().to_upper(), LobbySettings.zoom_degrees()]
+	_movement_ab.disabled = not Net.is_host()
+	_movement_ab.set_pressed_no_signal(LobbySettings.movement() == "sprint")
+	_movement_ab.text = "Movement: " + MovementTuning.variant_name(LobbySettings.movement())
 	if _allowed:
 		_allowed.set_value(s.get("weapons", []))
 	if _allowed_mobility:
