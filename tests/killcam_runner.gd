@@ -132,7 +132,7 @@ func _scores() -> void:
 	_expect(flick[0] == KillScore.BASE + 75 and flick[1] & KillScore.T_FLICK, "a 95° flick adds a point a degree past 20, and a tag (%d)" % flick[0])
 	_expect(KillScore.score({"flick": 15.0}) == [KillScore.BASE, 0], "steady aim is no bonus")
 	_expect(KillScore.score({"flick": 400.0})[0] == KillScore.BASE + KillScore.FLICK_MAX, "flick points stop at %d" % KillScore.FLICK_MAX)
-	# Spins: all the way round in the air before the shot.
+	# Spins: all the way round before the shot.
 	var air_base: int = KillScore.score({"killer_state": S.AIR})[0]
 	var s180 := KillScore.score({"killer_state": S.AIR, "spin": 200.0, "flick": 200.0})
 	_expect(s180[1] & KillScore.T_180 and not s180[1] & KillScore.T_FLICK and s180[0] == air_base + 150 + KillScore.TRICK,
@@ -141,7 +141,8 @@ func _scores() -> void:
 	var s720 := KillScore.score({"killer_state": S.AIR, "spin": 730.0})
 	_expect(s360[1] & KillScore.T_360 and s720[1] & KillScore.T_720 and s720[0] > s360[0] and s360[0] > s180[0],
 		"a 720 beats a 360, which beats a 180 (%d, %d, %d)" % [s720[0], s360[0], s180[0]])
-	_expect(KillScore.score({"spin": 400.0})[1] & KillScore.T_SPIN == 0, "spinning on the ground is no spin")
+	var ground := KillScore.score({"spin": 400.0})
+	_expect(ground[1] & KillScore.T_360 and ground[0] == KillScore.BASE + 250, "a 360 on the ground counts too, without the combo (%s)" % [ground])
 	_expect(KillScore.score({"killer_state": S.AIR, "spin": 400.0, "cause": "kick"})[1] & KillScore.T_SPIN == 0, "a kick is no spin")
 	_expect(KillScore.trick_count(s360[1]) == 2 and KillScore.tag_words(s360[1], 0, 0.0).has("360"),
 		"a 360 in the air is a trickshot, and says 360 (%s)" % [KillScore.tag_words(s360[1], 0, 0.0)])
@@ -155,10 +156,10 @@ func _scores() -> void:
 		spinning.push(i / 30.0, i / 30.0, Vector3.ZERO, Vector3.ZERO, deg_to_rad(i * 400.0 / 30.0), 0.0, S.AIR)
 	for i in range(31, 37):   # ...then flicking 40 back onto the target
 		spinning.push(i / 30.0, i / 30.0, Vector3.ZERO, Vector3.ZERO, deg_to_rad(400.0 - (i - 30) * 40.0 / 6.0), 0.0, S.AIR)
-	_expect(absf(spinning.spin(KillScore.SPIN_WINDOW, KillScore.AIRBORNE) - 400.0) < 1.0,
-		"the buffer finds a 400 degree spin through the flick back (%.1f)" % spinning.spin(KillScore.SPIN_WINDOW, KillScore.AIRBORNE))
-	spinning.push(2.0, 2.0, Vector3.ZERO, Vector3.ZERO, 0.0, 0.0, S.GROUND)
-	_expect(spinning.spin(KillScore.SPIN_WINDOW, KillScore.AIRBORNE) == 0.0, "...and none once they land")
+	_expect(absf(spinning.spin(KillScore.SPIN_WINDOW) - 400.0) < 1.0,
+		"the buffer finds a 400 degree spin through the flick back (%.1f)" % spinning.spin(KillScore.SPIN_WINDOW))
+	spinning.push(4.0, 4.0, Vector3.ZERO, Vector3.ZERO, 0.0, 0.0, S.GROUND)
+	_expect(spinning.spin(KillScore.SPIN_WINDOW) < 1.0, "...and none once it is over 1.5 s ago (%.1f)" % spinning.spin(KillScore.SPIN_WINDOW))
 	var words := KillScore.tag_words(rope[1] | KillScore.T_HEADSHOT | KillScore.T_LONG | KillScore.T_FLICK | KillScore.T_FAST | KillScore.T_TARGET_FAST,
 		2, 42.4, 24.2, 19.6, 95.4)
 	_expect(words == ["TRIPLE KILL", "TRICKSHOT", "ON THE ROPE", "HEADSHOT", "FLICK 95°", "24 M/S", "TARGET AT 20 M/S", "42 M"], "the words come most telling first (%s)" % [words])

@@ -68,8 +68,8 @@ const FLICK_WINDOW := 0.6
 const FLICK_FROM := 20.0     ## every degree past this is worth a point...
 const FLICK_MAX := 120       ## ...up to this many (at 140 degrees)
 const FLICK := 60.0          ## the "FLICK 95°" tag from this far
-## A spin: the killer turned all the way round in the air before the shot (one way,
-## within the SPIN_WINDOW seconds they were last in the air). It takes the flick's place
+## A spin: the killer turned all the way round before the shot (one way, within the
+## last SPIN_WINDOW seconds), on the ground or in the air. It takes the flick's place
 ## (it is a bigger one) and is one trick for the combo.
 const SPIN_WINDOW := 1.5
 const SPINS := [[720.0, 131072, 400], [360.0, 65536, 250], [180.0, 32768, 150]]   ## [degrees, tag, points], biggest first
@@ -143,7 +143,7 @@ static func score(facts: Dictionary) -> Array:
 	var flick := float(facts.get("flick", 0.0))
 	if flick >= FLICK:
 		tags |= T_FLICK
-	if tags & T_MID_AIR and not is_blow(tags):   # a spin is a shot's, in the air
+	if not is_blow(tags):   # a spin is a shot's
 		var spun := float(facts.get("spin", 0.0))
 		for s in SPINS:
 			if spun >= float(s[0]):
