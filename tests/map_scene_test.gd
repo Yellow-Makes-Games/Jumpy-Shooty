@@ -197,7 +197,14 @@ func _check_painted_breaking() -> void:
 	var painted_meshes := func() -> Array:
 		return (panel.meshes as Node).get_children().filter(func(m: Node) -> bool:
 			return m is MeshInstance3D and (m as MeshInstance3D).material_override == grass)
-	_expect(not painted_meshes.call().is_empty(), "whole, its painted face is drawn in the paint's kind")
+	# (Whole, a panel that breaks small is drawn with those round it, in its lot: see
+	# MapDestruction._draw_lots. With a hole in it, it is drawn on its own.)
+	var in_lots := []
+	for lot in d.get_children():
+		if String(lot.name).begins_with("Lot_"):
+			in_lots.append_array(lot.get_children().filter(func(m: Node) -> bool:
+				return m is MeshInstance3D and (m as MeshInstance3D).material_override == grass))
+	_expect(not in_lots.is_empty() or not painted_meshes.call().is_empty(), "whole, its painted face is drawn in the paint's kind")
 	# A hole of four cells in the middle, drawn as a killcam would show it (no rubble and
 	# no sounds, which want a running game: this is about how what is left is drawn).
 	var ids := PackedInt32Array()

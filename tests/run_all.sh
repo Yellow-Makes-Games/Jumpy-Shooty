@@ -69,6 +69,7 @@ CHECKS=(
   "empyrean|--script tests/empyrean_test.gd"
   "empyrean_play|--script tests/empyrean_play_test.gd"
   "empyrean_destruction|--fixed-fps 60 --script tests/empyrean_destruction_test.gd"
+  "neon_arcade_destruction|--fixed-fps 60 --script tests/neon_arcade_destruction_test.gd"
   "haunted_house|--script tests/haunted_house_test.gd"
   "testing_grounds|--fixed-fps 60 --script tests/course_test.gd"
   "construction_site|--fixed-fps 60 --script tests/site_test.gd"
