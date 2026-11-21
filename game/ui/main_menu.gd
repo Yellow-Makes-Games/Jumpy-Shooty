@@ -32,6 +32,7 @@ var _code_edit: LineEdit
 var _status: Label
 var _join_window: FloatingPanel   # Multiplayer: Join lobby's window (the code, then join as player or spectator)
 var _join_status: Label
+var _invite_note: PanelContainer   # a friend's invite to their lobby (see Friends), top right
 
 
 func _ready() -> void:
@@ -41,6 +42,7 @@ func _ready() -> void:
 	_build_front()
 	_frame = MenuFrame.new(900, false, false)
 	add_child(_frame)
+	_build_invite_note()
 	match DevArgs.menu:
 		"play": _show_play()
 		"bot": _show_bot()
@@ -603,25 +605,83 @@ func _on_create() -> void:
 
 ## spectate: watch with a free camera instead of playing (you can join in from the menu).
 func _on_join(spectate: bool = false) -> void:
-	var address := _code_edit.text.strip_edges()
+	_say_join(join_code(_code_edit.text, spectate))
+
+
+## Join the lobby with this code (the Join window, or a friend's invite). What to tell
+## the player: a bad code, or that it is connecting.
+func join_code(code: String, spectate: bool = false) -> String:
+	var address := code.strip_edges()
 	var bad: String = LobbyCode.parse(address).error
 	if bad != "":
-		_say_join(bad)
-		return
+		return bad
 	if address != Settings.last_address:
 		Settings.last_address = address
 		Settings.save_settings()
 	var err := Game.join_online(address, spectate)
 	if err != OK:
-		_say_join("Could not start joining (%s)." % error_string(err))
-	else:
-		_say_join("Connecting...")
+		return "Could not start joining (%s)." % error_string(err)
+	return "Connecting..."
+
+
+# ---------------------------------------------------------------------------
+# A friend's invite: their name, Join (as a player, with the invite's lobby code) and
+# a cross. On every page of the menu, the newest invite first.
+
+func _build_invite_note() -> void:
+	_invite_note = PanelContainer.new()
+	_invite_note.name = "InviteNote"
+	var box := UiKit.panel_box(14)
+	box.border_color = Color(UiKit.CYAN, 0.45)
+	box.shadow_size = 14
+	_invite_note.add_theme_stylebox_override("panel", box)
+	_invite_note.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_invite_note.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_invite_note.offset_left = -24
+	_invite_note.offset_right = -24
+	_invite_note.offset_top = 24
+	add_child(_invite_note)
+	Friends.changed.connect(_show_invite)
+	_show_invite()
+
+
+func _show_invite() -> void:
+	if not is_instance_valid(_invite_note):
+		return
+	UiKit.clear(_invite_note)
+	_invite_note.visible = not Friends.invites.is_empty() and not Net.is_online
+	if not _invite_note.visible:
+		return
+	var inv: Dictionary = Friends.invites[0]
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	_invite_note.add_child(row)
+	var who := UiKit.label(row, "%s invited you" % inv.username, false, 17)
+	who.name = "who"
+	who.autowrap_mode = TextServer.AUTOWRAP_OFF
+	who.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var join := UiKit.primary_button(row, "Join", func(): _join_invite(inv))
+	join.name = "join"
+	join.custom_minimum_size = Vector2(110, 44)
+	join.add_theme_font_size_override("font_size", 18)
+	var close := UiKit.button(row, "X", func(): Friends.dismiss(inv))
+	close.name = "dismiss"
+	close.theme_type_variation = "Chip"
+	close.custom_minimum_size = Vector2(44, 44)
+
+
+func _join_invite(inv: Dictionary) -> void:
+	var said := join_code(str(inv.code))
+	if said == "Connecting...":
+		Friends.dismiss(inv)
+	elif is_instance_valid(_invite_note) and _invite_note.get_child_count() > 0:
+		UiKit.label(_invite_note.get_child(0), said, true, 14).name = "said"
 
 
 ## A line under the join window's buttons: a bad code, or that it is connecting.
 func _say_join(text: String) -> void:
-	if _join_status and is_instance_valid(_join_status):
+	if is_instance_valid(_join_status):
 		_join_status.text = text
 		_join_status.visible = true
-	elif _status:
+	elif is_instance_valid(_status):
 		_status.text = text

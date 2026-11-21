@@ -4,7 +4,7 @@ extends VBoxContainer
 ## page, paged with arrows), your calling card with your name on it, your level (see
 ## PlayerLevel), the achievements you track or are closest to finishing, and the one
 ## you finished last. And, when this build has one (see Account), your online account:
-## sign in to keep all of this in the cloud.
+## sign in to keep all of this in the cloud, and your friends (see FriendsPanel).
 
 const PER_PAGE := 6
 const STAT_HEIGHT := 64.0
@@ -18,6 +18,7 @@ var _pager: Label
 var _card: CallingCardView
 var _name_edit: LineEdit
 var _account: VBoxContainer
+var _friends: FriendsPanel
 
 
 func _init() -> void:
@@ -86,6 +87,10 @@ func _build() -> void:
 		_account.add_theme_constant_override("separation", 6)
 		right.add_child(_account)
 		_show_account()
+		UiKit.section(right, "Friends")
+		_friends = FriendsPanel.new()
+		_friends.name = "friends"
+		right.add_child(_friends)
 
 	var rule := ColorRect.new()
 	rule.color = Color(UiKit.LINE, 0.12)
@@ -292,7 +297,7 @@ func _on_account_changed() -> void:
 		return
 	# A sync may have brought progress or a profile from another computer: build the
 	# page again (unless you are typing your name, which would lose your place).
-	if Account.busy == "" and not (_name_edit and _name_edit.has_focus()):
+	if Account.busy == "" and not (_name_edit and _name_edit.has_focus()) and not (_friends and _friends.typing()):
 		for child in get_children():
 			remove_child(child)
 			child.queue_free()
